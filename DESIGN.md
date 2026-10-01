@@ -112,7 +112,8 @@ flowchart LR
 | Schema validation | Zod (or similar) | Validates step configs, LLM outputs and DB payloads. The same schema generates the UI controls (toggles, sliders). |
 | Preview rendering | **Proposed:** Verovio (WASM) in the browser, fed by a TS converter from our constrained LilyPond subset | Keeps review and preview rendering runnable everywhere. See §9. |
 | Google Drive | Google Identity Services + Google Picker + `drive.file` scope, entirely in the browser | `drive.file` is non-sensitive: no app verification, and access only to files the user picks or the app creates. |
-| Local development | `wrangler dev` (local D1/R2 emulation) + Vite | One code path from day 1. Deploying is just `wrangler deploy`. |
+| Local development | `wrangler dev` (local D1/R2 emulation) + Vite dev server, run as two processes. Vite proxies `/api` to Wrangler. No Cloudflare Vite plugin. | One code path from day 1. Keeps the app and the Worker as separate packages with a clear boundary. |
+| Deployment | One Worker with static assets: `apps/worker`'s Wrangler config serves `apps/web`'s build output. `wrangler deploy` uploads both. | One origin: no CORS, one Access policy, app and API always deployed at the same version. |
 | Tests | Vitest | Pure-TS core runs in Node for unit, golden-image and replay tests. |
 
 ### Repository layout (suggested)
@@ -128,9 +129,10 @@ packages/
 apps/
   web/       React UI, Web Worker host, OPFS + Drive + local-file adapters.
   worker/    Hono API, D1 + R2 adapters, LLM provider adapters.
+  eval/      Local evaluation tooling: engrave command, side-by-side viewer (§13).
 fixtures/    Recorded test projects (§12).
-docs/
-  DESIGN.md
+testset/     Evaluation test set (§13): inputs, their strokes and .ly candidates committed, rest ignored.
+DESIGN.md
 ```
 
 ### Ports and adapters
@@ -228,7 +230,7 @@ One pass over each page, plus a document-level merge. The output is used as cont
 - **Metadata:** title, composer, editor, opus, movement titles.
 - **Structure:** staves per system, instruments, voices per staff, staff count changes.
 - **Musical context:** key and time signatures and their changes, clefs, where themes and melodies begin and end, repeats, and which passages repeat earlier material.
-- **Phenomena per system:** multiple voices, lyrics, ossia/alternatives, editorial notes, reduction staff, double systems. These drive the skeleton and the test-set breakdown (§13).
+- **Phenomena per system:** multiple voices, lyrics, ossia/alternatives, editorial notes, reduction staff, double systems. These drive the skeleton.
 
 Example of why this matters: a smudged note on one page can be resolved because the global analysis knows the passage repeats a theme from a page that was read without problems.
 
@@ -267,7 +269,7 @@ Failures go to the fix stage with a precise location. This replaces what LilyPon
 - **Why flag instead of fix:**
   - A fixing reviewer can silently turn correct notes into plausible wrong ones.
   - Mixing review and editing blurs provenance.
-  - Flags can be scored for precision and recall on the test set, which tells us whether review is worth its cost.
+  - Flags can be checked against the original by eye, which tells us whether review is worth its cost.
 - At most 1–2 review→fix rounds. If reviewers disagree or findings persist, the system goes to the human.
 - A different model than the transcriber is preferred for review.
 
@@ -281,7 +283,7 @@ LLMs fill in "musically likely" content. That is desirable for a smudge and dang
 - explicit uncertainty lists
 - structural checks
 - image-based review
-- measuring how often errors slip through on the test set
+- checking the engraved output against the original on the test set (§13)
 
 ## 8. Image processing and reproducibility across devices
 
@@ -331,7 +333,6 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 |---|---|---|
 | Rhythm and structure checks | Constrained-subset parser (§7.4) | Browser |
 | Visual preview for the human and the reviewer | TS converter: constrained LilyPond subset → MEI (or MusicXML), rendered with **Verovio** (WASM) to SVG | Browser |
-| MIDI for evaluation | Verovio's MIDI output from the same conversion | Browser |
 | Final engraving (the "real" LilyPond PDF) | Outside the pipeline: compile the exported `.ly` locally. Optionally a paid container later, behind the same `Renderer` port. | Optional |
 
 **Reasons:**
@@ -395,24 +396,21 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 
 ## 13. Evaluation
 
-- A **test set of hand-verified LilyPond**, per system, built around the phenomena in §1 rather than random pieces:
-  - multiple voices per staff
-  - staff count changes
-  - lyrics
-  - editorial notes and ossia/alternatives
-  - reduction staff
-  - two-piano double systems
-  - old ornamented scans
-  - clean vector PDFs
-  - a few non-piano cases
-- **Metrics:**
-  - structural checks passing
-  - musical content (pitches, durations, voices) compared after normalization, e.g. via MIDI against ground truth
-  - **human effort:** number and size of manual edits per system
-  - reviewer precision and recall
-  - cost per system
-- **Results are reported per phenomenon,** not as one average, so it's visible what works and what doesn't.
-- Re-run the evaluation whenever a step version, prompt or model changes. Store results with the versions used.
+**Human evaluation, supported by tooling.** There is no ground-truth LilyPond for interesting scores (only for PDFs engraved from LilyPond, a narrow and easy subdomain). LilyPond can also express the same music in many ways, so comparing source text is meaningless. And the errors music OCR still makes are big and obvious: improvements are visible from a glance at the rendered output. Precise automatic metrics would be the right tool for a production system tuned over years, not for this project.
+
+### Test set
+- `testset/` in the repo. Small, since evaluation is by hand. Only the input PDFs (public domain, e.g. from IMSLP), the highlighter strokes on them and the `.ly` candidates are committed. The inputs never change, so their strokes stay valid on any machine. Engravings, strokes on engravings and any other files produced there stay local. Its README documents the tooling and why each piece was picked.
+- Input PDFs are chosen to cover the phenomena in §1 rather than random pieces: multiple voices per staff, staff count changes, lyrics, editorial notes and ossia/alternatives, reduction staff, two-piano double systems, old ornamented scans, clean vector PDFs, a few non-piano cases.
+- Naming: `<piece>.orig.pdf` is the input. Each extraction method adds `<piece>.<method>.ly`, e.g. `fuer_elise.audiveris.ly`, `fuer_elise.s3l-gemini.ly`. Audiveris (the v1 approach) serves as the baseline.
+
+### Tooling
+- **Engrave command:** compiles every `<piece>.<method>.ly` that has no `<piece>.<method>.pdf` yet, using a local LilyPond install. Never overwrites existing PDFs.
+- **Viewer:** a local web page with three PDFs side by side, each scrolling continuously (page breaks don't line up across engravings). The left pane always shows the original. The middle and right panes have dropdowns listing the available engravings of the same piece.
+- **Highlighter:** freehand strokes painted semi-transparently over any of the PDFs (original or engraving), in a color from a short list, to point the eye at errors. No types, no counting. "Undo last stroke" is the only way to erase. Strokes are stored next to the PDF in `<piece>.<method>.marks.json` (`<piece>.orig.marks.json` for the original): per stroke the page, color and points normalized to the page size, plus the hash of the PDF they were drawn on. The PDF itself is never modified. If its hash no longer matches, the viewer warns that the strokes may be misplaced.
+
+### Use
+- Compare methods, prompts and models side by side by eye.
+- Cost per piece comes from the LLM call records (§10).
 
 ## 14. Things to pay special attention to
 
@@ -431,7 +429,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 ## 15. Open questions
 
 - **Rendering:** confirm the Verovio-based proposal (§9), or drop rendering from the pipeline entirely and review from crop + LilyPond text only (as in v1). Decide after testing whether rendered previews measurably improve review quality.
-- **Reviewer details:** flag-only versus auto-accepted patches. Same model or a different one. Number of rounds. Decide using reviewer precision/recall on the test set.
+- **Reviewer details:** flag-only versus auto-accepted patches. Same model or a different one. Number of rounds. Decide by comparing results with and without review on the test set.
 - **Model choice per step:** which models for analysis, transcription and review, and at what price/quality point.
 - **Splitting wide systems:** always, never, or based on density. The overlap size and the merge rule.
 - **Constrained LilyPond subset:** exact definition, especially for cross-staff notation, ornaments, ossia and lyrics.
@@ -445,6 +443,6 @@ Goal: find out early whether the LLM-based approach gives good quality.
 2. Extract page images deterministically → OPFS → show in the UI.
 3. Global analysis of one page with Gemini → system boxes + metadata. Human correction of the boxes.
 4. Crop systems → transcribe one system with context → structural checks.
-5. Record the LLM calls, turn the result into the first fixture, and start the test set with a few hand-verified systems.
+5. Record the LLM calls, turn the result into the first fixture, and run the first comparison against Audiveris in the evaluation viewer (§13).
 
 Then: assembly across systems, review (with or without preview rendering), manual edits plus stale marking, regeneration on a second device, Drive integration.

@@ -1,0 +1,8 @@
+{
+  "name": "score3ly",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  // The web app's build output, served as static assets by this Worker.
+  // Requests that don't match a file fall through to the Worker code.
+  "assets": { "directory": "../web/dist" }
+}
