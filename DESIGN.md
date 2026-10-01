@@ -1,0 +1,450 @@
+# Design Document — Score-to-LilyPond Pipeline (v2)
+
+> Status: draft, pre-implementation. This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. **Open questions** are collected in §15.
+
+## 1. What this app is
+
+A web app that converts PDFs of music scores into **LilyPond source code**.
+
+- **Input:** a PDF, usually a scan of an old score, sometimes a digitally typeset (vector) PDF.
+- **Output:** LilyPond source, optionally with an engraved rendering for side-by-side comparison with the original.
+- **Focus:** the **pipeline**, not just the end result.
+  - Every step is configurable.
+  - Every intermediate input and output can be inspected.
+  - Any part of the pipeline can be re-run from the first stage that went wrong, with a different configuration.
+  - Any intermediate artifact can be edited by hand, and the pipeline resumes from the edited version.
+- **Recognition is done by vision LLMs** (e.g. Gemini, Claude), steered by programmatic steps and human assistance. Programmatic steps handle the deterministic work: image handling, structure, checks, assembly. Humans assist where machines are unreliable, for example cropping heavily ornamented old scores.
+
+### Lessons from v1
+v1 was Python-only, local-only and command-line-only.
+
+**What failed:** heavy programmatic preprocessing (cropping, deskewing, stain removal) followed by Audiveris (MusicXML) and `musicxml2ly`.
+- Ornamented old scores were impossible to handle with scripts.
+- Audiveris failed badly on them.
+
+**What carries over:**
+- The stage-tracking system: detecting finished stages, resuming interrupted runs, re-running stages, with hash checks and JSON documentation. It is the basis for §5.
+- The LilyPond output conventions in §7.3.
+
+**Where v2 starts from:** experience from other projects shows that current vision LLMs read difficult material very well, at a cost of cents per call.
+
+### Scope
+- **Focus:** classical piano scores. This is hard enough already, because it involves:
+  - multiple voices per staff
+  - the staff count changing mid-piece (e.g. 3 staves in a passage, 2 elsewhere)
+  - lyrics below systems
+  - editorial notes, ossia and alternative versions
+  - a reduction staff for an orchestral part
+  - two-piano double systems
+- **Also possible:** other instrumentations are not excluded, but they are not optimized for initially.
+
+### Goals
+- **Quality first:** the measure of success is how good the LilyPond is and how little human correction it needs. Infrastructure only exists to serve that.
+- **Cheap:** runs on free tiers. Paid LLM calls are the only expected running cost.
+- **Transparent:** open source, simple deployment, documented strategy (this file).
+- **Runnable from anywhere:** start on the desktop, continue on the phone. Every pipeline stage should work on both.
+- **Reproducible and testable:** every artifact can be traced back to its inputs, code version, prompt version, model and configuration. Non-deterministic parts (LLM calls, human input) are recorded so they can be replayed (§12).
+
+### Non-goals (for now)
+- Multiple users, sharing, collaboration. One user (the author) for the foreseeable future.
+- MusicXML output.
+- Offline-first operation.
+
+## 2. Architecture overview
+
+```mermaid
+flowchart LR
+  subgraph Device["Browser (desktop or mobile)"]
+    UI[React UI]
+    WW["Web Workers:<br/>PDF decoding, image processing,<br/>fingerprints, LilyPond-subset checks,<br/>preview rendering (proposed)"]
+    OPFS[("OPFS:<br/>derived images (cache)")]
+    UI <--> WW
+    WW <--> OPFS
+  end
+
+  subgraph CF["Cloudflare (EU jurisdiction)"]
+    W["Worker (Hono):<br/>API, auth boundary, LLM proxy"]
+    D1[("D1 (SQLite):<br/>projects, configs, text artifacts,<br/>provenance, LLM call records")]
+    R2[("R2:<br/>original PDFs by SHA-256,<br/>non-regenerable binaries")]
+    W <--> D1
+    W <--> R2
+  end
+
+  Drive["Google Drive<br/>(source + export target)"]
+  LLM["Vision LLMs<br/>(Gemini, Claude, ...)"]
+
+  UI <-->|HTTPS, behind Cloudflare Access| W
+  UI <-->|Picker + drive.file| Drive
+  W <--> LLM
+```
+
+### Where data lives
+
+| Data | Location | Why |
+|---|---|---|
+| Original PDFs | R2, key = SHA-256 of the file bytes | Source of truth. About 0.66 GB for 200 PDFs, well within R2's 10 GB free tier. Identifying PDFs by content makes deduplication and "resume an existing project?" trivial. |
+| Projects, step configs, provenance, fingerprints | D1 | Small, structured, relational. SQLite is easy to inspect and migrate. |
+| Text artifacts (analysis JSON, LilyPond fragments, review findings, human operations) | D1 | Small, must never be lost, often not reproducible. |
+| LLM call records (full request + response) | D1 (large payloads in R2) | Needed for provenance, cost tracking and replay tests (§12). |
+| Derived images (page images, preprocessed pages, system crops) | OPFS on the current device | Large (roughly 50–100 MB per PDF in grayscale) but regenerable from the PDF plus the recipe. Device-local means real deletion, no cloud quota, and no data residency issue. |
+| Final exports (LilyPond, optional engraved PDF) | Download, or an app-created folder in Google Drive | The user's own file space. Browsable anywhere. |
+
+### Why this split
+- **No server-side compute.** Workers have tight CPU limits and no native libraries. All heavy processing happens in the browser, so the Worker stays a thin API and LLM proxy, and stays on the free tier. Waiting on an LLM response doesn't consume Worker CPU time.
+- **Images are cache, not data.** This removes the biggest storage cost entirely. Switching devices costs some regeneration time, not storage.
+- **Everything persistent is small** (text in D1) or **content-addressed and immutable** (PDFs in R2).
+
+## 3. Technology decisions
+
+| Area | Choice | Reason |
+|---|---|---|
+| Language | TypeScript everywhere | One set of types shared by the UI, the processing code, the Worker and the DB rows. The v1 Python code is being rewritten anyway. |
+| Frontend | React + Vite | Familiar. Deploys to Cloudflare as static assets without changes. |
+| Backend | Cloudflare Worker, HTTP layer on Hono | Web-standard `Request`/`Response`, minimal and portable. |
+| Database | Cloudflare D1, created with `--jurisdiction eu` | SQLite semantics, free tier, EU data residency. The jurisdiction can only be set at creation. |
+| Object storage | Cloudflare R2, bucket created with EU jurisdiction | 10 GB free, no egress fees, native Worker binding. The jurisdiction can only be set at creation. |
+| Auth | Cloudflare Access in front of the whole app | No auth code in the app. |
+| Device storage | OPFS (Origin Private File System) | Supported by Firefox, Chrome and Safari. Fast binary access from Web Workers. |
+| PDF handling | pdf.js, version pinned | Renders vector PDFs and decodes CCITT/JBIG2 images in JS, deterministically. |
+| JPEG decoding | Bundled JS/WASM decoder (e.g. libjpeg-turbo WASM, jpeg-js), not the browser's | Browser JPEG decoders may differ by about ±1 gray level. A bundled decoder gives identical pixels everywhere. |
+| Vision LLMs | Gemini for layout (bounding boxes). Gemini and/or Claude for transcription and review. Configurable per step. | Gemini is trained to return bounding boxes (normalized 0–1000). Both are strong readers. Swappable behind the `LlmProvider` port and compared on the test set. |
+| Structured LLM output | Provider-native schema-constrained output, validated with Zod | Machine-checkable outputs. No free-form parsing. |
+| Schema validation | Zod (or similar) | Validates step configs, LLM outputs and DB payloads. The same schema generates the UI controls (toggles, sliders). |
+| Preview rendering | **Proposed:** Verovio (WASM) in the browser, fed by a TS converter from our constrained LilyPond subset | Keeps review and preview rendering runnable everywhere. See §9. |
+| Google Drive | Google Identity Services + Google Picker + `drive.file` scope, entirely in the browser | `drive.file` is non-sensitive: no app verification, and access only to files the user picks or the app creates. |
+| Local development | `wrangler dev` (local D1/R2 emulation) + Vite | One code path from day 1. Deploying is just `wrangler deploy`. |
+| Tests | Vitest | Pure-TS core runs in Node for unit, golden-image and replay tests. |
+
+### Repository layout (suggested)
+
+```
+packages/
+  core/      Pipeline engine, artifact model, step definitions, config schemas.
+             Pure TypeScript, no DOM and no Cloudflare APIs.
+  imaging/   Decoders, deterministic image operations, fingerprints. Pure TS/WASM.
+  notation/  Constrained-LilyPond parser, structural checks, skeleton builder,
+             assembler, converter for preview rendering.
+  prompts/   Versioned prompt templates and their output schemas.
+apps/
+  web/       React UI, Web Worker host, OPFS + Drive + local-file adapters.
+  worker/    Hono API, D1 + R2 adapters, LLM provider adapters.
+fixtures/    Recorded test projects (§12).
+docs/
+  DESIGN.md
+```
+
+### Ports and adapters
+
+The core depends only on interfaces. Adapters live in `apps/*`.
+
+| Port | Adapters |
+|---|---|
+| `PdfSource` | Local file input, Google Drive (Picker) |
+| `BlobStore` (original PDFs) | R2 via the Worker. In-memory for tests. |
+| `ProjectStore` (projects, artifacts, provenance) | D1 via the Worker. SQLite or in-memory for tests. |
+| `DerivativeCache` (regenerable images) | OPFS. In-memory for tests. |
+| `LlmProvider` | One adapter per provider (via the Worker). **Replay** adapter for tests. |
+| `Renderer` | **Proposed:** Verovio in the browser. Optional: LilyPond (local install, container). See §9. |
+| `ExportTarget` | Browser download, Google Drive folder |
+
+## 4. Identity and projects
+
+- A PDF is identified by the **SHA-256 of its bytes**, computed on the device with `crypto.subtle.digest` **before** uploading.
+- When a PDF is selected, the app asks D1 whether the hash exists:
+  - **Unknown:** upload to R2 at `pdfs/<sha256>.pdf` and create a project.
+  - **Known:** offer to resume an existing project on this PDF, or start a new one. There can be several projects per PDF.
+- The file name and source (Drive ID, local path) are stored as informational metadata only, never as identity.
+- Concurrent edits from two devices are prevented by optimistic locking: each project has a version number, and stale writes are rejected with a reload prompt.
+
+## 5. The pipeline model
+
+The pipeline is designed like a small build system. The v1 stage-tracking system (hash checks, resumability, JSON documentation) is the starting point and is ported, not reinvented.
+
+### 5.1 Steps
+
+Each step declares:
+- `id` and `version`, e.g. `transcribe_system@3` (see §11).
+- A **config schema** (Zod), which is also the source of its UI controls.
+- **Input** and **output artifact types**.
+- **Granularity:** per document, per page, or per system. Steps can fan out, e.g. one page becomes many systems.
+- Its **kind:** `deterministic` (code), `llm`, or `human`.
+- Its **runtime:** browser (Web Worker) or Worker proxy (LLM calls).
+
+### 5.2 Artifacts and provenance
+
+Every step output is an artifact with:
+- `step id@version`
+- a canonical config hash (JSON with sorted keys)
+- the IDs of its input artifacts
+- its `origin` (`computed` | `llm` | `manual` | `imported`)
+- a fingerprint (for images, see §8.3)
+- a timestamp
+
+LLM artifacts additionally reference their **call record**: prompt template version, filled-in context, image hashes, exact model ID, parameters, full response, token usage and cost.
+
+A **cache key** = hash(step id, version, canonical config, input artifact IDs).
+- Re-running a step with identical inputs and config hits the cache.
+- Changing the config of stage N creates new artifacts from N onward. The old ones remain as an alternative branch for comparison.
+- Each stage has a **selected** artifact (or branch) that downstream steps consume.
+
+### 5.3 Persisted vs. regenerable (important)
+
+- **Deterministic** artifacts (page images, preprocessing, crops, assembly) store only their **recipe plus fingerprint**. Images live in OPFS and can be regenerated. Small text outputs may be stored anyway for convenience.
+- **LLM** and **human** artifacts **must be persisted**. They cannot be regenerated: re-running an LLM call gives a different answer and costs money.
+- Rule: *anything you would hate to lose must never exist only as a cached image.*
+
+### 5.4 Manual edits
+
+- A manual edit creates a **new artifact** with `origin = manual` whose parent is the edited artifact. Downstream artifacts become **stale** and are marked as such in the UI. They are not deleted.
+- Edits to images are stored as **replayable operations** in D1, not as edited pixels: crop windows, deskew angles, masks as vector strokes. Replaying them on the regenerated base image reproduces the edited result.
+- Text artifacts (analysis JSON, LilyPond fragments) are stored edited, with a diff to their parent.
+
+### 5.5 Resuming and re-running
+- "Re-run from stage N with a different config" means: create a new branch at N, mark later stages stale, then execute forward.
+- "Resume from my manual output" is the same mechanism, starting from a `manual` artifact.
+- Execution is lazy and per item: only the pages and systems being looked at, or needed downstream, are computed.
+
+## 6. Pipeline stages (initial plan)
+
+| # | Stage | Kind | Granularity | Output |
+|---|---|---|---|---|
+| 0 | Ingest | deterministic | document | PDF in R2, project in D1 |
+| 1 | Page images | deterministic | page | Page image (OPFS) + fingerprint |
+| 2 | Light preprocessing (deskew, contrast, optional binarization) | deterministic + human (angles) | page | Preprocessed image + recorded parameters |
+| 3 | Global analysis | llm | page + document | Structured JSON (see below) |
+| 4 | Layout correction | human (+ deterministic snapping) | page | Confirmed system boxes, normalized coordinates |
+| 5 | System crops | deterministic | system | Crop images. Wide systems optionally split into overlapping halves (§8.5). |
+| 6 | Score skeleton | deterministic (+ human confirmation) | document | LilyPond structure: staves, voices, variable names, staff changes |
+| 7 | Transcription | llm | system | Structured JSON: music per voice, measure count, uncertainty list |
+| 8 | Structural checks | deterministic | system | Check results (§7.4) |
+| 9 | Review | llm | system | Findings (§7.5) |
+| 10 | Fix | llm or human | system | Revised transcription. At most 1–2 review→fix rounds. |
+| 11 | Assembly | deterministic | document | Complete LilyPond source |
+| 12 | Export | deterministic (+ optional engraving, §9) | document | `.ly` file, optional engraved PDF |
+
+### Global analysis (stage 3)
+One pass over each page, plus a document-level merge. The output is used as context for all later LLM steps:
+- **System bounding boxes**, normalized to 0–1000 (Gemini's native format). They are snapped to detected staff lines (horizontal projection) and then confirmed or corrected by the human in stage 4.
+- **Metadata:** title, composer, editor, opus, movement titles.
+- **Structure:** staves per system, instruments, voices per staff, staff count changes.
+- **Musical context:** key and time signatures and their changes, clefs, where themes and melodies begin and end, repeats, and which passages repeat earlier material.
+- **Phenomena per system:** multiple voices, lyrics, ossia/alternatives, editorial notes, reduction staff, double systems. These drive the skeleton and the test-set breakdown (§13).
+
+Example of why this matters: a smudged note on one page can be resolved because the global analysis knows the passage repeats a theme from a page that was read without problems.
+
+## 7. LLM steps
+
+### 7.1 Context for each transcription call
+- the system crop (or its overlapping halves)
+- the relevant global analysis (key, time, clefs, voices, themes, repeated material)
+- the score skeleton: which voices to fill and their names
+- the LilyPond output of the **previous system**, plus its final state (key, time, clefs, voice positions)
+- optionally, the transcription of referenced material (e.g. the theme being repeated)
+
+### 7.2 Structured output
+Each call returns JSON validated by a Zod schema: music per voice, measure count, and a list of **uncertain spots** (location, reason, e.g. "smudged, inferred from theme in m. 12"). This uses provider-native schema-constrained output.
+
+### 7.3 LilyPond conventions (carried over from v1)
+- **Absolute pitches**, not `\relative`, so an octave error doesn't propagate and systems are independent.
+- **Code builds the skeleton.** The score structure (staves, voices, naming, variables) is generated by code. LLMs only fill in music per voice and system, so assembly is concatenation, not merging.
+- **Bar checks** (`|`) and `\barNumberCheck` are required in every fragment.
+- A fixed, documented **subset of LilyPond** that LLMs may use (notes, rests, chords, ties, slurs, tuplets, grace notes, articulations and ornaments, dynamics, lyrics, voice changes). A constrained output space makes it checkable.
+
+### 7.4 Structural checks (deterministic, browser-side)
+A TS parser for the constrained subset checks, without needing LilyPond:
+- the fragment parses
+- the duration of each measure matches the time signature (accounting for pickups and tuplets)
+- bar checks are consistent and measure counts match the global analysis
+- expected voices are present, and their names match the skeleton
+- pitches are within plausible ranges per clef/staff
+
+Failures go to the fix stage with a precise location. This replaces what LilyPond's bar-check warnings would provide, while staying runnable everywhere.
+
+### 7.5 Reviewer role (proposed: flag, don't fix)
+- The reviewer gets the original crop, the transcription, and (proposed, §9) a rendering of the transcription to compare against the original.
+- It returns **findings**, not edits. Each finding has a location (system, measure, voice, beat), a type (pitch, rhythm, accidental, missing voice, missing ornament, …), a confidence, and optionally a **suggested patch** for that single measure.
+- **Fixes are a separate stage:** re-transcribe the affected system with the findings as context, or a human accepts or rejects the suggested patches. Patches may be auto-accepted only if structural checks still pass.
+- **Why flag instead of fix:**
+  - A fixing reviewer can silently turn correct notes into plausible wrong ones.
+  - Mixing review and editing blurs provenance.
+  - Flags can be scored for precision and recall on the test set, which tells us whether review is worth its cost.
+- At most 1–2 review→fix rounds. If reviewers disagree or findings persist, the system goes to the human.
+- A different model than the transcriber is preferred for review.
+
+### 7.6 Prompts and models are code
+- Prompt templates are versioned in `packages/prompts` and are part of their step's version.
+- Model IDs are pinned exactly, never "latest" aliases.
+- Every call is recorded (§5.2), and identical requests are served from the record instead of being paid for again.
+
+### 7.7 Known LLM risk: plausible wrong notes
+LLMs fill in "musically likely" content. That is desirable for a smudge and dangerous everywhere else, because the errors look correct. Defenses:
+- explicit uncertainty lists
+- structural checks
+- image-based review
+- measuring how often errors slip through on the test set
+
+## 8. Image processing and reproducibility across devices
+
+### 8.1 Getting page images
+- **Scanned PDFs:** extract the embedded page image directly instead of rendering the page.
+  - CCITT/JBIG2: decoded by pdf.js in JavaScript, so identical everywhere.
+  - JPEG: decoded by the bundled decoder, so identical everywhere.
+- **Vector PDFs:** render with pdf.js at a fixed DPI, with pixel size computed explicitly as `round(pagePt × dpi / 72)`. Geometry is identical everywhere. Only anti-aliased edges differ slightly between canvas backends, and binarization removes most of that.
+
+### 8.2 Deterministic operations
+- All image operations are implemented in our own TS/WASM code, never with canvas transforms or `drawImage` scaling.
+- `Math.sin`, `Math.cos`, `Math.exp` etc. are not guaranteed to give identical results across JS engines. Round them to a fixed precision (e.g. 12 decimals) or ship our own implementations.
+- Operation chains are ordered. Coordinates refer to the output of the previous step. Define exactly how deskewing sizes its output canvas.
+- Human and LLM coordinates are stored in **normalized units**, so they survive regeneration at a different resolution.
+
+### 8.3 Fingerprints: verifying "close", not just "identical"
+Stored for every image a human or LLM has worked on, and for every confirmed system box. Checked after each regeneration in three tiers:
+
+1. **Exact:** pixel dimensions plus SHA-256 of the **raw decoded pixels**. This is not a hash of the PNG file, since PNG encoders differ.
+2. **Close:** a downsampled grayscale thumbnail (64×64 to 128×128). Compare the regenerated image downsampled the same way:
+   - mean absolute difference below about 1 gray level, and
+   - no single tile above a few gray levels.
+3. **Mismatch:** flag the project and ask the human to re-check the affected boxes and angles.
+
+### 8.4 Device constraints
+- **Memory:** a 300 dpi page held in canvas memory is about 35 MB, and mobile Safari strictly limits total canvas memory. Process one page at a time in a Web Worker, using typed arrays / `OffscreenCanvas`.
+- **Latency:** generate lazily, current page first.
+- **Eviction:** call `navigator.storage.persist()`, but assume the OPFS cache can disappear at any time. Missing derivatives are simply regenerated.
+- **Rotation:** an LRU cache with a configurable size limit. Deletion is real deletion.
+- **Bundle size:** avoid OpenCV.js (about 10 MB). With LLMs doing the reading, preprocessing is light enough to write by hand.
+
+### 8.5 Image resolution sent to LLMs
+Models downscale large images (Claude to roughly 1568 px on the long edge; Gemini has configurable media resolution). Piano systems are wide, so on dense systems noteheads can become a few pixels tall. Mitigations:
+- split wide systems into overlapping halves, with a defined overlap in measures and a merge rule
+- choose the resolution setting per provider
+- test both on the test set
+
+## 9. Rendering (proposed)
+
+**Goal:** every pipeline stage runs on any device, desktop or mobile, with no local helper and no paid compute.
+
+**Problem:** LilyPond is a native program. It runs neither in the browser nor in a Worker, and there is no practical WASM build. A desktop helper would break "runnable from anywhere". An always-on container (Cloudflare Containers) would break "free tier only", since it needs the $5/month paid plan.
+
+**Proposal:** separate *checking* and *previewing* from *engraving*.
+
+| Need | Solution | Runs |
+|---|---|---|
+| Rhythm and structure checks | Constrained-subset parser (§7.4) | Browser |
+| Visual preview for the human and the reviewer | TS converter: constrained LilyPond subset → MEI (or MusicXML), rendered with **Verovio** (WASM) to SVG | Browser |
+| MIDI for evaluation | Verovio's MIDI output from the same conversion | Browser |
+| Final engraving (the "real" LilyPond PDF) | Outside the pipeline: compile the exported `.ly` locally. Optionally a paid container later, behind the same `Renderer` port. | Optional |
+
+**Reasons:**
+- Because LLM output is restricted to a documented subset (§7.3), converting it is a bounded task, unlike converting arbitrary LilyPond.
+- Verovio's engraving differs from LilyPond's, but for comparing pitches, rhythms, voices and ornaments against the original, that doesn't matter.
+
+**Risks:**
+- Converter bugs could cause false review findings. Mitigation: converter golden tests, plus the occasional real LilyPond compile of exported files as a cross-check.
+- The subset must be rich enough for piano (multiple voices, cross-staff notation, grace notes, ornaments, tuplets, lyrics). The converter grows with the subset.
+- Verovio adds a few MB to the download. Load it lazily, only in review and preview views.
+
+## 10. External services
+
+| Service | Use | Notes |
+|---|---|---|
+| Cloudflare Workers (static assets + API) | Hosting | Free tier. No heavy compute. |
+| Cloudflare D1 | Database | EU jurisdiction set at creation. Cannot be changed later. |
+| Cloudflare R2 | Original PDFs, large LLM payloads | EU jurisdiction bucket. Cannot be changed later. |
+| Cloudflare Access | Login | Protects everything, including the API. |
+| Google Drive | Picking source PDFs. Optional export target. | `drive.file` scope, Picker for selection, app-created export folder. Publish the OAuth app to "production" status (even unverified), because refresh tokens expire after 7 days in "testing" status. |
+| Vision LLMs | Global analysis, transcription, review | Called **only through the Worker**: API keys stay in Worker secrets. |
+
+### Data residency
+- PDFs (R2) and text (D1) are in EU-jurisdiction Cloudflare storage. Images stay on the device unless sent to an LLM.
+- Cloudflare is a US company. An EU jurisdiction guarantees **where** data is stored, not which legal regime ultimately applies. This is acceptable for this project.
+- **LLM calls are the residency gap.** For EU processing:
+  - Gemini and Claude are both available in EU regions through Google Vertex AI. Claude is also available through AWS Bedrock.
+  - The plain provider APIs give no such guarantee.
+  - On Google AI Studio's free tier, inputs may be used to improve Google's products.
+
+  Document the choice per provider in the config.
+
+### Cost
+- Storage and hosting: free tiers.
+- LLM calls: cents per call. Roughly per PDF: about 12 page analyses, about 50 system transcriptions, plus reviews and fixes. Cheaper models (e.g. Flash-class) for easy steps, stronger models where accuracy matters.
+- Every call is logged with its cost. The UI shows per-project and monthly totals.
+
+## 11. Versioning
+
+- **Step versions are explicit and immutable.** An algorithm change that would invalidate human input (e.g. stored system boxes) is a new step version, such as `crop_to_systems_v2`. The old one stays in the codebase, and projects record which version produced each artifact.
+- **Part of a step's version:**
+  - library versions (pdf.js, decoders, Verovio)
+  - prompt template versions
+  - pinned model IDs
+- Load old step versions lazily with dynamic `import()`.
+- If the number of versions grows unmanageable: release **app v2.0**, declare v1.x project data incompatible, and start fresh. This is acceptable while there is a single user.
+- **D1 schema migrations** use `wrangler d1 migrations`.
+
+## 12. Testing and reproducibility
+
+**Principle:** deterministic parts are tested directly. Non-deterministic parts (LLM calls, human input) are **recorded and replayed**.
+
+- **Unit tests:** image operations, parser, structural checks, skeleton builder, assembler, converter.
+- **Golden-image tests:** deterministic image pipelines produce known raw-pixel hashes, or fingerprints within tolerance (§8.3).
+- **Fixture projects:** real scores with recorded LLM call records (request + response) and recorded human operations (boxes, angles, accepted patches), stored in `fixtures/`.
+- **Replay tests:** run a fixture end to end with the replay `LlmProvider`.
+  - Deterministic steps must reproduce identical artifact hashes. LLM and human steps return their recordings.
+  - This tests the plumbing, assembly and resume logic with no API cost.
+- **Stale recordings:** a changed prompt or model changes the request hash, so replay misses. The test reports exactly which recordings are stale, and they are re-recorded against the live API.
+- **Quality evaluation** is separate from tests (§13): live runs, with repeated runs to measure variance. A temperature of 0 doesn't guarantee identical answers.
+
+## 13. Evaluation
+
+- A **test set of hand-verified LilyPond**, per system, built around the phenomena in §1 rather than random pieces:
+  - multiple voices per staff
+  - staff count changes
+  - lyrics
+  - editorial notes and ossia/alternatives
+  - reduction staff
+  - two-piano double systems
+  - old ornamented scans
+  - clean vector PDFs
+  - a few non-piano cases
+- **Metrics:**
+  - structural checks passing
+  - musical content (pitches, durations, voices) compared after normalization, e.g. via MIDI against ground truth
+  - **human effort:** number and size of manual edits per system
+  - reviewer precision and recall
+  - cost per system
+- **Results are reported per phenomenon,** not as one average, so it's visible what works and what doesn't.
+- Re-run the evaluation whenever a step version, prompt or model changes. Store results with the versions used.
+
+## 14. Things to pay special attention to
+
+| Risk | Mitigation |
+|---|---|
+| **Infrastructure work crowding out quality work** (plumbing is fun) | Vertical slice first (§16). Measure quality on the test set early and often. |
+| Losing LLM output or human input because it was treated like cache | §5.3: LLM and human artifacts are always persisted. Eviction only touches deterministic artifacts. |
+| Plausible but wrong notes from LLMs | §7.7: uncertainty lists, structural checks, image-based review, measured slip-through rate. |
+| Regenerated images drifting from what the human or LLM worked on | §8: deterministic decoding and operations, normalized coordinates, fingerprint checks. |
+| Downscaled system images losing detail | §8.5: overlapping halves, resolution settings, tested per provider. |
+| Converter/preview bugs producing false review findings | §9: converter golden tests, occasional real LilyPond cross-check. |
+| ML costs creeping up | Per-call cost logging, reuse of recorded requests, cheaper models for easy steps. |
+| Two devices editing the same project | Optimistic locking (§4). |
+| Irreversible infrastructure choices | D1 and R2 jurisdictions are set at creation. Scripted in the repo. |
+
+## 15. Open questions
+
+- **Rendering:** confirm the Verovio-based proposal (§9), or drop rendering from the pipeline entirely and review from crop + LilyPond text only (as in v1). Decide after testing whether rendered previews measurably improve review quality.
+- **Reviewer details:** flag-only versus auto-accepted patches. Same model or a different one. Number of rounds. Decide using reviewer precision/recall on the test set.
+- **Model choice per step:** which models for analysis, transcription and review, and at what price/quality point.
+- **Splitting wide systems:** always, never, or based on density. The overlap size and the merge rule.
+- **Constrained LilyPond subset:** exact definition, especially for cross-staff notation, ornaments, ossia and lyrics.
+- **LLM provider access:** direct APIs versus Vertex AI / Bedrock for EU processing.
+
+## 16. Suggested first milestone (vertical slice)
+
+Goal: find out early whether the LLM-based approach gives good quality.
+
+1. Pick a PDF (local file only) → hash → upload to R2 → project in D1.
+2. Extract page images deterministically → OPFS → show in the UI.
+3. Global analysis of one page with Gemini → system boxes + metadata. Human correction of the boxes.
+4. Crop systems → transcribe one system with context → structural checks.
+5. Record the LLM calls, turn the result into the first fixture, and start the test set with a few hand-verified systems.
+
+Then: assembly across systems, review (with or without preview rendering), manual edits plus stale marking, regeneration on a second device, Drive integration.
