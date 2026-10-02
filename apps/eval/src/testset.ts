@@ -19,7 +19,7 @@ export function parseCandidate(fileName: string): Candidate | null {
     return null;
   }
   const [, piece, method] = match;
-  return { piece, method, lyName: fileName, pdfName: `${piece}.${method}.pdf` };
+  return { piece, method, lyName: fileName, pdfName: pdfName(piece, method) };
 }
 
 export type EngravePlan = {
@@ -45,4 +45,40 @@ export function planEngraving(fileNames: string[]): EngravePlan {
     }
   }
   return plan;
+}
+
+export type Piece = {
+  name: string;
+  hasOrig: boolean; // whether <piece>.orig.pdf exists
+  methods: string[]; // methods with an engraving <piece>.<method>.pdf, sorted
+};
+
+// Groups the PDFs "<piece>.<orig or method>.pdf" by piece, sorted by name.
+export function listPieces(fileNames: string[]): Piece[] {
+  const pieces = new Map<string, Piece>();
+  for (const name of fileNames) {
+    const match = /^([^.]+)\.([^.]+)\.pdf$/.exec(name);
+    if (match === null) {
+      continue;
+    }
+    const [, pieceName, source] = match;
+    let piece = pieces.get(pieceName);
+    if (piece === undefined) {
+      piece = { name: pieceName, hasOrig: false, methods: [] };
+      pieces.set(pieceName, piece);
+    }
+    if (source === ORIG) {
+      piece.hasOrig = true;
+    } else {
+      piece.methods.push(source);
+    }
+  }
+  for (const piece of pieces.values()) {
+    piece.methods.sort();
+  }
+  return [...pieces.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function pdfName(piece: string, source: string): string {
+  return `${piece}.${source}.pdf`;
 }

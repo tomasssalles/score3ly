@@ -25,7 +25,7 @@ npm run eval:view      # open the side-by-side viewer at http://localhost:5174
 ```
 
 The engraver compiles a temporary copy of each `.ly`, first updated to the installed LilyPond version with `convert-ly`, so files written for older versions work unchanged.
-The viewer is a stub for now.
+The viewer shows the original and two engravings of a piece side by side. The highlighter isn't implemented yet.
 
 ### Installing LilyPond
 

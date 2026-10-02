@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCandidate, planEngraving } from "./testset.ts";
+import { listPieces, parseCandidate, planEngraving } from "./testset.ts";
 
 test("parseCandidate splits piece and method", () => {
   assert.deepEqual(parseCandidate("debussy_clair_de_lune_mutopia.orig_source.ly"), {
@@ -42,4 +42,15 @@ test("planEngraving skips candidates that already have a PDF", () => {
     ["x.a.ly"],
   );
   assert.deepEqual(plan.invalidNames, ["x.orig.ly"]);
+});
+
+test("listPieces groups PDFs by piece", () => {
+  assert.deepEqual(
+    listPieces(["b.orig.pdf", "a.y.pdf", "a.orig.pdf", "a.x.pdf", "a.x.ly", "c.x.pdf", "README.md"]),
+    [
+      { name: "a", hasOrig: true, methods: ["x", "y"] },
+      { name: "b", hasOrig: true, methods: [] },
+      { name: "c", hasOrig: false, methods: ["x"] },
+    ],
+  );
 });
