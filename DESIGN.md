@@ -440,7 +440,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 
 Whether to build the app at all is decided by evidence first (steps 1–4).
 
-1. **Evaluation tooling:** the engrave command and the viewer (§13).
+1. **Evaluation tooling:** the engrave command and the viewer (§13). *Done.*
 2. **Baselines from existing tools:** extract test-set pieces with existing services, paid ones included, converting from MusicXML to LilyPond where needed (e.g. `musicxml2ly`). The aim is the best LilyPond obtainable without building anything new.
 3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app.
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
