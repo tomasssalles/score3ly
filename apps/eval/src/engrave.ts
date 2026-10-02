@@ -9,18 +9,22 @@ import { constants, copyFile, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { warningLines } from "./lilypond.ts";
 import { type Candidate, TESTSET_DIR, planEngraving } from "./testset.ts";
 
 const run = promisify(execFile);
 
-async function engrave(candidate: Candidate): Promise<void> {
+// Returns LilyPond's warnings.
+async function engrave(candidate: Candidate): Promise<string[]> {
   const workDir = await mkdtemp(join(tmpdir(), "score3ly-engrave-"));
   try {
-    const input = join(workDir, "input.ly");
+    // Same name as the original, so LilyPond's messages point to the right file.
+    const input = join(workDir, candidate.lyName);
     await copyFile(join(TESTSET_DIR, candidate.lyName), input);
     await run("convert-ly", ["--edit", input]);
-    // -I keeps \include paths relative to the test set working.
-    await run("lilypond", ["-I", TESTSET_DIR, "-o", join(workDir, "output"), input], {
+    // Run from workDir with the bare file name, so messages say "<lyName>:<line>:<column>".
+    const { stderr } = await run("lilypond", ["-o", "output", candidate.lyName], {
+      cwd: workDir,
       maxBuffer: 10 * 1024 * 1024,
     });
     // COPYFILE_EXCL fails if the PDF appeared in the meantime, instead of overwriting it.
@@ -29,6 +33,7 @@ async function engrave(candidate: Candidate): Promise<void> {
       join(TESTSET_DIR, candidate.pdfName),
       constants.COPYFILE_EXCL,
     );
+    return warningLines(stderr);
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }
@@ -48,8 +53,11 @@ async function main(): Promise<number> {
   for (const candidate of plan.toEngrave) {
     process.stdout.write(`${candidate.lyName} ... `);
     try {
-      await engrave(candidate);
-      console.log("ok");
+      const warnings = await engrave(candidate);
+      console.log(warnings.length === 0 ? "ok" : `ok, ${warnings.length} warning(s):`);
+      for (const warning of warnings) {
+        console.log(`  ${warning}`);
+      }
     } catch (error) {
       failures++;
       console.log("FAILED");
