@@ -10,9 +10,9 @@ See DESIGN.md §13 for the rationale.
 | `<piece>.orig.pdf` | The input score. |
 | `<piece>.<method>.ly` | LilyPond produced by one extraction method, e.g. `audiveris`, `s3l-gemini`. |
 | `<piece>.<method>.pdf` | Engraving of that `.ly`, produced by the engrave command. |
-| `<piece>.<file>.marks.json` | Highlighter strokes drawn in the viewer on `<piece>.<file>.pdf` (`<file>` is `orig` or a method). |
+| `<piece>.<file>.marks.jsonl` | Highlighter strokes drawn in the viewer on `<piece>.<file>.pdf` (`<file>` is `orig` or a method). |
 
-Only the README, the `*.orig.pdf` inputs, their highlighter strokes (`*.orig.marks.json`) and the `*.ly` candidates are committed (public-domain scores, e.g. from IMSLP).
+Only the README, the `*.orig.pdf` inputs, their highlighter strokes (`*.orig.marks.jsonl`) and the `*.ly` candidates are committed (public-domain scores, e.g. from IMSLP).
 Engravings, highlighter strokes on engravings and anything else produced here stay local (see `.gitignore`).
 
 ## Tooling
@@ -25,7 +25,8 @@ npm run eval:view      # open the side-by-side viewer at http://localhost:5174
 ```
 
 The engraver compiles a temporary copy of each `.ly`, first updated to the installed LilyPond version with `convert-ly`, so files written for older versions work unchanged.
-The viewer shows the original and two engravings of a piece side by side. The highlighter isn't implemented yet.
+The viewer shows the original and two engravings of a piece, side by side or stacked, and each can be hidden.
+Switch to highlighting mode to draw on any of them; strokes are saved immediately, and Undo removes the last stroke of this session, whichever pane it was in.
 
 ### Installing LilyPond
 

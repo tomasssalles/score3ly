@@ -8,5 +8,5 @@ dist/
 /testset/*
 !/testset/README.md
 !/testset/*.orig.pdf
-!/testset/*.orig.marks.json
+!/testset/*.orig.marks.jsonl
 !/testset/*.ly

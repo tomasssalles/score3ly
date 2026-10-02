@@ -82,3 +82,8 @@ export function listPieces(fileNames: string[]): Piece[] {
 export function pdfName(piece: string, source: string): string {
   return `${piece}.${source}.pdf`;
 }
+
+// Where the viewer's dev server serves a test-set file (see testsetServer.ts).
+export function testsetUrl(fileName: string): string {
+  return `/testset/${encodeURIComponent(fileName)}`;
+}
