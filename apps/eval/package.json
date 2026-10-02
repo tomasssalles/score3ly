@@ -5,7 +5,8 @@
   "scripts": {
     "engrave": "node src/engrave.ts",
     "view": "vite",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"src/**/*.test.ts\""
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

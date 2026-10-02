@@ -24,7 +24,21 @@ npm run eval:engrave   # compile every .ly that has no PDF yet (never overwrites
 npm run eval:view      # open the side-by-side viewer at http://localhost:5174
 ```
 
-Both are stubs for now. Engraving requires a local LilyPond install.
+The engraver compiles a temporary copy of each `.ly`, first updated to the installed LilyPond version with `convert-ly`, so files written for older versions work unchanged.
+The viewer is a stub for now.
+
+### Installing LilyPond
+
+Engraving needs `lilypond` and `convert-ly` on the `PATH` (developed with LilyPond 2.26.0).
+On Linux (including WSL), download the Linux archive from https://lilypond.org/download.html, then:
+
+```sh
+tar -xzf lilypond-2.26.0-linux-x86_64.tar.gz -C ~/applications
+ln -s ~/applications/lilypond-2.26.0/bin/{lilypond,convert-ly,musicxml2ly} ~/.local/bin/
+```
+
+Any folder works for the archive; `~/.local/bin` must be on the `PATH`.
+`musicxml2ly` isn't used by the tooling, but is handy for converting MusicXML baselines.
 
 ## Pieces
 

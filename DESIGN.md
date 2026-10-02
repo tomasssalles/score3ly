@@ -1,6 +1,6 @@
 # Design Document — Score-to-LilyPond Pipeline (v2)
 
-> Status: draft, pre-implementation. This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. **Open questions** are collected in §15.
+> Status: draft, pre-implementation. Building the app depends on the evaluation in §16 steps 1–4. This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. **Open questions** are collected in §15.
 
 ## 1. What this app is
 
@@ -401,7 +401,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 ### Test set
 - `testset/` in the repo. Small, since evaluation is by hand. Only the input PDFs (public domain, e.g. from IMSLP), the highlighter strokes on them and the `.ly` candidates are committed. The inputs never change, so their strokes stay valid on any machine. Engravings, strokes on engravings and any other files produced there stay local. Its README documents the tooling and why each piece was picked.
 - Input PDFs are chosen to cover the phenomena in §1 rather than random pieces: multiple voices per staff, staff count changes, lyrics, editorial notes and ossia/alternatives, reduction staff, two-piano double systems, old ornamented scans, clean vector PDFs, a few non-piano cases.
-- Naming: `<piece>.orig.pdf` is the input. Each extraction method adds `<piece>.<method>.ly`, e.g. `fuer_elise.audiveris.ly`, `fuer_elise.s3l-gemini.ly`. Audiveris (the v1 approach) serves as the baseline.
+- Naming: `<piece>.orig.pdf` is the input. Each extraction method adds `<piece>.<method>.ly`, e.g. `fuer_elise.audiveris.ly`, `fuer_elise.s3l-gemini.ly`. Baselines are the best results from existing tools (§16 step 2), e.g. `<piece>.audiveris.ly`.
 
 ### Tooling
 - **Engrave command:** compiles every `<piece>.<method>.ly` that has no `<piece>.<method>.pdf` yet, using a local LilyPond install. Never overwrites existing PDFs.
@@ -416,7 +416,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 
 | Risk | Mitigation |
 |---|---|
-| **Infrastructure work crowding out quality work** (plumbing is fun) | Vertical slice first (§16). Measure quality on the test set early and often. |
+| **Infrastructure work crowding out quality work** (plumbing is fun) | Validate the approach by hand before building (§16). Measure quality on the test set early and often. |
 | Losing LLM output or human input because it was treated like cache | §5.3: LLM and human artifacts are always persisted. Eviction only touches deterministic artifacts. |
 | Plausible but wrong notes from LLMs | §7.7: uncertainty lists, structural checks, image-based review, measured slip-through rate. |
 | Regenerated images drifting from what the human or LLM worked on | §8: deterministic decoding and operations, normalized coordinates, fingerprint checks. |
@@ -435,14 +435,19 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 - **Constrained LilyPond subset:** exact definition, especially for cross-staff notation, ornaments, ossia and lyrics.
 - **LLM provider access:** direct APIs versus Vertex AI / Bedrock for EU processing.
 
-## 16. Suggested first milestone (vertical slice)
+## 16. Roadmap
 
-Goal: find out early whether the LLM-based approach gives good quality.
+Whether to build the app at all is decided by evidence first (steps 1–4).
 
-1. Pick a PDF (local file only) → hash → upload to R2 → project in D1.
-2. Extract page images deterministically → OPFS → show in the UI.
-3. Global analysis of one page with Gemini → system boxes + metadata. Human correction of the boxes.
-4. Crop systems → transcribe one system with context → structural checks.
-5. Record the LLM calls, turn the result into the first fixture, and run the first comparison against Audiveris in the evaluation viewer (§13).
+1. **Evaluation tooling:** the engrave command and the viewer (§13).
+2. **Baselines from existing tools:** extract test-set pieces with existing services, paid ones included, converting from MusicXML to LilyPond where needed (e.g. `musicxml2ly`). The aim is the best LilyPond obtainable without building anything new.
+3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app.
+4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
+5. **Build the app.** First milestone, a vertical slice:
+   1. Pick a PDF (local file only) → hash → upload to R2 → project in D1.
+   2. Extract page images deterministically → OPFS → show in the UI.
+   3. Global analysis of one page with Gemini → system boxes + metadata. Human correction of the boxes.
+   4. Crop systems → transcribe one system with context → structural checks.
+   5. Record the LLM calls, turn the result into the first fixture, and compare against the baselines in the viewer.
 
-Then: assembly across systems, review (with or without preview rendering), manual edits plus stale marking, regeneration on a second device, Drive integration.
+   Then: assembly across systems, review (with or without preview rendering), manual edits plus stale marking, regeneration on a second device, Drive integration.
