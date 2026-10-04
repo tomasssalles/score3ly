@@ -15,7 +15,7 @@
 ### Prices (test set: 9 pieces, 68 PDF pages, ~60–65 pages of music)
 | Tool | Price | Free route |
 |---|---|---|
-| Soundslice | Plus $5/month, 100 pages/month | Free plan has no MusicXML export |
+| Soundslice | Plus $5/month: 100 pages/month, ≤25 pages per scan, no measure limit. Higher plans: 200 pages/month | Free: 2 scans/month, each exactly 1 page and ≤32 measures (author-verified) |
 | Newzik | Premium €9.99/month | 7-day Premium trial |
 | Opuscan / Flat (Tutteo) | $17.99 for 70 page credits | 1 free page |
 | PlayScore 2 | Professional $6.99/month (needed for MusicXML) | 1-week trial (Windows) |
@@ -28,7 +28,7 @@
 | Gemini API | 3.1 Pro $2/$12, Flash $0.75/$3.75 per M tokens | Flash on free tier; Pro removed from free tier 2026-04-01 |
 
 ### Tentative plan (the author's)
-- 1 month of Soundslice, 7-day Newzik trial, 1-week PlayScore 2 trial, SmartScore 64 Pro (2 demo exports or the trial), Audiveris 5.10.
+- 1 month of Soundslice (Plus covers the 68 pages with a little room for retries; the free tier fits the Mozart page and e.g. one split-out Clair de Lune page, but not the Bach, which has 42 measures on its single page), 7-day Newzik trial, 1-week PlayScore 2 trial, SmartScore 64 Pro (2 demo exports or the trial), Audiveris 5.10.
 - Claude Opus 5.5 via the Pro subscription (Claude Code or claude.ai); Gemini 3.1 Pro via Vertex AI welcome credits.
 - Every MusicXML output goes through `musicxml2ly`. The best ones (judged by rendering the MusicXML directly) are also tried with an LLM doing the MusicXML → LilyPond conversion.
 
