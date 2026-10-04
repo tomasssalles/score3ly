@@ -12,7 +12,7 @@ See DESIGN.md §13 for the rationale.
 | `<piece>.<method>.pdf` | Engraving of that `.ly`, produced by the engrave command. |
 | `<piece>.<file>.marks.jsonl` | Highlighter strokes drawn in the viewer on `<piece>.<file>.pdf` (`<file>` is `orig` or a method). |
 
-Only the README, the `*.orig.pdf` inputs, their highlighter strokes (`*.orig.marks.jsonl`) and the `*.ly` candidates are committed (public-domain scores, e.g. from IMSLP).
+Only the README, the `*.orig.pdf` inputs, their highlighter strokes (`*.orig.marks.jsonl`) and the `*.ly` and `*.musicxml` candidates are committed (public-domain scores, e.g. from IMSLP).
 Engravings, highlighter strokes on engravings and anything else produced here stay local (see `.gitignore`).
 
 ## Tooling

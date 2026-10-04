@@ -3,10 +3,11 @@ dist/
 .wrangler/
 .dev.vars
 
-# Test set: commit only the inputs, their highlighter strokes, the LilyPond candidates and the README.
+# Test set: commit only the inputs, their highlighter strokes, the LilyPond and MusicXML candidates and the README.
 # Engravings and anything else produced in the folder stay local.
 /testset/*
 !/testset/README.md
 !/testset/*.orig.pdf
 !/testset/*.orig.marks.jsonl
 !/testset/*.ly
+!/testset/*.musicxml
