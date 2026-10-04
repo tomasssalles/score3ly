@@ -5,39 +5,69 @@ export const TESTSET_DIR = new URL("../../../testset/", import.meta.url).pathnam
 // "orig" names the input score, so it can't be an extraction method.
 export const ORIG = "orig";
 
+// How a candidate's source file is turned into a PDF.
+export type Format = "ly" | "musicxml";
+
+// LilyPond candidates are compiled with LilyPond. MusicXML candidates (from OMR tools) are
+// rendered directly with MuseScore, so they're judged without a lossy musicxml2ly conversion.
+const FORMATS: Format[] = ["ly", "musicxml"];
+
 export type Candidate = {
   piece: string;
   method: string;
-  lyName: string;
+  format: Format;
+  sourceName: string;
   pdfName: string;
 };
 
-// Parses "<piece>.<method>.ly". Returns null for any other name.
+// Parses "<piece>.<method>.<format>". Returns null for any other name.
 export function parseCandidate(fileName: string): Candidate | null {
-  const match = /^([^.]+)\.([^.]+)\.ly$/.exec(fileName);
-  if (match === null || match[2] === ORIG) {
+  const match = /^([^.]+)\.([^.]+)\.([^.]+)$/.exec(fileName);
+  if (match === null || match[2] === ORIG || !isFormat(match[3])) {
     return null;
   }
-  const [, piece, method] = match;
-  return { piece, method, lyName: fileName, pdfName: pdfName(piece, method) };
+  const [, piece, method, format] = match;
+  return { piece, method, format, sourceName: fileName, pdfName: pdfName(piece, method) };
+}
+
+function isFormat(extension: string): extension is Format {
+  return (FORMATS as string[]).includes(extension);
+}
+
+function formatOf(fileName: string): Format | null {
+  const extension = fileName.slice(fileName.lastIndexOf(".") + 1);
+  return isFormat(extension) ? extension : null;
 }
 
 export type EngravePlan = {
   toEngrave: Candidate[];
   alreadyEngraved: Candidate[];
-  invalidNames: string[]; // .ly files that don't follow the naming scheme
+  invalidNames: string[]; // .ly or .musicxml files that don't follow the naming scheme
+  conflicts: Candidate[]; // candidates sharing a piece and method (hence a PDF) with another one
 };
 
 export function planEngraving(fileNames: string[]): EngravePlan {
   const existing = new Set(fileNames);
-  const plan: EngravePlan = { toEngrave: [], alreadyEngraved: [], invalidNames: [] };
+  const plan: EngravePlan = { toEngrave: [], alreadyEngraved: [], invalidNames: [], conflicts: [] };
+  const candidates: Candidate[] = [];
   for (const name of [...fileNames].sort()) {
-    if (!name.endsWith(".ly")) {
+    if (formatOf(name) === null) {
       continue;
     }
     const candidate = parseCandidate(name);
     if (candidate === null) {
       plan.invalidNames.push(name);
+    } else {
+      candidates.push(candidate);
+    }
+  }
+  const pdfCounts = new Map<string, number>();
+  for (const candidate of candidates) {
+    pdfCounts.set(candidate.pdfName, (pdfCounts.get(candidate.pdfName) ?? 0) + 1);
+  }
+  for (const candidate of candidates) {
+    if (pdfCounts.get(candidate.pdfName)! > 1) {
+      plan.conflicts.push(candidate);
     } else if (existing.has(candidate.pdfName)) {
       plan.alreadyEngraved.push(candidate);
     } else {

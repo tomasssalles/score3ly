@@ -9,7 +9,8 @@ See DESIGN.md §13 for the rationale.
 |---|---|
 | `<piece>.orig.pdf` | The input score. |
 | `<piece>.<method>.ly` | LilyPond produced by one extraction method, e.g. `audiveris`, `s3l-gemini`. |
-| `<piece>.<method>.pdf` | Engraving of that `.ly`, produced by the engrave command. |
+| `<piece>.<method>.musicxml` | MusicXML produced by an OMR tool, e.g. `newzik`. Rendered directly, not converted to LilyPond. |
+| `<piece>.<method>.pdf` | Engraving of that `.ly` or `.musicxml`, produced by the engrave command. |
 | `<piece>.<file>.marks.jsonl` | Highlighter strokes drawn in the viewer on `<piece>.<file>.pdf` (`<file>` is `orig` or a method). |
 
 Only the README, the `*.orig.pdf` inputs, their highlighter strokes (`*.orig.marks.jsonl`) and the `*.ly` and `*.musicxml` candidates are committed (public-domain scores, e.g. from IMSLP).
@@ -20,11 +21,13 @@ Engravings, highlighter strokes on engravings and anything else produced here st
 Run from the repository root:
 
 ```sh
-npm run eval:engrave   # compile every .ly that has no PDF yet (never overwrites)
+npm run eval:engrave   # engrave every .ly and .musicxml that has no PDF yet (never overwrites)
 npm run eval:view      # open the side-by-side viewer at http://localhost:5174
 ```
 
 The engraver compiles a temporary copy of each `.ly`, first updated to the installed LilyPond version with `convert-ly`, so files written for older versions work unchanged.
+Each `.musicxml` is rendered with MuseScore 4, so OMR tools are judged on their own output rather than on a lossy `musicxml2ly` conversion.
+A `.ly` and a `.musicxml` with the same piece and method would engrave to the same PDF, so both are skipped with a warning.
 The viewer shows the original and two engravings of a piece, side by side or stacked, and each can be hidden.
 Switch to highlighting mode to draw on any of them; strokes are saved immediately, and Undo removes the last stroke of this session, whichever pane it was in.
 
@@ -39,7 +42,13 @@ ln -s ~/applications/lilypond-2.26.0/bin/{lilypond,convert-ly,musicxml2ly} ~/.lo
 ```
 
 Any folder works for the archive; `~/.local/bin` must be on the `PATH`.
-`musicxml2ly` isn't used by the tooling, but is handy for converting MusicXML baselines.
+`musicxml2ly` isn't used by the tooling.
+
+### Installing MuseScore
+
+Rendering `.musicxml` needs MuseScore 4 (https://musescore.org/download).
+The engraver runs `mscore`; set `MSCORE` to use another command, e.g. `MSCORE=mscore4portable` for the Linux AppImage.
+On Linux it sets `QT_QPA_PLATFORM=offscreen` (unless already set), so no display is needed.
 
 ## Pieces
 
