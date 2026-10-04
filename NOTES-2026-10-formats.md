@@ -32,6 +32,11 @@
 - Claude Opus 5.5 via the Pro subscription (Claude Code or claude.ai); Gemini 3.1 Pro via Vertex AI welcome credits.
 - Every MusicXML output goes through `musicxml2ly`. The best ones (judged by rendering the MusicXML directly) are also tried with an LLM doing the MusicXML → LilyPond conversion.
 
+### Results so far
+- **Soundslice (free tier):** Mozart p23 and Kinderscenen p3 only, no export on the free tier, so screenshots were kept (`<piece>.soundslice.pdf`). Mozart unrecognizable. The UI is very polished: after processing it asks multiple-choice questions about everything it was unsure of.
+- **Newzik (7-day trial, cancelled):** MusicXML for the whole test set except the full Kinderscenen (failed; the single page 3 worked). Quality terrible throughout. Very verbose: 7k lines / 141k characters for the one Mozart page.
+- MusicXML baselines are judged by rendering them directly with MuseScore 4 (`npm run eval:engrave`), not via `musicxml2ly`.
+
 ## 2. Why the target format is in question
 
 The two goals:
@@ -120,3 +125,32 @@ The two goals:
 - MuseScore's MEI support.
 - Which `musicxml2ly` gaps actually bite on the test set.
 - The vendor prices and trial terms above, before paying.
+
+## 6. Draft prompt: bounding box of the musical content (Gemini's suggestion)
+
+After a few attempts at getting a content bounding box from Gemini, Gemini suggested the prompt below. Use it as input when writing our own, but **it is biased by the single example it was developed on** (Kinderscenen p3: decorative frame, "N°1" label, plate number "6016"). Generalize it and drop test-set-specific details (such as the "N°1" and "6016" examples) to avoid overfitting to the test set.
+
+> **System Prompt: Sheet Music Core Content Extraction**
+>
+> Your task is to detect and extract the bounding box coordinates of the core musical and textual content in the provided image of a musical score.
+>
+> **Coordinate Format**
+> Output ONLY a JSON array of four integers representing coordinates normalized on a scale from 0 to 1000. Use the exact format `[ymin, xmin, ymax, xmax]` (Top, Left, Bottom, Right).
+>
+> **Target Content (What to Include)**
+> The bounding box must comprehensively enclose the central musical composition and its integral metadata. This strictly includes:
+> - All musical staves, notes, stems, ledger lines, bar lines, clefs, and key/time signatures.
+> - All system connectors on the far left edge, specifically capturing curly braces, straight brackets, and staff labels (e.g., "N°1", "Flute", "I", "II").
+> - All performance directions, including tempos, dynamics, lyrics, fingering numbers, slurs, and pedal markings.
+> - The main title, subtitles, and composer/arranger credits usually located at the top of the first page.
+> - Publisher plate numbers (e.g., "6016") typically located at the bottom center of the page.
+>
+> **Exclusions (What to Ignore)**
+> The bounding box must intentionally exclude peripheral non-musical elements, adapting to both clean vector PDFs and historical scanned documents. Strictly exclude:
+> - Blank paper margins.
+> - Decorative page borders, ornamental frames, or purely aesthetic background illustrations.
+> - Page numbers isolated in the extreme top or bottom corners.
+> - Archival library stamps, watermarks, scanner artifacts, or binder holes.
+>
+> **Precision Guardrails**
+> Provide a tight bounding box that hugs the outermost pixels of the target content. Pay special attention to the left and right extremities to avoid clipping system brackets, initial clefs, or outer ledger lines, while ensuring no decorative borders inflate the dimensions.
