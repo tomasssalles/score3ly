@@ -27,6 +27,7 @@ npm run eval:view      # open the side-by-side viewer at http://localhost:5174
 
 The engraver compiles a temporary copy of each `.ly`, first updated to the installed LilyPond version with `convert-ly`, so files written for older versions work unchanged.
 Each `.musicxml` is rendered with MuseScore 4, so OMR tools are judged on their own output rather than on a lossy `musicxml2ly` conversion.
+MuseScore refuses to convert a score it considers corrupted (typically measure durations that don't add up, a common OMR error); such scores are engraved anyway with `--force` and reported with a warning.
 A `.ly` and a `.musicxml` with the same piece and method would engrave to the same PDF, so both are skipped with a warning.
 The viewer shows the original and two engravings of a piece, side by side or stacked, and each can be hidden.
 Switch to highlighting mode to draw on any of them; strokes are saved immediately, and Undo removes the last stroke of this session, whichever pane it was in.

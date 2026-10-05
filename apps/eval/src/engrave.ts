@@ -32,14 +32,26 @@ async function engraveLilyPond(candidate: Candidate, workDir: string): Promise<s
   return warningLines(stderr);
 }
 
-// Writes <workDir>/output.pdf. MuseScore's console output is mostly noise, so no warnings.
-async function engraveMuseScore(candidate: Candidate, workDir: string): Promise<string[]> {
-  await run(MSCORE, ["-o", join(workDir, "output.pdf"), join(TESTSET_DIR, candidate.sourceName)], {
+async function runMuseScore(candidate: Candidate, workDir: string, force: boolean): Promise<void> {
+  const args = ["-o", join(workDir, "output.pdf"), join(TESTSET_DIR, candidate.sourceName)];
+  await run(MSCORE, force ? ["-f", ...args] : args, {
     maxBuffer: 10 * 1024 * 1024,
     // Lets MuseScore run without a display (Linux/WSL); an explicit setting wins.
     env: { QT_QPA_PLATFORM: "offscreen", ...process.env },
   });
-  return [];
+}
+
+// Writes <workDir>/output.pdf. MuseScore's console output is mostly noise, so its only
+// warning is a score it considers corrupted (e.g. measure durations that don't add up).
+// It refuses to convert those, silently (the reason is only in its log file), unless forced.
+async function engraveMuseScore(candidate: Candidate, workDir: string): Promise<string[]> {
+  try {
+    await runMuseScore(candidate, workDir, false);
+    return [];
+  } catch {
+    await runMuseScore(candidate, workDir, true);
+    return ["MuseScore considers the score corrupted (details in its log file); engraved with --force"];
+  }
 }
 
 async function engrave(candidate: Candidate): Promise<string[]> {

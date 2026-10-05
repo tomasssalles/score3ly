@@ -35,6 +35,7 @@
 ### Results so far
 - **Soundslice (free tier):** Mozart p23 and Kinderscenen p3 only, no export on the free tier, so screenshots were kept (`<piece>.soundslice.pdf`). Mozart unrecognizable. The UI is very polished: after processing it asks multiple-choice questions about everything it was unsure of.
 - **Newzik (7-day trial, cancelled):** MusicXML for the whole test set except the full Kinderscenen (failed; the single page 3 worked). Quality terrible throughout. Very verbose: 7k lines / 141k characters for the one Mozart page.
+- **PlayScore 2 (1-week trial, Windows):** MusicXML for the whole test set except the full Kinderscenen (PlayScore crashes on it, even with the cover and empty pages removed; page 3 alone worked). Chopin, Kinderscenen p3 and Villa-Lobos have measures whose durations don't add up, so MuseScore only renders them with `--force`. The strongest so far, but still very bad and not usable. Best on Clair de Lune (Mutopia vector PDF engraved from LilyPond) and the Bach (a scan, but very easy to extract), though even those have too many mistakes to fix by hand.
 - MusicXML baselines are judged by rendering them directly with MuseScore 4 (`npm run eval:engrave`), not via `musicxml2ly`.
 
 ## 2. Why the target format is in question
