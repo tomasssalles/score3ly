@@ -1,12 +1,14 @@
-# Notes: baselines, music formats, MEI (discussion of 2026-10-02 to 2026-10-04)
+# Notes: baselines, music formats, MEI (discussion of 2026-10-02 to 2026-10-05)
 
 > Status: **exploration, no decisions.** Nothing here changes `DESIGN.md` yet. Ideas and findings to come back to.
 > Prices and tool facts were gathered from web search snippets (vendor sites were not reachable); verify before relying on them.
 
 ## 1. Baselines for §16 step 2
 
+**The question the baselines answer:** how well can existing tools read a PDF, understand the music and write it in a formal text-based format? Any such format will do, so a good MusicXML counts as success. Converting it to LilyPond (`musicxml2ly` or an LLM) is not part of the test: the conversion is messy and lossy and would unfairly penalize tools that export MusicXML. That's why the test set engraves `.ly` and `.musicxml` candidates alike.
+
 ### Candidate tools
-- **Commercial OMR → MusicXML → `musicxml2ly`:** Soundslice, PhotoScore & NotateMe Ultimate, SmartScore 64 Pro, Newzik (Maestria), Tutteo (Opuscan / Flat), PlayScore 2, ScanScore, Klangio Scan2Notes, ACE Studio.
+- **Commercial OMR → MusicXML:** Soundslice, PhotoScore & NotateMe Ultimate, SmartScore 64 Pro, Newzik (Maestria), Tutteo (Opuscan / Flat), PlayScore 2, ScanScore, Klangio Scan2Notes, ACE Studio.
 - **Open source:** Audiveris 5.11, oemer. MuseScore's online PDF import runs an old Audiveris (and claims a broad license on converted files).
 - **Research models** (LEGATO / LEGATO 2, end-to-end pianoform OMR): output ABC or kern, research code, mostly notes and rhythms only.
 - **Vision LLMs directly to LilyPond** (Gemini, Claude, GPT).
@@ -27,18 +29,22 @@
 | Claude API | Opus 5.5 $4/$20, Sonnet 5.5 $2/$10 per M tokens | — |
 | Gemini API | 3.1 Pro $2/$12, Flash $0.75/$3.75 per M tokens | Flash on free tier; Pro removed from free tier 2026-04-01 |
 
-### Tentative plan (the author's)
-- 1 month of Soundslice (Plus covers the 68 pages with a little room for retries; the free tier fits the Mozart page and e.g. one split-out Clair de Lune page, but not the Bach, which has 42 measures on its single page), 7-day Newzik trial, 1-week PlayScore 2 trial, SmartScore 64 Pro (2 demo exports or the trial), Audiveris 5.11.
-- Claude Opus 5.5 via the Pro subscription (Claude Code or claude.ai); Gemini 3.1 Pro via Vertex AI welcome credits.
-- Every MusicXML output goes through `musicxml2ly`. The best ones (judged by rendering the MusicXML directly) are also tried with an LLM doing the MusicXML → LilyPond conversion.
+### Plan (the author's)
+- Tested: Soundslice (free tier only), Newzik (7-day trial), PlayScore 2 (1-week trial), SmartScore 64 Pro (demo), Audiveris 5.11. No other OMR tools will be tested: these cover the landscape from free and open source to expensive proprietary.
+- Remaining: experiments with Gemini and Claude in chats (Claude Opus 5.5 via the Pro subscription, Gemini via the app or Vertex AI welcome credits).
+- **Memorization:** LLMs recognize every test-set piece. Gemini Flash identified the Mozart page (concerto and movement) even with edition, plate number and page number cropped away. So an LLM transcription may be partly recalled rather than read, and the test set would overstate the approach. Planned checks: obscure old scores unlikely to be in the training data, and transcriptions of different editions of the same piece (e.g. the two Für Elise), to see whether the model follows the page or its memory where they differ.
 
-### Results so far
-- **Soundslice (free tier):** Mozart p23 and Kinderscenen p3 only, no export on the free tier, so screenshots were kept (`<piece>.soundslice.pdf`). Mozart unrecognizable. The UI is very polished: after processing it asks multiple-choice questions about everything it was unsure of.
+### Results
+- **Soundslice (free tier):** Mozart p23 and Kinderscenen p3 only, no export on the free tier, so screenshots were kept (`<piece>.soundslice.pdf`). Mozart unrecognizable. Hopeless enough that the paid month was skipped. The UI is very polished: after processing it asks multiple-choice questions about everything it was unsure of.
 - **Newzik (7-day trial, cancelled):** MusicXML for the whole test set except the full Kinderscenen (failed; the single page 3 worked). Quality terrible throughout. Very verbose: 7k lines / 141k characters for the one Mozart page.
 - **PlayScore 2 (1-week trial, Windows):** MusicXML for the whole test set except the full Kinderscenen (PlayScore crashes on it, even with the cover and empty pages removed; page 3 alone worked). Chopin, Kinderscenen p3 and Villa-Lobos have measures whose durations don't add up, so MuseScore only renders them with `--force`. The strongest so far, but still very bad and not usable. Best on Clair de Lune (Mutopia vector PDF engraved from LilyPond) and the Bach (a scan, but very easy to extract), though even those have too many mistakes to fix by hand.
 - **Audiveris 5.11 (Linux `.deb` in WSL, batch mode):** the GUI window stays invisible under WSLg, so it was run as `audiveris -batch -export` with default settings. No Tesseract language data was installed, so no text was recognized in any piece.
   - Results: Bach terrible. Für Elise (Leipzig) better, but also very bad. Für Elise (first edition) and Villa-Lobos a disaster, unrecognizable. Mozart looks relatively normal (not yet checked against the original), better than Soundslice. Clair de Lune surprisingly decent, with many mistakes.
   - Failed, no export (not pursued, since the results above suffice to judge): Chopin (internal crash on page 2, "no such edge in graph"); Liszt (cover page has no staff lines, which aborts the whole export; `-sheets 2-22` would skip it); Kinderscenen, full and p3 (pages decode to 89.5 MP, above Audiveris's 20 MP limit).
+- **SmartScore 64 Pro (Windows demo, no trial):** judged mostly from its own rendering in the app, since the demo allows little export. MusicXML exported for Mozart p23 only; a second export (Villa-Lobos) would have been cut to the first 6 measures, despite the advertised "2 exports", so it was abandoned. Needs Smart App Control turned off (it blocks the bundled unsigned `zlib1.dll`, `tiff.dll`, `jpeg62.dll`).
+  - Results: Für Elise (Leipzig) the best of any tool so far, few mistakes but not perfect. Clair de Lune good overall, with some serious mistakes. Mozart decent, several serious mistakes, but among the better results in the app; the engraved MusicXML misses some of the last measures, so the export is faulty. Bach OK, several mistakes, bad text recognition. Liszt bad, mistakes everywhere. Villa-Lobos very bad. Für Elise (first edition) horrible. Chopin a disaster.
+  - Kinderscenen: the full PDF took over 30 minutes to load (conversion to TIFF) and to extract, failed on most pages and was aborted after about 45 minutes. Page 3 alone: loading requires choosing an unexplained threshold (apparently binarization by lightness); the preview can't be zoomed or scrolled and shows no notes, and no threshold suits the dark, stained paper. One reason to keep colour (DESIGN §8.1).
+- **Overall:** every tool is still far from usable. Even the best results need too much correction by hand. If the score3ly approach works at all, it could be much better, and for transcription alone also cheaper (the commercial tools bundle practice, editing and library features this project doesn't need).
 - MusicXML baselines are judged by rendering them directly with MuseScore 4 (`npm run eval:engrave`), not via `musicxml2ly`.
 
 ## 2. Why the target format is in question

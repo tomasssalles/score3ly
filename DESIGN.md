@@ -86,7 +86,7 @@ flowchart LR
 | Projects, step configs, provenance, fingerprints | D1 | Small, structured, relational. SQLite is easy to inspect and migrate. |
 | Text artifacts (analysis JSON, LilyPond fragments, review findings, human operations) | D1 | Small, must never be lost, often not reproducible. |
 | LLM call records (full request + response) | D1 (large payloads in R2) | Needed for provenance, cost tracking and replay tests (§12). |
-| Derived images (page images, preprocessed pages, system crops) | OPFS on the current device | Large (roughly 50–100 MB per PDF in grayscale) but regenerable from the PDF plus the recipe. Device-local means real deletion, no cloud quota, and no data residency issue. |
+| Derived images (page images, preprocessed pages, system crops) | OPFS on the current device | Large (roughly 150–300 MB per PDF in colour, a third of that in grayscale) but regenerable from the PDF plus the recipe. Device-local means real deletion, no cloud quota, and no data residency issue. |
 | Final exports (LilyPond, optional engraved PDF) | Download, or an app-created folder in Google Drive | The user's own file space. Browsable anywhere. |
 
 ### Why this split
@@ -212,7 +212,7 @@ A **cache key** = hash(step id, version, canonical config, input artifact IDs).
 |---|---|---|---|---|
 | 0 | Ingest | deterministic | document | PDF in R2, project in D1 |
 | 1 | Page images | deterministic | page | Page image (OPFS) + fingerprint |
-| 2 | Light preprocessing (deskew, contrast, optional binarization) | deterministic + human (angles) | page | Preprocessed image + recorded parameters |
+| 2 | Light preprocessing (deskew, contrast, optional binarization; colour is kept by default, §8.1) | deterministic + human (angles) | page | Preprocessed image + recorded parameters |
 | 3 | Global analysis | llm | page + document | Structured JSON (see below) |
 | 4 | Layout correction | human (+ deterministic snapping) | page | Confirmed system boxes, normalized coordinates |
 | 5 | System crops | deterministic | system | Crop images. Wide systems optionally split into overlapping halves (§8.5). |
@@ -291,6 +291,7 @@ LLMs fill in "musically likely" content. That is desirable for a smudge and dang
 - **Scanned PDFs:** extract the embedded page image directly instead of rendering the page.
   - CCITT/JBIG2: decoded by pdf.js in JavaScript, so identical everywhere.
   - JPEG: decoded by the bundled decoder, so identical everywhere.
+- **Colour is kept** when the scan has it. On yellowed, stained paper, colour separates ink from stains and paper better than grayscale, and a global binarization threshold can fail entirely (SmartScore's mandatory threshold on Kinderscenen p3 found no usable setting). LLMs bill images by pixel dimensions, not channels, so colour costs nothing extra in LLM calls; only the device cache grows (§2). Grayscale or binarization may replace it after an ablation (§15).
 - **Vector PDFs:** render with pdf.js at a fixed DPI, with pixel size computed explicitly as `round(pagePt × dpi / 72)`. Geometry is identical everywhere. Only anti-aliased edges differ slightly between canvas backends, and binarization removes most of that.
 
 ### 8.2 Deterministic operations
@@ -434,6 +435,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 - **Model choice per step:** which models for analysis, transcription and review, and at what price/quality point.
 - **Splitting wide systems:** always, never, or based on density. The overlap size and the merge rule.
 - **Constrained LilyPond subset:** exact definition, especially for cross-staff notation, ornaments, ossia and lyrics.
+- **Colour vs. grayscale vs. binarized** page images for the LLM steps: decide by ablation on the test set (§8.1).
 - **LLM provider access:** direct APIs versus Vertex AI / Bedrock for EU processing.
 
 ## 16. Roadmap
