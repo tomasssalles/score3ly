@@ -441,7 +441,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 Whether to build the app at all is decided by evidence first (steps 1–4).
 
 1. **Evaluation tooling:** the engrave command and the viewer (§13). *Done.*
-2. **Baselines from existing tools:** extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Candidate tools and prices: `NOTES-2026-10-formats.md`.
+2. **Baselines from existing tools:** extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Candidate tools and prices: `NOTES-2026-10-formats.md`. Audiveris is installed only from https://github.com/Audiveris/audiveris/releases: `audiveris.com` and `audiveris.net` are scam sites.
 3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app.
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
 5. **Build the app.** First milestone, a vertical slice:

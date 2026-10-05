@@ -7,7 +7,7 @@
 
 ### Candidate tools
 - **Commercial OMR → MusicXML → `musicxml2ly`:** Soundslice, PhotoScore & NotateMe Ultimate, SmartScore 64 Pro, Newzik (Maestria), Tutteo (Opuscan / Flat), PlayScore 2, ScanScore, Klangio Scan2Notes, ACE Studio.
-- **Open source:** Audiveris 5.10 (March 2026), oemer. MuseScore's online PDF import runs an old Audiveris (and claims a broad license on converted files).
+- **Open source:** Audiveris 5.11, oemer. MuseScore's online PDF import runs an old Audiveris (and claims a broad license on converted files).
 - **Research models** (LEGATO / LEGATO 2, end-to-end pianoform OMR): output ABC or kern, research code, mostly notes and rhythms only.
 - **Vision LLMs directly to LilyPond** (Gemini, Claude, GPT).
 - Ruled out: combining several extractions with an LLM. It might work, but would cost far more than any paid service.
@@ -28,7 +28,7 @@
 | Gemini API | 3.1 Pro $2/$12, Flash $0.75/$3.75 per M tokens | Flash on free tier; Pro removed from free tier 2026-04-01 |
 
 ### Tentative plan (the author's)
-- 1 month of Soundslice (Plus covers the 68 pages with a little room for retries; the free tier fits the Mozart page and e.g. one split-out Clair de Lune page, but not the Bach, which has 42 measures on its single page), 7-day Newzik trial, 1-week PlayScore 2 trial, SmartScore 64 Pro (2 demo exports or the trial), Audiveris 5.10.
+- 1 month of Soundslice (Plus covers the 68 pages with a little room for retries; the free tier fits the Mozart page and e.g. one split-out Clair de Lune page, but not the Bach, which has 42 measures on its single page), 7-day Newzik trial, 1-week PlayScore 2 trial, SmartScore 64 Pro (2 demo exports or the trial), Audiveris 5.11.
 - Claude Opus 5.5 via the Pro subscription (Claude Code or claude.ai); Gemini 3.1 Pro via Vertex AI welcome credits.
 - Every MusicXML output goes through `musicxml2ly`. The best ones (judged by rendering the MusicXML directly) are also tried with an LLM doing the MusicXML → LilyPond conversion.
 
@@ -36,6 +36,9 @@
 - **Soundslice (free tier):** Mozart p23 and Kinderscenen p3 only, no export on the free tier, so screenshots were kept (`<piece>.soundslice.pdf`). Mozart unrecognizable. The UI is very polished: after processing it asks multiple-choice questions about everything it was unsure of.
 - **Newzik (7-day trial, cancelled):** MusicXML for the whole test set except the full Kinderscenen (failed; the single page 3 worked). Quality terrible throughout. Very verbose: 7k lines / 141k characters for the one Mozart page.
 - **PlayScore 2 (1-week trial, Windows):** MusicXML for the whole test set except the full Kinderscenen (PlayScore crashes on it, even with the cover and empty pages removed; page 3 alone worked). Chopin, Kinderscenen p3 and Villa-Lobos have measures whose durations don't add up, so MuseScore only renders them with `--force`. The strongest so far, but still very bad and not usable. Best on Clair de Lune (Mutopia vector PDF engraved from LilyPond) and the Bach (a scan, but very easy to extract), though even those have too many mistakes to fix by hand.
+- **Audiveris 5.11 (Linux `.deb` in WSL, batch mode):** the GUI window stays invisible under WSLg, so it was run as `audiveris -batch -export` with default settings. No Tesseract language data was installed, so no text was recognized in any piece.
+  - Results: Bach terrible. Für Elise (Leipzig) better, but also very bad. Für Elise (first edition) and Villa-Lobos a disaster, unrecognizable. Mozart looks relatively normal (not yet checked against the original), better than Soundslice. Clair de Lune surprisingly decent, with many mistakes.
+  - Failed, no export (not pursued, since the results above suffice to judge): Chopin (internal crash on page 2, "no such edge in graph"); Liszt (cover page has no staff lines, which aborts the whole export; `-sheets 2-22` would skip it); Kinderscenen, full and p3 (pages decode to 89.5 MP, above Audiveris's 20 MP limit).
 - MusicXML baselines are judged by rendering them directly with MuseScore 4 (`npm run eval:engrave`), not via `musicxml2ly`.
 
 ## 2. Why the target format is in question

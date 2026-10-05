@@ -51,6 +51,13 @@ Rendering `.musicxml` needs MuseScore 4 (https://musescore.org/download).
 The engraver runs `mscore`; set `MSCORE` to use another command, e.g. `MSCORE=mscore4portable` for the Linux AppImage.
 On Linux it sets `QT_QPA_PLATFORM=offscreen` (unless already set), so no display is needed.
 
+### Installing Audiveris
+
+Audiveris isn't used by the tooling; it produces baseline candidates.
+Install it only from the official GitHub releases: https://github.com/Audiveris/audiveris/releases
+
+> **Warning:** the sites `audiveris.com` and `audiveris.net` are scams, not the Audiveris project.
+
 ## Pieces
 
 Each piece is described by what makes it easy or hard to extract.
