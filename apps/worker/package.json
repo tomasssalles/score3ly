@@ -5,12 +5,15 @@
   "scripts": {
     "dev": "mkdir -p ../web/dist && wrangler dev",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migrate:local": "wrangler d1 migrations apply score3ly --local",
+    "test": "node --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "hono": "^4.13.12"
   },
   "devDependencies": {
+    "@types/node": "^26.6.4",
     "typescript": "^7.0.2",
     "wrangler": "^4.146.0"
   }

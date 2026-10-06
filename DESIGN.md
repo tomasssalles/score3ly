@@ -37,6 +37,7 @@ v1 was Python-only, local-only and command-line-only.
   - a reduction staff for an orchestral part
   - two-piano double systems
 - **Also possible:** other instrumentations are not excluded, but they are not optimized for initially.
+- **Possible later: image input (PNG, JPEG)** in addition to PDFs. It is almost no extra work: an image is a page image, so it skips PDF extraction and joins the same pipeline at stage 1 (§6), with JPEGs going through the same bundled decoder (§8.1).
 
 ### Goals
 - **Quality first:** the measure of success is how good the LilyPond is and how little human correction it needs. Infrastructure only exists to serve that.
@@ -450,7 +451,11 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
 5. **Fold the notes into this document:** review the design and `NOTES-2026-10-formats.md` once more, update the decisions (target and storage format, lens, prompts, caps, cross-system handling, musical content vs typesetting, review), fold everything into this document, then delete the notes file.
 6. **Build the app,** after or in parallel with step 5, from the outside inwards as usual. First milestone, a vertical slice:
-   1. Pick a PDF (local file only) → hash → upload to R2 → project in D1.
+   1. Pick a PDF (local file only) → hash → upload to R2 → project in D1. *Built, local only, not yet tried by hand in the browser.* The "+" button picks a PDF, the browser hashes it, and one request (`POST /api/projects`) stores it in R2 and adds a row to the `projects` table in D1 (`id`, `pdf_sha256`, `pdf_filename`, `created_at`). Still missing from §4:
+      - The hash is not looked up first: the PDF is uploaded every time, and a known PDF silently gets another project instead of an offer to resume.
+      - The Worker does not hash the PDF. R2 checks the bytes against the client's hash and refuses a mismatch, which currently surfaces as a plain HTTP 500.
+      - The remote R2 bucket and D1 database don't exist yet (`wrangler.jsonc` has a placeholder database ID), so the app can't be deployed.
+      - No shared package yet: the `Project` type exists in both `apps/web` and `apps/worker`, and `sha256Hex` in both `apps/web` and `apps/eval`.
    2. Extract page images deterministically → OPFS → show in the UI.
    3. Global analysis of one page with Gemini → system boxes + metadata. Human correction of the boxes.
    4. Crop systems → transcribe one system with context → structural checks.

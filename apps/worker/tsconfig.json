@@ -8,7 +8,8 @@
     "noEmit": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "types": ["./worker-configuration.d.ts"]
+    "allowImportingTsExtensions": true,
+    "types": ["./worker-configuration.d.ts", "node"]
   },
   "include": ["src", "worker-configuration.d.ts"]
 }

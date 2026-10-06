@@ -7,6 +7,7 @@
   "scripts": {
     "dev:web": "npm run dev -w apps/web",
     "dev:worker": "npm run dev -w apps/worker",
+    "migrate:local": "npm run migrate:local -w apps/worker",
     "build": "npm run build -w apps/web",
     "deploy": "npm run build && npm run deploy -w apps/worker",
     "eval:engrave": "npm run engrave -w apps/eval",

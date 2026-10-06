@@ -5,6 +5,8 @@ Convert printed musical scores into lilypond format (upgrade of score2ly).
 
 Requires Node.js. Install dependencies once with `npm install`.
 
+Create or update the local database with `npm run migrate:local`. Run it once before the first start, and again whenever a file is added to `apps/worker/migrations/`.
+
 Run the app locally in two terminals:
 
 ```sh
@@ -13,6 +15,14 @@ npm run dev:web      # UI (Vite), http://localhost:5173 — open this one
 ```
 
 The Vite dev server forwards `/api` requests to Wrangler.
+
+Locally, Wrangler simulates the database (D1) and the PDF storage (R2) with files under `apps/worker/.wrangler/state/`. Nothing is sent to Cloudflare. To query the local database, run in `apps/worker`:
+
+```sh
+npx wrangler d1 execute score3ly --local --command "SELECT * FROM projects"
+```
+
+Run the tests with `npm test`.
 
 To deploy the app and API to Cloudflare as one Worker: `npm run deploy`.
 

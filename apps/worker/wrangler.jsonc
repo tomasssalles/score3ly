@@ -4,5 +4,16 @@
   "compatibility_date": "2026-10-01",
   // The web app's build output, served as static assets by this Worker.
   // Requests that don't match a file fall through to the Worker code.
-  "assets": { "directory": "../web/dist" }
+  "assets": { "directory": "../web/dist" },
+  // Original PDFs, stored as pdfs/<sha256>.pdf.
+  "r2_buckets": [{ "binding": "PDFS", "bucket_name": "score3ly-pdfs" }],
+  // The database_id is a placeholder until the remote database is created (local dev ignores it).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "score3ly",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
 }
