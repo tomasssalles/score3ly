@@ -1,4 +1,4 @@
-# Notes: baselines, music formats, MEI (discussion of 2026-10-02 to 2026-10-05)
+# Notes: baselines, music formats, MEI (discussion of 2026-10-02 to 2026-10-06)
 
 > Status: **exploration, no decisions.** Nothing here changes `DESIGN.md` yet. Ideas and findings to come back to.
 > Prices and tool facts were gathered from web search snippets (vendor sites were not reachable); verify before relying on them.
@@ -168,9 +168,81 @@ After a few attempts at getting a content bounding box from Gemini, Gemini sugge
 
 ## 7. Measure counting from the full page (Gemini experience)
 
-Based only on chats with Gemini about `bendel_la_cascade_p4.orig.pdf`, with the full page as input (as the planned skeleton pass, DESIGN §6 stage 3, would get it). Claude Opus 5.5 is not tested yet; it should be tested in a fresh chat, since this conversation already knows the answer.
+Based only on chats with Gemini about `bendel_la_cascade_p4.orig.pdf`, with the full page as input (as the planned skeleton pass, DESIGN §6 stage 3, would get it). Claude Opus 5.5 was tested afterwards in a fresh chat: see §8.
 
 - **Result:** Gemini 3.1 Pro and Gemini 3.6 Flash both said every system has 3 measures. The real counts are 6, 6, 6, 7 and 8.
 - **Gemini's own explanation and advice:** it relied on hints such as pedal markings and note groups instead of the bar lines. It recommends (a) prompting explicitly to locate the vertical bar lines, and (b) sending high-resolution crops of each system.
 - **Not verified:** after being told, 3.1 Pro claimed it could now see the measures. That claim may not be trustworthy. To check it, ask for evidence rather than a count, e.g. the x-position of each bar line per system, or what the first beat of each measure contains.
 - **Consequence for the design (open):** the skeleton pass was meant to get only the full page. If measure counts (and measure boxes, §3 "First draft via the lens") from the full page are unreliable, they may have to come from system crops instead, or from deterministic bar-line detection in code, with the LLM only confirming.
+
+## 8. Manual run with Claude Opus 5.5 on Bendel p4 (claude.ai chat)
+
+A first hand-run of the intended pipeline (DESIGN §16 step 3) on `bendel_la_cascade_p4.orig.pdf`, the obscure piece no model identified. Done in a claude.ai chat, with code execution available to the model. The result is `testset/bendel_la_cascade_p4.claude-chat.ly`; its quality hasn't been checked in the viewer yet.
+
+### 8.1 What was done
+1. **Structure from the full page.** Prompt: extract structural information as structured text (number of systems, measures and staves per system, clefs, key and time signature and where they change, maximum number of voices), plus observations useful for the later LilyPond transcription, such as repeated melodies.
+   - Everything was right, including the measure counts (6, 6, 6, 7, 8) that both Gemini models got wrong (§7). Many useful observations, e.g. similarities between spans.
+2. **LilyPond skeleton.** Asked for a skeleton with variables to fill later (per voice, per measure or both), as a downloadable file.
+   - First version reused one variable for measures it believed identical. Corrected by the author: repetitions seen from a bird's-eye view are hints, not facts; values will be substituted by a script, so every measure gets its own variable; the first occurrence serves as a reference when transcribing the second. The second version had one variable per measure and hand, with "REF mN" comments.
+3. **System bounding boxes by eye.** Claude first wanted to find them with code. Rejected by the author: that fails on bad scans, ornamented pages and old paper (tried at length in score2ly). By eye instead, with a check loop: code draws the boxes onto the page, Claude looks at the overlay and corrects them. Two rounds were enough. Claude's suggestion: up to 3 rounds, then flag for human review. Result (fractions of the page, `x0, y0, x1, y1`):
+
+   | System | Box |
+   |---|---|
+   | S1 | 0.018, 0.064, 0.994, 0.262 |
+   | S2 | 0.018, 0.256, 0.994, 0.432 |
+   | S3 | 0.018, 0.430, 0.994, 0.605 |
+   | S4 | 0.018, 0.603, 0.994, 0.771 |
+   | S5 | 0.018, 0.765, 0.994, 0.938 |
+
+4. **System crops** rendered at 300 dpi in grayscale (`pdftoppm` + ImageMagick) from those boxes, uploaded one at a time. The scan inside the PDF is 150 ppi, so 300 dpi adds no detail, but each crop still gets far more model pixels than a system on the full page (roughly 1.4–1.8× linear).
+5. **Transcription per system.** On its own, Claude cut each system into measure crops (6 for system 1) and additionally zoomed into tricky note groups (15 more crops for system 1). It also filled the skeleton, compiled with LilyPond to check for warnings, and cropped the rendering to compare it with the original. System 1 took about 7 minutes. A crop limit was set before system 2.
+6. **Cross-system correction.** After system 5, Claude went back and corrected system 4: a slur it had ended in system 4 actually continued into the next system.
+7. **Output:** the skeleton plus a JSON file with the value of every variable, substituted by script into the skeleton (variables kept, not inlined).
+
+### 8.2 Findings
+- **Opus 5.5 read structure from the full page reliably** where Gemini 3.1 Pro and 3.6 Flash failed (one page, one try each; not yet a general result).
+- **Bounding boxes by eye with a draw-and-check loop work,** at least on this clean page. Unknown on stained, ornamented scans.
+- **Measure crops help, and so does zooming into small note groups,** an idea not in the design before.
+- **Left alone, the model over-explores:** too many images, turns, tool calls and too much time. Images themselves are cheap (one full-size image is roughly 1.5–3k input tokens); the cost is in many turns, each resending a growing context, plus long reasoning.
+- **Dependencies across systems are real:** slurs (and likewise ties, hairpins, 8va lines, pedal, voices) cross system breaks, and later systems can change the reading of earlier ones.
+- **Repetition hints from the overview were partly wrong** (Claude's retrospective: m13 isn't m9; m21 follows m13, not m17). Keeping one variable per measure was the right call.
+
+### 8.3 Claude's own retrospective, reviewed
+Asked afterwards what would have helped from the start. Its points, with our assessment:
+
+| Point | Assessment |
+|---|---|
+| A fixed output spec from the start: one bar per variable, absolute sounding pitch under 8va, where pedal, dynamics and hairpins go, how marks spanning two variables open and close. It changed conventions mid-way (pedal moved into the LH variables, phrasing slurs from system 2, sounding pitch under 8va midway). | Agreed; that's DESIGN §7.3 and the lens (§3). Spanners across variables need an explicit rule. |
+| Knowing the effort budget from the start. | Agreed; caps belong in the pipeline, not in the model's judgement. |
+| Context from before this page: time signature, anything still open (slur, 8va, clef), composer and edition. | Agreed; belongs in the document-level analysis. |
+| A rough chord per bar in a planning pass, as a prior. Most of its real errors were harmonic (G♮ vs G♭ in the m30 arpeggio, F♭ vs G♭ in m23/25, B♭ vs B♮ in m28, A♭ vs B♭ in the m10 LH). | **New, worth testing.** Also enables a check that flags notes clashing with the planned chord. Risk: a wrong chord biases the reading. |
+| Extents of all long marks (slurs, 8va, hairpins) listed before transcribing. | Agreed; overlaps with the loose-ends idea (§8.4). |
+| Repetitions verified properly in the first pass. | Partly: keep them as hints either way, verified at transcription time. |
+| Staff-line positions per crop; turning pixel heights into pitches was its biggest time sink and source of doubt. | See pitch guides below. |
+| Uncertainty in the JSON (`value`, `confidence`, `doubts`) instead of prose. | Already DESIGN §7.2. |
+| A mandatory self-check: render and compare with the crop (would have caught the G♮). | Useful, but as a review step we control (§7.5, §9), not inside the model's own loop. |
+| Labels drawn onto the images ("S3 m13–18") because filenames didn't reach the model. | **To verify.** True for claude.ai uploads; with the API we control the request and can put text labels next to each image. Drawing labels onto the image is still a cheap fallback. |
+| Automation: boxes with the draw-and-check loop, max 3 rounds, then flag. | Agreed. |
+| Automation: staff lines and bar lines found by pixel counting inside a system crop, model as fallback. | **Caution:** scripting like this failed in v1 and score2ly. Maybe more robust on a single crop than on a damaged page; test on stained scans (Kinderscenen) before relying on it, with the model fallback from the start. |
+| Automation: faint labelled pitch guides (staff lines and ledger positions, E4, G4, … C6) drawn onto each measure crop: "read the label" instead of "estimate a pixel height". | **New, cheap to test.** Needs staff-line positions (see the previous point), or the model to supply them. |
+| Automation: transcribe bar by bar, with the state carried in. | **Doubtful:** many more calls, and it loses the system-level view (the slur fix came from that view). Per-system calls with measure crops as extra input seem the better trade-off. |
+| Automation: checks for bar durations (bar checks between variables), unclosed marks, pitches leaving the key without a printed accidental, range, chord clashes. | Mostly DESIGN §7.4. **New:** the key-signature check (would have caught the G♮) and the chord-clash check. |
+| Automation: visual comparison per bar, 1–2 correction rounds. | Agreed, in review (§9). |
+| Automation: independent review of low-confidence bars by an agent that hasn't seen the first transcription. | Agreed; DESIGN §7.5 prefers a different model as reviewer. |
+
+### 8.4 Ideas for the pipeline (open, not decided)
+- **Replace self-directed actions with steps we control:**
+  - measure crops precomputed from measure boxes and sent with the system crop in one request (one turn with several images is far cheaper than several turns)
+  - structural checks by our parser instead of the model compiling LilyPond (§7.4)
+  - renderings for comparison produced in review (§9)
+- **Caps:**
+  - one call per system by default, no tools
+  - a `zoom(box)` tool (normalized coordinates on the preprocessed page) only in the fix loop for flagged measures, with a hard limit (e.g. 2 per measure, 4 per system), then human
+  - reasoning effort or thinking budget set per step
+  - zoom boxes are recorded with the call (§5.2) and are also useful evidence for the reviewer
+- **Cross-system dependencies:**
+  - **Loose ends:** each system's output lists spanners and voices continuing into the next system or arriving from the previous one. Code checks that both sides match and flags both systems on a mismatch.
+  - **Document-level notes:** every call may add notes tagged with the measures they concern. The reviewer of a system sees all notes concerning it, including ones written later. Short text, so cheap to show in full; also covers observations not about neighbours.
+  - **Review after the whole page is transcribed,** with neighbouring systems' images and transcriptions. A later finding that affects an earlier system marks it stale for re-review (as in DESIGN §5.4), within the review-loop limit.
+- **Measure the value of each extra:** call records give tokens, cost and time per call. Compare one-shot with one-shot plus capped zoom (and with or without pitch guides or chord plans) on a few systems.
+
