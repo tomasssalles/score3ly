@@ -1,6 +1,6 @@
 # Design Document — Score-to-LilyPond Pipeline (v2)
 
-> Status: draft, pre-implementation. Building the app depends on the evaluation in §16 steps 1–4. This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. **Open questions** are collected in §15.
+> Status: draft, pre-implementation. The early assessment (§16 steps 1–4) is done and the app will be built. Before building, the findings in `NOTES-2026-10-formats.md` are folded into this document (§16 step 5). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. **Open questions** are collected in §15.
 
 ## 1. What this app is
 
@@ -370,6 +370,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 - Storage and hosting: free tiers.
 - LLM calls: cents per call. Roughly per PDF: about 12 page analyses, about 50 system transcriptions, plus reviews and fixes. Cheaper models (e.g. Flash-class) for easy steps, stronger models where accuracy matters.
 - Every call is logged with its cost. The UI shows per-project and monthly totals.
+- **Cost estimate before running** (planned): the app estimates what extracting a score will cost before the user starts, and reports the real cost afterwards, so anyone using it knows what a score costs to extract.
 
 ## 11. Versioning
 
@@ -443,10 +444,12 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 Whether to build the app at all is decided by evidence first (steps 1–4).
 
 1. **Evaluation tooling:** the engrave command and the viewer (§13). *Done.*
-2. **Baselines from existing tools:** extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Candidate tools and prices: `NOTES-2026-10-formats.md`. Audiveris is installed only from https://github.com/Audiveris/audiveris/releases: `audiveris.com` and `audiveris.net` are scam sites.
-3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app.
+2. **Baselines from existing tools:** *Done.* Extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Candidate tools and prices: `NOTES-2026-10-formats.md`. Audiveris is installed only from https://github.com/Audiveris/audiveris/releases: `audiveris.com` and `audiveris.net` are scam sites.
+3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (`NOTES-2026-10-formats.md` §8).
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
-5. **Build the app.** First milestone, a vertical slice:
+   *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
+5. **Fold the notes into this document:** review the design and `NOTES-2026-10-formats.md` once more, update the decisions (target and storage format, lens, prompts, caps, cross-system handling, musical content vs typesetting, review), fold everything into this document, then delete the notes file.
+6. **Build the app,** after or in parallel with step 5, from the outside inwards as usual. First milestone, a vertical slice:
    1. Pick a PDF (local file only) → hash → upload to R2 → project in D1.
    2. Extract page images deterministically → OPFS → show in the UI.
    3. Global analysis of one page with Gemini → system boxes + metadata. Human correction of the boxes.
@@ -454,3 +457,9 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    5. Record the LLM calls, turn the result into the first fixture, and compare against the baselines in the viewer.
 
    Then: assembly across systems, review (with or without preview rendering), manual edits plus stale marking, regeneration on a second device, Drive integration.
+
+   Also planned, details open:
+   - **Cost estimate before a run, real cost after it** (§10), shown to the user per score.
+   - **Report remaining uncertainties** after the review step, so the user knows where to look.
+   - Possibly a **side-by-side viewer for human review** in the app (like the evaluation viewer, §13).
+   - Possibly a **human → machine feedback step** for last corrections (the human points out errors, the model fixes them).

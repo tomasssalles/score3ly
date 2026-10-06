@@ -1,6 +1,7 @@
 # Notes: baselines, music formats, MEI (discussion of 2026-10-02 to 2026-10-06)
 
 > Status: **exploration, no decisions.** Nothing here changes `DESIGN.md` yet. Ideas and findings to come back to.
+> **Conclusion (2026-10-06):** the early assessment is done; the app will be built (DESIGN §16 step 4). Next: review the design and these notes, update the decisions and fold everything into `DESIGN.md` (§16 step 5), then delete this file.
 > Prices and tool facts were gathered from web search snippets (vendor sites were not reachable); verify before relying on them.
 
 ## 1. Baselines for §16 step 2
