@@ -165,3 +165,12 @@ After a few attempts at getting a content bounding box from Gemini, Gemini sugge
 >
 > **Precision Guardrails**
 > Provide a tight bounding box that hugs the outermost pixels of the target content. Pay special attention to the left and right extremities to avoid clipping system brackets, initial clefs, or outer ledger lines, while ensuring no decorative borders inflate the dimensions.
+
+## 7. Measure counting from the full page (Gemini experience)
+
+Based only on chats with Gemini about `bendel_la_cascade_p4.orig.pdf`, with the full page as input (as the planned skeleton pass, DESIGN §6 stage 3, would get it). Claude Opus 5.5 is not tested yet; it should be tested in a fresh chat, since this conversation already knows the answer.
+
+- **Result:** Gemini 3.1 Pro and Gemini 3.6 Flash both said every system has 3 measures. The real counts are 6, 6, 6, 7 and 8.
+- **Gemini's own explanation and advice:** it relied on hints such as pedal markings and note groups instead of the bar lines. It recommends (a) prompting explicitly to locate the vertical bar lines, and (b) sending high-resolution crops of each system.
+- **Not verified:** after being told, 3.1 Pro claimed it could now see the measures. That claim may not be trustworthy. To check it, ask for evidence rather than a count, e.g. the x-position of each bar line per system, or what the first beat of each measure contains.
+- **Consequence for the design (open):** the skeleton pass was meant to get only the full page. If measure counts (and measure boxes, §3 "First draft via the lens") from the full page are unreliable, they may have to come from system crops instead, or from deterministic bar-line detection in code, with the LLM only confirming.
