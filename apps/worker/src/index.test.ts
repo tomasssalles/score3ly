@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getPlatformProxy } from "wrangler";
-import app, { defaultName, firstFreeName } from "./index.ts";
+import app from "./index.ts";
+import { defaultName, firstFreeName } from "./names.ts";
 
 // The tests run the API against Wrangler's local R2 and D1, kept in memory.
 const workerDir = join(import.meta.dirname, "..");
