@@ -164,7 +164,7 @@ The core depends only on interfaces. Adapters live in `apps/*`.
   - Deleting a project frees its name.
 - Each project also has three timestamps, all set by the Worker (ISO 8601, UTC) so a wrong device clock can't scramble the order:
   - **created**
-  - **last modified:** any change to the project's own data (pipeline results, manual edits, a rename). Opening or viewing doesn't count.
+  - **last modified:** any change to the project's own data (pipeline results, manual stages, a rename). Opening or viewing doesn't count.
   - **last opened:** set by a dedicated request when the project is opened, so listing projects doesn't touch it.
 
   Both start equal to the creation time, so sorting needs no special case for "never".
@@ -174,7 +174,17 @@ The core depends only on interfaces. Adapters live in `apps/*`.
 
 The pipeline is designed like a small build system. The v1 stage-tracking system (hash checks, resumability, JSON documentation) is the starting point and is ported, not reinvented.
 
-### 5.1 Steps
+### 5.1 Steps and stages
+
+- A **step** is a definition in the code: what is done, with which configuration options.
+- A **stage** is one occurrence of a step in a project's pipeline, with its own configuration and its own results.
+- A project's **pipeline** is the ordered list of its stages. It is stored in D1 and shown in the UI (probably in a side panel), so it has to stay short.
+
+There are two sorts of stages:
+- **Planned stages** have a predefined order (§6) and can run automatically, one after the other.
+- **Manual stages** are added by the user to intervene by hand (§5.4). They are recorded in the pipeline like any other stage.
+
+The same step can occur more than once in a pipeline. Example: the review step run twice for extra accuracy, or once with one model and once more with another.
 
 Each step declares:
 - `id` and `version`, e.g. `transcribe_system@3` (see §11).
@@ -198,8 +208,9 @@ LLM artifacts additionally reference their **call record**: prompt template vers
 
 A **cache key** = hash(step id, version, canonical config, input artifact IDs).
 - Re-running a step with identical inputs and config hits the cache.
-- Changing the config of stage N creates new artifacts from N onward. The old ones remain as an alternative branch for comparison.
-- Each stage has a **selected** artifact (or branch) that downstream steps consume.
+- Artifacts of later stages may already exist when an earlier stage is run again with the same inputs and config. They are found through the cache key and reused.
+
+Every artifact has a row in D1, which belongs to the stage that produced it and says whether the artifact's content is stored (and where: D1 or R2) or only its recipe (§5.3).
 
 ### 5.3 Persisted vs. regenerable (important)
 
@@ -207,15 +218,28 @@ A **cache key** = hash(step id, version, canonical config, input artifact IDs).
 - **LLM** and **human** artifacts **must be persisted**. They cannot be regenerated: re-running an LLM call gives a different answer and costs money.
 - Rule: *anything you would hate to lose must never exist only as a cached image.*
 
-### 5.4 Manual edits
+### 5.4 Manual stages
 
-- A manual edit creates a **new artifact** with `origin = manual` whose parent is the edited artifact. Downstream artifacts become **stale** and are marked as such in the UI. They are not deleted.
+The user intervenes by adding a manual stage to the pipeline. The manual stages foreseen so far:
+- fix deskewing angles
+- fix content crops
+- fix system crops
+- fix measure crops
+- fix extracted metadata (composer, title, edition etc.)
+- fix musical content: at any point after the first transcription, before and/or after any review stage
+- answer questions about uncertainties that a model flagged
+
+Rules:
+- **One manual stage covers the whole PDF,** however many items are fixed in it. Fixing twelve measure crops is one "fix measure crops" stage, not twelve. Otherwise the pipeline shown in the UI would get too long.
+- The artifacts of a manual stage have `origin = manual` and the corrected artifact as their parent.
 - Edits to images are stored as **replayable operations** in D1, not as edited pixels: crop windows, deskew angles, masks as vector strokes. Replaying them on the regenerated base image reproduces the edited result.
-- Text artifacts (analysis JSON, LilyPond fragments) are stored edited, with a diff to their parent.
+- Text artifacts (analysis JSON, transcribed music) are stored edited, with a diff to their parent.
 
 ### 5.5 Resuming and re-running
-- "Re-run from stage N with a different config" means: create a new branch at N, mark later stages stale, then execute forward.
-- "Resume from my manual output" is the same mechanism, starting from a `manual` artifact.
+- **The history of a project is linear.** There are no branches inside a project.
+- Changing something in the middle (e.g. the config of stage N, or a manual stage added there) means running everything after that point again. The results of the later stages are replaced.
+- Before that happens, a dialog asks for confirmation and explains what will be lost: the LLM calls already paid for in the later stages, and the manual work put into them.
+- To keep the old results and try something else, the project is forked (planned, §16), not branched.
 - Execution is lazy and per item: only the pages and systems being looked at, or needed downstream, are computed.
 
 ## 6. Pipeline stages (initial plan)
@@ -450,6 +474,8 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 - **Constrained LilyPond subset:** exact definition, especially for cross-staff notation, ornaments, ossia and lyrics.
 - **Colour vs. grayscale vs. binarized** page images for the LLM steps: decide by ablation on the test set (§8.1).
 - **LLM provider access:** direct APIs versus Vertex AI / Bedrock for EU processing.
+- **D1 schema for stages and artifacts** (§5): not designed yet.
+- **What re-running from a stage discards** (§5.5): the later stages' artifacts are replaced, but the LLM call records are also what the cost totals (§10) and the reuse of identical requests (§7.6) are built on. Decide whether the records of replaced stages are kept.
 
 ## 16. Roadmap
 
@@ -460,7 +486,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (`NOTES-2026-10-formats.md` §8).
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
-5. **Fold the notes into this document:** review the design and `NOTES-2026-10-formats.md` once more, update the decisions (target and storage format, lens, prompts, caps, cross-system handling, musical content vs typesetting, review), fold everything into this document, then delete the notes file.
+5. **Fold the notes into this document:** review the design and `NOTES-2026-10-formats.md` once more, update the decisions (target and storage format, lens, prompts, caps, cross-system handling, musical content vs typesetting, review, content crops and measure crops as stages in §6), fold everything into this document, then delete the notes file.
 6. **Build the app,** after or in parallel with step 5, from the outside inwards as usual. First milestone, a vertical slice:
    1. Pick a PDF (local file only) → hash → upload to R2 → project in D1. *Built, local only, not yet tried by hand in the browser.* The "+ New project" button picks a PDF, the browser hashes it, and one request (`POST /api/projects`) stores it in R2 and adds a row to the `projects` table in D1 (`id`, `name`, `pdf_sha256`, `pdf_filename`, `created_at`, `last_modified_at`, `last_opened_at`), with the default name from §4. The API can also rename a project (`PATCH /api/projects/<id>`, 409 if the name is taken) and record that it was opened (`POST /api/projects/<id>/opened`), and lists all projects, most recently opened first (`GET /api/projects`).
 
@@ -475,10 +501,13 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    4. Crop systems → transcribe one system with context → structural checks.
    5. Record the LLM calls, turn the result into the first fixture, and compare against the baselines in the viewer.
 
-   Then: assembly across systems, review (with or without preview rendering), manual edits plus stale marking, regeneration on a second device, Drive integration.
+   Then: assembly across systems, review (with or without preview rendering), the pipeline of stages in D1 and in the UI (§5.1), manual stages (§5.4), re-running from a stage with confirmation (§5.5), regeneration on a second device, Drive integration.
 
    Also planned, details open:
    - **Cost estimate before a run, real cost after it** (§10), shown to the user per score.
    - **Report remaining uncertainties** after the review step, so the user knows where to look.
    - Possibly a **side-by-side viewer for human review** in the app (like the evaluation viewer, §13).
    - Possibly a **human → machine feedback step** for last corrections (the human points out errors, the model fixes them).
+   - **Renaming a project** in the UI (the API can already do it, §4).
+   - **Deleting a project** completely, leaving no trace of it anywhere (D1, R2, device cache), behind several confirmations. A PDF or artifact that another project still uses has to stay.
+   - **Forking a project** from a given stage: a new, separate project that starts with the original's pipeline up to that stage. Each project keeps its own linear history. Behind the scenes, the fork reuses the original's artifacts without duplicating them.
