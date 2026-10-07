@@ -44,7 +44,9 @@ export function App() {
         {error && <p>{error}</p>}
         {created && (
           <p className="detail">
-            Created project {created.id}
+            Created project "{created.name}"
+            <br />
+            ID: {created.id}
             <br />
             PDF: {created.pdfFilename}
             <br />

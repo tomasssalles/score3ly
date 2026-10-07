@@ -47,7 +47,7 @@ v1 was Python-only, local-only and command-line-only.
 - **Reproducible and testable:** every artifact can be traced back to its inputs, code version, prompt version, model and configuration. Non-deterministic parts (LLM calls, human input) are recorded so they can be replayed (§12).
 
 ### Non-goals (for now)
-- Multiple users, sharing, collaboration. One user (the author) for the foreseeable future.
+- Multiple users, sharing, collaboration. Each person deploys their own instance to their own Cloudflare account, with their own secrets, so the app has no user accounts and none are planned.
 - MusicXML output.
 - Offline-first operation.
 
@@ -157,6 +157,17 @@ The core depends only on interfaces. Adapters live in `apps/*`.
   - **Unknown:** upload to R2 at `pdfs/<sha256>.pdf` and create a project.
   - **Known:** offer to resume an existing project on this PDF, or start a new one. There can be several projects per PDF.
 - The file name and source (Drive ID, local path) are stored as informational metadata only, never as identity.
+- Each project has a **name**, so the user can tell projects on the same PDF apart (e.g. "Sonata, Claude run" vs "Sonata, Gemini run"). The name is a label, not the identity (that is the project ID), but it is unique so it can be relied on:
+  - It defaults to the PDF's file name without ".pdf". If a project already has that name, the Worker appends " (1)", " (2)", ... and takes the first free one, like file managers do. A file that is already called `Sonata (1).pdf` becomes `Sonata (1) (1)`, also like file managers.
+  - Uniqueness is case-insensitive ("Sonata" and "sonata" clash) and enforced by the database (`UNIQUE COLLATE NOCASE`), so two projects created at once can't get the same name. Names are trimmed, never empty, and at most 200 characters.
+  - The user can rename a project at any time. Renaming to a name that is taken is refused with a message, not numbered: numbering only applies to the default.
+  - Deleting a project frees its name.
+- Each project also has three timestamps, all set by the Worker (ISO 8601, UTC) so a wrong device clock can't scramble the order:
+  - **created**
+  - **last modified:** any change to the project's own data (pipeline results, manual edits, a rename). Opening or viewing doesn't count.
+  - **last opened:** set by a dedicated request when the project is opened, so listing projects doesn't touch it.
+
+  Both start equal to the creation time, so sorting needs no special case for "never".
 - Concurrent edits from two devices are prevented by optimistic locking: each project has a version number, and stale writes are rejected with a reload prompt.
 
 ## 5. The pipeline model
@@ -451,7 +462,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
 5. **Fold the notes into this document:** review the design and `NOTES-2026-10-formats.md` once more, update the decisions (target and storage format, lens, prompts, caps, cross-system handling, musical content vs typesetting, review), fold everything into this document, then delete the notes file.
 6. **Build the app,** after or in parallel with step 5, from the outside inwards as usual. First milestone, a vertical slice:
-   1. Pick a PDF (local file only) → hash → upload to R2 → project in D1. *Built, local only, not yet tried by hand in the browser.* The "+" button picks a PDF, the browser hashes it, and one request (`POST /api/projects`) stores it in R2 and adds a row to the `projects` table in D1 (`id`, `pdf_sha256`, `pdf_filename`, `created_at`). Still missing from §4:
+   1. Pick a PDF (local file only) → hash → upload to R2 → project in D1. *Built, local only, not yet tried by hand in the browser.* The "+ New project" button picks a PDF, the browser hashes it, and one request (`POST /api/projects`) stores it in R2 and adds a row to the `projects` table in D1 (`id`, `name`, `pdf_sha256`, `pdf_filename`, `created_at`, `last_modified_at`, `last_opened_at`), with the default name from §4. The API can also rename a project (`PATCH /api/projects/<id>`, 409 if the name is taken) and record that it was opened (`POST /api/projects/<id>/opened`). The UI uses neither yet. Still missing from §4:
       - The hash is not looked up first: the PDF is uploaded every time, and a known PDF silently gets another project instead of an offer to resume.
       - The Worker does not hash the PDF. R2 checks the bytes against the client's hash and refuses a mismatch, which currently surfaces as a plain HTTP 500.
       - The remote R2 bucket and D1 database don't exist yet (`wrangler.jsonc` has a placeholder database ID), so the app can't be deployed.

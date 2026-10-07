@@ -3,9 +3,12 @@ import { sha256Hex } from "./sha256";
 // Mirrors the Worker's Project type (apps/worker/src/index.ts).
 export type Project = {
   id: string;
+  name: string;
   pdfSha256: string;
   pdfFilename: string;
   createdAt: string;
+  lastModifiedAt: string;
+  lastOpenedAt: string;
 };
 
 // Uploads the PDF and creates a project on it.
