@@ -242,12 +242,27 @@ Rules:
 - Text artifacts (analysis JSON, transcribed music) are stored edited, with a diff to their parent.
 
 ### 5.5 Resuming and re-running
-- **The history of a project is linear.** There are no branches inside a project.
+- **The history of a project is linear.** There are no branches inside a project, and no undo.
 - Changing something in the middle (e.g. the config of stage N, or a manual stage added there) means running everything after that point again. The later stages are replaced: they leave the pipeline and are no longer shown.
-- **Replaced stages are kept in storage,** with their artifacts and full LLM call records (requests and responses), until the project is deleted. They are reused whenever possible: a stage that runs again with the same inputs and config, or an identical LLM request (§7.6), is served from what is stored and costs nothing.
-- Before that happens, a dialog asks for confirmation and explains what is at stake: wherever the inputs changed, the LLM calls already paid for in the later stages have to be paid for again, and the manual work put into them has to be redone.
 - To keep the old results and try something else, the project is forked (planned, §16), not branched.
 - Execution is lazy and per item: only the pages and systems being looked at, or needed downstream, are computed.
+
+#### What a re-run follows
+A re-run follows **the pipeline as it was, not the standard recipe** of planned stages, for as long as the outcomes stay the same. This is the intended behaviour, not yet a technical definition; the details are worked out when we get there.
+- **A stage whose inputs and config are exactly the same is reused,** manual stages included. Example: the composer's name is corrected after a full run that also had a wrong note fixed by hand. Nothing that the note fix depended on changed, so the fix is still there after the re-run.
+- **A manual stage whose input changed is dropped,** and the pipeline continues with the planned stages. The typical manual fix is a better deskewing angle or better system crops on a difficult old score. The point of it is that the stages after it then produce very different, better output, which ideally no longer needs the manual fixes that the poor first attempt needed.
+- **Stages must depend only on what they really use.** If a transcription call got the whole global analysis as context, composer included, correcting the composer would change the input of every transcription, and all of them would be paid for again.
+- **Proposed:** after a re-run, the app reports which manual fixes were carried over and which were dropped. Which ones are dropped depends on the outcome of the run, so it can't be said beforehand, and a dropped fix would otherwise go unnoticed.
+
+#### Replaced stages
+- **Replaced stages are kept in storage,** with their artifacts and full LLM call records (requests and responses). They are reused whenever possible: a stage that runs again with the same inputs and config, or an identical LLM request (§7.6), is served from what is stored and costs nothing.
+- **They stay connected to their project in D1,** although the pipeline no longer shows them, so that deleting the project (§4) finds and deletes them too. Until then, a project's storage only grows.
+
+#### Confirmation before a re-run
+A dialog asks for confirmation before anything is replaced. The wording still needs polishing, but it must say clearly:
+- The pipeline is **overwritten irreversibly**: there is no undo and no branching, so this is a hard rewrite.
+- Changing one stage can change, and is likely to change, the rest of the pipeline.
+- Wherever the input stays exactly the same, earlier results are reused: LLM calls already paid for are not paid for again, and manual fixes are kept. Everywhere else, calls are paid for again and manual work is dropped.
 
 ### 5.6 How the app shows a project
 - **The pipeline is the main attraction; the artifact view is secondary.** The usual use is: new project, let it run, take the final MEI and leave. So the pipeline gets the comfortable place on every screen, and inspecting artifacts is what gets less comfortable on small screens.
@@ -534,6 +549,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 - **Colour vs. grayscale vs. binarized** page images for the LLM steps: decide by ablation on the test set (§8.1).
 - **LLM provider access:** direct APIs versus Vertex AI / Bedrock for EU processing.
 - **D1 schema for stages and artifacts** (§5): not designed yet.
+- **Reuse per item within a stage** (§5.5): a manual stage covers the whole PDF. If only one system's input changed, should the fixes on the unchanged systems carry over, with only the changed one dropped? Well-meant, but it makes the behaviour harder for the user to understand, more than it complicates the code.
 
 ## 16. Roadmap
 
