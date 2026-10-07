@@ -1,6 +1,6 @@
 # Design Document — Score-to-LilyPond Pipeline (v2)
 
-> Status: draft, pre-implementation. The early assessment (§16 steps 1–4) is done and the app will be built. Before building, the findings in `NOTES-2026-10-formats.md` are folded into this document (§16 step 5). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. **Open questions** are collected in §15.
+> Status: draft. The early assessment (§16 steps 1–4) is done and the app is being built from the outside inwards (§16 step 6): projects, the project picker and the project view exist and run locally; there are no pipeline stages yet. The findings in `NOTES-2026-10-formats.md` still have to be folded into this document (§16 step 5). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. **Open questions** are collected in §15.
 
 ## 1. What this app is
 
@@ -255,6 +255,16 @@ Rules:
 
   Whether the view follows the pipeline while it runs is open.
 - **Built so far:** the pipeline has a single item, the original PDF, shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Both progress circles stay empty until there are stages. Later: editing in the artifact view and a "needs you" state for steps that wait for the user.
+
+### 5.7 Look and feel
+- **Modern and clean, for desktop, tablet and phone.** Dark theme only for now. A light theme comes later; both must stay high-contrast.
+- **Wordmark:** `<score3ly>` in JetBrains Mono, white, with the angle brackets in the accent color. It nods at the source code the app turns music into. It is always on the left of the header, at every width.
+- **Accent color: coral** (`#ff7b72`, 8.4:1 on black). It is used for the wordmark's brackets, the "+ New project" button (black text), focus rings, the open picker and the selected pipeline item. Chosen from a set of candidates in a mockup.
+- **Fonts:** JetBrains Mono for the wordmark and anything that is code (LilyPond, file names, IDs, times); Inter for interface text. Both are bundled with the app (Fontsource), so no request goes to Google Fonts.
+- **Colors are CSS variables** in `apps/web/src/styles.css` (`--bg` black for the header and side panel, `--surface` near-black for the page, `--accent`, ...), ready for a light theme.
+- **Compact mark (not built yet):** `< >` with an eighth note inside, drawn entirely as SVG (brackets and note in one stroke weight). Besides angle brackets as a tag, `<c e g>` is a chord in LilyPond. It is meant for the favicon and the app icon; the long wordmark fits even on phones.
+- **Pipeline icon:** three nodes on a vertical line, each with a bar beside it (a list of steps). Three dots alone would read as a "more" menu. Alternatives considered: two boxes joined by an arrow, a funnel, a staff line through nodes.
+- **Times** are written compactly: "20min ago", "5h ago", "2d ago".
 
 ## 6. Pipeline stages (initial plan)
 
@@ -511,7 +521,9 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
       Below the header is the project view (§5.6): the pipeline panel and the artifact view, which shows the original PDF. Still missing from §4:
       - The Worker does not hash the PDF. R2 checks the bytes against the client's hash and refuses a mismatch, which currently surfaces as a plain HTTP 500.
       - The remote R2 bucket and D1 database don't exist yet (`wrangler.jsonc` has a placeholder database ID), so the app can't be deployed.
-      - No shared package yet: the `Project` type exists in both `apps/web` and `apps/worker`, and `sha256Hex` in both `apps/web` and `apps/eval`.
+      - No shared package yet: the `Project` type exists in both `apps/web` and `apps/worker`, `sha256Hex` in both `apps/web` and `apps/eval`, and the pdf.js asset plugin and PDF rendering in both `apps/web` and `apps/eval` (the eval copy is dev-only and uses the modern pdf.js build).
+      - The Worker's entry module (`apps/worker/src/index.ts`) may only export handlers: the Workers runtime refuses to start otherwise, and the tests (which import the module directly) don't notice. Helpers live in their own modules (e.g. `names.ts`).
+      - Next: the stages. Details to come from the author.
    2. Extract page images deterministically → OPFS → show in the UI.
    3. Global analysis of one page with Gemini → system boxes + metadata. Human correction of the boxes.
    4. Crop systems → transcribe one system with context → structural checks.
