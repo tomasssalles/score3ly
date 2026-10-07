@@ -4,7 +4,8 @@ import { Header } from "./Header";
 import { KnownPdfDialog } from "./KnownPdfDialog";
 import { ProjectPicker } from "./ProjectPicker";
 import { ProjectView } from "./ProjectView";
-import { hashForArtifact, hashForProject, parseRoute } from "./route";
+import { PageView } from "./PageView";
+import { hashForArtifact, hashForProject, pageFromHash, parseRoute } from "./route";
 import { sha256Hex } from "./sha256";
 import { useHash } from "./useHash";
 
@@ -16,7 +17,10 @@ export function App() {
   const [knownPdf, setKnownPdf] = useState<{ pdf: File; sha256: string; lookup: PdfLookup } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   // The open project, and the artifact the user picked, are the ones in the URL, if any.
-  const route = parseRoute(useHash());
+  const hash = useHash();
+  const route = parseRoute(hash);
+  // A page from the menu, if one is open instead of a project.
+  const page = pageFromHash(hash);
   const current = projects?.find((project) => project.id === route?.projectId) ?? null;
   // Whether the open artifact was opened from within the app, so closing it can go back in history.
   const openedArtifactHere = useRef(false);
@@ -98,6 +102,7 @@ export function App() {
     <>
       <Header
         picker={<ProjectPicker projects={projects ?? []} current={current} onPick={open} />}
+        page={page}
         onNewProject={() => fileInput.current?.click()}
       />
       <main className="app-main">
@@ -130,7 +135,9 @@ export function App() {
             onCancel={() => setKnownPdf(null)}
           />
         )}
-        {current ? (
+        {page ? (
+          <PageView page={page} />
+        ) : current ? (
           <ProjectView
             key={current.id}
             project={current}
