@@ -828,3 +828,49 @@ body {
 .button-secondary:hover {
   background: var(--hover);
 }
+
+/* About */
+.page-view .about-wordmark {
+  margin: 8px 0 12px;
+  font-size: 40px;
+  color: var(--wordmark);
+}
+
+.page-view .about-summary {
+  margin-bottom: 28px;
+  color: var(--fg);
+}
+
+.about-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.about-facts dt {
+  color: var(--muted);
+}
+
+.about-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.about-facts .mono {
+  font: 14px/1.55 var(--mono);
+}
+
+.about-facts a {
+  color: var(--accent);
+}
+
+@media (max-width: 480px) {
+  .about-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .about-facts dd + dt {
+    margin-top: 14px;
+  }
+}

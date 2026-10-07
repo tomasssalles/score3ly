@@ -279,9 +279,10 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
   Whether the view follows the pipeline while it runs is open.
 - **Built so far:** the pipeline has a single item, the original PDF, shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Both progress circles stay empty until there are stages. Later: editing in the artifact view and a "needs you" state for steps that wait for the user.
 
-- **The menu** (☰, at the far right of the header, after "+ New project") leads to the app's own pages: Statistics (including costs, §10), Settings, Help and About, in three groups separated by lines (what you look at, what you change, help). Each page has its own URL (`#/stats`, `#/settings`, `#/help`, `#/about`) and replaces the project view while it is open, so the back button returns to the project. They are placeholders for now. Anything urgent (the spending cap reached, a missing key) must not hide in the menu: it is shown where the user is.
+- **The menu** (☰, at the far right of the header, after "+ New project") leads to the app's own pages: Statistics (including costs, §10), Settings, Help and About, in three groups separated by lines (what you look at, what you change, help). Each page has its own URL (`#/stats`, `#/settings`, `#/help`, `#/about`) and replaces the project view while it is open, so the back button returns to the project. All but About are placeholders for now. Anything urgent (the spending cap reached, a missing key) must not hide in the menu: it is shown where the user is.
 - **Project actions:** a "⋮" button next to the project's name in the pipeline panel opens a menu of things to do with the project: "Rename", then a line, then "Delete project" in red (`--danger`, kept apart from the coral accent). Deleting isn't built yet (§16).
   - **Rename** opens a dialog with the name selected. "Rename" stays disabled while the name is empty (after trimming) or unchanged; a name over 200 characters gets a message right away. A name another project has (ignoring case) is refused by the Worker (409) and explained in the dialog, which stays open. Both menus share one component (`DropdownMenu`).
+- **The About page:** the wordmark, what the app does, its version (§11), the author (Tomás Silveira Salles), a link to the repository on GitHub, and the license. There is no license yet, so all rights are reserved, and the page says so: the code can be read on GitHub but not copied, changed or shared.
 - **Leaving a project loses nothing,** whether for a page from the menu, another project or a closed tab, because manual work is saved as it happens (§5.4). Once editing exists, changes not saved yet are saved or confirmed before the project view goes away.
 
 ### 5.7 Look and feel
@@ -498,6 +499,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 - Load old step versions lazily with dynamic `import()`.
 - If the number of versions grows unmanageable: release **app v2.0**, declare v1.x project data incompatible, and start fresh. This is acceptable while there is a single user.
 - **D1 schema migrations** use `wrangler d1 migrations`.
+- **The app's version** is the `version` in the root `package.json` (0.1.0 for now; no rules yet for when it goes up). The build also records the git commit it was built from, and whether there were uncommitted changes. The About page shows all of it, e.g. "0.1.0 · commit 61c081d", so a deployed app can always be traced to its code.
 
 ## 12. Testing and reproducibility
 

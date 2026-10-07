@@ -1,5 +1,6 @@
 {
   "name": "score3ly",
+  "version": "0.1.0",
   "private": true,
   "workspaces": [
     "apps/*"

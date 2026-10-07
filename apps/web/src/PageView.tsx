@@ -1,7 +1,8 @@
+import { AboutPage } from "./AboutPage";
 import type { Page } from "./route";
 
-// The pages reached from the menu. Placeholders for now: each says what it will hold.
-const CONTENT: Record<Page, { title: string; text: string[] }> = {
+// The pages reached from the menu. All but About are placeholders for now: each says what it will hold.
+const CONTENT: Record<Exclude<Page, "about">, { title: string; text: string[] }> = {
   stats: {
     title: "Statistics",
     text: [
@@ -17,13 +18,10 @@ const CONTENT: Record<Page, { title: string; text: string[] }> = {
     title: "Help",
     text: ["How to turn a printed score into MEI and LilyPond with this app."],
   },
-  about: {
-    title: "About",
-    text: ["score3ly turns printed musical scores into MEI and LilyPond, with vision LLMs doing the reading."],
-  },
 };
 
 export function PageView({ page }: { page: Page }) {
+  if (page === "about") return <AboutPage />;
   const { title, text } = CONTENT[page];
   return (
     <div className="page-view">
