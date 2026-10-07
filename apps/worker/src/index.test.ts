@@ -74,9 +74,16 @@ function rename(id: string, name: unknown) {
   );
 }
 
-function postProject(fields: { pdf?: Uint8Array<ArrayBuffer>; filename?: string; sha256?: string }) {
+function postProject(fields: {
+  pdf?: Uint8Array<ArrayBuffer>;
+  filename?: string;
+  sha256?: string;
+  filenameOnly?: boolean;
+}) {
   const form = new FormData();
-  if (fields.pdf) {
+  if (fields.filenameOnly) {
+    form.append("filename", fields.filename ?? "score.pdf");
+  } else if (fields.pdf) {
     form.append("pdf", new File([fields.pdf], fields.filename ?? "score.pdf"));
   }
   if (fields.sha256 !== undefined) {
@@ -270,4 +277,56 @@ test("the project list is sorted by last opened, most recent first", async () =>
     ["first", "second"],
   );
   assert.equal(projects[1].id, second.id);
+});
+
+test("looking up a PDF lists its projects and the name a new one would get", async () => {
+  const pdf = pdfBytes("known pdf");
+  const sha256 = await sha256Hex(pdf);
+  const first = (await (await postProject({ pdf, filename: "Sonata.pdf", sha256 })).json()) as ProjectJson;
+  const second = (await (await postProject({ pdf, filename: "Sonata.pdf", sha256 })).json()) as ProjectJson;
+  await createdProject("other.pdf");
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  await app.request(`/api/projects/${first.id}/opened`, { method: "POST" }, env);
+
+  const response = await app.request(`/api/pdfs/${sha256}?filename=${encodeURIComponent("sonata.pdf")}`, {}, env);
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as { projects: ProjectJson[]; newProjectName: string };
+  assert.deepEqual(
+    body.projects.map((p) => p.id),
+    [first.id, second.id],
+  );
+  assert.equal(body.newProjectName, "sonata (2)");
+});
+
+test("looking up an unknown PDF finds no projects", async () => {
+  const sha256 = await sha256Hex(pdfBytes("unknown pdf"));
+
+  const response = await app.request(`/api/pdfs/${sha256}?filename=Etude.pdf`, {}, env);
+
+  assert.deepEqual(await response.json(), { projects: [], newProjectName: "Etude" });
+  assert.equal((await app.request(`/api/pdfs/${sha256}`, {}, env)).status, 400);
+  assert.equal((await app.request("/api/pdfs/abc?filename=x.pdf", {}, env)).status, 400);
+});
+
+test("a project on a stored PDF can be created without uploading it again", async () => {
+  const pdf = pdfBytes("stored pdf");
+  const sha256 = await sha256Hex(pdf);
+  await postProject({ pdf, filename: "Sonata.pdf", sha256 });
+
+  const response = await postProject({ sha256, filename: "Sonata.pdf", filenameOnly: true });
+
+  assert.equal(response.status, 201);
+  const project = (await response.json()) as ProjectJson;
+  assert.equal(project.name, "Sonata (1)");
+  assert.equal(project.pdfFilename, "Sonata.pdf");
+});
+
+test("a project without the file is refused if the PDF isn't stored", async () => {
+  const sha256 = await sha256Hex(pdfBytes("never uploaded"));
+
+  const response = await postProject({ sha256, filename: "Sonata.pdf", filenameOnly: true });
+
+  assert.equal(response.status, 409);
+  assert.deepEqual(await projectRows(), []);
 });

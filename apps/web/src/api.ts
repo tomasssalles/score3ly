@@ -1,5 +1,3 @@
-import { sha256Hex } from "./sha256";
-
 // Mirrors the Worker's Project type (apps/worker/src/index.ts).
 export type Project = {
   id: string;
@@ -23,11 +21,26 @@ export async function listProjects(): Promise<Project[]> {
   return (await checked(await fetch("/api/projects"))).json();
 }
 
-// Uploads the PDF and creates a project on it.
-export async function createProject(pdf: File): Promise<Project> {
+export type PdfLookup = {
+  projects: Project[]; // most recently opened first
+  newProjectName: string; // the name a new project would get
+};
+
+// What the Worker knows about a PDF, before uploading it.
+export async function lookUpPdf(sha256: string, filename: string): Promise<PdfLookup> {
+  const query = new URLSearchParams({ filename });
+  return (await checked(await fetch(`/api/pdfs/${sha256}?${query}`))).json();
+}
+
+// Creates a project on a PDF. The file is uploaded unless the Worker already has it.
+export async function createProject(pdf: File, sha256: string, alreadyStored: boolean): Promise<Project> {
   const form = new FormData();
-  form.append("pdf", pdf);
-  form.append("sha256", await sha256Hex(await pdf.arrayBuffer()));
+  if (alreadyStored) {
+    form.append("filename", pdf.name);
+  } else {
+    form.append("pdf", pdf);
+  }
+  form.append("sha256", sha256);
   return (await checked(await fetch("/api/projects", { method: "POST", body: form }))).json();
 }
 

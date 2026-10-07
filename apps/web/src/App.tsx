@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { createProject, listProjects, markOpened, type Project } from "./api";
+import { createProject, listProjects, lookUpPdf, markOpened, type PdfLookup, type Project } from "./api";
 import { Header } from "./Header";
+import { KnownPdfDialog } from "./KnownPdfDialog";
 import { ProjectPicker } from "./ProjectPicker";
+import { sha256Hex } from "./sha256";
 
 export function App() {
   const [health, setHealth] = useState("checking...");
   // Most recently opened first; the first one is the current project.
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // A picked PDF that already has projects, waiting for the user's choice.
+  const [knownPdf, setKnownPdf] = useState<{ pdf: File; sha256: string; lookup: PdfLookup } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const current = projects[0] ?? null;
 
@@ -30,10 +34,29 @@ export function App() {
     refresh();
   }, []);
 
-  async function newProject(pdf: File) {
+  // A picked PDF gets a new project, unless it already has projects: then the user chooses.
+  async function pdfPicked(pdf: File) {
+    setError(null);
+    let sha256: string;
+    let lookup: PdfLookup;
+    try {
+      sha256 = await sha256Hex(await pdf.arrayBuffer());
+      lookup = await lookUpPdf(sha256, pdf.name);
+    } catch (err) {
+      setError(`Checking the PDF failed: ${err}`);
+      return;
+    }
+    if (lookup.projects.length > 0) {
+      setKnownPdf({ pdf, sha256, lookup });
+    } else {
+      await newProject(pdf, sha256, false);
+    }
+  }
+
+  async function newProject(pdf: File, sha256: string, alreadyStored: boolean) {
     setError(null);
     try {
-      await createProject(pdf);
+      await createProject(pdf, sha256, alreadyStored);
     } catch (err) {
       setError(`Creating the project failed: ${err}`);
       return;
@@ -67,12 +90,28 @@ export function App() {
           hidden
           onChange={(e) => {
             const pdf = e.target.files?.[0];
-            if (pdf) newProject(pdf);
+            if (pdf) pdfPicked(pdf);
             // Lets the same file be picked again.
             e.target.value = "";
           }}
         />
         {error && <p>{error}</p>}
+        {knownPdf && (
+          <KnownPdfDialog
+            filename={knownPdf.pdf.name}
+            projects={knownPdf.lookup.projects}
+            newProjectName={knownPdf.lookup.newProjectName}
+            onOpen={(project) => {
+              setKnownPdf(null);
+              open(project);
+            }}
+            onCreate={() => {
+              setKnownPdf(null);
+              newProject(knownPdf.pdf, knownPdf.sha256, true);
+            }}
+            onCancel={() => setKnownPdf(null)}
+          />
+        )}
         {current && (
           <p className="detail">
             Project "{current.name}"

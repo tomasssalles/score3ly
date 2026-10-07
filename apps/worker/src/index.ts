@@ -58,33 +58,74 @@ app.get("/api/projects", async (c) => {
   return c.json(results.map(toProject));
 });
 
-// Stores the PDF in R2 and creates a project on it. A PDF that is already known gets another project.
+async function takenNames(db: D1Database, base: string): Promise<string[]> {
+  const { results } = await db
+    .prepare("SELECT name FROM projects WHERE name = ? OR name LIKE ? ESCAPE '\\'")
+    .bind(base, `${escapeLike(base)} (%)`)
+    .all<{ name: string }>();
+  return results.map((row) => row.name);
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+}
+
+function pdfKey(sha256: string): string {
+  return `pdfs/${sha256}.pdf`;
+}
+
+// What is known about a PDF before uploading it: its projects, most recently opened first, and the name a
+// new project on it would get (a hint: another project may take that name first).
+app.get("/api/pdfs/:sha256", async (c) => {
+  const sha256 = c.req.param("sha256");
+  const filename = c.req.query("filename");
+  if (!isSha256(sha256) || filename === undefined) {
+    return c.json({ error: "expected a SHA-256 in lowercase hex and a 'filename'" }, 400);
+  }
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM projects WHERE pdf_sha256 = ? ORDER BY last_opened_at DESC, created_at DESC",
+  )
+    .bind(sha256)
+    .all<ProjectRow>();
+  const base = defaultName(filename);
+  return c.json({
+    projects: results.map(toProject),
+    newProjectName: firstFreeName(base, await takenNames(c.env.DB, base)),
+  });
+});
+
+// Creates a project. The form has the PDF's 'sha256' and either the 'pdf' itself, which is stored in R2, or
+// only its 'filename' if R2 already has it.
 app.post("/api/projects", async (c) => {
   const form = await c.req.formData();
   const pdf = form.get("pdf");
   const sha256 = form.get("sha256");
-  if (!(pdf instanceof File) || typeof sha256 !== "string" || !/^[0-9a-f]{64}$/.test(sha256)) {
-    return c.json({ error: "expected a 'pdf' file and its 'sha256' in lowercase hex" }, 400);
+  const filenameField = form.get("filename");
+  if (!isSha256(sha256) || !(pdf instanceof File || typeof filenameField === "string")) {
+    return c.json({ error: "expected a 'pdf' file or its 'filename', and its 'sha256' in lowercase hex" }, 400);
   }
 
-  // R2 checks the bytes against the hash and refuses the upload if they differ.
-  await c.env.PDFS.put(`pdfs/${sha256}.pdf`, await pdf.arrayBuffer(), { sha256 });
+  let filename: string;
+  if (pdf instanceof File) {
+    // R2 checks the bytes against the hash and refuses the upload if they differ.
+    await c.env.PDFS.put(pdfKey(sha256), await pdf.arrayBuffer(), { sha256 });
+    filename = pdf.name;
+  } else {
+    if (!(await c.env.PDFS.head(pdfKey(sha256)))) {
+      return c.json({ error: "this PDF isn't stored yet: send the file itself" }, 409);
+    }
+    filename = filenameField as string;
+  }
 
   const now = new Date().toISOString();
-  const base = defaultName(pdf.name);
+  const base = defaultName(filename);
   // Another project may take the chosen name between the lookup and the insert: then look again.
   for (let attempt = 0; ; attempt++) {
-    const { results } = await c.env.DB.prepare("SELECT name FROM projects WHERE name = ? OR name LIKE ? ESCAPE '\\'")
-      .bind(base, `${escapeLike(base)} (%)`)
-      .all<{ name: string }>();
     const project: Project = {
       id: crypto.randomUUID(),
-      name: firstFreeName(
-        base,
-        results.map((row) => row.name),
-      ),
+      name: firstFreeName(base, await takenNames(c.env.DB, base)),
       pdfSha256: sha256,
-      pdfFilename: pdf.name,
+      pdfFilename: filename,
       createdAt: now,
       lastModifiedAt: now,
       lastOpenedAt: now,
