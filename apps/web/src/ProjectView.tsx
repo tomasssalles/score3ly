@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Project } from "./api";
 import { ArtifactView } from "./ArtifactView";
-import { PipelineIcon } from "./icons";
+import { ExpandIcon } from "./icons";
 import { defaultArtifactId, findArtifact, pipelineFor, progressOf, type PipelineItem } from "./pipeline";
 import { PipelinePanel } from "./PipelinePanel";
 import { ProgressRing } from "./ProgressRing";
@@ -32,6 +32,13 @@ export function ProjectView({
   const fallbackId = defaultArtifactId(items);
   const shown = picked ?? (fallbackId === null ? null : findArtifact(items, fallbackId));
 
+  // Narrow mode: the item whose artifact was last looked at stays selected after the artifact is closed.
+  const [lastPickedItemId, setLastPickedItemId] = useState<string | null>(null);
+  const pickedItemId = picked?.item.id ?? null;
+  useEffect(() => {
+    if (pickedItemId !== null) setLastPickedItemId(pickedItemId);
+  }, [pickedItemId]);
+
   function collapse(value: boolean) {
     setCollapsed(value);
     writeFlag(COLLAPSED_KEY, value);
@@ -42,7 +49,13 @@ export function ProjectView({
   if (!wide) {
     return (
       <div className="project-view narrow">
-        <PipelinePanel project={project} items={items} progress={progress} selectedItemId={null} onSelect={select} />
+        <PipelinePanel
+          project={project}
+          items={items}
+          progress={progress}
+          selectedItemId={pickedItemId ?? lastPickedItemId}
+          onSelect={select}
+        />
         {picked && <ArtifactView project={project} artifact={picked.artifact} onClose={onCloseArtifact} />}
       </div>
     );
@@ -60,7 +73,7 @@ export function ProjectView({
               title="Expand the pipeline"
               onClick={() => collapse(false)}
             >
-              <PipelineIcon />
+              <ExpandIcon />
             </button>
             <ProgressRing value={progress.stage} label="Current stage" size={24} />
             <ProgressRing value={progress.pipeline} label="Pipeline" size={24} />

@@ -1,18 +1,5 @@
 // Small line icons, drawn in the current text color.
 
-// The pipeline: a short list of steps, each a node on a line with its label beside it.
-// (Three dots alone would read as a "more" menu.)
-export function PipelineIcon() {
-  return (
-    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="6" cy="5" r="2" />
-      <circle cx="6" cy="12" r="2" />
-      <circle cx="6" cy="19" r="2" />
-      <path d="M6 7v3M6 14v3M11 5h9M11 12h9M11 19h6" />
-    </svg>
-  );
-}
-
 export function DocumentIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -34,6 +21,14 @@ export function CollapseIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M15 6l-6 6 6 6" />
+    </svg>
+  );
+}
+
+export function ExpandIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 6l6 6-6 6" />
     </svg>
   );
 }

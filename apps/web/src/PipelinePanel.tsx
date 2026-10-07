@@ -17,7 +17,7 @@ export function PipelinePanel({
   project: Project;
   items: PipelineItem[];
   progress: Progress;
-  selectedItemId: string | null; // highlighted in wide mode
+  selectedItemId: string | null; // highlighted: the item shown (wide mode) or last looked at (narrow mode)
   onSelect: (item: PipelineItem) => void;
   onCollapse?: () => void; // wide mode only
 }) {

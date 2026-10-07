@@ -620,32 +620,26 @@ body {
   z-index: 30;
 }
 
-.artifact-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 8px 8px 16px;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg);
+/* Floats over the artifact's top right corner, so the artifact gets the whole screen. */
+.artifact-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(90, 90, 90, 0.6);
+  color: #fff;
+  cursor: pointer;
 }
 
-.artifact-title {
-  min-width: 0;
-}
-
-.artifact-title h2 {
-  margin: 0;
-  font: 600 15px var(--sans);
-}
-
-.artifact-title p {
-  margin: 0;
-  font: 12px var(--mono);
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.artifact-close:hover {
+  background: rgba(90, 90, 90, 0.85);
 }
 
 .pdf-view {
