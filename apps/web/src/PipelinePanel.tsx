@@ -2,7 +2,7 @@ import type { Project } from "./api";
 import { CollapseIcon, DocumentIcon } from "./icons";
 import { type PipelineItem, type Progress } from "./pipeline";
 import { ProgressRing } from "./ProgressRing";
-import { ago } from "./time";
+import { ago, shortDate } from "./time";
 
 // The current project: basic info, progress, and the pipeline's items. Picking an item shows its main artifact.
 export function PipelinePanel({
@@ -26,7 +26,7 @@ export function PipelinePanel({
         <div className="project-info">
           <h2>{project.name}</h2>
           <p>
-            Created {new Date(project.createdAt).toLocaleDateString()} · changed {ago(project.lastModifiedAt)}
+            Created {shortDate(project.createdAt)} · changed {ago(project.lastModifiedAt)}
           </p>
         </div>
         {onCollapse && (

@@ -7,3 +7,13 @@ export function ago(iso: string, now: number = Date.now()): string {
   if (hours < 24) return `${hours}h ago`;
   return `${Math.round(hours / 24)}d ago`;
 }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// A date as "7 Oct", with the year ("7 Oct 2025") unless it is the current one. The day is the device's
+// local one. The format is fixed: it doesn't follow the browser's language (DESIGN.md §5.7).
+export function shortDate(iso: string, now: number = Date.now()): string {
+  const date = new Date(iso);
+  const dayAndMonth = `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+  return date.getFullYear() === new Date(now).getFullYear() ? dayAndMonth : `${dayAndMonth} ${date.getFullYear()}`;
+}

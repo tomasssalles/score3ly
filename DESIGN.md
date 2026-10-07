@@ -162,6 +162,12 @@ The core depends only on interfaces. Adapters live in `apps/*`.
   - Uniqueness is case-insensitive ("Sonata" and "sonata" clash) and enforced by the database (`UNIQUE COLLATE NOCASE`), so two projects created at once can't get the same name. Names are trimmed, never empty, and at most 200 characters.
   - The user can rename a project at any time. Renaming to a name that is taken is refused with a message, not numbered: numbering only applies to the default.
   - Deleting a project frees its name.
+- **Deleting a project** (planned) keeps a trace in D1 but removes everything else:
+  - **Deleted:** the project's artifacts and its PDF, in D1, R2 and the device cache, unless another project that isn't deleted still uses them. That is checked with a query at deletion time, not with stored reference counts, which can drift.
+  - **Kept:** the project's row, marked with a deletion time (`deleted_at`), and its entries in the cost ledger (§10).
+  - A deleted project never appears in the UI again, except in the costs view. Picking its PDF again doesn't trigger the "already based on this file" dialog, unless other projects use that PDF.
+  - Uniqueness of names only counts projects that aren't deleted: a partial unique index (`... WHERE deleted_at IS NULL`). The current constraint sits on the column and can't be dropped, so the migration rebuilds the table.
+  - Behind several confirmations.
 - Each project also has three timestamps, all set by the Worker (ISO 8601, UTC) so a wrong device clock can't scramble the order:
   - **created**
   - **last modified:** any change to the project's own data (pipeline results, manual stages, a rename). Opening or viewing doesn't count.
@@ -237,8 +243,9 @@ Rules:
 
 ### 5.5 Resuming and re-running
 - **The history of a project is linear.** There are no branches inside a project.
-- Changing something in the middle (e.g. the config of stage N, or a manual stage added there) means running everything after that point again. The results of the later stages are replaced.
-- Before that happens, a dialog asks for confirmation and explains what will be lost: the LLM calls already paid for in the later stages, and the manual work put into them.
+- Changing something in the middle (e.g. the config of stage N, or a manual stage added there) means running everything after that point again. The later stages are replaced: they leave the pipeline and are no longer shown.
+- **Replaced stages are kept in storage,** with their artifacts and full LLM call records (requests and responses), until the project is deleted. They are reused whenever possible: a stage that runs again with the same inputs and config, or an identical LLM request (§7.6), is served from what is stored and costs nothing.
+- Before that happens, a dialog asks for confirmation and explains what is at stake: wherever the inputs changed, the LLM calls already paid for in the later stages have to be paid for again, and the manual work put into them has to be redone.
 - To keep the old results and try something else, the project is forked (planned, §16), not branched.
 - Execution is lazy and per item: only the pages and systems being looked at, or needed downstream, are computed.
 
@@ -264,7 +271,11 @@ Rules:
 - **Colors are CSS variables** in `apps/web/src/styles.css` (`--bg` black for the header and side panel, `--surface` near-black for the page, `--accent`, ...), ready for a light theme.
 - **Compact mark (not built yet):** `< >` with an eighth note inside, drawn entirely as SVG (brackets and note in one stroke weight). Besides angle brackets as a tag, `<c e g>` is a chord in LilyPond. It is meant for the favicon and the app icon; the long wordmark fits even on phones.
 - **Pipeline icon:** three nodes on a vertical line, each with a bar beside it (a list of steps). Three dots alone would read as a "more" menu. Alternatives considered: two boxes joined by an arrow, a funnel, a staff line through nodes.
-- **Times** are written compactly: "20min ago", "5h ago", "2d ago".
+- **Dates, times and numbers have one fixed English format everywhere.** They don't follow the browser's language or region: the interface text is English, and a browser's idea of the locale often differs from the user's.
+  - **Dates:** day and the month's short name, "7 Oct", plus the year when it isn't the current one, "7 Oct 2025". Never all-numeric, which is ambiguous between day-first and month-first. The day is the device's local one.
+  - **How long ago:** compact, "20min ago", "5h ago", "2d ago".
+  - **Money:** US dollars with two decimals, "$0.12" (§10).
+  - Optional, later: dates up to about a week old shown as how long ago ("Created 2d ago"), older ones as a date.
 
 ## 6. Pipeline stages (initial plan)
 
@@ -429,8 +440,32 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 ### Cost
 - Storage and hosting: free tiers.
 - LLM calls: cents per call. Roughly per PDF: about 12 page analyses, about 50 system transcriptions, plus reviews and fixes. Cheaper models (e.g. Flash-class) for easy steps, stronger models where accuracy matters.
-- Every call is logged with its cost. The UI shows per-project and monthly totals.
-- **Cost estimate before running** (planned): the app estimates what extracting a score will cost before the user starts, and reports the real cost afterwards, so anyone using it knows what a score costs to extract.
+- **LLM requests are sequential and synchronous for now:** one at a time, no parallel calls, no overnight batch requests. Further optimizations are decided once we see how long an extraction takes.
+
+#### How costs are computed and kept
+- **The app computes the cost itself:** the providers' APIs report token counts per call, not money. Cost = tokens × a price table per model, kept in the code.
+- **Currency: US dollars** for everything, since that is how the providers publish their prices. The amounts are estimates, not the invoice: the bill may be in another currency, with tax or discounts. The app doesn't convert.
+- **The cost is stored with each call, when it is made,** so a later price change doesn't rewrite history.
+- **Costs and statistics are kept in a ledger of their own** in D1, apart from the project's artifacts. It survives everything that removes artifacts:
+  - stages replaced by re-running from an earlier stage (§5.5), which are no longer visible in the pipeline (their artifacts are kept too, but only until the project is deleted);
+  - deleted projects (§4).
+- **Statistics** kept there too: the runtime and cost of each stage and of whole pipelines, and averages per PDF page. This needs each stage's start and end time and each PDF's page count.
+
+#### The costs view
+- **Totals** per stage, per project and per month. No cost per single call, and no estimate before a run.
+- **Format:** two decimals, "$0.12", "$3.40". A paid amount below one cent is "<$0.01"; "$0.00" is reserved for free-tier calls.
+- **Replaced stages** are included in their project's total.
+- **Deleted projects** are listed, clearly marked as deleted, with their creation and deletion dates next to the name, because a deleted project's name can be used again.
+- **Free-tier configs:** the user can mark an LLM config as free tier, behind a confirmation dialog, since the app can't check it: a response says nothing about whether the call was billed. Calls with such a config are shown as "$0.00".
+
+#### Spending cap
+- **Purpose: protection against bugs,** not against a user who transcribes too much. A bug in the app must not be able to burn a lot of money on a handful of scores.
+- **A setting: at most $X within any 24 hours** (a rolling window, not the calendar day, so a runaway just before midnight doesn't get two budgets). Once reached, the app refuses every further request that costs money.
+- **Why a day and not a month:** with a monthly budget the user picks a large number ("about $30 a month"), and a bug can spend all of it in a day before anything stops. A daily budget makes them pick a small one ("$1 a day"), so a bug is stopped after a small sum.
+- **Why not per project:** scores differ a lot in length, and re-running stages adds cost legitimately.
+- **Enforced by the Worker,** which makes the LLM calls. A second tab or a stale page can't get around it.
+- **The cap can be overshot** by the cost of the calls in flight when it is reached, because a call's cost is only known when it returns. Sequentially that is one call, a few cents. **If requests ever run in parallel, revisit this:** the overshoot could be far too much.
+- **Free-tier configs stay usable** after the cap is reached, and don't count towards it. A config wrongly marked as free spends money the cap doesn't see; a spend limit set at the provider is the backstop.
 
 ## 11. Versioning
 
@@ -499,7 +534,6 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 - **Colour vs. grayscale vs. binarized** page images for the LLM steps: decide by ablation on the test set (§8.1).
 - **LLM provider access:** direct APIs versus Vertex AI / Bedrock for EU processing.
 - **D1 schema for stages and artifacts** (§5): not designed yet.
-- **What re-running from a stage discards** (§5.5): the later stages' artifacts are replaced, but the LLM call records are also what the cost totals (§10) and the reuse of identical requests (§7.6) are built on. Decide whether the records of replaced stages are kept.
 
 ## 16. Roadmap
 
@@ -532,10 +566,10 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    Then: assembly across systems, review (with or without preview rendering), the pipeline of stages in D1 and in the UI (§5.1), manual stages (§5.4), re-running from a stage with confirmation (§5.5), regeneration on a second device, Drive integration.
 
    Also planned, details open:
-   - **Cost estimate before a run, real cost after it** (§10), shown to the user per score.
+   - **Costs view, cost ledger with statistics, and the spending cap** (§10).
    - **Report remaining uncertainties** after the review step, so the user knows where to look.
    - Possibly a **side-by-side viewer for human review** in the app (like the evaluation viewer, §13).
    - Possibly a **human → machine feedback step** for last corrections (the human points out errors, the model fixes them).
    - **Renaming a project** in the UI (the API can already do it, §4).
-   - **Deleting a project** completely, leaving no trace of it anywhere (D1, R2, device cache), behind several confirmations. A PDF or artifact that another project still uses has to stay.
+   - **Deleting a project** (§4).
    - **Forking a project** from a given stage: a new, separate project that starts with the original's pipeline up to that stage. Each project keeps its own linear history. Behind the scenes, the fork reuses the original's artifacts without duplicating them.
