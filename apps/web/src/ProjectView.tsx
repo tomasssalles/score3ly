@@ -16,11 +16,13 @@ export function ProjectView({
   artifactId,
   onSelectArtifact,
   onCloseArtifact,
+  onRename,
 }: {
   project: Project;
   artifactId: string | null; // picked by the user (it's in the URL), or null
   onSelectArtifact: (artifactId: string) => void;
   onCloseArtifact: () => void;
+  onRename: () => void;
 }) {
   const wide = useWide();
   const [collapsed, setCollapsed] = useState(() => readFlag(COLLAPSED_KEY));
@@ -55,6 +57,7 @@ export function ProjectView({
           progress={progress}
           selectedItemId={pickedItemId ?? lastPickedItemId}
           onSelect={select}
+          onRename={onRename}
         />
         {picked && <ArtifactView project={project} artifact={picked.artifact} onClose={onCloseArtifact} />}
       </div>
@@ -85,6 +88,7 @@ export function ProjectView({
             progress={progress}
             selectedItemId={shown?.item.id ?? null}
             onSelect={select}
+            onRename={onRename}
             onCollapse={() => collapse(true)}
           />
         )}

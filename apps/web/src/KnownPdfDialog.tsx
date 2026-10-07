@@ -28,7 +28,7 @@ export function KnownPdfDialog({
   return (
     <dialog
       ref={dialog}
-      className="known-pdf"
+      className="app-dialog known-pdf"
       aria-labelledby="known-pdf-title"
       // Esc closes the dialog.
       onClose={onCancel}

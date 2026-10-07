@@ -9,9 +9,16 @@ export type Project = {
   lastOpenedAt: string;
 };
 
+// A failed request. `status` is the HTTP status, so callers can react to e.g. 409 (conflict).
+export class ApiError extends Error {
+  constructor(readonly status: number) {
+    super(`HTTP ${status}`);
+  }
+}
+
 async function checked(response: Response): Promise<Response> {
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new ApiError(response.status);
   }
   return response;
 }
@@ -46,4 +53,14 @@ export async function createProject(pdf: File, sha256: string, alreadyStored: bo
 
 export async function markOpened(project: Project): Promise<void> {
   await checked(await fetch(`/api/projects/${project.id}/opened`, { method: "POST" }));
+}
+
+// Renames a project. Fails with status 409 if another project already has that name (ignoring case).
+export async function renameProject(project: Project, name: string): Promise<Project> {
+  const response = await fetch(`/api/projects/${project.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  return (await checked(response)).json();
 }

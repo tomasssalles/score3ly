@@ -290,8 +290,8 @@ body {
   }
 }
 
-/* Dialog for a PDF that already has projects */
-.known-pdf {
+/* Dialogs (a PDF that already has projects, renaming a project) */
+.app-dialog {
   width: min(480px, calc(100vw - 32px));
   box-sizing: border-box;
   padding: 16px;
@@ -302,7 +302,7 @@ body {
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
 }
 
-.known-pdf::backdrop {
+.app-dialog::backdrop {
   background: rgba(0, 0, 0, 0.6);
 }
 
@@ -769,4 +769,62 @@ body {
 
 .page-view .placeholder-note {
   font: 12px var(--mono);
+}
+
+/* Forms in dialogs */
+.field {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.field input {
+  height: 42px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font: 16px var(--sans); /* 16px keeps phones from zooming in */
+}
+
+.field input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.field-message {
+  min-height: 1.4em;
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.button-primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.button-secondary {
+  font: 500 14px var(--sans);
+  color: var(--fg);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.button-secondary:hover {
+  background: var(--hover);
 }

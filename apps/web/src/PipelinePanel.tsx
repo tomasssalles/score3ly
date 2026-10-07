@@ -14,6 +14,7 @@ export function PipelinePanel({
   selectedItemId,
   onSelect,
   onCollapse,
+  onRename,
 }: {
   project: Project;
   items: PipelineItem[];
@@ -21,6 +22,7 @@ export function PipelinePanel({
   selectedItemId: string | null; // highlighted: the item shown (wide mode) or last looked at (narrow mode)
   onSelect: (item: PipelineItem) => void;
   onCollapse?: () => void; // wide mode only
+  onRename: () => void;
 }) {
   return (
     <div className="pipeline-panel">
@@ -34,11 +36,11 @@ export function PipelinePanel({
           </p>
         </div>
         <div className="panel-actions">
-          {/* Project actions. Neither is built yet: picking one only closes the menu. */}
+          {/* Project actions. Deleting isn't built yet: picking it only closes the menu. */}
           <DropdownMenu
             icon={<MoreIcon />}
             label="Project actions"
-            groups={[[{ label: "Rename" }], [{ label: "Delete project", danger: true }]]}
+            groups={[[{ label: "Rename", onSelect: onRename }], [{ label: "Delete project", danger: true }]]}
           />
           {onCollapse && (
             <button type="button" className="icon-button" aria-label="Collapse the pipeline" onClick={onCollapse}>

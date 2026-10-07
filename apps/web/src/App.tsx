@@ -5,6 +5,7 @@ import { KnownPdfDialog } from "./KnownPdfDialog";
 import { ProjectPicker } from "./ProjectPicker";
 import { ProjectView } from "./ProjectView";
 import { PageView } from "./PageView";
+import { RenameDialog } from "./RenameDialog";
 import { hashForArtifact, hashForProject, pageFromHash, parseRoute } from "./route";
 import { sha256Hex } from "./sha256";
 import { useHash } from "./useHash";
@@ -15,6 +16,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   // A picked PDF that already has projects, waiting for the user's choice.
   const [knownPdf, setKnownPdf] = useState<{ pdf: File; sha256: string; lookup: PdfLookup } | null>(null);
+  const [renaming, setRenaming] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   // The open project, and the artifact the user picked, are the ones in the URL, if any.
   const hash = useHash();
@@ -119,6 +121,16 @@ export function App() {
           }}
         />
         {error && <p className="error-banner">{error}</p>}
+        {renaming && current && (
+          <RenameDialog
+            project={current}
+            onRenamed={() => {
+              setRenaming(false);
+              refresh();
+            }}
+            onCancel={() => setRenaming(false)}
+          />
+        )}
         {knownPdf && (
           <KnownPdfDialog
             filename={knownPdf.pdf.name}
@@ -144,6 +156,7 @@ export function App() {
             artifactId={route?.artifactId ?? null}
             onSelectArtifact={selectArtifact}
             onCloseArtifact={closeArtifact}
+            onRename={() => setRenaming(true)}
           />
         ) : (
           projects !== null && (
