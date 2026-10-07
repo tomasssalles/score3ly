@@ -242,6 +242,20 @@ Rules:
 - To keep the old results and try something else, the project is forked (planned, §16), not branched.
 - Execution is lazy and per item: only the pages and systems being looked at, or needed downstream, are computed.
 
+### 5.6 How the app shows a project
+- **The pipeline is the main attraction; the artifact view is secondary.** The usual use is: new project, let it run, take the final MEI and leave. So the pipeline gets the comfortable place on every screen, and inspecting artifacts is what gets less comfortable on small screens.
+- **Two layout modes, nothing in between:** wide (from 1024 px, the same breakpoint as the header) and narrow. Resizing a window switches between them on the fly.
+  - **Wide:** the **pipeline panel** on the left (project info, progress, the pipeline's items), the **artifact view** on the right, much larger. The panel collapses into a narrow strip that shows only an expand button (pipeline icon) and the two progress circles. The collapsed state is remembered per browser.
+  - **Narrow:** the pipeline panel is the only view. Picking an item opens its artifact over the whole app, with a close button ("x") at the top right. The artifact is in the URL (`#/projects/<id>/artifacts/<artifact id>`), so the back button closes it too, and a reload keeps it open.
+- **Progress:** two progress circles, one for the running stage and one for the whole pipeline. The pipeline's total is a best guess (a second review round or a manual correction adds stages), and a change only moves the circle a little. A stage is a big chunk of work: doing something to every system is still one stage.
+- **Each stage declares its main output** (stages can have several). What the artifact view shows in wide mode, unless the user picked something:
+  - a new project: the original PDF;
+  - when the pipeline finishes: the final MEI;
+  - when a project is opened: the latest stage's main output.
+
+  Whether the view follows the pipeline while it runs is open.
+- **Built so far:** the pipeline has a single item, the original PDF, shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Both progress circles stay empty until there are stages. Later: editing in the artifact view and a "needs you" state for steps that wait for the user.
+
 ## 6. Pipeline stages (initial plan)
 
 | # | Stage | Kind | Granularity | Output |
@@ -492,7 +506,9 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
       The header has a **project picker**. Narrow screens show the wordmark and "+ New project" on one row and the picker on its own row below. From 1024 px, everything is on one row, with the picker in the middle. The **open project is part of the URL** (`#/projects/<id>`), so it survives a reload, each tab has its own, and the back button and bookmarks work. Any other URL means no project is open, which is how a fresh tab or device starts. "Last opened" is shared by all devices and only sorts the list: a project created or opened elsewhere never changes what this tab shows. The picker shows the open project's name, or "Open a project". Opening the picker turns the name into a filter field over all projects (name, how long ago it was opened, PDF file name). Picking a project opens it and marks it as opened; creating a project opens it too. Loading a URL or going back doesn't mark the project as opened. The list is fetched when the app loads. The UI can't rename a project yet.
 
-      Picking a PDF first looks up its hash (`GET /api/pdfs/<sha256>?filename=...`, which returns the PDF's projects, most recently opened first, and the name a new project would get). An unknown PDF is uploaded and gets a project right away. A known PDF opens a dialog that lists its projects to open one, with "+ New project" as the last item, showing the name the new project would get. A new project on a known PDF is created without uploading the file again (`POST /api/projects` with the `filename` instead of the `pdf`). Still missing from §4:
+      Picking a PDF first looks up its hash (`GET /api/pdfs/<sha256>?filename=...`, which returns the PDF's projects, most recently opened first, and the name a new project would get). An unknown PDF is uploaded and gets a project right away. A known PDF opens a dialog that lists its projects to open one, with "+ New project" as the last item, showing the name the new project would get. A new project on a known PDF is created without uploading the file again (`POST /api/projects` with the `filename` instead of the `pdf`).
+
+      Below the header is the project view (§5.6): the pipeline panel and the artifact view, which shows the original PDF. Still missing from §4:
       - The Worker does not hash the PDF. R2 checks the bytes against the client's hash and refuses a mismatch, which currently surfaces as a plain HTTP 500.
       - The remote R2 bucket and D1 database don't exist yet (`wrangler.jsonc` has a placeholder database ID), so the app can't be deployed.
       - No shared package yet: the `Project` type exists in both `apps/web` and `apps/worker`, and `sha256Hex` in both `apps/web` and `apps/eval`.

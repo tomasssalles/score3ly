@@ -330,3 +330,18 @@ test("a project without the file is refused if the PDF isn't stored", async () =
   assert.equal(response.status, 409);
   assert.deepEqual(await projectRows(), []);
 });
+
+test("a stored PDF can be downloaded by its hash", async () => {
+  const pdf = pdfBytes("downloadable pdf");
+  const sha256 = await sha256Hex(pdf);
+  await postProject({ pdf, filename: "Sonata.pdf", sha256 });
+
+  const response = await app.request(`/api/pdfs/${sha256}/file`, {}, env);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Content-Type"), "application/pdf");
+  assert.deepEqual(new Uint8Array(await response.arrayBuffer()), pdf);
+  const unknown = await sha256Hex(pdfBytes("never stored"));
+  assert.equal((await app.request(`/api/pdfs/${unknown}/file`, {}, env)).status, 404);
+  assert.equal((await app.request("/api/pdfs/abc/file", {}, env)).status, 400);
+});

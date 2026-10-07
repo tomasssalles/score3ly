@@ -94,6 +94,25 @@ app.get("/api/pdfs/:sha256", async (c) => {
   });
 });
 
+// The PDF itself. Its key is its content's hash, so it never changes and can be cached for good.
+app.get("/api/pdfs/:sha256/file", async (c) => {
+  const sha256 = c.req.param("sha256");
+  if (!isSha256(sha256)) {
+    return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
+  }
+  const object = await c.env.PDFS.get(pdfKey(sha256));
+  if (!object) {
+    return c.json({ error: "no such PDF" }, 404);
+  }
+  return new Response(object.body, {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Length": String(object.size),
+      "Cache-Control": "private, max-age=31536000, immutable",
+    },
+  });
+});
+
 // Creates a project. The form has the PDF's 'sha256' and either the 'pdf' itself, which is stored in R2, or
 // only its 'filename' if R2 already has it.
 app.post("/api/projects", async (c) => {

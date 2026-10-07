@@ -3,28 +3,24 @@ import { createProject, listProjects, lookUpPdf, markOpened, type PdfLookup, typ
 import { Header } from "./Header";
 import { KnownPdfDialog } from "./KnownPdfDialog";
 import { ProjectPicker } from "./ProjectPicker";
-import { hashForProject, projectIdFromHash } from "./route";
+import { ProjectView } from "./ProjectView";
+import { hashForArtifact, hashForProject, parseRoute } from "./route";
 import { sha256Hex } from "./sha256";
 import { useHash } from "./useHash";
 
 export function App() {
-  const [health, setHealth] = useState("checking...");
-  // Most recently opened first.
-  const [projects, setProjects] = useState<Project[]>([]);
+  // Most recently opened first. null until loaded.
+  const [projects, setProjects] = useState<Project[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A picked PDF that already has projects, waiting for the user's choice.
   const [knownPdf, setKnownPdf] = useState<{ pdf: File; sha256: string; lookup: PdfLookup } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  // The open project is the one in the URL, if any.
-  const currentId = projectIdFromHash(useHash());
-  const current = projects.find((project) => project.id === currentId) ?? null;
-
-  useEffect(() => {
-    fetch("/api/health")
-      .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
-      .then((body: { status: string }) => setHealth(body.status))
-      .catch((err) => setHealth(`error: ${err}`));
-  }, []);
+  // The open project, and the artifact the user picked, are the ones in the URL, if any.
+  const route = parseRoute(useHash());
+  const current = projects?.find((project) => project.id === route?.projectId) ?? null;
+  // Whether the open artifact was opened from within the app, so closing it can go back in history.
+  const openedArtifactHere = useRef(false);
+  if (route?.artifactId == null) openedArtifactHere.current = false;
 
   async function refresh() {
     try {
@@ -69,6 +65,23 @@ export function App() {
     await refresh();
   }
 
+  function selectArtifact(artifactId: string) {
+    if (!current) return;
+    openedArtifactHere.current = true;
+    window.location.hash = hashForArtifact(current.id, artifactId);
+  }
+
+  // Back to the project. Going back in history means the browser's back button won't reopen the artifact.
+  function closeArtifact() {
+    if (!current) return;
+    if (openedArtifactHere.current) {
+      openedArtifactHere.current = false;
+      history.back();
+    } else {
+      window.location.replace(hashForProject(current.id));
+    }
+  }
+
   async function open(project: Project) {
     setError(null);
     window.location.hash = hashForProject(project.id);
@@ -84,11 +97,10 @@ export function App() {
   return (
     <>
       <Header
-        picker={<ProjectPicker projects={projects} current={current} onPick={open} />}
+        picker={<ProjectPicker projects={projects ?? []} current={current} onPick={open} />}
         onNewProject={() => fileInput.current?.click()}
       />
-      <main className="content">
-        <p>API: {health}</p>
+      <main className="app-main">
         <input
           ref={fileInput}
           type="file"
@@ -101,7 +113,7 @@ export function App() {
             e.target.value = "";
           }}
         />
-        {error && <p>{error}</p>}
+        {error && <p className="error-banner">{error}</p>}
         {knownPdf && (
           <KnownPdfDialog
             filename={knownPdf.pdf.name}
@@ -118,18 +130,24 @@ export function App() {
             onCancel={() => setKnownPdf(null)}
           />
         )}
-        {current && (
-          <p className="detail">
-            Project "{current.name}"
-            <br />
-            ID: {current.id}
-            <br />
-            PDF: {current.pdfFilename}
-            <br />
-            SHA-256: {current.pdfSha256}
-            <br />
-            Created: {current.createdAt}
-          </p>
+        {current ? (
+          <ProjectView
+            key={current.id}
+            project={current}
+            artifactId={route?.artifactId ?? null}
+            onSelectArtifact={selectArtifact}
+            onCloseArtifact={closeArtifact}
+          />
+        ) : (
+          projects !== null && (
+            <div className="empty-state">
+              {route ? (
+                <p>This project doesn't exist (any more).</p>
+              ) : (
+                <p>Pick a project above, or start one with "+ New project".</p>
+              )}
+            </div>
+          )
         )}
       </main>
     </>
