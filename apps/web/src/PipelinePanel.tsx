@@ -1,6 +1,7 @@
 import type { Project } from "./api";
+import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
-import { CollapseIcon, DocumentIcon } from "./icons";
+import { CollapseIcon, DocumentIcon, MoreIcon } from "./icons";
 import { type PipelineItem, type Progress } from "./pipeline";
 import { ProgressRing } from "./ProgressRing";
 import { ago, shortDate } from "./time";
@@ -32,11 +33,19 @@ export function PipelinePanel({
             Created {shortDate(project.createdAt)} · changed {ago(project.lastModifiedAt)}
           </p>
         </div>
-        {onCollapse && (
-          <button type="button" className="icon-button" aria-label="Collapse the pipeline" onClick={onCollapse}>
-            <CollapseIcon />
-          </button>
-        )}
+        <div className="panel-actions">
+          {/* Project actions. Neither is built yet: picking one only closes the menu. */}
+          <DropdownMenu
+            icon={<MoreIcon />}
+            label="Project actions"
+            groups={[[{ label: "Rename" }], [{ label: "Delete project", danger: true }]]}
+          />
+          {onCollapse && (
+            <button type="button" className="icon-button" aria-label="Collapse the pipeline" onClick={onCollapse}>
+              <CollapseIcon />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="progress-row">

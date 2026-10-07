@@ -40,3 +40,14 @@ export function MenuIcon() {
     </svg>
   );
 }
+
+// Three dots in a row: more actions for the thing it sits next to.
+export function MoreIcon() {
+  return (
+    <svg className="icon filled" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="5" cy="12" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="19" cy="12" r="1.8" />
+    </svg>
+  );
+}

@@ -9,6 +9,7 @@
   --muted: #a3a7ae; /* secondary text */
   --wordmark: #ffffff;
   --accent: #ff7b72; /* coral, 8.4:1 on black */
+  --danger: #ff5c5c; /* destructive actions, e.g. deleting */
   --on-accent: #000000;
   --mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -670,23 +671,23 @@ body {
   color: var(--muted);
 }
 
-/* Menu: the button at the right of the header, and its list of pages */
+/* Menus: a button that opens a short list (the header's menu, the project actions) */
 .app-header .actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.menu {
+.dropdown {
   position: relative;
 }
 
-.menu-button[aria-expanded="true"] {
+.dropdown-button[aria-expanded="true"] {
   color: var(--fg);
   background: var(--hover);
 }
 
-.menu-list {
+.dropdown-list {
   position: absolute;
   right: 0;
   top: calc(100% + 6px);
@@ -699,28 +700,51 @@ body {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
 }
 
-.menu-group + .menu-group {
+.dropdown-group + .dropdown-group {
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px solid var(--line);
 }
 
-.menu-list a {
+.dropdown-list [role="menuitem"] {
   display: block;
+  width: 100%;
+  box-sizing: border-box;
   padding: 9px 10px;
+  border: 0;
   border-radius: 7px;
+  background: none;
   color: var(--fg);
+  font: 15px var(--sans);
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
 }
 
-.menu-list a:hover,
-.menu-list a:focus-visible {
+.dropdown-list [role="menuitem"]:hover,
+.dropdown-list [role="menuitem"]:focus-visible {
   background: var(--hover);
   outline: none;
 }
 
-.menu-list a[aria-current="page"] {
+.dropdown-list [aria-current="page"] {
   color: var(--accent);
+}
+
+.dropdown-list .danger {
+  color: var(--danger);
+}
+
+.panel-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  margin-top: -6px;
+}
+
+.icon.filled {
+  fill: currentColor;
+  stroke: none;
 }
 
 /* Pages from the menu */
