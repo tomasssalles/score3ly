@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { createProject, type Project } from "./api";
+import { createProject, listProjects, markOpened, type Project } from "./api";
 import { Header } from "./Header";
+import { ProjectPicker } from "./ProjectPicker";
 
 export function App() {
   const [health, setHealth] = useState("checking...");
-  const [created, setCreated] = useState<Project | null>(null);
+  // Most recently opened first; the first one is the current project.
+  const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const current = projects[0] ?? null;
 
   useEffect(() => {
     fetch("/api/health")
@@ -15,18 +18,46 @@ export function App() {
       .catch((err) => setHealth(`error: ${err}`));
   }, []);
 
+  async function refresh() {
+    try {
+      setProjects(await listProjects());
+    } catch (err) {
+      setError(`Loading the projects failed: ${err}`);
+    }
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
   async function newProject(pdf: File) {
     setError(null);
     try {
-      setCreated(await createProject(pdf));
+      await createProject(pdf);
     } catch (err) {
       setError(`Creating the project failed: ${err}`);
+      return;
     }
+    await refresh();
+  }
+
+  async function open(project: Project) {
+    setError(null);
+    try {
+      await markOpened(project);
+    } catch (err) {
+      setError(`Opening the project failed: ${err}`);
+      return;
+    }
+    await refresh();
   }
 
   return (
     <>
-      <Header onNewProject={() => fileInput.current?.click()} />
+      <Header
+        picker={<ProjectPicker projects={projects} current={current} onPick={open} />}
+        onNewProject={() => fileInput.current?.click()}
+      />
       <main className="content">
         <p>API: {health}</p>
         <input
@@ -42,17 +73,17 @@ export function App() {
           }}
         />
         {error && <p>{error}</p>}
-        {created && (
+        {current && (
           <p className="detail">
-            Created project "{created.name}"
+            Project "{current.name}"
             <br />
-            ID: {created.id}
+            ID: {current.id}
             <br />
-            PDF: {created.pdfFilename}
+            PDF: {current.pdfFilename}
             <br />
-            SHA-256: {created.pdfSha256}
+            SHA-256: {current.pdfSha256}
             <br />
-            Created: {created.createdAt}
+            Created: {current.createdAt}
           </p>
         )}
       </main>

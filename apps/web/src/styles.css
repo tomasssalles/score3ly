@@ -3,6 +3,8 @@
   --bg: #000000; /* header and other chrome */
   --surface: #0b0b0b; /* page background */
   --line: #26272b; /* hairlines */
+  --raised: #151517; /* fields, menus */
+  --hover: #1d1e21; /* highlighted list item */
   --fg: #f2f2f2; /* running text */
   --muted: #a3a7ae; /* secondary text */
   --wordmark: #ffffff;
@@ -25,32 +27,53 @@ body {
   outline-offset: 2px;
 }
 
+/* The wordmark is always on the left.
+   Narrow: wordmark and button on the first row, the project picker on its own row below.
+   Wide (1024px+): one row with the picker in the middle. */
 .app-header {
   background: var(--bg);
   border-bottom: 1px solid var(--line);
-  height: 56px;
-  padding: 0 16px;
-  display: flex;
+  padding: 0 16px 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "brand actions"
+    "picker picker";
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  column-gap: 16px;
 }
 
-/* Desktop: the app name in the center, actions on the right. */
+.app-header .wordmark {
+  grid-area: brand;
+  height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+.app-header .actions {
+  grid-area: actions;
+  justify-self: end;
+}
+
+.app-header .picker {
+  grid-area: picker;
+  justify-self: center;
+}
+
 @media (min-width: 1024px) {
   .app-header {
     height: 64px;
     padding: 0 24px;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: 1fr minmax(0, 360px) 1fr;
+    grid-template-areas: "brand picker actions";
   }
   .app-header .wordmark {
-    grid-column: 2;
+    height: auto;
     font-size: 24px;
   }
-  .app-header .actions {
-    grid-column: 3;
-    justify-self: end;
+  .app-header .picker {
+    max-width: 360px;
+    --picker-height: 40px;
   }
 }
 
@@ -87,4 +110,178 @@ body {
   font-size: 13px;
   color: var(--muted);
   overflow-wrap: anywhere;
+}
+
+/* Project picker */
+.picker {
+  --picker-height: 44px;
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+}
+
+.picker-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--picker-height);
+  box-sizing: border-box;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+  cursor: pointer;
+}
+
+.picker.open .picker-field {
+  border-color: var(--accent);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  cursor: text;
+}
+
+.picker-name,
+.picker-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 500 16px var(--sans);
+  text-align: left;
+}
+
+.picker-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.picker-name:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.picker-input {
+  outline: none;
+}
+
+.picker-input::placeholder {
+  color: var(--muted);
+}
+
+.chevron {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.chevron:hover {
+  color: var(--fg);
+}
+
+.chevron svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s;
+}
+
+.picker.open .chevron svg {
+  transform: rotate(180deg);
+}
+
+.picker-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--picker-height);
+  z-index: 10;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--raised);
+  border: 1px solid var(--accent);
+  border-top-color: var(--line);
+  border-radius: 0 0 10px 10px;
+  max-height: min(60vh, 360px);
+  overflow-y: auto;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
+.picker-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.picker-list li[aria-selected="true"] {
+  background: var(--hover);
+}
+
+.picker-list li.empty {
+  display: block;
+  color: var(--muted);
+  cursor: default;
+}
+
+.option-name {
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-name mark {
+  background: none;
+  color: var(--accent);
+}
+
+.picker-list li.current .option-name::after {
+  content: "current";
+  margin-left: 8px;
+  font: 500 11px var(--mono);
+  color: var(--accent);
+}
+
+.option-time {
+  align-self: center;
+  font: 12px var(--mono);
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.option-file {
+  grid-column: 1 / -1;
+  font: 12px var(--mono);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron svg {
+    transition: none;
+  }
 }

@@ -254,3 +254,20 @@ test("opening a project changes only its opening time", async () => {
   assert.equal(row.last_modified_at, project.lastModifiedAt);
   assert.equal((await app.request("/api/projects/no-such-id/opened", { method: "POST" }, env)).status, 404);
 });
+
+test("the project list is sorted by last opened, most recent first", async () => {
+  const first = await createdProject("first.pdf");
+  const second = await createdProject("second.pdf");
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  await app.request(`/api/projects/${first.id}/opened`, { method: "POST" }, env);
+
+  const response = await app.request("/api/projects", {}, env);
+
+  assert.equal(response.status, 200);
+  const projects = (await response.json()) as ProjectJson[];
+  assert.deepEqual(
+    projects.map((p) => p.name),
+    ["first", "second"],
+  );
+  assert.equal(projects[1].id, second.id);
+});

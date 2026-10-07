@@ -50,6 +50,14 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
+// All projects, most recently opened first.
+app.get("/api/projects", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM projects ORDER BY last_opened_at DESC, created_at DESC",
+  ).all<ProjectRow>();
+  return c.json(results.map(toProject));
+});
+
 // Stores the PDF in R2 and creates a project on it. A PDF that is already known gets another project.
 app.post("/api/projects", async (c) => {
   const form = await c.req.formData();

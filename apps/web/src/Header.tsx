@@ -1,5 +1,7 @@
-// The app header: the <score3ly> wordmark and the main action.
-export function Header({ onNewProject }: { onNewProject: () => void }) {
+import type { ReactNode } from "react";
+
+// The app header: the <score3ly> wordmark, the project picker and the main action.
+export function Header({ picker, onNewProject }: { picker: ReactNode; onNewProject: () => void }) {
   return (
     <header className="app-header">
       <h1 className="wordmark" aria-label="score3ly">
@@ -10,6 +12,7 @@ export function Header({ onNewProject }: { onNewProject: () => void }) {
           + New project
         </button>
       </div>
+      {picker}
     </header>
   );
 }
