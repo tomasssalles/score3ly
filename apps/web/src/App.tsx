@@ -3,17 +3,21 @@ import { createProject, listProjects, lookUpPdf, markOpened, type PdfLookup, typ
 import { Header } from "./Header";
 import { KnownPdfDialog } from "./KnownPdfDialog";
 import { ProjectPicker } from "./ProjectPicker";
+import { hashForProject, projectIdFromHash } from "./route";
 import { sha256Hex } from "./sha256";
+import { useHash } from "./useHash";
 
 export function App() {
   const [health, setHealth] = useState("checking...");
-  // Most recently opened first; the first one is the current project.
+  // Most recently opened first.
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState<string | null>(null);
   // A picked PDF that already has projects, waiting for the user's choice.
   const [knownPdf, setKnownPdf] = useState<{ pdf: File; sha256: string; lookup: PdfLookup } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const current = projects[0] ?? null;
+  // The open project is the one in the URL, if any.
+  const currentId = projectIdFromHash(useHash());
+  const current = projects.find((project) => project.id === currentId) ?? null;
 
   useEffect(() => {
     fetch("/api/health")
@@ -56,7 +60,8 @@ export function App() {
   async function newProject(pdf: File, sha256: string, alreadyStored: boolean) {
     setError(null);
     try {
-      await createProject(pdf, sha256, alreadyStored);
+      const created = await createProject(pdf, sha256, alreadyStored);
+      window.location.hash = hashForProject(created.id);
     } catch (err) {
       setError(`Creating the project failed: ${err}`);
       return;
@@ -66,6 +71,7 @@ export function App() {
 
   async function open(project: Project) {
     setError(null);
+    window.location.hash = hashForProject(project.id);
     try {
       await markOpened(project);
     } catch (err) {

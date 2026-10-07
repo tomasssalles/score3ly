@@ -35,7 +35,7 @@ export function KnownPdfDialog({
       onClick={(e) => e.target === dialog.current && dialog.current.close()}
     >
       <div className="dialog-head">
-        <h2 id="known-pdf-title">{projects.length === 1 ? "This PDF has a project" : "This PDF has projects"}</h2>
+        <h2 id="known-pdf-title">Projects already based on this file</h2>
         <button type="button" className="dialog-close" aria-label="Cancel" onClick={() => dialog.current?.close()}>
           <svg viewBox="0 0 20 20" aria-hidden="true">
             <path d="M5 5l10 10M15 5L5 15" />
@@ -55,7 +55,7 @@ export function KnownPdfDialog({
         <li>
           <button type="button" className="dialog-new" onClick={onCreate}>
             <span className="option-name">+ New project</span>
-            <span className="option-file">will be called "{newProjectName}"</span>
+            <span className="option-name new-name">{newProjectName}</span>
           </button>
         </li>
       </ul>

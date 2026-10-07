@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Project } from "./api";
 import { ago } from "./time";
 
-// Shows the current project's name. Opening it turns the name into a filter field over all projects,
-// most recently opened first.
+// Shows the current project's name, if a project is open. Opening it turns the name into a filter field
+// over all projects, most recently opened first.
 export function ProjectPicker({
   projects,
   current,
@@ -26,7 +26,7 @@ export function ProjectPicker({
   const activeIndex = Math.min(active, Math.max(0, shown.length - 1));
 
   function show() {
-    if (!current) return;
+    if (projects.length === 0) return;
     setQuery("");
     setActive(0);
     setOpen(true);
@@ -91,7 +91,7 @@ export function ProjectPicker({
             aria-expanded="true"
             aria-autocomplete="list"
             aria-activedescendant={shown.length ? `project-option-${activeIndex}` : undefined}
-            placeholder={current?.name}
+            placeholder={current ? current.name : "Find a project"}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -106,12 +106,12 @@ export function ProjectPicker({
             className="picker-name"
             aria-haspopup="listbox"
             aria-expanded="false"
-            disabled={!current}
+            disabled={projects.length === 0}
           >
-            {current ? current.name : "No project yet"}
+            {current ? current.name : projects.length > 0 ? "Open a project" : "No project yet"}
           </button>
         )}
-        {current && (
+        {projects.length > 0 && (
           <button
             type="button"
             className="chevron"

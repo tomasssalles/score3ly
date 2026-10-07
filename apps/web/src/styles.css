@@ -387,3 +387,9 @@ body {
 .dialog-new .option-name {
   color: var(--accent);
 }
+
+/* The name the new project would get: like an existing project's name, but muted. */
+.dialog-new .new-name {
+  grid-column: 1 / -1;
+  color: var(--muted);
+}
