@@ -155,9 +155,6 @@ body {
 
 .picker-name {
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   cursor: pointer;
 }
 
@@ -244,12 +241,20 @@ body {
   cursor: default;
 }
 
+/* Names wrap, and FittedText shortens them in the middle when they need more lines than they may have. */
+.fitted {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A text without spaces breaks wherever the line ends, not earlier at a hyphen. */
+.fitted.unspaced {
+  word-break: break-all;
+}
+
 .option-name {
   font-weight: 500;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .option-name mark {
@@ -276,9 +281,6 @@ body {
   grid-column: 1 / -1;
   font: 12px var(--mono);
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -347,7 +349,6 @@ body {
   margin: 4px 0 12px;
   font: 12px var(--mono);
   color: var(--muted);
-  overflow-wrap: anywhere;
 }
 
 .dialog-list {
@@ -602,9 +603,6 @@ body {
 .item-detail {
   font: 12px var(--mono);
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Artifact view: the right pane in wide mode, a full-screen layer over the app in narrow mode. */

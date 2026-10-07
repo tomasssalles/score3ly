@@ -1,4 +1,5 @@
 import type { Project } from "./api";
+import { FittedText } from "./FittedText";
 import { CollapseIcon, DocumentIcon } from "./icons";
 import { type PipelineItem, type Progress } from "./pipeline";
 import { ProgressRing } from "./ProgressRing";
@@ -24,7 +25,9 @@ export function PipelinePanel({
     <div className="pipeline-panel">
       <div className="panel-head">
         <div className="project-info">
-          <h2>{project.name}</h2>
+          <h2>
+            <FittedText text={project.name} lines={3} />
+          </h2>
           <p>
             Created {shortDate(project.createdAt)} · changed {ago(project.lastModifiedAt)}
           </p>
@@ -65,7 +68,7 @@ export function PipelinePanel({
               <DocumentIcon />
               <span className="item-text">
                 <span className="item-title">{item.title}</span>
-                <span className="item-detail">{item.detail}</span>
+                <FittedText className="item-detail" text={item.detail} lines={3} />
               </span>
             </button>
           </li>

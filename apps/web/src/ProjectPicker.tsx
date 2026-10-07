@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Project } from "./api";
+import { FittedText } from "./FittedText";
 import { ago } from "./time";
 
 // Shows the current project's name, if a project is open. Opening it turns the name into a filter field
@@ -108,7 +109,13 @@ export function ProjectPicker({
             aria-expanded="false"
             disabled={projects.length === 0}
           >
-            {current ? current.name : projects.length > 0 ? "Open a project" : "No project yet"}
+            {current ? (
+              <FittedText text={current.name} lines={1} />
+            ) : projects.length > 0 ? (
+              "Open a project"
+            ) : (
+              "No project yet"
+            )}
           </button>
         )}
         {projects.length > 0 && (
@@ -147,27 +154,13 @@ export function ProjectPicker({
               className={project.id === current?.id ? "current" : undefined}
               onClick={() => pick(project)}
             >
-              <span className="option-name">
-                <Highlighted text={project.name} query={query.trim()} />
-              </span>
+              <FittedText className="option-name" text={project.name} lines={3} highlight={query.trim()} />
               <span className="option-time">{ago(project.lastOpenedAt)}</span>
-              <span className="option-file">{project.pdfFilename}</span>
+              <FittedText className="option-file" text={project.pdfFilename} lines={3} />
             </li>
           ))}
         </ul>
       )}
     </div>
-  );
-}
-
-function Highlighted({ text, query }: { text: string; query: string }) {
-  const i = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1;
-  if (i < 0) return <>{text}</>;
-  return (
-    <>
-      {text.slice(0, i)}
-      <mark>{text.slice(i, i + query.length)}</mark>
-      {text.slice(i + query.length)}
-    </>
   );
 }
