@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ago, shortDate } from "./time.ts";
+import { ago, duration, shortDate } from "./time.ts";
 
 const now = Date.parse("2026-10-07T12:00:00.000Z");
 const before = (ms: number) => new Date(now - ms).toISOString();
@@ -25,4 +25,10 @@ test("shortDate writes the day and the month's name, without the current year", 
 test("shortDate adds the year when it isn't the current one", () => {
   assert.equal(shortDate("2025-10-07T12:00:00.000Z", now), "7 Oct 2025");
   assert.equal(shortDate("2027-03-01T12:00:00.000Z", now), "1 Mar 2027");
+});
+
+test("duration is compact", () => {
+  assert.equal(duration(8), "8s");
+  assert.equal(duration(192), "3m 12s");
+  assert.equal(duration(3900), "1h 5m");
 });

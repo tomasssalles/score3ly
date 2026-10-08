@@ -4,6 +4,7 @@ import {
   hashForArtifact,
   hashForPage,
   hashForProject,
+  hashForStage,
   PAGES,
   pageFromHash,
   parseRoute,
@@ -25,13 +26,25 @@ test("any other hash means no project is open", () => {
 test("an artifact's hash leads back to its project and to the artifact", () => {
   const hash = hashForArtifact("p1", "pdf");
   assert.equal(hash, "#/projects/p1/artifacts/pdf");
-  assert.deepEqual(parseRoute(hash), { projectId: "p1", artifactId: "pdf" });
+  assert.deepEqual(parseRoute(hash), { projectId: "p1", artifactId: "pdf", stageId: null });
   assert.equal(projectIdFromHash(hash), "p1");
-  assert.deepEqual(parseRoute(hashForProject("p1")), { projectId: "p1", artifactId: null });
+  assert.deepEqual(parseRoute(hashForProject("p1")), { projectId: "p1", artifactId: null, stageId: null });
+});
+
+test("a stage's hash leads back to its project and to the stage", () => {
+  const hash = hashForStage("p1", "analysis");
+  assert.equal(hash, "#/projects/p1/stages/analysis");
+  assert.deepEqual(parseRoute(hash), { projectId: "p1", artifactId: null, stageId: "analysis" });
 });
 
 test("a malformed artifact hash means nothing is open", () => {
-  for (const hash of ["#/projects/p1/artifacts", "#/projects/p1/artifacts/", "#/projects/p1/artifacts/a/b"]) {
+  for (const hash of [
+    "#/projects/p1/artifacts",
+    "#/projects/p1/artifacts/",
+    "#/projects/p1/artifacts/a/b",
+    "#/projects/p1/stages/",
+    "#/projects/p1/other/a",
+  ]) {
     assert.equal(parseRoute(hash), null, hash);
   }
 });

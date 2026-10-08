@@ -17,3 +17,11 @@ export function shortDate(iso: string, now: number = Date.now()): string {
   const dayAndMonth = `${date.getDate()} ${MONTHS[date.getMonth()]}`;
   return date.getFullYear() === new Date(now).getFullYear() ? dayAndMonth : `${dayAndMonth} ${date.getFullYear()}`;
 }
+
+// A run time, compactly: "8s", "3m 12s", "1h 5m".
+export function duration(seconds: number): string {
+  const s = Math.round(seconds);
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+}

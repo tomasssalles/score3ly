@@ -1,6 +1,6 @@
 # Design Document — Score-to-LilyPond Pipeline (v2)
 
-> Status: draft. The early assessment (§16 steps 1–4) is done and the app is being built from the outside inwards (§16 step 6): projects, the project picker and the project view exist and run locally; there are no pipeline stages yet. The findings in `NOTES-2026-10-formats.md` still have to be folded into this document (§16 step 5). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. Concrete **tasks**, including the decisions still to be made, are collected in §15.
+> Status: draft. The early assessment (§16 steps 1–4) is done and the app is being built from the outside inwards (§16 step 6): projects, the project picker and the project view exist and run locally; the pipeline panel is designed with mock stages (§5.6), and there are no real pipeline stages yet. The findings in `NOTES-2026-10-formats.md` still have to be folded into this document (§16 step 5). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. Concrete **tasks**, including the decisions still to be made, are collected in §15.
 
 ## 1. What this app is
 
@@ -277,17 +277,41 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 ### 5.6 How the app shows a project
 - **The pipeline is the main attraction; the artifact view is secondary.** The usual use is: new project, let it run, take the final MEI and leave. So the pipeline gets the comfortable place on every screen, and inspecting artifacts is what gets less comfortable on small screens.
 - **Two layout modes, nothing in between:** wide (from 1024 px, the same breakpoint as the header) and narrow. Resizing a window switches between them on the fly.
-  - **Wide:** the **pipeline panel** on the left (project info, progress, the pipeline's items), the **artifact view** on the right, much larger. The panel collapses into a narrow strip that shows only an expand button (a chevron, like the one that collapses the panel) and the two progress circles below it, "Pipeline" above "Stage", each labelled below and without numbers. The chevron sits at exactly the same height as the one that collapses the expanded panel. Until there are stages, both views show made-up values (pipeline 70%, stage 15%) to see what the indicators look like (§15). The collapsed state is remembered per browser.
-  - **Narrow:** the pipeline panel is the only view. Picking an item opens its artifact over the whole app, with a close button ("x") floating over its top right corner, white on translucent grey. The artifact is in the URL (`#/projects/<id>/artifacts/<artifact id>`), so the back button closes it too, and a reload keeps it open. After closing, its item stays selected in the panel, so the user sees what they last looked at (until the page is reloaded or another project is opened).
+  - **Wide:** the **pipeline panel** on the left (project, run controls, the stages), the **artifact view** on the right, much larger. The panel collapses into a narrow strip that shows only an expand button (a chevron, like the one that collapses the panel) and the progress circles below it, "Pipeline" above "Stage", each labelled below and without numbers. "Stage" is only there while a stage runs. The chevron sits at exactly the same height as the one that collapses the expanded panel. The collapsed state is remembered per browser.
+  - **Narrow:** the pipeline panel is the only view. Picking an output (or a stage's details) opens it over the whole app, with a close button ("x") floating over its top right corner, white on translucent grey. The artifact is in the URL (`#/projects/<id>/artifacts/<artifact id>`), so the back button closes it too, and a reload keeps it open. A stage's details have a URL too (`#/projects/<id>/stages/<stage id>`). After closing, what was open stays selected in the panel, so the user sees what they last looked at (until the page is reloaded or another project is opened).
 - **The artifact view has no header of its own,** in either mode: it is the most valuable space on the screen. Which artifact is shown can be seen in the pipeline panel, where it is selected.
-- **Progress:** one indicator for the whole pipeline and one for the running stage, **never with numbers**. In the expanded panel, the pipeline's is a thin bar on one line with the label "Pipeline"; the stage's will be shown next to the running stage, once the panel lists stages. The collapsed strip shows both as circles. The pipeline's total is a best guess (a second review round or a manual correction adds stages), and a change only moves the circle a little. A stage is a big chunk of work: doing something to every system is still one stage.
+- **Progress:** one indicator for the whole pipeline and one for the running stage, **never with numbers**. In the expanded panel, the pipeline's is a thin bar in the panel's head; the stage's is a bar in the running stage's card. The collapsed strip shows both as circles. The pipeline's total is a best guess (a second review round or a manual correction adds stages), and a change only moves the circle a little. A stage is a big chunk of work: doing something to every system is still one stage.
 - **Each stage declares its main output** (stages can have several). What the artifact view shows in wide mode, unless the user picked something:
   - a new project: the original PDF;
   - when the pipeline finishes: the final MEI;
   - when a project is opened: the latest stage's main output.
 
   Whether the view follows the pipeline while it runs is still to be decided (§15).
-- **Built so far:** the pipeline has a single item, the original PDF, shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Later: editing in the artifact view and a "needs you" state for steps that wait for the user.
+- **Built so far:** the pipeline panel as described below, with **mock stages** (`apps/web/src/mockPipeline.ts`): made-up stages and outputs and a simulation of running them, kept in memory only, so a reload starts over. A dashed "Mock" box at the end of the panel can make the running stage fail and reset the mock. The mock is there to design the UI before the D1 schema for stages (§15); its types (`pipeline.ts`) are a first guess at the real data. Only the original PDF is real, shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Later: editing in the artifact view.
+
+#### The pipeline panel
+- **A small head stays in view,** and only what is below it scrolls: the project's name (one line, shortened in the middle) with its "⋮" and the collapse chevron, then the **run mode** (an Auto/Manual switch, §5.1), the pipeline's progress bar and, in Auto mode only, **Run** (green) or **Stop** (red) while a stage runs. Below the head, scrolling away: when the project was created and changed.
+- **The stages are stacked,** first at the top, as cards (rectangles). The original PDF is the output of the first stage, **Ingest**, so every card is a stage and every tile in it an output. There are no arrows between the cards: a stage's inputs are often not just the previous stage's outputs, and arrows would suggest they were.
+- **A card shows:**
+  - an icon for its kind (computed, LLM, manual), its name and a "⋮";
+  - one line of facts: the model; once done, also the run time, the cost and a short result ("54 systems", "3 boxes moved, 1 added");
+  - while running, its progress bar; when failed, the error;
+  - its button, if it has one (below);
+  - at the bottom, its **outputs as tiles,** three per row: a thumbnail for images, an icon for JSON and LilyPond. Outputs are **grouped logically:** all 54 system crops are one tile with "×54", not 54 tiles. The first output is the stage's main one. Tiles are what gets selected (highlighted in coral), not the card.
+- **Stage states:**
+  - **done**;
+  - **running**: a green border and its progress bar;
+  - **failed**: a red border and the error. It can run again;
+  - **ready**: its turn has come. It looks like a done card, but without outputs;
+  - **planned**: not its turn yet. Only the dimmed title (and the "⋮"), no outputs. It becomes ready, no longer dim, when its turn comes;
+  - **WIP**: a manual stage being worked on (below).
+  - A "needs you" state for a model asking for human input is left out for now; it will be easy to add (§5.1).
+- **Buttons:** in Manual mode, the ready stage has **Run** and, while it runs, **Stop** in the same place (a failed one has "Run again"). In Auto mode the cards have no Run or Stop: those are in the head. Stop throws away what the running stage did so far.
+- **Manual stages** are added from a stage's "⋮" ("Add: Fix system boxes", whichever fixes fit after that stage). They start as **WIP** (a badge next to the name): the user opens the stage's output as often as they like and works on it, and clicks **Finish** on the card when done. Then the next stage gets its turn. In Auto mode the pipeline carries on by itself; in Manual mode the next stage is ready. A finished manual stage can be edited again ("Edit" in its "⋮"): that continues from where the user left it, not from scratch, but like any change in the middle (§5.5) it replaces the later stages and needs confirming. A WIP stage can be discarded, after confirming.
+- **The stage's "⋮"** holds everything else, so the card stays clean: "Show details", "Change config", "Run again", "Add: Fix …", "Edit" (manual stages), "Discard" (WIP stages, in red). Only what applies is listed, and while a stage runs only "Show details". Whatever replaces stages that already ran asks first (§5.5).
+- **Show details** opens the stage in the artifact view: step and version, kind, status, run time, cost, result, its config, and for LLM stages the calls it made with their tokens and costs.
+- **Groups are shown as a filmstrip:** the items one below the other with a small gap, scrolling continuously, with a counter in a corner ("12 / 54"). That way the end of one system and the start of the next are on screen together, which helps when checking musical content. Transcriptions show the system's crop with its LilyPond below it.
+- **Auto-scroll:** the list scrolls to the current stage (the first that isn't done) when the project is opened, when an Auto run starts, and as an Auto run moves on to the next stage.
 
 - **The menu** (☰, at the far right of the header, after "+ New project") leads to the app's own pages: Statistics (including costs, §10), Settings, Help and About, in three groups separated by lines (what you look at, what you change, help). Each page has its own URL (`#/stats`, `#/settings`, `#/help`, `#/about`) and replaces the project view while it is open, so the back button returns to the project. All but About are placeholders for now (§15). Help will not be a page of its own: it will lead to a user guide, a Markdown file in the repository on GitHub. Anything urgent (the spending cap reached, a missing key) must not hide in the menu: it is shown where the user is.
 - **Project actions:** a "⋮" button next to the project's name in the pipeline panel opens a menu of things to do with the project: "Rename", then a line, then "Delete project" in red (`--danger`, kept apart from the coral accent). Deleting isn't built yet (§15): picking it only closes the menu.
@@ -611,7 +635,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Choose a license** (§5.6, the About page). Until then all rights are reserved.
 
 ### Placeholders to replace
-- **Real progress values:** `progressOf` in `apps/web/src/pipeline.ts` returns made-up values (pipeline 70%, stage 15%). Compute them from the stages. The "Stage" circle in the collapsed strip only appears while a stage runs, and the expanded panel shows the stage's progress next to the running stage (§5.6).
+- **Replace the mock stages** (§5.6, `apps/web/src/mockPipeline.ts` and `mockContent.tsx`) with real ones, once the D1 schema exists; remove the "Mock" box. Thumbnails of real images (the PDF's tile shows an icon for now) and a form for "Change config" (the mock goes straight to the confirmation) come with them.
 - **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
 - **Settings page:** the model configs, the default config and the configs per kind of work (§7.6), the run mode for new projects (§5.1), the spending cap and the free-tier mark for model configs (§10). Now a placeholder text.
 - **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.6). Only makes sense once there is something to explain. Now a placeholder page.
@@ -647,7 +671,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
       Picking a PDF first looks up its hash (`GET /api/pdfs/<sha256>?filename=...`, which returns the PDF's projects, most recently opened first, and the name a new project would get). An unknown PDF is uploaded and gets a project right away. A known PDF opens a dialog that lists its projects to open one, with "+ New project" as the last item, showing the name the new project would get. A new project on a known PDF is created without uploading the file again (`POST /api/projects` with the `filename` instead of the `pdf`).
 
-      Below the header is the project view (§5.6): the pipeline panel and the artifact view, which shows the original PDF. What is left to do here is in §15.
+      Below the header is the project view (§5.6): the pipeline panel, with mock stages for now, and the artifact view. What is left to do here is in §15.
 
       Note: the Worker's entry module (`apps/worker/src/index.ts`) may only export handlers: the Workers runtime refuses to start otherwise, and the tests (which import the module directly) don't notice. Helpers live in their own modules (e.g. `names.ts`).
 

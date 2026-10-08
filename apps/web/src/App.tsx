@@ -6,7 +6,7 @@ import { ProjectPicker } from "./ProjectPicker";
 import { ProjectView } from "./ProjectView";
 import { PageView } from "./PageView";
 import { RenameDialog } from "./RenameDialog";
-import { hashForArtifact, hashForProject, pageFromHash, parseRoute } from "./route";
+import { hashForArtifact, hashForProject, hashForStage, pageFromHash, parseRoute } from "./route";
 import { sha256Hex } from "./sha256";
 import { useHash } from "./useHash";
 
@@ -24,9 +24,10 @@ export function App() {
   // A page from the menu, if one is open instead of a project.
   const page = pageFromHash(hash);
   const current = projects?.find((project) => project.id === route?.projectId) ?? null;
-  // Whether the open artifact was opened from within the app, so closing it can go back in history.
+  // Whether the open artifact (or stage's details) was opened from within the app, so closing it can go back in
+  // history.
   const openedArtifactHere = useRef(false);
-  if (route?.artifactId == null) openedArtifactHere.current = false;
+  if (route?.artifactId == null && route?.stageId == null) openedArtifactHere.current = false;
 
   async function refresh() {
     try {
@@ -75,6 +76,12 @@ export function App() {
     if (!current) return;
     openedArtifactHere.current = true;
     window.location.hash = hashForArtifact(current.id, artifactId);
+  }
+
+  function showStage(stageId: string) {
+    if (!current) return;
+    openedArtifactHere.current = true;
+    window.location.hash = hashForStage(current.id, stageId);
   }
 
   // Back to the project. Going back in history means the browser's back button won't reopen the artifact.
@@ -154,7 +161,9 @@ export function App() {
             key={current.id}
             project={current}
             artifactId={route?.artifactId ?? null}
+            stageId={route?.stageId ?? null}
             onSelectArtifact={selectArtifact}
+            onShowStage={showStage}
             onCloseArtifact={closeArtifact}
             onRename={() => setRenaming(true)}
           />

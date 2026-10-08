@@ -51,3 +51,67 @@ export function MoreIcon() {
     </svg>
   );
 }
+
+// The kinds of stage: computed by code, by an LLM, or by hand.
+export function ComputedIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+      <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" />
+    </svg>
+  );
+}
+
+export function LlmIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" />
+      <path d="M18.5 16v4M16.5 18h4" />
+    </svg>
+  );
+}
+
+export function ManualIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 20l1-4L16 5l3 3L8 19z" />
+      <path d="M14 7l3 3" />
+    </svg>
+  );
+}
+
+export function PlayIcon() {
+  return (
+    <svg className="icon filled" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 5.5v13l10.5-6.5z" />
+    </svg>
+  );
+}
+
+export function StopIcon() {
+  return (
+    <svg className="icon filled" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="6.5" y="6.5" width="11" height="11" rx="1.5" />
+    </svg>
+  );
+}
+
+// Structured text (JSON) and music source (LilyPond), for output tiles without a picture.
+export function DataIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 4c-2 0-2.5 1-2.5 3v2.5C6.5 11 5.5 12 4 12c1.5 0 2.5 1 2.5 2.5V17c0 2 .5 3 2.5 3" />
+      <path d="M15 4c2 0 2.5 1 2.5 3v2.5c0 1.5 1 2.5 2.5 2.5-1.5 0-2.5 1-2.5 2.5V17c0 2-.5 3-2.5 3" />
+    </svg>
+  );
+}
+
+export function MusicIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10 17V5l9-2v12" />
+      <ellipse cx="7.5" cy="17.5" rx="2.5" ry="2" />
+      <ellipse cx="16.5" cy="15.5" rx="2.5" ry="2" />
+    </svg>
+  );
+}
