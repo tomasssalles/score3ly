@@ -72,9 +72,8 @@ test("the answer leaves out thoughts; cached tokens and thinking are counted whe
   assert.equal(response.text, '{"systems":6}');
   assert.deepEqual(response.json, { systems: 6 });
   assert.equal(response.stop, "end");
-  assert.deepEqual(response.usage, [
-    { model: "gemini-3-pro", inputTokens: 1000, outputTokens: 512, cacheReadTokens: 300, cacheWriteTokens: 0 },
-  ]);
+  assert.equal(response.model, "gemini-3-pro");
+  assert.deepEqual(response.usage, { inputTokens: 1000, outputTokens: 512, cacheReadTokens: 300, cacheWriteTokens: 0 });
 });
 
 test("a blocked prompt or a safety stop is a refusal", async () => {

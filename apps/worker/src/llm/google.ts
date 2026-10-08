@@ -105,24 +105,22 @@ export function fromResult(result: GenerateContentResponse, request: LlmRequest)
   const usage = result.usageMetadata;
   const prompt = usage?.promptTokenCount ?? 0;
   const cached = usage?.cachedContentTokenCount ?? 0;
-  const model = result.modelVersion ?? request.model;
   return {
     provider: "google",
-    model,
+    // Gemini names the exact version that answered, which can differ from the name asked for (an alias such as
+    // "...-latest", or a dated version), so it isn't compared with the request.
+    model: result.modelVersion ?? request.model,
     text,
     stop,
     stopDetail: blocked ?? reason,
-    usage: [
-      {
-        model,
-        // Gemini counts cached tokens as part of the prompt; here they are counted apart, as for Claude.
-        inputTokens: prompt - cached,
-        // Thinking is billed as output.
-        outputTokens: (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
-        cacheReadTokens: cached,
-        cacheWriteTokens: 0,
-      },
-    ],
+    usage: {
+      // Gemini counts cached tokens as part of the prompt; here they are counted apart, as for Claude.
+      inputTokens: prompt - cached,
+      // Thinking is billed as output.
+      outputTokens: (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
+      cacheReadTokens: cached,
+      cacheWriteTokens: 0,
+    },
     raw: result,
   };
 }

@@ -64,5 +64,5 @@ console.log(json ? JSON.stringify(response.json, null, 2) : response.text);
 console.error(
   `\n${response.model}, ${response.stop}${response.stopDetail ? ` (${response.stopDetail})` : ""}, ` +
     `${((Date.now() - started) / 1000).toFixed(1)}s, ` +
-    response.usage.map((u) => `${u.model}: ${u.inputTokens} in, ${u.outputTokens} out`).join("; "),
+    `${response.usage.inputTokens} tokens in, ${response.usage.outputTokens} out`,
 );

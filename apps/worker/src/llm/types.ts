@@ -27,10 +27,8 @@ export type LlmRequest = {
   jsonSchema?: Record<string, unknown>;
 };
 
-// Tokens per model. A request can run on more than one model: when the requested one declines, a fallback model
-// may answer (Anthropic's server-side fallback). Costs are computed per model (§10).
+// Tokens of one call, as the provider bills them. Costs are computed from these and the model's prices (§10).
 export type LlmUsage = {
-  model: string;
   inputTokens: number; // not counting cache reads
   outputTokens: number; // thinking included
   cacheReadTokens: number;
@@ -39,13 +37,13 @@ export type LlmUsage = {
 
 export type LlmResponse = {
   provider: ProviderId;
-  model: string; // the model that gave the answer: the requested one, or a fallback
+  model: string; // the model that answered, as the provider names it
   text: string;
   json?: unknown; // when the request had a jsonSchema and the model finished
   // end: finished. max_tokens: cut off. refusal: the model (or its safety system) declined.
   stop: "end" | "max_tokens" | "refusal" | "other";
   stopDetail?: string; // the provider's reason, e.g. a refusal's category
-  usage: LlmUsage[];
+  usage: LlmUsage;
   raw: unknown; // the provider's whole response, for the call record (§5.2)
 };
 
@@ -56,7 +54,8 @@ export type LlmErrorKind =
   | "bad_request" // the request itself is wrong: retrying won't help
   | "server"
   | "network"
-  | "invalid_output"; // the answer should have been JSON following the schema, and isn't
+  | "invalid_output" // the answer should have been JSON following the schema, and isn't
+  | "unexpected_model"; // another model answered than the one asked
 
 export class LlmError extends Error {
   readonly kind: LlmErrorKind;

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { BetaMessage } from "@anthropic-ai/sdk/resources/beta/messages";
+import type { Message } from "@anthropic-ai/sdk/resources/messages";
 import { AnthropicProvider, fromMessage } from "./anthropic.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 
@@ -60,18 +60,18 @@ const request: LlmRequest = {
   jsonSchema: { type: "object", properties: { systems: { type: "integer" } }, required: ["systems"] },
 };
 
-test("a request is sent as the Messages API expects, with the image first and the fallback opted in", async () => {
+test("a request is sent as the Messages API expects, with the image first and no fallback model", async () => {
   const captured: Captured[] = [];
   const provider = new AnthropicProvider({ apiKey: "test-key", fetch: fakeFetch(answer('{"systems":6}'), captured) });
   await provider.send(request);
   const [{ url, headers, body }] = captured;
   assert.match(url, /\/v1\/messages/);
   assert.equal(headers.get("x-api-key"), "test-key");
-  assert.match(headers.get("anthropic-beta") ?? "", /server-side-fallback-2026-07-01/);
+  assert.equal(headers.get("anthropic-beta"), null);
   assert.equal(body.model, "claude-opus-5-5");
   assert.equal(body.system, "You read music.");
   assert.equal(body.stream, true);
-  assert.equal(body.fallbacks, "default");
+  assert.equal(body.fallbacks, undefined);
   assert.deepEqual(body.output_config, { effort: "high", format: { type: "json_schema", schema: request.jsonSchema } });
   assert.deepEqual(body.messages[0].content[0], {
     type: "image",
@@ -80,16 +80,25 @@ test("a request is sent as the Messages API expects, with the image first and th
   assert.equal(body.thinking, undefined); // thinking stays the model's default (adaptive on current models)
 });
 
-test("models without a server-side fallback don't get one", async () => {
+test("the effort and the output format are only sent when asked for", async () => {
   const captured: Captured[] = [];
   const provider = new AnthropicProvider({ apiKey: "k", fetch: fakeFetch(answer("hi", "claude-haiku-5-5"), captured) });
   await provider.send({
     model: "claude-haiku-5-5",
     messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
   });
-  assert.equal(captured[0].body.fallbacks, undefined);
   assert.equal(captured[0].body.output_config, undefined);
-  assert.doesNotMatch(captured[0].headers.get("anthropic-beta") ?? "", /fallback/);
+});
+
+test("an answer from another model than the one asked is an error", async () => {
+  const provider = new AnthropicProvider({
+    apiKey: "k",
+    fetch: fakeFetch(answer('{"systems":6}', "claude-opus-5"), []),
+  });
+  await assert.rejects(
+    provider.send(request),
+    (err: unknown) => err instanceof LlmError && err.kind === "unexpected_model",
+  );
 });
 
 test("the answer comes back with its text, parsed JSON and usage", async () => {
@@ -99,9 +108,7 @@ test("the answer comes back with its text, parsed JSON and usage", async () => {
   assert.equal(response.model, "claude-opus-5-5");
   assert.equal(response.stop, "end");
   assert.deepEqual(response.json, { systems: 6 });
-  assert.deepEqual(response.usage, [
-    { model: "claude-opus-5-5", inputTokens: 1200, outputTokens: 42, cacheReadTokens: 0, cacheWriteTokens: 0 },
-  ]);
+  assert.deepEqual(response.usage, { inputTokens: 1200, outputTokens: 42, cacheReadTokens: 0, cacheWriteTokens: 0 });
 });
 
 test("an answer that should be JSON and isn't is an error", async () => {
@@ -129,51 +136,6 @@ test("HTTP errors become typed errors that say whether to retry", async () => {
   }
 });
 
-test("a refusal that a fallback model answered: the answer, and the tokens of both models", () => {
-  const message = {
-    id: "msg_2",
-    type: "message",
-    role: "assistant",
-    model: "claude-opus-5",
-    content: [{ type: "text", text: "Six." }],
-    stop_reason: "end_turn",
-    stop_details: null,
-    usage: {
-      input_tokens: 0,
-      output_tokens: 0,
-      cache_read_input_tokens: 0,
-      cache_creation_input_tokens: 0,
-      iterations: [
-        {
-          type: "message",
-          model: null,
-          input_tokens: 1000,
-          output_tokens: 3,
-          cache_read_input_tokens: 0,
-          cache_creation_input_tokens: 0,
-        },
-        {
-          type: "fallback_message",
-          model: "claude-opus-5",
-          input_tokens: 1000,
-          output_tokens: 20,
-          cache_read_input_tokens: 0,
-          cache_creation_input_tokens: 0,
-        },
-      ],
-    },
-  } as unknown as BetaMessage;
-  const response = fromMessage(message, request);
-  assert.equal(response.model, "claude-opus-5");
-  assert.deepEqual(
-    response.usage.map((u) => [u.model, u.inputTokens, u.outputTokens]),
-    [
-      ["claude-opus-5-5", 1000, 3],
-      ["claude-opus-5", 1000, 20],
-    ],
-  );
-});
-
 test("a refusal says so, with its category", () => {
   const message = {
     model: "claude-opus-5-5",
@@ -181,8 +143,8 @@ test("a refusal says so, with its category", () => {
     stop_reason: "refusal",
     stop_details: { type: "refusal", category: "cyber", explanation: null },
     usage: { input_tokens: 10, output_tokens: 0, cache_read_input_tokens: null, cache_creation_input_tokens: null },
-  } as unknown as BetaMessage;
-  const response = fromMessage(message, request);
+  } as unknown as Message;
+  const response = fromMessage(message);
   assert.equal(response.stop, "refusal");
   assert.equal(response.stopDetail, "cyber");
   assert.equal(response.text, "");
