@@ -1,9 +1,9 @@
-// Shared by the scripts: opening a PDF in Node, writing PNGs, and paths relative to where the command was typed.
+// Shared by the scripts: opening a PDF in Node, reading and writing PNGs, and paths relative to where the command was typed.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { openPdf, type CreateCanvas, type PdfDocument, type RgbaImage } from "../src/index.ts";
 
 // npm runs the scripts in this package's folder; paths given on the command line are relative to where it was
@@ -30,4 +30,13 @@ export function writePng(image: RgbaImage, path: string) {
   data.data.set(image.data);
   context.putImageData(data, 0, 0);
   writeFileSync(path, canvas.toBuffer("image/png"));
+}
+
+export async function readPng(path: string): Promise<RgbaImage> {
+  const image = await loadImage(readFileSync(path));
+  const canvas = createCanvas(image.width, image.height);
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0);
+  const { data } = context.getImageData(0, 0, image.width, image.height);
+  return { width: image.width, height: image.height, data: new Uint8ClampedArray(data) };
 }

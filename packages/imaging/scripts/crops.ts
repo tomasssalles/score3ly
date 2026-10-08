@@ -1,22 +1,20 @@
-// Cuts named regions out of a PDF's pages and writes each as <name>.png:
+// Cuts named regions out of page images and writes each as <name>.png:
 //
-//   npm run crops -w packages/imaging -- score.pdf regions.json /tmp/crops [--deskew]
+//   npm run crops -w packages/imaging -- "/tmp/pages/page-{n}.straight.png" regions.json /tmp/crops
 //
-// regions.json maps names to regions, e.g.
+// The first argument is the page images' path, with {n} standing for the page number (from 1): in the pipeline,
+// the pages as extracted from the PDF and deskewed (`npm run pages` writes them so). regions.json maps names to
+// regions, with boxes as fractions of the page image (DESIGN.md §6), e.g.
 //   { "system_1": { "page": 1, "bbox": { "left": 0.05, "right": 0.95, "top": 0.1, "bottom": 0.28 } } }
-// with pages counted from 1 and boxes as fractions of the page image (DESIGN.md §6). With --deskew, each page is
-// straightened first (findSkew), for boxes that were found on straightened pages.
 
-import { mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { crop, deskew, findSkew, pageImage, parseRegions, type RgbaImage } from "../src/index.ts";
-import { nodeCanvas, openPdfFile, userPath, writePng } from "./common.ts";
+import { crop, parseRegions } from "../src/index.ts";
+import { readPng, userPath, writePng } from "./common.ts";
 
-const args = process.argv.slice(2);
-const straighten = args.includes("--deskew");
-const [pdfArg, regionsArg, outArg] = args.filter((a) => a !== "--deskew");
-if (!pdfArg || !regionsArg || !outArg) {
-  console.error("Usage: crops.ts <file.pdf> <regions.json> <output folder> [--deskew]");
+const [pagesArg, regionsArg, outArg] = process.argv.slice(2);
+if (!pagesArg || !regionsArg || !outArg || !pagesArg.includes("{n}")) {
+  console.error('Usage: crops.ts "<page images, with {n} for the page number>" <regions.json> <output folder>');
   process.exit(1);
 }
 
@@ -27,29 +25,22 @@ try {
   console.error(err instanceof Error ? err.message : err);
   process.exit(1);
 }
-const doc = await openPdfFile(userPath(pdfArg));
-const missing = regions.filter((r) => r.page > doc.numPages);
+const pagePath = (page: number) => userPath(pagesArg.replaceAll("{n}", String(page)));
+const pages = [...new Set(regions.map((r) => r.page))].sort((a, b) => a - b);
+const missing = pages.filter((page) => !existsSync(pagePath(page)));
 if (missing.length > 0) {
-  console.error(
-    `The PDF has ${doc.numPages} pages; these regions are beyond: ${missing.map((r) => r.name).join(", ")}`,
-  );
+  console.error(`Missing page images: ${missing.map(pagePath).join(", ")}`);
   process.exit(1);
 }
 const outDir = userPath(outArg);
 mkdirSync(outDir, { recursive: true });
 
 // Page by page, so only one page image is held at a time.
-const pages = [...new Set(regions.map((r) => r.page))].sort((a, b) => a - b);
-for (const pageNumber of pages) {
-  let image: RgbaImage = (await pageImage(doc, pageNumber, { createCanvas: nodeCanvas })).image;
-  if (straighten) {
-    const skew = findSkew(image);
-    image = deskew(image, skew.angle);
-    console.log(`page ${pageNumber}: straightened by ${skew.angle}°`);
-  }
-  for (const region of regions.filter((r) => r.page === pageNumber)) {
+for (const page of pages) {
+  const image = await readPng(pagePath(page));
+  for (const region of regions.filter((r) => r.page === page)) {
     const part = crop(image, region.box);
     writePng(part, join(outDir, `${region.name}.png`));
-    console.log(`${region.name}.png: page ${pageNumber}, ${part.width}×${part.height} px`);
+    console.log(`${region.name}.png: page ${page}, ${part.width}×${part.height} px`);
   }
 }

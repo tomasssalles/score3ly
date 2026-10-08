@@ -30,10 +30,10 @@ To look at page images and skew detection on a PDF (writes each page, as extract
 npm run pages -w packages/imaging -- testset/bendel_la_cascade_p4.orig.pdf /tmp/pages
 ```
 
-To cut named regions (systems, measures, details) out of a PDF's pages, as `<name>.png` files (`--deskew` straightens the pages first):
+To cut named regions (systems, measures, details) out of page images, as `<name>.png` files, e.g. out of the straightened pages written by `npm run pages` (`{n}` stands for the page number):
 
 ```sh
-npm run crops -w packages/imaging -- score.pdf regions.json /tmp/crops --deskew
+npm run crops -w packages/imaging -- "/tmp/pages/page-{n}.straight.png" regions.json /tmp/crops
 ```
 
 where `regions.json` maps names to a page (from 1) and a box: `{"system_1": {"page": 1, "bbox": {"left": 0.05, "right": 0.95, "top": 0.1, "bottom": 0.28}}}`.
