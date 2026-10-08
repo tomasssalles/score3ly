@@ -47,7 +47,7 @@ v1 was Python-only, local-only and command-line-only.
 - **Reproducible and testable:** every artifact can be traced back to its inputs, code version, prompt version, model and configuration. Non-deterministic parts (LLM calls, human input) are recorded so they can be replayed (§12).
 
 ### Non-goals (for now)
-- Multiple users, sharing, collaboration. Each person deploys their own instance to their own Cloudflare account, with their own secrets, so the app has no user accounts and none are planned.
+- Multiple users, sharing, collaboration. Each person deploys their own instance to their own Cloudflare account, or runs the desktop version (§3, planned), with their own secrets, so the app has no user accounts and none are planned.
 - MusicXML output.
 - Offline-first operation.
 
@@ -143,12 +143,47 @@ The core depends only on interfaces. Adapters live in `apps/*`.
 | Port | Adapters |
 |---|---|
 | `PdfSource` | Local file input, Google Drive (Picker) |
-| `BlobStore` (original PDFs) | R2 via the Worker. In-memory for tests. |
-| `ProjectStore` (projects, artifacts, provenance) | D1 via the Worker. SQLite or in-memory for tests. |
+| `BlobStore` (original PDFs) | R2 via the Worker. A folder of files (desktop version). In-memory for tests. |
+| `ProjectStore` (projects, artifacts, provenance) | D1 via the Worker. A SQLite file (desktop version). SQLite or in-memory for tests. |
 | `DerivativeCache` (regenerable images) | OPFS. In-memory for tests. |
 | `LlmProvider` | One adapter per provider (via the Worker). **Replay** adapter for tests. |
 | `Renderer` | **Proposed:** Verovio in the browser. Optional: LilyPond (local install, container). See §9. |
 | `ExportTarget` | Browser download, Google Drive folder |
+
+### Desktop version (planned)
+
+The app is built for the browser and Cloudflare, and that stays the focus. An optional **desktop version** wraps the same code, for people who prefer that trade-off:
+
+| | Web app on Cloudflare | Desktop app |
+|---|---|---|
+| Setup | A Cloudflare account, a deployment, secrets in the dashboard | Install and run |
+| Devices | Every device, phones included, with the important data synced | One computer |
+| Data | D1 and R2 in the EU, images cached per device (sometimes missing and rebuilt) | Everything local and persistent; the disk is the only backup |
+| Secrets | Worker secrets | A local file |
+| Residency | EU storage at a US company (§10) | Local, apart from the LLM calls |
+
+The project owner uses the web app. The desktop version mainly makes the app easier to share with people who would not set up Cloudflare (the API keys they have to bring remain a hurdle either way).
+
+**The rule that keeps it cheap:** the web app only ever talks to the Worker's HTTP API, and the Worker only touches Cloudflare through its D1 and R2 bindings and its secrets. Anything Cloudflare-only beyond those (e.g. Workflows or Durable Objects, §16) goes behind a port with a desktop equivalent, or is a deliberate exception. Then the desktop version is a different host for the same server code, not a second app.
+
+**How:**
+- **Electron.** Its main process (Node) runs the Worker's Hono app as a local server on `127.0.0.1`, and the window shows that address. The React app doesn't change. Electron rather than Tauri because it ships Chromium: the system web views (WebKit on macOS) differ in canvas, OPFS and pdf.js behaviour, and Tauri would still need Node alongside for the server. The price is a download of about 150 MB.
+- **Small adapters on Node, not Miniflare.** D1 is SQLite: the part of the D1 API we use (`prepare`, `bind`, `all`, `batch`) is a thin layer over Node's built-in SQLite, running the same migration files, at startup. R2 is a few calls (`get`, `put`, `head`, `delete`) over a folder of plain files. Miniflare would need no adapters but is a development tool, ships the `workerd` binary per platform and stores R2 objects in its own format.
+- **No login:** the server only listens on localhost, so Cloudflare Access isn't needed.
+- **The same server also runs without Electron,** as a plain local server, e.g. on a home server reachable from a phone through a VPN.
+
+**What differs in the app.** The server says which host it is (e.g. `GET /api/info`), so the web bundle stays the same for both; the UI asks the server, and nowhere else decides by host:
+- **Secrets:** in the desktop version they are in a file in the app's data folder, in the same `NAME=value` format as `.dev.vars` (§10). The app creates it on first start, with a commented example and permissions for the user only. A button in the settings opens it in the system's default text editor: the page asks the server, which opens it (`shell.openPath`), since a web page can't. Changes take effect without a restart: the server reads the file again when it changes, and the secret names in the model configs (§7.6) update. In the web version, the same place in the settings explains that secrets are set in the Cloudflare dashboard, with a link to the user guide.
+- **Navigation:** an Electron window has no browser bar, but the app relies on the back button (closing an artifact or a stage's details, leaving a menu page, §5.6). So: back and forward buttons in the header, left of the wordmark, disabled when there is nowhere to go (Electron knows: `navigationHistory.canGoBack()`), and the usual shortcuts, which Electron doesn't set by itself: Alt+←/→ (Windows, Linux), Cmd+[/] (macOS), the mouse's side buttons and swipes on macOS. The condition is "no browser bar", not "desktop": a phone app opened from the home screen without the browser's bar would need the same (§15).
+- **The data folder:** nothing in the app opens it. The user guide says where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran (§5.2).
+- **Easier on desktop:** no Worker limits on CPU time, no lost answers when a phone sleeps, no free-tier quotas. Running the whole pipeline on the server (§16) is simple there.
+
+**The real costs** are outside the code:
+- **Code signing:** unsigned apps get warnings (macOS Gatekeeper, Windows SmartScreen) that stop non-technical users. Notarizing for macOS needs an Apple Developer account ($99/year); a Windows certificate costs money too.
+- **Builds for three platforms** (GitHub Actions) and updates (e.g. electron-updater from GitHub Releases).
+- **Migrations on users' machines,** run at startup.
+
+**When:** after the first vertical slice works (§16 step 6). Until then, only the rule above has to hold, and the current code follows it.
 
 ## 4. Identity and projects
 
@@ -229,6 +264,8 @@ A **cache key** = hash(step id, version, canonical config, input artifact IDs).
 - Artifacts of later stages may already exist when an earlier stage is run again with the same inputs and config. They are found through the cache key and reused.
 
 Every artifact has a row in D1, which belongs to the stage that produced it and says whether the artifact's content is stored (and where: D1 or R2) or only its recipe (§5.3).
+
+**Checking that stages are still valid:** a pipeline checks its stages against the hashes of their inputs and outputs. Stored content can change outside the app (e.g. files in the desktop version's data folder edited by hand), and a stage whose recorded inputs or outputs no longer match what is stored is not valid any more. How and when this is checked, and what the app does then, is still to be designed (§15).
 
 ### 5.3 Persisted vs. regenerable (important)
 
@@ -629,18 +666,19 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
 - **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10).
 - **Design the D1 schema for stages and artifacts** (§5).
+- **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
 - **Decide on reuse per item within a stage** (§5.5): a manual stage covers the whole PDF. If only one system's input changed, should the fixes on the unchanged systems carry over, with only the changed one dropped? Well-meant, but it makes the behaviour harder for the user to understand, more than it complicates the code.
 - **Decide on the report after a re-run** (§5.5, proposed): which manual fixes were carried over and which were dropped.
 - **Polish the wording of the confirmation before a re-run** (§5.5).
 - **Decide whether the artifact view follows the pipeline while it runs** (§5.6).
-- **Decide whether the app opens like an installed app on a phone** (§5.7): the web app manifest sets no display mode, so from the home screen it opens as a normal browser page. As an installed app it would get the whole screen, but lose the browser's back button (which closes an artifact or a menu page, §5.6) and the address bar.
+- **Decide whether the app opens like an installed app on a phone** (§5.7): the web app manifest sets no display mode, so from the home screen it opens as a normal browser page. As an installed app it would get the whole screen, but lose the browser's back button (which closes an artifact or a menu page, §5.6) and the address bar. It would then need the same back and forward buttons as the desktop version (§3).
 - **Choose a license** (§5.6, the About page). Until then all rights are reserved.
 
 ### Placeholders to replace
 - **Replace the mock stages** (§5.6, `apps/web/src/mockPipeline.ts` and `mockContent.tsx`) with real ones, once the D1 schema exists; remove the "Mock" box. Thumbnails of real images (only the PDF's tile has a real one) and a form for "Change config" (the mock goes straight to the confirmation) come with them.
 - **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
 - **Settings page:** the model configs, the default config and the configs per kind of work (§7.6), the run mode for new projects (§5.1), the spending cap and the free-tier mark for model configs (§10). Now a placeholder text.
-- **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.6). Only makes sense once there is something to explain. Now a placeholder page.
+- **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.6). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
 - **"Delete project"** in the project actions does nothing. Build deletion as in §4: `deleted_at`, the partial unique index on names (a migration that rebuilds the table), deleting artifacts and PDFs nothing else uses, the confirmations.
 - **Light theme** (§5.7).
 
@@ -701,4 +739,5 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    - **Entering the LLM keys in the app** (optional). The keys are stored in D1, encrypted with one master key, which is the only secret left to set on the host. The Worker decrypts a key only to call the provider and never sends it back to the browser: the settings page shows "set", and perhaps the last four characters. Whoever gets past the login can replace a key, but not read one.
      - **Why:** it decouples the app further from Cloudflare. A SQLite database, object storage, a server and one secret can be had from other providers, and with the right ports and adapters (§3) the app becomes portable. Setting up the keys is then the same on every host, and so is the user guide. It is also more convenient: a key can be changed from the app, on any device.
      - **The price:** code that handles secrets, which has to be right.
+   - **Desktop version** (optional, §3): Electron around the same app and server, with Node adapters for D1 and R2 and secrets in a local file.
    - **Forking a project** from a given stage: a new, separate project that starts with the original's pipeline up to that stage. Each project keeps its own linear history. Behind the scenes, the fork reuses the original's artifacts without duplicating them.
