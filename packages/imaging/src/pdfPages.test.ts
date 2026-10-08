@@ -101,4 +101,18 @@ test("a real page's skew is found again after turning it by a known angle", asyn
   assert.ok(Math.abs(findSkew(deskew(image, base)).angle) <= 0.03);
 });
 
+test("staves are found on music pages and not on covers", async () => {
+  for (const [name, pageNumber, music] of [
+    ["bendel_la_cascade", 1, false],
+    ["liszt_consolations_first_edition", 1, false],
+    ["schumann_kinderscenen_first_edition", 1, false],
+    ["bendel_la_cascade_p4", 1, true],
+    ["liszt_consolations_first_edition", 3, true],
+    ["debussy_clair_de_lune_mutopia", 1, true],
+  ] as const) {
+    const { staves } = findSkew((await page(name, pageNumber)).image);
+    assert.equal(staves.length > 0, music, `${name} page ${pageNumber}: ${staves.length} staves`);
+  }
+});
+
 const KINDERSCENEN_P3_HASH = "d27a2e83523a0935bca67297605324c2ba6326758b06d1b0ad3e3c6c7187b8fe";

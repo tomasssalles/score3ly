@@ -517,7 +517,7 @@ Stored for every image a human or LLM has worked on, and for every confirmed sys
 3. **Mismatch:** flag the project and ask the human to re-check the affected boxes and angles.
 
 ### 8.4 Finding the skew
-Built: `findSkew` in `packages/imaging/src/skew.ts`. It returns the angle (degrees, positive when horizontal lines descend to the right; `deskew(image, angle)` straightens the page) and a confidence from 0 to 1.
+Built: `findSkew` in `packages/imaging/src/skew.ts`. It returns the angle (degrees, positive when horizontal lines descend to the right; `deskew(image, angle)` straightens the page), a confidence from 0 to 1, whether the angle is at the limit of the search, and the staves found (below). `shouldDeskew` applies the rule below.
 - **Lines, not ink:** a filter keeps thin, dark, horizontal-ish structures. A pixel counts as much as it is darker than both the pixels a few rows above and below it, relative to them. Large dark areas (scanner borders, a shadow at the spine, beams, noteheads) and vertical strokes give nothing, and faded ink still counts because the measure is relative. Strong responses are capped, so a few very dark lines don't outweigh many faint ones. A margin of 4% on each side is ignored, where scanner borders and page edges are.
 - **Projection by strips:** the page is cut into 48 vertical strips, each with a row profile of the line responses. For a candidate angle, the strips' profiles are shifted by how far a line at that angle moves, and added up. At the right angle all of a staff line falls on the same rows, so the sum of squares of the summed profile is largest. A coarse search (0.1°, ±5° by default), a fine one (0.01°) around the best, then a parabola through the best three.
 - **Outliers** such as long hairpins or slurs are lines at other angles, but much less ink than the staves, so they add a little to every candidate and don't move the peak. Tested with made-up pages: hairpins, faded ink on dark noisy paper, black borders and a crooked page edge, all within 0.05°. On real pages from the test set, a page turned by a known angle is measured again within 0.05°.
@@ -528,10 +528,18 @@ Built: `findSkew` in `packages/imaging/src/skew.ts`. It returns the angle (degre
 
 #### When a page is deskewed
 **Best effort, low risk.** Deskewing happens before any LLM call, in code, and a mistake must cost little: at worst, a music page isn't straightened and is a little harder to read. So:
-- **Only pages with staves** are deskewed. Code may detect staves for this (planned: groups of five evenly spaced lines in the row profile at the found angle), and for nothing else: it doesn't decide what a page is, nor which pages go to which LLM task. Every page goes to the LLM in global analysis (§6), which says what each page is.
+- **Only pages with staves** are deskewed. Code detects staves for this and for nothing else: it doesn't decide what a page is, nor which pages go to which LLM task. Every page goes to the LLM in global analysis (§6), which says what each page is.
 - **Not at the edge of the range:** an angle at the 5° limit isn't trusted, and the page stays as it is.
 - **Not for tiny angles:** rotation blurs a little (interpolation), so a page whose lines drift by less than about a pixel across its width (about 0.02° for 2500 px) stays as it is.
 - The user can always set the angle by hand (§5.4).
+
+#### Detecting staves
+Built, in `findSkew`, from the same line responses and strips, at the angle found:
+- **Lines:** rows (along the angle) that cross at least 30% of the strips. A row crosses a strip when its mean line response there reaches 30% of the page's strong lines (the 98th percentile over all strips and rows), kept between 0.02 and 0.08: a staff line counts even where notes interrupt it, and faint staves on faded pages count too.
+- **Staves:** five lines with even spacing (within 15%), a spacing between 3 work pixels and 1.5% of the page's height, whose five lines cross the same strips: at least 40% of the strips are crossed by all five. A staff's lines start and end together; the evenly spaced strokes of ornaments and engraved pictures don't, which is what keeps cover pages from having staves.
+- **One spacing per page:** staves whose spacing is more than 25% away from the page's median one are dropped.
+- **Result:** the staves' tops and bottoms as fractions of the page's height (where they cross the page's vertical center line). Only their number is used.
+- **On the test set** (the first three pages of each PDF): all five cover pages have no staves; every music page has at least five (pages have 6 to 14). Not every staff is found (a page's count is often a little low), which doesn't matter: one is enough.
 
 ### 8.5 Device constraints
 - **Memory:** a 300 dpi page held in canvas memory is about 35 MB, and mobile Safari strictly limits total canvas memory. Process one page at a time in a Web Worker, using typed arrays / `OffscreenCanvas`.
@@ -756,7 +764,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
   - **Coordinates:** boxes a model returns refer to the image it was sent; with our fractions of the image (§6) they map back to the page however the image was shrunk.
   - **Gemini** has its own limits and resolution settings; to check when we use it.
 - **Wire the LLM adapters into the Worker** (§7.6): an endpoint the pipeline calls, call records (§5.2), costs and the spending cap (§10).
-- **Detect staves for deskewing** (§8.4): only to decide whether a page is deskewed, never to classify pages.
 - **Update Wrangler** once a release ships a patched `sharp`: `npm audit` reports a high-severity advisory in it (via Miniflare, development only, nothing deployed).
 - **Keep the device awake while a pipeline runs** (the browser's Screen Wake Lock): the browser drives the pipeline, so a phone that goes to sleep pauses the run. The lock only holds while the app is in front; switching to another tab or app releases it. A run that was paused anyway must resume where it stopped.
 - **Never lose an LLM answer that was paid for:** a request may be in flight when a phone suspends the page or the tab is closed. The Worker must finish the call and store the answer (§5.2) even though the browser has gone, so that resuming finds it and doesn't pay for the same request again.

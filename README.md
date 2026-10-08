@@ -24,7 +24,7 @@ npx wrangler d1 execute score3ly --local --command "SELECT * FROM projects"
 
 Run the tests with `npm test`.
 
-To look at page images and skew detection on a PDF (writes each page, as extracted and straightened, as PNGs):
+To look at page images and skew detection on a PDF (writes each page as extracted, and as the pipeline would use it: straightened if staves were found and the angle matters):
 
 ```sh
 npm run pages -w packages/imaging -- testset/bendel_la_cascade_p4.orig.pdf /tmp/pages
