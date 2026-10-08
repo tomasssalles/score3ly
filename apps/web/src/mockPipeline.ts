@@ -252,7 +252,7 @@ function resetAfter(stages: Stage[], i: number): Stage[] {
   return [...stages.slice(0, i + 1), ...later];
 }
 
-// Runs a stage again (with a changed config, or just again). In Manual mode it waits for its Run button.
+// Runs a stage again, with a changed config. In Manual mode it waits for its Run button.
 export function rerun(pipeline: Pipeline, stageId: string, run: boolean): Pipeline {
   const i = pipeline.stages.findIndex((stage) => stage.id === stageId);
   if (i < 0) return pipeline;

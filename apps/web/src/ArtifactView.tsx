@@ -3,6 +3,7 @@ import type { Project } from "./api";
 import { CloseIcon } from "./icons";
 import { MockPage, MockSystem, mockText } from "./mockContent";
 import type { Output } from "./pipeline";
+import { pdfUrl } from "./pdf";
 import { PdfView } from "./PdfView";
 
 // Shows one output or a stage's details, and nothing else: what is shown can be seen in the pipeline panel.
@@ -30,7 +31,7 @@ export function ArtifactView({
 
 // An output: the original PDF, or (mock) images and texts. A group is shown as a filmstrip.
 export function OutputContent({ project, output }: { project: Project; output: Output }) {
-  if (output.kind === "pdf") return <PdfView key={project.pdfSha256} url={`/api/pdfs/${project.pdfSha256}/file`} />;
+  if (output.kind === "pdf") return <PdfView key={project.pdfSha256} url={pdfUrl(project.pdfSha256)} />;
   if (output.count === 1) {
     return (
       <div className="text-view">

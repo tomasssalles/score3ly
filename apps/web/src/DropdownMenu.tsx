@@ -4,7 +4,7 @@ export type MenuItem = {
   label: string;
   href?: string; // a link, or else a button that calls onSelect
   onSelect?: () => void;
-  current?: boolean;
+  current?: boolean; // the page that is open, or the choice that is set
   danger?: boolean; // shown in red, e.g. deleting something
 };
 
@@ -15,11 +15,13 @@ export function DropdownMenu({
   label,
   groups,
   className = "",
+  buttonClassName = "icon-button",
 }: {
-  icon: ReactNode;
+  icon: ReactNode; // the button's content: an icon, or e.g. the current choice and a chevron
   label: string; // the button's accessible name
   groups: MenuItem[][];
   className?: string;
+  buttonClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -64,7 +66,7 @@ export function DropdownMenu({
       <button
         ref={button}
         type="button"
-        className="icon-button dropdown-button"
+        className={`${buttonClassName} dropdown-button`}
         aria-label={label}
         title={label}
         aria-haspopup="menu"
@@ -96,6 +98,7 @@ export function DropdownMenu({
                     type="button"
                     role="menuitem"
                     className={className}
+                    aria-current={item.current ? "true" : undefined}
                     onClick={() => {
                       close();
                       item.onSelect?.();

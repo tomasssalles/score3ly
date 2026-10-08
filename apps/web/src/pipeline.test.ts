@@ -98,7 +98,7 @@ test("discarding an unfinished manual stage gives the next stage its turn", () =
   assert.equal(currentStage(p)?.status, "ready");
 });
 
-test("running a stage again in Manual mode makes it ready, and clears what follows", () => {
+test("changing a stage's config in Manual mode makes it ready, and clears what follows", () => {
   const p = mock.rerun(mock.setMode(mock.mockPipeline(project), "manual"), "system_crops", false);
   assert.equal(currentStage(p)?.id, "system_crops");
   assert.equal(currentStage(p)?.status, "ready");

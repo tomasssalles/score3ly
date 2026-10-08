@@ -1,7 +1,10 @@
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
-import { ComputedIcon, DataIcon, DocumentIcon, LlmIcon, ManualIcon, MoreIcon, MusicIcon, PlayIcon, StopIcon } from "./icons";
+import type { Project } from "./api";
+import { ComputedIcon, DataIcon, LlmIcon, ManualIcon, MoreIcon, MusicIcon, PlayIcon, RetryIcon, StopIcon } from "./icons";
 import { MockPage, MockSystem } from "./mockContent";
 import { dollars } from "./money";
+import { pdfUrl } from "./pdf";
+import { PdfThumb } from "./PdfThumb";
 import { hasOutputs, type Output, type RunMode, type Stage, type StageKind } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
 import { KIND_LABELS } from "./StageDetails";
@@ -14,7 +17,6 @@ export type StageActions = {
   stop: () => void;
   finish: (stageId: string) => void;
   changeConfig: (stageId: string) => void;
-  rerun: (stageId: string) => void;
   addFix: (stageId: string, title: string) => void;
   edit: (stageId: string) => void;
   discard: (stageId: string) => void;
@@ -29,6 +31,7 @@ const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {
 // One stage of the pipeline: what it is, how it went, what it can do next, and its outputs as tiles.
 // A planned stage (not its turn yet) is only a dimmed title.
 export function StageCard({
+  project,
   stage,
   mode,
   busy,
@@ -36,6 +39,7 @@ export function StageCard({
   detailsShown,
   actions,
 }: {
+  project: Project;
   stage: Stage;
   mode: RunMode;
   busy: boolean; // a stage is running: nothing may change until it stops
@@ -70,6 +74,7 @@ export function StageCard({
           {stage.outputs.map((output) => (
             <li key={output.id}>
               <OutputTile
+                project={project}
                 output={output}
                 selected={output.id === selectedOutputId}
                 onSelect={() => actions.selectOutput(output.id)}
@@ -94,6 +99,21 @@ function Facts({ stage }: { stage: Stage }) {
   return shown.length > 0 ? <p className="stage-facts">{shown.join(" · ")}</p> : null;
 }
 
+// What a Run button says: "Retry" for a stage that failed.
+export function RunLabel({ retry }: { retry: boolean }) {
+  return retry ? (
+    <>
+      <RetryIcon />
+      Retry
+    </>
+  ) : (
+    <>
+      <PlayIcon />
+      Run
+    </>
+  );
+}
+
 // Run and Stop sit on the stage in Manual mode (in Auto mode they are in the panel's head). Finish ends a manual
 // stage, in both modes.
 function StageButton({ stage, mode, actions }: { stage: Stage; mode: RunMode; actions: StageActions }) {
@@ -108,8 +128,7 @@ function StageButton({ stage, mode, actions }: { stage: Stage; mode: RunMode; ac
   if (stage.status === "ready" || stage.status === "failed") {
     return (
       <button type="button" className="button-run stage-button" onClick={actions.run}>
-        <PlayIcon />
-        {stage.status === "failed" ? "Run again" : "Run"}
+        <RunLabel retry={stage.status === "failed"} />
       </button>
     );
   }
@@ -132,9 +151,6 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
     if (stage.status === "done") changes.push({ label: "Edit", onSelect: () => actions.edit(stage.id) });
   } else {
     changes.push({ label: "Change config", onSelect: () => actions.changeConfig(stage.id) });
-    if (stage.status === "done" || stage.status === "failed") {
-      changes.push({ label: "Run again", onSelect: () => actions.rerun(stage.id) });
-    }
   }
   if (stage.status === "done") {
     for (const fix of stage.fixes) changes.push({ label: `Add: ${fix}`, onSelect: () => actions.addFix(stage.id, fix) });
@@ -147,11 +163,21 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
 }
 
 // An output as a tile: a picture of its first item, or an icon. A group says how many items it has.
-function OutputTile({ output, selected, onSelect }: { output: Output; selected: boolean; onSelect: () => void }) {
+function OutputTile({
+  project,
+  output,
+  selected,
+  onSelect,
+}: {
+  project: Project;
+  output: Output;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   return (
     <button type="button" className="output-tile" aria-current={selected ? "true" : undefined} onClick={onSelect}>
       <span className="output-thumb">
-        <Thumb output={output} />
+        <Thumb project={project} output={output} />
         {output.count > 1 && <span className="output-count">×{output.count}</span>}
       </span>
       <span className="output-title">{output.title}</span>
@@ -159,11 +185,11 @@ function OutputTile({ output, selected, onSelect }: { output: Output; selected: 
   );
 }
 
-function Thumb({ output }: { output: Output }) {
+function Thumb({ project, output }: { project: Project; output: Output }) {
   if (output.kind === "images") {
     return output.item === "System" ? <MockSystem index={0} /> : <MockPage index={0} boxes={output.id.includes("boxes")} />;
   }
-  if (output.kind === "pdf") return <DocumentIcon />;
+  if (output.kind === "pdf") return <PdfThumb url={pdfUrl(project.pdfSha256)} />;
   if (output.kind === "json") return <DataIcon />;
   return <MusicIcon />;
 }

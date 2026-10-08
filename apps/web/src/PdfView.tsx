@@ -3,53 +3,18 @@
 // gets a new view. (Simplified from apps/eval/src/PdfPane.tsx.)
 
 import { type RefObject, useEffect, useRef, useState } from "react";
-// The legacy build: the modern one needs very recent browser features (e.g. Map.getOrInsertComputed)
-// that many phones don't have yet.
-import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
-
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-
-// Folders provided by the pdfjsAssets plugin (apps/web/pdfjsAssets.ts).
-const PDFJS_DATA = {
-  wasmUrl: "/pdfjs/wasm/",
-  cMapUrl: "/pdfjs/cmaps/",
-  standardFontDataUrl: "/pdfjs/standard_fonts/",
-  iccUrl: "/pdfjs/iccs/",
-};
+import { drawPage, type PdfDocument, usePdf } from "./pdf";
 
 const RESIZE_DELAY = 150; // ms to wait for resizing to settle before redrawing
 
 export function PdfView({ url }: { url: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
-  const [doc, setDoc] = useState<pdfjs.PDFDocumentProxy>();
+  const { doc, error: loadError } = usePdf(url);
   const [drawn, setDrawn] = useState(false);
-  const [error, setError] = useState<string>();
+  const [drawError, setDrawError] = useState<string>();
+  const error = loadError ?? drawError;
   const width = useSettledWidth(pagesRef, RESIZE_DELAY);
-
-  useEffect(() => {
-    let cancelled = false;
-    let loadingTask: pdfjs.PDFDocumentLoadingTask | undefined;
-    async function load() {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      if (cancelled) return;
-      loadingTask = pdfjs.getDocument({ data: bytes, ...PDFJS_DATA });
-      const loaded = await loadingTask.promise;
-      if (!cancelled) setDoc(loaded);
-    }
-    load().catch((e) => {
-      if (!cancelled) setError(String(e));
-    });
-    return () => {
-      cancelled = true;
-      loadingTask?.destroy();
-    };
-  }, [url]);
 
   useEffect(() => {
     if (doc === undefined || width === 0) return;
@@ -63,7 +28,7 @@ export function PdfView({ url }: { url: string }) {
         }
       })
       .catch((e) => {
-        if (!cancelled) setError(String(e));
+        if (!cancelled) setDrawError(String(e));
       });
     return () => {
       cancelled = true;
@@ -82,24 +47,13 @@ export function PdfView({ url }: { url: string }) {
   );
 }
 
-async function drawPages(
-  doc: pdfjs.PDFDocumentProxy,
-  width: number,
-  isCancelled: () => boolean,
-): Promise<HTMLCanvasElement[]> {
+async function drawPages(doc: PdfDocument, width: number, isCancelled: () => boolean): Promise<HTMLCanvasElement[]> {
   const pages: HTMLCanvasElement[] = [];
   for (let pageNumber = 1; pageNumber <= doc.numPages && !isCancelled(); pageNumber++) {
-    const page = await doc.getPage(pageNumber);
-    // Draw at the view's width in device pixels, so pages stay sharp on high-DPI screens.
-    const scale = (width / page.getViewport({ scale: 1 }).width) * window.devicePixelRatio;
-    const viewport = page.getViewport({ scale });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.floor(viewport.width);
-    canvas.height = Math.floor(viewport.height);
     // Until the next redraw, the browser scales the drawing to the view's current width.
+    const canvas = await drawPage(doc, pageNumber, width);
     canvas.className = "pdf-page";
     canvas.setAttribute("aria-label", `Page ${pageNumber}`);
-    await page.render({ canvas, viewport }).promise;
     pages.push(canvas);
   }
   return pages;

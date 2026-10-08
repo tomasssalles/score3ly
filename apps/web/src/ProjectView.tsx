@@ -38,7 +38,8 @@ export function ProjectView({
   const [collapsed, setCollapsed] = useState(() => readFlag(COLLAPSED_KEY));
   const [pipeline, setPipeline] = useState(() => mock.mockPipeline(project));
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
-  // The panel scrolls to the current stage on opening the project, and when an Auto run starts or moves on.
+  // The panel scrolls to the current stage on opening the project, when an Auto run starts, and whenever
+  // another stage becomes the current one (in both modes).
   const [scrollRequest, setScrollRequest] = useState(0);
   const scroll = () => setScrollRequest((n) => n + 1);
   const progress = progressOf(pipeline);
@@ -54,7 +55,7 @@ export function ProjectView({
   }, [running?.id]);
 
   useEffect(() => {
-    if (pipeline.mode === "auto" && running !== null) scroll();
+    scroll();
   }, [currentId]);
 
   // An ID that doesn't exist (an old or edited URL, or a replaced stage) counts as no pick.
@@ -109,18 +110,13 @@ export function ProjectView({
       if (auto) scroll();
     },
     stop: () => setPipeline(mock.stop),
-    finish: (id) => {
-      setPipeline((p) => mock.finish(p, id));
-      if (auto) scroll();
-    },
+    finish: (id) => setPipeline((p) => mock.finish(p, id)),
     // The real app opens the stage's config first; the mock goes straight to what follows.
     changeConfig: (id) => {
       const stage = findStage(pipeline, id);
       if (stage?.status !== "done" && stage?.status !== "failed") return;
       change(id, (p) => mock.rerun(p, id, p.mode === "auto"), true);
     },
-    rerun: (id) =>
-      change(id, (p) => mock.rerun(p, id, true), findStage(pipeline, id)?.status === "done"),
     addFix: (id, title) => change(id, (p) => mock.addFix(p, id, title), mock.replacesWork(pipeline, id)),
     edit: (id) => change(id, (p) => mock.edit(p, id), mock.replacesWork(pipeline, id)),
     discard: (id) =>

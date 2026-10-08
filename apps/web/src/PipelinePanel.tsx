@@ -2,10 +2,10 @@ import { useEffect, useRef } from "react";
 import type { Project } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
-import { CollapseIcon, MoreIcon, PlayIcon, StopIcon } from "./icons";
+import { ChevronDownIcon, CollapseIcon, MoreIcon, StopIcon } from "./icons";
 import { canRun, currentStage, runningStage, type Pipeline, type Progress, type RunMode } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
-import { StageCard, type StageActions } from "./StageCard";
+import { RunLabel, StageCard, type StageActions } from "./StageCard";
 import { ago, shortDate } from "./time";
 
 export type PanelActions = StageActions & {
@@ -13,6 +13,9 @@ export type PanelActions = StageActions & {
   mockFail: () => void;
   mockReset: () => void;
 };
+
+const MODES: RunMode[] = ["auto", "manual"];
+const MODE_LABELS: Record<RunMode, string> = { auto: "Auto", manual: "Manual" };
 
 // The current project's pipeline: a small head that stays in view (the project, the run mode, the progress and,
 // in Auto mode, Run or Stop), and below it the stages, first to last, which scroll.
@@ -47,7 +50,7 @@ export function PipelinePanel({
     // Jump on opening the project, glide afterwards.
     card?.scrollIntoView({ block: "center", behavior: firstScroll.current ? "instant" : "smooth" });
     firstScroll.current = false;
-    // Only a new request scrolls, not every change of the current stage.
+    // Only a new request scrolls.
   }, [scrollRequest]);
 
   return (
@@ -72,18 +75,24 @@ export function PipelinePanel({
           </div>
         </div>
         <div className="panel-controls">
-          <div className="mode-switch" role="group" aria-label="Run mode">
-            {(["auto", "manual"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={pipeline.mode === mode}
-                onClick={() => actions.setMode(mode)}
-              >
-                {mode === "auto" ? "Auto" : "Manual"}
-              </button>
-            ))}
-          </div>
+          <DropdownMenu
+            className="mode-picker"
+            buttonClassName="mode-button"
+            icon={
+              <>
+                {MODE_LABELS[pipeline.mode]}
+                <ChevronDownIcon />
+              </>
+            }
+            label="Run mode"
+            groups={[
+              MODES.map((mode) => ({
+                label: MODE_LABELS[mode],
+                current: mode === pipeline.mode,
+                onSelect: () => actions.setMode(mode),
+              })),
+            ]}
+          />
           <ProgressBar value={progress.pipeline} label="Pipeline" />
           {pipeline.mode === "auto" &&
             (busy ? (
@@ -99,8 +108,7 @@ export function PipelinePanel({
                 title={currentStage(pipeline)?.status === "wip" ? "Finish the manual stage first" : undefined}
                 onClick={actions.run}
               >
-                <PlayIcon />
-                Run
+                <RunLabel retry={currentStage(pipeline)?.status === "failed"} />
               </button>
             ))}
         </div>
@@ -114,6 +122,7 @@ export function PipelinePanel({
         {pipeline.stages.map((stage) => (
           <StageCard
             key={stage.id}
+            project={project}
             stage={stage}
             mode={pipeline.mode}
             busy={busy}

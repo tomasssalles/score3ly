@@ -33,6 +33,14 @@ export function ExpandIcon() {
   );
 }
 
+export function ChevronDownIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 export function MenuIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -84,6 +92,16 @@ export function PlayIcon() {
   return (
     <svg className="icon filled" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M8 5.5v13l10.5-6.5z" />
+    </svg>
+  );
+}
+
+// A circular arrow: try a failed stage again.
+export function RetryIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M19 12a7 7 0 1 1-2.05-4.95" />
+      <path d="M19 4v4h-4" />
     </svg>
   );
 }
