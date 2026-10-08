@@ -48,7 +48,7 @@ export function findArtifact(
   return null;
 }
 
-// No stages yet, so nothing runs and nothing is done.
+// No stages yet: made-up values, to see what the progress circles look like.
 export function progressOf(_items: PipelineItem[]): Progress {
-  return { stage: null, pipeline: 0 };
+  return { stage: 0.15, pipeline: 0.7 };
 }

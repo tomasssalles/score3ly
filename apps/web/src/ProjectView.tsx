@@ -78,13 +78,12 @@ export function ProjectView({
             >
               <ExpandIcon />
             </button>
-            {/* Hard-coded values until there are stages, to see what the circles look like. */}
             <div className="strip-progress">
-              <ProgressRing value={0.7} label="Pipeline" size={28} />
+              <ProgressRing value={progress.pipeline} label="Pipeline" size={28} />
               <span>Pipeline</span>
             </div>
             <div className="strip-progress">
-              <ProgressRing value={0.15} label="Stage" size={28} />
+              <ProgressRing value={progress.stage} label="Stage" size={28} />
               <span>Stage</span>
             </div>
           </div>
