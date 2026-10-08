@@ -1,6 +1,6 @@
 # Design Document — Score-to-LilyPond Pipeline (v2)
 
-> Status: draft. The early assessment (§16 steps 1–4) is done and the app is being built from the outside inwards (§16 step 6): projects, the project picker and the project view exist and run locally; there are no pipeline stages yet. The findings in `NOTES-2026-10-formats.md` still have to be folded into this document (§16 step 5). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. **Open questions** are collected in §15.
+> Status: draft. The early assessment (§16 steps 1–4) is done and the app is being built from the outside inwards (§16 step 6): projects, the project picker and the project view exist and run locally; there are no pipeline stages yet. The findings in `NOTES-2026-10-formats.md` still have to be folded into this document (§16 step 5). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. Concrete **tasks**, including the decisions still to be made, are collected in §15.
 
 ## 1. What this app is
 
@@ -252,7 +252,7 @@ A re-run follows **the pipeline as it was, not the standard recipe** of planned 
 - **A stage whose inputs and config are exactly the same is reused,** manual stages included. Example: the composer's name is corrected after a full run that also had a wrong note fixed by hand. Nothing that the note fix depended on changed, so the fix is still there after the re-run.
 - **A manual stage whose input changed is dropped,** and the pipeline continues with the planned stages. The typical manual fix is a better deskewing angle or better system crops on a difficult old score. The point of it is that the stages after it then produce very different, better output, which ideally no longer needs the manual fixes that the poor first attempt needed.
 - **Stages must depend only on what they really use.** If a transcription call got the whole global analysis as context, composer included, correcting the composer would change the input of every transcription, and all of them would be paid for again.
-- **Proposed:** after a re-run, the app reports which manual fixes were carried over and which were dropped. Which ones are dropped depends on the outcome of the run, so it can't be said beforehand, and a dropped fix would otherwise go unnoticed.
+- **Proposed** (§15)**:** after a re-run, the app reports which manual fixes were carried over and which were dropped. Which ones are dropped depends on the outcome of the run, so it can't be said beforehand, and a dropped fix would otherwise go unnoticed.
 
 #### Replaced stages
 - **Replaced stages are kept in storage,** with their artifacts and full LLM call records (requests and responses). They are reused whenever possible: a stage that runs again with the same inputs and config, or an identical LLM request (§7.6), is served from what is stored and costs nothing.
@@ -267,7 +267,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 ### 5.6 How the app shows a project
 - **The pipeline is the main attraction; the artifact view is secondary.** The usual use is: new project, let it run, take the final MEI and leave. So the pipeline gets the comfortable place on every screen, and inspecting artifacts is what gets less comfortable on small screens.
 - **Two layout modes, nothing in between:** wide (from 1024 px, the same breakpoint as the header) and narrow. Resizing a window switches between them on the fly.
-  - **Wide:** the **pipeline panel** on the left (project info, progress, the pipeline's items), the **artifact view** on the right, much larger. The panel collapses into a narrow strip that shows only an expand button (a chevron, like the one that collapses the panel) and the two progress circles below it, "Pipeline" above "Stage", each labelled below and without numbers. The chevron sits at exactly the same height as the one that collapses the expanded panel. Until there are stages, both views show made-up values (pipeline 70%, stage 15%) to see what the circles look like. The collapsed state is remembered per browser.
+  - **Wide:** the **pipeline panel** on the left (project info, progress, the pipeline's items), the **artifact view** on the right, much larger. The panel collapses into a narrow strip that shows only an expand button (a chevron, like the one that collapses the panel) and the two progress circles below it, "Pipeline" above "Stage", each labelled below and without numbers. The chevron sits at exactly the same height as the one that collapses the expanded panel. Until there are stages, both views show made-up values (pipeline 70%, stage 15%) to see what the indicators look like (§15). The collapsed state is remembered per browser.
   - **Narrow:** the pipeline panel is the only view. Picking an item opens its artifact over the whole app, with a close button ("x") floating over its top right corner, white on translucent grey. The artifact is in the URL (`#/projects/<id>/artifacts/<artifact id>`), so the back button closes it too, and a reload keeps it open. After closing, its item stays selected in the panel, so the user sees what they last looked at (until the page is reloaded or another project is opened).
 - **The artifact view has no header of its own,** in either mode: it is the most valuable space on the screen. Which artifact is shown can be seen in the pipeline panel, where it is selected.
 - **Progress:** one indicator for the whole pipeline and one for the running stage, **never with numbers**. In the expanded panel, the pipeline's is a thin bar on one line with the label "Pipeline"; the stage's will be shown next to the running stage, once the panel lists stages. The collapsed strip shows both as circles. The pipeline's total is a best guess (a second review round or a manual correction adds stages), and a change only moves the circle a little. A stage is a big chunk of work: doing something to every system is still one stage.
@@ -276,13 +276,13 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
   - when the pipeline finishes: the final MEI;
   - when a project is opened: the latest stage's main output.
 
-  Whether the view follows the pipeline while it runs is open.
-- **Built so far:** the pipeline has a single item, the original PDF, shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Both progress circles stay empty until there are stages. Later: editing in the artifact view and a "needs you" state for steps that wait for the user.
+  Whether the view follows the pipeline while it runs is still to be decided (§15).
+- **Built so far:** the pipeline has a single item, the original PDF, shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Later: editing in the artifact view and a "needs you" state for steps that wait for the user.
 
-- **The menu** (☰, at the far right of the header, after "+ New project") leads to the app's own pages: Statistics (including costs, §10), Settings, Help and About, in three groups separated by lines (what you look at, what you change, help). Each page has its own URL (`#/stats`, `#/settings`, `#/help`, `#/about`) and replaces the project view while it is open, so the back button returns to the project. All but About are placeholders for now. Anything urgent (the spending cap reached, a missing key) must not hide in the menu: it is shown where the user is.
-- **Project actions:** a "⋮" button next to the project's name in the pipeline panel opens a menu of things to do with the project: "Rename", then a line, then "Delete project" in red (`--danger`, kept apart from the coral accent). Deleting isn't built yet (§16).
+- **The menu** (☰, at the far right of the header, after "+ New project") leads to the app's own pages: Statistics (including costs, §10), Settings, Help and About, in three groups separated by lines (what you look at, what you change, help). Each page has its own URL (`#/stats`, `#/settings`, `#/help`, `#/about`) and replaces the project view while it is open, so the back button returns to the project. All but About are placeholders for now (§15). Help will not be a page of its own: it will lead to a user guide, a Markdown file in the repository on GitHub. Anything urgent (the spending cap reached, a missing key) must not hide in the menu: it is shown where the user is.
+- **Project actions:** a "⋮" button next to the project's name in the pipeline panel opens a menu of things to do with the project: "Rename", then a line, then "Delete project" in red (`--danger`, kept apart from the coral accent). Deleting isn't built yet (§15): picking it only closes the menu.
   - **Rename** opens a dialog with the name selected. "Rename" stays disabled while the name is empty (after trimming) or unchanged; a name over 200 characters gets a message right away. A name another project has (ignoring case) is refused by the Worker (409) with "A project with that name already exists. Names must be unique (case-insensitive).", and the dialog stays open. The field has no visible label (the dialog's title says it all), only one for screen readers. Both menus share one component (`DropdownMenu`).
-- **The About page:** the wordmark (centered), what the app does ("A music transcription tool, driven by vision LLMs, that converts printed scores into MEI, an open, XML-based standard for encoding music notation."), its version (§11), the author (Tomás Silveira Salles), a link to the repository on GitHub, and the license. There is no license yet, so all rights are reserved, and the page says so: the code can be read on GitHub but not copied, changed or shared.
+- **The About page:** the wordmark (centered), what the app does ("A music transcription tool, driven by vision LLMs, that converts printed scores into MEI, an open, XML-based standard for encoding music notation."), its version (§11), the author (Tomás Silveira Salles), a link to the repository on GitHub, and the license. There is no license yet (§15), so all rights are reserved, and the page says so: the code can be read on GitHub but not copied, changed or shared.
 - **Leaving a project loses nothing,** whether for a page from the menu, another project or a closed tab, because manual work is saved as it happens (§5.4). Once editing exists, changes not saved yet are saved or confirmed before the project view goes away.
 
 ### 5.7 Look and feel
@@ -292,13 +292,12 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 - **Fonts:** JetBrains Mono for the wordmark and anything that is code (LilyPond, file names, IDs, times); Inter for interface text. Both are bundled with the app (Fontsource), so no request goes to Google Fonts.
 - **Progress is green** (`--green`, `#3fb950`), not coral: bars and circles use `--progress`, which points to `--green`, so changing the progress color is one line.
 - **Colors are CSS variables** in `apps/web/src/styles.css` (`--bg` black for the header and side panel, `--surface` near-black for the page, `--accent`, ...), ready for a light theme.
-- **Compact mark:** `< >` in the accent color with a white eighth note inside, on a black rounded square (`apps/web/public/icon.svg`). Besides angle brackets as a tag, `<c e g>` is a chord in LilyPond. It is the favicon. Not done yet: the app icon for a phone's home screen, which needs PNG files and a web app manifest.
+- **Compact mark:** `< >` in the accent color with a white eighth note inside, on a black rounded square (`apps/web/public/icon.svg`). Besides angle brackets as a tag, `<c e g>` is a chord in LilyPond. It is the favicon. The app icon for a phone's home screen is still missing (§15).
 - **Project and file names are never cut off at the end.** They wrap over up to three lines wherever there is room (the picker's list, the dialogs, the pipeline panel); a name with spaces breaks between words; a name without any (typically a file name) fills each line and breaks wherever it ends, since breaking early at a hyphen wastes most of a line. Only the picker's field in the header is a single line. A name that needs more lines than it may have is shortened **in the middle** ("villa-lobos_bach…prelude.orig (1)"), because names on the same PDF differ at the end, and hovering then shows all of it. This works the same with a mouse and on touch: the full name of the open project is one tap away, in the picker's list. The browser can only cut text at the end, so one component (`FittedText`) measures and shortens.
 - **Dates, times and numbers have one fixed English format everywhere.** They don't follow the browser's language or region: the interface text is English, and a browser's idea of the locale often differs from the user's.
   - **Dates:** day and the month's short name, "7 Oct", plus the year when it isn't the current one, "7 Oct 2025". Never all-numeric, which is ambiguous between day-first and month-first. The day is the device's local one.
   - **How long ago:** compact, "20min ago", "5h ago", "2d ago".
   - **Money:** US dollars with two decimals, "$0.12" (§10).
-  - Optional, later: dates up to about a week old shown as how long ago ("Created 2d ago"), older ones as a date.
 
 ## 6. Pipeline stages (initial plan)
 
@@ -500,7 +499,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 - Load old step versions lazily with dynamic `import()`.
 - If the number of versions grows unmanageable: release **app v2.0**, declare v1.x project data incompatible, and start fresh. This is acceptable while there is a single user.
 - **D1 schema migrations** use `wrangler d1 migrations`.
-- **The app's version** is the `version` in the root `package.json` (0.1.0 for now; no rules yet for when it goes up). The build also records the git commit it was built from, and whether there were uncommitted changes. The About page shows all of it, e.g. "0.1.0 @ 61c081d" (plus "[+ uncommitted changes]" and "[dev server]" where they apply), so a deployed app can always be traced to its code.
+- **The app's version** is the `version` in the root `package.json` (0.1.0 for now; the rules for when it goes up are still to be decided, §15). The build also records the git commit it was built from, and whether there were uncommitted changes. The About page shows all of it, e.g. "0.1.0 @ 61c081d" (plus "[+ uncommitted changes]" and "[dev server]" where they apply), so a deployed app can always be traced to its code.
 
 ## 12. Testing and reproducibility
 
@@ -548,17 +547,48 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 | Two devices editing the same project | Optimistic locking (§4). |
 | Irreversible infrastructure choices | D1 and R2 jurisdictions are set at creation. Scripted in the repo. |
 
-## 15. Open questions
+## 15. Tasks
 
-- **Rendering:** confirm the Verovio-based proposal (§9), or drop rendering from the pipeline entirely and review from crop + LilyPond text only (as in v1). Decide after testing whether rendered previews measurably improve review quality.
-- **Reviewer details:** flag-only versus auto-accepted patches. Same model or a different one. Number of rounds. Decide by comparing results with and without review on the test set.
-- **Model choice per step:** which models for analysis, transcription and review, and at what price/quality point.
-- **Splitting wide systems:** always, never, or based on density. The overlap size and the merge rule.
-- **Constrained LilyPond subset:** exact definition, especially for cross-staff notation, ornaments, ossia and lyrics.
-- **Colour vs. grayscale vs. binarized** page images for the LLM steps: decide by ablation on the test set (§8.1).
-- **LLM provider access:** direct APIs versus Vertex AI / Bedrock for EU processing.
-- **D1 schema for stages and artifacts** (§5): not designed yet.
-- **Reuse per item within a stage** (§5.5): a manual stage covers the whole PDF. If only one system's input changed, should the fixes on the unchanged systems carry over, with only the changed one dropped? Well-meant, but it makes the behaviour harder for the user to understand, more than it complicates the code.
+Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, long-term plan; every task here is a step somewhere on it.
+- **The list isn't complete and doesn't try to be.** Tasks are written down as they become clear, not foreseen for the whole roadmap.
+- **A decision still to be made is a task** ("Decide ...").
+- **Tasks overlap with the rest of this document,** which says what is intended. A task says what is left to do about it. A bug can be a task without the design mentioning it.
+- **A finished task is deleted,** not ticked off. A decision goes into the section it belongs to.
+
+### Decisions
+- **Decide whether rendering stays in the pipeline:** confirm the Verovio-based proposal (§9), or drop rendering and review from crop + LilyPond text only (as in v1). After testing whether rendered previews measurably improve review quality.
+- **Decide the reviewer's details** (§7.5): flag-only versus auto-accepted patches, the same model or a different one, the number of rounds. By comparing results with and without review on the test set.
+- **Decide the model for each step:** analysis, transcription and review, and at what price/quality point.
+- **Decide how wide systems are split** (§8.5): always, never, or based on density; the overlap size and the merge rule.
+- **Define the constrained LilyPond subset** (§7.3) exactly, especially cross-staff notation, ornaments, ossia and lyrics.
+- **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
+- **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10).
+- **Design the D1 schema for stages and artifacts** (§5).
+- **Decide on reuse per item within a stage** (§5.5): a manual stage covers the whole PDF. If only one system's input changed, should the fixes on the unchanged systems carry over, with only the changed one dropped? Well-meant, but it makes the behaviour harder for the user to understand, more than it complicates the code.
+- **Decide on the report after a re-run** (§5.5, proposed): which manual fixes were carried over and which were dropped.
+- **Polish the wording of the confirmation before a re-run** (§5.5).
+- **Decide whether the artifact view follows the pipeline while it runs** (§5.6).
+- **Choose a license** (§5.6, the About page). Until then all rights are reserved.
+- **Decide when the app's version goes up** (§11).
+
+### Placeholders to replace
+- **Real progress values:** `progressOf` in `apps/web/src/pipeline.ts` returns made-up values (pipeline 70%, stage 15%). Compute them from the stages. The "Stage" circle in the collapsed strip only appears while a stage runs, and the expanded panel shows the stage's progress next to the running stage (§5.6).
+- **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
+- **Settings page:** the spending cap and the free-tier mark for LLM configs (§10). Now a placeholder text.
+- **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). Only makes sense once there is something to explain. Now a placeholder page.
+- **"Delete project"** in the project actions does nothing. Build deletion as in §4: `deleted_at`, the partial unique index on names (a migration that rebuilds the table), deleting artifacts and PDFs nothing else uses, the confirmations.
+- **App icon for a phone's home screen:** PNG files in the usual sizes and a web app manifest, from `apps/web/public/icon.svg` (§5.7). The author still wants to rework the icon itself first.
+- **Light theme** (§5.7).
+
+### Infrastructure and cleanup
+- **Create the remote R2 bucket and D1 database** (EU jurisdiction, with a script in the repo, §14) and put the real database ID into `apps/worker/wrangler.jsonc`, which has a placeholder. Until then the app can't be deployed.
+- **Set up Cloudflare Access** in front of the deployed app (§3).
+- **Answer a PDF that doesn't match its hash with a 400.** The Worker doesn't hash the PDF: R2 checks the bytes against the client's hash and refuses a mismatch, which now surfaces as a plain HTTP 500.
+- **Create the shared package** (`packages/core`, §3) and remove the duplicates: the `Project` type (`apps/web` and `apps/worker`), `sha256Hex` (`apps/web` and `apps/eval`), the pdf.js asset plugin and the PDF rendering (`apps/web` and `apps/eval`; the eval copy is dev-only and uses the modern pdf.js build).
+- **Update Wrangler** once a release ships a patched `sharp`: `npm audit` reports a high-severity advisory in it (via Miniflare, development only, nothing deployed).
+
+### Optional
+- **Dates up to about a week old as "how long ago"** ("Created 2d ago"), older ones as a date (§5.7).
 
 ## 16. Roadmap
 
@@ -571,18 +601,17 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
 5. **Fold the notes into this document:** review the design and `NOTES-2026-10-formats.md` once more, update the decisions (target and storage format, lens, prompts, caps, cross-system handling, musical content vs typesetting, review, content crops and measure crops as stages in §6), fold everything into this document, then delete the notes file.
 6. **Build the app,** after or in parallel with step 5, from the outside inwards as usual. First milestone, a vertical slice:
-   1. Pick a PDF (local file only) → hash → upload to R2 → project in D1. *Built, local only, not yet tried by hand in the browser.* The "+ New project" button picks a PDF, the browser hashes it, and one request (`POST /api/projects`) stores it in R2 and adds a row to the `projects` table in D1 (`id`, `name`, `pdf_sha256`, `pdf_filename`, `created_at`, `last_modified_at`, `last_opened_at`), with the default name from §4. The API can also rename a project (`PATCH /api/projects/<id>`, 409 if the name is taken) and record that it was opened (`POST /api/projects/<id>/opened`), and lists all projects, most recently opened first (`GET /api/projects`).
+   1. Pick a PDF (local file only) → hash → upload to R2 → project in D1. *Built, local only.* The "+ New project" button picks a PDF, the browser hashes it, and one request (`POST /api/projects`) stores it in R2 and adds a row to the `projects` table in D1 (`id`, `name`, `pdf_sha256`, `pdf_filename`, `created_at`, `last_modified_at`, `last_opened_at`), with the default name from §4. The API can also rename a project (`PATCH /api/projects/<id>`, 409 if the name is taken) and record that it was opened (`POST /api/projects/<id>/opened`), and lists all projects, most recently opened first (`GET /api/projects`).
 
       The header has a **project picker**. Narrow screens show the wordmark and "+ New project" on one row and the picker on its own row below. From 1024 px, everything is on one row, with the picker in the middle. The **open project is part of the URL** (`#/projects/<id>`), so it survives a reload, each tab has its own, and the back button and bookmarks work. Any other URL means no project is open, which is how a fresh tab or device starts. "Last opened" is shared by all devices and only sorts the list: a project created or opened elsewhere never changes what this tab shows. The picker shows the open project's name, or "Open a project". Opening the picker turns the name into a filter field over all projects (name, how long ago it was opened, PDF file name). Picking a project opens it and marks it as opened; creating a project opens it too. Loading a URL or going back doesn't mark the project as opened. The list is fetched when the app loads.
 
       Picking a PDF first looks up its hash (`GET /api/pdfs/<sha256>?filename=...`, which returns the PDF's projects, most recently opened first, and the name a new project would get). An unknown PDF is uploaded and gets a project right away. A known PDF opens a dialog that lists its projects to open one, with "+ New project" as the last item, showing the name the new project would get. A new project on a known PDF is created without uploading the file again (`POST /api/projects` with the `filename` instead of the `pdf`).
 
-      Below the header is the project view (§5.6): the pipeline panel and the artifact view, which shows the original PDF. Still missing from §4:
-      - The Worker does not hash the PDF. R2 checks the bytes against the client's hash and refuses a mismatch, which currently surfaces as a plain HTTP 500.
-      - The remote R2 bucket and D1 database don't exist yet (`wrangler.jsonc` has a placeholder database ID), so the app can't be deployed.
-      - No shared package yet: the `Project` type exists in both `apps/web` and `apps/worker`, `sha256Hex` in both `apps/web` and `apps/eval`, and the pdf.js asset plugin and PDF rendering in both `apps/web` and `apps/eval` (the eval copy is dev-only and uses the modern pdf.js build).
-      - The Worker's entry module (`apps/worker/src/index.ts`) may only export handlers: the Workers runtime refuses to start otherwise, and the tests (which import the module directly) don't notice. Helpers live in their own modules (e.g. `names.ts`).
-      - Next: the stages. Details to come from the author.
+      Below the header is the project view (§5.6): the pipeline panel and the artifact view, which shows the original PDF. What is left to do here is in §15.
+
+      Note: the Worker's entry module (`apps/worker/src/index.ts`) may only export handlers: the Workers runtime refuses to start otherwise, and the tests (which import the module directly) don't notice. Helpers live in their own modules (e.g. `names.ts`).
+
+      Next: the stages. Details to come from the author.
    2. Extract page images deterministically → OPFS → show in the UI.
    3. Global analysis of one page with Gemini → system boxes + metadata. Human correction of the boxes.
    4. Crop systems → transcribe one system with context → structural checks.
@@ -590,7 +619,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
    Then: assembly across systems, review (with or without preview rendering), the pipeline of stages in D1 and in the UI (§5.1), manual stages (§5.4), re-running from a stage with confirmation (§5.5), regeneration on a second device, Drive integration.
 
-   Also planned, details open:
+   Also planned, details still to be worked out:
    - **Costs view, cost ledger with statistics, and the spending cap** (§10).
    - **Report remaining uncertainties** after the review step, so the user knows where to look.
    - Possibly a **side-by-side viewer for human review** in the app (like the evaluation viewer, §13).

@@ -11,8 +11,11 @@ export type Project = {
 
 // A failed request. `status` is the HTTP status, so callers can react to e.g. 409 (conflict).
 export class ApiError extends Error {
-  constructor(readonly status: number) {
+  readonly status: number;
+
+  constructor(status: number) {
     super(`HTTP ${status}`);
+    this.status = status;
   }
 }
 
