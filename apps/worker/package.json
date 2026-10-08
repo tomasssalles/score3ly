@@ -7,9 +7,12 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "migrate:local": "wrangler d1 migrations apply score3ly --local",
-    "test": "node --test \"src/**/*.test.ts\""
+    "test": "node --test \"src/**/*.test.ts\"",
+    "llm:try": "node scripts/try-llm.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
+    "@google/genai": "^2.28.0",
     "hono": "^4.13.12"
   },
   "devDependencies": {

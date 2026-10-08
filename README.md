@@ -24,6 +24,19 @@ npx wrangler d1 execute score3ly --local --command "SELECT * FROM projects"
 
 Run the tests with `npm test`.
 
+To look at page images and skew detection on a PDF (writes each page, as extracted and straightened, as PNGs):
+
+```sh
+npm run pages -w packages/imaging -- testset/bendel_la_cascade_p4.orig.pdf /tmp/pages
+```
+
+To send one image and a question to a vision LLM with a real key:
+
+```sh
+ANTHROPIC_API_KEY=... npm run llm:try -w apps/worker -- anthropic claude-opus-5-5 page.png "How many systems are on this page?"
+GEMINI_API_KEY=...    npm run llm:try -w apps/worker -- google <gemini model> page.png "How many systems are on this page?"
+```
+
 After changing the app icon (`apps/web/public/icon.svg`), make its PNG versions again with `npm run icons -- --force`.
 
 To deploy the app and API to Cloudflare as one Worker: `npm run deploy`.

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
-    "types": ["./worker-configuration.d.ts", "node"]
+    "types": ["node"]
   },
-  "include": ["src", "scripts", "worker-configuration.d.ts"]
+  "include": ["src", "scripts"]
 }

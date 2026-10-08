@@ -106,8 +106,8 @@ flowchart LR
 | Object storage | Cloudflare R2, bucket created with EU jurisdiction | 10 GB free, no egress fees, native Worker binding. The jurisdiction can only be set at creation. |
 | Auth | Cloudflare Access in front of the whole app | No auth code in the app. |
 | Device storage | OPFS (Origin Private File System) | Supported by Firefox, Chrome and Safari. Fast binary access from Web Workers. |
-| PDF handling | pdf.js, version pinned | Renders vector PDFs and decodes CCITT/JBIG2 images in JS, deterministically. |
-| JPEG decoding | Bundled JS/WASM decoder (e.g. libjpeg-turbo WASM, jpeg-js), not the browser's | Browser JPEG decoders may differ by about ±1 gray level. A bundled decoder gives identical pixels everywhere. |
+| PDF handling | pdf.js, version pinned | Renders vector PDFs and decodes CCITT, JBIG2 and JPEG 2000 images in JS/WASM, deterministically. |
+| JPEG decoding | pdf.js's own JavaScript decoder, not the browser's (pdf.js would use the browser's `ImageDecoder` where there is one; it is switched off, §8.1) | Browser JPEG decoders may differ by about ±1 gray level. A decoder in our bundle gives identical pixels everywhere. |
 | Vision LLMs | The user's choice, per stage (§7.6). Recommended: Claude Opus 5.5 for everything. | In the manual run (§16 step 3) Opus did best at everything, layout included. Providers are swappable behind the `LlmProvider` port. |
 | Structured LLM output | Provider-native schema-constrained output, validated with Zod | Machine-checkable outputs. No free-form parsing. |
 | Schema validation | Zod (or similar) | Validates step configs, LLM outputs and DB payloads. The same schema generates the UI controls (toggles, sliders). |
@@ -123,7 +123,8 @@ flowchart LR
 packages/
   core/      Pipeline engine, artifact model, step definitions, config schemas.
              Pure TypeScript, no DOM and no Cloudflare APIs.
-  imaging/   Decoders, deterministic image operations, fingerprints. Pure TS/WASM.
+  imaging/   Page images from PDFs, deterministic image operations, fingerprints. Pure TS/WASM.
+             (Exists: page images, skew detection, rotation. The other packages don't exist yet.)
   notation/  Constrained-LilyPond parser, structural checks, skeleton builder,
              assembler, converter for preview rendering.
   prompts/   Versioned prompt templates and their output schemas.
@@ -447,6 +448,15 @@ Failures go to the fix stage with a precise location. This replaces what LilyPon
 - Every call is recorded (§5.2), and identical requests are served from the record instead of being paid for again.
 - **Provider, model and thinking budget or effort are the user's choice.** The app is meant to be flexible here and doesn't prescribe a model. The user guide will recommend Claude Opus 5.5 for everything, except perhaps a second review with a different model for variety. The prompts are tuned on Opus, so the app offers the choice but can't promise the same quality with another model.
 
+#### Calling the providers
+Built: `apps/worker/src/llm/`. One small request and response shape for every provider (`LlmProvider`, §3): a system prompt, messages of text and images, a maximum of output tokens, an effort, and optionally a JSON schema the answer must follow (the provider's schema-constrained output, §7.2; the answer is then parsed). The response says which model answered, the text (and parsed JSON), why it stopped (finished, cut off, refused) and the tokens **per model**. Errors are typed and say whether retrying can help.
+- **Anthropic** (Claude API), with the official SDK. Requests are streamed, so long answers don't hit timeouts. Thinking is left at the model's default (adaptive on current models), and effort maps directly.
+  - **Fallback on refusals:** on the models that support it (Opus 5.5, Opus 5, Fable 5.1, Sonnet 5.5), a request that a safety classifier declines is answered by another model, picked by Anthropic by the refusal's category (`fallbacks: "default"`). Without it a declined request simply stops. The response then names the model that answered, and the tokens of both models are counted, each at its own price (§10).
+- **Google** (Gemini API, keys from AI Studio), with the official SDK. Effort maps to Gemini's thinking levels (low, medium, high), which exist from Gemini 3 on; older Gemini models want a token budget and would refuse a level. Thinking tokens count as output, cached ones apart from the rest.
+- **Vertex AI and Bedrock** (processing in the EU, §10) would be further adapters; not built.
+- Tested without network, with a fake `fetch`, and run inside the local Workers runtime. `npm run llm:try -w apps/worker -- <anthropic|google> <model> <image> "<question>" [--json]` sends one image and a question with real keys, from environment variables.
+- Not wired into the app yet: no API endpoint, no call records, no costs.
+
 #### Model configs
 - **A model config** is a stored, named combination of provider, model, thinking effort and the provider's authentication. The user can keep several. They live in D1 and are edited in the settings.
 - **Each provider declares its own form:** which fields are secrets and which are plain values. The plain Anthropic and Google APIs take one key; Google Vertex AI wants a service-account file plus a project and a region, AWS Bedrock an access key pair plus a region. The form is generated from a schema, like a step's config (§3).
@@ -473,16 +483,26 @@ LLMs fill in "musically likely" content. That is desirable for a smudge and dang
 ## 8. Image processing and reproducibility across devices
 
 ### 8.1 Getting page images
-- **Scanned PDFs:** extract the embedded page image directly instead of rendering the page.
-  - CCITT/JBIG2: decoded by pdf.js in JavaScript, so identical everywhere.
-  - JPEG: decoded by the bundled decoder, so identical everywhere.
+Built: `packages/imaging/src/pdfPages.ts` (`openPdf`, `pageImage`), tested on the test set (§13). `npm run pages -w packages/imaging -- <file.pdf> <folder>` writes every page, as extracted and straightened, as PNGs.
+- **Scanned PDFs:** extract the embedded page image directly instead of rendering the page: the scan's own pixels, at its own resolution.
+  - **A page counts as a scan** when it has exactly one image and that image covers at least 85% of the page. Other content, such as an invisible OCR text layer, is ignored. Anything else (vector music, a scan cut into several images, an image at an angle that isn't a right angle) is rendered.
+  - **Decoding:** CCITT, JBIG2 and JPEG 2000 by pdf.js (JS and its WASM decoders, which need pdf.js's `wasm` folder), JPEG by pdf.js's own JS decoder: `isImageDecoderSupported: false` stops pdf.js from using the browser's. `isOffscreenCanvasSupported: false` makes pdf.js hand over images as pixel arrays rather than bitmaps.
+  - **What the test set showed,** all handled:
+    - 1-bit scans stored as a **stencil mask** (ink where a bit is 0, in the fill color);
+    - scans with **transparency** (black ink plus a soft mask that says where the ink is): laid on white;
+    - scans stored **rotated or mirrored**: turned the way the page shows them;
+    - images **larger than the page**: only the part on the page is kept;
+    - scans stored with **non-square pixels** (e.g. 300 dpi across and 150 down), which the PDF stretches back into shape. The page as the PDF shows it is the truth, so they are resampled to square pixels at the higher of the two resolutions, nearest neighbour (exact copies for a factor of 2, and 1-bit scans stay sharp).
+  - The reported resolution is the scan's (from its size on the page).
 - **Colour is kept** when the scan has it. On yellowed, stained paper, colour separates ink from stains and paper better than grayscale, and a global binarization threshold can fail entirely (SmartScore's mandatory threshold on Kinderscenen p3 found no usable setting). LLMs bill images by pixel dimensions, not channels, so colour costs nothing extra in LLM calls; only the device cache grows (§2). Grayscale or binarization may replace it after an ablation (§15).
-- **Vector PDFs:** render with pdf.js at a fixed DPI, with pixel size computed explicitly as `round(pagePt × dpi / 72)`. Geometry is identical everywhere. Only anti-aliased edges differ slightly between canvas backends, and binarization removes most of that.
+- **Vector PDFs:** render with pdf.js at a fixed DPI (300 by default), with pixel size computed explicitly as `round(pagePt × dpi / 72)`. Geometry is identical everywhere. Only anti-aliased edges differ slightly between canvas backends, and binarization removes most of that. The canvas is passed in: an `OffscreenCanvas` in the browser, `@napi-rs/canvas` in Node (tests).
+- **Not tried in a browser yet:** the code only ran in Node so far (§15).
 
 ### 8.2 Deterministic operations
 - All image operations are implemented in our own TS/WASM code, never with canvas transforms or `drawImage` scaling.
 - `Math.sin`, `Math.cos`, `Math.exp` etc. are not guaranteed to give identical results across JS engines. Round them to a fixed precision (e.g. 12 decimals) or ship our own implementations.
-- Operation chains are ordered. Coordinates refer to the output of the previous step. Define exactly how deskewing sizes its output canvas.
+- Operation chains are ordered. Coordinates refer to the output of the previous step.
+- **Rotation** (`packages/imaging/src/rotate.ts`): about the image's center, positive angles clockwise as seen on screen, bilinear interpolation. **The output has the input's size:** corners that turn out are cut off, and areas that turn in are filled with the paper's color (the median color of the page, so yellowed paper stays yellowed). Deskewing angles are small, so little is lost, and coordinates stay simple. A test pins the exact pixels (a hash), so any change to rotation shows up as one, and is a new step version.
 - Human and LLM coordinates are stored in **normalized units**, so they survive regeneration at a different resolution.
 
 ### 8.3 Fingerprints: verifying "close", not just "identical"
@@ -494,7 +514,16 @@ Stored for every image a human or LLM has worked on, and for every confirmed sys
    - no single tile above a few gray levels.
 3. **Mismatch:** flag the project and ask the human to re-check the affected boxes and angles.
 
-### 8.4 Device constraints
+### 8.4 Finding the skew
+Built: `findSkew` in `packages/imaging/src/skew.ts`. It returns the angle (degrees, positive when horizontal lines descend to the right; `deskew(image, angle)` straightens the page) and a confidence from 0 to 1.
+- **Lines, not ink:** a filter keeps thin, dark, horizontal-ish structures. A pixel counts as much as it is darker than both the pixels a few rows above and below it, relative to them. Large dark areas (scanner borders, a shadow at the spine, beams, noteheads) and vertical strokes give nothing, and faded ink still counts because the measure is relative. Strong responses are capped, so a few very dark lines don't outweigh many faint ones. A margin of 4% on each side is ignored, where scanner borders and page edges are.
+- **Projection by strips:** the page is cut into 48 vertical strips, each with a row profile of the line responses. For a candidate angle, the strips' profiles are shifted by how far a line at that angle moves, and added up. At the right angle all of a staff line falls on the same rows, so the sum of squares of the summed profile is largest. A coarse search (0.1°, ±5° by default), a fine one (0.01°) around the best, then a parabola through the best three.
+- **Outliers** such as long hairpins or slurs are lines at other angles, but much less ink than the staves, so they add a little to every candidate and don't move the peak. Tested with made-up pages: hairpins, faded ink on dark noisy paper, black borders and a crooked page edge, all within 0.05°. On real pages from the test set, a page turned by a known angle is measured again within 0.05°.
+- **Large scans** are first shrunk by an integer factor to about 1800 pixels across, keeping the darkest pixel of each block, so thin lines survive.
+- **Confidence** is how much the best angle stands out from the median one. Music pages in the test set scored 0.35 to 0.83; title pages without staves scored 0.01 to 0.35 (and one ornate one 0.35 with a plausible angle). It is not good enough to decide on its own whether to deskew.
+- **Limits:** one angle per page. Curved pages (near a book's spine) have no single right angle; the result is the best compromise. Speed: about 0.1 to 1 second per page in Node, depending on its size.
+
+### 8.5 Device constraints
 - **Memory:** a 300 dpi page held in canvas memory is about 35 MB, and mobile Safari strictly limits total canvas memory. Process one page at a time in a Web Worker, using typed arrays / `OffscreenCanvas`.
 - **Latency:** generate lazily, current page first.
 - **Eviction:** call `navigator.storage.persist()`, but assume the OPFS cache can disappear at any time. Missing derivatives are simply regenerated.
@@ -686,7 +715,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Decide the reviewer's details** (§7.5): flag-only versus auto-accepted patches, the same model or a different one, the number of rounds. By comparing results with and without review on the test set.
 - **Define the constrained LilyPond subset** (§7.3) exactly, especially cross-staff notation, ornaments, ossia and lyrics.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
-- **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10).
+- **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs (§7.6).
 - **Design the D1 schema for stages and artifacts** (§5).
 - **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
 - **Decide on reuse per item within a stage** (§5.5): a manual stage covers the whole PDF. If only one system's input changed, should the fixes on the unchanged systems carry over, with only the changed one dropped? Well-meant, but it makes the behaviour harder for the user to understand, more than it complicates the code.
@@ -710,6 +739,9 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Answer a PDF that doesn't match its hash with a 400.** The Worker doesn't hash the PDF: R2 checks the bytes against the client's hash and refuses a mismatch, which now surfaces as a plain HTTP 500.
 - **Create the shared package** (`packages/core`, §3) and remove the duplicates: the `Project` type (`apps/web` and `apps/worker`), `sha256Hex` (`apps/web` and `apps/eval`), the pdf.js asset plugin and the PDF rendering (`apps/web` and `apps/eval`; the eval copy is dev-only and uses the modern pdf.js build).
 - **Build the test environments** (§12): the start script, the build script and a first environment.
+- **Run the imaging code in the browser** (§8.1): in a Web Worker, with pdf.js's assets (the `wasm` folder is needed for JBIG2 and JPEG 2000 scans) and an `OffscreenCanvas` for vector pages. Check that the pixels match Node's (the hashes in the tests).
+- **Images for the LLMs:** encode page and system images for the requests (PNG or JPEG), within the providers' size limits; providers shrink large images (§14).
+- **Wire the LLM adapters into the Worker** (§7.6): an endpoint the pipeline calls, call records (§5.2), costs and the spending cap (§10).
 - **Update Wrangler** once a release ships a patched `sharp`: `npm audit` reports a high-severity advisory in it (via Miniflare, development only, nothing deployed).
 - **Keep the device awake while a pipeline runs** (the browser's Screen Wake Lock): the browser drives the pipeline, so a phone that goes to sleep pauses the run. The lock only holds while the app is in front; switching to another tab or app releases it. A run that was paused anyway must resume where it stopped.
 - **Never lose an LLM answer that was paid for:** a request may be in flight when a phone suspends the page or the tab is closed. The Worker must finish the call and store the answer (§5.2) even though the browser has gone, so that resuming finds it and doesn't pay for the same request again.
@@ -739,7 +771,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
       Note: the Worker's entry module (`apps/worker/src/index.ts`) may only export handlers: the Workers runtime refuses to start otherwise, and the tests (which import the module directly) don't notice. Helpers live in their own modules (e.g. `names.ts`).
 
       Next: the stages. Details to come from the author.
-   2. Extract page images deterministically → OPFS → show in the UI.
+   2. Extract page images deterministically → OPFS → show in the UI. *The extraction, skew detection and rotation exist* (§8.1, §8.2, §8.4), not yet in the app.
    3. Global analysis of one page → system boxes + metadata. Human correction of the boxes.
    4. Crop systems → transcribe one system with context → structural checks.
    5. Record the LLM calls, turn the result into the first fixture, and compare against the baselines in the viewer.

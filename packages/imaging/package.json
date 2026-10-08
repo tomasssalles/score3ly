@@ -1,0 +1,21 @@
+{
+  "name": "@score3ly/imaging",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "pages": "node scripts/pages.ts"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.4.299"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.10",
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
+  }
+}
