@@ -108,7 +108,7 @@ flowchart LR
 | Device storage | OPFS (Origin Private File System) | Supported by Firefox, Chrome and Safari. Fast binary access from Web Workers. |
 | PDF handling | pdf.js, version pinned | Renders vector PDFs and decodes CCITT/JBIG2 images in JS, deterministically. |
 | JPEG decoding | Bundled JS/WASM decoder (e.g. libjpeg-turbo WASM, jpeg-js), not the browser's | Browser JPEG decoders may differ by about ±1 gray level. A bundled decoder gives identical pixels everywhere. |
-| Vision LLMs | Gemini for layout (bounding boxes). Gemini and/or Claude for transcription and review. Configurable per step. | Gemini is trained to return bounding boxes (normalized 0–1000). Both are strong readers. Swappable behind the `LlmProvider` port and compared on the test set. |
+| Vision LLMs | The user's choice, per stage (§7.6). Recommended: Claude Opus 5.5 for everything. | In the manual run (§16 step 3) Opus did best at everything, layout included. Providers are swappable behind the `LlmProvider` port. |
 | Structured LLM output | Provider-native schema-constrained output, validated with Zod | Machine-checkable outputs. No free-form parsing. |
 | Schema validation | Zod (or similar) | Validates step configs, LLM outputs and DB payloads. The same schema generates the UI controls (toggles, sliders). |
 | Preview rendering | **Proposed:** Verovio (WASM) in the browser, fed by a TS converter from our constrained LilyPond subset | Keeps review and preview rendering runnable everywhere. See §9. |
@@ -191,6 +191,16 @@ There are two sorts of stages:
 - **Manual stages** are added by the user to intervene by hand (§5.4). They are recorded in the pipeline like any other stage.
 
 The same step can occur more than once in a pipeline. Example: the review step run twice for extra accuracy, or once with one model and once more with another.
+
+#### Run modes
+A small picker in the pipeline panel sets, per project, how the pipeline runs:
+- **Auto:** one click starts the pipeline (or resumes it), and it keeps going from stage to stage, following the recipe, until it is done or fails. If a model flags that it would like human input, the flag is recorded, but the pipeline goes on with the model's best guess. The spending cap (§10) also stops it.
+- **Manual:** each stage is started by a click. This leaves time to look at the outputs and decide whether to step in with a manual stage or to run a stage again with other parameters.
+- Far in the future, perhaps a middle ground: run automatically, but stop when a model asks for human input.
+
+The mode for new projects is a settings item. After installation it is "Auto".
+
+The browser drives the pipeline, so in either mode a run only advances while the app is open (§15, §16).
 
 Each step declares:
 - `id` and `version`, e.g. `transcribe_system@3` (see §11).
@@ -322,7 +332,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 
 ### Global analysis (stage 3)
 One pass over each page, plus a document-level merge. The output is used as context for all later LLM steps:
-- **System bounding boxes**, normalized to 0–1000 (Gemini's native format). They are snapped to detected staff lines (horizontal projection) and then confirmed or corrected by the human in stage 4.
+- **System bounding boxes**, as fractions of the image's width and height: an object with `left`, `right`, `top` and `bottom`, each from 0 to 1. The format is ours, not a provider's (Gemini's native one is a 0–1000 list). Fractions don't depend on how a model shrinks the image internally, and Claude returns them reliably. They are snapped to detected staff lines (horizontal projection) and then confirmed or corrected by the human in stage 4.
 - **Metadata:** title, composer, editor, opus, movement titles.
 - **Structure:** staves per system, instruments, voices per staff, staff count changes.
 - **Musical context:** key and time signatures and their changes, clefs, where themes and melodies begin and end, repeats, and which passages repeat earlier material.
@@ -369,10 +379,26 @@ Failures go to the fix stage with a precise location. This replaces what LilyPon
 - At most 1–2 review→fix rounds. If reviewers disagree or findings persist, the system goes to the human.
 - A different model than the transcriber is preferred for review.
 
-### 7.6 Prompts and models are code
+### 7.6 Prompts and model configs
 - Prompt templates are versioned in `packages/prompts` and are part of their step's version.
-- **Provider, model and thinking budget or effort are the user's choice,** per stage. The app is meant to be flexible here and doesn't prescribe a model. The user guide will recommend Claude Opus 5.5 for everything, except perhaps a second review with a different model for variety.
 - Every call is recorded (§5.2), and identical requests are served from the record instead of being paid for again.
+- **Provider, model and thinking budget or effort are the user's choice.** The app is meant to be flexible here and doesn't prescribe a model. The user guide will recommend Claude Opus 5.5 for everything, except perhaps a second review with a different model for variety. The prompts are tuned on Opus, so the app offers the choice but can't promise the same quality with another model.
+
+#### Model configs
+- **A model config** is a stored, named combination of provider, model, thinking effort and the provider's authentication. The user can keep several. They live in D1 and are edited in the settings.
+- **Each provider declares its own form:** which fields are secrets and which are plain values. The plain Anthropic and Google APIs take one key; Google Vertex AI wants a service-account file plus a project and a region, AWS Bedrock an access key pair plus a region. The form is generated from a schema, like a step's config (§3).
+- **A secret field is a dropdown of the Worker's secrets, by name** (§10). The config stores the name, never the value. Several keys per provider are possible, e.g. a free-tier key and a paid one.
+- **A missing key:** if a secret was removed or renamed, the configs pointing to it are broken. The app says so on the config and before a run starts, not in the middle of one.
+
+#### Which config a stage uses
+Three levels; the most specific wins:
+1. **The config picked for a stage in a project** (e.g. behind a gear icon on the stage's card). Full flexibility, not normal use.
+2. **Advanced settings: a config per kind of work.** First draft of the kinds: finding layout boxes, extracting metadata, extracting the music notation, review.
+3. **The default config:** one settings item. With it, and nothing else set, the pipeline is "fire and wait".
+
+- **A stage records what it actually used** (provider, model, effort, and the secret's name), not a reference to the stored config. Editing a config later doesn't rewrite the history of old projects.
+- **Changing the config of a stage that already ran** is a change in the middle (§5.5): confirmation, then everything after it runs again.
+- **The key is not part of a stage's inputs.** Using another key for the same model doesn't count as a change and doesn't make paid stages run again.
 
 ### 7.7 Known LLM risk: plausible wrong notes
 LLMs fill in "musically likely" content. That is desirable for a smudge and dangerous everywhere else, because the errors look correct. Defenses:
@@ -445,6 +471,15 @@ Stored for every image a human or LLM has worked on, and for every confirmed sys
 | Cloudflare Access | Login | Protects everything, including the API. |
 | Google Drive | Picking source PDFs. Optional export target. | `drive.file` scope, Picker for selection, app-created export folder. Publish the OAuth app to "production" status (even unverified), because refresh tokens expire after 7 days in "testing" status. |
 | Vision LLMs | Global analysis, transcription, review | Called **only through the Worker**: API keys stay in Worker secrets. |
+
+### Secrets
+- **The LLM API keys are Worker secrets,** set by whoever runs the instance, outside the app (`wrangler secret put`, or the Cloudflare dashboard, which also works from a phone), under names of their own choosing. They are independent of code deployments: `npm run deploy` doesn't touch them, and changing one takes effect within seconds, without deploying the code again (Cloudflare makes a new version of the Worker with the new value by itself). Locally, `wrangler dev` reads them from `apps/worker/.dev.vars`, which is not committed.
+- **The app can't change them and contains no code that handles keys.** The Worker only reads them to call a provider; they never reach the browser.
+- **The app only knows their names,** which a model config picks from (§7.6). The Worker can list the names of everything it was given but can't tell a secret from an ordinary setting, since both are text values. Today all of them are secrets; if ordinary settings are ever added, a naming rule has to separate them.
+- **Not done on purpose:** letting the Worker change its own secrets through Cloudflare's API. It would need a Cloudflare API token stored in the Worker, and the permission to edit a Worker's secrets also allows replacing its code.
+- **Model configs are not secrets:** provider, model, thinking effort and the names of the secrets to use are stored in D1 and edited in the app (§7.6).
+- The user guide explains how to set the keys.
+- Entering the keys in the app is an optional roadmap item (§16).
 
 ### Data residency
 - PDFs (R2) and text (D1) are in EU-jurisdiction Cloudflare storage. Images stay on the device unless sent to an LLM.
@@ -578,8 +613,8 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 ### Placeholders to replace
 - **Real progress values:** `progressOf` in `apps/web/src/pipeline.ts` returns made-up values (pipeline 70%, stage 15%). Compute them from the stages. The "Stage" circle in the collapsed strip only appears while a stage runs, and the expanded panel shows the stage's progress next to the running stage (§5.6).
 - **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
-- **Settings page:** the spending cap and the free-tier mark for LLM configs (§10). Now a placeholder text.
-- **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). Only makes sense once there is something to explain. Now a placeholder page.
+- **Settings page:** the model configs, the default config and the configs per kind of work (§7.6), the run mode for new projects (§5.1), the spending cap and the free-tier mark for model configs (§10). Now a placeholder text.
+- **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.6). Only makes sense once there is something to explain. Now a placeholder page.
 - **"Delete project"** in the project actions does nothing. Build deletion as in §4: `deleted_at`, the partial unique index on names (a migration that rebuilds the table), deleting artifacts and PDFs nothing else uses, the confirmations.
 - **Light theme** (§5.7).
 
@@ -618,7 +653,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
       Next: the stages. Details to come from the author.
    2. Extract page images deterministically → OPFS → show in the UI.
-   3. Global analysis of one page with Gemini → system boxes + metadata. Human correction of the boxes.
+   3. Global analysis of one page → system boxes + metadata. Human correction of the boxes.
    4. Crop systems → transcribe one system with context → structural checks.
    5. Record the LLM calls, turn the result into the first fixture, and compare against the baselines in the viewer.
 
@@ -637,4 +672,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
      - **Against it:** derived images would live in R2 and not on the device, 150–300 MB per PDF (§2), which eats the free 10 GB quickly; and "no server-side compute" (§2) is one of the reasons the app is free to host.
      - **Fallback: a split.** The browser keeps the PDF and image work (the short part at the start) and uploads the crops to R2; the server runs the remaining stages on its own (the LLM calls, the light checks and the assembly between them) with Cloudflare's building blocks for long-running, resumable work (Workflows, Durable Objects). Waiting for an LLM doesn't count against a Worker's CPU limit, so this may fit the free plan. To be checked against the current terms.
      - Either way, first find out how long a real extraction takes. Until then: keeping the device awake and reliable resuming (§15).
+   - **Entering the LLM keys in the app** (optional). The keys are stored in D1, encrypted with one master key, which is the only secret left to set on the host. The Worker decrypts a key only to call the provider and never sends it back to the browser: the settings page shows "set", and perhaps the last four characters. Whoever gets past the login can replace a key, but not read one.
+     - **Why:** it decouples the app further from Cloudflare. A SQLite database, object storage, a server and one secret can be had from other providers, and with the right ports and adapters (§3) the app becomes portable. Setting up the keys is then the same on every host, and so is the user guide. It is also more convenient: a key can be changed from the app, on any device.
+     - **The price:** code that handles secrets, which has to be right.
    - **Forking a project** from a given stage: a new, separate project that starts with the original's pipeline up to that stage. Each project keeps its own linear history. Behind the scenes, the fork reuses the original's artifacts without duplicating them.
