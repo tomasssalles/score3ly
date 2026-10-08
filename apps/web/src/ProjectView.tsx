@@ -78,8 +78,15 @@ export function ProjectView({
             >
               <ExpandIcon />
             </button>
-            <ProgressRing value={progress.stage} label="Current stage" size={24} />
-            <ProgressRing value={progress.pipeline} label="Pipeline" size={24} />
+            {/* Hard-coded values until there are stages, to see what the circles look like. */}
+            <div className="strip-progress">
+              <ProgressRing value={0.7} label="Pipeline" size={28} />
+              <span>Pipeline</span>
+            </div>
+            <div className="strip-progress">
+              <ProgressRing value={0.15} label="Stage" size={28} />
+              <span>Stage</span>
+            </div>
           </div>
         ) : (
           <PipelinePanel

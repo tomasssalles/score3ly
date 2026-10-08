@@ -473,12 +473,23 @@ body {
   background: var(--bg);
 }
 
+/* The collapsed panel: the expand button and the two progress circles, spread evenly over the strip's height. */
 .strip {
+  box-sizing: border-box;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  justify-content: space-evenly;
   padding: 12px 0;
+}
+
+.strip-progress {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 /* Pipeline panel */
