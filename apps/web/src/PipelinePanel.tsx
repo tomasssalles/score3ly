@@ -3,7 +3,7 @@ import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { CollapseIcon, DocumentIcon, MoreIcon } from "./icons";
 import { type PipelineItem, type Progress } from "./pipeline";
-import { ProgressRing } from "./ProgressRing";
+import { ProgressBar } from "./ProgressBar";
 import { ago, shortDate } from "./time";
 
 // The current project: basic info, progress, and the pipeline's items. Picking an item shows its main artifact.
@@ -50,21 +50,10 @@ export function PipelinePanel({
         </div>
       </div>
 
-      <div className="progress-row">
-        <div className="progress-item">
-          <ProgressRing value={progress.stage} label="Current stage" />
-          <span>
-            Stage
-            <small>{progress.stage === null ? "nothing running" : `${Math.round(progress.stage * 100)}%`}</small>
-          </span>
-        </div>
-        <div className="progress-item">
-          <ProgressRing value={progress.pipeline} label="Pipeline" />
-          <span>
-            Pipeline
-            <small>{Math.round(progress.pipeline * 100)}%</small>
-          </span>
-        </div>
+      {/* The running stage's progress will be shown next to that stage, once the panel lists stages. */}
+      <div className="pipeline-progress">
+        <span>Pipeline</span>
+        <ProgressBar value={progress.pipeline} label="Pipeline" />
       </div>
 
       <ol className="pipeline-items">
