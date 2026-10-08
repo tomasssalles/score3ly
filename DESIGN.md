@@ -454,8 +454,11 @@ Built: `apps/worker/src/llm/`. One small request and response shape for every pr
 - **The chosen model answers, or the call fails.** No fallback to another model, not even Anthropic's server-side fallback on refusals: a refusal comes back as a refusal.
 - **Anthropic** (Claude API), with the official SDK. Requests are streamed, so long answers don't hit timeouts. Thinking is left at the model's default (adaptive on current models), and effort maps directly. As a sanity check, an answer that names another model than the one asked is an error (`unexpected_model`).
 - **Google** (Gemini API, keys from AI Studio), with the official SDK. Effort maps to Gemini's thinking levels (low, medium, high), which exist from Gemini 3 on; older Gemini models want a token budget and would refuse a level. Thinking tokens count as output, cached ones apart from the rest. Gemini names the exact version that answered, which can differ from the name asked for (an alias, a dated version), so there is no model check.
-- **Vertex AI and Bedrock** (processing in the EU, §10) would be further adapters; not built.
-- Tested without network, with a fake `fetch`, and run inside the local Workers runtime. `npm run llm:try -w apps/worker -- <anthropic|google> <model> <image> "<question>" [--json]` sends one image and a question with real keys, from environment variables.
+- **Claude on Google Cloud's Vertex AI** (for processing in the EU, §10), with Anthropic's official Vertex client: the same Messages API, so the same adapter code as for Anthropic's API, sanity check included. Configured with a service account's key file (a secret), a region (`eu` for the EU multi-region, a single region such as `europe-west1`, `us` or `global`) and optionally a project (default: the key file's).
+  - **Tokens without Google's auth library,** which expects Node (files, child processes, the metadata server) and doesn't run in a Worker. Our own small token source signs Google's service-account claim with WebCrypto, exchanges it for an access token, and reuses the token until a minute before it expires. A refused service account is an `auth` error.
+  - **Billing** goes through Google Cloud: after the fact, with budgets that only alert. The app's spending cap (§10) is then the only hard limit.
+- **Bedrock** would be another adapter on Anthropic's Bedrock client; not built. Gemini on Vertex AI isn't built either.
+- Tested without network, with a fake `fetch`, and run inside the local Workers runtime. `npm run llm:try -w apps/worker -- <anthropic|anthropic-vertex|google> <model> <image> "<question>" [--json]` sends one image and a question with real credentials, from environment variables.
 - Not wired into the app yet: no API endpoint, no call records, no costs.
 
 #### Model configs
@@ -596,7 +599,8 @@ Built, in `findSkew`, from the same line responses and strips, at the angle foun
 - Cloudflare is a US company. An EU jurisdiction guarantees **where** data is stored, not which legal regime ultimately applies. This is acceptable for this project.
 - **LLM calls are the residency gap.** For EU processing:
   - Gemini and Claude are both available in EU regions through Google Vertex AI. Claude is also available through AWS Bedrock.
-  - The plain provider APIs give no such guarantee.
+  - The plain provider APIs give no such guarantee. Anthropic's API can pin where inference runs (`inference_geo`), but only to the US or "global", not the EU.
+  - Built: Claude through Vertex AI (§7.6).
   - On Google AI Studio's free tier, inputs may be used to improve Google's products.
 
   Document the choice per provider in the config.
@@ -733,7 +737,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Decide the reviewer's details** (§7.5): flag-only versus auto-accepted patches, the same model or a different one, the number of rounds. By comparing results with and without review on the test set.
 - **Define the constrained LilyPond subset** (§7.3) exactly, especially cross-staff notation, ornaments, ossia and lyrics.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
-- **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs (§7.6).
+- **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs, and for Claude on Vertex AI (§7.6).
 - **Design the D1 schema for stages and artifacts** (§5).
 - **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
 - **Decide on reuse per item within a stage** (§5.5): a manual stage covers the whole PDF. If only one system's input changed, should the fixes on the unchanged systems carry over, with only the changed one dropped? Well-meant, but it makes the behaviour harder for the user to understand, more than it complicates the code.

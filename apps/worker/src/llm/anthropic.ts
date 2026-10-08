@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
 import type { ContentBlockParam, Message, MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages";
 import {
   type Fetch,
@@ -9,18 +10,21 @@ import {
   type LlmResponse,
   parseJson,
 } from "./types.ts";
+import { parseServiceAccount, tokenSource } from "./googleServiceAccount.ts";
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 64_000;
 
-// Claude through Anthropic's API, with the official SDK. Requests are streamed, so long answers don't hit HTTP
-// timeouts; the caller gets the whole message at the end. The chosen model answers or the call fails: no fallback
-// to another model.
-export class AnthropicProvider implements LlmProvider {
-  readonly id = "anthropic" as const;
-  readonly #client: Anthropic;
+// Claude through Anthropic's API, or through Google Cloud's Vertex AI (e.g. in the EU, DESIGN.md §10), with the
+// official SDKs: the same Messages API either way, so one class serves both. Requests are streamed, so long
+// answers don't hit HTTP timeouts; the caller gets the whole message at the end. The chosen model answers or the
+// call fails: no fallback to another model.
+export class ClaudeProvider implements LlmProvider {
+  readonly id: "anthropic" | "anthropic-vertex";
+  readonly #client: Anthropic | AnthropicVertex;
 
-  constructor(options: { apiKey: string; fetch?: Fetch; maxRetries?: number }) {
-    this.#client = new Anthropic({ apiKey: options.apiKey, fetch: options.fetch, maxRetries: options.maxRetries });
+  constructor(id: ClaudeProvider["id"], client: Anthropic | AnthropicVertex) {
+    this.id = id;
+    this.#client = client;
   }
 
   async send(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse> {
@@ -34,9 +38,39 @@ export class AnthropicProvider implements LlmProvider {
     if (message.model !== request.model) {
       throw new LlmError("unexpected_model", `Asked ${request.model}, but ${message.model} answered.`);
     }
-    const response = fromMessage(message);
+    const response = { ...fromMessage(message), provider: this.id };
     return request.jsonSchema ? { ...response, json: parseJson(response) } : response;
   }
+}
+
+// Anthropic's own API, with an API key.
+export function anthropicProvider(options: { apiKey: string; fetch?: Fetch; maxRetries?: number }): ClaudeProvider {
+  const client = new Anthropic({ apiKey: options.apiKey, fetch: options.fetch, maxRetries: options.maxRetries });
+  return new ClaudeProvider("anthropic", client);
+}
+
+type VertexAuthClient = NonNullable<NonNullable<ConstructorParameters<typeof AnthropicVertex>[0]>["authClient"]>;
+
+// Vertex AI, with a service account's key file. `region` is where requests are processed: "eu" (the EU
+// multi-region), a single region such as "europe-west1", "us", or "global".
+export function vertexClaudeProvider(options: {
+  serviceAccount: string; // the key file's JSON
+  region: string;
+  projectId?: string; // default: the service account's project
+  fetch?: Fetch;
+  maxRetries?: number;
+}): ClaudeProvider {
+  const account = parseServiceAccount(options.serviceAccount);
+  const auth = tokenSource(account, options.fetch);
+  const client = new AnthropicVertex({
+    region: options.region,
+    projectId: options.projectId ?? account.projectId,
+    // Our own token source: Google's auth library doesn't run in a Worker.
+    authClient: auth as unknown as VertexAuthClient,
+    fetch: options.fetch,
+    maxRetries: options.maxRetries,
+  });
+  return new ClaudeProvider("anthropic-vertex", client);
 }
 
 export function toParams(request: LlmRequest): MessageCreateParamsBase {
@@ -94,6 +128,8 @@ export function fromMessage(message: Message): Omit<LlmResponse, "json"> {
 
 // The SDK's typed errors, most specific first.
 function toLlmError(err: unknown): LlmError {
+  // On Vertex AI, a failure to get a token (e.g. a refused service account) comes wrapped as a connection error.
+  if (err instanceof Anthropic.APIConnectionError && err.cause instanceof LlmError) return err.cause;
   if (err instanceof Anthropic.APIConnectionError) return new LlmError("network", err.message);
   if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
     return new LlmError("auth", err.message, err.status);

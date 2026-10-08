@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Message } from "@anthropic-ai/sdk/resources/messages";
-import { AnthropicProvider, fromMessage } from "./anthropic.ts";
+import { anthropicProvider, fromMessage } from "./anthropic.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 
 type Captured = { url: string; headers: Headers; body: any };
@@ -62,7 +62,7 @@ const request: LlmRequest = {
 
 test("a request is sent as the Messages API expects, with the image first and no fallback model", async () => {
   const captured: Captured[] = [];
-  const provider = new AnthropicProvider({ apiKey: "test-key", fetch: fakeFetch(answer('{"systems":6}'), captured) });
+  const provider = anthropicProvider({ apiKey: "test-key", fetch: fakeFetch(answer('{"systems":6}'), captured) });
   await provider.send(request);
   const [{ url, headers, body }] = captured;
   assert.match(url, /\/v1\/messages/);
@@ -82,7 +82,7 @@ test("a request is sent as the Messages API expects, with the image first and no
 
 test("the effort and the output format are only sent when asked for", async () => {
   const captured: Captured[] = [];
-  const provider = new AnthropicProvider({ apiKey: "k", fetch: fakeFetch(answer("hi", "claude-haiku-5-5"), captured) });
+  const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch(answer("hi", "claude-haiku-5-5"), captured) });
   await provider.send({
     model: "claude-haiku-5-5",
     messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
@@ -91,7 +91,7 @@ test("the effort and the output format are only sent when asked for", async () =
 });
 
 test("an answer from another model than the one asked is an error", async () => {
-  const provider = new AnthropicProvider({
+  const provider = anthropicProvider({
     apiKey: "k",
     fetch: fakeFetch(answer('{"systems":6}', "claude-opus-5"), []),
   });
@@ -102,7 +102,7 @@ test("an answer from another model than the one asked is an error", async () => 
 });
 
 test("the answer comes back with its text, parsed JSON and usage", async () => {
-  const provider = new AnthropicProvider({ apiKey: "k", fetch: fakeFetch(answer('{"systems":6}'), []) });
+  const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch(answer('{"systems":6}'), []) });
   const response = await provider.send(request);
   assert.equal(response.provider, "anthropic");
   assert.equal(response.model, "claude-opus-5-5");
@@ -112,7 +112,7 @@ test("the answer comes back with its text, parsed JSON and usage", async () => {
 });
 
 test("an answer that should be JSON and isn't is an error", async () => {
-  const provider = new AnthropicProvider({ apiKey: "k", fetch: fakeFetch(answer("six systems"), []) });
+  const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch(answer("six systems"), []) });
   await assert.rejects(
     provider.send(request),
     (err: unknown) => err instanceof LlmError && err.kind === "invalid_output",
@@ -127,7 +127,7 @@ test("HTTP errors become typed errors that say whether to retry", async () => {
     [529, "overloaded", true],
     [500, "server", true],
   ] as const) {
-    const provider = new AnthropicProvider({ apiKey: "k", fetch: fakeFetch([], [], status), maxRetries: 0 });
+    const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch([], [], status), maxRetries: 0 });
     await assert.rejects(provider.send(request), (err: unknown) => {
       assert.ok(err instanceof LlmError);
       assert.deepEqual([err.kind, err.status, err.retryable], [kind, status, retryable]);

@@ -43,7 +43,10 @@ To send one image and a question to a vision LLM with a real key:
 ```sh
 ANTHROPIC_API_KEY=... npm run llm:try -w apps/worker -- anthropic claude-opus-5-5 page.png "How many systems are on this page?"
 GEMINI_API_KEY=...    npm run llm:try -w apps/worker -- google <gemini model> page.png "How many systems are on this page?"
+VERTEX_SERVICE_ACCOUNT=key.json VERTEX_REGION=eu npm run llm:try -w apps/worker -- anthropic-vertex claude-opus-5-5 page.png "How many systems are on this page?"
 ```
+
+For Claude on Vertex AI, `VERTEX_SERVICE_ACCOUNT` is the path of a service account's key file (JSON), `VERTEX_REGION` the region (`eu` if left out), and `VERTEX_PROJECT` the project (the key file's if left out).
 
 After changing the app icon (`apps/web/public/icon.svg`), make its PNG versions again with `npm run icons -- --force`.
 

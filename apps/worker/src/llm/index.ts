@@ -1,17 +1,24 @@
-// Vision LLMs behind one interface (types.ts). A model config (DESIGN.md §7.6) names the provider and the secret
-// that holds its key; the Worker reads the key and creates the provider here.
+// Vision LLMs behind one interface (types.ts). A model config (DESIGN.md §7.6) names the provider and the secrets
+// and settings it needs; the Worker reads the secrets and creates the provider here.
 
-import { AnthropicProvider } from "./anthropic.ts";
+import { anthropicProvider, vertexClaudeProvider } from "./anthropic.ts";
 import { GoogleProvider } from "./google.ts";
-import type { Fetch, LlmProvider, ProviderId } from "./types.ts";
+import type { Fetch, LlmProvider } from "./types.ts";
 
 export * from "./types.ts";
 
-export function createProvider(id: ProviderId, options: { apiKey: string; fetch?: Fetch }): LlmProvider {
-  switch (id) {
+export type ProviderConfig =
+  | { provider: "anthropic"; apiKey: string }
+  | { provider: "anthropic-vertex"; serviceAccount: string; region: string; projectId?: string }
+  | { provider: "google"; apiKey: string };
+
+export function createProvider(config: ProviderConfig, options: { fetch?: Fetch } = {}): LlmProvider {
+  switch (config.provider) {
     case "anthropic":
-      return new AnthropicProvider(options);
+      return anthropicProvider({ apiKey: config.apiKey, fetch: options.fetch });
+    case "anthropic-vertex":
+      return vertexClaudeProvider({ ...config, fetch: options.fetch });
     case "google":
-      return new GoogleProvider(options);
+      return new GoogleProvider({ apiKey: config.apiKey, fetch: options.fetch });
   }
 }
