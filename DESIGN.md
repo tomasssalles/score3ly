@@ -384,7 +384,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 | 1 | Page images | deterministic | page | Page image (OPFS) + fingerprint |
 | 2 | Light preprocessing (deskew, contrast, optional binarization; colour is kept by default, §8.1) | deterministic + human (angles) | page | Preprocessed image + recorded parameters |
 | 3 | Global analysis | llm | page + document | Structured JSON (see below) |
-| 4 | Layout correction | human (+ deterministic snapping) | page | Confirmed system boxes, normalized coordinates |
+| 4 | Layout correction | human | page | Confirmed system boxes, normalized coordinates |
 | 5 | System crops | deterministic | system | Crop images. |
 | 6 | Score skeleton | deterministic (+ human confirmation) | document | LilyPond structure: staves, voices, variable names, staff changes |
 | 7 | Transcription | llm | system | Structured JSON: music per voice, measure count, uncertainty list |
@@ -395,8 +395,9 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 | 12 | Export | deterministic (+ optional engraving, §9) | document | `.ly` file, optional engraved PDF |
 
 ### Global analysis (stage 3)
-One pass over each page, plus a document-level merge. The output is used as context for all later LLM steps:
-- **System bounding boxes**, as fractions of the image's width and height: an object with `left`, `right`, `top` and `bottom`, each from 0 to 1. The format is ours, not a provider's (Gemini's native one is a 0–1000 list). Fractions don't depend on how a model shrinks the image internally, and Claude returns them reliably. They are snapped to detected staff lines (horizontal projection) and then confirmed or corrected by the human in stage 4.
+One pass over each page, plus a document-level merge. **Every page is sent,** whatever is on it: code doesn't decide which pages hold music (§8.4). The output is used as context for all later LLM steps:
+- **What each page is:** cover, empty, music or other (preface, table of contents, advertisements, ...).
+- **System bounding boxes**, as fractions of the image's width and height: an object with `left`, `right`, `top` and `bottom`, each from 0 to 1. The format is ours, not a provider's (Gemini's native one is a 0–1000 list). Fractions don't depend on how a model shrinks the image internally, and Claude returns them reliably. They go to the human in stage 4 as the model gave them, to confirm or correct; code doesn't adjust them. Code that detects notation, even staves, is what fails on these scores and why this project uses LLMs.
 - **Metadata:** title, composer, editor, opus, movement titles.
 - **Structure:** staves per system, instruments, voices per staff, staff count changes.
 - **Musical context:** key and time signatures and their changes, clefs, where themes and melodies begin and end, repeats, and which passages repeat earlier material.
@@ -521,8 +522,16 @@ Built: `findSkew` in `packages/imaging/src/skew.ts`. It returns the angle (degre
 - **Projection by strips:** the page is cut into 48 vertical strips, each with a row profile of the line responses. For a candidate angle, the strips' profiles are shifted by how far a line at that angle moves, and added up. At the right angle all of a staff line falls on the same rows, so the sum of squares of the summed profile is largest. A coarse search (0.1°, ±5° by default), a fine one (0.01°) around the best, then a parabola through the best three.
 - **Outliers** such as long hairpins or slurs are lines at other angles, but much less ink than the staves, so they add a little to every candidate and don't move the peak. Tested with made-up pages: hairpins, faded ink on dark noisy paper, black borders and a crooked page edge, all within 0.05°. On real pages from the test set, a page turned by a known angle is measured again within 0.05°.
 - **Large scans** are first shrunk by an integer factor to about 1800 pixels across, keeping the darkest pixel of each block, so thin lines survive.
-- **Confidence** is how much the best angle stands out from the median one. Music pages in the test set scored 0.35 to 0.83; title pages without staves scored 0.01 to 0.35 (and one ornate one 0.35 with a plausible angle). It is not good enough to decide on its own whether to deskew.
+- **Confidence** is how much the best angle stands out from the median one: `1 − median score / best score` over the coarse angles. Music pages in the test set scored 0.35 to 0.83; title pages without staves scored 0.01 to 0.35 (and one ornate one 0.35 with a plausible angle). It is not good enough to decide on its own whether to deskew.
+- **At most 5°.** Larger angles aren't searched: real scans are rarely skewed by more than 1° (the test set's largest is 0.82°), and a wrong angle on a cover page can't turn it so far that a model can no longer read it. A result at the edge of the range means the true angle is outside it.
 - **Limits:** one angle per page. Curved pages (near a book's spine) have no single right angle; the result is the best compromise. Speed: about 0.1 to 1 second per page in Node, depending on its size.
+
+#### When a page is deskewed
+**Best effort, low risk.** Deskewing happens before any LLM call, in code, and a mistake must cost little: at worst, a music page isn't straightened and is a little harder to read. So:
+- **Only pages with staves** are deskewed. Code may detect staves for this (planned: groups of five evenly spaced lines in the row profile at the found angle), and for nothing else: it doesn't decide what a page is, nor which pages go to which LLM task. Every page goes to the LLM in global analysis (§6), which says what each page is.
+- **Not at the edge of the range:** an angle at the 5° limit isn't trusted, and the page stays as it is.
+- **Not for tiny angles:** rotation blurs a little (interpolation), so a page whose lines drift by less than about a pixel across its width (about 0.02° for 2500 px) stays as it is.
+- The user can always set the angle by hand (§5.4).
 
 ### 8.5 Device constraints
 - **Memory:** a 300 dpi page held in canvas memory is about 35 MB, and mobile Safari strictly limits total canvas memory. Process one page at a time in a Web Worker, using typed arrays / `OffscreenCanvas`.
@@ -747,6 +756,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
   - **Coordinates:** boxes a model returns refer to the image it was sent; with our fractions of the image (§6) they map back to the page however the image was shrunk.
   - **Gemini** has its own limits and resolution settings; to check when we use it.
 - **Wire the LLM adapters into the Worker** (§7.6): an endpoint the pipeline calls, call records (§5.2), costs and the spending cap (§10).
+- **Detect staves for deskewing** (§8.4): only to decide whether a page is deskewed, never to classify pages.
 - **Update Wrangler** once a release ships a patched `sharp`: `npm audit` reports a high-severity advisory in it (via Miniflare, development only, nothing deployed).
 - **Keep the device awake while a pipeline runs** (the browser's Screen Wake Lock): the browser drives the pipeline, so a phone that goes to sleep pauses the run. The lock only holds while the app is in front; switching to another tab or app releases it. A run that was paused anyway must resume where it stopped.
 - **Never lose an LLM answer that was paid for:** a request may be in flight when a phone suspends the page or the tab is closed. The Worker must finish the call and store the answer (§5.2) even though the browser has gone, so that resuming finds it and doesn't pay for the same request again.
