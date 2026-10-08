@@ -831,7 +831,8 @@ body {
 
 /* About */
 .page-view .about-wordmark {
-  margin: 8px 0 12px;
+  margin: 8px 0 28px;
+  text-align: center;
   font-size: 40px;
   color: var(--wordmark);
 }
@@ -873,4 +874,8 @@ body {
   .about-facts dd + dt {
     margin-top: 14px;
   }
+}
+
+.nowrap {
+  white-space: nowrap;
 }

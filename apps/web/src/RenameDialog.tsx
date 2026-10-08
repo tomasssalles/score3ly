@@ -40,7 +40,7 @@ export function RenameDialog({
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409
-          ? `Another project is already called "${name.trim()}". Names are compared ignoring case.`
+          ? "A project with that name already exists. Names must be unique (case-insensitive)."
           : `Renaming failed: ${err}`,
       );
       setSaving(false);
@@ -65,13 +65,13 @@ export function RenameDialog({
           </button>
         </div>
         <label className="field">
-          <span>Name</span>
           <input
             ref={input}
             id="rename-name"
             type="text"
             autoComplete="off"
             spellCheck={false}
+            aria-label="New name"
             maxLength={MAX_NAME_LENGTH + 50}
             value={name}
             onChange={(e) => {
