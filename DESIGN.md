@@ -764,7 +764,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
   - **Coordinates:** boxes a model returns refer to the image it was sent; with our fractions of the image (§6) they map back to the page however the image was shrunk.
   - **Gemini** has its own limits and resolution settings; to check when we use it.
 - **Wire the LLM adapters into the Worker** (§7.6): an endpoint the pipeline calls, call records (§5.2), costs and the spending cap (§10).
-- **Update Wrangler** once a release ships a patched `sharp`: `npm audit` reports a high-severity advisory in it (via Miniflare, development only, nothing deployed).
 - **Keep the device awake while a pipeline runs** (the browser's Screen Wake Lock): the browser drives the pipeline, so a phone that goes to sleep pauses the run. The lock only holds while the app is in front; switching to another tab or app releases it. A run that was paused anyway must resume where it stopped.
 - **Never lose an LLM answer that was paid for:** a request may be in flight when a phone suspends the page or the tab is closed. The Worker must finish the call and store the answer (§5.2) even though the browser has gone, so that resuming finds it and doesn't pay for the same request again.
 

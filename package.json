@@ -18,7 +18,9 @@
     "icons": "npm run icons -w apps/web"
   },
   "allowScripts": {
-    "esbuild@0.28.1": true,
-    "workerd@1.20261001.1": true
+    "@google/genai": false,
+    "esbuild@0.28.2": true,
+    "protobufjs": false,
+    "workerd@1.20261006.1": true
   }
 }
