@@ -292,7 +292,10 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 - **Fonts:** JetBrains Mono for the wordmark and anything that is code (LilyPond, file names, IDs, times); Inter for interface text. Both are bundled with the app (Fontsource), so no request goes to Google Fonts.
 - **Progress is green** (`--green`, `#3fb950`), not coral: bars and circles use `--progress`, which points to `--green`, so changing the progress color is one line.
 - **Colors are CSS variables** in `apps/web/src/styles.css` (`--bg` black for the header and side panel, `--surface` near-black for the page, `--accent`, ...), ready for a light theme.
-- **Compact mark:** `< >` in the accent color with a white eighth note inside, on a black rounded square (`apps/web/public/icon.svg`). Besides angle brackets as a tag, `<c e g>` is a chord in LilyPond. It is the favicon. The app icon for a phone's home screen is still missing (§15).
+- **Compact mark:** `< >` in the accent color with a white quarter note inside, on a black rounded square (`apps/web/public/icon.svg`). A quarter note rather than an eighth: the flag made the note lopsided between the brackets and is too much detail for a favicon. Besides angle brackets as a tag, `<c e g>` is a chord in LilyPond.
+  - It is the favicon, and the icon on a phone's home screen: PNG files in three sizes, listed in a web app manifest. `npm run icons` makes the PNGs from the SVG. They are committed, so after changing the icon the command has to be run again (with `-- --force`, since it doesn't replace existing files otherwise).
+  - The icon is a separate image and can't use the app's CSS variables, so its accent color is a copy, named `.accent` in the SVG. A test checks that it matches `--accent`.
+  - The manifest doesn't set a display mode, so the app opens from the home screen as a normal browser page.
 - **Project and file names are never cut off at the end.** They wrap over up to three lines wherever there is room (the picker's list, the dialogs, the pipeline panel); a name with spaces breaks between words; a name without any (typically a file name) fills each line and breaks wherever it ends, since breaking early at a hyphen wastes most of a line. Only the picker's field in the header is a single line. A name that needs more lines than it may have is shortened **in the middle** ("villa-lobos_bach…prelude.orig (1)"), because names on the same PDF differ at the end, and hovering then shows all of it. This works the same with a mouse and on touch: the full name of the open project is one tap away, in the picker's list. The browser can only cut text at the end, so one component (`FittedText`) measures and shortens.
 - **Dates, times and numbers have one fixed English format everywhere.** They don't follow the browser's language or region: the interface text is English, and a browser's idea of the locale often differs from the user's.
   - **Dates:** day and the month's short name, "7 Oct", plus the year when it isn't the current one, "7 Oct 2025". Never all-numeric, which is ambiguous between day-first and month-first. The day is the device's local one.
@@ -308,7 +311,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 | 2 | Light preprocessing (deskew, contrast, optional binarization; colour is kept by default, §8.1) | deterministic + human (angles) | page | Preprocessed image + recorded parameters |
 | 3 | Global analysis | llm | page + document | Structured JSON (see below) |
 | 4 | Layout correction | human (+ deterministic snapping) | page | Confirmed system boxes, normalized coordinates |
-| 5 | System crops | deterministic | system | Crop images. Wide systems optionally split into overlapping halves (§8.5). |
+| 5 | System crops | deterministic | system | Crop images. |
 | 6 | Score skeleton | deterministic (+ human confirmation) | document | LilyPond structure: staves, voices, variable names, staff changes |
 | 7 | Transcription | llm | system | Structured JSON: music per voice, measure count, uncertainty list |
 | 8 | Structural checks | deterministic | system | Check results (§7.4) |
@@ -330,7 +333,7 @@ Example of why this matters: a smudged note on one page can be resolved because 
 ## 7. LLM steps
 
 ### 7.1 Context for each transcription call
-- the system crop (or its overlapping halves)
+- the system crop
 - the relevant global analysis (key, time, clefs, voices, themes, repeated material)
 - the score skeleton: which voices to fill and their names
 - the LilyPond output of the **previous system**, plus its final state (key, time, clefs, voice positions)
@@ -368,7 +371,7 @@ Failures go to the fix stage with a precise location. This replaces what LilyPon
 
 ### 7.6 Prompts and models are code
 - Prompt templates are versioned in `packages/prompts` and are part of their step's version.
-- Model IDs are pinned exactly, never "latest" aliases.
+- **Provider, model and thinking budget or effort are the user's choice,** per stage. The app is meant to be flexible here and doesn't prescribe a model. The user guide will recommend Claude Opus 5.5 for everything, except perhaps a second review with a different model for variety.
 - Every call is recorded (§5.2), and identical requests are served from the record instead of being paid for again.
 
 ### 7.7 Known LLM risk: plausible wrong notes
@@ -408,12 +411,6 @@ Stored for every image a human or LLM has worked on, and for every confirmed sys
 - **Eviction:** call `navigator.storage.persist()`, but assume the OPFS cache can disappear at any time. Missing derivatives are simply regenerated.
 - **Rotation:** an LRU cache with a configurable size limit. Deletion is real deletion.
 - **Bundle size:** avoid OpenCV.js (about 10 MB). With LLMs doing the reading, preprocessing is light enough to write by hand.
-
-### 8.5 Image resolution sent to LLMs
-Models downscale large images (Claude to roughly 1568 px on the long edge; Gemini has configurable media resolution). Piano systems are wide, so on dense systems noteheads can become a few pixels tall. Mitigations:
-- split wide systems into overlapping halves, with a defined overlap in measures and a merge rule
-- choose the resolution setting per provider
-- test both on the test set
 
 ## 9. Rendering (proposed)
 
@@ -495,11 +492,20 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 - **Part of a step's version:**
   - library versions (pdf.js, decoders, Verovio)
   - prompt template versions
-  - pinned model IDs
+
+  The model is not part of it: it is the user's choice and belongs to the stage's config (§7.6).
 - Load old step versions lazily with dynamic `import()`.
-- If the number of versions grows unmanageable: release **app v2.0**, declare v1.x project data incompatible, and start fresh. This is acceptable while there is a single user.
+- **A newer step version on a re-run** (first idea, not thought through): a re-run follows the pipeline as it was while the inputs match (§5.5), but a stage's step may by then have a newer version that is considered better. When the re-run is started, the app asks the user which to do:
+  - use the new version in any case; or
+  - keep the old version's results where the input still matches, and use the new version only where it doesn't.
+
+  Keeping an old result means reusing what is stored (§5.5), so no old code has to run for it.
 - **D1 schema migrations** use `wrangler d1 migrations`.
-- **The app's version** is the `version` in the root `package.json` (0.1.0 for now; the rules for when it goes up are still to be decided, §15). The build also records the git commit it was built from, and whether there were uncommitted changes. The About page shows all of it, e.g. "0.1.0 @ 61c081d" (plus "[+ uncommitted changes]" and "[dev server]" where they apply), so a deployed app can always be traced to its code.
+- **The app's version** is the `version` in the root `package.json` (0.1.0 for now), in three parts, major.minor.fix:
+  - **Fix** goes up for bug fixes.
+  - **Minor** goes up for compatible additions: UI features, new optional stages to pick from, a new step version such as `crop_systems_v2` that becomes the default for new runs. Additions are collected for a while first, so the minor doesn't go up twice a day.
+  - **Major** goes up for incompatible changes: ones after which old pipelines can no longer be re-run. This is also the way out if the number of step versions grows unmanageable. Even then we make an effort to keep old projects viewable in the UI, clearly marked as run with a pipeline that is no longer supported.
+- The build also records the git commit it was built from, and whether there were uncommitted changes. The About page shows all of it, e.g. "0.1.0 @ 61c081d" (plus "[+ uncommitted changes]" and "[dev server]" where they apply), so a deployed app can always be traced to its code.
 
 ## 12. Testing and reproducibility
 
@@ -541,7 +547,7 @@ Models downscale large images (Claude to roughly 1568 px on the long edge; Gemin
 | Losing LLM output or human input because it was treated like cache | §5.3: LLM and human artifacts are always persisted. Eviction only touches deterministic artifacts. |
 | Plausible but wrong notes from LLMs | §7.7: uncertainty lists, structural checks, image-based review, measured slip-through rate. |
 | Regenerated images drifting from what the human or LLM worked on | §8: deterministic decoding and operations, normalized coordinates, fingerprint checks. |
-| Downscaled system images losing detail | §8.5: overlapping halves, resolution settings, tested per provider. |
+| Downscaled system images losing detail (models shrink large images, and piano systems are wide) | Measure crops sent along with the system crop, and a zoom tool for the model (both from `NOTES-2026-10-formats.md`, to be folded in, §16 step 5). |
 | Converter/preview bugs producing false review findings | §9: converter golden tests, occasional real LilyPond cross-check. |
 | ML costs creeping up | Per-call cost logging, reuse of recorded requests, cheaper models for easy steps. |
 | Two devices editing the same project | Optimistic locking (§4). |
@@ -558,8 +564,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 ### Decisions
 - **Decide whether rendering stays in the pipeline:** confirm the Verovio-based proposal (§9), or drop rendering and review from crop + LilyPond text only (as in v1). After testing whether rendered previews measurably improve review quality.
 - **Decide the reviewer's details** (§7.5): flag-only versus auto-accepted patches, the same model or a different one, the number of rounds. By comparing results with and without review on the test set.
-- **Decide the model for each step:** analysis, transcription and review, and at what price/quality point.
-- **Decide how wide systems are split** (§8.5): always, never, or based on density; the overlap size and the merge rule.
 - **Define the constrained LilyPond subset** (§7.3) exactly, especially cross-staff notation, ornaments, ossia and lyrics.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
 - **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10).
@@ -568,8 +572,8 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Decide on the report after a re-run** (§5.5, proposed): which manual fixes were carried over and which were dropped.
 - **Polish the wording of the confirmation before a re-run** (§5.5).
 - **Decide whether the artifact view follows the pipeline while it runs** (§5.6).
+- **Decide whether the app opens like an installed app on a phone** (§5.7): the web app manifest sets no display mode, so from the home screen it opens as a normal browser page. As an installed app it would get the whole screen, but lose the browser's back button (which closes an artifact or a menu page, §5.6) and the address bar.
 - **Choose a license** (§5.6, the About page). Until then all rights are reserved.
-- **Decide when the app's version goes up** (§11).
 
 ### Placeholders to replace
 - **Real progress values:** `progressOf` in `apps/web/src/pipeline.ts` returns made-up values (pipeline 70%, stage 15%). Compute them from the stages. The "Stage" circle in the collapsed strip only appears while a stage runs, and the expanded panel shows the stage's progress next to the running stage (§5.6).
@@ -577,7 +581,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Settings page:** the spending cap and the free-tier mark for LLM configs (§10). Now a placeholder text.
 - **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). Only makes sense once there is something to explain. Now a placeholder page.
 - **"Delete project"** in the project actions does nothing. Build deletion as in §4: `deleted_at`, the partial unique index on names (a migration that rebuilds the table), deleting artifacts and PDFs nothing else uses, the confirmations.
-- **App icon for a phone's home screen:** PNG files in the usual sizes and a web app manifest, from `apps/web/public/icon.svg` (§5.7). The author still wants to rework the icon itself first.
 - **Light theme** (§5.7).
 
 ### Infrastructure and cleanup
@@ -586,6 +589,8 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Answer a PDF that doesn't match its hash with a 400.** The Worker doesn't hash the PDF: R2 checks the bytes against the client's hash and refuses a mismatch, which now surfaces as a plain HTTP 500.
 - **Create the shared package** (`packages/core`, §3) and remove the duplicates: the `Project` type (`apps/web` and `apps/worker`), `sha256Hex` (`apps/web` and `apps/eval`), the pdf.js asset plugin and the PDF rendering (`apps/web` and `apps/eval`; the eval copy is dev-only and uses the modern pdf.js build).
 - **Update Wrangler** once a release ships a patched `sharp`: `npm audit` reports a high-severity advisory in it (via Miniflare, development only, nothing deployed).
+- **Keep the device awake while a pipeline runs** (the browser's Screen Wake Lock): the browser drives the pipeline, so a phone that goes to sleep pauses the run. The lock only holds while the app is in front; switching to another tab or app releases it. A run that was paused anyway must resume where it stopped.
+- **Never lose an LLM answer that was paid for:** a request may be in flight when a phone suspends the page or the tab is closed. The Worker must finish the call and store the answer (§5.2) even though the browser has gone, so that resuming finds it and doesn't pay for the same request again.
 
 ### Optional
 - **Dates up to about a week old as "how long ago"** ("Created 2d ago"), older ones as a date (§5.7).
@@ -625,4 +630,11 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    - Possibly a **side-by-side viewer for human review** in the app (like the evaluation viewer, §13).
    - Possibly a **human → machine feedback step** for last corrections (the human points out errors, the model fixes them).
    - **Deleting a project** (§4).
+   - **Running the pipeline on the server** (optional but desirable; big, and tricky to get right). Today the browser drives the pipeline and does all the PDF and image work, so a run only advances while the app is open and, on a phone, on screen.
+     - **Preferred: all-in.** The whole pipeline runs on the server, PDF and image work included. The browser only shows results and takes the user's input, and a run doesn't depend on any device.
+     - **Whether that is possible is the thing to think about first.** A Cloudflare Worker has little memory and, on the free plan, almost no CPU time, and it has no canvas to render vector PDFs with. Image work may need the paid plan ($5/month), or a container, or may not fit Cloudflare at all.
+     - **In its favour:** the image operations are our own TS/WASM code (§8.2), not the browser's, so they can run elsewhere. With one place doing the image work, the effort to get identical pixels on every device (§8) would mostly fall away.
+     - **Against it:** derived images would live in R2 and not on the device, 150–300 MB per PDF (§2), which eats the free 10 GB quickly; and "no server-side compute" (§2) is one of the reasons the app is free to host.
+     - **Fallback: a split.** The browser keeps the PDF and image work (the short part at the start) and uploads the crops to R2; the server runs the remaining stages on its own (the LLM calls, the light checks and the assembly between them) with Cloudflare's building blocks for long-running, resumable work (Workflows, Durable Objects). Waiting for an LLM doesn't count against a Worker's CPU limit, so this may fit the free plan. To be checked against the current terms.
+     - Either way, first find out how long a real extraction takes. Until then: keeping the device awake and reliable resuming (§15).
    - **Forking a project** from a given stage: a new, separate project that starts with the original's pipeline up to that stage. Each project keeps its own linear history. Behind the scenes, the fork reuses the original's artifacts without duplicating them.

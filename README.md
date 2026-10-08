@@ -24,6 +24,8 @@ npx wrangler d1 execute score3ly --local --command "SELECT * FROM projects"
 
 Run the tests with `npm test`.
 
+After changing the app icon (`apps/web/public/icon.svg`), make its PNG versions again with `npm run icons -- --force`.
+
 To deploy the app and API to Cloudflare as one Worker: `npm run deploy`.
 
 ## Evaluation
