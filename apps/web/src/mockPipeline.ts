@@ -283,11 +283,21 @@ export function edit(pipeline: Pipeline, stageId: string): Pipeline {
   return update(pipeline, stages);
 }
 
-// Removes a manual stage that isn't finished. The stage after it gets its turn.
-export function discard(pipeline: Pipeline, stageId: string): Pipeline {
+// Whether a stage can be dropped: only stages that aren't part of the recipe (DESIGN.md §5.5). In the mock,
+// those are the manual ones.
+export function canDrop(stage: Stage): boolean {
+  return stage.kind === "manual";
+}
+
+// Removes a stage, finished or not. The pipeline continues from the stage before it: the stages after it are
+// replaced, and the first of them gets its turn.
+export function drop(pipeline: Pipeline, stageId: string): Pipeline {
   const i = pipeline.stages.findIndex((stage) => stage.id === stageId);
-  if (pipeline.stages[i]?.status !== "wip") return pipeline;
-  const stages = pipeline.stages.filter((stage) => stage.id !== stageId);
+  if (i < 0 || !canDrop(pipeline.stages[i])) return pipeline;
+  const stages = resetAfter(
+    pipeline.stages.filter((stage) => stage.id !== stageId),
+    i - 1,
+  );
   return next(update(pipeline, stages), i - 1);
 }
 

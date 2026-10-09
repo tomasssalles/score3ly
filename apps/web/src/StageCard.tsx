@@ -2,6 +2,7 @@ import { DropdownMenu, type MenuItem } from "./DropdownMenu";
 import type { Project } from "./api";
 import { ComputedIcon, DataIcon, LlmIcon, ManualIcon, MoreIcon, MusicIcon, PlayIcon, RetryIcon, StopIcon } from "./icons";
 import { MockPage, MockSystem } from "./mockContent";
+import { canDrop } from "./mockPipeline";
 import { dollars } from "./money";
 import { pdfUrl } from "./pdf";
 import { PdfThumb } from "./PdfThumb";
@@ -19,7 +20,7 @@ export type StageActions = {
   changeConfig: (stageId: string) => void;
   addFix: (stageId: string, title: string) => void;
   edit: (stageId: string) => void;
-  discard: (stageId: string) => void;
+  drop: (stageId: string) => void;
 };
 
 const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {
@@ -156,8 +157,8 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
     for (const fix of stage.fixes) changes.push({ label: `Add: ${fix}`, onSelect: () => actions.addFix(stage.id, fix) });
   }
   if (changes.length > 0) groups.push(changes);
-  if (stage.status === "wip") {
-    groups.push([{ label: "Discard", danger: true, onSelect: () => actions.discard(stage.id) }]);
+  if (canDrop(stage)) {
+    groups.push([{ label: "Drop stage", danger: true, onSelect: () => actions.drop(stage.id) }]);
   }
   return groups;
 }

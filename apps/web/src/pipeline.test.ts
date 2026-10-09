@@ -7,6 +7,7 @@ import {
   currentStage,
   defaultOutputId,
   findOutput,
+  findStage,
   progressOf,
   runningStage,
   type Pipeline,
@@ -91,11 +92,29 @@ test("a finished manual stage can be edited again, which replaces what follows",
   assert.ok(p.stages.slice(5).every((stage) => stage.status === "planned"));
 });
 
-test("discarding an unfinished manual stage gives the next stage its turn", () => {
+test("dropping an unfinished manual stage gives the next stage its turn", () => {
   const added = mock.addFix(mock.mockPipeline(project), "skeleton", "Fix system crops");
-  const p = mock.discard(mock.setMode(added, "manual"), added.stages.find((s) => s.kind === "manual" && s.status === "wip")!.id);
+  const p = mock.drop(mock.setMode(added, "manual"), added.stages.find((s) => s.kind === "manual" && s.status === "wip")!.id);
   assert.equal(currentStage(p)?.id, "transcription");
   assert.equal(currentStage(p)?.status, "ready");
+});
+
+test("dropping a finished manual stage replaces what follows, from the stage before it", () => {
+  const p = mock.drop(mock.setMode(mock.mockPipeline(project), "manual"), "fix-1");
+  assert.equal(findStage(p, "fix-1"), null);
+  assert.equal(currentStage(p)?.id, "system_crops");
+  assert.equal(currentStage(p)?.status, "ready");
+  assert.equal(currentStage(p)?.seconds, undefined);
+});
+
+test("in Auto mode, the pipeline carries on after a stage is dropped", () => {
+  const p = mock.drop(mock.mockPipeline(project), "fix-1");
+  assert.equal(runningStage(p)?.id, "system_crops");
+});
+
+test("a planned stage can't be dropped", () => {
+  const p = mock.mockPipeline(project);
+  assert.equal(mock.drop(p, "analysis"), p);
 });
 
 test("changing a stage's config in Manual mode makes it ready, and clears what follows", () => {

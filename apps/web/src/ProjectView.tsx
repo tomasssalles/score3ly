@@ -13,6 +13,12 @@ import { useWide } from "./useWide";
 const COLLAPSED_KEY = "pipelinePanelCollapsed";
 const TICK = 100; // ms between steps of the mock simulation
 
+// What the user must know before stages that already ran are replaced (DESIGN.md §5.5).
+const OVERWRITE_TEXT = [
+  "Everything from here on is overwritten. There is no undo.",
+  "Changing one stage can change, and is likely to change, the rest of the pipeline. Wherever a stage's input stays exactly the same, its earlier result is reused: LLM calls already paid for are not paid for again, and manual fixes are kept. Everywhere else, calls are paid for again and manual work is dropped.",
+];
+
 type Confirmation = { title: string; text: string[]; confirmLabel: string; danger?: boolean; action: () => void };
 
 // Wide mode: the pipeline panel on the left (collapsible to a narrow strip), the artifact view on the right.
@@ -92,10 +98,7 @@ export function ProjectView({
     const stage = findStage(pipeline, stageId);
     setConfirmation({
       title: `Overwrite the pipeline from "${stage?.title}"?`,
-      text: [
-        "Everything from here on is overwritten. There is no undo.",
-        "Changing one stage can change, and is likely to change, the rest of the pipeline. Wherever a stage's input stays exactly the same, its earlier result is reused: LLM calls already paid for are not paid for again, and manual fixes are kept. Everywhere else, calls are paid for again and manual work is dropped.",
-      ],
+      text: OVERWRITE_TEXT,
       confirmLabel: "Overwrite",
       action: run,
     });
@@ -119,13 +122,20 @@ export function ProjectView({
     },
     addFix: (id, title) => change(id, (p) => mock.addFix(p, id, title), mock.replacesWork(pipeline, id)),
     edit: (id) => change(id, (p) => mock.edit(p, id), mock.replacesWork(pipeline, id)),
-    discard: (id) =>
+    // Always asks: the stage's own work is lost, and perhaps the stages after it too.
+    drop: (id) =>
       setConfirmation({
-        title: `Discard "${findStage(pipeline, id)?.title}"?`,
-        text: ["The changes made in this stage are lost."],
-        confirmLabel: "Discard",
+        title: `Drop "${findStage(pipeline, id)?.title}"?`,
+        text: [
+          "The stage is removed, and the work done in it is lost. There is no undo.",
+          ...(mock.replacesWork(pipeline, id) ? OVERWRITE_TEXT : []),
+        ],
+        confirmLabel: "Drop stage",
         danger: true,
-        action: () => setPipeline((p) => mock.discard(p, id)),
+        action: () => {
+          setPipeline((p) => mock.drop(p, id));
+          scroll();
+        },
       }),
     setMode: (mode) => setPipeline((p) => mock.setMode(p, mode)),
     mockFail: () => setPipeline(mock.fail),
