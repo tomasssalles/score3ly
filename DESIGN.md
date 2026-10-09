@@ -470,6 +470,9 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 - **15, Apply review results.** An LLM gets the current extraction and the issues, and is told which issues need a change (below). It returns the changed music; the artifacts are a new full MEI, its rendering, and the issues with their `applied` field updated and nothing else changed.
 - **16, Human review.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
   - **A viewer like the one of the evaluation tooling** (§13) is needed for this anyway: the original next to the rendering of the current extraction. The user never sees MEI or LilyPond.
+  - **Every correction is applied by stage 15,** an LLM call (decided). Applying answers by code doesn't work in general: a measure can have several issues, and an answer would have to come with a replacement for every combination of answers; and many corrections reach beyond one measure ("this slur continues the one in the previous system" touches two systems, perhaps two pages).
+  - **Code checks what stage 15 did:** it compares the MEI before and after measure by measure, the rendering highlights the measures that changed, and a change outside the measures of the issues being applied is flagged. So an issue names every measure it may touch, not just one place (see "Issues across systems" below).
+  - **No editing of the source and no replacing it by an upload** (decided, for now). Either would make the issues unreliable: after a direct edit, nobody knows which answer of each issue the MEI reflects. A "final touches" stage is an optional item for late in the roadmap (§16).
   - **Idea for adding a correction:** the user marks the place on the original score, as in the evaluation viewer (which works well on touch devices), and writes the correction as free text ("this should be a C flat"). Code finds the measures the marks overlap. Stage 15 gets the marked crop and those measures, which together stand in for the issue's description.
 
 #### Issues
@@ -490,7 +493,6 @@ An **issue** is one question about what the printed score says at one place: a m
 
 #### Open
 **To discuss next:**
-- **(A) Every human correction goes through an LLM call** (stage 15 after 16). That costs money on every round and can be applied wrongly, which the user only sees in the new rendering and can only answer with another correction. Alternatives to weigh: a direct way to edit for simple cases; applying by code where an answer is structured enough; showing the user what stage 15 changed.
 - **(B) Stage 14 grows with the square of the score's length:** the extraction and the issues of the whole score go into each of the calls, one per system. Prompt caching removes most of the cost if the whole-score part comes first and is identical in every call. Otherwise the context could be limited to the page or to the neighbouring systems.
 - **(D) One format for issues from models and from the user.** A user's issue as sketched in stage 16 has marks on the page and the measures under them in place of `location` and `question`, a single answer, and is resolved from the start. Does that fit the same schema with optional fields, or are there two kinds? The same question for problems found by code (below).
 
@@ -507,10 +509,10 @@ An **issue** is one question about what the printed score says at one place: a m
 - **Stages 15 and 16 are less worked out** than the rest and may need clarifying.
 
 **Seen while writing this down:**
-- **Is `applied` what the model says or what code checked?** Stage 15 updates the field, but a model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5). Code can at least check that the measures of an issue changed when it was applied, and that nothing else did.
+- **Is `applied` what the model says or what code checked?** Stage 15 updates the field, but a model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5). Code checks that the measures of an issue changed when it was applied, and that nothing else did (stage 16 above).
 - **Running stage 15 only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
 - **The structural checks (§7.4) have no stage of their own any more.** Validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) need a place: they could be issues too, raised by code, which is part of (D).
-- **Issues across systems.** A slur that continues into the next system concerns two systems, but an issue names one place.
+- **Issues across systems.** A slur that continues into the next system concerns two systems, but an issue names one place. It has to name every measure it may touch, for the check after stage 15; how, is open.
 - **How many reviews the recipe has,** and whether there is a limit on the ones added by hand (the old plan said at most one or two rounds).
 - **Whether a review added by hand always brings its stage 15,** as stage 16 does.
 - **What a re-run does to issues.** A change before stage 12 runs the extraction again, and the issues start over; the human review after it is dropped, since its input changed (§5.5). Resolved issues are then lost with it, although many would still apply. This is the per-item reuse question of §15 in another form.
@@ -938,5 +940,6 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    - **Entering the LLM keys in the app** (optional). The keys are stored in D1, encrypted with one master key, which is the only secret left to set on the host. The Worker decrypts a key only to call the provider and never sends it back to the browser: the settings page shows "set", and perhaps the last four characters. Whoever gets past the login can replace a key, but not read one.
      - **Why:** it decouples the app further from Cloudflare. A SQLite database, object storage, a server and one secret can be had from other providers, and with the right ports and adapters (§3) the app becomes portable. Setting up the keys is then the same on every host, and so is the user guide. It is also more convenient: a key can be changed from the app, on any device.
      - **The price:** code that handles secrets, which has to be right.
+   - **A "final touches" stage** (optional, late): the user edits the MEI directly in the app, in a code editor, validated and rendered again on saving. No stage can be added after it, so the issues, which a direct edit leaves unreliable, are no longer needed; its result goes to the export. Replacing the MEI by uploading a file edited in another program (MuseScore reads and writes MEI) is left out: such a round trip can lose the IDs that tie measures to the original.
    - **Desktop version** (optional, §3): Electron around the same app and server, with Node adapters for D1 and R2 and secrets in a local file.
    - **Forking a project** from a given stage: a new, separate project that starts with the original's pipeline up to that stage. Each project keeps its own linear history. Behind the scenes, the fork reuses the original's artifacts without duplicating them.
