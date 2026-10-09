@@ -65,8 +65,8 @@ flowchart LR
 
   subgraph CF["Cloudflare (EU jurisdiction)"]
     W["Worker (Hono):<br/>API, auth boundary, LLM proxy"]
-    D1[("D1 (SQLite):<br/>projects, configs, text artifacts,<br/>provenance, LLM call records")]
-    R2[("R2:<br/>original PDFs by SHA-256,<br/>non-regenerable binaries")]
+    D1[("D1 (SQLite):<br/>projects, configs, stages,<br/>provenance, LLM call records")]
+    R2[("R2:<br/>original PDFs and artifact<br/>content, by SHA-256")]
     W <--> D1
     W <--> R2
   end
@@ -84,8 +84,8 @@ flowchart LR
 | Data | Location | Why |
 |---|---|---|
 | Original PDFs | R2, key = SHA-256 of the file bytes | Source of truth. About 0.66 GB for 200 PDFs, well within R2's 10 GB free tier. Identifying PDFs by content makes deduplication and "resume an existing project?" trivial. |
-| Projects, step configs, provenance, fingerprints | D1 | Small, structured, relational. SQLite is easy to inspect and migrate. |
-| Text artifacts (analysis JSON, LilyPond fragments, review findings, human operations) | D1 | Small, must never be lost, often not reproducible. |
+| Projects, step configs, stages, one row per artifact, provenance, fingerprints | D1 | Small, structured, relational. SQLite is easy to inspect and migrate. |
+| The content of stored artifacts (analysis JSON, LilyPond fragments, review findings, human operations) | R2, key = SHA-256 of the content | Small, must never be lost, often not reproducible. One storage mechanism and one rule for everything stored (see below), plain files in the desktop version (§3), and far more room than D1 has. Content can't be queried there, so whatever the app filters or sums on (costs, counts, types of findings) is also a column in D1. |
 | LLM call records (full request + response) | D1 (large payloads in R2) | Needed for provenance, cost tracking and replay tests (§12). |
 | Derived images (page images, preprocessed pages, system crops) | OPFS on the current device | Large (roughly 150–300 MB per PDF in colour, a third of that in grayscale) but regenerable from the PDF plus the recipe. Device-local means real deletion, no cloud quota, and no data residency issue. |
 | Final exports (LilyPond, optional engraved PDF) | Download, or an app-created folder in Google Drive | The user's own file space. Browsable anywhere. |
@@ -93,7 +93,8 @@ flowchart LR
 ### Why this split
 - **No server-side compute.** Workers have tight CPU limits and no native libraries. All heavy processing happens in the browser, so the Worker stays a thin API and LLM proxy, and stays on the free tier. Waiting on an LLM response doesn't consume Worker CPU time.
 - **Images are cache, not data.** This removes the biggest storage cost entirely. Switching devices costs some regeneration time, not storage.
-- **Everything persistent is small** (text in D1) or **content-addressed and immutable** (PDFs in R2).
+- **Everything persistent is small** (rows in D1) or **content-addressed and immutable** (R2).
+- **Every object in R2 is stored under the SHA-256 of its bytes,** not only the PDFs. Objects never change: changed content is a new object under a new key. So a repeated upload is harmless, the browser can cache every object for good, a fork (§16) copies no objects, and the hash that a stage's validity check needs anyway (§5.2) is also the key. The price is that an object can't simply be deleted with the row that refers to it, since other rows may refer to it too (§4).
 
 ## 3. Technology decisions
 
@@ -144,8 +145,8 @@ The core depends only on interfaces. Adapters live in `apps/*`.
 | Port | Adapters |
 |---|---|
 | `PdfSource` | Local file input, Google Drive (Picker) |
-| `BlobStore` (original PDFs) | R2 via the Worker. A folder of files (desktop version). In-memory for tests. |
-| `ProjectStore` (projects, artifacts, provenance) | D1 via the Worker. A SQLite file (desktop version). SQLite or in-memory for tests. |
+| `BlobStore` (original PDFs, artifact content) | R2 via the Worker. A folder of files (desktop version). In-memory for tests. |
+| `ProjectStore` (projects, stages, artifact rows, provenance) | D1 via the Worker. A SQLite file (desktop version). SQLite or in-memory for tests. |
 | `DerivativeCache` (regenerable images) | OPFS. In-memory for tests. |
 | `LlmProvider` | One adapter per provider (via the Worker). **Replay** adapter for tests. |
 | `Renderer` | **Proposed:** Verovio in the browser. Optional: LilyPond (local install, container). See §9. |
@@ -200,6 +201,7 @@ The project owner uses the web app. The desktop version mainly makes the app eas
   - Deleting a project frees its name.
 - **Deleting a project** (planned) keeps a trace in D1 but removes everything else:
   - **Deleted:** the project's artifacts and its PDF, in D1, R2 and the device cache, unless another project that isn't deleted still uses them. That is checked with a query at deletion time, not with stored reference counts, which can drift.
+  - **Orphans in R2 are collected then too:** objects that no row in D1 refers to any more, from any project. They are left behind when a manual stage in progress is saved again (the new content is a new object, §2) or when an upload isn't followed by its row in D1. Nothing else deletes them: a save doesn't delete the object it replaces. This lists the whole bucket and compares it with D1, which is acceptable because deleting a project is rare.
   - **Kept:** the project's row, marked with a deletion time (`deleted_at`), and its entries in the cost ledger (§10).
   - A deleted project never appears in the UI again, except in the costs view. Picking its PDF again doesn't trigger the "already based on this file" dialog, unless other projects use that PDF.
   - Uniqueness of names only counts projects that aren't deleted: a partial unique index (`... WHERE deleted_at IS NULL`). The current constraint sits on the column and can't be dropped, so the migration rebuilds the table.
@@ -266,7 +268,7 @@ A **cache key** = hash(step id, version, canonical config, input artifact IDs).
 - Re-running a step with identical inputs and config hits the cache.
 - Artifacts of later stages may already exist when an earlier stage is run again with the same inputs and config. They are found through the cache key and reused.
 
-Every artifact has a row in D1, which belongs to the stage that produced it and says whether the artifact's content is stored (and where: D1 or R2) or only its recipe (§5.3).
+Every artifact has a row in D1, which belongs to the stage that produced it and says whether the artifact's content is stored (in R2, under its hash, §2) or only its recipe (§5.3).
 
 **Checking that stages are still valid:** a pipeline checks its stages against the hashes of their inputs and outputs. Stored content can change outside the app (e.g. files in the desktop version's data folder edited by hand), and a stage whose recorded inputs or outputs no longer match what is stored is not valid any more. How and when this is checked, and what the app does then, is still to be designed (§15).
 
@@ -290,9 +292,10 @@ The user intervenes by adding a manual stage to the pipeline. The manual stages 
 Rules:
 - **One manual stage covers the whole PDF,** however many items are fixed in it. Fixing twelve measure crops is one "fix measure crops" stage, not twelve. Otherwise the pipeline shown in the UI would get too long.
 - The artifacts of a manual stage have `origin = manual` and the corrected artifact as their parent.
-- Edits to images are stored as **replayable operations** in D1, not as edited pixels: crop windows, deskew angles, masks as vector strokes. Replaying them on the regenerated base image reproduces the edited result.
+- Edits to images are stored as **replayable operations**, not as edited pixels: crop windows, deskew angles, masks as vector strokes. Replaying them on the regenerated base image reproduces the edited result.
 - Text artifacts (analysis JSON, transcribed music) are stored edited, with a diff to their parent.
 - **Undo exists only inside a tool for manual work** (the tools aren't built yet), while it is open. Leaving the tool saves, and after that nothing can be undone: the stage can only be edited further or dropped (§5.5).
+- **A finished stage never changes.** Editing a finished manual stage creates a new manual stage, which starts from the finished state of the old one and takes its place in the pipeline. The old one becomes a replaced stage (§5.5) and stays in storage as it was. The reason is forking (§16): another project's pipeline can use the same stored stage, and it must not change there.
 
 ### 5.5 Resuming and re-running
 - **The history of a project is linear.** There are no branches inside a project, and no undo.
@@ -341,7 +344,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
   - one line of facts: the model; once done, also the run time, the cost and a short result ("54 systems", "3 boxes moved, 1 added");
   - while running, its progress bar; when failed, the error;
   - its button, if it has one (below);
-  - at the bottom, its **outputs as tiles,** three per row: a thumbnail for images and for the original PDF (its first page), an icon for JSON and LilyPond. Outputs are **grouped logically:** all 54 system crops are one tile with "×54", not 54 tiles. The first output is the stage's main one. Tiles are what gets selected (highlighted in coral), not the card.
+  - at the bottom, its **outputs as tiles,** three per row, each with an **icon for its kind of artifact, never a thumbnail:** at a tile's size no content is recognizable, so a thumbnail adds nothing. (Not built yet: the tiles still show thumbnails for images and for the original PDF, §15.) Outputs are **grouped logically:** all 54 system crops are one tile with "×54", not 54 tiles. The first output is the stage's main one. Tiles are what gets selected (highlighted in coral), not the card.
 - **Stage states:**
   - **done**;
   - **running**: a green border and its progress bar;
@@ -351,7 +354,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
   - **WIP**: a manual stage being worked on (below).
   - A "needs you" state for a model asking for human input is left out for now; it will be easy to add (§5.1).
 - **Buttons:** in Manual mode, the ready stage has **Run** and, while it runs, **Stop** in the same place. In Auto mode the cards have no Run or Stop: those are in the head. When the stage whose turn it is has failed, Run reads **Retry**, with a circular arrow, in both modes. Stop throws away what the running stage did so far.
-- **Manual stages** are added from a stage's "⋮" ("Add: Fix system boxes", whichever fixes fit after that stage). They start as **WIP** (a badge next to the name): the user opens the stage's output as often as they like and works on it, and clicks **Finish** on the card when done. Then the next stage gets its turn. In Auto mode the pipeline carries on by itself; in Manual mode the next stage is ready. A finished manual stage can be edited again ("Edit" in its "⋮"): that continues from where the user left it, not from scratch, but like any change in the middle (§5.5) it replaces the later stages and needs confirming. There is no "Discard": a manual stage, WIP or finished, is removed with "Drop stage" (§5.5). Undoing single edits belongs to the tools for manual work (§5.4).
+- **Manual stages** are added from a stage's "⋮" ("Add: Fix system boxes", whichever fixes fit after that stage). They start as **WIP** (a badge next to the name): the user opens the stage's output as often as they like and works on it, and clicks **Finish** on the card when done. Then the next stage gets its turn. In Auto mode the pipeline carries on by itself; in Manual mode the next stage is ready. A finished manual stage can be edited again ("Edit" in its "⋮"): that continues from where the user left it, not from scratch, but like any change in the middle (§5.5) it replaces the later stages and needs confirming. In storage, the stage being edited is a new one that replaces the finished one (§5.4); the mock still reopens the same stage. There is no "Discard": a manual stage, WIP or finished, is removed with "Drop stage" (§5.5). Undoing single edits belongs to the tools for manual work (§5.4).
 - **The stage's "⋮"** holds everything else, so the card stays clean: "Show details", "Change config", "Add: Fix …", "Edit" (manual stages), "Drop stage" (stages that aren't part of the recipe, WIP ones included, §5.5; in red). Only what applies is listed, and while a stage runs only "Show details". There is no "Run again": running a stage again without changing its config only makes sense after it failed, and that is Retry. Whatever replaces stages that already ran asks first (§5.5).
 - **Show details** opens the stage in the artifact view: step and version, kind, status, run time, cost, result, its config, and for LLM stages the calls it made with their tokens and costs.
 - **Groups are shown as a filmstrip:** the items one below the other with a small gap, scrolling continuously, with a counter in a corner ("12 / 54"). That way the end of one system and the start of the next are on screen together, which helps when checking musical content. Transcriptions show the system's crop with its LilyPond below it.
@@ -382,6 +385,8 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 
 ## 6. Pipeline stages (initial plan)
 
+A newer list of stages is being discussed: see "Proposed stages" at the end of this section. Until it is final, the table below and the sections that build on it (§7, §9) are the plan.
+
 | # | Stage | Kind | Granularity | Output |
 |---|---|---|---|---|
 | 0 | Ingest | deterministic | document | PDF in R2, project in D1 |
@@ -408,6 +413,108 @@ One pass over each page, plus a document-level merge. **Every page is sent,** wh
 - **Phenomena per system:** multiple voices, lyrics, ossia/alternatives, editorial notes, reduction staff, double systems. These drive the skeleton.
 
 Example of why this matters: a smudged note on one page can be resolved because the global analysis knows the passage repeats a theme from a page that was read without problems.
+
+### Proposed stages (draft, under discussion)
+
+> **Status: a proposal by the project owner, not decided.** It is meant to replace the table above and, with it, parts of §7 (the LilyPond conventions in §7.3, the structural checks as a stage in §7.4, the reviewer's findings in §7.5). It assumes MEI as the stored format, which is itself not decided yet (`NOTES-2026-10-formats.md` §3). When the list is final, this section is folded into the rest of the document.
+
+Stages marked **[manual]** are optional and added by the user (§5.4). Everything else is the recipe.
+
+| # | Stage | Kind | Artifacts |
+|---|---|---|---|
+| 1 | Ingest | computed | The PDF (R2) |
+| 2 | Rasterize | computed | All page images, as one artifact. Not stored: reproduced from the config (§5.3) |
+| 3 | Skew analysis | computed | JSON: per page, the skew angle, the staves found, and whether the page is to be rotated (§8.4). No rotated images |
+| 4 | Fix skew angles **[manual]**, after 3 | manual | JSON as in 3 |
+| 5 | Deskew | computed | All page images, as one artifact, as in 2 |
+| 6 | General analysis | LLM | JSON: metadata. JSON: system boxes and the x-positions of the bar lines in each system. JSON: observations per page and for the whole score |
+| 7 | Fix metadata **[manual]**, after 6 | manual | JSON: metadata |
+| 8 | Fix system and measure boxes **[manual]**, after 6 | manual | JSON: boxes |
+| 9 | Fix observations **[manual]**, after 6 | manual | JSON: observations |
+| 10 | Crop systems and measures | computed | The crops, as in 5 |
+| 11 | MEI skeleton | computed | MEI, with the metadata filled in and a placeholder per measure |
+| 12 | Extraction | LLM, per system | The JSON answers per system. The MEI snippets per measure. The issues raised (see below) |
+| 13 | Full MEI | computed | The MEI file. Its rendering as a PDF. All issues combined into one JSON |
+| 14 | Review | LLM, per system | JSON: the issues, updated |
+| 15 | Apply review results | LLM | The MEI file, the new rendering, and the issues with what was applied |
+| 16 | Human review **[manual]**, after any 15 | manual | JSON: the issues, updated. A stage 15 is added after it automatically |
+
+- **No manual fixes of the music before the first review.** The first point where the user corrects the music is stage 16.
+- **Further reviews** (14, each followed by 15) can be added by hand after the recipe's own one, with the same or another config.
+- **The manual stages after 6** (7, 8, 9) are all added from stage 6's "⋮" and in any order.
+
+#### Details per stage
+- **4, Fix skew angles.** The user flips through the pages with arrows (no continuous scroll). Per page: a toggle that turns deskewing on or off, and lines drawn by clicking where their two ends should be, along the staff lines. Code computes the angle that makes those lines as horizontal as possible. A very small angle still means no rotation, but an angle set by hand may be larger than the 5 degrees allowed otherwise (§8.4). Still needed: deleting a line, moving its ends, and how all of this works on touch devices.
+- **6, General analysis.**
+  - **Per page:**
+    - what the page is: cover, empty, music or other;
+    - metadata, where the input can include what earlier pages gave, so that the model only updates it (as a full JSON or a JSON patch);
+    - whether the page is severely skewed;
+    - the number of systems, and per system the number of real measures and whether it ends with a "non-measure" that only holds a key signature change;
+    - a bounding box per system. Boxes may overlap, so that nothing is missing from a crop. The model can call a tool that shows the page with its boxes drawn in colour, and adjust them, at most 3 rounds; if it still isn't satisfied, it flags the page for human review and returns its best guess;
+    - the same procedure for the measures, but only the x-positions of the bar lines in each system are asked for. Because of the non-measures, the bar lines can't simply be numbered to get measure numbers;
+    - high-level musical information: number of staves, the probable instrument of each staff, voices per staff, time signatures, key signatures, clefs, 8va and the like (for all of these also where and how they change), large-scale dynamics such as crescendos, melodies that seem to repeat in other places, repeats, "da capo" and the like, parts, movements or pieces, and the general style (e.g. baroque).
+  - **Per project:** all pages in a small format, with what the per-page part found, to get observations across pages that help the extraction later, such as melodies that repeat on other pages.
+- **7, Fix metadata.** At first by editing the JSON, if that is easiest. Later a form with a field per entry.
+- **9, Fix observations.** At first by editing the JSON. Later the observations could be shown as a Markdown document that the user edits as formatted text. That Markdown could be a further artifact of stage 6, or of a tiny stage after it, and stage 9 would then edit the Markdown. Worth building early although it is a nice-to-have: it changes the list of stages and the kinds of artifact.
+- **12, Extraction.** One call per system, with:
+  - the system crop and its measure crops;
+  - the crops of the previous and the next system;
+  - the observations from stage 6 (or 9);
+  - the time signature the system begins with, worked out by code from the previous system's extraction;
+  - a tool to zoom into a part of the crop, so the call is a loop, with caps.
+
+  The model extracts the music and reports its doubts as issues. **The snippets are built and validated after each system,** not at the end: if the model can't handle the score, the stage fails early, and an hour of calls isn't paid for answers that turn out not to parse. An early failure tells the user to step in earlier in the pipeline, or to use a stronger model.
+- **13, Full MEI.** The placeholders are replaced by the snippets, the whole document is validated and rendered, and the issues of all systems are combined.
+- **14, Review.** One call per system, with the same input as stage 12, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. A tool shows the crop of another system, capped at a small number of calls. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output.
+- **15, Apply review results.** An LLM gets the current extraction and the issues, and is told which issues need a change (below). It returns the changed music; the artifacts are a new full MEI, its rendering, and the issues with their `applied` field updated and nothing else changed.
+- **16, Human review.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
+  - **A viewer like the one of the evaluation tooling** (§13) is needed for this anyway: the original next to the rendering of the current extraction. The user never sees MEI or LilyPond.
+  - **Idea for adding a correction:** the user marks the place on the original score, as in the evaluation viewer (which works well on touch devices), and writes the correction as free text ("this should be a C flat"). Code finds the measures the marks overlap. Stage 15 gets the marked crop and those measures, which together stand in for the issue's description.
+
+#### Issues
+An **issue** is one question about what the printed score says at one place: a model's doubt, a reviewer's correction or a user's correction. (Earlier called "uncertainty"; `NOTES-2026-10-formats.md` still uses that word.)
+
+- **It describes a place in the printed score,** not in the MEI or in the rendering: page, system on that page, measure in that system, and then prose, e.g. "the low left-hand note on the second beat". A plain measure number wouldn't do: the detection of measures is one of the things that can be wrong.
+- **What an issue holds** (the field names are a sketch):
+  - `id`: the same through all stages;
+  - `page`, `system`, `measure`: numbers, as printed;
+  - `location` and `question`: prose, e.g. "the low left-hand note on the second beat" and "not sure which duration it has";
+  - `answers`: a list of free texts;
+  - `choices`: who chose which answer, one entry per stage that chose (the extraction, each review, the user). The answer that counts is the latest one, but nothing is overwritten, so disagreement between reviewers stays visible and the human review can show those issues first;
+  - `applied`: the answer the current MEI reflects, or **null** when that isn't known. It is null for an issue the user added: the user only says what is right, not what the MEI has now;
+  - `resolved`: set when a human chose or wrote the answer.
+- **A resolved issue stays in the list for good.** Later reviews take its answer as the truth and don't raise the question again.
+- **An issue needs applying** (stage 15) when its chosen answer differs from `applied`, which includes every issue whose `applied` is null.
+- **The issues of a score are one JSON artifact.** Each stage that touches them produces a new version (§5.4: stored stages never change).
+
+#### Open
+**To discuss next:**
+- **(A) Every human correction goes through an LLM call** (stage 15 after 16). That costs money on every round and can be applied wrongly, which the user only sees in the new rendering and can only answer with another correction. Alternatives to weigh: a direct way to edit for simple cases; applying by code where an answer is structured enough; showing the user what stage 15 changed.
+- **(B) Stage 14 grows with the square of the score's length:** the extraction and the issues of the whole score go into each of the calls, one per system. Prompt caching removes most of the cost if the whole-score part comes first and is identical in every call. Otherwise the context could be limited to the page or to the neighbouring systems.
+- **(D) One format for issues from models and from the user.** A user's issue as sketched in stage 16 has marks on the page and the measures under them in place of `location` and `question`, a single answer, and is resolved from the start. Does that fit the same schema with optional fields, or are there two kinds? The same question for problems found by code (below).
+
+**Open in the proposal itself:**
+- **Stages 5 and 10 as stages at all.** They store nothing but images on the device and roughly double the space a project takes there. The alternative: rotate and crop in memory wherever the images are needed.
+- **The size of stage 6.** It does a lot. It could be split into a few stages: we want neither giant stages nor a thousand small ones.
+- **Content boxes.** Should stage 6 (or a stage before it) also find the box of the content on each page, with most of the analysis then running on content crops? The point: the user could fix the content crop of a bad page and re-run, and the model could suddenly see the music. A draft prompt is in `NOTES-2026-10-formats.md` §6.
+- **Which metadata** is collected for a score.
+- **Stage 8's tool** for fixing boxes and bar lines.
+- **Stage 11:** many small details of the skeleton.
+- **Stage 12:** the format the model writes the music in (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
+- **Stage 15:** what exactly goes in, the format of the answer, and whether it runs per measure, per system, per page or once for the score.
+- **Renderings of the extracted MEI as input** for some stages (review, apply): whether, and where.
+- **Stages 15 and 16 are less worked out** than the rest and may need clarifying.
+
+**Seen while writing this down:**
+- **Is `applied` what the model says or what code checked?** Stage 15 updates the field, but a model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5). Code can at least check that the measures of an issue changed when it was applied, and that nothing else did.
+- **Running stage 15 only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
+- **The structural checks (§7.4) have no stage of their own any more.** Validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) need a place: they could be issues too, raised by code, which is part of (D).
+- **Issues across systems.** A slur that continues into the next system concerns two systems, but an issue names one place.
+- **How many reviews the recipe has,** and whether there is a limit on the ones added by hand (the old plan said at most one or two rounds).
+- **Whether a review added by hand always brings its stage 15,** as stage 16 does.
+- **What a re-run does to issues.** A change before stage 12 runs the extraction again, and the issues start over; the human review after it is dropped, since its input changed (§5.5). Resolved issues are then lost with it, although many would still apply. This is the per-item reuse question of §15 in another form.
+- **Issue ids** must stay the same from stage to stage, and who assigns them (code, not the model) has to be fixed.
 
 ## 7. LLM steps
 
@@ -590,7 +697,7 @@ Built, in `findSkew`, from the same line responses and strips, at the angle foun
 |---|---|---|
 | Cloudflare Workers (static assets + API) | Hosting | Free tier. No heavy compute. |
 | Cloudflare D1 | Database | EU jurisdiction set at creation. Cannot be changed later. |
-| Cloudflare R2 | Original PDFs, large LLM payloads | EU jurisdiction bucket. Cannot be changed later. |
+| Cloudflare R2 | Original PDFs, artifact content, large LLM payloads | EU jurisdiction bucket. Cannot be changed later. |
 | Cloudflare Access | Login | Protects everything, including the API. |
 | Google Drive | Picking source PDFs. Optional export target. | `drive.file` scope, Picker for selection, app-created export folder. Publish the OAuth app to "production" status (even unverified), because refresh tokens expire after 7 days in "testing" status. |
 | Vision LLMs | Global analysis, transcription, review | Called **only through the Worker**: API keys stay in Worker secrets. |
@@ -605,7 +712,7 @@ Built, in `findSkew`, from the same line responses and strips, at the angle foun
 - Entering the keys in the app is an optional roadmap item (§16).
 
 ### Data residency
-- PDFs (R2) and text (D1) are in EU-jurisdiction Cloudflare storage. Images stay on the device unless sent to an LLM.
+- PDFs and artifact content (R2) and everything else (D1) are in EU-jurisdiction Cloudflare storage. Images stay on the device unless sent to an LLM.
 - Cloudflare is a US company. An EU jurisdiction guarantees **where** data is stored, not which legal regime ultimately applies. This is acceptable for this project.
 - **LLM calls are the residency gap.** For EU processing:
   - Gemini and Claude are both available in EU regions through Google Vertex AI. Claude is also available through AWS Bedrock.
@@ -748,6 +855,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Define the constrained LilyPond subset** (§7.3) exactly, especially cross-staff notation, ornaments, ossia and lyrics.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
 - **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs, and for Claude on Vertex AI and Bedrock (§7.6).
+- **Finalize the list of stages** (§6, "Proposed stages"): settle its open points, then replace the table in §6 and rewrite what depends on it (§7, §9), together with the format decisions in `NOTES-2026-10-formats.md` (§16).
 - **Design the D1 schema for stages and artifacts** (§5).
 - **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
 - **Decide on reuse per item within a stage** (§5.5): a manual stage covers the whole PDF. If only one system's input changed, should the fixes on the unchanged systems carry over, with only the changed one dropped? Well-meant, but it makes the behaviour harder for the user to understand, more than it complicates the code.
@@ -758,7 +866,8 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Choose a license** (§5.6, the About page). Until then all rights are reserved.
 
 ### Placeholders to replace
-- **Replace the mock stages** (§5.6, `apps/web/src/mockPipeline.ts` and `mockContent.tsx`) with real ones, once the D1 schema exists; remove the "Mock" box. Thumbnails of real images (only the PDF's tile has a real one) and a form for "Change config" (the mock goes straight to the confirmation) come with them. The details in §5.6 are provisional until the schema and the possible stages are defined, and are settled then: what exactly a card shows, the icons, the fields of the details view, and which manual stages can be added where.
+- **Pick an icon for each kind of artifact** (§5.6), once the list of stages is final and the kinds of artifact are known, and remove the thumbnails from the output tiles (`PdfThumb.tsx` and the mock's image thumbnails).
+- **Replace the mock stages** (§5.6, `apps/web/src/mockPipeline.ts` and `mockContent.tsx`) with real ones, once the D1 schema exists; remove the "Mock" box. A form for "Change config" (the mock goes straight to the confirmation) comes with them. The details in §5.6 are provisional until the schema and the possible stages are defined, and are settled then: what exactly a card shows, the icons, the fields of the details view, and which manual stages can be added where.
 - **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
 - **Settings page:** the model configs, the default config and the configs per kind of work (§7.6), the run mode for new projects (§5.1), the spending cap and the free-tier mark for model configs (§10). Now a placeholder text.
 - **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.6). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
