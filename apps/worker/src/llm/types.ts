@@ -2,7 +2,7 @@
 // responses are our own, small shapes; each provider's adapter translates them. The Worker makes the calls, so the
 // API keys never leave it (§10).
 
-export type ProviderId = "anthropic" | "anthropic-vertex" | "google";
+export type ProviderId = "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google";
 
 export type LlmImage = {
   mediaType: "image/png" | "image/jpeg" | "image/webp";

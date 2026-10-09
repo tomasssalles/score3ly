@@ -11,6 +11,7 @@
     "llm:try": "node scripts/try-llm.ts"
   },
   "dependencies": {
+    "@anthropic-ai/bedrock-sdk": "^0.34.4",
     "@anthropic-ai/sdk": "^0.132.1",
     "@anthropic-ai/vertex-sdk": "^0.20.4",
     "@google/genai": "^2.28.0",

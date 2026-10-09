@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicBedrockMantle } from "@anthropic-ai/bedrock-sdk";
 import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
 import type { ContentBlockParam, Message, MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages";
 import {
@@ -14,15 +15,15 @@ import { parseServiceAccount, tokenSource } from "./googleServiceAccount.ts";
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 64_000;
 
-// Claude through Anthropic's API, or through Google Cloud's Vertex AI (e.g. in the EU, DESIGN.md §10), with the
-// official SDKs: the same Messages API either way, so one class serves both. Requests are streamed, so long
+// Claude through Anthropic's API, Google Cloud's Vertex AI or Amazon Bedrock (e.g. in the EU, DESIGN.md §10), with
+// Anthropic's official clients: the same Messages API on all three, so one class serves them all. Requests are streamed, so long
 // answers don't hit HTTP timeouts; the caller gets the whole message at the end. The chosen model answers or the
 // call fails: no fallback to another model.
 export class ClaudeProvider implements LlmProvider {
-  readonly id: "anthropic" | "anthropic-vertex";
-  readonly #client: Anthropic | AnthropicVertex;
+  readonly id: "anthropic" | "anthropic-vertex" | "anthropic-bedrock";
+  readonly #client: Anthropic | AnthropicVertex | AnthropicBedrockMantle;
 
-  constructor(id: ClaudeProvider["id"], client: Anthropic | AnthropicVertex) {
+  constructor(id: ClaudeProvider["id"], client: Anthropic | AnthropicVertex | AnthropicBedrockMantle) {
     this.id = id;
     this.#client = client;
   }
@@ -71,6 +72,33 @@ export function vertexClaudeProvider(options: {
     maxRetries: options.maxRetries,
   });
   return new ClaudeProvider("anthropic-vertex", client);
+}
+
+// Amazon Bedrock, through its Messages API endpoint ("Mantle"), with either a Bedrock API key or an AWS access key
+// pair (requests are then signed with AWS Signature V4). `region` is where requests are processed, e.g.
+// "eu-central-1". The model is Bedrock's own ID for it, as the user enters it.
+export function bedrockClaudeProvider(options: {
+  region: string;
+  apiKey?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  fetch?: Fetch;
+  maxRetries?: number;
+}): ClaudeProvider {
+  const { region, apiKey, accessKeyId, secretAccessKey } = options;
+  const keyPair = accessKeyId !== undefined || secretAccessKey !== undefined;
+  const oneWay = (apiKey !== undefined) !== keyPair; // an API key or a key pair, not both nor neither
+  if (!oneWay || (keyPair && (!accessKeyId || !secretAccessKey))) {
+    throw new LlmError("auth", "Bedrock needs either an API key or an access key pair (key ID and secret), not both.");
+  }
+  const client = new AnthropicBedrockMantle({
+    awsRegion: region,
+    // Explicit credentials only: the client would otherwise look for them in the environment and AWS's files.
+    ...(apiKey !== undefined ? { apiKey } : { awsAccessKey: accessKeyId, awsSecretAccessKey: secretAccessKey }),
+    fetch: options.fetch,
+    maxRetries: options.maxRetries,
+  });
+  return new ClaudeProvider("anthropic-bedrock", client);
 }
 
 export function toParams(request: LlmRequest): MessageCreateParamsBase {
