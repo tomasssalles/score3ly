@@ -440,7 +440,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 | 16 | Human review **[manual]**, after any 15 | manual | JSON: the issues, updated. A stage 15 is added after it automatically |
 
 - **No manual fixes of the music before the first review.** The first point where the user corrects the music is stage 16.
-- **Further reviews** (14, each followed by 15) can be added by hand after the recipe's own one, with the same or another config.
+- **The recipe has exactly one review** (14, followed by 15). **Further reviews** can be added by hand after it, as many as the user wants, with the same or another config.
 - **The manual stages after 6** (7, 8, 9) are all added from stage 6's "⋮" and in any order.
 
 #### Details per stage
@@ -530,7 +530,6 @@ An **issue** is one question about what the printed score says at one place (or 
   - **The answer itself** can only be verified by a model or the user looking at the result, e.g. in a later review.
 - **Running stage 15 only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
 - **The structural checks (§7.4) have no stage of their own any more.** Validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) need a place: they are issues too, raised by code (see "Issues").
-- **How many reviews the recipe has,** and whether there is a limit on the ones added by hand (the old plan said at most one or two rounds).
 - **Whether a review added by hand always brings its stage 15,** as stage 16 does.
 - **What a re-run does to issues.** A change before stage 12 runs the extraction again, and the issues start over; the human review after it is dropped, since its input changed (§5.5). Resolved issues are then lost with it, although many would still apply. This is the per-item reuse question of §15 in another form.
 - **Issue ids** must stay the same from stage to stage, and who assigns them (code, not the model) has to be fixed.
@@ -765,6 +764,7 @@ Built, in `findSkew`, from the same line responses and strips, at the angle foun
 #### Spending cap
 - **Purpose: protection against bugs,** not against a user who transcribes too much. A bug in the app must not be able to burn a lot of money on a handful of scores.
 - **A setting: at most $X within any 24 hours** (a rolling window, not the calendar day, so a runaway just before midnight doesn't get two budgets). Once reached, the app refuses every further request that costs money.
+- **Mandatory:** there is no way to run without a cap. Adding the first model config that isn't marked free tier requires setting it.
 - **Why a day and not a month:** with a monthly budget the user picks a large number ("about $30 a month"), and a bug can spend all of it in a day before anything stops. A daily budget makes them pick a small one ("$1 a day"), so a bug is stopped after a small sum.
 - **Why not per project:** scores differ a lot in length, and re-running stages adds cost legitimately.
 - **Enforced by the Worker,** which makes the LLM calls. A second tab or a stale page can't get around it.
