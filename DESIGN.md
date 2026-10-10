@@ -553,7 +553,7 @@ An **issue** is one question about what the printed score says at one place (or 
   - **An optional prose location** says what in the box is meant when the box alone doesn't, e.g. "the middle note of the chord". It must be **simple and local to the box,** and not depend on the model's reading of the score: "the left-hand note on the third beat" turns wrong if the note wasn't for the left hand, or wasn't on the third beat, after all. The prompts say so.
   - **Issues are text only:** no stored image with annotations. A model sees the boxes as coordinates and, **proposed,** as pictures drawn by code when the request is built: one copy of the crop with all boxes in different colours, and one without any, since lines over the music would get in the way of reviewing everything else, and boxes may overlap.
 - **What an issue holds** (the field names are a sketch):
-  - `id`: the same through all stages;
+  - `id`: assigned by code, the same through all stages (see "Issue ids" below);
   - `source`: who raised it: the extraction, a review, the user or code;
   - `boxes`: page and box, one or more (above);
   - `location` (optional, above) and `question`: prose, e.g. "the middle note of the chord" and "not sure which duration it has";
@@ -568,6 +568,10 @@ An **issue** is one question about what the printed score says at one place (or 
 
   The prompts explain what is missing for each source. Answers and choices added later go through the same append-only log as every other change (`review`).
 - **A re-run treats issues like everything else** (§5.5): nothing special. A change before `extract` runs the extraction again, and the issues start over; a human review after it is dropped, since its input changed, and the issues it resolved are lost with it. That is accepted.
+- **Issue ids** (decided):
+  - **Code assigns them,** when an issue is first stored: a short number per score (`#1`, `#2`, …), never reused, not even after a re-run drops the issue. After a re-run from before `extract`, the numbering continues, so old and new issues can't be confused in the call records.
+  - **Models never write ids.** A new issue comes without one, and code numbers it as soon as the answer is stored, so the next call (the next system, the next review) already sees it with its id. A model refers to existing issues by their ids, e.g. when choosing an answer; a reference to an id that doesn't exist is a failed check and goes back to the model.
+  - **Ids carry over:** every stage that touches the issues produces a new version of the same list, with the same ids.
 - **A resolved issue stays in the list for good.** Later reviews take its answer as the truth and don't raise the question again.
 - **An issue needs applying** (`apply_review`) when its chosen answer differs from `applied`, which includes every issue whose `applied` is null.
 - **The issues of a score are one JSON artifact.** Each stage that touches them produces a new version (§5.4: stored stages never change).
@@ -586,7 +590,6 @@ An **issue** is one question about what the printed score says at one place (or 
 
 **Seen while writing this down:**
 - **Running `apply_review` only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
-- **Issue ids** must stay the same from stage to stage, and who assigns them (code, not the model) has to be fixed.
 
 ## 7. LLM steps
 
