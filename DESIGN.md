@@ -524,7 +524,10 @@ An **issue** is one question about what the printed score says at one place (or 
 - **Stages 15 and 16 are less worked out** than the rest and may need clarifying.
 
 **Seen while writing this down:**
-- **Is `applied` what the model says or what code checked?** Stage 15 updates the field, but a model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5). Code checks that the measures of an issue changed when it was applied, and that nothing else did (stage 16 above).
+- **`applied` is what the model says, checked only roughly by code.** Stage 15 sets the field, but a model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5). Code compares the MEI before and after, measure by measure (stage 16 above):
+  - **It catches** a missing change (the measures under an issue's boxes didn't change), a stray change (a measure under no box of the issues being applied changed), and a change where none was due (the chosen answer is the present state).
+  - **It can't tell** whether the change is the chosen answer: the right measure changed the wrong way, or answer 1 applied and answer 2 claimed, both pass. Where several issues share measures, a change can't be credited to one of them.
+  - **The answer itself** can only be verified by a model or the user looking at the result, e.g. in a later review. Open: whether that is enough, or the recipe needs something more.
 - **Running stage 15 only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
 - **The structural checks (§7.4) have no stage of their own any more.** Validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) need a place: they are issues too, raised by code (see "Issues").
 - **How many reviews the recipe has,** and whether there is a limit on the ones added by hand (the old plan said at most one or two rounds).
