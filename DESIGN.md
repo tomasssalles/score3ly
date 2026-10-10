@@ -470,6 +470,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - a tool to zoom into a part of the crop, so the call is a loop, with caps.
 
   The model extracts the music and reports its doubts as issues. **The snippets are built and validated after each system,** not at the end: if the model can't handle the score, the stage fails early, and an hour of calls isn't paid for answers that turn out not to parse. An early failure tells the user to step in earlier in the pipeline, or to use a stronger model.
+- **The structural checks (§7.4) have no stage of their own:** validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) are issues raised by code (see "Issues").
 - **13, Full MEI.** The placeholders are replaced by the snippets, the whole document is validated and rendered, and the issues of all systems are combined.
 - **14, Review.** One call per system, with the same input as stage 12, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. A tool shows the crop of another system, capped at a small number of calls. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output.
   - **The whole score goes into every call** (decided), so the model can check consistency across the score. It is sent in the compact format the models write the music in (the "lens", stage 12), not as MEI.
@@ -485,6 +486,10 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - **A viewer like the one of the evaluation tooling** (§13) is needed for this anyway: the original next to the rendering of the current extraction. The user never sees MEI or LilyPond.
   - **Every correction is applied by stage 15,** an LLM call (decided). Applying answers by code doesn't work in general: a measure can have several issues, and an answer would have to come with a replacement for every combination of answers; and many corrections reach beyond one measure ("this slur continues the one in the previous system" touches two systems, perhaps two pages).
   - **Code checks what stage 15 did:** it compares the MEI before and after measure by measure, the rendering highlights the measures that changed, and a change outside the measures of the issues being applied is flagged. The measures of an issue are the ones under its boxes (see "Issues" below).
+  - **So `applied` is what the model says, checked only roughly by code.** A model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5).
+    - **Code catches** a missing change (the measures under an issue's boxes didn't change), a stray change (a measure under no box of the issues being applied changed), and a change where none was due (the chosen answer is the present state).
+    - **Code can't tell** whether the change is the chosen answer: the right measure changed the wrong way, or answer 1 applied and answer 2 claimed, both pass. Where several issues share measures, a change can't be credited to one of them.
+    - **The answer itself** can only be verified by a model or the user looking at the result, e.g. in a later review.
   - **No editing of the source and no replacing it by an upload** (decided, for now). Either would make the issues unreliable: after a direct edit, nobody knows which answer of each issue the MEI reflects. A "final touches" stage is an optional item for late in the roadmap (§16).
   - **Adding a correction:** the user drags one or more boxes on the original score (easy on touch devices too) and writes the correction as free text ("this should be a C flat"). It becomes an issue like any other (below). The original can show the boxes of all issues at once, so the user sees where the questions are.
 
@@ -560,12 +565,7 @@ An **issue** is one question about what the printed score says at one place (or 
 - **Stages 15 and 16 are less worked out** than the rest and may need clarifying.
 
 **Seen while writing this down:**
-- **`applied` is what the model says, checked only roughly by code.** Stage 15 sets the field, but a model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5). Code compares the MEI before and after, measure by measure (stage 16 above):
-  - **It catches** a missing change (the measures under an issue's boxes didn't change), a stray change (a measure under no box of the issues being applied changed), and a change where none was due (the chosen answer is the present state).
-  - **It can't tell** whether the change is the chosen answer: the right measure changed the wrong way, or answer 1 applied and answer 2 claimed, both pass. Where several issues share measures, a change can't be credited to one of them.
-  - **The answer itself** can only be verified by a model or the user looking at the result, e.g. in a later review.
 - **Running stage 15 only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
-- **The structural checks (§7.4) have no stage of their own any more.** Validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) need a place: they are issues too, raised by code (see "Issues").
 - **Issue ids** must stay the same from stage to stage, and who assigns them (code, not the model) has to be fixed.
 
 ## 7. LLM steps
