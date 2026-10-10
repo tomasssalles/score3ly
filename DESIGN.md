@@ -471,7 +471,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - a tool to zoom into a part of the crop, so the call is a loop, with caps.
 
   The model extracts the music of each measure, corrects the bar lines' kinds and the `scoreDef` where needed (the starting clefs, keys and time signatures, the staff labels and groups), and reports its doubts as issues. **It can't add or drop a measure:** code rejects an answer that doesn't cover exactly the measures asked for. **The snippets are built and validated after each system,** not at the end: if the model can't handle the score, the stage fails early, and an hour of calls isn't paid for answers that turn out not to parse. An early failure tells the user to step in earlier in the pipeline, or to use a stronger model.
-  - **Models write music as a subset of LilyPond, wrapped in JSON** (decided), never MEI: code builds the MEI. So MEI's schema is checked in our tests, as a check on our converter, not at run time.
+  - **Models write music as a subset of LilyPond, wrapped in JSON** (decided), never MEI: code builds the MEI. So MEI's schemas are checked in our tests, as a check on our converter, not at run time (see "MEI").
   - **Checks after each system's answer,** on the system alone (code wraps it with the running state where needed):
     - **parsing:** the answer is valid JSON in our schema, and its LilyPond parses;
     - **durations:** each voice in each measure adds up to the time signature (incomplete and unmeasured measures excepted);
@@ -519,14 +519,26 @@ What identifies the score, in the narrow sense: the layout (systems, measures, b
 To check against the MEI 5 guidelines: the details of the edition's description, which changed in MEI 5.
 
 #### MEI
-**Close to MEI Basic:** as simple as possible, focused on the musical content, with a few features of full MEI where they are needed (so far: `facsimile`, below).
+**The artifact is full MEI 5, close to MEI Basic** (decided): as simple as possible, focused on the musical content. The music uses only what MEI Basic allows; a few features of full MEI are used where needed, each a deliberate decision, listed in one place in the code (below) and explained in our documentation.
 - **Divisions:** an `mdiv` per piece or movement, labelled and linked to its entry in the header's `componentList`; an anthology of several works has an `mdiv` per work, with an `mdiv` per movement inside. (MEI's `<parts>` is something else: separate part books, one per player, which we don't produce.)
 - **Each division's `<score>` begins with a `scoreDef`:** the staves (`staffGrp`, `staffDef`) with their labels and instrument names as printed, and each staff's starting clef, key and time signature. It declares **every staff that appears anywhere in the division,** e.g. a third staff in one passage, an ossia staff; a measure leaves out the staves it doesn't have. Groups nest: the Mozart concerto in the test set, with two pianos (I and II) of two staves each, is one score with two braced `staffGrp`s labelled "Piano I" and "Piano II" inside the outer one, staves 1 to 4; not parts.
 - **Measures:** measure → `staff` (numbered as in the `staffDef`s) → `layer` (a voice) → notes. Code writes each measure's frame: its number (`@n`), `@metcon="false"` for an incomplete one, the bar lines' kinds (`@left`, `@right`), its zones (`@facs`, below) and one `staff` per staff present on its system. `extract` fills the layers: how many voices a staff has changes from measure to measure, and is content.
 - **The original's layout** is kept with page and system breaks (`<pb/>`, `<sb/>`) between measures. Renderers can ignore them (see `assemble`). A measure split across systems is the awkward case.
 - **`facsimile`** (decided, a feature of full MEI): zones on the page images, and each measure linked to its zone (`@facs`), or to several when it is split across systems. The structure from `analyze` lives in the file itself, and an issue's boxes map to measures through it.
 
-To check against the MEI Basic customization: whether it allows nested `mdiv`, the header elements above (`workList`, `componentList`, the edition's description), and where `facsimile` has to go beyond it.
+**What MEI Basic allows** (checked in its customization, `customizations/mei-basic.xml` in the music-encoding repository, 2026-10):
+- **Nested `mdiv`:** yes, explicitly (an `mdiv` holds a score or further `mdiv`s).
+- **The music:** everything above (`scoreDef`, `staffGrp`, measures with `@n` and `@metcon`, `pb`, `sb`).
+- **The header:** only `fileDesc` (`titleStmt` with titles and a `respStmt` of `persName`s with roles; `pubStmt` with publisher, place, date, license) and optionally `encodingDesc/appInfo`. No `workList`, `componentList`, `manifestation`, `sourceDesc`, `titlePage`, `perfMedium`, `plateNum`, nor dedicated `<composer>`-like elements.
+- **`facsimile`:** `measure` keeps `@facs`, but the facsimile module (`facsimile`, `surface`, `zone`) isn't included.
+
+**So we go beyond MEI Basic in two places:** the header's work, pieces and edition (titles and people would fit) and the `facsimile` element. One file of full MEI 5, rather than a strict MEI Basic file with `fileDesc/@corresp` pointing to a second file with the rest, which MEI Basic would allow.
+
+**Validation is in the tests, not at run time:** models never write MEI (`extract`), so every element comes from our code, and conformance is a property of the code, not of a run. At run time only content varies inside a fixed structure, and a validator (libxml2 as WASM, a few MB) would add nothing but weight. The tests cover every construct of the LilyPond subset and every case of the frame (nested `mdiv`, staff groups, split measures, the header fields), and check every MEI file they produce twice:
+1. it validates against full MEI 5;
+2. with exactly the elements we decided to use outside MEI Basic removed (the list in the code, the single source of truth), it validates against MEI Basic. Using anything else outside it fails the test until it is added to the list on purpose.
+
+Text from users and models (titles, names) must be escaped correctly when the XML is written; the tests cover that too.
 
 #### Bar lines, stretches and measures
 Bar lines alone don't give the measures. A courtesy key or time signature at the end of a system comes after the system's last bar line and belongs to no measure (a courtesy clef comes before it, inside the last measure). A measure can be split across systems, even pages, or by a repeat bar line or a double bar in its middle (typically after a pickup). A passage without bar lines (a cadenza) is one long stretch. So:
@@ -580,7 +592,6 @@ An **issue** is one question about what the printed score says at one place (or 
 - **The size of `analyze`.** It does a lot. It could be split into a few stages: we want neither giant stages nor a thousand small ones.
 - **Content boxes.** Should `analyze` (or a stage before it) also find the box of the content on each page, with most of the analysis then running on content crops? The point: the user could fix the content crop of a bad page and re-run, and the model could suddenly see the music. A draft prompt is in `NOTES-2026-10-formats.md` §6.
 - **`fix_boxes`'s tool** for fixing boxes, bar lines and the classification of stretches.
-- **MEI Basic:** check what it allows (see "MEI").
 - **`extract`:** the exact LilyPond subset the model writes (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
 - **`apply_review`:** what exactly goes in, the format of the answer, and whether it runs per measure, per system, per page or once for the score.
 - **Renderings of the extracted MEI as input** for some stages (`review`, `apply_review`): whether, and where.
