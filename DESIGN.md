@@ -418,35 +418,36 @@ Example of why this matters: a smudged note on one page can be resolved because 
 
 > **Status: a proposal by the project owner, not decided.** It is meant to replace the table above and, with it, parts of §7 (the LilyPond conventions in §7.3, the structural checks as a stage in §7.4, the reviewer's findings in §7.5). It assumes MEI as the stored format, which is itself not decided yet (`NOTES-2026-10-formats.md` §3). When the list is final, this section is folded into the rest of the document.
 
-Stages marked **[manual]** are optional and added by the user (§5.4). Everything else is the recipe.
+Stages marked **[manual]** are optional and added by the user (§5.4). Everything else is the recipe. Each stage has a short identifier, used in the rest of this section.
 
-| # | Stage | Kind | Artifacts |
-|---|---|---|---|
-| 1 | Ingest | computed | The PDF (R2) |
-| 2 | Rasterize | computed | All page images, as one artifact. Not stored: reproduced from the config (§5.3) |
-| 3 | Skew analysis | computed | JSON: per page, the skew angle, the staves found, and whether the page is to be rotated (§8.4). No rotated images |
-| 4 | Fix skew angles **[manual]**, after 3 | manual | JSON as in 3 |
-| 5 | Deskew | computed | All page images, as one artifact, as in 2 |
-| 6 | General analysis | LLM | JSON: metadata. JSON: system boxes, the bar lines in each system and how the stretches between them form measures. JSON: observations per page and for the whole score |
-| 7 | Fix metadata **[manual]**, after 6 | manual | JSON: metadata |
-| 8 | Fix system boxes and measures **[manual]**, after 6 | manual | JSON: boxes, bar lines and measures, as in 6 |
-| 9 | Fix observations **[manual]**, after 6 | manual | JSON: observations |
-| 10 | Crop systems and measures | computed | The crops, as in 5 |
-| 11 | MEI skeleton | computed | MEI, with the metadata filled in and a placeholder per measure |
-| 12 | Extraction | LLM, per system | The JSON answers per system. The MEI snippets per measure. The issues raised (see below) |
-| 13 | Full MEI | computed | The MEI file. Its rendering as a PDF. All issues combined into one JSON |
-| 14 | Review | LLM, per system | JSON: the issues, updated |
-| 15 | Apply review results | LLM | The MEI file, the new rendering, and the issues with what was applied |
-| 16 | Human review **[manual]**, after any 15 | manual | JSON: the issues, updated. A stage 15 is added after it automatically |
+| # | Id | Stage | Kind | Artifacts |
+|---|---|---|---|---|
+| 1 | `ingest` | Ingest | computed | The PDF (R2) |
+| 2 | `rasterize` | Rasterize | computed | All page images, as one artifact. Not stored: reproduced from the config (§5.3) |
+| 3 | `skew_analysis` | Skew analysis | computed | JSON: per page, the skew angle, the staves found, and whether the page is to be rotated (§8.4). No rotated images |
+| 4 | `fix_skew` | Fix skew angles **[manual]**, after `skew_analysis` | manual | JSON as in `skew_analysis` |
+| 5 | `deskew` | Deskew | computed | All page images, as one artifact, as in `rasterize` |
+| 6 | `analyze` | General analysis | LLM | JSON: metadata. JSON: the structure: system boxes, the bar lines in each system and how the stretches between them form measures. JSON: observations per page and for the whole score |
+| 7 | `fix_metadata` | Fix metadata **[manual]**, after `analyze` | manual | JSON: metadata |
+| 8 | `fix_boxes` | Fix system boxes and measures **[manual]**, after `analyze` | manual | JSON: the structure, as in `analyze` |
+| 9 | `fix_observations` | Fix observations **[manual]**, after `analyze` | manual | JSON: observations |
+| 10 | `crop` | Crop systems and measures | computed | The crops, as in `deskew` |
+| 11 | `extract` | Extraction | LLM, per system | The JSON answers per system. The MEI snippets per measure. The issues raised (see below) |
+| 12 | `assemble` | Full MEI | computed | The MEI file. Its rendering as a PDF. All issues combined into one JSON |
+| 13 | `review` | Review | LLM, per system | JSON: the issues, updated |
+| 14 | `apply_review` | Apply review results | LLM | The MEI file, the new rendering, and the issues with what was applied |
+| 15 | `human_review` | Human review **[manual]**, after any `apply_review` | manual | JSON: the issues, updated. An `apply_review` is added after it automatically |
 
-- **No manual fixes of the music before the first review.** The first point where the user corrects the music is stage 16.
-- **The recipe has exactly one review** (14, followed by 15). **Further reviews** can be added by hand after it, as many as the user wants, with the same or another config. Adding a review, by hand or after a human review, always adds its stage 15 after it.
-- **The manual stages after 6** (7, 8, 9) are all added from stage 6's "⋮" and in any order.
-- **The structure is final before stages 10 and 11.** Some things are hard to change later, above all which measures exist. So every manual fix of the structure (the skew angles in 4; the boxes, bar lines and measures in 8; the pieces or movements in 7, which the measure numbering and the skeleton's sections depend on) comes before the crops are made and the skeleton is built, and no later stage changes the structure. A structural mistake found later (e.g. two stretches that should be one measure) is fixed by going back to stage 8, which replaces everything after it (§5.5).
+- **No manual fixes of the music before the first review.** The first point where the user corrects the music is `human_review`.
+- **The recipe has exactly one review** (`review`, followed by `apply_review`). **Further reviews** can be added by hand after it, as many as the user wants, with the same or another config. Adding a review, by hand or after a human review, always adds its `apply_review` after it.
+- **The manual stages after `analyze`** (`fix_metadata`, `fix_boxes`, `fix_observations`) are all added from its "⋮" and in any order.
+- **No skeleton stage** (decided; an earlier draft had one, an MEI file with a placeholder per measure). What it was for (a fixed structure, assembly as filling in, a check that the extraction returns exactly the measures asked for) needs no stored MEI: code builds the MEI frame from the structure whenever it is needed (see "MEI" below).
+- **The structure is final before `crop`.** Some things are hard to change later, above all which measures exist. So every manual fix of the structure (the skew angles in `fix_skew`; the boxes, bar lines and measures in `fix_boxes`; the pieces or movements in `fix_metadata`, which the measure numbering and the MEI's sections depend on) comes before the crops are made, and no later stage changes the structure. A structural mistake found later (e.g. two stretches that should be one measure) is fixed by going back to `fix_boxes`, which replaces everything after it (§5.5).
+  - **Structure versus content:** the structure is which measures exist, where they are on the page, which piece they belong to and how they are numbered. Everything about the measures' content belongs to `extract` and the stages after it, including the bar lines' kinds and the `scoreDef` (clefs, keys, time signatures, staff labels and groups).
 
 #### Details per stage
-- **4, Fix skew angles.** The user flips through the pages with arrows (no continuous scroll). Per page: a toggle that turns deskewing on or off, and lines drawn by clicking where their two ends should be, along the staff lines. Code computes the angle that makes those lines as horizontal as possible. A very small angle still means no rotation, but an angle set by hand may be larger than the 5 degrees allowed otherwise (§8.4). Still needed: deleting a line, moving its ends, and how all of this works on touch devices.
-- **6, General analysis.**
+- **`fix_skew`.** The user flips through the pages with arrows (no continuous scroll). Per page: a toggle that turns deskewing on or off, and lines drawn by clicking where their two ends should be, along the staff lines. Code computes the angle that makes those lines as horizontal as possible. A very small angle still means no rotation, but an angle set by hand may be larger than the 5 degrees allowed otherwise (§8.4). Still needed: deleting a line, moving its ends, and how all of this works on touch devices.
+- **`analyze`.**
   - **Per page:**
     - what the page is: cover, empty, music or other;
     - metadata, where the input can include what earlier pages gave, so that the model only updates it (as a full JSON or a JSON patch);
@@ -456,24 +457,26 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     - per system, the bar lines and the classification of the stretches between them, from which code builds the measures (see "Bar lines, stretches and measures" below), with the same tool and rounds as for the boxes;
     - high-level musical information: number of staves, the probable instrument of each staff, voices per staff, time signatures, key signatures, clefs, 8va and the like (for all of these also where and how they change), large-scale dynamics such as crescendos, melodies that seem to repeat in other places, repeats, "da capo" and the like, parts, movements or pieces, and the general style (e.g. baroque).
   - **Per project:** all pages in a small format, with what the per-page part found, to get observations across pages that help the extraction later, such as melodies that repeat on other pages.
-- **7, Fix metadata.** A form from the start, not a JSON editor: the metadata is small and fixed, its Zod schema exists anyway (§3), and typing JSON on a phone is miserable.
+- **`fix_metadata`.** A form from the start, not a JSON editor: the metadata is small and fixed, its Zod schema exists anyway (§3), and typing JSON on a phone is miserable.
   - **Sections with headers:** titles, people, the work, pieces or movements, the edition. Titles, people and pieces are lists, with rows to add and remove and a dropdown for the type or role.
   - **The page each field was found on** is shown next to it ("p. 3"), as a link that opens the page, for checking.
   - **What the user enters is the truth.** Its page stays as the model gave it, and may no longer fit (the model may have read the wrong page); that is fine, since the pages aren't used by any later stage.
-- **8, Fix system boxes and measures.** The boxes, the bar lines (position and kind), the classification of the stretches and the kinds of measure, and per piece whether its numbering starts at 0 or 1 (below).
-- **9, Fix observations.** At first by editing the JSON. Later the observations could be shown as a Markdown document that the user edits as formatted text. That Markdown could be a further artifact of stage 6, or of a tiny stage after it, and stage 9 would then edit the Markdown. Worth building early although it is a nice-to-have: it changes the list of stages and the kinds of artifact.
-- **12, Extraction.** One call per system, with:
+- **`fix_boxes`.** The boxes, the bar lines (position and kind), the classification of the stretches and the kinds of measure, and per piece whether its numbering starts at 0 or 1 (below).
+- **`fix_observations`.** At first by editing the JSON. Later the observations could be shown as a Markdown document that the user edits as formatted text. That Markdown could be a further artifact of `analyze`, or of a tiny stage after it, and `fix_observations` would then edit the Markdown. Worth building early although it is a nice-to-have: it changes the list of stages and the kinds of artifact.
+- **`extract`.** One call per system, with:
   - the system crop and its measure crops (a measure split across systems has a crop for each of its stretches);
   - the crops of the previous and the next system;
-  - the observations from stage 6 (or 9);
-  - the time signature the system begins with, worked out by code from the previous system's extraction;
+  - the observations from `analyze` (or `fix_observations`);
+  - the measures it must fill, and the bar lines' kinds and the staves `analyze` saw, as a starting point;
+  - the state the system begins with (clefs, keys, time signature), carried by code from the previous system's extraction;
   - a tool to zoom into a part of the crop, so the call is a loop, with caps.
 
-  The model extracts the music and reports its doubts as issues. **The snippets are built and validated after each system,** not at the end: if the model can't handle the score, the stage fails early, and an hour of calls isn't paid for answers that turn out not to parse. An early failure tells the user to step in earlier in the pipeline, or to use a stronger model.
-- **The structural checks (§7.4) have no stage of their own:** validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) are issues raised by code (see "Issues").
-- **13, Full MEI.** The placeholders are replaced by the snippets, the whole document is validated and rendered, and the issues of all systems are combined.
-- **14, Review.** One call per system, with the same input as stage 12, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. A tool shows the crop of another system, capped at a small number of calls. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output.
-  - **The whole score goes into every call** (decided), so the model can check consistency across the score. It is sent in the compact format the models write the music in (the "lens", stage 12), not as MEI.
+  The model extracts the music of each measure, corrects the bar lines' kinds and the `scoreDef` where needed (the starting clefs, keys and time signatures, the staff labels and groups), and reports its doubts as issues. **It can't add or drop a measure:** code rejects an answer that doesn't cover exactly the measures asked for. **The snippets are built and validated after each system,** not at the end: if the model can't handle the score, the stage fails early, and an hour of calls isn't paid for answers that turn out not to parse. An early failure tells the user to step in earlier in the pipeline, or to use a stronger model.
+- **The structural checks (§7.4) have no stage of their own:** validation happens inside `extract` and `assemble`. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) are issues raised by code (see "Issues").
+- **`assemble`.** Code builds the MEI frame from the structure and the metadata, inserts the snippets, validates the whole document, renders it, and combines the issues of all systems.
+  - **The rendering** (Verovio) can follow the original's layout or not: its `breaks` option `encoded` uses the page and system breaks in the MEI (below), so the rendering has the same systems as the original and the two can be compared system by system, as in `human_review`; `auto` computes its own breaks for the page size and ignores the encoded ones.
+- **`review`.** One call per system, with the same input as `extract`, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. A tool shows the crop of another system, capped at a small number of calls. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output.
+  - **The whole score goes into every call** (decided), so the model can check consistency across the score. It is sent in the compact format the models write the music in (the "lens", `extract`), not as MEI.
   - **Each call sees what the calls before it in the stage changed,** and the cost stays close to linear in the score's length, by prompt caching. A call's prompt is, in this order:
     1. the whole score;
     2. the issues as they were when the stage started;
@@ -481,11 +484,11 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     4. the system's own part: its crops, its extraction, the neighbouring systems' crops.
 
     Parts 1 to 3 of a call are the start of the next call's prompt, so with a cache breakpoint at the end of part 3 each call pays the full price only for the entries added by the call before it, and the rest is read from the cache. Without the append-only log, every change to the issues would break the cache, and the cost would grow with the score's length times the number of issues, which is itself roughly proportional to the length. The calls run one after another (§10), so the cache stays warm between them.
-- **15, Apply review results.** An LLM gets the current extraction and the issues, and is told which issues need a change (below). It returns the changed music; the artifacts are a new full MEI, its rendering, and the issues with their `applied` field updated and nothing else changed.
-- **16, Human review.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
+- **`apply_review`.** An LLM gets the current extraction and the issues, and is told which issues need a change (below). It returns the changed music; the artifacts are a new full MEI, its rendering, and the issues with their `applied` field updated and nothing else changed.
+- **`human_review`.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
   - **A viewer like the one of the evaluation tooling** (§13) is needed for this anyway: the original next to the rendering of the current extraction. The user never sees MEI or LilyPond.
-  - **Every correction is applied by stage 15,** an LLM call (decided). Applying answers by code doesn't work in general: a measure can have several issues, and an answer would have to come with a replacement for every combination of answers; and many corrections reach beyond one measure ("this slur continues the one in the previous system" touches two systems, perhaps two pages).
-  - **Code checks what stage 15 did:** it compares the MEI before and after measure by measure, the rendering highlights the measures that changed, and a change outside the measures of the issues being applied is flagged. The measures of an issue are the ones under its boxes (see "Issues" below).
+  - **Every correction is applied by `apply_review`,** an LLM call (decided). Applying answers by code doesn't work in general: a measure can have several issues, and an answer would have to come with a replacement for every combination of answers; and many corrections reach beyond one measure ("this slur continues the one in the previous system" touches two systems, perhaps two pages).
+  - **Code checks what `apply_review` did:** it compares the MEI before and after measure by measure, the rendering highlights the measures that changed, and a change outside the measures of the issues being applied is flagged. The measures of an issue are the ones under its boxes (see "Issues" below).
   - **So `applied` is what the model says, checked only roughly by code.** A model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5).
     - **Code catches** a missing change (the measures under an issue's boxes didn't change), a stray change (a measure under no box of the issues being applied changed), and a change where none was due (the chosen answer is the present state).
     - **Code can't tell** whether the change is the chosen answer: the right measure changed the wrong way, or answer 1 applied and answer 2 claimed, both pass. Where several issues share measures, a change can't be credited to one of them.
@@ -494,7 +497,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - **Adding a correction:** the user drags one or more boxes on the original score (easy on touch devices too) and writes the correction as free text ("this should be a C flat"). It becomes an issue like any other (below). The original can show the boxes of all issues at once, so the user sees where the questions are.
 
 #### Metadata
-What identifies the score, in the narrow sense: the layout (systems, measures, boxes) and the musical observations are separate artifacts of stage 6. Every field is optional, holds **only what is printed** (as printed), and notes the page where it was found. Models know famous works and would add an opus number or a composer's dates from memory; that can't be checked against the page, and the user can add it in stage 7.
+What identifies the score, in the narrow sense: the layout (systems, measures, boxes) and the musical observations are separate artifacts of `analyze`. Every field is optional, holds **only what is printed** (as printed), and notes the page where it was found. Models know famous works and would add an opus number or a composer's dates from memory; that can't be checked against the page, and the user can add it in `fix_metadata`.
 - **Titles:** a list of `{ text, type }`, the type one of main, subtitle, alternative, translated. Title pages often give the title in several languages ("Kinderscenen / Scènes d'enfants").
 - **People:** a list of `{ name, role, printed role }`, the role from a fixed list (composer, arranger, editor, lyricist, librettist, translator, other), the printed role as worded on the page ("Revidiert und mit Fingersatz versehen von …"), which rarely maps exactly. Any role can have several people.
 - **Opus or catalogue number** (e.g. "Op. 15", "BWV 846"), **dedication**.
@@ -507,17 +510,27 @@ What identifies the score, in the narrow sense: the layout (systems, measures, b
 - **The printed edition** (MEI 5: `manifestationList/manifestation`; earlier versions: `fileDesc/sourceDesc`): publisher, place, date, the plate number (`physDesc/plateNum`), and possibly a transcription of the title page as printed (`titlePage`), which keeps the printed wording of everything above.
 - **How the file was made** (`encodingDesc/appInfo`): score3ly, its version (§11), perhaps the models used: provenance in the file itself.
 
-To check against the MEI 5 guidelines when the skeleton (stage 11) is built: the details of the edition's description, which changed in MEI 5.
+To check against the MEI 5 guidelines: the details of the edition's description, which changed in MEI 5.
+
+#### MEI
+**Close to MEI Basic:** as simple as possible, focused on the musical content, with a few features of full MEI where they are needed (so far: `facsimile`, below).
+- **Divisions:** an `mdiv` per piece or movement, labelled and linked to its entry in the header's `componentList`; an anthology of several works has an `mdiv` per work, with an `mdiv` per movement inside. (MEI's `<parts>` is something else: separate part books, one per player, which we don't produce.)
+- **Each division's `<score>` begins with a `scoreDef`:** the staves (`staffGrp`, `staffDef`) with their labels and instrument names as printed, and each staff's starting clef, key and time signature. It declares **every staff that appears anywhere in the division,** e.g. a third staff in one passage, an ossia staff; a measure leaves out the staves it doesn't have. Groups nest: the Mozart concerto in the test set, with two pianos (I and II) of two staves each, is one score with two braced `staffGrp`s labelled "Piano I" and "Piano II" inside the outer one, staves 1 to 4; not parts.
+- **Measures:** measure → `staff` (numbered as in the `staffDef`s) → `layer` (a voice) → notes. Code writes each measure's frame: its number (`@n`), `@metcon="false"` for an incomplete one, the bar lines' kinds (`@left`, `@right`), its zones (`@facs`, below) and one `staff` per staff present on its system. `extract` fills the layers: how many voices a staff has changes from measure to measure, and is content.
+- **The original's layout** is kept with page and system breaks (`<pb/>`, `<sb/>`) between measures. Renderers can ignore them (see `assemble`). A measure split across systems is the awkward case.
+- **`facsimile`** (decided, a feature of full MEI): zones on the page images, and each measure linked to its zone (`@facs`), or to several when it is split across systems. The structure from `analyze` lives in the file itself, and an issue's boxes map to measures through it.
+
+To check against the MEI Basic customization: whether it allows nested `mdiv`, the header elements above (`workList`, `componentList`, the edition's description), and where `facsimile` has to go beyond it.
 
 #### Bar lines, stretches and measures
 Bar lines alone don't give the measures. A courtesy key or time signature at the end of a system comes after the system's last bar line and belongs to no measure (a courtesy clef comes before it, inside the last measure). A measure can be split across systems, even pages, or by a repeat bar line or a double bar in its middle (typically after a pickup). A passage without bar lines (a cadenza) is one long stretch. So:
-- **Bar lines:** per system, the model gives their x-positions and kinds (single, double, final, start repeat, end repeat, dashed; the skeleton needs the repeats).
+- **Bar lines:** per system, the model gives their x-positions and kinds (single, double, final, start repeat, end repeat, dashed; the MEI needs the repeats). `extract` may correct the kinds, not the positions.
 - **Stretches:** code cuts each system at its bar lines: from the start of the staff to the first bar line, between consecutive bar lines, and from the last bar line to the end. The stretches partition the system.
 - **The model classifies each stretch,** in order: **none** (part of no measure, e.g. courtesy signatures), **new** (starts a measure) or **continues** (part of the same measure as the previous stretch that is part of a measure, even on the previous system or page). This is local: the model never numbers measures across the score. A page's call gets the previous page's last system, to tell whether its first stretch continues a measure.
 - **The kind of each measure,** on its first stretch: **normal**, **incomplete** (a pickup, or the short measure that completes one before a repeat or at the end of a section) or **unmeasured** (a cadenza, a passage without bar lines).
 - **Printed measure numbers,** where one is visible (usually at the start of a system), on the stretch where it is printed.
 - **Code builds the measures** from the stretches and numbers them, **per piece or movement** (from the metadata): numbering starts again with each piece.
-  - **0 or 1:** when a piece begins with an incomplete measure, code numbers it 0 or 1, whichever matches the printed numbers better. The user can change it in stage 8.
+  - **0 or 1:** when a piece begins with an incomplete measure, code numbers it 0 or 1, whichever matches the printed numbers better. The user can change it in `fix_boxes`.
 - **Code checks plausibility** and flags what looks wrong, for the user to look at, not as errors:
   - the first stretch of a piece can't continue a measure; a "none" anywhere but at the end of a system is suspicious;
   - a printed number on a stretch not classified "new";
@@ -528,7 +541,7 @@ Bar lines alone don't give the measures. A courtesy key or time signature at the
 An **issue** is one question about what the printed score says at one place (or a few, below): a model's doubt, a reviewer's correction or a user's correction. (Earlier called "uncertainty"; `NOTES-2026-10-formats.md` still uses that word.)
 
 - **It describes a place in the printed score,** not in the MEI or in the rendering, with **bounding boxes,** whoever raised it (a model, the user, code). Each box is a page and a box on it in our usual fractions (§6). An issue can have several, e.g. a slur that continues into the next system, perhaps on the next page: one box at the end of one system, one at the start of the next.
-  - **Code works out the measures** under the boxes, from the system boxes and the measures of stage 6 (see "Bar lines, stretches and measures"), instead of trusting a model's measure numbers: the detection of measures is one of the things that can be wrong. They are the measures stage 15 may change for the issue (stage 16 above).
+  - **Code works out the measures** under the boxes, from the system boxes and the measures of `analyze` (see "Bar lines, stretches and measures"), instead of trusting a model's measure numbers: the detection of measures is one of the things that can be wrong. They are the measures `apply_review` may change for the issue (`human_review` above).
   - **Models give boxes on the crop they were sent** (a system or measure crop). Code turns them into boxes on the page: the crops were cut from known boxes, so this is exact.
   - **An optional prose location** says what in the box is meant when the box alone doesn't, e.g. "the middle note of the chord". It must be **simple and local to the box,** and not depend on the model's reading of the score: "the left-hand note on the third beat" turns wrong if the note wasn't for the left hand, or wasn't on the third beat, after all. The prompts say so.
   - **Issues are text only:** no stored image with annotations. A model sees the boxes as coordinates and, **proposed,** as pictures drawn by code when the request is built: one copy of the crop with all boxes in different colours, and one without any, since lines over the music would get in the way of reviewing everything else, and boxes may overlap.
@@ -546,26 +559,26 @@ An **issue** is one question about what the printed score says at one place (or 
   - **from the user:** one answer, chosen by the user, `resolved` set, `applied` null; the question may be missing;
   - **from code** (a problem found without failing the stage, such as a measure whose durations don't add up): a question, no answers and no choices yet. A later stage adds the answers.
 
-  The prompts explain what is missing for each source. Answers and choices added later go through the same append-only log as every other change (stage 14).
-- **A re-run treats issues like everything else** (§5.5): nothing special. A change before stage 12 runs the extraction again, and the issues start over; a human review after it is dropped, since its input changed, and the issues it resolved are lost with it. That is accepted.
+  The prompts explain what is missing for each source. Answers and choices added later go through the same append-only log as every other change (`review`).
+- **A re-run treats issues like everything else** (§5.5): nothing special. A change before `extract` runs the extraction again, and the issues start over; a human review after it is dropped, since its input changed, and the issues it resolved are lost with it. That is accepted.
 - **A resolved issue stays in the list for good.** Later reviews take its answer as the truth and don't raise the question again.
-- **An issue needs applying** (stage 15) when its chosen answer differs from `applied`, which includes every issue whose `applied` is null.
+- **An issue needs applying** (`apply_review`) when its chosen answer differs from `applied`, which includes every issue whose `applied` is null.
 - **The issues of a score are one JSON artifact.** Each stage that touches them produces a new version (§5.4: stored stages never change).
 
 #### Open
 **Open in the proposal itself:**
-- **Stages 5 and 10 as stages at all.** They store nothing but images on the device and roughly double the space a project takes there. The alternative: rotate and crop in memory wherever the images are needed.
-- **The size of stage 6.** It does a lot. It could be split into a few stages: we want neither giant stages nor a thousand small ones.
-- **Content boxes.** Should stage 6 (or a stage before it) also find the box of the content on each page, with most of the analysis then running on content crops? The point: the user could fix the content crop of a bad page and re-run, and the model could suddenly see the music. A draft prompt is in `NOTES-2026-10-formats.md` §6.
-- **Stage 8's tool** for fixing boxes and bar lines.
-- **Stage 11:** many small details of the skeleton.
-- **Stage 12:** the format the model writes the music in (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
-- **Stage 15:** what exactly goes in, the format of the answer, and whether it runs per measure, per system, per page or once for the score.
-- **Renderings of the extracted MEI as input** for some stages (review, apply): whether, and where.
-- **Stages 15 and 16 are less worked out** than the rest and may need clarifying.
+- **`deskew` and `crop` as stages at all.** They store nothing but images on the device and roughly double the space a project takes there. The alternative: rotate and crop in memory wherever the images are needed.
+- **The size of `analyze`.** It does a lot. It could be split into a few stages: we want neither giant stages nor a thousand small ones.
+- **Content boxes.** Should `analyze` (or a stage before it) also find the box of the content on each page, with most of the analysis then running on content crops? The point: the user could fix the content crop of a bad page and re-run, and the model could suddenly see the music. A draft prompt is in `NOTES-2026-10-formats.md` §6.
+- **`fix_boxes`'s tool** for fixing boxes, bar lines and the classification of stretches.
+- **MEI Basic:** check what it allows (see "MEI").
+- **`extract`:** the format the model writes the music in (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
+- **`apply_review`:** what exactly goes in, the format of the answer, and whether it runs per measure, per system, per page or once for the score.
+- **Renderings of the extracted MEI as input** for some stages (`review`, `apply_review`): whether, and where.
+- **`apply_review` and `human_review` are less worked out** than the rest and may need clarifying.
 
 **Seen while writing this down:**
-- **Running stage 15 only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
+- **Running `apply_review` only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
 - **Issue ids** must stay the same from stage to stage, and who assigns them (code, not the model) has to be fixed.
 
 ## 7. LLM steps
