@@ -506,6 +506,7 @@ An **issue** is one question about what the printed score says at one place (or 
   - **from code** (a problem found without failing the stage, such as a measure whose durations don't add up): a question, no answers and no choices yet. A later stage adds the answers.
 
   The prompts explain what is missing for each source. Answers and choices added later go through the same append-only log as every other change (stage 14).
+- **A re-run treats issues like everything else** (§5.5): nothing special. A change before stage 12 runs the extraction again, and the issues start over; a human review after it is dropped, since its input changed, and the issues it resolved are lost with it. That is accepted.
 - **A resolved issue stays in the list for good.** Later reviews take its answer as the truth and don't raise the question again.
 - **An issue needs applying** (stage 15) when its chosen answer differs from `applied`, which includes every issue whose `applied` is null.
 - **The issues of a score are one JSON artifact.** Each stage that touches them produces a new version (§5.4: stored stages never change).
@@ -530,7 +531,6 @@ An **issue** is one question about what the printed score says at one place (or 
   - **The answer itself** can only be verified by a model or the user looking at the result, e.g. in a later review.
 - **Running stage 15 only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
 - **The structural checks (§7.4) have no stage of their own any more.** Validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) need a place: they are issues too, raised by code (see "Issues").
-- **What a re-run does to issues.** A change before stage 12 runs the extraction again, and the issues start over; the human review after it is dropped, since its input changed (§5.5). Resolved issues are then lost with it, although many would still apply. This is the per-item reuse question of §15 in another form.
 - **Issue ids** must stay the same from stage to stage, and who assigns them (code, not the model) has to be fixed.
 
 ## 7. LLM steps
