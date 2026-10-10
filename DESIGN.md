@@ -467,6 +467,14 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   The model extracts the music and reports its doubts as issues. **The snippets are built and validated after each system,** not at the end: if the model can't handle the score, the stage fails early, and an hour of calls isn't paid for answers that turn out not to parse. An early failure tells the user to step in earlier in the pipeline, or to use a stronger model.
 - **13, Full MEI.** The placeholders are replaced by the snippets, the whole document is validated and rendered, and the issues of all systems are combined.
 - **14, Review.** One call per system, with the same input as stage 12, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. A tool shows the crop of another system, capped at a small number of calls. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output.
+  - **The whole score goes into every call** (decided), so the model can check consistency across the score. It is sent in the compact format the models write the music in (the "lens", stage 12), not as MEI.
+  - **Each call sees what the calls before it in the stage changed,** and the cost stays close to linear in the score's length, by prompt caching. A call's prompt is, in this order:
+    1. the whole score;
+    2. the issues as they were when the stage started;
+    3. the changes made by the stage's earlier calls, one entry per change, in the order of the calls (e.g. "review of system 7: chose answer 2 for issue 12", or a new issue). Entries are only ever appended, never rewritten, like `choices` in an issue;
+    4. the system's own part: its crops, its extraction, the neighbouring systems' crops.
+
+    Parts 1 to 3 of a call are the start of the next call's prompt, so with a cache breakpoint at the end of part 3 each call pays the full price only for the entries added by the call before it, and the rest is read from the cache. Without the append-only log, every change to the issues would break the cache, and the cost would grow with the score's length times the number of issues, which is itself roughly proportional to the length. The calls run one after another (§10), so the cache stays warm between them.
 - **15, Apply review results.** An LLM gets the current extraction and the issues, and is told which issues need a change (below). It returns the changed music; the artifacts are a new full MEI, its rendering, and the issues with their `applied` field updated and nothing else changed.
 - **16, Human review.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
   - **A viewer like the one of the evaluation tooling** (§13) is needed for this anyway: the original next to the rendering of the current extraction. The user never sees MEI or LilyPond.
@@ -493,7 +501,6 @@ An **issue** is one question about what the printed score says at one place: a m
 
 #### Open
 **To discuss next:**
-- **(B) Stage 14 grows with the square of the score's length:** the extraction and the issues of the whole score go into each of the calls, one per system. Prompt caching removes most of the cost if the whole-score part comes first and is identical in every call. Otherwise the context could be limited to the page or to the neighbouring systems.
 - **(D) One format for issues from models and from the user.** A user's issue as sketched in stage 16 has marks on the page and the measures under them in place of `location` and `question`, a single answer, and is resolved from the start. Does that fit the same schema with optional fields, or are there two kinds? The same question for problems found by code (below).
 
 **Open in the proposal itself:**
