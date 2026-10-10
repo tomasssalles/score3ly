@@ -490,6 +490,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     4. the system's own part: its crops, its extraction, the neighbouring systems' crops.
 
     Parts 1 to 3 of a call are the start of the next call's prompt, so with a cache breakpoint at the end of part 3 each call pays the full price only for the entries added by the call before it, and the rest is read from the cache. Without the append-only log, every change to the issues would break the cache, and the cost would grow with the score's length times the number of issues, which is itself roughly proportional to the length. The calls run one after another (§10), so the cache stays warm between them.
+- **Renderings** (decided): `assemble` renders the MEI for people, for the side-by-side view in `human_review`. Models don't get renderings, at first: `review` compares the crops with the extraction as text (the LilyPond subset), as in the manual run (§16 step 3), and `apply_review` changes text. Whether a rendering of the system next to its crop helps `review` is measured later on the test set (§15); if it does, it becomes the default and can be turned off in `review`'s config. A rendering can mislead in its own way: differences of engraving (spacing, stem directions, Verovio's own choices) look like errors to a model comparing pictures.
 - **`apply_review`.** An LLM gets the current extraction and the issues, and is told which issues need a change (below). It returns the changed music; the artifacts are a new full MEI, its rendering, and the issues with their `applied` field updated and nothing else changed.
 - **`human_review`.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
   - **A viewer like the one of the evaluation tooling** (§13) is needed for this anyway: the original next to the rendering of the current extraction. The user never sees MEI or LilyPond.
@@ -594,7 +595,6 @@ An **issue** is one question about what the printed score says at one place (or 
 - **`fix_boxes`'s tool** for fixing boxes, bar lines and the classification of stretches.
 - **`extract`:** the exact LilyPond subset the model writes (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
 - **`apply_review`:** what exactly goes in, the format of the answer, and whether it runs per measure, per system, per page or once for the score.
-- **Renderings of the extracted MEI as input** for some stages (`review`, `apply_review`): whether, and where.
 - **`apply_review` and `human_review` are less worked out** than the rest and may need clarifying.
 
 **Seen while writing this down:**
@@ -948,7 +948,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **A finished task is deleted,** not ticked off. A decision goes into the section it belongs to.
 
 ### Decisions
-- **Decide whether rendering stays in the pipeline:** confirm the Verovio-based proposal (§9), or drop rendering and review from crop + LilyPond text only (as in v1). After testing whether rendered previews measurably improve review quality.
+- **Compare `review` with and without renderings as model input** (§6, "Renderings"), on the test set, some day: run it both ways and compare what it finds, counting false findings as well as extra correct ones. If renderings help, they become the default, and a config option of `review` can turn them off.
 - **Decide the reviewer's details** (§7.5): flag-only versus auto-accepted patches, the same model or a different one, the number of rounds. By comparing results with and without review on the test set.
 - **Define the constrained LilyPond subset** (§7.3) exactly, especially cross-staff notation, ornaments, ossia and lyrics.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
