@@ -493,20 +493,24 @@ An **issue** is one question about what the printed score says at one place (or 
   - **Issues are text only:** no stored image with annotations. A model sees the boxes as coordinates and, **proposed,** as pictures drawn by code when the request is built: one copy of the crop with all boxes in different colours, and one without any, since lines over the music would get in the way of reviewing everything else, and boxes may overlap.
 - **What an issue holds** (the field names are a sketch):
   - `id`: the same through all stages;
+  - `source`: who raised it: the extraction, a review, the user or code;
   - `boxes`: page and box, one or more (above);
   - `location` (optional, above) and `question`: prose, e.g. "the middle note of the chord" and "not sure which duration it has";
-  - `answers`: a list of free texts;
-  - `choices`: who chose which answer, one entry per stage that chose (the extraction, each review, the user). The answer that counts is the latest one, but nothing is overwritten, so disagreement between reviewers stays visible and the human review can show those issues first;
+  - `answers`: a list of free texts, possibly empty;
+  - `choices`: who chose which answer, one entry per stage that chose (the extraction, each review, the user). The answer that counts is the latest one, but nothing is overwritten, so disagreement between reviewers stays visible and the human review can show those issues first. Possibly empty;
   - `applied`: the answer the current MEI reflects, or **null** when that isn't known. It is null for an issue the user added: the user only says what is right, not what the MEI has now;
   - `resolved`: set when a human chose or wrote the answer.
+- **One schema for every source** (decided): `location`, `question` and `applied` are optional, `answers` and `choices` may be empty. Which may be missing depends on `source`, and code checks it, e.g.:
+  - **from a model:** a question and at least one answer;
+  - **from the user:** one answer, chosen by the user, `resolved` set, `applied` null; the question may be missing;
+  - **from code** (a problem found without failing the stage, such as a measure whose durations don't add up): a question, no answers and no choices yet. A later stage adds the answers.
+
+  The prompts explain what is missing for each source. Answers and choices added later go through the same append-only log as every other change (stage 14).
 - **A resolved issue stays in the list for good.** Later reviews take its answer as the truth and don't raise the question again.
 - **An issue needs applying** (stage 15) when its chosen answer differs from `applied`, which includes every issue whose `applied` is null.
 - **The issues of a score are one JSON artifact.** Each stage that touches them produces a new version (§5.4: stored stages never change).
 
 #### Open
-**To discuss next:**
-- **(D) One format for issues from models, the user and code.** Settled: every issue is located by boxes and is text only (see "Issues"). Still open: a user's issue has a single answer, maybe no question, and is resolved from the start; a problem found by code (below) may come with no answers at all. Do these fit the same schema with optional fields, or are there kinds of issues?
-
 **Open in the proposal itself:**
 - **Stages 5 and 10 as stages at all.** They store nothing but images on the device and roughly double the space a project takes there. The alternative: rotate and crop in memory wherever the images are needed.
 - **The size of stage 6.** It does a lot. It could be split into a few stages: we want neither giant stages nor a thousand small ones.
@@ -522,7 +526,7 @@ An **issue** is one question about what the printed score says at one place (or 
 **Seen while writing this down:**
 - **Is `applied` what the model says or what code checked?** Stage 15 updates the field, but a model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5). Code checks that the measures of an issue changed when it was applied, and that nothing else did (stage 16 above).
 - **Running stage 15 only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
-- **The structural checks (§7.4) have no stage of their own any more.** Validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) need a place: they could be issues too, raised by code, which is part of (D).
+- **The structural checks (§7.4) have no stage of their own any more.** Validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) need a place: they are issues too, raised by code (see "Issues").
 - **How many reviews the recipe has,** and whether there is a limit on the ones added by hand (the old plan said at most one or two rounds).
 - **Whether a review added by hand always brings its stage 15,** as stage 16 does.
 - **What a re-run does to issues.** A change before stage 12 runs the extraction again, and the issues start over; the human review after it is dropped, since its input changed (§5.5). Resolved issues are then lost with it, although many would still apply. This is the per-item reuse question of §15 in another form.
