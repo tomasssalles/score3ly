@@ -484,7 +484,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - **No editing of the source and no replacing it by an upload** (decided, for now). Either would make the issues unreliable: after a direct edit, nobody knows which answer of each issue the MEI reflects. A "final touches" stage is an optional item for late in the roadmap (§16).
   - **Adding a correction:** the user drags one or more boxes on the original score (easy on touch devices too) and writes the correction as free text ("this should be a C flat"). It becomes an issue like any other (below). The original can show the boxes of all issues at once, so the user sees where the questions are.
 
-#### Metadata (first draft)
+#### Metadata
 What identifies the score, in the narrow sense: the layout (systems, measures, boxes) and the musical observations are separate artifacts of stage 6. Every field is optional, holds **only what is printed** (as printed), and notes the page where it was found. Models know famous works and would add an opus number or a composer's dates from memory; that can't be checked against the page, and the user can add it in stage 7.
 - **Titles:** a list of `{ text, type }`, the type one of main, subtitle, alternative, translated. Title pages often give the title in several languages ("Kinderscenen / Scènes d'enfants").
 - **People:** a list of `{ name, role, printed role }`, the role from a fixed list (composer, arranger, editor, lyricist, librettist, translator, other), the printed role as worded on the page ("Revidiert und mit Fingersatz versehen von …"), which rarely maps exactly. Any role can have several people.
@@ -548,7 +548,6 @@ An **issue** is one question about what the printed score says at one place (or 
 - **Stages 5 and 10 as stages at all.** They store nothing but images on the device and roughly double the space a project takes there. The alternative: rotate and crop in memory wherever the images are needed.
 - **The size of stage 6.** It does a lot. It could be split into a few stages: we want neither giant stages nor a thousand small ones.
 - **Content boxes.** Should stage 6 (or a stage before it) also find the box of the content on each page, with most of the analysis then running on content crops? The point: the user could fix the content crop of a bad page and re-run, and the model could suddenly see the music. A draft prompt is in `NOTES-2026-10-formats.md` §6.
-- **The metadata:** confirm the first draft above.
 - **Stage 8's tool** for fixing boxes and bar lines.
 - **Stage 11:** many small details of the skeleton.
 - **Stage 12:** the format the model writes the music in (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
