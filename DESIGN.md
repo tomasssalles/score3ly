@@ -427,9 +427,9 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 | 3 | Skew analysis | computed | JSON: per page, the skew angle, the staves found, and whether the page is to be rotated (§8.4). No rotated images |
 | 4 | Fix skew angles **[manual]**, after 3 | manual | JSON as in 3 |
 | 5 | Deskew | computed | All page images, as one artifact, as in 2 |
-| 6 | General analysis | LLM | JSON: metadata. JSON: system boxes and the x-positions of the bar lines in each system. JSON: observations per page and for the whole score |
+| 6 | General analysis | LLM | JSON: metadata. JSON: system boxes, the bar lines in each system and how the stretches between them form measures. JSON: observations per page and for the whole score |
 | 7 | Fix metadata **[manual]**, after 6 | manual | JSON: metadata |
-| 8 | Fix system and measure boxes **[manual]**, after 6 | manual | JSON: boxes |
+| 8 | Fix system boxes and measures **[manual]**, after 6 | manual | JSON: boxes, bar lines and measures, as in 6 |
 | 9 | Fix observations **[manual]**, after 6 | manual | JSON: observations |
 | 10 | Crop systems and measures | computed | The crops, as in 5 |
 | 11 | MEI skeleton | computed | MEI, with the metadata filled in and a placeholder per measure |
@@ -450,15 +450,16 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     - what the page is: cover, empty, music or other;
     - metadata, where the input can include what earlier pages gave, so that the model only updates it (as a full JSON or a JSON patch);
     - whether the page is severely skewed;
-    - the number of systems, and per system the number of real measures and whether it ends with a "non-measure" that only holds a key signature change;
+    - the number of systems;
     - a bounding box per system. Boxes may overlap, so that nothing is missing from a crop. The model can call a tool that shows the page with its boxes drawn in colour, and adjust them, at most 3 rounds; if it still isn't satisfied, it flags the page for human review and returns its best guess;
-    - the same procedure for the measures, but only the x-positions of the bar lines in each system are asked for. Because of the non-measures, the bar lines can't simply be numbered to get measure numbers;
+    - per system, the bar lines and the classification of the stretches between them, from which code builds the measures (see "Bar lines, stretches and measures" below), with the same tool and rounds as for the boxes;
     - high-level musical information: number of staves, the probable instrument of each staff, voices per staff, time signatures, key signatures, clefs, 8va and the like (for all of these also where and how they change), large-scale dynamics such as crescendos, melodies that seem to repeat in other places, repeats, "da capo" and the like, parts, movements or pieces, and the general style (e.g. baroque).
   - **Per project:** all pages in a small format, with what the per-page part found, to get observations across pages that help the extraction later, such as melodies that repeat on other pages.
 - **7, Fix metadata.** At first by editing the JSON, if that is easiest. Later a form with a field per entry.
+- **8, Fix system boxes and measures.** The boxes, the bar lines (position and kind), the classification of the stretches and the kinds of measure, and per piece whether its numbering starts at 0 or 1 (below).
 - **9, Fix observations.** At first by editing the JSON. Later the observations could be shown as a Markdown document that the user edits as formatted text. That Markdown could be a further artifact of stage 6, or of a tiny stage after it, and stage 9 would then edit the Markdown. Worth building early although it is a nice-to-have: it changes the list of stages and the kinds of artifact.
 - **12, Extraction.** One call per system, with:
-  - the system crop and its measure crops;
+  - the system crop and its measure crops (a measure split across systems has a crop for each of its stretches);
   - the crops of the previous and the next system;
   - the observations from stage 6 (or 9);
   - the time signature the system begins with, worked out by code from the previous system's extraction;
@@ -483,11 +484,36 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - **No editing of the source and no replacing it by an upload** (decided, for now). Either would make the issues unreliable: after a direct edit, nobody knows which answer of each issue the MEI reflects. A "final touches" stage is an optional item for late in the roadmap (§16).
   - **Adding a correction:** the user drags one or more boxes on the original score (easy on touch devices too) and writes the correction as free text ("this should be a C flat"). It becomes an issue like any other (below). The original can show the boxes of all issues at once, so the user sees where the questions are.
 
+#### Metadata (first draft)
+What identifies the score, in the narrow sense: the layout (systems, measures, boxes) and the musical observations are separate artifacts of stage 6. Every field is optional, holds **only what is printed** (as printed), and notes the page where it was found. Models know famous works and would add an opus number or a composer's dates from memory; that can't be checked against the page, and the user can add it in stage 7.
+- **Work:** title, subtitle, opus or catalogue number (e.g. "Op. 15", "BWV 846"), dedication.
+- **People:** composer, arranger or transcriber, editor, lyricist or poet.
+- **Instrumentation** as printed, e.g. "für Klavier zu vier Händen".
+- **Pieces or movements:** for each, its title or number as printed and the page where it starts (Kinderszenen has 13).
+- **Edition:** publisher, place, year, plate number, copyright and other notices.
+
+All of it has a place in MEI's header.
+
+#### Bar lines, stretches and measures
+Bar lines alone don't give the measures. A courtesy key or time signature at the end of a system comes after the system's last bar line and belongs to no measure (a courtesy clef comes before it, inside the last measure). A measure can be split across systems, even pages, or by a repeat bar line or a double bar in its middle (typically after a pickup). A passage without bar lines (a cadenza) is one long stretch. So:
+- **Bar lines:** per system, the model gives their x-positions and kinds (single, double, final, start repeat, end repeat, dashed; the skeleton needs the repeats).
+- **Stretches:** code cuts each system at its bar lines: from the start of the staff to the first bar line, between consecutive bar lines, and from the last bar line to the end. The stretches partition the system.
+- **The model classifies each stretch,** in order: **none** (part of no measure, e.g. courtesy signatures), **new** (starts a measure) or **continues** (part of the same measure as the previous stretch that is part of a measure, even on the previous system or page). This is local: the model never numbers measures across the score. A page's call gets the previous page's last system, to tell whether its first stretch continues a measure.
+- **The kind of each measure,** on its first stretch: **normal**, **incomplete** (a pickup, or the short measure that completes one before a repeat or at the end of a section) or **unmeasured** (a cadenza, a passage without bar lines).
+- **Printed measure numbers,** where one is visible (usually at the start of a system), on the stretch where it is printed.
+- **Code builds the measures** from the stretches and numbers them, **per piece or movement** (from the metadata): numbering starts again with each piece.
+  - **0 or 1:** when a piece begins with an incomplete measure, code numbers it 0 or 1, whichever matches the printed numbers better. The user can change it in stage 8.
+- **Code checks plausibility** and flags what looks wrong, for the user to look at, not as errors:
+  - the first stretch of a piece can't continue a measure; a "none" anywhere but at the end of a system is suspicious;
+  - a printed number on a stretch not classified "new";
+  - printed numbers that don't match code's count. Only the stretch where the **offset** between printed and counted numbers changes is flagged, not every measure after it: one missing measure must not flag the rest of the score. Some changes are legitimate (editions often give a first and a second ending the same number).
+- **What code can't catch** here, the extraction does: durations that don't add up in a measure become an issue raised by code.
+
 #### Issues
 An **issue** is one question about what the printed score says at one place (or a few, below): a model's doubt, a reviewer's correction or a user's correction. (Earlier called "uncertainty"; `NOTES-2026-10-formats.md` still uses that word.)
 
 - **It describes a place in the printed score,** not in the MEI or in the rendering, with **bounding boxes,** whoever raised it (a model, the user, code). Each box is a page and a box on it in our usual fractions (§6). An issue can have several, e.g. a slur that continues into the next system, perhaps on the next page: one box at the end of one system, one at the start of the next.
-  - **Code works out the measures** under the boxes, from the system and measure boxes of stage 6, instead of trusting a model's measure numbers: the detection of measures is one of the things that can be wrong. They are the measures stage 15 may change for the issue (stage 16 above).
+  - **Code works out the measures** under the boxes, from the system boxes and the measures of stage 6 (see "Bar lines, stretches and measures"), instead of trusting a model's measure numbers: the detection of measures is one of the things that can be wrong. They are the measures stage 15 may change for the issue (stage 16 above).
   - **Models give boxes on the crop they were sent** (a system or measure crop). Code turns them into boxes on the page: the crops were cut from known boxes, so this is exact.
   - **An optional prose location** says what in the box is meant when the box alone doesn't, e.g. "the middle note of the chord". It must be **simple and local to the box,** and not depend on the model's reading of the score: "the left-hand note on the third beat" turns wrong if the note wasn't for the left hand, or wasn't on the third beat, after all. The prompts say so.
   - **Issues are text only:** no stored image with annotations. A model sees the boxes as coordinates and, **proposed,** as pictures drawn by code when the request is built: one copy of the crop with all boxes in different colours, and one without any, since lines over the music would get in the way of reviewing everything else, and boxes may overlap.
@@ -516,7 +542,7 @@ An **issue** is one question about what the printed score says at one place (or 
 - **Stages 5 and 10 as stages at all.** They store nothing but images on the device and roughly double the space a project takes there. The alternative: rotate and crop in memory wherever the images are needed.
 - **The size of stage 6.** It does a lot. It could be split into a few stages: we want neither giant stages nor a thousand small ones.
 - **Content boxes.** Should stage 6 (or a stage before it) also find the box of the content on each page, with most of the analysis then running on content crops? The point: the user could fix the content crop of a bad page and re-run, and the model could suddenly see the music. A draft prompt is in `NOTES-2026-10-formats.md` §6.
-- **Which metadata** is collected for a score.
+- **The metadata:** confirm the first draft above.
 - **Stage 8's tool** for fixing boxes and bar lines.
 - **Stage 11:** many small details of the skeleton.
 - **Stage 12:** the format the model writes the music in (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
