@@ -515,7 +515,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - **Model config:** the same kind of work as `extract` (§7.6: extracting the music notation).
 - **`human_review`.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
   - **The warnings of the version being reviewed** are shown too (see "Warnings"). The user never sees MEI or LilyPond.
-  - **The screen** (first ideas, not final):
+  - **The screen:**
     - **Two panels at most,** side by side or stacked as in the evaluation viewer (§13): the original on the left or at the top, the rendering of the current extraction on the right or below. Zooming is a must. The side-by-side view is mainly for finding problems nobody raised; resolving an issue mostly needs only the original, since issues are about what is hard to read on it.
     - **No list of issues:** the boxes of all issues sit on the original, dimmed, and can be clicked. The selected one is no longer dimmed, and a panel with the issue (its question, location, answers, choices) covers the rendering panel; the original stays visible. Closing it dims the box again. Where the rendering is needed, the panel is opened and closed as often as needed.
     - **Warnings use the same UI:** their boxes are on the original too, in their own style (e.g. dashed, a warning colour); their panel shows the explanation, with nothing to answer. The rendering matters more for warnings than for issues.
@@ -632,7 +632,6 @@ A **warning** is about the current extraction, or about how it was produced, not
 #### Open
 **Open in the proposal itself:**
 - **`extract`:** the exact LilyPond subset the model writes (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
-- **`human_review`'s screen:** the first ideas above are not final.
 
 ## 7. LLM steps
 
