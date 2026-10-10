@@ -514,8 +514,15 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - **Checks:** those of `extract` (parsing; durations of the affected measures; continuations consistent across systems), with failures going back to the model in the same call, capped; then the comparison before and after (below). Code then rebuilds and renumbers the measures, choosing the 0-or-1 start anew.
   - **Model config:** the same kind of work as `extract` (§7.6: extracting the music notation).
 - **`human_review`.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
-  - **The warnings of the version being reviewed** are shown too (see "Warnings").
-  - **A viewer like the one of the evaluation tooling** (§13) is needed for this anyway: the original next to the rendering of the current extraction. The user never sees MEI or LilyPond.
+  - **The warnings of the version being reviewed** are shown too (see "Warnings"). The user never sees MEI or LilyPond.
+  - **The screen** (first ideas, not final):
+    - **Two panels at most,** side by side or stacked as in the evaluation viewer (§13): the original on the left or at the top, the rendering of the current extraction on the right or below. Zooming is a must. The side-by-side view is mainly for finding problems nobody raised; resolving an issue mostly needs only the original, since issues are about what is hard to read on it.
+    - **No list of issues:** the boxes of all issues sit on the original, dimmed, and can be clicked. The selected one is no longer dimmed, and a panel with the issue (its question, location, answers, choices) covers the rendering panel; the original stays visible. Closing it dims the box again. Where the rendering is needed, the panel is opened and closed as often as needed.
+    - **Warnings use the same UI:** their boxes are on the original too, in their own style (e.g. dashed, a warning colour); their panel shows the explanation, with nothing to answer. The rendering matters more for warnings than for issues.
+    - **Arrow buttons** go from one box to the next (issues and warnings, in score order), scrolling the original to it, with the panel staying open.
+    - **The original can be hidden,** to look at the rendering alone, and **the boxes can be hidden,** to see the original cleanly.
+    - **A "⋮" menu** takes over once the toolbar gets busy: show or hide the boxes, show or hide the original, create a new issue. Creating one: the next drag on the original draws a box (the box tool of `fix_layout`), and the panel opens with the new issue, whose answer the user writes; boxes can be adjusted or added while it is open, within the 2-system rule.
+    - **Scrolling and zooming are linked** between the two panels by default, with a small button to unlink them. Verovio's engraving won't match the original's heights and spacing (staff size, distances between staves and systems, room for titles, lyrics and dynamics), even with options such as `spacingSystem` and `spacingStaff`; widths can come close, rendering each page at the original page's width. But with the encoded breaks, systems correspond one to one, and both sides have their systems located (the original from the layout, the rendering from the system elements of Verovio's SVG). So the link maps positions system by system, piecewise linear (40% into system 12 on one side is 40% into system 12 on the other, gaps interpolated alike), and the zoom is linked so that the same system has the same width on both sides. Re-linking aligns the rendering to the original.
   - **Every correction is applied by `apply_review`,** an LLM call (decided). Applying answers by code doesn't work in general: a measure can have several issues, and an answer would have to come with a replacement for every combination of answers; and many corrections reach beyond one measure ("this slur continues the one in the previous system" touches two systems, perhaps two pages).
   - **Code checks what `apply_review` did:** it compares the extraction before and after, **stretch by stretch** (not the MEI by measure: measures can be merged or split, stretches can't), the rendering highlights the measures whose stretches changed, and a changed stretch outside the boxes of the issues being applied needs a reason and is flagged (see `apply_review`). The stretches of an issue are the ones under its boxes (see "Issues" below).
   - **So `applied` is what the model says, checked only roughly by code.** A model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5).
@@ -523,7 +530,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     - **Code can't tell** whether the change is the chosen answer: the right stretch changed the wrong way passes. Where several issues share stretches, a change can't be credited to one of them.
     - **The answer itself** can only be verified by a model or the user looking at the result, e.g. in a later review.
   - **No editing of the source and no replacing it by an upload** (decided, for now). Either would make the issues unreliable: after a direct edit, nobody knows which answer of each issue the MEI reflects. A "final touches" stage is an optional item for late in the roadmap (§16).
-  - **Adding a correction:** the user drags one or more boxes on the original score (easy on touch devices too) and writes the correction as free text ("this should be a C flat"). It becomes an issue like any other (below). The original can show the boxes of all issues at once, so the user sees where the questions are.
+  - **Adding a correction:** the user drags one or more boxes on the original score (easy on touch devices too) and writes the correction as free text ("this should be a C flat"). It becomes an issue like any other (below).
 
 #### Metadata
 What identifies the score, in the narrow sense: the layout (systems, measures, boxes) and the musical observations are separate artifacts of `analyze`. Every field is optional, holds **only what is printed** (as printed), and notes the page where it was found. Models know famous works and would add an opus number or a composer's dates from memory; that can't be checked against the page, and the user can add it in `fix_metadata`.
@@ -625,7 +632,7 @@ A **warning** is about the current extraction, or about how it was produced, not
 #### Open
 **Open in the proposal itself:**
 - **`extract`:** the exact LilyPond subset the model writes (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
-- **`human_review` is less worked out** than the rest and may need clarifying.
+- **`human_review`'s screen:** the first ideas above are not final.
 
 ## 7. LLM steps
 
