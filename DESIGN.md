@@ -457,6 +457,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     - high-level musical information: number of staves, the probable instrument of each staff, voices per staff, time signatures, key signatures, clefs, 8va and the like (for all of these also where and how they change), large-scale dynamics such as crescendos, melodies that seem to repeat in other places, repeats, "da capo" and the like, parts, movements or pieces, and the general style (e.g. baroque);
     - the bar lines' kinds (single, double, final, start repeat, end repeat, dashed), as part of the observations: the repeats are part of the score's global structure. A location in the observations is given locally, e.g. "page 7, 3rd system on the page, 4th bar line of the system": it can still be wrong, but a miscounted system on another page or a miscounted bar line in another system doesn't make it wrong.
   - **Per project:** all pages in a small format, with what the per-page part found, to get observations across pages that help the extraction later, such as melodies that repeat on other pages.
+  - **No content boxes** (decided, until there is evidence they would help). The idea: `analyze`, or a stage before it, finds the box of the content on each page, and most of the analysis runs on content crops. The scenario for it: old paper with an ornate frame around every page, the model's systems and bar lines are nonsense on all of them, and the user has to fix 22 pages of boxes, after which `extract` reads the music fine; with content boxes, the user would fix one box per page and the model would do the rest. Against it: another box per page, another set of images, another stage and more LLM calls, and so far Opus has found systems well. Testing the finished pipeline on Kinderscenen (§15) shows whether the scenario happens. A draft prompt is in `NOTES-2026-10-formats.md` §6.
 - **`fix_metadata`.** A form from the start, not a JSON editor: the metadata is small and fixed, its Zod schema exists anyway (§3), and typing JSON on a phone is miserable.
   - **Sections with headers:** titles, people, the work, pieces or movements, the edition. Titles, people and pieces are lists, with rows to add and remove and a dropdown for the type or role.
   - **The page each field was found on** is shown next to it ("p. 3"), as a link that opens the page, for checking.
@@ -600,7 +601,6 @@ An **issue** is one question about what the printed score says at one place (or 
 #### Open
 **Open in the proposal itself:**
 - **The size of `analyze`.** It does a lot. It could be split into a few stages: we want neither giant stages nor a thousand small ones.
-- **Content boxes.** Should `analyze` (or a stage before it) also find the box of the content on each page, with most of the analysis then running on content crops? The point: the user could fix the content crop of a bad page and re-run, and the model could suddenly see the music. A draft prompt is in `NOTES-2026-10-formats.md` §6.
 - **`extract`:** the exact LilyPond subset the model writes (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
 - **`apply_review`:** what exactly goes in, the format of the answer (with merging and splitting measures), and whether it runs per measure, per system, per page or once for the score.
 - **`apply_review` and `human_review` are less worked out** than the rest and may need clarifying.
@@ -970,6 +970,8 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Decide whether the artifact view follows the pipeline while it runs** (§5.6).
 - **Decide whether the app opens like an installed app on a phone** (§5.7): the web app manifest sets no display mode, so from the home screen it opens as a normal browser page. As an installed app it would get the whole screen, but lose the browser's back button (which closes an artifact or a menu page, §5.6) and the address bar. It would then need the same back and forward buttons as the desktop version (§3).
 - **Choose a license** (§5.6, the About page). Until then all rights are reserved.
+
+- **Test the finished pipeline on Kinderscenen** (test set), once it runs end to end. Among other things: whether `analyze` finds the systems and bar lines despite the old paper and decorations, or whether the user would have to fix most pages by hand, the scenario for content boxes (§6, `analyze`).
 
 ### Placeholders to replace
 - **Pick an icon for each kind of artifact** (§5.6), once the list of stages is final and the kinds of artifact are known, and remove the thumbnails from the output tiles (`PdfThumb.tsx` and the mock's image thumbnails).
