@@ -472,6 +472,13 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - a tool to zoom into a part of the crop, so the call is a loop, with caps.
 
   The model extracts the music of each measure, corrects the bar lines' kinds and the `scoreDef` where needed (the starting clefs, keys and time signatures, the staff labels and groups), and reports its doubts as issues. **It can't add or drop a measure:** code rejects an answer that doesn't cover exactly the measures asked for. **The snippets are built and validated after each system,** not at the end: if the model can't handle the score, the stage fails early, and an hour of calls isn't paid for answers that turn out not to parse. An early failure tells the user to step in earlier in the pipeline, or to use a stronger model.
+  - **Models write music as a subset of LilyPond, wrapped in JSON** (decided), never MEI: code builds the MEI. So MEI's schema is checked in our tests, as a check on our converter, not at run time.
+  - **Checks after each system's answer,** on the system alone (code wraps it with the running state where needed):
+    - **parsing:** the answer is valid JSON in our schema, and its LilyPond parses;
+    - **durations:** each voice in each measure adds up to the time signature (incomplete and unmeasured measures excepted);
+    - **the measures** are exactly the ones asked for.
+  - **A failed check goes back to the model** in the same call, with the place and the problem, as one more round of the loop (capped, like the zoom tool): most slips are fixed for the price of a short follow-up. A duration mismatch that persists becomes an issue raised by code, and the stage goes on; an answer that still doesn't parse fails the stage.
+  - **Slurs and ties into the next system** can only be checked as open, to be closed by the next system; `assemble` checks them across the score.
 - **The structural checks (§7.4) have no stage of their own:** validation happens inside `extract` and `assemble`. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) are issues raised by code (see "Issues").
 - **`assemble`.** Code builds the MEI frame from the structure and the metadata, inserts the snippets, validates the whole document, renders it, and combines the issues of all systems.
   - **The rendering** (Verovio) can follow the original's layout or not: its `breaks` option `encoded` uses the page and system breaks in the MEI (below), so the rendering has the same systems as the original and the two can be compared system by system, as in `human_review`; `auto` computes its own breaks for the page size and ignores the encoded ones.
@@ -572,7 +579,7 @@ An **issue** is one question about what the printed score says at one place (or 
 - **Content boxes.** Should `analyze` (or a stage before it) also find the box of the content on each page, with most of the analysis then running on content crops? The point: the user could fix the content crop of a bad page and re-run, and the model could suddenly see the music. A draft prompt is in `NOTES-2026-10-formats.md` §6.
 - **`fix_boxes`'s tool** for fixing boxes, bar lines and the classification of stretches.
 - **MEI Basic:** check what it allows (see "MEI").
-- **`extract`:** the format the model writes the music in (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
+- **`extract`:** the exact LilyPond subset the model writes (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
 - **`apply_review`:** what exactly goes in, the format of the answer, and whether it runs per measure, per system, per page or once for the score.
 - **Renderings of the extracted MEI as input** for some stages (`review`, `apply_review`): whether, and where.
 - **`apply_review` and `human_review` are less worked out** than the rest and may need clarifying.
