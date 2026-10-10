@@ -440,7 +440,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 | 16 | Human review **[manual]**, after any 15 | manual | JSON: the issues, updated. A stage 15 is added after it automatically |
 
 - **No manual fixes of the music before the first review.** The first point where the user corrects the music is stage 16.
-- **The recipe has exactly one review** (14, followed by 15). **Further reviews** can be added by hand after it, as many as the user wants, with the same or another config.
+- **The recipe has exactly one review** (14, followed by 15). **Further reviews** can be added by hand after it, as many as the user wants, with the same or another config. Adding a review, by hand or after a human review, always adds its stage 15 after it.
 - **The manual stages after 6** (7, 8, 9) are all added from stage 6's "⋮" and in any order.
 
 #### Details per stage
@@ -530,7 +530,6 @@ An **issue** is one question about what the printed score says at one place (or 
   - **The answer itself** can only be verified by a model or the user looking at the result, e.g. in a later review.
 - **Running stage 15 only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
 - **The structural checks (§7.4) have no stage of their own any more.** Validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) need a place: they are issues too, raised by code (see "Issues").
-- **Whether a review added by hand always brings its stage 15,** as stage 16 does.
 - **What a re-run does to issues.** A change before stage 12 runs the extraction again, and the issues start over; the human review after it is dropped, since its input changed (§5.5). Resolved issues are then lost with it, although many would still apply. This is the per-item reuse question of §15 in another form.
 - **Issue ids** must stay the same from stage to stage, and who assigns them (code, not the model) has to be fixed.
 
