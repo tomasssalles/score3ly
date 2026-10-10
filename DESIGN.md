@@ -426,43 +426,46 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 | 2 | `rasterize` | Rasterize | computed | All page images, as one artifact. Not stored: reproduced from the config (§5.3) |
 | 3 | `skew_analysis` | Skew analysis | computed | JSON: per page, the skew angle, the staves found, and whether the page is to be rotated (§8.4). No rotated images |
 | 4 | `fix_skew` | Fix skew angles **[manual]**, after `skew_analysis` | manual | JSON as in `skew_analysis` |
-| 5 | `analyze` | General analysis | LLM | JSON: metadata. JSON: the structure: system boxes and the positions of the bar lines in each system. JSON: observations per page and for the whole score (including the bar lines' kinds) |
-| 6 | `fix_metadata` | Fix metadata **[manual]**, after `analyze` | manual | JSON: metadata |
-| 7 | `fix_boxes` | Fix system boxes and bar lines **[manual]**, after `analyze` | manual | JSON: the structure, as in `analyze` |
-| 8 | `fix_observations` | Fix observations **[manual]**, after `analyze` | manual | JSON: observations |
-| 9 | `extract` | Extraction | LLM, per system | The JSON answers per system (the music, the stretches' classification). The MEI snippets per measure. The issues raised (see below) |
-| 10 | `assemble` | Full MEI | computed | The MEI file. Its rendering as a PDF. All issues combined into one JSON |
-| 11 | `review` | Review | LLM, per system | JSON: the issues, updated |
-| 12 | `apply_review` | Apply review results | LLM | The MEI file, the new rendering, and the issues with what was applied |
-| 13 | `human_review` | Human review **[manual]**, after any `apply_review` | manual | JSON: the issues, updated. An `apply_review` is added after it automatically |
+| 5 | `layout` | Layout | LLM | JSON: the structure: per page, the system boxes and the positions of the bar lines in each system |
+| 6 | `fix_layout` | Fix system boxes and bar lines **[manual]**, after `layout` | manual | JSON: the structure, as in `layout` |
+| 7 | `analyze` | General analysis | LLM | JSON: metadata. JSON: observations per page and for the whole score (including the special bar lines) |
+| 8 | `fix_metadata` | Fix metadata **[manual]**, after `analyze` | manual | JSON: metadata |
+| 9 | `fix_observations` | Fix observations **[manual]**, after `analyze` | manual | JSON: observations |
+| 10 | `extract` | Extraction | LLM, per system | The JSON answers per system (the music, the stretches' classification). The MEI snippets per measure. The issues raised (see below) |
+| 11 | `assemble` | Full MEI | computed | The MEI file. Its rendering as a PDF. All issues combined into one JSON |
+| 12 | `review` | Review | LLM, per system | JSON: the issues, updated |
+| 13 | `apply_review` | Apply review results | LLM | The MEI file, the new rendering, and the issues with what was applied |
+| 14 | `human_review` | Human review **[manual]**, after any `apply_review` | manual | JSON: the issues, updated. An `apply_review` is added after it automatically |
 
 - **No manual fixes of the music before the first review.** The first point where the user corrects the music is `human_review`.
 - **The recipe has exactly one review** (`review`, followed by `apply_review`). **Further reviews** can be added by hand after it, as many as the user wants, with the same or another config. Adding a review, by hand or after a human review, always adds its `apply_review` after it.
-- **The manual stages after `analyze`** (`fix_metadata`, `fix_boxes`, `fix_observations`) are all added from its "⋮" and in any order.
+- **Manual stages after an LLM stage** are added from its "⋮": `fix_layout` after `layout`; `fix_metadata` and `fix_observations` after `analyze`, in any order.
+- **Two stages read the pages** (decided): `layout` finds where things are, `analyze` says what they are. `analyze` runs after `fix_layout`, so it sees the final layout: code draws the systems and bar lines on each page, numbered, and the observations refer to those labels. Each has its own model config (§7.6: finding layout boxes, extracting metadata), and a better prompt for one doesn't re-run the other. The price is that every page is sent twice, small next to one `extract` call per system.
 - **No skeleton stage** (decided; an earlier draft had one, an MEI file with a placeholder per measure). What it was for (a fixed structure, assembly as filling in, a check that the extraction returns exactly the measures asked for) needs no stored MEI: code builds the MEI frame from the structure whenever it is needed (see "MEI" below).
 - **A stage exists where there is a config or a decision** (decided). A pure function of other stages' results is a view, not a stage. So there is no skeleton stage (above), and no stages for the straightened pages or the crops: the angles and boxes are decisions of other stages, and rotating and cropping are fixed operations (§8.2). Those images are computed when something needs them (a view, an LLM request) and cached on the device (§8.6); stages wouldn't add anything but cards in the pipeline and a second copy of every page on the device. They are shown as views of other stages' outputs: `skew_analysis` and `fix_skew` show the pages straightened, as they will be sent; `extract` shows each system's crop with its music below it (the filmstrip, §5.6). `rasterize` stays a stage: its config (the resolution for vector pages, perhaps colour or grayscale, §15) changes every image after it, and its pages are the natural first view.
-- **The structure is final before `extract`.** The structure is what decides which pixels the models see: the skew angles (`fix_skew`), where the systems are on each page and where the bar lines are on each system (`fix_boxes`). `extract` is shown system crops and stretch crops, and if it is shown the wrong part of the page, no model can make up for it. So every fix of the structure comes before `extract`, and no later stage changes it; a mistake in it found later is fixed by going back to `fix_boxes`, which replaces everything after it (§5.5). The pieces or movements (`fix_metadata`) are fixed before `extract` too: the MEI's sections and the numbering restart with them.
+- **The structure is final before `extract`.** The structure is what decides which pixels the models see: the skew angles (`fix_skew`), where the systems are on each page and where the bar lines are on each system (`fix_layout`). `extract` is shown system crops and stretch crops, and if it is shown the wrong part of the page, no model can make up for it. So every fix of the structure comes before `extract`, and no later stage changes it; a mistake in it found later is fixed by going back to `fix_layout`, which replaces everything after it (§5.5). The pieces or movements (`fix_metadata`) are fixed before `extract` too: the MEI's sections and the numbering restart with them.
   - **Everything else is content,** read by `extract` and open to correction by the stages after it: how the stretches between bar lines form measures, the kinds of measure and of bar line, and so which measures exist and how they are numbered; and the `scoreDef` (clefs, keys, time signatures, staff labels and groups). Those are hard for a model to get right from a whole page (the stretches need the note durations read), and easy to correct later, now that no MEI is built in advance. A user of an automated app shouldn't be asked to transcribe them by hand before anything is extracted.
 
 #### Details per stage
 - **`fix_skew`.** The user flips through the pages with arrows (no continuous scroll). Per page: a toggle that turns deskewing on or off, and lines drawn by clicking where their two ends should be, along the staff lines. Code computes the angle that makes those lines as horizontal as possible. A very small angle still means no rotation, but an angle set by hand may be larger than the 5 degrees allowed otherwise (§8.4). Still needed: deleting a line, moving its ends, and how all of this works on touch devices.
+- **`layout`.** Per page:
+  - whether the page is severely skewed;
+  - a bounding box per system (none on a page without music). Boxes may overlap, so that nothing is missing from a crop. The model can call a tool that shows the page with its boxes drawn in colour, and adjust them, at most 3 rounds; if it still isn't satisfied, it flags the page for human review and returns its best guess;
+  - per system, the positions of its bar lines (see "Bar lines, stretches and measures" below), with the same tool and rounds as for the boxes.
+  - **No classification of pages** (cover, empty, music, other; decided): nothing is done differently by kind of page. Metadata is read from every page (publishing details may be on a text page inside the book, the pieces and movements are on the music pages), and a page without music is simply a page without systems.
 - **`analyze`.**
-  - **Per page:**
-    - what the page is: cover, empty, music or other;
+  - **Per page,** with the final layout drawn on it (systems and bar lines, numbered):
     - metadata, where the input can include what earlier pages gave, so that the model only updates it (as a full JSON or a JSON patch);
-    - whether the page is severely skewed;
-    - the number of systems;
-    - a bounding box per system. Boxes may overlap, so that nothing is missing from a crop. The model can call a tool that shows the page with its boxes drawn in colour, and adjust them, at most 3 rounds; if it still isn't satisfied, it flags the page for human review and returns its best guess;
-    - per system, the positions of its bar lines (see "Bar lines, stretches and measures" below), with the same tool and rounds as for the boxes;
     - high-level musical information: number of staves, the probable instrument of each staff, voices per staff, time signatures, key signatures, clefs, 8va and the like (for all of these also where and how they change), large-scale dynamics such as crescendos, melodies that seem to repeat in other places, repeats, "da capo" and the like, parts, movements or pieces, and the general style (e.g. baroque);
-    - the bar lines' kinds (single, double, final, start repeat, end repeat, dashed), as part of the observations: the repeats are part of the score's global structure. A location in the observations is given locally, e.g. "page 7, 3rd system on the page, 4th bar line of the system": it can still be wrong, but a miscounted system on another page or a miscounted bar line in another system doesn't make it wrong.
+    - **the special bar lines** only (double, final, start repeat, end repeat, dashed; an ordinary single bar line is not listed), as part of the observations: the repeats are part of the score's global structure.
+    - **Locations are local,** e.g. "page 7, system 3, bar line 4", using the labels drawn on the page: a miscounted system on another page or a miscounted bar line in another system can't make them wrong.
   - **Per project:** all pages in a small format, with what the per-page part found, to get observations across pages that help the extraction later, such as melodies that repeat on other pages.
   - **No content boxes** (decided, until there is evidence they would help). The idea: `analyze`, or a stage before it, finds the box of the content on each page, and most of the analysis runs on content crops. The scenario for it: old paper with an ornate frame around every page, the model's systems and bar lines are nonsense on all of them, and the user has to fix 22 pages of boxes, after which `extract` reads the music fine; with content boxes, the user would fix one box per page and the model would do the rest. Against it: another box per page, another set of images, another stage and more LLM calls, and so far Opus has found systems well. Testing the finished pipeline on Kinderscenen (§15) shows whether the scenario happens. A draft prompt is in `NOTES-2026-10-formats.md` §6.
 - **`fix_metadata`.** A form from the start, not a JSON editor: the metadata is small and fixed, its Zod schema exists anyway (§3), and typing JSON on a phone is miserable.
   - **Sections with headers:** titles, people, the work, pieces or movements, the edition. Titles, people and pieces are lists, with rows to add and remove and a dropdown for the type or role.
   - **The page each field was found on** is shown next to it ("p. 3"), as a link that opens the page, for checking.
   - **What the user enters is the truth.** Its page stays as the model gave it, and may no longer fit (the model may have read the wrong page); that is fine, since the pages aren't used by any later stage.
-- **`fix_boxes`.** The system boxes and the positions of the bar lines, nothing else (the rest is content, above).
+- **`fix_layout`.** The system boxes and the positions of the bar lines, nothing else (the rest is content, above). A page's systems can be removed altogether, or drawn on a page where `layout` found none.
   - **Boxes:** each has its own colour, cycling through 7 that colour-blind people can tell apart (e.g. Okabe–Ito without its black), and a small label in its colour at a corner. One box is selected: opaque, thicker, with handles; the others are dimmed but visible, since the overlap with the neighbouring systems is what the user is checking. Outlines only, no fill, which would hide the music. Tapping a box selects it; tapping again where boxes overlap selects the next one under that point; tapping a label always works.
   - **Bar lines** belong to a system and span its box from top to bottom. They are dragged sideways only; a new one is placed by a single tap inside the selected system, at that x.
   - **A toolbar, not a context menu:** "+ System", "+ Bar line", "Delete" (enabled while something is selected), outside the zoomed page. On touch, a long-press would compete with moving a box and with the start of a pinch or a pan, and right-click doesn't exist; the buttons also give the gestures their meaning: normally a drag on empty page pans, after "+ System" the next drag draws a box, after "+ Bar line" the next tap places a line. On desktop, shortcuts as well: Delete or Backspace removes, Escape cancels, arrow keys nudge.
@@ -472,7 +475,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - the system crop and its stretch crops;
   - the crops of the previous and the next system;
   - the observations from `analyze` (or `fix_observations`);
-  - the stretches it must classify and fill, and the bar lines' kinds and the staves `analyze` saw, as a starting point;
+  - the stretches it must classify and fill, and the special bar lines and the staves `analyze` saw, as a starting point;
   - whether the previous system's extraction ended with a measure that continues into this system;
   - the state the system begins with (clefs, keys, time signature), carried by code from the previous system's extraction;
   - a tool to zoom into a part of the crop, so the call is a loop, with caps.
@@ -551,7 +554,7 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 
 #### Bar lines, stretches and measures
 Bar lines alone don't give the measures. A courtesy key or time signature at the end of a system comes after the system's last bar line and belongs to no measure (a courtesy clef comes before it, inside the last measure). A measure can be split across systems, even pages, or by a repeat bar line or a double bar in its middle (typically after a pickup). A passage without bar lines (a cadenza) is one long stretch. So:
-- **Bar lines:** `analyze` gives their x-positions per system (structure, fixed in `fix_boxes`) and their kinds (single, double, final, start repeat, end repeat, dashed; content, in the observations). `extract` may correct the kinds, never the positions.
+- **Bar lines:** `layout` gives their x-positions per system (structure, fixed in `fix_layout`); `analyze` lists the special ones by kind (double, final, start repeat, end repeat, dashed; content, in the observations), and every other bar line is a single one. `extract` may correct the kinds, never the positions.
 - **Stretches:** code cuts each system at its bar lines: from the start of the staff to the first bar line, between consecutive bar lines, and from the last bar line to the end. The stretches partition the system.
 - **`extract` classifies each stretch,** in order, while reading its music: **none** (part of no measure, e.g. courtesy signatures), **new** (starts a measure) or **continues** (part of the same measure as the previous stretch that is part of a measure, even on the previous system or page). This is local: the model never numbers measures across the score.
 - **Across systems, from both sides:** `extract` says whether the system's last measure continues into the next system, and that goes into the next system's request; the next system classifies its first stretch as "continues" or not. Code flags a mismatch (one says the measure ends, the other that it continues). A measure split across systems is extracted in two calls, one part each; code joins the parts into one MEI measure, and the duration check runs on the joined measure.
@@ -600,7 +603,6 @@ An **issue** is one question about what the printed score says at one place (or 
 
 #### Open
 **Open in the proposal itself:**
-- **The size of `analyze`.** It does a lot. It could be split into a few stages: we want neither giant stages nor a thousand small ones.
 - **`extract`:** the exact LilyPond subset the model writes (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
 - **`apply_review`:** what exactly goes in, the format of the answer (with merging and splitting measures), and whether it runs per measure, per system, per page or once for the score.
 - **`apply_review` and `human_review` are less worked out** than the rest and may need clarifying.
@@ -740,7 +742,7 @@ Built: `findSkew` in `packages/imaging/src/skew.ts`. It returns the angle (degre
 
 #### When a page is deskewed
 **Best effort, low risk.** Deskewing happens before any LLM call, in code, and a mistake must cost little: at worst, a music page isn't straightened and is a little harder to read. So:
-- **Only pages with staves** are deskewed. Code detects staves for this and for nothing else: it doesn't decide what a page is, nor which pages go to which LLM task. Every page goes to the LLM in global analysis (§6), which says what each page is.
+- **Only pages with staves** are deskewed. Code detects staves for this and for nothing else: it doesn't decide what a page is, nor which pages go to which LLM task. Every page goes to the LLMs (`layout` and `analyze`, §6), which find the systems on it, if any.
 - **Not at the edge of the range:** an angle at the 5° limit isn't trusted, and the page stays as it is.
 - **Not for tiny angles:** rotation blurs a little (interpolation), so a page whose lines drift by less than about a pixel across its width (about 0.02° for 2500 px) stays as it is.
 - The user can always set the angle by hand (§5.4).
