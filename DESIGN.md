@@ -479,18 +479,22 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 - **16, Human review.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
   - **A viewer like the one of the evaluation tooling** (§13) is needed for this anyway: the original next to the rendering of the current extraction. The user never sees MEI or LilyPond.
   - **Every correction is applied by stage 15,** an LLM call (decided). Applying answers by code doesn't work in general: a measure can have several issues, and an answer would have to come with a replacement for every combination of answers; and many corrections reach beyond one measure ("this slur continues the one in the previous system" touches two systems, perhaps two pages).
-  - **Code checks what stage 15 did:** it compares the MEI before and after measure by measure, the rendering highlights the measures that changed, and a change outside the measures of the issues being applied is flagged. So an issue names every measure it may touch, not just one place (see "Issues across systems" below).
+  - **Code checks what stage 15 did:** it compares the MEI before and after measure by measure, the rendering highlights the measures that changed, and a change outside the measures of the issues being applied is flagged. The measures of an issue are the ones under its boxes (see "Issues" below).
   - **No editing of the source and no replacing it by an upload** (decided, for now). Either would make the issues unreliable: after a direct edit, nobody knows which answer of each issue the MEI reflects. A "final touches" stage is an optional item for late in the roadmap (§16).
-  - **Idea for adding a correction:** the user marks the place on the original score, as in the evaluation viewer (which works well on touch devices), and writes the correction as free text ("this should be a C flat"). Code finds the measures the marks overlap. Stage 15 gets the marked crop and those measures, which together stand in for the issue's description.
+  - **Adding a correction:** the user drags one or more boxes on the original score (easy on touch devices too) and writes the correction as free text ("this should be a C flat"). It becomes an issue like any other (below). The original can show the boxes of all issues at once, so the user sees where the questions are.
 
 #### Issues
-An **issue** is one question about what the printed score says at one place: a model's doubt, a reviewer's correction or a user's correction. (Earlier called "uncertainty"; `NOTES-2026-10-formats.md` still uses that word.)
+An **issue** is one question about what the printed score says at one place (or a few, below): a model's doubt, a reviewer's correction or a user's correction. (Earlier called "uncertainty"; `NOTES-2026-10-formats.md` still uses that word.)
 
-- **It describes a place in the printed score,** not in the MEI or in the rendering: page, system on that page, measure in that system, and then prose, e.g. "the low left-hand note on the second beat". A plain measure number wouldn't do: the detection of measures is one of the things that can be wrong.
+- **It describes a place in the printed score,** not in the MEI or in the rendering, with **bounding boxes,** whoever raised it (a model, the user, code). Each box is a page and a box on it in our usual fractions (§6). An issue can have several, e.g. a slur that continues into the next system, perhaps on the next page: one box at the end of one system, one at the start of the next.
+  - **Code works out the measures** under the boxes, from the system and measure boxes of stage 6, instead of trusting a model's measure numbers: the detection of measures is one of the things that can be wrong. They are the measures stage 15 may change for the issue (stage 16 above).
+  - **Models give boxes on the crop they were sent** (a system or measure crop). Code turns them into boxes on the page: the crops were cut from known boxes, so this is exact.
+  - **An optional prose location** says what in the box is meant when the box alone doesn't, e.g. "the middle note of the chord". It must be **simple and local to the box,** and not depend on the model's reading of the score: "the left-hand note on the third beat" turns wrong if the note wasn't for the left hand, or wasn't on the third beat, after all. The prompts say so.
+  - **Issues are text only:** no stored image with annotations. A model sees the boxes as coordinates and, **proposed,** as pictures drawn by code when the request is built: one copy of the crop with all boxes in different colours, and one without any, since lines over the music would get in the way of reviewing everything else, and boxes may overlap.
 - **What an issue holds** (the field names are a sketch):
   - `id`: the same through all stages;
-  - `page`, `system`, `measure`: numbers, as printed;
-  - `location` and `question`: prose, e.g. "the low left-hand note on the second beat" and "not sure which duration it has";
+  - `boxes`: page and box, one or more (above);
+  - `location` (optional, above) and `question`: prose, e.g. "the middle note of the chord" and "not sure which duration it has";
   - `answers`: a list of free texts;
   - `choices`: who chose which answer, one entry per stage that chose (the extraction, each review, the user). The answer that counts is the latest one, but nothing is overwritten, so disagreement between reviewers stays visible and the human review can show those issues first;
   - `applied`: the answer the current MEI reflects, or **null** when that isn't known. It is null for an issue the user added: the user only says what is right, not what the MEI has now;
@@ -501,7 +505,7 @@ An **issue** is one question about what the printed score says at one place: a m
 
 #### Open
 **To discuss next:**
-- **(D) One format for issues from models and from the user.** A user's issue as sketched in stage 16 has marks on the page and the measures under them in place of `location` and `question`, a single answer, and is resolved from the start. Does that fit the same schema with optional fields, or are there two kinds? The same question for problems found by code (below).
+- **(D) One format for issues from models, the user and code.** Settled: every issue is located by boxes and is text only (see "Issues"). Still open: a user's issue has a single answer, maybe no question, and is resolved from the start; a problem found by code (below) may come with no answers at all. Do these fit the same schema with optional fields, or are there kinds of issues?
 
 **Open in the proposal itself:**
 - **Stages 5 and 10 as stages at all.** They store nothing but images on the device and roughly double the space a project takes there. The alternative: rotate and crop in memory wherever the images are needed.
@@ -519,7 +523,6 @@ An **issue** is one question about what the printed score says at one place: a m
 - **Is `applied` what the model says or what code checked?** Stage 15 updates the field, but a model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5). Code checks that the measures of an issue changed when it was applied, and that nothing else did (stage 16 above).
 - **Running stage 15 only where needed.** If each call covers one system, only the systems with issues that need applying are called, and the rest costs nothing.
 - **The structural checks (§7.4) have no stage of their own any more.** Validation happens inside 12 and 13. Problems that code finds without failing the stage (a measure whose durations don't add up, a slur that never ends) need a place: they could be issues too, raised by code, which is part of (D).
-- **Issues across systems.** A slur that continues into the next system concerns two systems, but an issue names one place. It has to name every measure it may touch, for the check after stage 15; how, is open.
 - **How many reviews the recipe has,** and whether there is a limit on the ones added by hand (the old plan said at most one or two rounds).
 - **Whether a review added by hand always brings its stage 15,** as stage 16 does.
 - **What a re-run does to issues.** A change before stage 12 runs the extraction again, and the issues start over; the human review after it is dropped, since its input changed (§5.5). Resolved issues are then lost with it, although many would still apply. This is the per-item reuse question of §15 in another form.
