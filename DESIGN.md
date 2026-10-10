@@ -486,13 +486,19 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 
 #### Metadata (first draft)
 What identifies the score, in the narrow sense: the layout (systems, measures, boxes) and the musical observations are separate artifacts of stage 6. Every field is optional, holds **only what is printed** (as printed), and notes the page where it was found. Models know famous works and would add an opus number or a composer's dates from memory; that can't be checked against the page, and the user can add it in stage 7.
-- **Work:** title, subtitle, opus or catalogue number (e.g. "Op. 15", "BWV 846"), dedication.
-- **People:** composer, arranger or transcriber, editor, lyricist or poet.
+- **Titles:** a list of `{ text, type }`, the type one of main, subtitle, alternative, translated. Title pages often give the title in several languages ("Kinderscenen / Scènes d'enfants").
+- **People:** a list of `{ name, role, printed role }`, the role from a fixed list (composer, arranger, editor, lyricist, librettist, translator, other), the printed role as worded on the page ("Revidiert und mit Fingersatz versehen von …"), which rarely maps exactly. Any role can have several people.
+- **Opus or catalogue number** (e.g. "Op. 15", "BWV 846"), **dedication**.
 - **Instrumentation** as printed, e.g. "für Klavier zu vier Händen".
 - **Pieces or movements:** for each, its title or number as printed and the page where it starts (Kinderszenen has 13).
 - **Edition:** publisher, place, year, plate number, copyright and other notices.
 
-All of it has a place in MEI's header.
+**In MEI's header** (`meiHead`), which follows library cataloguing and separates the abstract work from the printed edition, code fills:
+- **The work** (`workList/work`): the titles as repeated `<title>` elements with `@type` (`main`, `subordinate` for a subtitle, `alternative`, `translated`); the people as `<composer>`, `<arranger>`, `<lyricist>`, `<librettist>`, `<editor>`, any other role as `<persName role="…">` in a `<respStmt>` (MEI 5 also has generic `<creator>` and `<contributor>` with a role); the catalogue number (`identifier`), the dedicatee, the instrumentation (`perfMedium`, structured), and the pieces (`componentList`, matching the `mdiv` sections of the music).
+- **The printed edition** (MEI 5: `manifestationList/manifestation`; earlier versions: `fileDesc/sourceDesc`): publisher, place, date, the plate number (`physDesc/plateNum`), and possibly a transcription of the title page as printed (`titlePage`), which keeps the printed wording of everything above.
+- **How the file was made** (`encodingDesc/appInfo`): score3ly, its version (§11), perhaps the models used: provenance in the file itself.
+
+To check against the MEI 5 guidelines when the skeleton (stage 11) is built: the details of the edition's description, which changed in MEI 5.
 
 #### Bar lines, stretches and measures
 Bar lines alone don't give the measures. A courtesy key or time signature at the end of a system comes after the system's last bar line and belongs to no measure (a courtesy clef comes before it, inside the last measure). A measure can be split across systems, even pages, or by a repeat bar line or a double bar in its middle (typically after a pickup). A passage without bar lines (a cadenza) is one long stretch. So:
