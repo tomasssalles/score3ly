@@ -426,23 +426,22 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 | 2 | `rasterize` | Rasterize | computed | All page images, as one artifact. Not stored: reproduced from the config (§5.3) |
 | 3 | `skew_analysis` | Skew analysis | computed | JSON: per page, the skew angle, the staves found, and whether the page is to be rotated (§8.4). No rotated images |
 | 4 | `fix_skew` | Fix skew angles **[manual]**, after `skew_analysis` | manual | JSON as in `skew_analysis` |
-| 5 | `deskew` | Deskew | computed | All page images, as one artifact, as in `rasterize` |
-| 6 | `analyze` | General analysis | LLM | JSON: metadata. JSON: the structure: system boxes, the bar lines in each system and how the stretches between them form measures. JSON: observations per page and for the whole score |
-| 7 | `fix_metadata` | Fix metadata **[manual]**, after `analyze` | manual | JSON: metadata |
-| 8 | `fix_boxes` | Fix system boxes and measures **[manual]**, after `analyze` | manual | JSON: the structure, as in `analyze` |
-| 9 | `fix_observations` | Fix observations **[manual]**, after `analyze` | manual | JSON: observations |
-| 10 | `crop` | Crop systems and measures | computed | The crops, as in `deskew` |
-| 11 | `extract` | Extraction | LLM, per system | The JSON answers per system. The MEI snippets per measure. The issues raised (see below) |
-| 12 | `assemble` | Full MEI | computed | The MEI file. Its rendering as a PDF. All issues combined into one JSON |
-| 13 | `review` | Review | LLM, per system | JSON: the issues, updated |
-| 14 | `apply_review` | Apply review results | LLM | The MEI file, the new rendering, and the issues with what was applied |
-| 15 | `human_review` | Human review **[manual]**, after any `apply_review` | manual | JSON: the issues, updated. An `apply_review` is added after it automatically |
+| 5 | `analyze` | General analysis | LLM | JSON: metadata. JSON: the structure: system boxes, the bar lines in each system and how the stretches between them form measures. JSON: observations per page and for the whole score |
+| 6 | `fix_metadata` | Fix metadata **[manual]**, after `analyze` | manual | JSON: metadata |
+| 7 | `fix_boxes` | Fix system boxes and measures **[manual]**, after `analyze` | manual | JSON: the structure, as in `analyze` |
+| 8 | `fix_observations` | Fix observations **[manual]**, after `analyze` | manual | JSON: observations |
+| 9 | `extract` | Extraction | LLM, per system | The JSON answers per system. The MEI snippets per measure. The issues raised (see below) |
+| 10 | `assemble` | Full MEI | computed | The MEI file. Its rendering as a PDF. All issues combined into one JSON |
+| 11 | `review` | Review | LLM, per system | JSON: the issues, updated |
+| 12 | `apply_review` | Apply review results | LLM | The MEI file, the new rendering, and the issues with what was applied |
+| 13 | `human_review` | Human review **[manual]**, after any `apply_review` | manual | JSON: the issues, updated. An `apply_review` is added after it automatically |
 
 - **No manual fixes of the music before the first review.** The first point where the user corrects the music is `human_review`.
 - **The recipe has exactly one review** (`review`, followed by `apply_review`). **Further reviews** can be added by hand after it, as many as the user wants, with the same or another config. Adding a review, by hand or after a human review, always adds its `apply_review` after it.
 - **The manual stages after `analyze`** (`fix_metadata`, `fix_boxes`, `fix_observations`) are all added from its "⋮" and in any order.
 - **No skeleton stage** (decided; an earlier draft had one, an MEI file with a placeholder per measure). What it was for (a fixed structure, assembly as filling in, a check that the extraction returns exactly the measures asked for) needs no stored MEI: code builds the MEI frame from the structure whenever it is needed (see "MEI" below).
-- **The structure is final before `crop`.** Some things are hard to change later, above all which measures exist. So every manual fix of the structure (the skew angles in `fix_skew`; the boxes, bar lines and measures in `fix_boxes`; the pieces or movements in `fix_metadata`, which the measure numbering and the MEI's sections depend on) comes before the crops are made, and no later stage changes the structure. A structural mistake found later (e.g. two stretches that should be one measure) is fixed by going back to `fix_boxes`, which replaces everything after it (§5.5).
+- **A stage exists where there is a config or a decision** (decided). A pure function of other stages' results is a view, not a stage. So there is no skeleton stage (above), and no stages for the straightened pages or the crops: the angles and boxes are decisions of other stages, and rotating and cropping are fixed operations (§8.2). Those images are computed when something needs them (a view, an LLM request) and cached on the device (§8.6); stages wouldn't add anything but cards in the pipeline and a second copy of every page on the device. They are shown as views of other stages' outputs: `skew_analysis` and `fix_skew` show the pages straightened, as they will be sent; `extract` shows each system's crop with its music below it (the filmstrip, §5.6). `rasterize` stays a stage: its config (the resolution for vector pages, perhaps colour or grayscale, §15) changes every image after it, and its pages are the natural first view.
+- **The structure is final before `extract`.** Some things are hard to change later, above all which measures exist. So every manual fix of the structure (the skew angles in `fix_skew`; the boxes, bar lines and measures in `fix_boxes`; the pieces or movements in `fix_metadata`, which the measure numbering and the MEI's sections depend on) comes before `extract`, and no later stage changes the structure. A structural mistake found later (e.g. two stretches that should be one measure) is fixed by going back to `fix_boxes`, which replaces everything after it (§5.5).
   - **Structure versus content:** the structure is which measures exist, where they are on the page, which piece they belong to and how they are numbered. Everything about the measures' content belongs to `extract` and the stages after it, including the bar lines' kinds and the `scoreDef` (clefs, keys, time signatures, staff labels and groups).
 
 #### Details per stage
@@ -578,7 +577,6 @@ An **issue** is one question about what the printed score says at one place (or 
 
 #### Open
 **Open in the proposal itself:**
-- **`deskew` and `crop` as stages at all.** They store nothing but images on the device and roughly double the space a project takes there. The alternative: rotate and crop in memory wherever the images are needed.
 - **The size of `analyze`.** It does a lot. It could be split into a few stages: we want neither giant stages nor a thousand small ones.
 - **Content boxes.** Should `analyze` (or a stage before it) also find the box of the content on each page, with most of the analysis then running on content crops? The point: the user could fix the content crop of a bad page and re-run, and the model could suddenly see the music. A draft prompt is in `NOTES-2026-10-formats.md` §6.
 - **`fix_boxes`'s tool** for fixing boxes, bar lines and the classification of stretches.
@@ -740,8 +738,21 @@ Built, in `findSkew`, from the same line responses and strips, at the angle foun
 - **Memory:** a 300 dpi page held in canvas memory is about 35 MB, and mobile Safari strictly limits total canvas memory. Process one page at a time in a Web Worker, using typed arrays / `OffscreenCanvas`.
 - **Latency:** generate lazily, current page first.
 - **Eviction:** call `navigator.storage.persist()`, but assume the OPFS cache can disappear at any time. Missing derivatives are simply regenerated.
-- **Rotation:** an LRU cache with a configurable size limit. Deletion is real deletion.
+- **Rotation:** an LRU cache with a configurable size limit (§8.6). Deletion is real deletion.
 - **Bundle size:** avoid OpenCV.js (about 10 MB). With LLMs doing the reading, preprocessing is light enough to write by hand.
+
+### 8.6 The image cache
+Page images, straightened pages and crops are views computed from the PDF and the stages' results (§6), and cached in OPFS, each step separately, so a crop doesn't mean rendering the PDF again.
+- **The key is the hash of the image's recipe, chained:**
+  - page image: hash of (the PDF's SHA-256, the page number, `rasterize`'s version and config);
+  - straightened page: hash of (the page image's key, the angle, the rotation code's version);
+  - crop: hash of (the straightened page's key, the box, the crop code's version).
+
+  Each key contains the key of the image it was made from, so a change anywhere before it (another resolution, another angle, a new version of the code) changes every key after it. Nothing is ever invalidated: an old entry is simply never asked for again, and ages out of the LRU cache (§8.5).
+- **Numbers are written canonically** before hashing (angles and box coordinates rounded to fixed decimals, canonical JSON), so the same recipe always gives the same key.
+- **The code versions** are those of our image functions, plus pdf.js's for the page images (§11).
+- **Stored as PNG** (`cache/<key>.png`), encoded by our own code: a raw RGBA page is about 35 MB, a PNG of line art much smaller and lossless. Reading costs a decode.
+- **The key isn't the fingerprint** (§8.3): the key says what an image should be, the fingerprint, stored in D1 for every image sent to a model, what it was. An image regenerated on another device is checked against it.
 
 ## 9. Rendering (proposed)
 
