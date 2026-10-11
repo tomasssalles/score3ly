@@ -492,7 +492,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - **Our own component, not a package:** an SVG layer over the page image (rectangles with handles, lines, labels, in our fractions, with pointer events for mouse, pen and touch), inside a small zoom-and-pan library such as `react-zoom-pan-pinch`, since pinch-zooming a large page on a phone without confusing it with dragging is the hard part. Ready-made annotation tools (Annotorious, the closest) handle rectangles and polygons but not bar lines bound to a system, nor our look; canvas toolkits (Konva, Fabric.js) would still leave the interaction to us. The same component serves `human_review` (boxes for issues) and the lines along the staves in `fix_skew`.
 - **`fix_observations`.** At first by editing the JSON. Later the observations could be shown as a Markdown document that the user edits as formatted text. That Markdown could be a further artifact of `analyze`, or of a tiny stage after it, and `fix_observations` would then edit the Markdown. Worth building early although it is a nice-to-have: it changes the list of stages and the kinds of artifact.
 - **`extract`.** One call per system, with:
-  - the system crop and its stretch crops;
+  - the system crop and its stretch crops, the stretch crops with generous margins (e.g. half a measure on each side), so that a slur crossing a bar line shows where it ends (in the manual run, with 25 px margins, every missed slur crossed a bar line or a system break);
   - the crops of the previous and the next system;
   - the observations from `analyze` (or `fix_observations`);
   - the stretches it must classify and fill, and the special bar lines and the staves `analyze` saw, as a starting point;
@@ -508,10 +508,16 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     - **the stretches** are exactly the ones asked for.
   - **A failed check goes back to the model** in the same call, with the place and the problem, as one more round of the loop (capped, like the zoom tool): most slips are fixed for the price of a short follow-up. A duration mismatch that persists becomes a warning (see "Warnings"), and the stage goes on; an answer that still doesn't parse fails the stage.
   - **Slurs and ties into the next system** can only be checked as open, to be closed by the next system; `assemble` checks them across the score.
+  - **The prompt,** besides what is musical (see "Musical content and typesetting"), carries the lessons of the manual run (§13):
+    - **Doubts as alternatives with evidence for each** ("dot near the A♭: staccato or smudge?"), raised as issues, not decided silently. In the manual run, 6 of the 11 errors were at least partly in the model's list of doubts, so a review that gets them sees them for free.
+    - **Read first, compare afterwards:** a stretch is transcribed from the image before any supposed repeat is looked at; the differences from the repeat are then things to look at again, never a reason to copy (m13 was copied from m9 because of a hint, and was wrong).
+    - **No unprinted tuplets:** if the durations don't add up, read again; if they still don't, raise an issue (an invented note in m9 produced an odd rhythm, which was "fixed" with a tuplet that isn't printed).
+    - **A checklist per note:** accidental, dots, accents, fingering, where slurs start and end.
+    - **Telling marks from smudges** is the hard part, not keeping or dropping marks by default: "keep every printed mark" was rejected, since several of the model's omissions were right (a stray dot in m2, a dot beside a note in m15).
 - **The structural checks (§7.4) have no stage of their own:** validation happens inside `extract` and `assemble`. Problems that code finds without failing the stage are issues raised by code when they are a question about the page (a slur that never ends: "where does it end?"), and warnings otherwise (a measure whose durations don't add up; see "Warnings").
 - **`assemble`.** Code builds the MEI frame from the structure and the metadata, inserts the snippets, validates the whole document, renders it, and combines the issues of all systems.
   - **The rendering** (Verovio) can follow the original's layout or not: its `breaks` option `encoded` uses the page and system breaks in the MEI (below), so the rendering has the same systems as the original and the two can be compared system by system, as in `human_review`; `auto` computes its own breaks for the page size and ignores the encoded ones.
-- **`review`.** One call per system, with the same input as `extract`, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. A tool shows the crop of another system, capped at a small number of calls. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output.
+- **`review`.** One call per system, with the same input as `extract`, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. A tool shows the crop of another system, capped at a small number of calls. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output. **Its prompt names the common mistakes** to pay attention to, foremost slurs and other spanners crossing bar lines and system breaks (every missed slur in the manual run, §13; no separate tracing pass).
   - **The whole score goes into every call** (decided), so the model can check consistency across the score. It is sent in the compact format the models write the music in (the "lens", `extract`), not as MEI.
   - **Each call sees what the calls before it in the stage changed,** and the cost stays close to linear in the score's length, by prompt caching. A call's prompt is, in this order:
     1. the whole score;
@@ -611,6 +617,7 @@ Text from users and models (titles, names) must be escaped correctly when the XM
     "lastMeasureContinues": false,
     "issues": [ { "boxes": [ … ], "question": "…", "answers": [ "…" ] } ] }
   ```
+- **Several simultaneous slurs** (e.g. one from each note of a chord) must be expressible, e.g. with LilyPond's labelled slurs (`\=1(` … `\=1)`), or the model is pushed to simplify (§13, the triple slurs); MEI attaches slurs to individual notes anyway.
 - **The conversion to MEI normalizes** whatever freedom the lens still leaves (§1, "Why a text encoding").
 - **The lens is swappable** (e.g. a kern-like one) without touching MEI. Which lens transcribes best is an empirical question.
 
@@ -686,7 +693,7 @@ A **warning** is about the current extraction, or about how it was produced, not
 
 #### Open
 **Open in the proposal itself:**
-- **`extract`:** the rest of what the manual run taught about the extraction (`NOTES-2026-10-formats.md` §8.4–8.5; its course and first findings are in §13, "The manual run"). The lens is described as far as needed now ("The lens"); its exact subset and schema come with building `extract`.
+- **`extract`:** the rest of what the manual run taught about the extraction (`NOTES-2026-10-formats.md` §8.4: loose ends, the zoom tool's limits; the rest is in §13, "The manual run", and in `extract`). The lens is described as far as needed now ("The lens"); its exact subset and schema come with building `extract`.
 
 ## 7. LLM steps
 
@@ -1039,6 +1046,12 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
   - **Left alone, the model over-explores:** too many images, turns and tool calls, and too much time (7 minutes for system 1). Images are cheap (a full page is roughly 1.5–3k input tokens); the cost is in turns resending a growing context and in long reasoning. Hence steps we control, one call per system, and caps on every loop.
   - **Systems depend on each other:** slurs, ties, hairpins, 8va lines, pedal and voices cross system breaks, and a later system can change the reading of an earlier one. Hence the neighbouring crops in `extract`, the continuation flags, and `review` with the whole score.
   - **Repetitions seen from above were partly wrong** (m13 isn't m9): observations are hints, and every stretch is read on its own.
+- **The author's check of the result** found 11 errors, 6 of them at least partly in the model's list of doubts. Three kinds, needing different remedies:
+  - *saw it, decided wrongly* (the extent of an 8va, a crescendo dismissed as a printing mark, staccatos left out, the wrong one of two rhythms): mostly among the doubts; `review` and the issues resolve them;
+  - *misread or invented* (an invented note, a wrong note, a missed staccato, a measure copied from a supposed repeat): reading discipline in the prompt, and `review`;
+  - *spanners and simplification* (slurs ending too early at bar lines and system breaks, three slurs written as one): crop margins, `review`'s attention to spanners, and the rules on musical content (§6, "Musical content and typesetting").
+
+  Claude's account of what it had checked was wrong until asked again (it recommended comparing the rendering with the crop but never did it): the call records are trusted, not a model's account (§5.2).
 - **Claude's own retrospective** (what would have helped from the start), and what became of it:
   - **A fixed output spec,** given in full from the start: it changed its conventions midway (pedal moved into the left hand, phrasing slurs from system 2 on, sounding pitch under 8va). That is the lens and the prompt (§6, "The lens").
   - **A known effort budget:** caps belong to the pipeline, not to the model's judgement (`extract`'s loops).
@@ -1057,6 +1070,7 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
 
 ### Use
 - Compare methods, prompts and models side by side by eye.
+- Count how many of the real errors the issues raised by `extract` catch (6 of 11 in the manual run).
 - Cost per piece comes from the LLM call records (§10).
 
 ## 14. Things to pay special attention to
@@ -1139,7 +1153,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
 1. **Evaluation tooling:** the engrave command and the viewer (§13). *Done.*
 2. **Baselines from existing tools:** *Done.* Extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Tools and results: §13, "Baselines". Audiveris is installed only from https://github.com/Audiveris/audiveris/releases: `audiveris.com` and `audiveris.net` are scam sites.
-3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (§13, "The manual run"; the rest of its lessons are still in `NOTES-2026-10-formats.md` §8.4–8.5).
+3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (§13, "The manual run"; the rest of its lessons are still in `NOTES-2026-10-formats.md` §8.4).
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
 5. **Fold the notes into this document:** review the design and `NOTES-2026-10-formats.md` once more, update the decisions (target and storage format, lens, prompts, caps, cross-system handling, musical content vs typesetting, review, content crops and measure crops as stages in §6), fold everything into this document, then delete the notes file.
