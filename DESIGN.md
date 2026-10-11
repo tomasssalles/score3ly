@@ -614,6 +614,17 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 - **The conversion to MEI normalizes** whatever freedom the lens still leaves (§1, "Why a text encoding").
 - **The lens is swappable** (e.g. a kern-like one) without touching MEI. Which lens transcribes best is an empirical question.
 
+#### Musical content and typesetting
+**What is extracted is the music, never its appearance** (decided). In the manual run (§13), Claude attached the m7 crescendo to the pedal line instead of the notes, so that it would print lower and not clutter the music: a false musical fact encoded on purpose to make the engraving look better. That must never happen.
+- **The test:** *would a player read it differently?* If yes, it is musical and is encoded exactly as printed.
+- **Musical** (extracted and reviewed): pitches, rhythms, rests, voices, which hand plays what, ties, slurs (including one slur per chord note), articulations, dynamics and hairpins with the notes they start and end on, 8va extents, clefs, repeats, **beam grouping** (4 × 3 eighths is not 12 single eighths: grouping shows rhythm and phrasing, including beams against the meter or across bar lines and staves), and **stem direction** where it separates voices or hands (in one staff shared by both hands it often shows which hand plays what).
+- **Typesetting** (ignored): spacing, the shapes of slurs and beams, beam slope and thickness, stem length, the exact vertical position of marks, line and page breaks, fonts, the default stem direction of a single voice.
+
+**Defences:**
+- **The `extract` prompt:** encode what the music means, never how it should look; attach every dynamic, hairpin, articulation and slur to the notes it applies to; never let layout influence what is encoded; never simplify to suit the format, and report what can't be expressed as an issue instead of dropping it. The pedal-line example goes in the prompt.
+- **Hacks are impossible in the lens:** it has no layout controls (no `\override`, `\tweak`, spacer-only voices or separate `Dynamics` contexts), and dynamics and hairpins can only be written on notes or rests in a voice. The parser rejects anything outside the subset (`extract`'s checks). In MEI, `<dynam>` and `<hairpin>` refer to a staff and to notes or beats; where they appear on the page is decided by the renderer, from the musical data. How the lens says which staff a dynamic belongs to, or both (a dynamic between the piano staves usually applies to both hands, MEI `staff="1 2"`), is a detail of the lens, settled with it.
+- **`review` and `apply_review`:** check only the musical content against the original and ignore typesetting; an issue is about the music ("the hairpin looks too high" is not one). They read the extraction as text, not only a rendering, since a rendering can look right while the source is wrong (the pedal-line hack would render plausibly).
+
 #### Bar lines, stretches and measures
 Bar lines alone don't give the measures. A courtesy key or time signature at the end of a system comes after the system's last bar line and belongs to no measure (a courtesy clef comes before it, inside the last measure). A measure can be split across systems, even pages, or by a repeat bar line or a double bar in its middle (typically after a pickup). A passage without bar lines (a cadenza) is one long stretch. So:
 - **Bar lines:** `layout` gives their x-positions per system (structure, fixed in `fix_layout`); `analyze` lists the special ones by kind (double, final, start repeat, end repeat, dashed; content, in the observations), and every other bar line is a single one. `extract` may correct the kinds, never the positions.
@@ -675,7 +686,7 @@ A **warning** is about the current extraction, or about how it was produced, not
 
 #### Open
 **Open in the proposal itself:**
-- **`extract`:** a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6), and the rest of what the manual run taught about the extraction (`NOTES-2026-10-formats.md` §8.4–8.5; its course and first findings are in §13, "The manual run"). The lens is described as far as needed now ("The lens"); its exact subset and schema come with building `extract`.
+- **`extract`:** the rest of what the manual run taught about the extraction (`NOTES-2026-10-formats.md` §8.4–8.5; its course and first findings are in §13, "The manual run"). The lens is described as far as needed now ("The lens"); its exact subset and schema come with building `extract`.
 
 ## 7. LLM steps
 
@@ -1128,7 +1139,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
 1. **Evaluation tooling:** the engrave command and the viewer (§13). *Done.*
 2. **Baselines from existing tools:** *Done.* Extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Tools and results: §13, "Baselines". Audiveris is installed only from https://github.com/Audiveris/audiveris/releases: `audiveris.com` and `audiveris.net` are scam sites.
-3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (§13, "The manual run"; the rest of its lessons are still in `NOTES-2026-10-formats.md` §8.4–8.6).
+3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (§13, "The manual run"; the rest of its lessons are still in `NOTES-2026-10-formats.md` §8.4–8.5).
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
 5. **Fold the notes into this document:** review the design and `NOTES-2026-10-formats.md` once more, update the decisions (target and storage format, lens, prompts, caps, cross-system handling, musical content vs typesetting, review, content crops and measure crops as stages in §6), fold everything into this document, then delete the notes file.

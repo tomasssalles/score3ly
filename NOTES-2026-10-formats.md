@@ -88,22 +88,5 @@ So 6 of 11 corrections were at least partly in Claude's doubt list: a review ste
   - The render-vs-crop comparison as a pipeline step, since the model won't reliably do it on its own.
   - Trust call records (DESIGN §5.2), not the model's account of what it did.
 
-### 8.6 Musical content vs typesetting
-Claude attached the m7 crescendo to the pedal line instead of the notes, so it would print lower and not clutter the music. That encodes a false musical fact on purpose, to make the engraving look better, and must never happen.
-
-**The test:** *would a player read it differently?* If yes, it's musical and is encoded exactly as printed.
-
-- **Musical (encoded and reviewed):** pitches, rhythms, rests, voices, which hand plays what, ties, slurs (including one slur per chord note), articulations, dynamics and hairpins with the notes they start and end on, 8va extents, clefs, repeats, **beam grouping** (e.g. 4 × 3 eighths is not 12 single eighths; grouping shows the rhythm and phrasing, including beams against the meter or across bar lines and staves), and **stem direction** where it separates voices or hands (in one staff shared by both hands it often shows which hand plays what).
-- **Typesetting (ignored):** spacing, slur and beam shapes, beam slope and thickness, stem length, exact vertical position of marks, line and page breaks, fonts, the default stem direction of a single voice.
-
-**Defences (open, not decided):**
-1. **Extraction prompt:** encode what the music means, never how it should look; every dynamic, hairpin, articulation and slur is attached to the notes it applies to; layout never influences what is encoded; report what can't be expressed faithfully. Include the pedal-line example.
-2. **Make hacks impossible in the format:**
-   - The lens has no layout controls: no `\override`, `\tweak`, spacer-only voices or separate Dynamics contexts. Dynamics and hairpins can only be written on notes or rests in a voice.
-   - The parser rejects anything outside the subset as a structural error (DESIGN §7.4).
-   - In MEI, `<dynam>` and `<hairpin>` refer to a staff and to notes or beats. Placement on the page is decided later by our renderer or LilyPond export, from the musical data.
-   - Open point: a dynamic printed between the piano staves usually applies to both hands, so the lens needs a way to say which staff or both (MEI `staff="1 2"`), so the model isn't tempted to pick a staff because it looks better.
-3. **Review prompt:**
-   - Check only the musical content (the list above) against the original, and ignore typesetting.
-   - Findings must use musical categories (DESIGN §7.5), so "the hairpin looks too high" has no valid type and is dropped.
-   - The reviewer also gets the source text of the measure, since a render can look right while the source is wrong (the pedal-line hack would render plausibly).
+### 8.6 Folded into `DESIGN.md` (2026-10-11)
+Musical content and typesetting: DESIGN §6, "Musical content and typesetting".
