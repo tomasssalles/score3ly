@@ -4,16 +4,36 @@
 
 ## 1. What this app is
 
-A web app that converts PDFs of music scores into **LilyPond source code**.
+A web app that converts PDFs of music scores into a formal, text-based encoding of the music: **MEI** (§6, "MEI").
 
 - **Input:** a PDF, usually a scan of an old score, sometimes a digitally typeset (vector) PDF.
-- **Output:** LilyPond source, optionally with an engraved rendering for side-by-side comparison with the original.
+- **Output:** an MEI file, with an engraved rendering for side-by-side comparison with the original. Inside the pipeline, the models read and write a compact subset of LilyPond instead (§6, "The lens").
 - **Focus:** the **pipeline**, not just the end result.
   - Every step is configurable.
   - Every intermediate input and output can be inspected.
   - Any part of the pipeline can be re-run from the first stage that went wrong, with a different configuration.
   - Any intermediate artifact can be edited by hand, and the pipeline resumes from the edited version.
 - **Recognition is done by vision LLMs** (e.g. Gemini, Claude), steered by programmatic steps and human assistance. Programmatic steps handle the deterministic work: image handling, structure, checks, assembly. Humans assist where machines are unreliable, for example cropping heavily ornamented old scores.
+
+### Why a text encoding, and which one
+Two goals decided what score3ly should produce:
+- **A: work with a score that exists only as a PDF:** convert it, edit it, render it anew. Any good notation format would do, MusicXML with MuseScore included.
+- **B: give the music to an LLM** for analysis or generation, e.g. a simpler version for a beginner. score3ly itself does neither, but its output should make them possible. MusicXML is a poor fit here: verbose, full of typesetting, and its durations are tick arithmetic (`<divisions>`, `<backup>`, `<forward>`).
+
+**What models write** (the lens, §6) had to be compact and natural for a model:
+- **ABC:** compact, and the format LLMs know best, but weak for dense piano polyphony and cross-staff notes.
+- **kern** (Humdrum): a time grid, one column ("spine") per staff and one row per moment, used in research because image-to-sequence models need a compact linear target. Simultaneity is explicit, but melodic lines are scattered down the columns, and every row needs one token per column, which is fragile to generate.
+- **LilyPond:** melodic lines stay contiguous and readable, for people and models alike; simultaneity needs duration sums, which code checks. **Chosen,** as a subset we define.
+
+**What users get** had other requirements:
+- everything musical, as opposed to typesetting: pitches, durations, rests, ties, slurs, articulations, tremolo, dynamics, and what a player needs: voices, cross-staff notes, stem directions;
+- room for editorial notes and alternatives, clearly separated from the music;
+- unambiguous to parse, and, once what isn't musical is removed, one way to encode given music, or equivalences that are trivial to recognize. No format guarantees that by itself: it takes a normalizer, and ours is the conversion from the lens (§6);
+- conversion to other formats. Lossless conversion to ABC or kern is impossible (they express less), and LilyPond can only be imported from a subset we define.
+
+**MEI fits best** (§6, "MEI"): XML from the musicology community, with the musical content apart from the layout, pitches as name and octave, durations as note values (no ticks), written and sounding values kept apart (`accid` and `accid.ges`), dynamics, slurs and the like attached to notes, irregular measures marked as such (`@metcon`), editorial markup (`app`/`rdg`, `choice`, `supplied`, `unclear`, `annot`), links to image regions (`facsimile`), and MEI Basic, an official subset with "one way of encoding for every feature". Verovio renders it in the browser and keeps the MEI's ids in its SVG. MusicXML was the fallback (the best ecosystem of tools, but heavy normalization and weak editorial markup); the other formats would be views derived from MEI. Export to them is a later question: no converter between MEI and LilyPond exists in either direction, and Verovio doesn't write MusicXML.
+
+**Considered and dropped:** starting from an OMR tool's MusicXML, checking it in code, and letting an LLM fix only the measures that fail the checks. Cheap, but no OMR output tested is good enough to start from (§13, "Baselines"), and turning MusicXML into LilyPond (`musicxml2ly`) loses things: MusicXML moves a time cursor back and forth between voice numbers where LilyPond has continuous voices (and voice identity is musical information for piano), its data is redundant and often inconsistent (`<duration>` and `<type>`, `<alter>` and the printed accidental), and the converter has gaps (cross-staff notes, changing staff counts, pedal, ornaments, octave marks).
 
 ### Lessons from v1
 v1 was Python-only, local-only and command-line-only.
@@ -40,7 +60,7 @@ v1 was Python-only, local-only and command-line-only.
 - **Possible later: image input (PNG, JPEG)** in addition to PDFs. It is almost no extra work: an image is a page image, so it skips PDF extraction and joins the same pipeline at stage 1 (§6), with JPEGs going through the same bundled decoder (§8.1).
 
 ### Goals
-- **Quality first:** the measure of success is how good the LilyPond is and how little human correction it needs. Infrastructure only exists to serve that.
+- **Quality first:** the measure of success is how good the transcription is and how little human correction it needs. Infrastructure only exists to serve that.
 - **Cheap:** runs on free tiers. Paid LLM calls are the only expected running cost.
 - **Transparent:** open source, simple deployment, documented strategy (this file).
 - **Runnable from anywhere:** start on the desktop, continue on the phone. Every pipeline stage should work on both.
@@ -416,7 +436,7 @@ Example of why this matters: a smudged note on one page can be resolved because 
 
 ### Proposed stages (draft, under discussion)
 
-> **Status: a proposal by the project owner, not decided.** It is meant to replace the table above and, with it, parts of §7 (the LilyPond conventions in §7.3, the structural checks as a stage in §7.4, the reviewer's findings in §7.5). It assumes MEI as the stored format, which is itself not decided yet (`NOTES-2026-10-formats.md` §3). When the list is final, this section is folded into the rest of the document.
+> **Status: a proposal by the project owner, not decided.** It is meant to replace the table above and, with it, parts of §7 (the LilyPond conventions in §7.3, the structural checks as a stage in §7.4, the reviewer's findings in §7.5). It uses MEI for what users get and the lens inside the pipeline (see "MEI" and "The lens" below). When the list is final, this section is folded into the rest of the document.
 
 Stages marked **[manual]** are optional and added by the user (§5.4). Everything else is the recipe. Each stage has a short identifier, used in the rest of this section.
 
@@ -570,6 +590,26 @@ To check against the MEI 5 guidelines: the details of the edition's description,
 
 Text from users and models (titles, names) must be escaped correctly when the XML is written; the tests cover that too.
 
+#### The lens
+**The format models read and write** (decided at this level; the exact LilyPond subset and the JSON schema are settled when `extract` is built, §15).
+- **Two representations, each for its purpose:** MEI is the language of what users get (`assemble`'s file, downloads). Inside the pipeline, the extraction is kept in the lens, per stretch (`extract`): the stretch is our unit of work, and more precise than MEI's measures, which can be split across systems and are regrouped by `apply_review`, while stretches never change. `extract` and `apply_review` write the lens, `review` and `apply_review` read the whole score in it, and code builds the MEI from it.
+- **JSON carries the structure** (the provider's schema-constrained output, §7.2): per stretch, its classification, the measure's kind, a printed measure number, and its staves with their voices; per system, whether its last measure continues, changes to the `scoreDef`, and the issues raised.
+- **One string per voice in each stretch,** in a subset of LilyPond: absolute pitches, explicit durations, slurs, ties, dynamics, hairpins and articulations written on the notes, markers for stem direction and cross-staff notes.
+- **A sketch** (field names not final):
+
+  ```json
+  { "stretches": [
+      { "stretch": 3, "class": "new", "kind": "normal", "printedNumber": null,
+        "staves": [
+          { "staff": 1, "voices": [
+              { "voice": 1, "music": "e''4( <c'' e''>4 a'2-.) \\p" },
+              { "voice": 2, "music": "a'2 g2\\staffDown" } ] } ] } ],
+    "lastMeasureContinues": false,
+    "issues": [ { "boxes": [ … ], "question": "…", "answers": [ "…" ] } ] }
+  ```
+- **The conversion to MEI normalizes** whatever freedom the lens still leaves (§1, "Why a text encoding").
+- **The lens is swappable** (e.g. a kern-like one) without touching MEI. Which lens transcribes best is an empirical question.
+
 #### Bar lines, stretches and measures
 Bar lines alone don't give the measures. A courtesy key or time signature at the end of a system comes after the system's last bar line and belongs to no measure (a courtesy clef comes before it, inside the last measure). A measure can be split across systems, even pages, or by a repeat bar line or a double bar in its middle (typically after a pickup). A passage without bar lines (a cadenza) is one long stretch. So:
 - **Bar lines:** `layout` gives their x-positions per system (structure, fixed in `fix_layout`); `analyze` lists the special ones by kind (double, final, start repeat, end repeat, dashed; content, in the observations), and every other bar line is a single one. `extract` may correct the kinds, never the positions.
@@ -631,7 +671,7 @@ A **warning** is about the current extraction, or about how it was produced, not
 
 #### Open
 **Open in the proposal itself:**
-- **`extract`:** the exact LilyPond subset the model writes (the "lens", `NOTES-2026-10-formats.md` §3), the JSON schema of its answer, and a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6).
+- **`extract`:** a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6), and the rest of what the manual run taught about the extraction (`NOTES-2026-10-formats.md` §8). The lens is described as far as needed now ("The lens"); its exact subset and schema come with building `extract`.
 
 ## 7. LLM steps
 
@@ -954,6 +994,20 @@ For trying the app by hand on prepared data, locally only (no remote test databa
 - **Highlighter:** freehand strokes painted over any of the PDFs (original or engraving), in a color from a short list, with multiply blending so the notes underneath stay visible. They point the eye at errors: no types, no counting. A switch between reading and highlighting mode prevents accidental strokes. One "undo last stroke" covers all panes and is the only way to erase. Its history covers the current session and is cleared when switching pieces.
 - **Stroke storage:** next to the PDF in `<piece>.<method>.marks.jsonl` (`<piece>.orig.marks.jsonl` for the original), saved after every change, as JSON Lines: one stroke per line. Per stroke: page, color name, width and points (relative to the page size), and the SHA-256 of the PDF it was drawn on. Colors are stored by name and looked up in the viewer's palette, so adjusting a palette value recolors existing strokes; names not in the palette are painted grey. Storing the hash per stroke means strokes drawn on an older version of a PDF stay identifiable even after new ones are added. The viewer warns about such strokes, since they may be misplaced. The PDF itself is never modified.
 
+### Baselines (§16 step 2)
+**The question:** how well can existing tools read a PDF, understand the music and write it in a formal text format? Any format counts, so MusicXML is rendered directly with MuseScore 4 (`npm run eval:engrave`), not converted to LilyPond first.
+- **Tested** (2026-10), covering free and open source to expensive proprietary: Soundslice (free tier), Newzik (7-day trial), PlayScore 2 (1-week trial), SmartScore 64 Pro (demo), Audiveris 5.11. Not tested: PhotoScore & NotateMe, ScanScore, Klangio Scan2Notes, Opuscan/Flat, ACE Studio, oemer, and research models (LEGATO and others, which mostly output notes and rhythms only, in ABC or kern). Ruled out: combining several tools' extractions with an LLM, which would cost more than any paid service.
+- **Results:** every tool is far from usable; even the best results need too much correction by hand.
+  - **Soundslice:** Mozart unrecognizable. A very polished UI, which asks multiple-choice questions about everything it was unsure of.
+  - **Newzik:** terrible throughout, and very verbose (141k characters of MusicXML for one Mozart page). Failed on the full Kinderscenen.
+  - **PlayScore 2:** the best of the three on the whole test set, still not usable. Measures whose durations don't add up (Chopin, Kinderscenen p3, Villa-Lobos). Crashed on the full Kinderscenen.
+  - **Audiveris** (batch mode): mostly very bad; Clair de Lune (a vector PDF engraved by LilyPond) surprisingly decent. Failed on Chopin (internal crash), Liszt (a cover page without staff lines aborts the export) and Kinderscenen (pages over its 20-megapixel limit).
+  - **SmartScore** (judged in the app, the demo exports almost nothing): Für Elise (Leipzig) the best of any tool, few mistakes; Clair de Lune good, Mozart decent; the rest bad to a disaster. The full Kinderscenen took over 45 minutes and failed; its binarization threshold suits no part of the stained paper (one reason to keep colour, §8.1).
+  - **Bendel, La Cascade p4** (an obscure piece): a disaster with every tool.
+- **Opus 5.5 in a chat** (§16 step 3) did far better, which decided building the app (§16 step 4).
+
+**Memorization:** LLMs recognize the famous pieces of the test set (Gemini Flash named the Mozart concerto and movement from a page with the edition, plate and page numbers cropped away), so a transcription may be partly recalled rather than read, and the test set would overstate how well the approach works. Two checks: obscure scores unlikely to be in the training data (Bendel, La Cascade, which neither Gemini 3.1 Pro nor Opus 5.5 could identify), and different editions of the same piece (the two Für Elise), to see whether the model follows the page or its memory where they differ (§15).
+
 ### Use
 - Compare methods, prompts and models side by side by eye.
 - Cost per piece comes from the LLM call records (§10).
@@ -983,7 +1037,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 ### Decisions
 - **Compare `review` with and without renderings as model input** (§6, "Renderings"), on the test set, some day: run it both ways and compare what it finds, counting false findings as well as extra correct ones. If renderings help, they become the default, and a config option of `review` can turn them off.
 - **Decide the reviewer's details** (§7.5): flag-only versus auto-accepted patches, the same model or a different one, the number of rounds. By comparing results with and without review on the test set.
-- **Define the constrained LilyPond subset** (§7.3) exactly, especially cross-staff notation, ornaments, ossia and lyrics.
+- **Define the lens exactly** (§6, "The lens"), when `extract` is built: the LilyPond subset, especially cross-staff notation, ornaments, ossia and lyrics, and the JSON schema.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
 - **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs, and for Claude on Vertex AI and Bedrock (§7.6).
 - **Finalize the list of stages** (§6, "Proposed stages"): settle its open points, then replace the table in §6 and rewrite what depends on it (§7, §9), together with the format decisions in `NOTES-2026-10-formats.md` (§16).
@@ -997,6 +1051,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Choose a license** (§5.6, the About page). Until then all rights are reserved.
 
 - **Test the finished pipeline on Kinderscenen** (test set), once it runs end to end. Among other things: whether `analyze` finds the systems and bar lines despite the old paper and decorations, or whether the user would have to fix most pages by hand, the scenario for content boxes (§6, `analyze`).
+- **Test the finished pipeline on the two editions of Für Elise** (test set), for memorization (§13, "Baselines"): where the editions differ, does the extraction follow the page or the famous version?
 
 ### Placeholders to replace
 - **Pick an icon for each kind of artifact** (§5.6), once the list of stages is final and the kinds of artifact are known, and remove the thumbnails from the output tiles (`PdfThumb.tsx` and the mock's image thumbnails).
@@ -1031,7 +1086,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 Whether to build the app at all is decided by evidence first (steps 1–4).
 
 1. **Evaluation tooling:** the engrave command and the viewer (§13). *Done.*
-2. **Baselines from existing tools:** *Done.* Extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Candidate tools and prices: `NOTES-2026-10-formats.md`. Audiveris is installed only from https://github.com/Audiveris/audiveris/releases: `audiveris.com` and `audiveris.net` are scam sites.
+2. **Baselines from existing tools:** *Done.* Extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Tools and results: §13, "Baselines". Audiveris is installed only from https://github.com/Audiveris/audiveris/releases: `audiveris.com` and `audiveris.net` are scam sites.
 3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (`NOTES-2026-10-formats.md` §8).
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
