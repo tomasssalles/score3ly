@@ -498,7 +498,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - the stretches it must classify and fill, and the special bar lines and the staves `analyze` saw, as a starting point;
   - whether the previous system's extraction ended with a measure that continues into this system;
   - the state the system begins with (clefs, keys, time signature), carried by code from the previous system's extraction;
-  - a tool to zoom into a part of the crop, so the call is a loop, with caps.
+  - zoom crops on request (see "Zooming in" below).
 
   The model classifies each stretch (see "Bar lines, stretches and measures"), extracts the music printed in each stretch, says whether the system's last measure continues into the next system, corrects the bar lines' kinds and the `scoreDef` where needed (the starting clefs, keys and time signatures, the staff labels and groups), and reports its doubts as issues. **It can't add or drop a stretch:** code rejects an answer that doesn't cover exactly the stretches asked for. **The extraction is stored per stretch** (its classification and its music), not per measure: stretches are fixed structure, so two versions of an extraction always match stretch by stretch, however the measures were regrouped (`apply_review`); code joins a measure's stretches into one MEI measure. **The snippets are built and validated after each system,** not at the end: if the model can't handle the score, the stage fails early, and an hour of calls isn't paid for answers that turn out not to parse. An early failure tells the user to step in earlier in the pipeline, or to use a stronger model.
   - **Models write music as a subset of LilyPond, wrapped in JSON** (decided), never MEI: code builds the MEI. So MEI's schemas are checked in our tests, as a check on our converter, not at run time (see "MEI").
@@ -506,7 +506,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     - **parsing:** the answer is valid JSON in our schema, and its LilyPond parses;
     - **durations:** each voice in each measure, its stretches joined, adds up to the time signature (incomplete and unmeasured measures excepted);
     - **the stretches** are exactly the ones asked for.
-  - **A failed check goes back to the model** in the same call, with the place and the problem, as one more round of the loop (capped, like the zoom tool): most slips are fixed for the price of a short follow-up. A duration mismatch that persists becomes a warning (see "Warnings"), and the stage goes on; an answer that still doesn't parse fails the stage.
+  - **A failed check goes back to the model** in the same call, with the place and the problem, as one more round of the conversation (capped): most slips are fixed for the price of a short follow-up. A duration mismatch that persists becomes a warning (see "Warnings"), and the stage goes on; an answer that still doesn't parse fails the stage.
   - **Slurs and ties into the next system** can only be checked as open, to be closed by the next system; `assemble` checks them across the score.
   - **The prompt,** besides what is musical (see "Musical content and typesetting"), carries the lessons of the manual run (§13):
     - **Doubts as alternatives with evidence for each** ("dot near the A♭: staccato or smudge?"), raised as issues, not decided silently. In the manual run, 6 of the 11 errors were at least partly in the model's list of doubts, so a review that gets them sees them for free.
@@ -517,7 +517,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 - **The structural checks (§7.4) have no stage of their own:** validation happens inside `extract` and `assemble`. Problems that code finds without failing the stage are issues raised by code when they are a question about the page (a slur that never ends: "where does it end?"), and warnings otherwise (a measure whose durations don't add up; see "Warnings").
 - **`assemble`.** Code builds the MEI frame from the structure and the metadata, inserts the snippets, validates the whole document, renders it, and combines the issues of all systems.
   - **The rendering** (Verovio) can follow the original's layout or not: its `breaks` option `encoded` uses the page and system breaks in the MEI (below), so the rendering has the same systems as the original and the two can be compared system by system, as in `human_review`; `auto` computes its own breaks for the page size and ignores the encoded ones.
-- **`review`.** One call per system, with the same input as `extract`, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. A tool shows the crop of another system, capped at a small number of calls. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output. **Its prompt names the common mistakes** to pay attention to, foremost slurs and other spanners crossing bar lines and system breaks (every missed slur in the manual run, §13; no separate tracing pass).
+- **`review`.** One call per system, with the same input as `extract`, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. Zoom crops and the crops of other systems come on request (see "Zooming in"), capped. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output. **Its prompt names the common mistakes** to pay attention to, foremost slurs and other spanners crossing bar lines and system breaks (every missed slur in the manual run, §13; no separate tracing pass).
   - **The whole score goes into every call** (decided), so the model can check consistency across the score. It is sent in the compact format the models write the music in (the "lens", `extract`), not as MEI.
   - **Each call sees what the calls before it in the stage changed,** and the cost stays close to linear in the score's length, by prompt caching. A call's prompt is, in this order:
     1. the whole score;
@@ -621,6 +621,14 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 - **The conversion to MEI normalizes** whatever freedom the lens still leaves (§1, "Why a text encoding").
 - **The lens is swappable** (e.g. a kern-like one) without touching MEI. Which lens transcribes best is an empirical question.
 
+#### Zooming in
+**Zoom crops on request, without tool calls** (decided), for `extract`, `review` and probably `apply_review`:
+- **The first answer has one of two shapes,** in one schema: the stage's answer itself, when the model needs nothing more (a clean system), or a list of requests: zoom boxes on the crops it was sent (and, for `review`, other systems' crops), at most N, each with a short reason ("dot near the A♭: staccato or smudge?").
+- **The second request** repeats the first, adds the model's requests as its answer and the zoom crops, each labelled (§7.6), and asks for the stage's answer; this one can't ask for more. Its prefix is the first request, so prompt caching makes the repeated part cheap.
+- **So at most two rounds per call,** plus the follow-ups for failed checks (`extract`). This is a tool loop with one round, built ourselves: the same on every provider (no tool-use APIs, no loop in the adapters), every call record a plain request and answer, and the cap enforced by the schema rather than by the model's judgement (the manual run's over-exploration, §13).
+- **Code cuts the zoom crops** from the deskewed page at the page image's resolution. A zoom gives the model real detail where its view of a large crop was shrunk (Claude sees at most 2576 px on the long edge); on a low-resolution scan it is only a closer look at the same pixels, which may still help it focus.
+- **The zoom boxes and their reasons are recorded** with the call (§5.2), and the issues that come from them can point at the same boxes: evidence for the reviewer and the user.
+
 #### Musical content and typesetting
 **What is extracted is the music, never its appearance** (decided). In the manual run (§13), Claude attached the m7 crescendo to the pedal line instead of the notes, so that it would print lower and not clutter the music: a false musical fact encoded on purpose to make the engraving look better. That must never happen.
 - **The test:** *would a player read it differently?* If yes, it is musical and is encoded exactly as printed.
@@ -693,7 +701,7 @@ A **warning** is about the current extraction, or about how it was produced, not
 
 #### Open
 **Open in the proposal itself:**
-- **`extract`:** the rest of what the manual run taught about the extraction (`NOTES-2026-10-formats.md` §8.4: loose ends, the zoom tool's limits; the rest is in §13, "The manual run", and in `extract`). The lens is described as far as needed now ("The lens"); its exact subset and schema come with building `extract`.
+- **`extract`:** the rest of what the manual run taught about the extraction (`NOTES-2026-10-formats.md` §8.4: loose ends; the rest is in §13, "The manual run", and in `extract`). The lens is described as far as needed now ("The lens"); its exact subset and schema come with building `extract`.
 
 ## 7. LLM steps
 
@@ -1042,7 +1050,7 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
 - **What it showed, and where it went in the design:**
   - **Opus read the structure from the full page correctly,** measure counts included (6, 6, 6, 7, 8), where Gemini 3.1 Pro and 3.6 Flash had answered 3 per system, guessing from note groups instead of bar lines. One page, one try each, but it supports `layout` on whole pages with bar line positions as evidence rather than counts.
   - **Boxes by eye with a draw-and-check loop work,** at least on a clean page (`layout`'s tool, at most 3 rounds). Unknown on stained, ornamented scans (the Kinderscenen test, §15).
-  - **Measure crops help, and so does zooming into small note groups:** stretch crops with every system crop, and the zoom tool, in `extract`.
+  - **Measure crops help, and so does zooming into small note groups:** stretch crops with every system crop, and zoom crops on request (§6, "Zooming in").
   - **Left alone, the model over-explores:** too many images, turns and tool calls, and too much time (7 minutes for system 1). Images are cheap (a full page is roughly 1.5–3k input tokens); the cost is in turns resending a growing context and in long reasoning. Hence steps we control, one call per system, and caps on every loop.
   - **Systems depend on each other:** slurs, ties, hairpins, 8va lines, pedal and voices cross system breaks, and a later system can change the reading of an earlier one. Hence the neighbouring crops in `extract`, the continuation flags, and `review` with the whole score.
   - **Repetitions seen from above were partly wrong** (m13 isn't m9): observations are hints, and every stretch is read on its own.
@@ -1081,7 +1089,7 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
 | Losing LLM output or human input because it was treated like cache | §5.3: LLM and human artifacts are always persisted. Eviction only touches deterministic artifacts. |
 | Plausible but wrong notes from LLMs | §7.7: uncertainty lists, structural checks, image-based review, measured slip-through rate. |
 | Regenerated images drifting from what the human or LLM worked on | §8: deterministic decoding and operations, normalized coordinates, fingerprint checks. |
-| Downscaled system images losing detail (models shrink large images, and piano systems are wide) | Measure crops sent along with the system crop, and a zoom tool for the model (both from `NOTES-2026-10-formats.md`, to be folded in, §16 step 5). |
+| Downscaled system images losing detail (models shrink large images, and piano systems are wide) | Stretch crops sent along with the system crop, and zoom crops on request (§6, `extract`, "Zooming in"). |
 | Converter/preview bugs producing false review findings | §9: converter golden tests, occasional real LilyPond cross-check. |
 | ML costs creeping up | Per-call cost logging, reuse of recorded requests, cheaper models for easy steps. |
 | Two devices editing the same project | Optimistic locking (§4). |

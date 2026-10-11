@@ -29,9 +29,8 @@ Claude's retrospective: DESIGN §13, "The manual run"; pitch guides and the key-
   - renderings for comparison produced in review (§9)
 - **Caps:**
   - one call per system by default, no tools
-  - a `zoom(box)` tool (normalized coordinates on the preprocessed page) only in the fix loop for flagged measures, with a hard limit (e.g. 2 per measure, 4 per system), then human
+  - ~~a `zoom(box)` tool~~ folded: DESIGN §6, "Zooming in" (zoom crops on request, without tool calls)
   - reasoning effort or thinking budget set per step
-  - zoom boxes are recorded with the call (§5.2) and are also useful evidence for the reviewer
 - **Cross-system dependencies:**
   - **Loose ends:** each system's output lists spanners and voices continuing into the next system or arriving from the previous one. Code checks that both sides match and flags both systems on a mismatch.
   - **Document-level notes:** every call may add notes tagged with the measures they concern. The reviewer of a system sees all notes concerning it, including ones written later. Short text, so cheap to show in full; also covers observations not about neighbours.
