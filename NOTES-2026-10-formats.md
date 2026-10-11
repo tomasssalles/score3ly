@@ -19,28 +19,8 @@ A first hand-run of the intended pipeline (DESIGN §16 step 3) on `bendel_la_cas
 ### 8.1–8.2 Folded into `DESIGN.md` (2026-10-11)
 What was done and the findings: DESIGN §13, "The manual run". The result is `testset/bendel_la_cascade_p4.claude-chat.ly`.
 
-### 8.3 Claude's own retrospective, reviewed
-Asked afterwards what would have helped from the start. Its points, with our assessment:
-
-| Point | Assessment |
-|---|---|
-| A fixed output spec from the start: one bar per variable, absolute sounding pitch under 8va, where pedal, dynamics and hairpins go, how marks spanning two variables open and close. It changed conventions mid-way (pedal moved into the LH variables, phrasing slurs from system 2, sounding pitch under 8va midway). | Agreed; that's DESIGN §7.3 and the lens (§3). Spanners across variables need an explicit rule. |
-| Knowing the effort budget from the start. | Agreed; caps belong in the pipeline, not in the model's judgement. |
-| Context from before this page: time signature, anything still open (slur, 8va, clef), composer and edition. | Agreed; belongs in the document-level analysis. |
-| A rough chord per bar in a planning pass, as a prior. Most of its real errors were harmonic (G♮ vs G♭ in the m30 arpeggio, F♭ vs G♭ in m23/25, B♭ vs B♮ in m28, A♭ vs B♭ in the m10 LH). | **New, worth testing.** Also enables a check that flags notes clashing with the planned chord. Risk: a wrong chord biases the reading. |
-| Extents of all long marks (slurs, 8va, hairpins) listed before transcribing. | Agreed; overlaps with the loose-ends idea (§8.4). |
-| Repetitions verified properly in the first pass. | Partly: keep them as hints either way, verified at transcription time. |
-| Staff-line positions per crop; turning pixel heights into pitches was its biggest time sink and source of doubt. | See pitch guides below. |
-| Uncertainty in the JSON (`value`, `confidence`, `doubts`) instead of prose. | Already DESIGN §7.2. |
-| A mandatory self-check: render and compare with the crop (would have caught the G♮). | Useful, but as a review step we control (§7.5, §9), not inside the model's own loop. |
-| Labels drawn onto the images ("S3 m13–18") because filenames didn't reach the model. | **To verify.** True for claude.ai uploads; with the API we control the request and can put text labels next to each image. Drawing labels onto the image is still a cheap fallback. |
-| Automation: boxes with the draw-and-check loop, max 3 rounds, then flag. | Agreed. |
-| Automation: staff lines and bar lines found by pixel counting inside a system crop, model as fallback. | **Caution:** scripting like this failed in v1 and score2ly. Maybe more robust on a single crop than on a damaged page; test on stained scans (Kinderscenen) before relying on it, with the model fallback from the start. |
-| Automation: faint labelled pitch guides (staff lines and ledger positions, E4, G4, … C6) drawn onto each measure crop: "read the label" instead of "estimate a pixel height". | **New, cheap to test.** Needs staff-line positions (see the previous point), or the model to supply them. |
-| Automation: transcribe bar by bar, with the state carried in. | **Doubtful:** many more calls, and it loses the system-level view (the slur fix came from that view). Per-system calls with measure crops as extra input seem the better trade-off. |
-| Automation: checks for bar durations (bar checks between variables), unclosed marks, pitches leaving the key without a printed accidental, range, chord clashes. | Mostly DESIGN §7.4. **New:** the key-signature check (would have caught the G♮) and the chord-clash check. |
-| Automation: visual comparison per bar, 1–2 correction rounds. | Agreed, in review (§9). |
-| Automation: independent review of low-confidence bars by an agent that hasn't seen the first transcription. | Agreed; DESIGN §7.5 prefers a different model as reviewer. |
+### 8.3 Folded into `DESIGN.md` (2026-10-11)
+Claude's retrospective: DESIGN §13, "The manual run"; pitch guides and the key-signature check as experiments in §15; chord plans dropped. Still open here: listing the extents of all long marks (slurs, 8va, hairpins) before transcribing, which belongs with the loose ends (§8.4).
 
 ### 8.4 Ideas for the pipeline (open, not decided)
 - **Replace self-directed actions with steps we control:**
@@ -56,7 +36,7 @@ Asked afterwards what would have helped from the start. Its points, with our ass
   - **Loose ends:** each system's output lists spanners and voices continuing into the next system or arriving from the previous one. Code checks that both sides match and flags both systems on a mismatch.
   - **Document-level notes:** every call may add notes tagged with the measures they concern. The reviewer of a system sees all notes concerning it, including ones written later. Short text, so cheap to show in full; also covers observations not about neighbours.
   - **Review after the whole page is transcribed,** with neighbouring systems' images and transcriptions. A later finding that affects an earlier system marks it stale for re-review (as in DESIGN §5.4), within the review-loop limit.
-- **Measure the value of each extra:** call records give tokens, cost and time per call. Compare one-shot with one-shot plus capped zoom (and with or without pitch guides or chord plans) on a few systems.
+- **Measure the value of each extra:** call records give tokens, cost and time per call. Compare one-shot with one-shot plus capped zoom on a few systems.
 
 
 ### 8.5 The author's corrections, and what Claude made of them

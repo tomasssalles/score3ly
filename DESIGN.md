@@ -675,7 +675,7 @@ A **warning** is about the current extraction, or about how it was produced, not
 
 #### Open
 **Open in the proposal itself:**
-- **`extract`:** a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6), and the rest of what the manual run taught about the extraction (`NOTES-2026-10-formats.md` §8.3–8.5; its course and first findings are in §13, "The manual run"). The lens is described as far as needed now ("The lens"); its exact subset and schema come with building `extract`.
+- **`extract`:** a clear definition of what is extracted: what is musical content and what is only typesetting (`NOTES-2026-10-formats.md` §8.6), and the rest of what the manual run taught about the extraction (`NOTES-2026-10-formats.md` §8.4–8.5; its course and first findings are in §13, "The manual run"). The lens is described as far as needed now ("The lens"); its exact subset and schema come with building `extract`.
 
 ## 7. LLM steps
 
@@ -724,6 +724,7 @@ Failures go to the fix stage with a precise location. This replaces what LilyPon
 #### Calling the providers
 Built: `apps/worker/src/llm/`. One small request and response shape for every provider (`LlmProvider`, §3): a system prompt, messages of text and images, a maximum of output tokens, an effort, and optionally a JSON schema the answer must follow (the provider's schema-constrained output, §7.2; the answer is then parsed). The response says which model answered, the text (and parsed JSON), why it stopped (finished, cut off, refused) and the tokens. Errors are typed and say whether retrying can help.
 - **The chosen model answers, or the call fails.** No fallback to another model, not even Anthropic's server-side fallback on refusals: a refusal comes back as a refusal.
+- **Several images in one request are labelled** with a text block right before each ("System 3:", "System 3, stretch 2:"): content is an ordered list of text and images for both Anthropic and Gemini, and the adapters keep the order. Neither API passes a file name to the model. Anthropic's vision docs recommend this way of labelling.
 - **Anthropic** (Claude API), with the official SDK. Requests are streamed, so long answers don't hit timeouts. Thinking is left at the model's default (adaptive on current models), and effort maps directly. As a sanity check, an answer that names another model than the one asked is an error (`unexpected_model`).
 - **Google** (Gemini API, keys from AI Studio), with the official SDK. Effort maps to Gemini's thinking levels (low, medium, high), which exist from Gemini 3 on; older Gemini models want a token budget and would refuse a level. Thinking tokens count as output, cached ones apart from the rest. Gemini names the exact version that answered, which can differ from the name asked for (an alias, a dated version), so there is no model check.
 - **Claude on Google Cloud's Vertex AI** (for processing in the EU, §10), with Anthropic's official Vertex client: the same Messages API, so the same adapter code as for Anthropic's API, sanity check included. Configured with a service account's key file (a secret), a region (`eu` for the EU multi-region, a single region such as `europe-west1`, `us` or `global`) and optionally a project (default: the key file's).
@@ -1027,6 +1028,21 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
   - **Left alone, the model over-explores:** too many images, turns and tool calls, and too much time (7 minutes for system 1). Images are cheap (a full page is roughly 1.5–3k input tokens); the cost is in turns resending a growing context and in long reasoning. Hence steps we control, one call per system, and caps on every loop.
   - **Systems depend on each other:** slurs, ties, hairpins, 8va lines, pedal and voices cross system breaks, and a later system can change the reading of an earlier one. Hence the neighbouring crops in `extract`, the continuation flags, and `review` with the whole score.
   - **Repetitions seen from above were partly wrong** (m13 isn't m9): observations are hints, and every stretch is read on its own.
+- **Claude's own retrospective** (what would have helped from the start), and what became of it:
+  - **A fixed output spec,** given in full from the start: it changed its conventions midway (pedal moved into the left hand, phrasing slurs from system 2 on, sounding pitch under 8va). That is the lens and the prompt (§6, "The lens").
+  - **A known effort budget:** caps belong to the pipeline, not to the model's judgement (`extract`'s loops).
+  - **Context from before the page** (time signature, anything still open, composer and edition): the state carried by code, the observations and the metadata.
+  - **Doubts as data, not prose:** issues.
+  - **Labels for the images:** in the chat, uploads reached the model as generic file names, so it couldn't tell which crop was which. In the API, a text block before each image labels it (§7.6).
+  - **Boxes by eye with a draw-and-check loop, at most 3 rounds:** `layout`.
+  - **A render-and-compare self-check, and visual comparison per bar:** a review step we control, not the model's own loop (`review`, "Renderings").
+  - **An independent review** by a model that hasn't seen the first transcription: `review`, preferably with another model (§7.5).
+  - **Checks** for durations and unclosed marks: `extract` and `assemble`.
+  - **Dropped:**
+    - **a rough chord per bar as a prior,** with a check for notes clashing with it: Claude did fine without it, and a wrong chord would bias the reading;
+    - **staff lines and bar lines found by pixel counting:** that kind of scripting failed in v1 and in score2ly, and a wrong detection would make the extraction worse; bar lines come from `layout`;
+    - **transcribing bar by bar:** many more calls, and the view of the whole system is lost (the slur fix came from it).
+  - **Experiments for some day** (§15): pitch guides and a key-signature check.
 
 ### Use
 - Compare methods, prompts and models side by side by eye.
@@ -1098,6 +1114,11 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Keep the device awake while a pipeline runs** (the browser's Screen Wake Lock): the browser drives the pipeline, so a phone that goes to sleep pauses the run. The lock only holds while the app is in front; switching to another tab or app releases it. A run that was paused anyway must resume where it stopped.
 - **Never lose an LLM answer that was paid for:** a request may be in flight when a phone suspends the page or the tab is closed. The Worker must finish the call and store the answer (§5.2) even though the browser has gone, so that resuming finds it and doesn't pay for the same request again.
 
+### Experiments (some day)
+Possible improvements to accuracy or speed, deliberately left out of the first prototype.
+- **Pitch guides,** if extraction turns out painfully slow: faint labelled lines for the staff lines and ledger-line positions (E4, G4, …, C6) drawn on each crop, so the model reads a label instead of judging a pixel height, its biggest time sink in the manual run (§13). It needs the staff lines detected, which is error-prone, and a wrong detection would make the extraction worse.
+- **A key-signature check:** code works out the pitch the key signature and the earlier accidentals in the measure imply for each note; a written pitch that differs from it without a printed accidental contradicts the page (the manual run's G♮ instead of G♭ would have been caught). It needs the lens to mark which accidentals are printed (as MEI's `accid` and `accid.ges` do), since LilyPond decides that by itself. That adds complexity, and it carries a risk: it deviates from the plain LilyPond the models were trained on, which may cost more accuracy than the check gains. Without the marker, only "a note outside the key" could be checked, which is normal in chromatic music.
+
 ### Optional
 - **Dates up to about a week old as "how long ago"** ("Created 2d ago"), older ones as a date (§5.7).
 
@@ -1107,7 +1128,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
 1. **Evaluation tooling:** the engrave command and the viewer (§13). *Done.*
 2. **Baselines from existing tools:** *Done.* Extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Tools and results: §13, "Baselines". Audiveris is installed only from https://github.com/Audiveris/audiveris/releases: `audiveris.com` and `audiveris.net` are scam sites.
-3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (§13, "The manual run"; the rest of its lessons are still in `NOTES-2026-10-formats.md` §8).
+3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (§13, "The manual run"; the rest of its lessons are still in `NOTES-2026-10-formats.md` §8.4–8.6).
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
 5. **Fold the notes into this document:** review the design and `NOTES-2026-10-formats.md` once more, update the decisions (target and storage format, lens, prompts, caps, cross-system handling, musical content vs typesetting, review, content crops and measure crops as stages in §6), fold everything into this document, then delete the notes file.
