@@ -497,6 +497,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - the observations from `analyze` (or `fix_observations`);
   - the stretches it must classify and fill, and the special bar lines and the staves `analyze` saw, as a starting point;
   - whether the previous system's extraction ended with a measure that continues into this system;
+  - the marks left open by the previous system (slurs, ties, hairpins, 8va, pedal, per staff and voice), worked out by code from its extraction (see "Loose ends across systems" below);
   - the state the system begins with (clefs, keys, time signature), carried by code from the previous system's extraction;
   - zoom crops on request (see "Zooming in" below).
 
@@ -507,9 +508,18 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     - **durations:** each voice in each measure, its stretches joined, adds up to the time signature (incomplete and unmeasured measures excepted);
     - **the stretches** are exactly the ones asked for.
   - **A failed check goes back to the model** in the same call, with the place and the problem, as one more round of the conversation (capped): most slips are fixed for the price of a short follow-up. A duration mismatch that persists becomes a warning (see "Warnings"), and the stage goes on; an answer that still doesn't parse fails the stage.
-  - **Slurs and ties into the next system** can only be checked as open, to be closed by the next system; `assemble` checks them across the score.
+  - **Loose ends across systems are matched by code** (decided), from the lens alone; the model lists nothing extra:
+    - code parses each system's answer and finds the marks still open at its end: slurs, ties, hairpins, 8va, pedal, per staff and voice;
+    - the next system's request says what is open ("slur 2 in staff 1, voice 1 continues from the previous system"), as it says whether the last measure continues; the model closes it on the note where it ends. The lens allows a closing mark without an opening one at the start of a system, where the request says it is open, and an opening mark left open at the end of a system;
+    - code matches both sides: what was left open must be closed in the next system, or still be open for marks that can run longer (8va, pedal); a tie must reach the same pitch. `assemble` checks the whole score;
+    - a mismatch becomes an issue raised by code, with boxes at the end of one system and the start of the next ("where does this slur end?"), within the 2-system rule;
+    - what code can't catch is a slur ended too early on both sides (m31→32 in the manual run): the pairing looks consistent. That is left to `review`'s attention to spanners.
+    - The number of voices isn't matched: it changes from measure to measure, and is content.
+  - **No list of long marks in advance** (decided; Claude's suggestion in the manual run): `extract` sees the whole system, closer than `analyze` does, plus the neighbouring systems and the marks left open, so planning ahead is a line in its prompt, not an extra pass. Instructions that aren't marks with two ends ("sempre staccato", "simile", "con pedale", "cresc. poco a poco" over a long passage) are in `analyze`'s observations already.
   - **The prompt,** besides what is musical (see "Musical content and typesetting"), carries the lessons of the manual run (§13):
     - **Doubts as alternatives with evidence for each** ("dot near the A♭: staccato or smudge?"), raised as issues, not decided silently. In the manual run, 6 of the 11 errors were at least partly in the model's list of doubts, so a review that gets them sees them for free.
+    - **What comes from the previous system is a hint, not ground truth:** whether its last measure continues, the marks it left open, and the state carried by code are the current best guess, given to help. Where the page clearly says otherwise, the model trusts its own eyes. A mistake in one system then doesn't spread to the next, and it doesn't go unnoticed either: code compares both sides and raises an issue on a mismatch (above, and "Bar lines, stretches and measures").
+    - **Plan ahead within the system:** follow every long mark (slur, hairpin, 8va, pedal) to its end before writing it down.
     - **Read first, compare afterwards:** a stretch is transcribed from the image before any supposed repeat is looked at; the differences from the repeat are then things to look at again, never a reason to copy (m13 was copied from m9 because of a hint, and was wrong).
     - **No unprinted tuplets:** if the durations don't add up, read again; if they still don't, raise an issue (an invented note in m9 produced an odd rhythm, which was "fixed" with a tuplet that isn't printed).
     - **A checklist per note:** accidental, dots, accents, fingering, where slurs start and end.
@@ -551,7 +561,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     - **Scrolling and zooming are linked** between the two panels by default, with a small button to unlink them. Verovio's engraving won't match the original's heights and spacing (staff size, distances between staves and systems, room for titles, lyrics and dynamics), even with options such as `spacingSystem` and `spacingStaff`; widths can come close, rendering each page at the original page's width. But with the encoded breaks, systems correspond one to one, and both sides have their systems located (the original from the layout, the rendering from the system elements of Verovio's SVG). So the link maps positions system by system, piecewise linear (40% into system 12 on one side is 40% into system 12 on the other, gaps interpolated alike), and the zoom is linked so that the same system has the same width on both sides. Re-linking aligns the rendering to the original.
   - **Every correction is applied by `apply_review`,** an LLM call (decided). Applying answers by code doesn't work in general: a measure can have several issues, and an answer would have to come with a replacement for every combination of answers; and many corrections reach beyond one measure ("this slur continues the one in the previous system" touches two systems, perhaps two pages).
   - **Code checks what `apply_review` did:** it compares the extraction before and after, **stretch by stretch** (not the MEI by measure: measures can be merged or split, stretches can't), the rendering highlights the measures whose stretches changed, and a changed stretch outside the boxes of the issues being applied needs a reason and is flagged (see `apply_review`). The stretches of an issue are the ones under its boxes (see "Issues" below).
-  - **So `applied` is what the model says, checked only roughly by code.** A model's account of what it did isn't reliable (`NOTES-2026-10-formats.md` §8.5).
+  - **So `applied` is what the model says, checked only roughly by code.** A model's account of what it did isn't reliable (§13, "The manual run").
     - **Code catches,** as warnings: a missing change (an issue said to be applied, whose stretches didn't change; its `applied` stays as the model said, since the extraction may already have matched the answer), a change beyond the boxes (above), and a change where none was due (the chosen answer is the present state).
     - **Code can't tell** whether the change is the chosen answer: the right stretch changed the wrong way passes. Where several issues share stretches, a change can't be credited to one of them.
     - **The answer itself** can only be verified by a model or the user looking at the result, e.g. in a later review.
@@ -617,7 +627,7 @@ Text from users and models (titles, names) must be escaped correctly when the XM
     "lastMeasureContinues": false,
     "issues": [ { "boxes": [ … ], "question": "…", "answers": [ "…" ] } ] }
   ```
-- **Several simultaneous slurs** (e.g. one from each note of a chord) must be expressible, e.g. with LilyPond's labelled slurs (`\=1(` … `\=1)`), or the model is pushed to simplify (§13, the triple slurs); MEI attaches slurs to individual notes anyway.
+- **Several simultaneous slurs** (e.g. one from each note of a chord) must be expressible, e.g. with LilyPond's labelled slurs (`\=1(` … `\=1)`), or the model is pushed to simplify (§13, the triple slurs); MEI attaches slurs to individual notes anyway. **Labelled slurs are numbered from top to bottom** where several are open at once, so when the previous system leaves slurs 2 and 3 open, the model knows which ends where. Slurs don't cross in practice, so the order is stable.
 - **The conversion to MEI normalizes** whatever freedom the lens still leaves (§1, "Why a text encoding").
 - **The lens is swappable** (e.g. a kern-like one) without touching MEI. Which lens transcribes best is an empirical question.
 
@@ -661,7 +671,7 @@ Bar lines alone don't give the measures. A courtesy key or time signature at the
     - durations that don't add up in a measure (a wrong classification is one possible cause).
 
 #### Issues
-An **issue** is one question about what the printed score says at one place (or a few, below): a model's doubt, a reviewer's correction or a user's correction. (Earlier called "uncertainty"; `NOTES-2026-10-formats.md` still uses that word.)
+An **issue** is one question about what the printed score says at one place (or a few, below): a model's doubt, a reviewer's correction or a user's correction. (Earlier called "uncertainty".)
 
 - **It describes a place in the printed score,** not in the MEI or in the rendering, with **bounding boxes,** whoever raised it (a model, the user, code). Each box is a page and a box on it in our usual fractions (§6). An issue can have several, e.g. a slur that continues into the next system, perhaps on the next page: one box at the end of one system, one at the start of the next.
   - **At most 2 systems, consecutive** (decided): the systems an issue's boxes touch must be one system or two consecutive ones, checked when the issue is created, whether by a model (a failed check, back to the model) or by the user (the tool doesn't allow otherwise). It keeps `apply_review`'s calls small; where more systems are genuinely involved, the user writes several issues.
@@ -699,10 +709,6 @@ A **warning** is about the current extraction, or about how it was produced, not
 - **They belong to a version of the music:** whichever stage produces one (`assemble` or `apply_review`) also produces its warnings, as a small artifact of its own, with a warning badge and their number on the stage's card. They open in the artifact view like any output: the original with the warnings' boxes, and their text next to them. A quick look tells the user whether they warrant a human review.
 - **They are shown to the next `review`,** in the part of its prompt that all calls share, and that's all. They aren't stored with the issues and don't last: the next version gets its own warnings, computed anew. A problem that persists is warned about again; a problem that was fixed isn't.
 - **Their boxes have no cap:** they are never applied, so the 2-system rule of issues doesn't apply.
-
-#### Open
-**Open in the proposal itself:**
-- **`extract`:** the rest of what the manual run taught about the extraction (`NOTES-2026-10-formats.md` §8.4: loose ends; the rest is in §13, "The manual run", and in `extract`). The lens is described as far as needed now ("The lens"); its exact subset and schema come with building `extract`.
 
 ## 7. LLM steps
 
@@ -1162,7 +1168,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
 1. **Evaluation tooling:** the engrave command and the viewer (§13). *Done.*
 2. **Baselines from existing tools:** *Done.* Extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Tools and results: §13, "Baselines". Audiveris is installed only from https://github.com/Audiveris/audiveris/releases: `audiveris.com` and `audiveris.net` are scam sites.
-3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (§13, "The manual run"; the rest of its lessons are still in `NOTES-2026-10-formats.md` §8.4).
+3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (§13, "The manual run"; its lessons are in §6).
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
 5. **Fold the notes into this document:** review the design and `NOTES-2026-10-formats.md` once more, update the decisions (target and storage format, lens, prompts, caps, cross-system handling, musical content vs typesetting, review, content crops and measure crops as stages in §6), fold everything into this document, then delete the notes file.

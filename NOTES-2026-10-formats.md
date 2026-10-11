@@ -19,24 +19,8 @@ A first hand-run of the intended pipeline (DESIGN §16 step 3) on `bendel_la_cas
 ### 8.1–8.2 Folded into `DESIGN.md` (2026-10-11)
 What was done and the findings: DESIGN §13, "The manual run". The result is `testset/bendel_la_cascade_p4.claude-chat.ly`.
 
-### 8.3 Folded into `DESIGN.md` (2026-10-11)
-Claude's retrospective: DESIGN §13, "The manual run"; pitch guides and the key-signature check as experiments in §15; chord plans dropped. Still open here: listing the extents of all long marks (slurs, 8va, hairpins) before transcribing, which belongs with the loose ends (§8.4).
-
-### 8.4 Ideas for the pipeline (open, not decided)
-- **Replace self-directed actions with steps we control:**
-  - measure crops precomputed from measure boxes and sent with the system crop in one request (one turn with several images is far cheaper than several turns)
-  - structural checks by our parser instead of the model compiling LilyPond (§7.4)
-  - renderings for comparison produced in review (§9)
-- **Caps:**
-  - one call per system by default, no tools
-  - ~~a `zoom(box)` tool~~ folded: DESIGN §6, "Zooming in" (zoom crops on request, without tool calls)
-  - reasoning effort or thinking budget set per step
-- **Cross-system dependencies:**
-  - **Loose ends:** each system's output lists spanners and voices continuing into the next system or arriving from the previous one. Code checks that both sides match and flags both systems on a mismatch.
-  - **Document-level notes:** every call may add notes tagged with the measures they concern. The reviewer of a system sees all notes concerning it, including ones written later. Short text, so cheap to show in full; also covers observations not about neighbours.
-  - **Review after the whole page is transcribed,** with neighbouring systems' images and transcriptions. A later finding that affects an earlier system marks it stale for re-review (as in DESIGN §5.4), within the review-loop limit.
-- **Measure the value of each extra:** call records give tokens, cost and time per call. Compare one-shot with one-shot plus capped zoom on a few systems.
-
+### 8.3–8.4 Folded into `DESIGN.md` (2026-10-11)
+Claude's retrospective: DESIGN §13, "The manual run"; pitch guides and the key-signature check as experiments in §15; chord plans dropped; no list of long marks in advance (§6, `extract`). Ideas for the pipeline: zoom crops on request (§6, "Zooming in"), loose ends matched by code and hints from the previous system (§6, `extract`); document-level notes and the measurement of each extra dropped.
 
 ### 8.5 Folded into `DESIGN.md` (2026-10-11)
 The corrections and the lessons: DESIGN §13, "The manual run"; the prompt rules in §6 (`extract`, `review`, "Musical content and typesetting"); several slurs at once in "The lens".
