@@ -44,7 +44,7 @@ v1 was Python-only, local-only and command-line-only.
 
 **What carries over:**
 - The stage-tracking system: detecting finished stages, resuming interrupted runs, re-running stages, with hash checks and JSON documentation. It is the basis for §5.
-- The LilyPond output conventions in §7.3.
+- Some LilyPond conventions, now part of the lens (§6): absolute pitches, so that an octave error doesn't propagate, and code, not the model, building the score's structure.
 
 **Where v2 starts from:** experience from other projects shows that current vision LLMs read difficult material very well, at a cost of cents per call.
 
@@ -77,7 +77,7 @@ v1 was Python-only, local-only and command-line-only.
 flowchart LR
   subgraph Device["Browser (desktop or mobile)"]
     UI[React UI]
-    WW["Web Workers:<br/>PDF decoding, image processing,<br/>fingerprints, LilyPond-subset checks,<br/>preview rendering (proposed)"]
+    WW["Web Workers:<br/>PDF decoding, image processing,<br/>fingerprints, lens checks,<br/>MEI building, rendering (Verovio)"]
     OPFS[("OPFS:<br/>derived images (cache)")]
     UI <--> WW
     WW <--> OPFS
@@ -132,7 +132,7 @@ flowchart LR
 | Vision LLMs | The user's choice, per stage (§7.6). Recommended: Claude Opus 5.5 for everything. | In the manual run (§16 step 3) Opus did best at everything, layout included. Providers are swappable behind the `LlmProvider` port. |
 | Structured LLM output | Provider-native schema-constrained output, validated with Zod | Machine-checkable outputs. No free-form parsing. |
 | Schema validation | Zod (or similar) | Validates step configs, LLM outputs and DB payloads. The same schema generates the UI controls (toggles, sliders). |
-| Preview rendering | **Proposed:** Verovio (WASM) in the browser, fed by a TS converter from our constrained LilyPond subset | Keeps review and preview rendering runnable everywhere. See §9. |
+| Rendering | Verovio (WASM) in the browser, rendering the MEI | Keeps rendering runnable everywhere, with no native program. See §9. |
 | Google Drive | Google Identity Services + Google Picker + `drive.file` scope, entirely in the browser | `drive.file` is non-sensitive: no app verification, and access only to files the user picks or the app creates. |
 | Local development | `wrangler dev` (local D1/R2 emulation) + Vite dev server, run as two processes. Vite proxies `/api` to Wrangler. No Cloudflare Vite plugin. | One code path from day 1. Keeps the app and the Worker as separate packages with a clear boundary. |
 | Deployment | One Worker with static assets: `apps/worker`'s Wrangler config serves `apps/web`'s build output. `wrangler deploy` uploads both. | One origin: no CORS, one Access policy, app and API always deployed at the same version. |
@@ -146,8 +146,8 @@ packages/
              Pure TypeScript, no DOM and no Cloudflare APIs.
   imaging/   Page images from PDFs, deterministic image operations, fingerprints. Pure TS/WASM.
              (Exists: page images, skew detection, rotation. The other packages don't exist yet.)
-  notation/  Constrained-LilyPond parser, structural checks, skeleton builder,
-             assembler, converter for preview rendering.
+  notation/  Lens parser and checks, measure building from stretches,
+             MEI builder (the frame from the structure and metadata, the music from the lens).
   prompts/   Versioned prompt templates and their output schemas.
 apps/
   web/       React UI, Web Worker host, OPFS + Drive + local-file adapters.
@@ -169,7 +169,7 @@ The core depends only on interfaces. Adapters live in `apps/*`.
 | `ProjectStore` (projects, stages, artifact rows, provenance) | D1 via the Worker. A SQLite file (desktop version). SQLite or in-memory for tests. |
 | `DerivativeCache` (regenerable images) | OPFS. In-memory for tests. |
 | `LlmProvider` | One adapter per provider (via the Worker). **Replay** adapter for tests. |
-| `Renderer` | **Proposed:** Verovio in the browser. Optional: LilyPond (local install, container). See §9. |
+| `Renderer` | Verovio in the browser. See §9. |
 | `ExportTarget` | Browser download, Google Drive folder |
 
 ### Desktop version (planned)
@@ -301,18 +301,17 @@ Every artifact has a row in D1, which belongs to the stage that produced it and 
 ### 5.4 Manual stages
 
 The user intervenes by adding a manual stage to the pipeline. The manual stages foreseen so far:
-- fix deskewing angles
-- fix content crops
-- fix system crops
-- fix measure crops
-- fix extracted metadata (composer, title, edition etc.)
-- fix musical content: at any point after the first transcription, before and/or after any review stage
-- answer questions about uncertainties that a model flagged
+- fix the skew angles (`fix_skew`)
+- fix the system boxes and bar lines (`fix_layout`)
+- fix the metadata (`fix_metadata`) and the observations (`fix_observations`)
+- answer the issues and correct the music (`human_review`, after any `apply_review`)
+
+(The stages are listed in §6, "Proposed stages".)
 
 Rules:
-- **One manual stage covers the whole PDF,** however many items are fixed in it. Fixing twelve measure crops is one "fix measure crops" stage, not twelve. Otherwise the pipeline shown in the UI would get too long.
+- **One manual stage covers the whole PDF,** however many items are fixed in it. Fixing the boxes on twelve pages is one `fix_layout` stage, not twelve. Otherwise the pipeline shown in the UI would get too long.
 - The artifacts of a manual stage have `origin = manual` and the corrected artifact as their parent.
-- Edits to images are stored as **replayable operations**, not as edited pixels: crop windows, deskew angles, masks as vector strokes. Replaying them on the regenerated base image reproduces the edited result.
+- Edits to images are stored as **replayable operations**, not as edited pixels: skew angles, boxes, bar line positions. Replaying them on the regenerated base image reproduces the edited result.
 - Text artifacts (analysis JSON, transcribed music) are stored edited, with a diff to their parent.
 - **Undo exists only inside a tool for manual work** (the tools aren't built yet), while it is open. Leaving the tool saves, and after that nothing can be undone: the stage can only be edited further or dropped (§5.5).
 - **A finished stage never changes.** Editing a finished manual stage creates a new manual stage, which starts from the finished state of the old one and takes its place in the pipeline. The old one becomes a replaced stage (§5.5) and stays in storage as it was. The reason is forking (§16): another project's pipeline can use the same stored stage, and it must not change there.
@@ -328,7 +327,7 @@ Rules:
 A re-run follows **the pipeline as it was, not the standard recipe** of planned stages, for as long as the outcomes stay the same. This is the intended behaviour, not yet a technical definition; the details are worked out when we get there.
 - **A stage whose inputs and config are exactly the same is reused,** manual stages included. Example: the composer's name is corrected after a full run that also had a wrong note fixed by hand. Nothing that the note fix depended on changed, so the fix is still there after the re-run.
 - **A manual stage whose input changed is dropped,** and the pipeline continues with the planned stages. The typical manual fix is a better deskewing angle or better system crops on a difficult old score. The point of it is that the stages after it then produce very different, better output, which ideally no longer needs the manual fixes that the poor first attempt needed.
-- **Stages must depend only on what they really use.** If a transcription call got the whole global analysis as context, composer included, correcting the composer would change the input of every transcription, and all of them would be paid for again.
+- **Stages must depend only on what they really use.** If an `extract` call got the whole metadata as context, composer included, correcting the composer would change the input of every `extract` call, and all of them would be paid for again.
 - **Proposed** (§15)**:** after a re-run, the app reports which manual fixes were carried over and which were dropped. Which ones are dropped depends on the outcome of the run, so it can't be said beforehand, and a dropped fix would otherwise go unnoticed.
 
 #### Replaced stages
@@ -377,7 +376,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 - **Manual stages** are added from a stage's "⋮" ("Add: Fix system boxes", whichever fixes fit after that stage). They start as **WIP** (a badge next to the name): the user opens the stage's output as often as they like and works on it, and clicks **Finish** on the card when done. Then the next stage gets its turn. In Auto mode the pipeline carries on by itself; in Manual mode the next stage is ready. A finished manual stage can be edited again ("Edit" in its "⋮"): that continues from where the user left it, not from scratch, but like any change in the middle (§5.5) it replaces the later stages and needs confirming. In storage, the stage being edited is a new one that replaces the finished one (§5.4); the mock still reopens the same stage. There is no "Discard": a manual stage, WIP or finished, is removed with "Drop stage" (§5.5). Undoing single edits belongs to the tools for manual work (§5.4).
 - **The stage's "⋮"** holds everything else, so the card stays clean: "Show details", "Change config", "Add: Fix …", "Edit" (manual stages), "Drop stage" (stages that aren't part of the recipe, WIP ones included, §5.5; in red). Only what applies is listed, and while a stage runs only "Show details". There is no "Run again": running a stage again without changing its config only makes sense after it failed, and that is Retry. Whatever replaces stages that already ran asks first (§5.5).
 - **Show details** opens the stage in the artifact view: step and version, kind, status, run time, cost, result, its config, and for LLM stages the calls it made with their tokens and costs.
-- **Groups are shown as a filmstrip:** the items one below the other with a small gap, scrolling continuously, with a counter in a corner ("12 / 54"). That way the end of one system and the start of the next are on screen together, which helps when checking musical content. Transcriptions show the system's crop with its LilyPond below it.
+- **Groups are shown as a filmstrip:** the items one below the other with a small gap, scrolling continuously, with a counter in a corner ("12 / 54"). That way the end of one system and the start of the next are on screen together, which helps when checking musical content. `extract` shows each system's crop with its music below it.
 - **Auto-scroll:** the list scrolls to the current stage (the first that isn't done) when the project is opened, when an Auto run starts, and whenever another stage gets its turn, in both modes: as an Auto run moves on, and in Manual mode when a stage finishes and the next one becomes ready. The stage is brought to about the middle of the view, or as far up as the list goes when few stages follow it.
 
 - **The menu** (☰, at the far right of the header, after "+ New project") leads to the app's own pages: Statistics (including costs, §10), Settings, Help and About, in three groups separated by lines (what you look at, what you change, help). Each page has its own URL (`#/stats`, `#/settings`, `#/help`, `#/about`) and replaces the project view while it is open, so the back button returns to the project. All but About are placeholders for now (§15). Help will not be a page of its own: it will lead to a user guide, a Markdown file in the repository on GitHub. Anything urgent (the spending cap reached, a missing key) must not hide in the menu: it is shown where the user is.
@@ -677,7 +676,7 @@ An **issue** is one question about what the printed score says at one place (or 
 - **It describes a place in the printed score,** not in the MEI or in the rendering, with **bounding boxes,** whoever raised it (a model, the user, code). Each box is a page and a box on it in our usual fractions (§6). An issue can have several, e.g. a slur that continues into the next system, perhaps on the next page: one box at the end of one system, one at the start of the next.
   - **At most 2 systems, consecutive** (decided): the systems an issue's boxes touch must be one system or two consecutive ones, checked when the issue is created, whether by a model (a failed check, back to the model) or by the user (the tool doesn't allow otherwise). It keeps `apply_review`'s calls small; where more systems are genuinely involved, the user writes several issues.
   - **Code works out the stretches** under the boxes, and so the measures, from the system boxes, the bar lines and the measures as code built them (see "Bar lines, stretches and measures"), instead of trusting a model's measure numbers: the detection of measures is one of the things that can be wrong. They are the stretches `apply_review` changes for the issue without needing a reason.
-  - **Models give boxes on the crop they were sent** (a system or measure crop). Code turns them into boxes on the page: the crops were cut from known boxes, so this is exact.
+  - **Models give boxes on the crop they were sent** (a system, stretch or zoom crop). Code turns them into boxes on the page: the crops were cut from known boxes, so this is exact.
   - **An optional prose location** says what in the box is meant when the box alone doesn't, e.g. "the middle note of the chord". It must be **simple and local to the box,** and not depend on the model's reading of the score: "the left-hand note on the third beat" turns wrong if the note wasn't for the left hand, or wasn't on the third beat, after all. The prompts say so.
   - **Issues are text only:** no stored image with annotations. A model sees the boxes as coordinates and, **proposed,** as pictures drawn by code when the request is built: one copy of the crop with all boxes in different colours, and one without any, since lines over the music would get in the way of reviewing everything else, and boxes may overlap.
 - **What an issue holds** (the field names are a sketch):
@@ -792,9 +791,9 @@ Three levels; the most specific wins:
 
 ### 7.7 Known LLM risk: plausible wrong notes
 LLMs fill in "musically likely" content. That is desirable for a smudge and dangerous everywhere else, because the errors look correct. Defenses:
-- explicit uncertainty lists
-- structural checks
-- image-based review
+- issues for every doubt (§6)
+- checks by code (`extract`, `assemble`)
+- review against the crops (`review`)
 - checking the engraved output against the original on the test set (§13)
 
 ## 8. Image processing and reproducibility across devices
@@ -909,7 +908,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 | Cloudflare R2 | Original PDFs, artifact content, large LLM payloads | EU jurisdiction bucket. Cannot be changed later. |
 | Cloudflare Access | Login | Protects everything, including the API. |
 | Google Drive | Picking source PDFs. Optional export target. | `drive.file` scope, Picker for selection, app-created export folder. Publish the OAuth app to "production" status (even unverified), because refresh tokens expire after 7 days in "testing" status. |
-| Vision LLMs | Global analysis, transcription, review | Called **only through the Worker**: API keys stay in Worker secrets. |
+| Vision LLMs | Layout, analysis, extraction, review (§6) | Called **only through the Worker**: API keys stay in Worker secrets. |
 
 ### Secrets
 - **The LLM API keys are Worker secrets,** set by whoever runs the instance, outside the app (`wrangler secret put`, or the Cloudflare dashboard, which also works from a phone), under names of their own choosing. They are independent of code deployments: `npm run deploy` doesn't touch them, and changing one takes effect within seconds, without deploying the code again (Cloudflare makes a new version of the Worker with the new value by itself). Locally, `wrangler dev` reads them from `apps/worker/.dev.vars`, which is not committed.
@@ -987,9 +986,9 @@ Page images, straightened pages and crops are views computed from the PDF and th
 
 **Principle:** deterministic parts are tested directly. Non-deterministic parts (LLM calls, human input) are **recorded and replayed**.
 
-- **Unit tests:** image operations, parser, structural checks, skeleton builder, assembler, converter.
+- **Unit tests:** image operations, the lens parser and checks, measure building, the MEI builder (validated against MEI 5 and MEI Basic, §6, "MEI").
 - **Golden-image tests:** deterministic image pipelines produce known raw-pixel hashes, or fingerprints within tolerance (§8.3).
-- **Fixture projects:** real scores with recorded LLM call records (request + response) and recorded human operations (boxes, angles, accepted patches), stored in `fixtures/`.
+- **Fixture projects:** real scores with recorded LLM call records (request + response) and recorded human operations (angles, boxes, answers to issues), stored in `fixtures/`.
 - **Replay tests:** run a fixture end to end with the replay `LlmProvider`.
   - Deterministic steps must reproduce identical artifact hashes. LLM and human steps return their recordings.
   - This tests the plumbing, assembly and resume logic with no API cost.
@@ -1095,10 +1094,10 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
 |---|---|
 | **Infrastructure work crowding out quality work** (plumbing is fun) | Validate the approach by hand before building (§16). Measure quality on the test set early and often. |
 | Losing LLM output or human input because it was treated like cache | §5.3: LLM and human artifacts are always persisted. Eviction only touches deterministic artifacts. |
-| Plausible but wrong notes from LLMs | §7.7: uncertainty lists, structural checks, image-based review, measured slip-through rate. |
+| Plausible but wrong notes from LLMs | §7.7: issues for every doubt, checks by code, review against the crops, measured slip-through rate. |
 | Regenerated images drifting from what the human or LLM worked on | §8: deterministic decoding and operations, normalized coordinates, fingerprint checks. |
 | Downscaled system images losing detail (models shrink large images, and piano systems are wide) | Stretch crops sent along with the system crop, and zoom crops on request (§6, `extract`, "Zooming in"). |
-| Converter/preview bugs producing false review findings | §9: converter golden tests, occasional real LilyPond cross-check. |
+| Bugs in building the MEI or rendering it, misleading the user in `human_review` | Tests of the MEI builder, validated against the MEI schemas (§6, "MEI"); `review` reads the lens, not the rendering. |
 | ML costs creeping up | Per-call cost logging, reuse of recorded requests, cheaper models for easy steps. |
 | Two devices editing the same project | Optimistic locking (§4). |
 | Irreversible infrastructure choices | D1 and R2 jurisdictions are set at creation. Scripted in the repo. |
@@ -1113,7 +1112,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 
 ### Decisions
 - **Compare `review` with and without renderings as model input** (§6, "Renderings"), on the test set, some day: run it both ways and compare what it finds, counting false findings as well as extra correct ones. If renderings help, they become the default, and a config option of `review` can turn them off.
-- **Decide the reviewer's details** (§7.5): flag-only versus auto-accepted patches, the same model or a different one, the number of rounds. By comparing results with and without review on the test set.
+- **Decide the reviewer's model** (§6, `review`): the same model as `extract` or a different one, and whether further reviews pay off. By comparing results with and without review on the test set.
 - **Define the lens exactly** (§6, "The lens"), when `extract` is built: the LilyPond subset, especially cross-staff notation, ornaments, ossia and lyrics, and the JSON schema.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
 - **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs, and for Claude on Vertex AI and Bedrock (§7.6).
@@ -1186,17 +1185,14 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
       Next: the stages. Details to come from the author.
    2. Extract page images deterministically → OPFS → show in the UI. *The extraction, skew detection and rotation exist* (§8.1, §8.2, §8.4), not yet in the app.
-   3. Global analysis of one page → system boxes + metadata. Human correction of the boxes.
-   4. Crop systems → transcribe one system with context → structural checks.
+   3. `layout` of one page → system boxes and bar lines; `fix_layout`.
+   4. Crops → `extract` of one system with context → checks.
    5. Record the LLM calls, turn the result into the first fixture, and compare against the baselines in the viewer.
 
-   Then: assembly across systems, review (with or without preview rendering), the pipeline of stages in D1 and in the UI (§5.1), manual stages (§5.4), re-running from a stage with confirmation (§5.5), regeneration on a second device, Drive integration.
+   Then: `assemble`, `review` and `apply_review`, `human_review`, the pipeline of stages in D1 and in the UI (§5.1), manual stages (§5.4), re-running from a stage with confirmation (§5.5), regeneration on a second device, Drive integration.
 
    Also planned, details still to be worked out:
    - **Costs view, cost ledger with statistics, and the spending cap** (§10).
-   - **Report remaining uncertainties** after the review step, so the user knows where to look.
-   - Possibly a **side-by-side viewer for human review** in the app (like the evaluation viewer, §13).
-   - Possibly a **human → machine feedback step** for last corrections (the human points out errors, the model fixes them).
    - **Deleting a project** (§4).
    - **Running the pipeline on the server** (optional but desirable; big, and tricky to get right). Today the browser drives the pipeline and does all the PDF and image work, so a run only advances while the app is open and, on a phone, on screen.
      - **Preferred: all-in.** The whole pipeline runs on the server, PDF and image work included. The browser only shows results and takes the user's input, and a run doesn't depend on any device.
