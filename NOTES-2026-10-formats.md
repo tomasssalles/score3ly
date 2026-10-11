@@ -8,58 +8,9 @@
 - §1, baselines: DESIGN §13, "Baselines".
 - §2, why the target format was in question, and §3, the canonical representation: DESIGN §1, "Why a text encoding, and which one", and §6, "MEI" and "The lens". The early sketches of corrections and of a first draft via the lens were replaced by the stages in DESIGN §6.
 
-## 4. Image region linking (MEI facsimile)
-- `<surface>` = a page with an abstract coordinate space we choose (`ulx/uly/lrx/lry`, e.g. 0–1000 like Gemini's boxes). `<zone>` coordinates are in the surface's space, not in any image's pixels. `<graphic>` (optional, several allowed) names images of the surface with their pixel sizes. Content points at zones with `@facs`.
-- Fits §8.2 (normalized coordinates) and §5.3 (images are cache): graphics can be omitted, page images regenerated.
-- MEI has no notion of PDF pages. "Surface p3 = page 3 of the project PDF" is our own convention (a `graphic target` URI like `pdfs/<sha256>.pdf#page=3` would be informational only).
-- Open point: which geometry zones refer to. Simplest: the **preprocessed** page image (what the LLM and human saw), identified by recipe and fingerprint, since deskewing turns rectangles into rotated ones on the original.
-- The other direction, our own renderings: Verovio's SVG carries the MEI `xml:id`s, so rendered measures/notes map back to stored ones for free. LilyPond would need our own ID attributes in its SVG output (or point-and-click positions mapped back).
-- Use: crop measure N from the original (via its facs zone) and from the Verovio rendering (via its `xml:id`, with original system breaks kept via `<sb/>`/`<pb/>` and encoded breaks), optionally coloured by voice, and give the pair to the reviewer LLM, the correction step or the viewer.
-
-## 5. Things to verify
-- Whether MEI Basic includes the facsimile module.
-- Quality of MEI → MusicXML converters (Verovio doesn't export MusicXML).
-- MuseScore's MEI support.
-- Which `musicxml2ly` gaps actually bite on the test set.
-- The vendor prices and trial terms above, before paying.
-
-## 6. Draft prompt: bounding box of the musical content (Gemini's suggestion)
-
-After a few attempts at getting a content bounding box from Gemini, Gemini suggested the prompt below. Use it as input when writing our own, but **it is biased by the single example it was developed on** (Kinderscenen p3: decorative frame, "N°1" label, plate number "6016"). Generalize it and drop test-set-specific details (such as the "N°1" and "6016" examples) to avoid overfitting to the test set.
-
-> **System Prompt: Sheet Music Core Content Extraction**
->
-> Your task is to detect and extract the bounding box coordinates of the core musical and textual content in the provided image of a musical score.
->
-> **Coordinate Format**
-> Output ONLY a JSON array of four integers representing coordinates normalized on a scale from 0 to 1000. Use the exact format `[ymin, xmin, ymax, xmax]` (Top, Left, Bottom, Right).
->
-> **Target Content (What to Include)**
-> The bounding box must comprehensively enclose the central musical composition and its integral metadata. This strictly includes:
-> - All musical staves, notes, stems, ledger lines, bar lines, clefs, and key/time signatures.
-> - All system connectors on the far left edge, specifically capturing curly braces, straight brackets, and staff labels (e.g., "N°1", "Flute", "I", "II").
-> - All performance directions, including tempos, dynamics, lyrics, fingering numbers, slurs, and pedal markings.
-> - The main title, subtitles, and composer/arranger credits usually located at the top of the first page.
-> - Publisher plate numbers (e.g., "6016") typically located at the bottom center of the page.
->
-> **Exclusions (What to Ignore)**
-> The bounding box must intentionally exclude peripheral non-musical elements, adapting to both clean vector PDFs and historical scanned documents. Strictly exclude:
-> - Blank paper margins.
-> - Decorative page borders, ornamental frames, or purely aesthetic background illustrations.
-> - Page numbers isolated in the extreme top or bottom corners.
-> - Archival library stamps, watermarks, scanner artifacts, or binder holes.
->
-> **Precision Guardrails**
-> Provide a tight bounding box that hugs the outermost pixels of the target content. Pay special attention to the left and right extremities to avoid clipping system brackets, initial clefs, or outer ledger lines, while ensuring no decorative borders inflate the dimensions.
-
-## 7. Measure counting from the full page (Gemini experience)
-
-Based only on chats with Gemini about `bendel_la_cascade_p4.orig.pdf`, with the full page as input (as the planned skeleton pass, DESIGN §6 stage 3, would get it). Claude Opus 5.5 was tested afterwards in a fresh chat: see §8.
-
-- **Result:** Gemini 3.1 Pro and Gemini 3.6 Flash both said every system has 3 measures. The real counts are 6, 6, 6, 7 and 8.
-- **Gemini's own explanation and advice:** it relied on hints such as pedal markings and note groups instead of the bar lines. It recommends (a) prompting explicitly to locate the vertical bar lines, and (b) sending high-resolution crops of each system.
-- **Not verified:** after being told, 3.1 Pro claimed it could now see the measures. That claim may not be trustworthy. To check it, ask for evidence rather than a count, e.g. the x-position of each bar line per system, or what the first beat of each measure contains.
-- **Consequence for the design (open):** the skeleton pass was meant to get only the full page. If measure counts (and measure boxes, §3 "First draft via the lens") from the full page are unreliable, they may have to come from system crops instead, or from deterministic bar-line detection in code, with the LLM only confirming.
+## 4–7. Folded into `DESIGN.md` or dropped (2026-10-11)
+- §4, image region linking: DESIGN §6, "MEI" (`facsimile`).
+- §5 (things to verify), §6 (Gemini's prompt for a content box) and §7 (Gemini counting measures from the full page): dropped as no longer relevant.
 
 ## 8. Manual run with Claude Opus 5.5 on Bendel p4 (claude.ai chat)
 
