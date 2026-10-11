@@ -16,33 +16,8 @@
 
 A first hand-run of the intended pipeline (DESIGN §16 step 3) on `bendel_la_cascade_p4.orig.pdf`, the obscure piece no model identified. Done in a claude.ai chat, with code execution available to the model. The result is `testset/bendel_la_cascade_p4.claude-chat.ly`; its quality hasn't been checked in the viewer yet.
 
-### 8.1 What was done
-1. **Structure from the full page.** Prompt: extract structural information as structured text (number of systems, measures and staves per system, clefs, key and time signature and where they change, maximum number of voices), plus observations useful for the later LilyPond transcription, such as repeated melodies.
-   - Everything was right, including the measure counts (6, 6, 6, 7, 8) that both Gemini models got wrong (§7). Many useful observations, e.g. similarities between spans.
-2. **LilyPond skeleton.** Asked for a skeleton with variables to fill later (per voice, per measure or both), as a downloadable file.
-   - First version reused one variable for measures it believed identical. Corrected by the author: repetitions seen from a bird's-eye view are hints, not facts; values will be substituted by a script, so every measure gets its own variable; the first occurrence serves as a reference when transcribing the second. The second version had one variable per measure and hand, with "REF mN" comments.
-3. **System bounding boxes by eye.** Claude first wanted to find them with code. Rejected by the author: that fails on bad scans, ornamented pages and old paper (tried at length in score2ly). By eye instead, with a check loop: code draws the boxes onto the page, Claude looks at the overlay and corrects them. Two rounds were enough. Claude's suggestion: up to 3 rounds, then flag for human review. Result (fractions of the page, `x0, y0, x1, y1`):
-
-   | System | Box |
-   |---|---|
-   | S1 | 0.018, 0.064, 0.994, 0.262 |
-   | S2 | 0.018, 0.256, 0.994, 0.432 |
-   | S3 | 0.018, 0.430, 0.994, 0.605 |
-   | S4 | 0.018, 0.603, 0.994, 0.771 |
-   | S5 | 0.018, 0.765, 0.994, 0.938 |
-
-4. **System crops** rendered at 300 dpi in grayscale (`pdftoppm` + ImageMagick) from those boxes, uploaded one at a time. The scan inside the PDF is 150 ppi, so 300 dpi adds no detail, but each crop still gets far more model pixels than a system on the full page (roughly 1.4–1.8× linear).
-5. **Transcription per system.** On its own, Claude cut each system into measure crops (6 for system 1) and additionally zoomed into tricky note groups (15 more crops for system 1). It also filled the skeleton, compiled with LilyPond to check for warnings, and cropped the rendering to compare it with the original. System 1 took about 7 minutes. A crop limit was set before system 2.
-6. **Cross-system correction.** After system 5, Claude went back and corrected system 4: a slur it had ended in system 4 actually continued into the next system.
-7. **Output:** the skeleton plus a JSON file with the value of every variable, substituted by script into the skeleton (variables kept, not inlined).
-
-### 8.2 Findings
-- **Opus 5.5 read structure from the full page reliably** where Gemini 3.1 Pro and 3.6 Flash failed (one page, one try each; not yet a general result).
-- **Bounding boxes by eye with a draw-and-check loop work,** at least on this clean page. Unknown on stained, ornamented scans.
-- **Measure crops help, and so does zooming into small note groups,** an idea not in the design before.
-- **Left alone, the model over-explores:** too many images, turns, tool calls and too much time. Images themselves are cheap (one full-size image is roughly 1.5–3k input tokens); the cost is in many turns, each resending a growing context, plus long reasoning.
-- **Dependencies across systems are real:** slurs (and likewise ties, hairpins, 8va lines, pedal, voices) cross system breaks, and later systems can change the reading of earlier ones.
-- **Repetition hints from the overview were partly wrong** (Claude's retrospective: m13 isn't m9; m21 follows m13, not m17). Keeping one variable per measure was the right call.
+### 8.1–8.2 Folded into `DESIGN.md` (2026-10-11)
+What was done and the findings: DESIGN §13, "The manual run". The result is `testset/bendel_la_cascade_p4.claude-chat.ly`.
 
 ### 8.3 Claude's own retrospective, reviewed
 Asked afterwards what would have helped from the start. Its points, with our assessment:
