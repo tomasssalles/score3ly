@@ -1,6 +1,6 @@
 # Design Document — Score-to-MEI Pipeline (v2)
 
-> Status: draft. The early assessment (§16 steps 1–4) is done and the app is being built from the outside inwards (§16 step 6): projects, the project picker and the project view exist and run locally; the pipeline panel is designed with mock stages (§5.6), and there are no real pipeline stages yet. The proposed list of stages (§6) still has to replace the old one, with §7 and §9 rewritten to match (§15). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. Concrete **tasks**, including the decisions still to be made, are collected in §15.
+> Status: draft. The early assessment (§16 steps 1–4) is done and the app is being built from the outside inwards (§16 step 6): projects, the project picker and the project view exist and run locally; the pipeline panel is designed with mock stages (§5.6), and there are no real pipeline stages yet. This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. Concrete **tasks**, including the decisions still to be made, are collected in §15.
 
 ## 1. What this app is
 
@@ -57,7 +57,7 @@ v1 was Python-only, local-only and command-line-only.
   - a reduction staff for an orchestral part
   - two-piano double systems
 - **Also possible:** other instrumentations are not excluded, but they are not optimized for initially.
-- **Possible later: image input (PNG, JPEG)** in addition to PDFs. It is almost no extra work: an image is a page image, so it skips PDF extraction and joins the same pipeline at stage 1 (§6), with JPEGs going through the same bundled decoder (§8.1).
+- **Possible later: image input (PNG, JPEG)** in addition to PDFs. It is almost no extra work: an image is a page image, so it skips PDF extraction and joins the same pipeline at `rasterize` (§6), with JPEGs going through the same bundled decoder (§8.1).
 
 ### Goals
 - **Quality first:** the measure of success is how good the transcription is and how little human correction it needs. Infrastructure only exists to serve that.
@@ -129,7 +129,7 @@ flowchart LR
 | Device storage | OPFS (Origin Private File System) | Supported by Firefox, Chrome and Safari. Fast binary access from Web Workers. |
 | PDF handling | pdf.js, version pinned | Renders vector PDFs and decodes CCITT, JBIG2 and JPEG 2000 images in JS/WASM, deterministically. |
 | JPEG decoding | pdf.js's own JavaScript decoder, not the browser's (pdf.js would use the browser's `ImageDecoder` where there is one; it is switched off, §8.1) | Browser JPEG decoders may differ by about ±1 gray level. A decoder in our bundle gives identical pixels everywhere. |
-| Vision LLMs | The user's choice, per stage (§7.6). Recommended: Claude Opus 5.5 for everything. | In the manual run (§16 step 3) Opus did best at everything, layout included. Providers are swappable behind the `LlmProvider` port. |
+| Vision LLMs | The user's choice, per stage (§7.2). Recommended: Claude Opus 5.5 for everything. | In the manual run (§16 step 3) Opus did best at everything, layout included. Providers are swappable behind the `LlmProvider` port. |
 | Structured LLM output | Provider-native schema-constrained output, validated with Zod | Machine-checkable outputs. No free-form parsing. |
 | Schema validation | Zod (or similar) | Validates step configs, LLM outputs and DB payloads. The same schema generates the UI controls (toggles, sliders). |
 | Rendering | Verovio (WASM) in the browser, rendering the MEI | Keeps rendering runnable everywhere, with no native program. See §9. |
@@ -195,7 +195,7 @@ The project owner uses the web app. The desktop version mainly makes the app eas
 - **The same server also runs without Electron,** as a plain local server, e.g. on a home server reachable from a phone through a VPN.
 
 **What differs in the app.** The server says which host it is (e.g. `GET /api/info`), so the web bundle stays the same for both; the UI asks the server, and nowhere else decides by host:
-- **Secrets:** in the desktop version they are in a file in the app's data folder, in the same `NAME=value` format as `.dev.vars` (§10). The app creates it on first start, with a commented example and permissions for the user only. A button in the settings opens it in the system's default text editor: the page asks the server, which opens it (`shell.openPath`), since a web page can't. Changes take effect without a restart: the server reads the file again when it changes, and the secret names in the model configs (§7.6) update. In the web version, the same place in the settings explains that secrets are set in the Cloudflare dashboard, with a link to the user guide.
+- **Secrets:** in the desktop version they are in a file in the app's data folder, in the same `NAME=value` format as `.dev.vars` (§10). The app creates it on first start, with a commented example and permissions for the user only. A button in the settings opens it in the system's default text editor: the page asks the server, which opens it (`shell.openPath`), since a web page can't. Changes take effect without a restart: the server reads the file again when it changes, and the secret names in the model configs (§7.2) update. In the web version, the same place in the settings explains that secrets are set in the Cloudflare dashboard, with a link to the user guide.
 - **Navigation:** an Electron window has no browser bar, but the app relies on the back button (closing an artifact or a stage's details, leaving a menu page, §5.6). So: back and forward buttons in the header, left of the wordmark, disabled when there is nowhere to go (Electron knows: `navigationHistory.canGoBack()`), and the usual shortcuts, which Electron doesn't set by itself: Alt+←/→ (Windows, Linux), Cmd+[/] (macOS), the mouse's side buttons and swipes on macOS. The condition is "no browser bar", not "desktop": a phone app opened from the home screen without the browser's bar would need the same (§15).
 - **The data folder:** nothing in the app opens it. The user guide says where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran (§5.2).
 - **Easier on desktop:** no Worker limits on CPU time, no lost answers when a phone sleeps, no free-tier quotas. Running the whole pipeline on the server (§16) is simple there.
@@ -306,7 +306,7 @@ The user intervenes by adding a manual stage to the pipeline. The manual stages 
 - fix the metadata (`fix_metadata`) and the observations (`fix_observations`)
 - answer the issues and correct the music (`human_review`, after any `apply_review`)
 
-(The stages are listed in §6, "Proposed stages".)
+(The stages are listed in §6.)
 
 Rules:
 - **One manual stage covers the whole PDF,** however many items are fixed in it. Fixing the boxes on twelve pages is one `fix_layout` stage, not twelve. Otherwise the pipeline shown in the UI would get too long.
@@ -331,7 +331,7 @@ A re-run follows **the pipeline as it was, not the standard recipe** of planned 
 - **Proposed** (§15)**:** after a re-run, the app reports which manual fixes were carried over and which were dropped. Which ones are dropped depends on the outcome of the run, so it can't be said beforehand, and a dropped fix would otherwise go unnoticed.
 
 #### Replaced stages
-- **Replaced stages are kept in storage,** with their artifacts and full LLM call records (requests and responses). They are reused whenever possible: a stage that runs again with the same inputs and config, or an identical LLM request (§7.6), is served from what is stored and costs nothing.
+- **Replaced stages are kept in storage,** with their artifacts and full LLM call records (requests and responses). They are reused whenever possible: a stage that runs again with the same inputs and config, or an identical LLM request (§7.2), is served from what is stored and costs nothing.
 - **They stay connected to their project in D1,** although the pipeline no longer shows them, so that deleting the project (§4) finds and deletes them too. Until then, a project's storage only grows.
 
 #### Confirmation before a re-run
@@ -402,42 +402,11 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
   - **How long ago:** compact, "20min ago", "5h ago", "2d ago".
   - **Money:** US dollars with two decimals, "$0.12" (§10).
 
-## 6. Pipeline stages (initial plan)
+## 6. Pipeline stages
 
-A newer list of stages is being discussed: see "Proposed stages" at the end of this section. Until it is final, the table below and the sections that build on it (§7, §9) are the plan.
+### The stages
 
-| # | Stage | Kind | Granularity | Output |
-|---|---|---|---|---|
-| 0 | Ingest | deterministic | document | PDF in R2, project in D1 |
-| 1 | Page images | deterministic | page | Page image (OPFS) + fingerprint |
-| 2 | Light preprocessing (deskew, contrast, optional binarization; colour is kept by default, §8.1) | deterministic + human (angles) | page | Preprocessed image + recorded parameters |
-| 3 | Global analysis | llm | page + document | Structured JSON (see below) |
-| 4 | Layout correction | human | page | Confirmed system boxes, normalized coordinates |
-| 5 | System crops | deterministic | system | Crop images. |
-| 6 | Score skeleton | deterministic (+ human confirmation) | document | LilyPond structure: staves, voices, variable names, staff changes |
-| 7 | Transcription | llm | system | Structured JSON: music per voice, measure count, uncertainty list |
-| 8 | Structural checks | deterministic | system | Check results (§7.4) |
-| 9 | Review | llm | system | Findings (§7.5) |
-| 10 | Fix | llm or human | system | Revised transcription. At most 1–2 review→fix rounds. |
-| 11 | Assembly | deterministic | document | Complete LilyPond source |
-| 12 | Export | deterministic (+ optional engraving, §9) | document | `.ly` file, optional engraved PDF |
-
-### Global analysis (stage 3)
-One pass over each page, plus a document-level merge. **Every page is sent,** whatever is on it: code doesn't decide which pages hold music (§8.4). The output is used as context for all later LLM steps:
-- **What each page is:** cover, empty, music or other (preface, table of contents, advertisements, ...).
-- **System bounding boxes**, as fractions of the image's width and height: an object with `left`, `right`, `top` and `bottom`, each from 0 to 1. The format is ours, not a provider's (Gemini's native one is a 0–1000 list). Fractions don't depend on how a model shrinks the image internally, and Claude returns them reliably. They go to the human in stage 4 as the model gave them, to confirm or correct; code doesn't adjust them. Code that detects notation, even staves, is what fails on these scores and why this project uses LLMs.
-- **Metadata:** title, composer, editor, opus, movement titles.
-- **Structure:** staves per system, instruments, voices per staff, staff count changes.
-- **Musical context:** key and time signatures and their changes, clefs, where themes and melodies begin and end, repeats, and which passages repeat earlier material.
-- **Phenomena per system:** multiple voices, lyrics, ossia/alternatives, editorial notes, reduction staff, double systems. These drive the skeleton.
-
-Example of why this matters: a smudged note on one page can be resolved because the global analysis knows the passage repeats a theme from a page that was read without problems.
-
-### Proposed stages (draft, under discussion)
-
-> **Status: a proposal by the project owner, not decided.** It is meant to replace the table above and, with it, parts of §7 (the LilyPond conventions in §7.3, the structural checks as a stage in §7.4, the reviewer's findings in §7.5). It uses MEI for what users get and the lens inside the pipeline (see "MEI" and "The lens" below). When the list is final, this section is folded into the rest of the document.
-
-Stages marked **[manual]** are optional and added by the user (§5.4). Everything else is the recipe. Each stage has a short identifier, used in the rest of this section.
+Stages marked **[manual]** are optional and added by the user (§5.4). Everything else is the recipe. Each stage has a short identifier, used throughout this document.
 
 | # | Id | Stage | Kind | Artifacts |
 |---|---|---|---|---|
@@ -459,7 +428,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 - **No manual fixes of the music before the first review.** The first point where the user corrects the music is `human_review`.
 - **The recipe has exactly one review** (`review`, followed by `apply_review`). **Further reviews** can be added by hand after it, as many as the user wants, with the same or another config. Adding a review, by hand or after a human review, always adds its `apply_review` after it.
 - **Manual stages after an LLM stage** are added from its "⋮": `fix_layout` after `layout`; `fix_metadata` and `fix_observations` after `analyze`, in any order.
-- **Two stages read the pages** (decided): `layout` finds where things are, `analyze` says what they are. `analyze` runs after `fix_layout`, so it sees the final layout: code draws the systems and bar lines on each page, numbered, and the observations refer to those labels. Each has its own model config (§7.6: finding layout boxes, extracting metadata), and a better prompt for one doesn't re-run the other. The price is that every page is sent twice, small next to one `extract` call per system.
+- **Two stages read the pages** (decided): `layout` finds where things are, `analyze` says what they are. `analyze` runs after `fix_layout`, so it sees the final layout: code draws the systems and bar lines on each page, numbered, and the observations refer to those labels. Each has its own model config (§7.2: finding layout boxes, extracting metadata), and a better prompt for one doesn't re-run the other. The price is that every page is sent twice, small next to one `extract` call per system.
 - **No skeleton stage** (decided; an earlier draft had one, an MEI file with a placeholder per measure). What it was for (a fixed structure, assembly as filling in, a check that the extraction returns exactly the measures asked for) needs no stored MEI: code builds the MEI frame from the structure whenever it is needed (see "MEI" below).
 - **A stage exists where there is a config or a decision** (decided). A pure function of other stages' results is a view, not a stage. So there is no skeleton stage (above), and no stages for the straightened pages or the crops: the angles and boxes are decisions of other stages, and rotating and cropping are fixed operations (§8.2). Those images are computed when something needs them (a view, an LLM request) and cached on the device (§8.6); stages wouldn't add anything but cards in the pipeline and a second copy of every page on the device. They are shown as views of other stages' outputs: `skew_analysis` and `fix_skew` show the pages straightened, as they will be sent; `extract` shows each system's crop with its music below it (the filmstrip, §5.6). `rasterize` stays a stage: its config (the resolution for vector pages, perhaps colour or grayscale, §15) changes every image after it, and its pages are the natural first view.
 - **The structure is final before `extract`.** The structure is what decides which pixels the models see: the skew angles (`fix_skew`), where the systems are on each page and where the bar lines are on each system (`fix_layout`). `extract` is shown system crops and stretch crops, and if it is shown the wrong part of the page, no model can make up for it. So every fix of the structure comes before `extract`, and no later stage changes it; a mistake in it found later is fixed by going back to `fix_layout`, which replaces everything after it (§5.5). The pieces or movements (`fix_metadata`) are fixed before `extract` too: the MEI's sections and the numbering restart with them.
@@ -469,7 +438,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 - **`fix_skew`.** The user flips through the pages with arrows (no continuous scroll). Per page: a toggle that turns deskewing on or off, and lines drawn by clicking where their two ends should be, along the staff lines. Code computes the angle that makes those lines as horizontal as possible. A very small angle still means no rotation, but an angle set by hand may be larger than the 5 degrees allowed otherwise (§8.4). Still needed: deleting a line, moving its ends, and how all of this works on touch devices.
 - **`layout`.** Per page:
   - whether the page is severely skewed;
-  - a bounding box per system (none on a page without music). Boxes may overlap, so that nothing is missing from a crop. The model can call a tool that shows the page with its boxes drawn in colour, and adjust them, at most 3 rounds; if it still isn't satisfied, it flags the page for human review and returns its best guess;
+  - a bounding box per system (none on a page without music), as fractions of the image's width and height: an object with `left`, `right`, `top` and `bottom`, each from 0 to 1. **This is our format for every box** (systems, issues, zooms, crops), not a provider's (Gemini's native one is a 0–1000 list): fractions don't depend on how a model shrinks the image internally, and Claude returns them reliably. Boxes may overlap, so that nothing is missing from a crop. The model can call a tool that shows the page with its boxes drawn in colour, and adjust them, at most 3 rounds; if it still isn't satisfied, it flags the page for human review and returns its best guess;
   - per system, the positions of its bar lines (see "Bar lines, stretches and measures" below), with the same tool and rounds as for the boxes.
   - **No classification of pages** (cover, empty, music, other; decided): nothing is done differently by kind of page. Metadata is read from every page (publishing details may be on a text page inside the book, the pieces and movements are on the music pages), and a page without music is simply a page without systems.
 - **`analyze`.**
@@ -478,7 +447,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     - high-level musical information: number of staves, the probable instrument of each staff, voices per staff, time signatures, key signatures, clefs, 8va and the like (for all of these also where and how they change), large-scale dynamics such as crescendos, melodies that seem to repeat in other places, repeats, "da capo" and the like, parts, movements or pieces, and the general style (e.g. baroque);
     - **the special bar lines** only (double, final, start repeat, end repeat, dashed; an ordinary single bar line is not listed), as part of the observations: the repeats are part of the score's global structure.
     - **Locations are local,** e.g. "page 7, system 3, bar line 4", using the labels drawn on the page: a miscounted system on another page or a miscounted bar line in another system can't make them wrong.
-  - **Per project:** all pages in a small format, with what the per-page part found, to get observations across pages that help the extraction later, such as melodies that repeat on other pages.
+  - **Per project:** all pages in a small format, with what the per-page part found, to get observations across pages that help the extraction later, such as melodies that repeat on other pages: a smudged note on one page may be read because the passage repeats a theme from a page that was read without problems.
   - **No content boxes** (decided, until there is evidence they would help). The idea: `analyze`, or a stage before it, finds the box of the content on each page, and most of the analysis runs on content crops. The scenario for it: old paper with an ornate frame around every page, the model's systems and bar lines are nonsense on all of them, and the user has to fix 22 pages of boxes, after which `extract` reads the music fine; with content boxes, the user would fix one box per page and the model would do the rest. Against it: another box per page, another set of images, another stage and more LLM calls, and so far Opus has found systems well. Testing the finished pipeline on Kinderscenen (§15) shows whether the scenario happens.
 - **`fix_metadata`.** A form from the start, not a JSON editor: the metadata is small and fixed, its Zod schema exists anyway (§3), and typing JSON on a phone is miserable.
   - **Sections with headers:** titles, people, the work, pieces or movements, the edition. Titles, people and pieces are lists, with rows to add and remove and a dropdown for the type or role.
@@ -524,7 +493,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
     - **No unprinted tuplets:** if the durations don't add up, read again; if they still don't, raise an issue (an invented note in m9 produced an odd rhythm, which was "fixed" with a tuplet that isn't printed).
     - **A checklist per note:** accidental, dots, accents, fingering, where slurs start and end.
     - **Telling marks from smudges** is the hard part, not keeping or dropping marks by default: "keep every printed mark" was rejected, since several of the model's omissions were right (a stray dot in m2, a dot beside a note in m15).
-- **The structural checks (§7.4) have no stage of their own:** validation happens inside `extract` and `assemble`. Problems that code finds without failing the stage are issues raised by code when they are a question about the page (a slur that never ends: "where does it end?"), and warnings otherwise (a measure whose durations don't add up; see "Warnings").
+- **The checks by code have no stage of their own:** validation happens inside `extract` and `assemble`. Problems that code finds without failing the stage are issues raised by code when they are a question about the page (a slur that never ends: "where does it end?"), and warnings otherwise (a measure whose durations don't add up; see "Warnings").
 - **`assemble`.** Code builds the MEI frame from the structure and the metadata, inserts the snippets, validates the whole document, renders it, and combines the issues of all systems.
   - **The rendering** (Verovio) can follow the original's layout or not: its `breaks` option `encoded` uses the page and system breaks in the MEI (below), so the rendering has the same systems as the original and the two can be compared system by system, as in `human_review`; `auto` computes its own breaks for the page size and ignores the encoded ones.
 - **`review`.** One call per system, with the same input as `extract`, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. Zoom crops and the crops of other systems come on request (see "Zooming in"), capped. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output. **Its prompt names the common mistakes** to pay attention to, foremost slurs and other spanners crossing bar lines and system breaks (every missed slur in the manual run, §13; no separate tracing pass).
@@ -548,7 +517,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - **Per issue, a boolean:** applied or not. If applied, `applied` becomes the chosen answer; if not, it stays, and the model's reason (e.g. the chosen answer contradicts what is printed) is shown to the user.
   - **Changes beyond the boxes:** the model may also change stretches of the systems just before and after its window, not only those under the boxes of the issues it applies, e.g. when an issue says a slur doesn't end at the box but continues into the next system, whose start then changes too. Every stretch changed outside the boxes comes with a reason. A change without one goes back to the model once; a change with one is accepted and becomes a warning, so a person sees what changed beyond the boxes and why.
   - **Checks:** those of `extract` (parsing; durations of the affected measures; continuations consistent across systems), with failures going back to the model in the same call, capped; then the comparison before and after (below). Code then rebuilds and renumbers the measures, choosing the 0-or-1 start anew.
-  - **Model config:** the same kind of work as `extract` (§7.6: extracting the music notation).
+  - **Model config:** the same kind of work as `extract` (§7.2: extracting the music notation).
 - **`human_review`.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
   - **The warnings of the version being reviewed** are shown too (see "Warnings"). The user never sees MEI or LilyPond.
   - **The screen:**
@@ -613,7 +582,7 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 #### The lens
 **The format models read and write** (decided at this level; the exact LilyPond subset and the JSON schema are settled when `extract` is built, §15).
 - **Two representations, each for its purpose:** MEI is the language of what users get (`assemble`'s file, downloads). Inside the pipeline, the extraction is kept in the lens, per stretch (`extract`): the stretch is our unit of work, and more precise than MEI's measures, which can be split across systems and are regrouped by `apply_review`, while stretches never change. `extract` and `apply_review` write the lens, `review` and `apply_review` read the whole score in it, and code builds the MEI from it.
-- **JSON carries the structure** (the provider's schema-constrained output, §7.2): per stretch, its classification, the measure's kind, a printed measure number, and its staves with their voices; per system, whether its last measure continues, changes to the `scoreDef`, and the issues raised.
+- **JSON carries the structure** (the provider's schema-constrained output, §7.1): per stretch, its classification, the measure's kind, a printed measure number, and its staves with their voices; per system, whether its last measure continues, changes to the `scoreDef`, and the issues raised.
 - **One string per voice in each stretch,** in a subset of LilyPond: absolute pitches, explicit durations, slurs, ties, dynamics, hairpins and articulations written on the notes, markers for stem direction and cross-staff notes.
 - **A sketch** (field names not final):
 
@@ -634,7 +603,7 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 #### Zooming in
 **Zoom crops on request, without tool calls** (decided), for `extract`, `review` and probably `apply_review`:
 - **The first answer has one of two shapes,** in one schema: the stage's answer itself, when the model needs nothing more (a clean system), or a list of requests: zoom boxes on the crops it was sent (and, for `review`, other systems' crops), at most N, each with a short reason ("dot near the A♭: staccato or smudge?").
-- **The second request** repeats the first, adds the model's requests as its answer and the zoom crops, each labelled (§7.6), and asks for the stage's answer; this one can't ask for more. Its prefix is the first request, so prompt caching makes the repeated part cheap.
+- **The second request** repeats the first, adds the model's requests as its answer and the zoom crops, each labelled (§7.2), and asks for the stage's answer; this one can't ask for more. Its prefix is the first request, so prompt caching makes the repeated part cheap.
 - **So at most two rounds per call,** plus the follow-ups for failed checks (`extract`). This is a tool loop with one round, built ourselves: the same on every provider (no tool-use APIs, no loop in the adapters), every call record a plain request and answer, and the cap enforced by the schema rather than by the model's judgement (the manual run's over-exploration, §13).
 - **Code cuts the zoom crops** from the deskewed page at the page image's resolution. A zoom gives the model real detail where its view of a large crop was shrunk (Claude sees at most 2576 px on the long edge); on a low-resolution scan it is only a closer look at the same pixels, which may still help it focus.
 - **The zoom boxes and their reasons are recorded** with the call (§5.2), and the issues that come from them can point at the same boxes: evidence for the reviewer and the user.
@@ -712,50 +681,18 @@ A **warning** is about the current extraction, or about how it was produced, not
 
 ## 7. LLM steps
 
-### 7.1 Context for each transcription call
-- the system crop
-- the relevant global analysis (key, time, clefs, voices, themes, repeated material)
-- the score skeleton: which voices to fill and their names
-- the LilyPond output of the **previous system**, plus its final state (key, time, clefs, voice positions)
-- optionally, the transcription of referenced material (e.g. the theme being repeated)
+What each LLM stage is given and returns is in §6, with the stages (`layout`, `analyze`, `extract`, `review`, `apply_review`), the format models write music in ("The lens"), and what is checked (`extract`'s checks, issues and warnings). This section covers what all of them share.
 
-### 7.2 Structured output
-Each call returns JSON validated by a Zod schema: music per voice, measure count, and a list of **uncertain spots** (location, reason, e.g. "smudged, inferred from theme in m. 12"). This uses provider-native schema-constrained output.
+### 7.1 Structured output
+Every call returns JSON validated by a Zod schema, using the provider's schema-constrained output. Doubts are issues (§6), not prose.
 
-### 7.3 LilyPond conventions (carried over from v1)
-- **Absolute pitches**, not `\relative`, so an octave error doesn't propagate and systems are independent.
-- **Code builds the skeleton.** The score structure (staves, voices, naming, variables) is generated by code. LLMs only fill in music per voice and system, so assembly is concatenation, not merging.
-- **Bar checks** (`|`) and `\barNumberCheck` are required in every fragment.
-- A fixed, documented **subset of LilyPond** that LLMs may use (notes, rests, chords, ties, slurs, tuplets, grace notes, articulations and ornaments, dynamics, lyrics, voice changes). A constrained output space makes it checkable.
-
-### 7.4 Structural checks (deterministic, browser-side)
-A TS parser for the constrained subset checks, without needing LilyPond:
-- the fragment parses
-- the duration of each measure matches the time signature (accounting for pickups and tuplets)
-- bar checks are consistent and measure counts match the global analysis
-- expected voices are present, and their names match the skeleton
-- pitches are within plausible ranges per clef/staff
-
-Failures go to the fix stage with a precise location. This replaces what LilyPond's bar-check warnings would provide, while staying runnable everywhere.
-
-### 7.5 Reviewer role (proposed: flag, don't fix)
-- The reviewer gets the original crop, the transcription, and (proposed, §9) a rendering of the transcription to compare against the original.
-- It returns **findings**, not edits. Each finding has a location (system, measure, voice, beat), a type (pitch, rhythm, accidental, missing voice, missing ornament, …), a confidence, and optionally a **suggested patch** for that single measure.
-- **Fixes are a separate stage:** re-transcribe the affected system with the findings as context, or a human accepts or rejects the suggested patches. Patches may be auto-accepted only if structural checks still pass.
-- **Why flag instead of fix:**
-  - A fixing reviewer can silently turn correct notes into plausible wrong ones.
-  - Mixing review and editing blurs provenance.
-  - Flags can be checked against the original by eye, which tells us whether review is worth its cost.
-- At most 1–2 review→fix rounds. If reviewers disagree or findings persist, the system goes to the human.
-- A different model than the transcriber is preferred for review.
-
-### 7.6 Prompts and model configs
+### 7.2 Prompts and model configs
 - Prompt templates are versioned in `packages/prompts` and are part of their step's version.
 - Every call is recorded (§5.2), and identical requests are served from the record instead of being paid for again.
 - **Provider, model and thinking budget or effort are the user's choice.** The app is meant to be flexible here and doesn't prescribe a model. The user guide will recommend Claude Opus 5.5 for everything, except perhaps a second review with a different model for variety. The prompts are tuned on Opus, so the app offers the choice but can't promise the same quality with another model.
 
 #### Calling the providers
-Built: `apps/worker/src/llm/`. One small request and response shape for every provider (`LlmProvider`, §3): a system prompt, messages of text and images, a maximum of output tokens, an effort, and optionally a JSON schema the answer must follow (the provider's schema-constrained output, §7.2; the answer is then parsed). The response says which model answered, the text (and parsed JSON), why it stopped (finished, cut off, refused) and the tokens. Errors are typed and say whether retrying can help.
+Built: `apps/worker/src/llm/`. One small request and response shape for every provider (`LlmProvider`, §3): a system prompt, messages of text and images, a maximum of output tokens, an effort, and optionally a JSON schema the answer must follow (the provider's schema-constrained output, §7.1; the answer is then parsed). The response says which model answered, the text (and parsed JSON), why it stopped (finished, cut off, refused) and the tokens. Errors are typed and say whether retrying can help.
 - **The chosen model answers, or the call fails.** No fallback to another model, not even Anthropic's server-side fallback on refusals: a refusal comes back as a refusal.
 - **Several images in one request are labelled** with a text block right before each ("System 3:", "System 3, stretch 2:"): content is an ordered list of text and images for both Anthropic and Gemini, and the adapters keep the order. Neither API passes a file name to the model. Anthropic's vision docs recommend this way of labelling.
 - **Anthropic** (Claude API), with the official SDK. Requests are streamed, so long answers don't hit timeouts. Thinking is left at the model's default (adaptive on current models), and effort maps directly. As a sanity check, an answer that names another model than the one asked is an error (`unexpected_model`).
@@ -773,7 +710,7 @@ Built: `apps/worker/src/llm/`. One small request and response shape for every pr
 
 #### Model configs
 - **A model config** is a stored, named combination of provider, model, thinking effort and the provider's authentication. The user can keep several. They live in D1 and are edited in the settings.
-- **The model is the provider's own string,** entered as the provider spells it (`claude-opus-5-5` on Anthropic's API, an `anthropic.`-prefixed ID or an `eu.` inference profile on Bedrock, ...). The app doesn't translate between providers' names, and the sanity check compares the answer's model with that string as it is (§7.6, "Calling the providers").
+- **The model is the provider's own string,** entered as the provider spells it (`claude-opus-5-5` on Anthropic's API, an `anthropic.`-prefixed ID or an `eu.` inference profile on Bedrock, ...). The app doesn't translate between providers' names, and the sanity check compares the answer's model with that string as it is (§7.2, "Calling the providers").
 - **An optional name** for each model config, shown on the stage cards (§5.6). Without one, the card shows the model string, shortened in the middle when it doesn't fit, like project and file names (§5.7).
 - **Each provider declares its own form:** which fields are secrets and which are plain values. The plain Anthropic and Google APIs take one key; Google Vertex AI wants a service-account file plus a project and a region, AWS Bedrock an access key pair plus a region. The form is generated from a schema, like a step's config (§3).
 - **A secret field is a dropdown of the Worker's secrets, by name** (§10). The config stores the name, never the value. Several keys per provider are possible, e.g. a free-tier key and a paid one.
@@ -789,7 +726,7 @@ Three levels; the most specific wins:
 - **Changing the config of a stage that already ran** is a change in the middle (§5.5): confirmation, then everything after it runs again.
 - **The key is not part of a stage's inputs.** Using another key for the same model doesn't count as a change and doesn't make paid stages run again.
 
-### 7.7 Known LLM risk: plausible wrong notes
+### 7.3 Known LLM risk: plausible wrong notes
 LLMs fill in "musically likely" content. That is desirable for a smudge and dangerous everywhere else, because the errors look correct. Defenses:
 - issues for every doubt (§6)
 - checks by code (`extract`, `assemble`)
@@ -886,12 +823,12 @@ Page images, straightened pages and crops are views computed from the PDF and th
 
 | Need | Solution | Runs |
 |---|---|---|
-| Rhythm and structure checks | Constrained-subset parser (§7.4) | Browser |
+| Rhythm and structure checks | Lens parser (§6, `extract`) | Browser |
 | Visual preview for the human and the reviewer | TS converter: constrained LilyPond subset → MEI (or MusicXML), rendered with **Verovio** (WASM) to SVG | Browser |
 | Final engraving (the "real" LilyPond PDF) | Outside the pipeline: compile the exported `.ly` locally. Optionally a paid container later, behind the same `Renderer` port. | Optional |
 
 **Reasons:**
-- Because LLM output is restricted to a documented subset (§7.3), converting it is a bounded task, unlike converting arbitrary LilyPond.
+- Because LLM output is restricted to a documented subset (§6, "The lens"), converting it is a bounded task, unlike converting arbitrary LilyPond.
 - Verovio's engraving differs from LilyPond's, but for comparing pitches, rhythms, voices and ornaments against the original, that doesn't matter.
 
 **Risks:**
@@ -913,9 +850,9 @@ Page images, straightened pages and crops are views computed from the PDF and th
 ### Secrets
 - **The LLM API keys are Worker secrets,** set by whoever runs the instance, outside the app (`wrangler secret put`, or the Cloudflare dashboard, which also works from a phone), under names of their own choosing. They are independent of code deployments: `npm run deploy` doesn't touch them, and changing one takes effect within seconds, without deploying the code again (Cloudflare makes a new version of the Worker with the new value by itself). Locally, `wrangler dev` reads them from `apps/worker/.dev.vars`, which is not committed.
 - **The app can't change them and contains no code that handles keys.** The Worker only reads them to call a provider; they never reach the browser.
-- **The app only knows their names,** which a model config picks from (§7.6). The Worker can list the names of everything it was given but can't tell a secret from an ordinary setting, since both are text values. Today all of them are secrets; if ordinary settings are ever added, a naming rule has to separate them.
+- **The app only knows their names,** which a model config picks from (§7.2). The Worker can list the names of everything it was given but can't tell a secret from an ordinary setting, since both are text values. Today all of them are secrets; if ordinary settings are ever added, a naming rule has to separate them.
 - **Not done on purpose:** letting the Worker change its own secrets through Cloudflare's API. It would need a Cloudflare API token stored in the Worker, and the permission to edit a Worker's secrets also allows replacing its code.
-- **Model configs are not secrets:** provider, model, thinking effort and the names of the secrets to use are stored in D1 and edited in the app (§7.6).
+- **Model configs are not secrets:** provider, model, thinking effort and the names of the secrets to use are stored in D1 and edited in the app (§7.2).
 - The user guide explains how to set the keys.
 - Entering the keys in the app is an optional roadmap item (§16).
 
@@ -925,7 +862,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - **LLM calls are the residency gap.** For EU processing:
   - Gemini and Claude are both available in EU regions through Google Vertex AI. Claude is also available through AWS Bedrock.
   - The plain provider APIs give no such guarantee. Anthropic's API can pin where inference runs (`inference_geo`), but only to the US or "global", not the EU.
-  - Built: Claude through Vertex AI and through Bedrock (§7.6). Opus 5.5 is offered in the EU only on Bedrock (checked 2026-10-09: not on Vertex AI in Europe; Anthropic's API has no EU option).
+  - Built: Claude through Vertex AI and through Bedrock (§7.2). Opus 5.5 is offered in the EU only on Bedrock (checked 2026-10-09: not on Vertex AI in Europe; Anthropic's API has no EU option).
   - On Google AI Studio's free tier, inputs may be used to improve Google's products.
 
   Document the choice per provider in the config.
@@ -968,7 +905,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
   - library versions (pdf.js, decoders, Verovio)
   - prompt template versions
 
-  The model is not part of it: it is the user's choice and belongs to the stage's config (§7.6).
+  The model is not part of it: it is the user's choice and belongs to the stage's config (§7.2).
 - Load old step versions lazily with dynamic `import()`.
 - **A newer step version on a re-run** (first idea, not thought through): a re-run follows the pipeline as it was while the inputs match (§5.5), but a stage's step may by then have a newer version that is considered better. When the re-run is started, the app asks the user which to do:
   - use the new version in any case; or
@@ -1072,10 +1009,10 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
   - **A known effort budget:** caps belong to the pipeline, not to the model's judgement (`extract`'s loops).
   - **Context from before the page** (time signature, anything still open, composer and edition): the state carried by code, the observations and the metadata.
   - **Doubts as data, not prose:** issues.
-  - **Labels for the images:** in the chat, uploads reached the model as generic file names, so it couldn't tell which crop was which. In the API, a text block before each image labels it (§7.6).
+  - **Labels for the images:** in the chat, uploads reached the model as generic file names, so it couldn't tell which crop was which. In the API, a text block before each image labels it (§7.2).
   - **Boxes by eye with a draw-and-check loop, at most 3 rounds:** `layout`.
   - **A render-and-compare self-check, and visual comparison per bar:** a review step we control, not the model's own loop (`review`, "Renderings").
-  - **An independent review** by a model that hasn't seen the first transcription: `review`, preferably with another model (§7.5).
+  - **An independent review** by a model that hasn't seen the first transcription: `review`, possibly with another model (§7.2).
   - **Checks** for durations and unclosed marks: `extract` and `assemble`.
   - **Dropped:**
     - **a rough chord per bar as a prior,** with a check for notes clashing with it: Claude did fine without it, and a wrong chord would bias the reading;
@@ -1094,7 +1031,7 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
 |---|---|
 | **Infrastructure work crowding out quality work** (plumbing is fun) | Validate the approach by hand before building (§16). Measure quality on the test set early and often. |
 | Losing LLM output or human input because it was treated like cache | §5.3: LLM and human artifacts are always persisted. Eviction only touches deterministic artifacts. |
-| Plausible but wrong notes from LLMs | §7.7: issues for every doubt, checks by code, review against the crops, measured slip-through rate. |
+| Plausible but wrong notes from LLMs | §7.3: issues for every doubt, checks by code, review against the crops, measured slip-through rate. |
 | Regenerated images drifting from what the human or LLM worked on | §8: deterministic decoding and operations, normalized coordinates, fingerprint checks. |
 | Downscaled system images losing detail (models shrink large images, and piano systems are wide) | Stretch crops sent along with the system crop, and zoom crops on request (§6, `extract`, "Zooming in"). |
 | Bugs in building the MEI or rendering it, misleading the user in `human_review` | Tests of the MEI builder, validated against the MEI schemas (§6, "MEI"); `review` reads the lens, not the rendering. |
@@ -1114,8 +1051,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Compare `review` with and without renderings as model input** (§6, "Renderings"), on the test set, some day: run it both ways and compare what it finds, counting false findings as well as extra correct ones. If renderings help, they become the default, and a config option of `review` can turn them off.
 - **Define the lens exactly** (§6, "The lens"), when `extract` is built: the LilyPond subset, especially cross-staff notation, ornaments, ossia and lyrics, and the JSON schema.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
-- **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs, and for Claude on Vertex AI and Bedrock (§7.6).
-- **Finalize the list of stages** (§6, "Proposed stages"): replace the table in §6 with it and rewrite what depends on it (§7, §9).
+- **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs, and for Claude on Vertex AI and Bedrock (§7.2).
 - **Design the D1 schema for stages and artifacts** (§5).
 - **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
 - **Decide on reuse per item within a stage** (§5.5): a manual stage covers the whole PDF. If only one system's input changed, should the fixes on the unchanged systems carry over, with only the changed one dropped? Well-meant, but it makes the behaviour harder for the user to understand, more than it complicates the code.
@@ -1132,8 +1068,8 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Pick an icon for each kind of artifact** (§5.6), once the list of stages is final and the kinds of artifact are known, and remove the thumbnails from the output tiles (`PdfThumb.tsx` and the mock's image thumbnails).
 - **Replace the mock stages** (§5.6, `apps/web/src/mockPipeline.ts` and `mockContent.tsx`) with real ones, once the D1 schema exists; remove the "Mock" box. A form for "Change config" (the mock goes straight to the confirmation) comes with them. The details in §5.6 are provisional until the schema and the possible stages are defined, and are settled then: what exactly a card shows, the icons, the fields of the details view, and which manual stages can be added where.
 - **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
-- **Settings page:** the model configs, the default config and the configs per kind of work (§7.6), the run mode for new projects (§5.1), the spending cap and the free-tier mark for model configs (§10). Now a placeholder text.
-- **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.6). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
+- **Settings page:** the model configs, the default config and the configs per kind of work (§7.2), the run mode for new projects (§5.1), the spending cap and the free-tier mark for model configs (§10). Now a placeholder text.
+- **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.2). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
 - **"Delete project"** in the project actions does nothing. Build deletion as in §4: `deleted_at`, the partial unique index on names (a migration that rebuilds the table), deleting artifacts and PDFs nothing else uses, the confirmations.
 - **Light theme** (§5.7).
 
@@ -1149,7 +1085,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
   - **Size:** Claude's high-resolution models (Opus 4.7 and later) see at most 2576 px on the long edge and 4784 visual tokens (28×28-pixel patches, about 3.75 megapixels); a larger image is shrunk by the API, out of our control. So we decide: shrink a page ourselves (deterministically) to fit, and send wide systems as they fit, or with measure crops alongside (§14). Other limits: 10 MB per image (base64) on Anthropic's API, 5 MB on Bedrock and Vertex, 32 MB per request.
   - **Coordinates:** boxes a model returns refer to the image it was sent; with our fractions of the image (§6) they map back to the page however the image was shrunk.
   - **Gemini** has its own limits and resolution settings; to check when we use it.
-- **Wire the LLM adapters into the Worker** (§7.6): an endpoint the pipeline calls, call records (§5.2), costs and the spending cap (§10).
+- **Wire the LLM adapters into the Worker** (§7.2): an endpoint the pipeline calls, call records (§5.2), costs and the spending cap (§10).
 - **Keep the device awake while a pipeline runs** (the browser's Screen Wake Lock): the browser drives the pipeline, so a phone that goes to sleep pauses the run. The lock only holds while the app is in front; switching to another tab or app releases it. A run that was paused anyway must resume where it stopped.
 - **Never lose an LLM answer that was paid for:** a request may be in flight when a phone suspends the page or the tab is closed. The Worker must finish the call and store the answer (§5.2) even though the browser has gone, so that resuming finds it and doesn't pay for the same request again.
 
