@@ -813,28 +813,12 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - **Stored as PNG** (`cache/<key>.png`), encoded by our own code: a raw RGBA page is about 35 MB, a PNG of line art much smaller and lossless. Reading costs a decode.
 - **The key isn't the fingerprint** (§8.3): the key says what an image should be, the fingerprint, stored in D1 for every image sent to a model, what it was. An image regenerated on another device is checked against it.
 
-## 9. Rendering (proposed)
+## 9. Rendering
 
-**Goal:** every pipeline stage runs on any device, desktop or mobile, with no local helper and no paid compute.
-
-**Problem:** LilyPond is a native program. It runs neither in the browser nor in a Worker, and there is no practical WASM build. A desktop helper would break "runnable from anywhere". An always-on container (Cloudflare Containers) would break "free tier only", since it needs the $5/month paid plan.
-
-**Proposal:** separate *checking* and *previewing* from *engraving*.
-
-| Need | Solution | Runs |
-|---|---|---|
-| Rhythm and structure checks | Lens parser (§6, `extract`) | Browser |
-| Visual preview for the human and the reviewer | TS converter: constrained LilyPond subset → MEI (or MusicXML), rendered with **Verovio** (WASM) to SVG | Browser |
-| Final engraving (the "real" LilyPond PDF) | Outside the pipeline: compile the exported `.ly` locally. Optionally a paid container later, behind the same `Renderer` port. | Optional |
-
-**Reasons:**
-- Because LLM output is restricted to a documented subset (§6, "The lens"), converting it is a bounded task, unlike converting arbitrary LilyPond.
-- Verovio's engraving differs from LilyPond's, but for comparing pitches, rhythms, voices and ornaments against the original, that doesn't matter.
-
-**Risks:**
-- Converter bugs could cause false review findings. Mitigation: converter golden tests, plus the occasional real LilyPond compile of exported files as a cross-check.
-- The subset must be rich enough for piano (multiple voices, cross-staff notation, grace notes, ornaments, tuplets, lyrics). The converter grows with the subset.
-- Verovio adds a few MB to the download. Load it lazily, only in review and preview views.
+**Verovio (WASM) renders the MEI in the browser** (decided), to SVG: `assemble`'s rendering, the side-by-side view of `human_review`, and the engraved PDF a user can download with the MEI. Every stage runs on any device, with no local helper and no paid compute. LilyPond is a native program that runs neither in the browser nor in a Worker, with no practical WASM build, so it would need a desktop helper (against "runnable from anywhere") or an always-on container (against "free tier only").
+- **Verovio's engraving differs from the original's,** but for comparing pitches, rhythms, voices and marks against the original, that doesn't matter (see `human_review` for how the two panels are linked anyway).
+- **Verovio adds a few MB to the download:** it is loaded lazily, only where something is rendered.
+- **No LilyPond export** (decided). score3ly's output is MEI. Whoever needs MusicXML or LilyPond can convert it with existing tools: MEI to MusicXML (e.g. music21, MuseScore 4's MEI import, the MEI community's XSLT), then MusicXML to LilyPond with `musicxml2ly`. Each step loses something (§1, "Why a text encoding").
 
 ## 10. External services
 
@@ -1074,6 +1058,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Light theme** (§5.7).
 
 ### Infrastructure and cleanup
+- **MEI in the evaluation tooling** (§13): score3ly's output is MEI, but the engrave command only handles `.ly` (LilyPond) and `.musicxml` (MuseScore). Add `<piece>.<method>.mei`, engraved to PDF with Verovio in Node, so score3ly's results show in the viewer next to the baselines; commit `.mei` candidates like the others, and update §13's naming and wording, which still assume LilyPond output.
 - **Create the remote R2 bucket and D1 database** (EU jurisdiction, with a script in the repo, §14) and put the real database ID into `apps/worker/wrangler.jsonc`, which has a placeholder. Until then the app can't be deployed.
 - **Set up Cloudflare Access** in front of the deployed app (§3).
 - **Answer a PDF that doesn't match its hash with a 400.** The Worker doesn't hash the PDF: R2 checks the bytes against the client's hash and refuses a mismatch, which now surfaces as a plain HTTP 500.
