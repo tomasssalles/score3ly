@@ -124,6 +124,11 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       created_at: project.createdAt,
       last_modified_at: project.createdAt,
       last_opened_at: project.createdAt,
+      page_count: null,
+      run_mode: "auto",
+      version: 0,
+      next_issue_number: 1,
+      deleted_at: null,
     },
   ]);
 
@@ -182,6 +187,19 @@ test("migration 0002 names existing projects after their file and numbers repeat
       ["p4", "Untitled", "2026-10-04T00:00:00.000Z", "2026-10-04T00:00:00.000Z", "2026-10-04T00:00:00.000Z"],
     ],
   );
+});
+
+test("names only have to be unique among projects that aren't deleted", async () => {
+  const insert = (id: string, name: string, deletedAt: string | null) =>
+    env.DB.prepare(
+      "INSERT INTO projects (id, name, pdf_sha256, pdf_filename, created_at, last_modified_at, last_opened_at, deleted_at) VALUES (?, ?, 'aa', 'a.pdf', 't', 't', 't', ?)",
+    )
+      .bind(id, name, deletedAt)
+      .run();
+  await insert("d1", "Sonata", "2026-10-12T00:00:00.000Z");
+  await insert("d2", "sonata", "2026-10-12T00:00:00.000Z");
+  await insert("live", "Sonata", null);
+  await assert.rejects(insert("clash", "SONATA", null), /UNIQUE constraint failed: projects\.name/);
 });
 
 test("defaultName drops the .pdf suffix and surrounding spaces", () => {

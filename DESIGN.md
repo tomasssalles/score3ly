@@ -216,15 +216,15 @@ The project owner uses the web app. The desktop version mainly makes the app eas
 - The file name and source (Drive ID, local path) are stored as informational metadata only, never as identity.
 - Each project has a **name**, so the user can tell projects on the same PDF apart (e.g. "Sonata, Claude run" vs "Sonata, Gemini run"). The name is a label, not the identity (that is the project ID), but it is unique so it can be relied on:
   - It defaults to the PDF's file name without ".pdf". If a project already has that name, the Worker appends " (1)", " (2)", ... and takes the first free one, like file managers do. A file that is already called `Sonata (1).pdf` becomes `Sonata (1) (1)`, also like file managers.
-  - Uniqueness is case-insensitive ("Sonata" and "sonata" clash) and enforced by the database (`UNIQUE COLLATE NOCASE`), so two projects created at once can't get the same name. Names are trimmed, never empty, and at most 200 characters.
+  - Uniqueness is case-insensitive ("Sonata" and "sonata" clash) and enforced by the database (a unique index, `COLLATE NOCASE`), so two projects created at once can't get the same name. Names are trimmed, never empty, and at most 200 characters.
   - The user can rename a project at any time ("Rename" in the project actions, §5.6). Renaming to a name that is taken is refused with a message, not numbered: numbering only applies to the default. Changing only the case of the project's own name is allowed.
   - Deleting a project frees its name.
-- **Deleting a project** (planned) keeps a trace in D1 but removes everything else:
-  - **Deleted:** the project's stage outputs and its PDF, in D1, R2 and the device cache, unless another project that isn't deleted still uses them. That is checked with a query at deletion time, not with stored reference counts, which can drift.
+- **Deleting a project** (planned): apart from the costs and statistics, it must be **as if the project had never existed** (decided). In particular, a new project with the same PDF, name and config runs every stage from scratch and finds nothing of the deleted one in the cache.
+  - **Deleted:** the project's stage outputs (their rows and their content), the full requests and responses of its LLM calls, its PDF and the PDF's image fingerprints, in D1, R2 and the device cache, unless another project that isn't deleted still uses them. That is checked with a query at deletion time, not with stored reference counts, which can drift.
   - **Orphans in R2 are collected then too:** objects that no row in D1 refers to any more, from any project. They are left behind when a manual stage in progress is saved again (the new content is a new object, §2) or when an upload isn't followed by its row in D1. Nothing else deletes them: a save doesn't delete the object it replaces. This lists the whole bucket and compares it with D1, which is acceptable because deleting a project is rare.
-  - **Kept:** the project's row, marked with a deletion time (`deleted_at`), and its entries in the cost ledger (§10).
+  - **Kept, but marked with a deletion time (`deleted_at`):** the project's row, its stages and their LLM calls, for the costs and statistics (§10). Every cache lookup ignores marked rows (§5.8), so they are never reused. A stage that a fork which isn't deleted still uses is not marked (§5.8).
   - A deleted project never appears in the UI again, except in the costs view. Picking its PDF again doesn't trigger the "already based on this file" dialog, unless other projects use that PDF.
-  - Uniqueness of names only counts projects that aren't deleted: a partial unique index (`... WHERE deleted_at IS NULL`). The current constraint sits on the column and can't be dropped, so the migration rebuilds the table.
+  - Uniqueness of names only counts projects that aren't deleted: a partial unique index (`... WHERE deleted_at IS NULL`). *Built* (migration 0003, which rebuilt the table: the earlier constraint sat on the column and couldn't be dropped).
   - Behind several confirmations.
 - Each project also has three timestamps, all set by the Worker (ISO 8601, UTC) so a wrong device clock can't scramble the order:
   - **created**
@@ -290,8 +290,9 @@ Every stage output has:
 LLM outputs additionally reference their **call record**: prompt template version, filled-in context, image hashes, exact model ID, parameters, full response, token usage and cost.
 
 **The cache has two levels** (decided):
-- **Stage level:** the key is hash(step id, version, canonical config, the IDs of the stage's inputs). If it matches, the stage is skipped and its outputs reused. Outputs of later stages may already exist when an earlier stage is run again with the same inputs and config: they are found through the key and reused.
+- **Stage level:** the key is hash(step id, version, canonical config, the model's provider, model and effort for LLM stages, the content keys of the stage's inputs). An input's content key is the hash of its stored content, or the recipe key of a computed image (§8.6): content rather than row IDs, so a stage that produces identical content again (e.g. `layout` run again with the same boxes) doesn't invalidate what follows. If it matches, the stage is skipped and its outputs reused. Outputs of later stages may already exist when an earlier stage is run again with the same inputs and config: they are found through the key and reused.
 - **Item level, when the stage's key doesn't match:** the stage runs, but each item checks its own key first: for an LLM request, the exact request including the model config (provider, model, effort; §7.2: an identical request is served from its record); for an image, its recipe (§8.6). Cheap code just runs again. Requests contain only what they really use (§5.5), so fixing one page's boxes changes only the requests that depend on that page; a request that contains the whole score (`review`) changes with any change upstream, as it should.
+- **What isn't part of any key:** a model config's plain parameters (the region, the project) and its secrets (§7.2). They choose where and with which credentials a request runs, not what the model is given. A parameter that some day does change the answer must be added to the keys.
 - **Only usable answers are cached:** an error (no answer, a timeout) or an answer that fails to parse is recorded (call record, costs, §10) but never served from the cache, so a retry asks again.
 
 Every output has a row in D1, which belongs to the stage that produced it and says whether its content is stored (in R2, under its hash, §2) or only its recipe (§5.3).
@@ -360,7 +361,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
   - when a project is opened: the latest stage's main artifact.
 
   Whether the view follows the pipeline while it runs is still to be decided (§15).
-- **Built so far:** the pipeline panel as described below, with **mock stages** (`apps/web/src/mockPipeline.ts`): made-up stages and outputs and a simulation of running them, kept in memory only, so a reload starts over. A dashed "Mock" box at the end of the panel can make the running stage fail and reset the mock. The mock is there to design the UI before the D1 schema for stages (§15); its types (`pipeline.ts`) are a first guess at the real data. Only the original PDF is real, shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Later: editing in the artifact view.
+- **Built so far:** the pipeline panel as described below, with **mock stages** (`apps/web/src/mockPipeline.ts`): made-up stages and outputs and a simulation of running them, kept in memory only, so a reload starts over. A dashed "Mock" box at the end of the panel can make the running stage fail and reset the mock. The mock is there to design the UI before the stages are real (§15; their schema is in §5.8); its types (`pipeline.ts`) are a first guess at the real data. Only the original PDF is real, shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Later: editing in the artifact view.
 
 #### The pipeline panel
 - **A small head stays in view,** and only what is below it scrolls: the project's name (one line, shortened in the middle) with its "⋮" and the collapse chevron, then the **run mode** (a small drop-down showing "Auto" or "Manual", §5.1, which takes less room than a switch), the pipeline's progress bar and, in Auto mode only, **Run** (green) or **Stop** (red) while a stage runs. Below the head, scrolling away: when the project was created and changed.
@@ -379,7 +380,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
   - **planned**: not its turn yet. Only the dimmed title (and the "⋮"), no outputs. It becomes ready, no longer dim, when its turn comes;
   - **WIP**: a manual stage being worked on (below).
   - A "needs you" state for a model asking for human input is left out for now; it will be easy to add (§5.1).
-- **Buttons:** in Manual mode, the ready stage has **Run** and, while it runs, **Stop** in the same place. In Auto mode the cards have no Run or Stop: those are in the head. When the stage whose turn it is has failed, Run reads **Retry**, with a circular arrow, in both modes. Stop throws away what the running stage did so far.
+- **Buttons:** in Manual mode, the ready stage has **Run** and, while it runs, **Stop** in the same place. In Auto mode the cards have no Run or Stop: those are in the head. When the stage whose turn it is has failed, Run reads **Retry**, with a circular arrow, in both modes. Stop throws away what the running stage did so far: the stage is marked as stopped and leaves the pipeline. Its LLM calls stay, for the costs and the cache.
 - **Manual stages** are added from a stage's "⋮" ("Add: Fix system boxes", whichever fixes fit after that stage). They start as **WIP** (a badge next to the name): the user opens the stage's output as often as they like and works on it, and clicks **Finish** on the card when done. Then the next stage gets its turn. In Auto mode the pipeline carries on by itself; in Manual mode the next stage is ready. A finished manual stage can be edited again ("Edit" in its "⋮"): that continues from where the user left it, not from scratch, but like any change in the middle (§5.5) it replaces the later stages and needs confirming. In storage, the stage being edited is a new one that replaces the finished one (§5.4); the mock still reopens the same stage. There is no "Discard": a manual stage, WIP or finished, is removed with "Drop stage" (§5.5). Undoing single edits belongs to the tools for manual work (§5.4).
 - **The stage's "⋮"** holds everything else, so the card stays clean: "Show details", "Change config", "Add: Fix …", "Edit" (manual stages), "Drop stage" (stages that aren't part of the recipe, WIP ones included, §5.5; in red). Only what applies is listed, and while a stage runs only "Show details". There is no "Run again": running a stage again without changing its config only makes sense after it failed, and that is Retry. Whatever replaces stages that already ran asks first (§5.5).
 - **Show details** opens the stage in the artifact view: step and version, kind, status, run time, cost, result, its config, and for LLM stages the calls it made with their tokens and costs.
@@ -408,6 +409,39 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
   - **Dates:** day and the month's short name, "7 Oct", plus the year when it isn't the current one, "7 Oct 2025". Never all-numeric, which is ambiguous between day-first and month-first. The day is the device's local one.
   - **How long ago:** compact, "20min ago", "5h ago", "2d ago".
   - **Money:** US dollars with two decimals, "$0.12" (§10).
+
+### 5.8 The database
+The D1 schema for the pipeline (decided; built in `apps/worker/migrations/0003_pipeline.sql`, which has the columns and their comments). Artifacts have no table: a step's code defines them as views over its outputs (§5.2), and an artifact that is stored for convenience (the MEI file) is an output for the whole score.
+
+| Table | One row per | Holds |
+|---|---|---|
+| `projects` | project | Besides §4: the run mode (§5.1), a version for optimistic locking (§4), the number the next issue gets (§6, "Issue ids"), the PDF's page count (statistics, §10), `deleted_at`. |
+| `pipeline_entries` | stage in a pipeline | Project, position (1, 2, 3, ... without gaps) and the stage. Nothing else: the pipeline is a list of pointers. |
+| `stages` | stage, planned ones included | The project it was created in, the step and its version, the status (`planned`, `running`, `failed`, `done`, `wip`, `stopped`), the step's config, the model config (LLM stages), the stage key, error, a short result, the stage it replaces (an edited manual stage, §5.4), times, a heartbeat, `deleted_at`. |
+| `stage_inputs` | input of a stage | The outputs a stage read. |
+| `outputs` | item a stage produced | The stage, the item, the type (`pdf`, `layout`, `lens`, `mei`, ...), the content's hash (stored, in R2) or the recipe and its key (computed), the corrected output (manual), the call that produced it (LLM). One per stage, item and type. |
+| `output_inputs` | input of an output | The outputs an output was made from (§5.2). |
+| `llm_calls` | LLM call | The stage, the model config, the request key, the model the response names (`response_model`), the full request and response (in R2), the status (`running`, `ok`, `error`, `unparseable`, `refused`, `cut_off`), the error, tokens (output tokens include thinking: Gemini reports thinking apart, and its adapter adds it), the cost, times, `deleted_at`. |
+| `model_configs` | version of a model config | Optional name, provider, model, effort, plain parameters (region, project), secrets as `{field: secret name}` (Bedrock with a key pair needs two), the free-tier mark, the row it supersedes, `deleted_at`. Append-only (§7.2). |
+| `image_fingerprints` | image sent to a model or worked on by a person | Its recipe key, its PDF, and the fingerprint (§8.3): dimensions, the hash of the raw pixels, the thumbnail. |
+| `settings` | user setting | A key and a JSON value. |
+
+- **Planned stages have a row** (status `planned`), so all there is to know about a stage lives in `stages`, and a pipeline entry is only a pointer. A planned stage is unfinished, so it may change: its config is NULL while it takes the settings' choice (§7.2), or what the user picked for it. When it starts, its config is the resolved one (what it actually used), and its version and stage key are set. "Ready" isn't stored: it is the first planned stage after the done ones.
+- **The kind isn't stored:** it follows from the step, declared in code (§5.1). A step's kind never changes, which a unit test guarantees (§15).
+- **Stages are shared, not owned by a pipeline.** A fork (§16) copies the pipeline entries up to its stage, and the issue counter, and no stages or outputs. `created_in` says which project a stage was created in.
+- **Item names:** `''` for the whole score, `p3` for page 3, `p3/s2` for the second system on page 3. A system's number in the whole score (system 17) is derived, not stored.
+- **A manual stage has an output for every item** of what it corrects, not only for the items changed: an unchanged one points to the same content (the same hash, so nothing is copied in R2). The next stage's inputs are then simply the outputs of the stages before it, with no falling back to an earlier stage per item.
+- **Running a stage:** resolve its config and inputs and compute the stage key. If a stage that is done and not deleted has that key, the entry points to it and nothing runs. Otherwise the stage runs, each item first looks in the cache (`llm_calls` for an LLM request, a successful call with the same request key that isn't deleted; the device's image cache for an image), and each output's row is written as soon as it is done.
+- **Retry** runs the failed stage again in the same row: the items already saved stay, the missing ones run.
+- **Stop** marks the stage `stopped` and takes it out of the pipeline. Its outputs are deleted; its calls stay, for the costs and the cache.
+- **A change in the middle** (§5.5) points the later entries to new planned stages, each with the config of the stage it replaces (a re-run follows the pipeline as it was). The replaced stages stay as they are, for the stage key to find; a dropped manual stage's entry is removed.
+- **An interrupted run** (a tab closed mid-stage) leaves a stage `running`. A running stage writes a heartbeat regularly; one whose heartbeat is older than about a minute counts as interrupted, and is resumed like a failed one.
+- **Progress isn't stored:** only the device that runs a stage knows it (§5.1). Another device sees the stage running, without a bar.
+- **Deleting a project** (§4) marks rows instead of deleting them, for the costs and statistics, and every cache lookup ignores marked rows (partial indexes `... WHERE deleted_at IS NULL`). Marking in the rows, rather than filtering every lookup by the projects that aren't deleted, keeps the rule in one place. When project P is deleted:
+  - a stage is marked if no other project that isn't deleted has it in its pipeline, and it was created in P or in a project already deleted. A stage a fork still uses stays, and is marked when that fork is deleted; a stage created in a project that isn't deleted is never marked;
+  - the calls of a marked stage are marked with it;
+  - the outputs of marked stages, the content of stages and calls that nothing else uses, and the fingerprints of a PDF nothing else uses are deleted (§4).
+- **Two kinds of settings:** the user's, in the `settings` table (the default model config, the run mode for new projects, the spending cap, ...), and the device's, in the browser (`localStorage`), for what may differ between a phone and a laptop: screen size, touch or mouse, bandwidth. The collapsed pipeline panel (§5.6) is the first device setting.
 
 ## 6. Pipeline stages
 
@@ -730,7 +764,7 @@ Three levels; the most specific wins:
 2. **Advanced settings: a config per kind of work.** First draft of the kinds: finding layout boxes, extracting metadata, extracting the music notation, review.
 3. **The default config:** one settings item. With it, and nothing else set, the pipeline is "fire and wait".
 
-- **A stage records what it actually used** (provider, model, effort, and the secret's name), not a reference to the stored config. Editing a config later doesn't rewrite the history of old projects.
+- **Model configs are append-only** (§5.8): editing one adds a new row and marks the old one deleted (copy on change), and deleting one only marks it. So a stage and each of its calls refer to the row they actually used, and editing or deleting a config, or renaming a secret, doesn't rewrite the history of old projects. The secrets' names are part of the row; a secret's value isn't recorded in any way.
 - **Changing the config of a stage that already ran** is a change in the middle (§5.5): confirmation, then everything after it runs again.
 - **The key is not part of a stage's inputs.** Using another key for the same model doesn't count as a change and doesn't make paid stages run again.
 
@@ -868,10 +902,12 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - **The app computes the cost itself:** the providers' APIs report token counts per call, not money. Cost = tokens × a price table per model, kept in the code.
 - **Currency: US dollars** for everything, since that is how the providers publish their prices. The amounts are estimates, not the invoice: the bill may be in another currency, with tax or discounts. The app doesn't convert.
 - **The cost is stored with each call, when it is made,** so a later price change doesn't rewrite history.
-- **Costs and statistics are kept in a ledger of their own** in D1, apart from the project's stage outputs. It survives everything that removes outputs:
-  - stages replaced by re-running from an earlier stage (§5.5), which are no longer visible in the pipeline (their outputs are kept too, but only until the project is deleted);
-  - deleted projects (§4).
-- **Statistics** kept there too: the runtime and cost of each stage and of whole pipelines, and averages per PDF page. This needs each stage's start and end time and each PDF's page count.
+- **Costs and statistics come from the rows of the calls and the stages** (§5.8), with no ledger of their own: each call has its cost, each stage its start and end time, each project its page count. Those rows survive everything that removes outputs:
+  - stages replaced by re-running from an earlier stage (§5.5), which are no longer visible in the pipeline;
+  - stopped stages (§5.6);
+  - deleted projects (§4): their project, stage and call rows are kept, marked as deleted.
+- **Statistics:** the runtime and cost of each stage and of whole pipelines, and averages per PDF page.
+- **The spending cap** sums the costs of the calls started in the last 24 hours, deleted projects included.
 
 #### The costs view
 - **Totals** per stage, per project and per month. No cost per single call, and no estimate before a run.
@@ -1044,7 +1080,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Define the lens exactly** (§6, "The lens"), when `extract` is built: the LilyPond subset, especially cross-staff notation, ornaments, ossia and lyrics, and the JSON schema.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
 - **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs, and for Claude on Vertex AI and Bedrock (§7.2).
-- **Design the D1 schema for stages and their outputs** (§5).
 - **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
 - **Decide on the report after a re-run** (§5.5, proposed): which manual fixes were carried over and which were dropped.
 - **Polish the wording of the confirmation before a re-run** (§5.5).
@@ -1062,8 +1097,9 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
 - **Settings page:** the model configs, the default config and the configs per kind of work (§7.2), the run mode for new projects (§5.1), the spending cap and the free-tier mark for model configs (§10). Now a placeholder text.
 - **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.2). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
-- **"Delete project"** in the project actions does nothing. Build deletion as in §4: `deleted_at`, the partial unique index on names (a migration that rebuilds the table), deleting stage outputs and PDFs nothing else uses, the confirmations.
+- **"Delete project"** in the project actions does nothing. Build deletion as in §4 and §5.8: marking the project, its stages and calls, deleting what nothing else uses, the confirmations. The columns and the partial unique index on names exist (migration 0003); listing projects and numbering default names don't filter deleted projects yet.
 - **Light theme** (§5.7).
+- **A unit test that no step's kind ever changes** (§5.8): a committed list of every step id with its kind; the test fails when a step's kind differs from the list or a step is missing from it. New steps are added to the list; entries are never edited. With the first real steps.
 
 ### Infrastructure and cleanup
 - **MEI in the evaluation tooling** (§13): score3ly's output is MEI, but the engrave command only handles `.ly` (LilyPond) and `.musicxml` (MuseScore). Add `<piece>.<method>.mei`, engraved to PDF with Verovio in Node, so score3ly's results show in the viewer next to the baselines; commit `.mei` candidates like the others, and update §13's naming and wording, which still assume LilyPond output.
@@ -1120,7 +1156,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
       Note: the Worker's entry module (`apps/worker/src/index.ts`) may only export handlers: the Workers runtime refuses to start otherwise, and the tests (which import the module directly) don't notice. Helpers live in their own modules (e.g. `names.ts`).
 
-      Next: the stages, starting with the D1 schema (§15).
+      The D1 schema for the stages exists (§5.8, migration 0003). Next: the stages.
 
       **The manual stages come later.** At first, when a model gets something wrong and the author wants it fixed, the fix goes in as a manual stage without a UI: a small internal API endpoint takes the corrected output (e.g. the fixed boxes as JSON) and adds it as a manual stage after the stage it corrects, and the stages after it run again as designed. Stored outputs are never edited in place (§5.4: a finished stage never changes). The data is the same as the real manual stages will produce later.
    2. Extract page images deterministically → OPFS → show in the UI. *The extraction, skew detection and rotation exist* (§8.1, §8.2, §8.4), not yet in the app.
@@ -1131,7 +1167,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    Then: `assemble`, `review` and `apply_review`, `human_review`, the pipeline of stages in D1 and in the UI (§5.1), manual stages (§5.4), re-running from a stage with confirmation (§5.5), regeneration on a second device, Drive integration.
 
    Also planned, details still to be worked out:
-   - **Costs view, cost ledger with statistics, and the spending cap** (§10).
+   - **Costs view, statistics, and the spending cap** (§10).
    - **Deleting a project** (§4).
    - **Running the pipeline on the server** (optional but desirable; big, and tricky to get right). Today the browser drives the pipeline and does all the PDF and image work, so a run only advances while the app is open and, on a phone, on screen.
      - **Preferred: all-in.** The whole pipeline runs on the server, PDF and image work included. The browser only shows results and takes the user's input, and a run doesn't depend on any device.
