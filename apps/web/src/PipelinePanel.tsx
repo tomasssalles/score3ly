@@ -10,8 +10,6 @@ import { ago, shortDate } from "./time";
 
 export type PanelActions = StageActions & {
   setMode: (mode: RunMode) => void;
-  mockFail: () => void;
-  mockReset: () => void;
 };
 
 const MODES: RunMode[] = ["auto", "manual"];
@@ -23,22 +21,24 @@ export function PipelinePanel({
   project,
   pipeline,
   progress,
-  selectedOutputId,
+  selectedArtifactId,
   detailsStageId,
   scrollRequest,
   actions,
   onCollapse,
   onRename,
+  error,
 }: {
   project: Project;
   pipeline: Pipeline;
   progress: Progress;
-  selectedOutputId: string | null; // highlighted: shown (wide mode) or last looked at (narrow mode)
+  selectedArtifactId: string | null; // highlighted: shown (wide mode) or last looked at (narrow mode)
   detailsStageId: string | null; // the stage whose details are shown
   scrollRequest: number; // scrolls to the current stage whenever it changes
   actions: PanelActions;
   onCollapse?: () => void; // wide mode only
   onRename: () => void;
+  error: string | null; // loading or changing the pipeline failed
 }) {
   const list = useRef<HTMLOListElement>(null);
   const busy = runningStage(pipeline) !== null;
@@ -118,6 +118,7 @@ export function PipelinePanel({
         Created {shortDate(project.createdAt)} · changed {ago(project.lastModifiedAt)}
       </p>
 
+      {error && <p className="stage-error">{error}</p>}
       <ol className="stage-list" ref={list}>
         {pipeline.stages.map((stage) => (
           <StageCard
@@ -126,23 +127,12 @@ export function PipelinePanel({
             stage={stage}
             mode={pipeline.mode}
             busy={busy}
-            selectedOutputId={selectedOutputId}
+            selectedArtifactId={selectedArtifactId}
             detailsShown={stage.id === detailsStageId}
             actions={actions}
           />
         ))}
       </ol>
-
-      {/* Only while the stages are mock data. */}
-      <div className="mock-controls">
-        <span>Mock</span>
-        <button type="button" className="button-secondary" disabled={!busy} onClick={actions.mockFail}>
-          Fail the running stage
-        </button>
-        <button type="button" className="button-secondary" onClick={actions.mockReset}>
-          Reset
-        </button>
-      </div>
     </div>
   );
 }

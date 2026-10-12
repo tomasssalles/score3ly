@@ -2,7 +2,12 @@ import { dollars } from "./money";
 import type { Stage, StageKind, StageStatus } from "./pipeline";
 import { duration } from "./time";
 
-export const KIND_LABELS: Record<StageKind, string> = { computed: "Computed", llm: "LLM", manual: "Manual" };
+export const KIND_LABELS: Record<StageKind, string> = {
+  ingest: "Ingest",
+  computed: "Computed",
+  llm: "LLM",
+  manual: "Manual",
+};
 
 const STATUS_LABELS: Record<StageStatus, string> = {
   done: "Done",
@@ -25,11 +30,6 @@ export function StageDetails({ stage }: { stage: Stage }) {
   if (stage.note) facts.push(["Result", stage.note]);
   if (stage.error) facts.push(["Error", stage.error]);
   const config = Object.entries(stage.config);
-  // Made up: a few of the calls an LLM stage made.
-  const calls =
-    stage.kind === "llm" && stage.status === "done" && stage.cost !== undefined
-      ? [1, 2, 3].map((n) => ({ n, cost: stage.cost! / 40 + n * 0.001 }))
-      : [];
 
   return (
     <div className="details-view">
@@ -53,22 +53,6 @@ export function StageDetails({ stage }: { stage: Stage }) {
               </div>
             ))}
           </dl>
-        </>
-      )}
-      {calls.length > 0 && (
-        <>
-          <h3>LLM calls</h3>
-          <ul className="details-calls">
-            {calls.map(({ n, cost }) => (
-              <li key={n}>
-                <span>System {n}</span>
-                <span className="mono">
-                  {12 + n}.{n}k in · 1.{n}k out · {dollars(cost)}
-                </span>
-              </li>
-            ))}
-            <li className="more">…</li>
-          </ul>
         </>
       )}
     </div>

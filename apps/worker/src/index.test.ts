@@ -12,6 +12,8 @@ let platform: Awaited<ReturnType<typeof getPlatformProxy<Env>>>;
 let env: Env;
 // The projects as migration 0002 converted them from the old schema.
 let migratedRows: Record<string, unknown>[];
+// The pipelines migration 0004 gave them.
+let migratedPipelines: Record<string, unknown>[];
 
 before(async () => {
   platform = await getPlatformProxy<Env>({ configPath: join(workerDir, "wrangler.jsonc"), persist: false });
@@ -32,10 +34,17 @@ before(async () => {
     await env.DB.exec(withoutComments(readFileSync(join(migrationsDir, file), "utf8")));
   }
   migratedRows = (await env.DB.prepare("SELECT * FROM projects ORDER BY id").all()).results;
+  migratedPipelines = (
+    await env.DB.prepare(
+      "SELECT e.project_id, e.position, s.id AS stage_id, s.step, s.status, o.id AS output_id, o.item, o.type, o.content_sha256 FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id JOIN outputs o ON o.stage_id = s.id ORDER BY e.project_id",
+    ).all()
+  ).results;
 });
 
 beforeEach(async () => {
-  await env.DB.exec("DELETE FROM projects");
+  await env.DB.exec(
+    "DELETE FROM outputs; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects;",
+  );
 });
 
 after(async () => {
@@ -132,6 +141,23 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
     },
   ]);
 
+  // Its first stage, Ingest, is done, with the PDF as its output.
+  const pipeline = (await (await app.request(`/api/projects/${project.id}/pipeline`, {}, env)).json()) as {
+    stages: Record<string, unknown>[];
+  };
+  assert.equal(pipeline.stages.length, 1);
+  const [ingest] = pipeline.stages;
+  assert.equal(ingest.step, "ingest");
+  assert.equal(ingest.stepVersion, 1);
+  assert.equal(ingest.status, "done");
+  assert.deepEqual(ingest.config, {});
+  assert.equal(ingest.startedAt, project.createdAt);
+  assert.equal(ingest.finishedAt, project.createdAt);
+  assert.deepEqual(
+    (ingest.outputs as Record<string, unknown>[]).map((o) => [o.item, o.type, o.contentSha256]),
+    [["", "pdf", sha256]],
+  );
+
   const stored = await env.PDFS.get(`pdfs/${sha256}.pdf`);
   assert.ok(stored);
   assert.deepEqual(new Uint8Array(await stored.arrayBuffer()), pdf);
@@ -187,6 +213,66 @@ test("migration 0002 names existing projects after their file and numbers repeat
       ["p4", "Untitled", "2026-10-04T00:00:00.000Z", "2026-10-04T00:00:00.000Z", "2026-10-04T00:00:00.000Z"],
     ],
   );
+});
+
+test("migration 0004 gives existing projects their Ingest stage, with the PDF as its output", () => {
+  assert.deepEqual(
+    migratedPipelines.map((row) => [row.project_id, row.position, row.step, row.status, row.item, row.type, row.content_sha256]),
+    [
+      ["p1", 1, "ingest", "done", "", "pdf", "aa"],
+      ["p2", 1, "ingest", "done", "", "pdf", "aa"],
+      ["p3", 1, "ingest", "done", "", "pdf", "bb"],
+      ["p4", 1, "ingest", "done", "", "pdf", "cc"],
+    ],
+  );
+  assert.equal(new Set(migratedPipelines.map((row) => row.stage_id)).size, 4);
+});
+
+test("deleted projects are left out everywhere, and their names are free", async () => {
+  const live = await createdProject("sonata.pdf");
+  await env.DB.prepare(
+    "INSERT INTO projects (id, name, pdf_sha256, pdf_filename, created_at, last_modified_at, last_opened_at, deleted_at) VALUES ('gone', 'Etude', ?, 'etude.pdf', 't', 't', 'z', 't')",
+  )
+    .bind(live.pdfSha256)
+    .run();
+
+  const list = (await (await app.request("/api/projects", {}, env)).json()) as ProjectJson[];
+  assert.deepEqual(
+    list.map((p) => p.id),
+    [live.id],
+  );
+  const lookup = (await (
+    await app.request(`/api/pdfs/${live.pdfSha256}?filename=Etude.pdf`, {}, env)
+  ).json()) as { projects: ProjectJson[]; newProjectName: string };
+  assert.deepEqual(
+    lookup.projects.map((p) => p.id),
+    [live.id],
+  );
+  assert.equal(lookup.newProjectName, "Etude");
+  assert.equal((await rename(live.id, "etude")).status, 200);
+  assert.equal((await rename("gone", "Fugue")).status, 404);
+  assert.equal((await app.request("/api/projects/gone/opened", { method: "POST" }, env)).status, 404);
+  assert.equal((await app.request("/api/projects/gone/pipeline", {}, env)).status, 404);
+});
+
+test("the run mode can be changed, and nothing else in the same request is required", async () => {
+  const project = await createdProject("sonata.pdf");
+  assert.equal(project.runMode, "auto");
+  const patch = (body: unknown) =>
+    app.request(
+      `/api/projects/${project.id}`,
+      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+      env,
+    );
+
+  const response = await patch({ runMode: "manual" });
+
+  assert.equal(response.status, 200);
+  const changed = (await response.json()) as ProjectJson;
+  assert.equal(changed.runMode, "manual");
+  assert.equal(changed.name, "sonata");
+  assert.equal((await patch({ runMode: "sometimes" })).status, 400);
+  assert.equal((await patch({})).status, 400);
 });
 
 test("names only have to be unique among projects that aren't deleted", async () => {

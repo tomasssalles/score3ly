@@ -1,17 +1,24 @@
 import { useEffect, useState } from "react";
-import type { Project } from "./api";
-import { ArtifactView, OutputContent } from "./ArtifactView";
+import { fetchPipeline, setRunMode, type Project } from "./api";
+import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ExpandIcon } from "./icons";
-import * as mock from "./mockPipeline";
-import { currentStage, defaultOutputId, findOutput, findStage, progressOf, runningStage, type Pipeline } from "./pipeline";
+import {
+  currentStage,
+  defaultArtifactId,
+  findArtifact,
+  findStage,
+  progressOf,
+  toPipeline,
+  type Pipeline,
+  type RunMode,
+} from "./pipeline";
 import { PipelinePanel, type PanelActions } from "./PipelinePanel";
 import { ProgressRing } from "./ProgressRing";
 import { StageDetails } from "./StageDetails";
 import { useWide } from "./useWide";
 
 const COLLAPSED_KEY = "pipelinePanelCollapsed";
-const TICK = 100; // ms between steps of the mock simulation
 
 // What the user must know before stages that already ran are replaced (DESIGN.md §5.5).
 const OVERWRITE_TEXT = [
@@ -31,6 +38,7 @@ export function ProjectView({
   onShowStage,
   onCloseArtifact,
   onRename,
+  onChanged,
 }: {
   project: Project;
   artifactId: string | null; // picked by the user (it's in the URL), or null
@@ -39,49 +47,49 @@ export function ProjectView({
   onShowStage: (stageId: string) => void;
   onCloseArtifact: () => void;
   onRename: () => void;
+  onChanged: () => void; // the project itself changed (e.g. its run mode)
 }) {
   const wide = useWide();
   const [collapsed, setCollapsed] = useState(() => readFlag(COLLAPSED_KEY));
-  const [pipeline, setPipeline] = useState(() => mock.mockPipeline(project));
+  const [mode, setMode] = useState<RunMode>(project.runMode);
+  // null while loading.
+  const [stored, setStored] = useState<Awaited<ReturnType<typeof fetchPipeline>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const pipeline: Pipeline = stored ? toPipeline(mode, stored) : { mode, stages: [] };
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   // The panel scrolls to the current stage on opening the project, when an Auto run starts, and whenever
   // another stage becomes the current one (in both modes).
   const [scrollRequest, setScrollRequest] = useState(0);
   const scroll = () => setScrollRequest((n) => n + 1);
   const progress = progressOf(pipeline);
-  const running = runningStage(pipeline);
   const currentId = currentStage(pipeline)?.id;
 
-  // The mock simulation: the running stage moves on a little every tick.
   useEffect(() => {
-    if (running === null) return;
-    const seconds = running.kind === "llm" ? 6 : 2;
-    const timer = window.setInterval(() => setPipeline((p) => mock.advance(p, TICK / 1000 / seconds)), TICK);
-    return () => window.clearInterval(timer);
-  }, [running?.id]);
+    fetchPipeline(project).then(setStored, (err) => setError(`Loading the pipeline failed: ${err}`));
+  }, [project.id]);
 
   useEffect(() => {
     scroll();
   }, [currentId]);
 
   // An ID that doesn't exist (an old or edited URL, or a replaced stage) counts as no pick.
-  const pickedOutput = artifactId === null ? null : findOutput(pipeline, artifactId);
+  const pickedArtifact = artifactId === null ? null : findArtifact(pipeline, artifactId);
   const pickedStage = stageId === null ? null : findStage(pipeline, stageId);
-  const fallbackId = defaultOutputId(pipeline);
-  const shownOutput = pickedOutput ?? (fallbackId === null ? null : findOutput(pipeline, fallbackId));
+  const fallbackId = defaultArtifactId(pipeline);
+  const shownArtifact = pickedArtifact ?? (fallbackId === null ? null : findArtifact(pipeline, fallbackId));
 
   // Narrow mode: what was last looked at stays selected after it is closed.
-  const [lastPicked, setLastPicked] = useState<{ outputId: string | null; stageId: string | null }>({
-    outputId: null,
+  const [lastPicked, setLastPicked] = useState<{ artifactId: string | null; stageId: string | null }>({
+    artifactId: null,
     stageId: null,
   });
-  const pickedOutputId = pickedOutput?.output.id ?? null;
+  const pickedArtifactId = pickedArtifact?.artifact.id ?? null;
   const pickedStageId = pickedStage?.id ?? null;
   useEffect(() => {
-    if (pickedOutputId !== null || pickedStageId !== null) {
-      setLastPicked({ outputId: pickedOutputId, stageId: pickedStageId });
+    if (pickedArtifactId !== null || pickedStageId !== null) {
+      setLastPicked({ artifactId: pickedArtifactId, stageId: pickedStageId });
     }
-  }, [pickedOutputId, pickedStageId]);
+  }, [pickedArtifactId, pickedStageId]);
 
   function collapse(value: boolean) {
     setCollapsed(value);
@@ -89,59 +97,56 @@ export function ProjectView({
   }
 
   // Asks first if the change replaces stages that have already run (DESIGN.md §5.5).
-  function change(stageId: string, apply: (p: Pipeline) => Pipeline, ask: boolean) {
-    const run = () => {
-      setPipeline(apply);
-      scroll();
-    };
-    if (!ask) return run();
+  function change(stageId: string, apply: () => void, ask: boolean) {
+    if (!ask) return apply();
     const stage = findStage(pipeline, stageId);
     setConfirmation({
       title: `Overwrite the pipeline from "${stage?.title}"?`,
       text: OVERWRITE_TEXT,
       confirmLabel: "Overwrite",
-      action: run,
+      action: apply,
     });
   }
 
-  const auto = pipeline.mode === "auto";
+  // Whether a change at this stage replaces stages after it that have already run.
+  function replacesWork(stageId: string): boolean {
+    const i = pipeline.stages.findIndex((stage) => stage.id === stageId);
+    return pipeline.stages.slice(i + 1).some((stage) => stage.status !== "planned" && stage.status !== "ready");
+  }
+
+  // Running and changing stages isn't built yet: no stage can run, and Ingest offers none of these.
+  const notBuilt = () => {};
   const actions: PanelActions = {
-    selectOutput: onSelectArtifact,
+    selectArtifact: onSelectArtifact,
     showDetails: onShowStage,
-    run: () => {
-      setPipeline(mock.start);
-      if (auto) scroll();
-    },
-    stop: () => setPipeline(mock.stop),
-    finish: (id) => setPipeline((p) => mock.finish(p, id)),
-    // The real app opens the stage's config first; the mock goes straight to what follows.
-    changeConfig: (id) => {
-      const stage = findStage(pipeline, id);
-      if (stage?.status !== "done" && stage?.status !== "failed") return;
-      change(id, (p) => mock.rerun(p, id, p.mode === "auto"), true);
-    },
-    addFix: (id, title) => change(id, (p) => mock.addFix(p, id, title), mock.replacesWork(pipeline, id)),
-    edit: (id) => change(id, (p) => mock.edit(p, id), mock.replacesWork(pipeline, id)),
+    run: notBuilt,
+    stop: notBuilt,
+    finish: notBuilt,
+    changeConfig: (id) => change(id, notBuilt, replacesWork(id)),
+    addFix: (id) => change(id, notBuilt, replacesWork(id)),
+    edit: (id) => change(id, notBuilt, replacesWork(id)),
     // Always asks: the stage's own work is lost, and perhaps the stages after it too.
     drop: (id) =>
       setConfirmation({
         title: `Drop "${findStage(pipeline, id)?.title}"?`,
         text: [
           "The stage is removed, and the work done in it is lost. There is no undo.",
-          ...(mock.replacesWork(pipeline, id) ? OVERWRITE_TEXT : []),
+          ...(replacesWork(id) ? OVERWRITE_TEXT : []),
         ],
         confirmLabel: "Drop stage",
         danger: true,
-        action: () => {
-          setPipeline((p) => mock.drop(p, id));
-          scroll();
-        },
+        action: notBuilt,
       }),
-    setMode: (mode) => setPipeline((p) => mock.setMode(p, mode)),
-    mockFail: () => setPipeline(mock.fail),
-    mockReset: () => {
-      setPipeline(mock.mockPipeline(project));
-      scroll();
+    setMode: async (value) => {
+      const previous = mode;
+      setMode(value);
+      try {
+        await setRunMode(project, value);
+        onChanged();
+      } catch (err) {
+        setMode(previous);
+        setError(`Changing the run mode failed: ${err}`);
+      }
     },
   };
 
@@ -159,33 +164,35 @@ export function ProjectView({
     />
   );
 
-  const panel = (selectedOutputId: string | null, detailsStageId: string | null, onCollapse?: () => void) => (
+  const panel = (selectedArtifactId: string | null, detailsStageId: string | null, onCollapse?: () => void) => (
     <PipelinePanel
       project={project}
       pipeline={pipeline}
       progress={progress}
-      selectedOutputId={selectedOutputId}
+      selectedArtifactId={selectedArtifactId}
       detailsStageId={detailsStageId}
       scrollRequest={scrollRequest}
       actions={actions}
       onCollapse={onCollapse}
       onRename={onRename}
+      error={error}
     />
   );
 
   if (!wide) {
-    const selected = pickedOutput || pickedStage ? { outputId: pickedOutputId, stageId: pickedStageId } : lastPicked;
+    const selected =
+      pickedArtifact || pickedStage ? { artifactId: pickedArtifactId, stageId: pickedStageId } : lastPicked;
     return (
       <div className="project-view narrow">
-        {panel(selected.outputId, selected.stageId)}
+        {panel(selected.artifactId, selected.stageId)}
         {pickedStage ? (
           <ArtifactView label={`${pickedStage.title}: details`} onClose={onCloseArtifact}>
             <StageDetails stage={pickedStage} />
           </ArtifactView>
         ) : (
-          pickedOutput && (
-            <ArtifactView label={pickedOutput.output.title} onClose={onCloseArtifact}>
-              <OutputContent project={project} output={pickedOutput.output} />
+          pickedArtifact && (
+            <ArtifactView label={pickedArtifact.artifact.title} onClose={onCloseArtifact}>
+              <ArtifactContent project={project} artifact={pickedArtifact.artifact} />
             </ArtifactView>
           )
         )}
@@ -220,7 +227,7 @@ export function ProjectView({
             )}
           </div>
         ) : (
-          panel(pickedStage ? null : (shownOutput?.output.id ?? null), pickedStage?.id ?? null, () => collapse(true))
+          panel(pickedStage ? null : (shownArtifact?.artifact.id ?? null), pickedStage?.id ?? null, () => collapse(true))
         )}
       </aside>
       {pickedStage ? (
@@ -228,9 +235,9 @@ export function ProjectView({
           <StageDetails stage={pickedStage} />
         </ArtifactView>
       ) : (
-        shownOutput && (
-          <ArtifactView label={shownOutput.output.title}>
-            <OutputContent project={project} output={shownOutput.output} />
+        shownArtifact && (
+          <ArtifactView label={shownArtifact.artifact.title}>
+            <ArtifactContent project={project} artifact={shownArtifact.artifact} />
           </ArtifactView>
         )
       )}

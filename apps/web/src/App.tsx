@@ -166,6 +166,7 @@ export function App() {
             onShowStage={showStage}
             onCloseArtifact={closeArtifact}
             onRename={() => setRenaming(true)}
+            onChanged={refresh}
           />
         ) : (
           projects !== null && (

@@ -7,7 +7,28 @@ export type Project = {
   createdAt: string;
   lastModifiedAt: string;
   lastOpenedAt: string;
+  runMode: RunMode;
 };
+
+export type RunMode = "auto" | "manual";
+
+// Mirrors the Worker's Pipeline, Stage and Output types: the stages as stored (DESIGN.md §5.8).
+export type ApiPipeline = { stages: ApiStage[] };
+
+export type ApiStage = {
+  id: string;
+  step: string;
+  stepVersion: number | null;
+  status: "planned" | "running" | "failed" | "done" | "wip" | "stopped";
+  config: Record<string, unknown> | null;
+  error: string | null;
+  note: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  outputs: ApiOutput[];
+};
+
+export type ApiOutput = { id: string; item: string; type: string; contentSha256: string | null };
 
 // A failed request. `status` is the HTTP status, so callers can react to e.g. 409 (conflict).
 export class ApiError extends Error {
@@ -66,4 +87,18 @@ export async function renameProject(project: Project, name: string): Promise<Pro
     body: JSON.stringify({ name }),
   });
   return (await checked(response)).json();
+}
+
+export async function setRunMode(project: Project, runMode: RunMode): Promise<Project> {
+  const response = await fetch(`/api/projects/${project.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runMode }),
+  });
+  return (await checked(response)).json();
+}
+
+// The project's stages in order, with their outputs.
+export async function fetchPipeline(project: Project): Promise<ApiPipeline> {
+  return (await checked(await fetch(`/api/projects/${project.id}/pipeline`))).json();
 }

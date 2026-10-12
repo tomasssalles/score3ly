@@ -1,18 +1,28 @@
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
 import type { Project } from "./api";
-import { ComputedIcon, DataIcon, LlmIcon, ManualIcon, MoreIcon, MusicIcon, PlayIcon, RetryIcon, StopIcon } from "./icons";
-import { MockPage, MockSystem } from "./mockContent";
-import { canDrop } from "./mockPipeline";
+import {
+  ComputedIcon,
+  DataIcon,
+  DocumentIcon,
+  IngestIcon,
+  LlmIcon,
+  ManualIcon,
+  MoreIcon,
+  MusicIcon,
+  PlayIcon,
+  RetryIcon,
+  StopIcon,
+} from "./icons";
 import { dollars } from "./money";
 import { pdfUrl } from "./pdf";
 import { PdfThumb } from "./PdfThumb";
-import { hasOutputs, type Output, type RunMode, type Stage, type StageKind } from "./pipeline";
+import { hasArtifacts, type Artifact, type RunMode, type Stage, type StageKind } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
 import { KIND_LABELS } from "./StageDetails";
 import { duration } from "./time";
 
 export type StageActions = {
-  selectOutput: (outputId: string) => void;
+  selectArtifact: (artifactId: string) => void;
   showDetails: (stageId: string) => void;
   run: () => void;
   stop: () => void;
@@ -24,19 +34,20 @@ export type StageActions = {
 };
 
 const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {
+  ingest: IngestIcon,
   computed: ComputedIcon,
   llm: LlmIcon,
   manual: ManualIcon,
 };
 
-// One stage of the pipeline: what it is, how it went, what it can do next, and its outputs as tiles.
+// One stage of the pipeline: what it is, how it went, what it can do next, and its artifacts as tiles.
 // A planned stage (not its turn yet) is only a dimmed title.
 export function StageCard({
   project,
   stage,
   mode,
   busy,
-  selectedOutputId,
+  selectedArtifactId,
   detailsShown,
   actions,
 }: {
@@ -44,7 +55,7 @@ export function StageCard({
   stage: Stage;
   mode: RunMode;
   busy: boolean; // a stage is running: nothing may change until it stops
-  selectedOutputId: string | null;
+  selectedArtifactId: string | null;
   detailsShown: boolean;
   actions: StageActions;
 }) {
@@ -70,15 +81,15 @@ export function StageCard({
       {stage.status === "failed" && <p className="stage-error">{stage.error}</p>}
       <StageButton stage={stage} mode={mode} actions={actions} />
 
-      {hasOutputs(stage) && stage.outputs.length > 0 && (
+      {hasArtifacts(stage) && stage.artifacts.length > 0 && (
         <ul className="output-grid">
-          {stage.outputs.map((output) => (
-            <li key={output.id}>
-              <OutputTile
+          {stage.artifacts.map((artifact) => (
+            <li key={artifact.id}>
+              <ArtifactTile
                 project={project}
-                output={output}
-                selected={output.id === selectedOutputId}
-                onSelect={() => actions.selectOutput(output.id)}
+                artifact={artifact}
+                selected={artifact.id === selectedArtifactId}
+                onSelect={() => actions.selectArtifact(artifact.id)}
               />
             </li>
           ))}
@@ -146,7 +157,7 @@ function StageButton({ stage, mode, actions }: { stage: Stage; mode: RunMode; ac
 
 function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] {
   const groups: MenuItem[][] = [[{ label: "Show details", onSelect: () => actions.showDetails(stage.id) }]];
-  if (busy || stage.id === "ingest") return groups;
+  if (busy || stage.kind === "ingest") return groups;
   const changes: MenuItem[] = [];
   if (stage.kind === "manual") {
     if (stage.status === "done") changes.push({ label: "Edit", onSelect: () => actions.edit(stage.id) });
@@ -157,40 +168,39 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
     for (const fix of stage.fixes) changes.push({ label: `Add: ${fix}`, onSelect: () => actions.addFix(stage.id, fix) });
   }
   if (changes.length > 0) groups.push(changes);
-  if (canDrop(stage)) {
+  if (stage.droppable) {
     groups.push([{ label: "Drop stage", danger: true, onSelect: () => actions.drop(stage.id) }]);
   }
   return groups;
 }
 
-// An output as a tile: a picture of its first item, or an icon. A group says how many items it has.
-function OutputTile({
+// An artifact as a tile: an icon for its kind (the original PDF still shows its first page, DESIGN.md §15). A
+// group says how many items it has.
+function ArtifactTile({
   project,
-  output,
+  artifact,
   selected,
   onSelect,
 }: {
   project: Project;
-  output: Output;
+  artifact: Artifact;
   selected: boolean;
   onSelect: () => void;
 }) {
   return (
     <button type="button" className="output-tile" aria-current={selected ? "true" : undefined} onClick={onSelect}>
       <span className="output-thumb">
-        <Thumb project={project} output={output} />
-        {output.count > 1 && <span className="output-count">×{output.count}</span>}
+        <Thumb project={project} artifact={artifact} />
+        {artifact.count > 1 && <span className="output-count">×{artifact.count}</span>}
       </span>
-      <span className="output-title">{output.title}</span>
+      <span className="output-title">{artifact.title}</span>
     </button>
   );
 }
 
-function Thumb({ project, output }: { project: Project; output: Output }) {
-  if (output.kind === "images") {
-    return output.item === "System" ? <MockSystem index={0} /> : <MockPage index={0} boxes={output.id.includes("boxes")} />;
-  }
-  if (output.kind === "pdf") return <PdfThumb url={pdfUrl(project.pdfSha256)} />;
-  if (output.kind === "json") return <DataIcon />;
+function Thumb({ project, artifact }: { project: Project; artifact: Artifact }) {
+  if (artifact.kind === "pdf") return <PdfThumb url={pdfUrl(project.pdfSha256)} />;
+  if (artifact.kind === "images") return <DocumentIcon />;
+  if (artifact.kind === "json") return <DataIcon />;
   return <MusicIcon />;
 }

@@ -1,125 +1,90 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Project } from "./api.ts";
-import * as mock from "./mockPipeline.ts";
+import type { ApiStage } from "./api.ts";
 import {
   canRun,
   currentStage,
-  defaultOutputId,
-  findOutput,
+  defaultArtifactId,
+  findArtifact,
   findStage,
   progressOf,
   runningStage,
-  type Pipeline,
+  toPipeline,
 } from "./pipeline.ts";
 
-const project: Project = {
-  id: "p1",
-  name: "Sonata",
-  pdfSha256: "a".repeat(64),
-  pdfFilename: "Sonata.pdf",
-  createdAt: "2026-10-07T00:00:00.000Z",
-  lastModifiedAt: "2026-10-07T00:00:00.000Z",
-  lastOpenedAt: "2026-10-07T00:00:00.000Z",
-};
+const SHA256 = "a".repeat(64);
+const T0 = "2026-10-12T10:00:00.000Z";
 
-const runToEnd = (p: Pipeline) => mock.advance(p, 1);
+function stage(id: string, step: string, fields: Partial<ApiStage> = {}): ApiStage {
+  return {
+    id,
+    step,
+    stepVersion: 1,
+    status: "done",
+    config: {},
+    error: null,
+    note: null,
+    startedAt: T0,
+    finishedAt: T0,
+    outputs: [],
+    ...fields,
+  };
+}
 
-test("the mock starts with the original PDF in Ingest and the transcription ready to run", () => {
-  const p = mock.mockPipeline(project);
-  assert.equal(p.stages[0].id, "ingest");
-  assert.equal(p.stages[0].note, "Sonata.pdf");
-  assert.equal(findOutput(p, "ingest.original-pdf")?.output.kind, "pdf");
-  assert.equal(currentStage(p)?.id, "transcription");
-  assert.ok(canRun(p));
+const ingest = stage("s1", "ingest", { outputs: [{ id: "o1", item: "", type: "pdf", contentSha256: SHA256 }] });
+
+test("a new project's pipeline is Ingest, done, with the original PDF as its artifact", () => {
+  const p = toPipeline("auto", { stages: [ingest] });
+  assert.equal(p.mode, "auto");
+  const [s] = p.stages;
+  assert.equal(s.title, "Ingest");
+  assert.equal(s.kind, "ingest");
+  assert.equal(s.step, "ingest@1");
+  assert.equal(s.status, "done");
+  assert.equal(s.seconds, undefined);
+  assert.equal(s.droppable, false);
+  assert.deepEqual(s.artifacts, [{ id: "s1.pdf", title: "Original PDF", kind: "pdf", count: 1 }]);
+  assert.equal(defaultArtifactId(p), "s1.pdf");
+  assert.equal(findArtifact(p, "s1.pdf")?.stage.id, "s1");
+  assert.equal(currentStage(p)?.id, "s1");
+  assert.equal(canRun(p), false);
   assert.equal(runningStage(p), null);
+  assert.deepEqual(progressOf(p), { stage: null, pipeline: 1 });
 });
 
-test("the default output is the latest stage's main one; planned stages have none to show", () => {
-  const p = mock.mockPipeline(project);
-  assert.equal(defaultOutputId(p), "skeleton.skeleton");
-  assert.equal(findOutput(p, "transcription.transcriptions"), null);
-});
-
-test("progress counts done stages, and the running one with its own progress", () => {
-  const p = mock.advance(mock.start(mock.mockPipeline(project)), 0.5);
-  const done = p.stages.filter((stage) => stage.status === "done").length;
-  assert.deepEqual(progressOf(p), { stage: 0.5, pipeline: (done + 0.5) / p.stages.length });
-  assert.equal(progressOf(mock.stop(p)).stage, null);
-});
-
-test("in Auto mode a finished stage starts the next one; in Manual mode it only makes it ready", () => {
-  const auto = runToEnd(mock.start(mock.mockPipeline(project)));
-  assert.equal(runningStage(auto)?.id, "checks");
-  const manual = runToEnd(mock.start(mock.setMode(mock.mockPipeline(project), "manual")));
-  assert.equal(runningStage(manual), null);
-  assert.equal(currentStage(manual)?.id, "checks");
-  assert.equal(currentStage(manual)?.status, "ready");
-});
-
-test("a failed stage can run again", () => {
-  const p = mock.fail(mock.start(mock.mockPipeline(project)));
-  assert.equal(currentStage(p)?.status, "failed");
+test("the first planned stage after the done ones is ready; the ones after it stay planned", () => {
+  const p = toPipeline("manual", {
+    stages: [
+      ingest,
+      stage("s2", "rasterize", { status: "planned", stepVersion: null, config: null, startedAt: null, finishedAt: null }),
+      stage("s3", "skew_analysis", { status: "planned", stepVersion: null, startedAt: null, finishedAt: null }),
+    ],
+  });
+  assert.deepEqual(
+    p.stages.map((s) => s.status),
+    ["done", "ready", "planned"],
+  );
+  assert.equal(p.stages[1].step, "rasterize");
+  assert.deepEqual(p.stages[1].config, {});
   assert.ok(canRun(p));
-  assert.equal(runningStage(mock.start(p))?.id, "transcription");
+  assert.equal(findStage(p, "s3")?.status, "planned");
+  assert.equal(findArtifact(p, "s2.pdf"), null);
 });
 
-test("a manual stage added in the middle replaces what follows, and holds the pipeline until finished", () => {
-  const p = mock.addFix(mock.mockPipeline(project), "analysis", "Fix metadata");
-  const i = p.stages.findIndex((stage) => stage.id === "analysis");
-  assert.equal(p.stages[i + 1].title, "Fix metadata");
-  assert.equal(p.stages[i + 1].status, "wip");
-  // The earlier manual stage after it was dropped, and the rest waits.
-  assert.ok(!p.stages.some((stage) => stage.id === "fix-1"));
-  assert.ok(p.stages.slice(i + 2).every((stage) => stage.status === "planned"));
-  assert.equal(currentStage(p)?.status, "wip");
-  assert.ok(!canRun(p));
-  // Finishing it carries on by itself in Auto mode.
-  const finished = mock.finish(p, p.stages[i + 1].id);
-  assert.equal(runningStage(finished)?.id, "system_crops");
+test("a failed stage can run again, and shows its error", () => {
+  const p = toPipeline("auto", { stages: [ingest, stage("s2", "rasterize", { status: "failed", error: "Out of memory" })] });
+  assert.equal(currentStage(p)?.status, "failed");
+  assert.equal(currentStage(p)?.error, "Out of memory");
+  assert.ok(canRun(p));
 });
 
-test("only changes that replace stages that already ran need confirming", () => {
-  const p = mock.mockPipeline(project);
-  assert.ok(mock.replacesWork(p, "analysis"));
-  assert.ok(!mock.replacesWork(p, "skeleton"));
-});
-
-test("a finished manual stage can be edited again, which replaces what follows", () => {
-  const p = mock.edit(mock.mockPipeline(project), "fix-1");
-  assert.equal(currentStage(p)?.id, "fix-1");
-  assert.equal(currentStage(p)?.status, "wip");
-  assert.ok(p.stages.slice(5).every((stage) => stage.status === "planned"));
-});
-
-test("dropping an unfinished manual stage gives the next stage its turn", () => {
-  const added = mock.addFix(mock.mockPipeline(project), "skeleton", "Fix system crops");
-  const p = mock.drop(mock.setMode(added, "manual"), added.stages.find((s) => s.kind === "manual" && s.status === "wip")!.id);
-  assert.equal(currentStage(p)?.id, "transcription");
-  assert.equal(currentStage(p)?.status, "ready");
-});
-
-test("dropping a finished manual stage replaces what follows, from the stage before it", () => {
-  const p = mock.drop(mock.setMode(mock.mockPipeline(project), "manual"), "fix-1");
-  assert.equal(findStage(p, "fix-1"), null);
-  assert.equal(currentStage(p)?.id, "system_crops");
-  assert.equal(currentStage(p)?.status, "ready");
-  assert.equal(currentStage(p)?.seconds, undefined);
-});
-
-test("in Auto mode, the pipeline carries on after a stage is dropped", () => {
-  const p = mock.drop(mock.mockPipeline(project), "fix-1");
-  assert.equal(runningStage(p)?.id, "system_crops");
-});
-
-test("a planned stage can't be dropped", () => {
-  const p = mock.mockPipeline(project);
-  assert.equal(mock.drop(p, "analysis"), p);
-});
-
-test("changing a stage's config in Manual mode makes it ready, and clears what follows", () => {
-  const p = mock.rerun(mock.setMode(mock.mockPipeline(project), "manual"), "system_crops", false);
-  assert.equal(currentStage(p)?.id, "system_crops");
-  assert.equal(currentStage(p)?.status, "ready");
-  assert.equal(currentStage(p)?.seconds, undefined);
+test("a done stage's run time comes from its start and end; its config is shown as text", () => {
+  const p = toPipeline("auto", {
+    stages: [
+      ingest,
+      stage("s2", "rasterize", { finishedAt: "2026-10-12T10:00:14.000Z", config: { dpi: 300, mode: "gray" } }),
+    ],
+  });
+  assert.equal(p.stages[1].seconds, 14);
+  assert.deepEqual(p.stages[1].config, { dpi: "300", mode: "gray" });
 });

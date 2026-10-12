@@ -1,8 +1,12 @@
-// The project's pipeline as the UI shows it (DESIGN.md §5.6): its stages, first to last, each with the outputs it
-// produced. For now the stages are mock data (mockPipeline.ts), to design the UI before the real ones exist; the
-// types are a first guess at what the real data will look like.
+// The project's pipeline as the UI shows it (DESIGN.md §5.6): its stages, first to last, each with its artifacts.
+// Built from what the Worker stores (api.ts) and what the code declares about each step (steps.ts).
 
-export type StageKind = "computed" | "llm" | "manual";
+import type { ApiPipeline, ApiStage, RunMode } from "./api";
+import { stepInfo } from "./steps.ts";
+
+export type { RunMode } from "./api";
+
+export type StageKind = "ingest" | "computed" | "llm" | "manual";
 
 export type StageStatus =
   | "done"
@@ -12,16 +16,16 @@ export type StageStatus =
   | "ready" // its turn: it can run (in Manual mode, with its Run button)
   | "planned"; // not its turn yet: shown dimmed
 
-export type OutputKind = "pdf" | "images" | "json" | "lilypond";
+export type ArtifactKind = "pdf" | "images" | "json" | "music";
 
-// One tile in a stage's card: a single artifact, or a group of similar ones (e.g. all the system crops), which
-// the artifact view shows one after the other.
-export type Output = {
+// One tile in a stage's card: what the user sees of the stage's outputs (DESIGN.md §5.2). A group of similar
+// items (e.g. all the system crops) is one artifact, which the artifact view shows one item after the other.
+export type Artifact = {
   id: string; // unique within the project, used in the URL
   title: string;
-  kind: OutputKind;
-  count: number; // 1 for a single artifact
-  item?: "Page" | "System"; // what each artifact of a group is
+  kind: ArtifactKind;
+  count: number; // 1 for a single item
+  item?: "Page" | "System"; // what each item of a group is
 };
 
 export type Stage = {
@@ -35,20 +39,55 @@ export type Stage = {
   cost?: number; // US dollars, LLM stages once done
   note?: string; // one short fact about the result, e.g. "3 boxes moved"
   error?: string; // failed stages
-  progress: number; // from 0 to 1 while running
-  outputs: Output[]; // the first is the main one; shown once the stage is done (or while a manual one is worked on)
+  progress: number; // from 0 to 1 while running; known only on the device that runs the stage
+  artifacts: Artifact[]; // the first is the main one; shown once the stage is done (or while a manual one is worked on)
   config: Record<string, string>;
   fixes: string[]; // the manual stages that can be added after it, e.g. "Fix system boxes"
+  droppable: boolean; // not part of the recipe (DESIGN.md §5.5)
 };
-
-export type RunMode = "auto" | "manual";
 
 export type Pipeline = { mode: RunMode; stages: Stage[] };
 
 // Fractions from 0 to 1. `stage` is null while no stage is running.
 export type Progress = { stage: number | null; pipeline: number };
 
-export function hasOutputs(stage: Stage): boolean {
+// The pipeline as the Worker stores it, made ready to show. The first planned stage after the finished ones is
+// the one whose turn it is: "ready".
+export function toPipeline(mode: RunMode, stored: ApiPipeline): Pipeline {
+  const stages = stored.stages.map(toStage);
+  const next = stages.findIndex((stage) => stage.status !== "done");
+  if (next >= 0 && stages[next].status === "planned") stages[next] = { ...stages[next], status: "ready" };
+  return { mode, stages };
+}
+
+function toStage(stored: ApiStage): Stage {
+  const info = stepInfo(stored.step);
+  // Stopped stages aren't in a pipeline; if one shows up anyway, it can run again like a failed one.
+  const status: StageStatus = stored.status === "stopped" ? "failed" : stored.status;
+  const seconds =
+    info.kind !== "ingest" && stored.startedAt && stored.finishedAt
+      ? (Date.parse(stored.finishedAt) - Date.parse(stored.startedAt)) / 1000
+      : undefined;
+  return {
+    id: stored.id,
+    step: stored.stepVersion === null ? stored.step : `${stored.step}@${stored.stepVersion}`,
+    title: info.title,
+    kind: info.kind,
+    status,
+    seconds,
+    note: stored.note ?? undefined,
+    error: stored.error ?? undefined,
+    progress: 0,
+    artifacts: info.artifacts(stored),
+    config: Object.fromEntries(
+      Object.entries(stored.config ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : JSON.stringify(value)]),
+    ),
+    fixes: info.fixes,
+    droppable: info.kind === "manual" || info.optional,
+  };
+}
+
+export function hasArtifacts(stage: Stage): boolean {
   return stage.status === "done" || stage.status === "wip";
 }
 
@@ -67,17 +106,17 @@ export function canRun(pipeline: Pipeline): boolean {
   return current !== null && (current.status === "ready" || current.status === "failed");
 }
 
-// What the artifact view shows when the user hasn't picked anything: the latest stage's main output.
-export function defaultOutputId(pipeline: Pipeline): string | null {
-  const stage = pipeline.stages.filter(hasOutputs).at(-1);
-  return stage?.outputs[0]?.id ?? null;
+// What the artifact view shows when the user hasn't picked anything: the latest stage's main artifact.
+export function defaultArtifactId(pipeline: Pipeline): string | null {
+  const stage = pipeline.stages.filter(hasArtifacts).at(-1);
+  return stage?.artifacts[0]?.id ?? null;
 }
 
-export function findOutput(pipeline: Pipeline, outputId: string): { stage: Stage; output: Output } | null {
+export function findArtifact(pipeline: Pipeline, artifactId: string): { stage: Stage; artifact: Artifact } | null {
   for (const stage of pipeline.stages) {
-    if (!hasOutputs(stage)) continue;
-    const output = stage.outputs.find((o) => o.id === outputId);
-    if (output) return { stage, output };
+    if (!hasArtifacts(stage)) continue;
+    const artifact = stage.artifacts.find((a) => a.id === artifactId);
+    if (artifact) return { stage, artifact };
   }
   return null;
 }
