@@ -265,7 +265,7 @@ Each step declares:
 - A **config schema** (Zod), which is also the source of its UI controls.
 - **Input** and **output types**.
 - **Granularity:** per document, per page, or per system. Steps can fan out, e.g. one page becomes many systems.
-- Its **kind:** `computed` (code), `llm` or `manual`, and nothing else (decided). `ingest` is computed.
+- Its **kind:** `ingest`, `computed` (code), `llm` or `manual`, and nothing else (decided). `ingest` is the kind of the first stage only: it doesn't run (the PDF is given when the project is created), so the UI treats it apart (no run, progress or retry; it is done from the start), and its output is stored like LLM and manual outputs (§5.3).
 - Its **runtime:** browser (Web Worker) or Worker proxy (LLM calls).
 
 While it runs, a stage **reports its own progress** as a fraction from 0 to 1, which the UI shows (§5.6):
@@ -283,7 +283,7 @@ Every stage output has:
 - `step id@version`
 - a canonical config hash (JSON with sorted keys)
 - the IDs of the outputs it was made from
-- its `origin`: the kind of the stage that produced it (`computed` | `llm` | `manual`)
+- its `origin`: the kind of the stage that produced it (`ingest` | `computed` | `llm` | `manual`)
 - a fingerprint (for images, see §8.3)
 - a timestamp
 
@@ -301,7 +301,7 @@ Every output has a row in D1, which belongs to the stage that produced it and sa
 ### 5.3 Persisted vs. regenerable (important)
 
 - **Computed** outputs (page images, straightened pages, crops) store only their **recipe plus fingerprint**. Images live in OPFS and can be regenerated. Small text outputs may be stored anyway for convenience.
-- **LLM** and **manual** outputs **must be persisted**, and so must the original PDF (`ingest`). They cannot be regenerated: re-running an LLM call gives a different answer and costs money.
+- **Ingest**, **LLM** and **manual** outputs **must be persisted**: everything that isn't computed. They cannot be regenerated: re-running an LLM call gives a different answer and costs money.
 - Rule: *anything you would hate to lose must never exist only as a cached image.*
 - **Regeneration is lazy, per device** (decided): a device computes a computed output only when something needs it, never the whole chain up front. Example: seven stages run on a laptop, and on the bus the user adds an eighth, manual stage on a phone. The phone has none of the laptop's images, but the eighth stage's inputs are there (stored outputs fetched from R2, or images regenerated from their recipes because the stage needs them), so the user simply continues. If the user then opens an earlier stage's images to inspect them, they are regenerated from their recipes then, and cached on the phone (§8.6).
 
@@ -366,7 +366,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 - **A small head stays in view,** and only what is below it scrolls: the project's name (one line, shortened in the middle) with its "⋮" and the collapse chevron, then the **run mode** (a small drop-down showing "Auto" or "Manual", §5.1, which takes less room than a switch), the pipeline's progress bar and, in Auto mode only, **Run** (green) or **Stop** (red) while a stage runs. Below the head, scrolling away: when the project was created and changed.
 - **The stages are stacked,** first at the top, as cards (rectangles). The original PDF is the artifact of the first stage, **Ingest**, so every card is a stage and every tile in it an artifact. There are no arrows between the cards: a stage's inputs are often not just the previous stage's outputs, and arrows would suggest they were.
 - **A card shows:**
-  - an icon for its kind (computed, LLM, manual), its name and a "⋮";
+  - an icon for its kind (ingest, computed, LLM, manual), its name and a "⋮";
   - one line of facts: the model; once done, also the run time, the cost and a short result ("54 systems", "3 boxes moved, 1 added");
   - while running, its progress bar; when failed, the error;
   - its button, if it has one (below);
@@ -417,7 +417,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
 
 | # | Id | Stage | Kind | Artifacts |
 |---|---|---|---|---|
-| 1 | `ingest` | Ingest | computed | The PDF (R2) |
+| 1 | `ingest` | Ingest | ingest | The PDF (R2) |
 | 2 | `rasterize` | Rasterize | computed | All page images, as one artifact. Not stored: reproduced from the config (§5.3) |
 | 3 | `skew_analysis` | Skew analysis | computed | JSON: per page, the skew angle, the staves found, and whether the page is to be rotated (§8.4). No rotated images |
 | 4 | `fix_skew` | Fix skew angles **[manual]**, after `skew_analysis` | manual | JSON as in `skew_analysis` |
