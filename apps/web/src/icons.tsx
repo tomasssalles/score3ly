@@ -60,11 +60,11 @@ export function MoreIcon() {
   );
 }
 
-// The kinds of stage: the given PDF (ingest), computed by code, by an LLM, or by hand.
+// The kinds of stage: the PDF uploaded to the app (ingest), computed by code, by an LLM, or by hand.
 export function IngestIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3v11M7.5 9.5 12 14l4.5-4.5" />
+      <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" />
       <path d="M4 15v5h16v-5" />
     </svg>
   );
