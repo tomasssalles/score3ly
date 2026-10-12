@@ -118,7 +118,7 @@ export function PipelinePanel({
         Created {shortDate(project.createdAt)} · changed {ago(project.lastModifiedAt)}
       </p>
 
-      {error && <p className="stage-error">{error}</p>}
+      {error && <p className="panel-error">{error}</p>}
       <ol className="stage-list" ref={list}>
         {pipeline.stages.map((stage) => (
           <StageCard

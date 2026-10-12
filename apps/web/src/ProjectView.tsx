@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { fetchPipeline, setRunMode, type Project } from "./api";
+import { useEffect, useRef, useState } from "react";
+import { fetchPipeline, setRunMode, setStageConfig, stopStage, type ApiPipeline, type Project } from "./api";
 import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ExpandIcon } from "./icons";
@@ -10,11 +10,17 @@ import {
   findStage,
   progressOf,
   toPipeline,
+  type LocalRun,
   type Pipeline,
   type RunMode,
+  type Stage,
 } from "./pipeline";
 import { PipelinePanel, type PanelActions } from "./PipelinePanel";
 import { ProgressRing } from "./ProgressRing";
+import { configOf, type RasterizeConfig } from "./rasterize";
+import { RasterizeConfigDialog } from "./RasterizeConfigDialog";
+import { RUNNERS } from "./runners";
+import { CannotStart } from "./stageRunner";
 import { StageDetails } from "./StageDetails";
 import { useWide } from "./useWide";
 
@@ -53,9 +59,17 @@ export function ProjectView({
   const [collapsed, setCollapsed] = useState(() => readFlag(COLLAPSED_KEY));
   const [mode, setMode] = useState<RunMode>(project.runMode);
   // null while loading.
-  const [stored, setStored] = useState<Awaited<ReturnType<typeof fetchPipeline>> | null>(null);
+  const [stored, setStored] = useState<ApiPipeline | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const pipeline: Pipeline = stored ? toPipeline(mode, stored) : { mode, stages: [] };
+  // The stage this device is running, and how to stop it.
+  const [local, setLocal] = useState<LocalRun | null>(null);
+  const controller = useRef<AbortController | null>(null);
+  // The latest run mode, for a run that is already going when it changes.
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  // The stage whose config is being edited.
+  const [configuring, setConfiguring] = useState<Stage | null>(null);
+  const pipeline: Pipeline = stored ? toPipeline(mode, stored, local) : { mode, stages: [] };
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   // The panel scrolls to the current stage on opening the project, when an Auto run starts, and whenever
   // another stage becomes the current one (in both modes).
@@ -66,6 +80,9 @@ export function ProjectView({
 
   useEffect(() => {
     fetchPipeline(project).then(setStored, (err) => setError(`Loading the pipeline failed: ${err}`));
+    // Leaving the project stops nothing on the server: a stage this device ran counts as interrupted once its
+    // heartbeat is old, and can run again (DESIGN.md §5.8).
+    return () => controller.current?.abort();
   }, [project.id]);
 
   useEffect(() => {
@@ -108,21 +125,95 @@ export function ProjectView({
     });
   }
 
-  // Whether a change at this stage replaces stages after it that have already run.
+  // Whether a change at this stage replaces stages that have already run: the stage itself, or one after it.
   function replacesWork(stageId: string): boolean {
     const i = pipeline.stages.findIndex((stage) => stage.id === stageId);
-    return pipeline.stages.slice(i + 1).some((stage) => stage.status !== "planned" && stage.status !== "ready");
+    return pipeline.stages.slice(i).some((stage) => stage.status !== "planned" && stage.status !== "ready");
   }
 
-  // Running and changing stages isn't built yet: no stage can run, and Ingest offers none of these.
+  // Runs the stage whose turn it is, and in Auto mode the ones after it, until one fails, the user stops, or a
+  // stage that can't run yet comes up.
+  async function run(latest: ApiPipeline) {
+    const current = currentStage(toPipeline(modeRef.current, latest));
+    if (!current || (current.status !== "ready" && current.status !== "failed")) return;
+    const stage = latest.stages.find((s) => s.id === current.id)!;
+    const runner = RUNNERS[stage.step];
+    if (!runner) {
+      setError(`"${current.title}" can't run yet: it isn't built.`);
+      return;
+    }
+    setError(null);
+    const abort = new AbortController();
+    controller.current = abort;
+    setLocal({ stageId: stage.id, progress: 0 });
+    scroll();
+    try {
+      await runner({
+        project,
+        stage,
+        pipeline: latest,
+        signal: abort.signal,
+        progress: (fraction) => setLocal((l) => l && { ...l, progress: fraction }),
+      });
+    } catch (err) {
+      if (!abort.signal.aborted) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(err instanceof CannotStart ? `"${current.title}" can't run: ${message}` : message);
+      }
+    } finally {
+      setLocal(null);
+      controller.current = null;
+    }
+    if (abort.signal.aborted) return;
+    let next: ApiPipeline;
+    try {
+      next = await fetchPipeline(project);
+    } catch (err) {
+      setError(`Loading the pipeline failed: ${err}`);
+      return;
+    }
+    setStored(next);
+    onChanged();
+    const position = latest.stages.indexOf(stage);
+    const finished = next.stages[position]?.status === "done";
+    if (finished && modeRef.current === "auto") await run(next);
+  }
+
+  async function stop() {
+    const running = pipeline.stages.find((s) => s.status === "running");
+    if (!running) return;
+    controller.current?.abort();
+    try {
+      setStored(await stopStage(project, running.id));
+      onChanged();
+    } catch (err) {
+      setError(`Stopping the stage failed: ${err}`);
+    }
+  }
+
+  async function saveConfig(stage: Stage, config: unknown) {
+    try {
+      setStored(await setStageConfig(project, stage.id, config));
+      onChanged();
+      scroll();
+    } catch (err) {
+      setError(`Changing the config failed: ${err}`);
+    }
+  }
+
+  // Changing, adding and dropping manual stages isn't built yet: no step offers them so far.
   const notBuilt = () => {};
   const actions: PanelActions = {
     selectArtifact: onSelectArtifact,
     showDetails: onShowStage,
-    run: notBuilt,
-    stop: notBuilt,
+    run: () => stored && run(stored),
+    stop,
     finish: notBuilt,
-    changeConfig: (id) => change(id, notBuilt, replacesWork(id)),
+    changeConfig: (id) => {
+      const stage = findStage(pipeline, id);
+      if (stage?.stepId === "rasterize") setConfiguring(stage);
+      else setError(`"${stage?.title}" has no config to change yet.`);
+    },
     addFix: (id) => change(id, notBuilt, replacesWork(id)),
     edit: (id) => change(id, notBuilt, replacesWork(id)),
     // Always asks: the stage's own work is lost, and perhaps the stages after it too.
@@ -149,6 +240,17 @@ export function ProjectView({
       }
     },
   };
+
+  const configDialog = configuring && (
+    <RasterizeConfigDialog
+      config={configOf(stored?.stages.find((s) => s.id === configuring.id)?.config ?? null)}
+      onSave={(config: RasterizeConfig) => {
+        const stage = configuring;
+        change(stage.id, () => saveConfig(stage, config), replacesWork(stage.id));
+      }}
+      onCancel={() => setConfiguring(null)}
+    />
+  );
 
   const dialog = confirmation && (
     <ConfirmDialog
@@ -197,6 +299,7 @@ export function ProjectView({
           )
         )}
         {dialog}
+        {configDialog}
       </div>
     );
   }
@@ -242,6 +345,7 @@ export function ProjectView({
         )
       )}
       {dialog}
+      {configDialog}
     </div>
   );
 }

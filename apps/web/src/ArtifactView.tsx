@@ -1,7 +1,9 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Project } from "./api";
 import { CloseIcon } from "./icons";
+import { pageImage } from "./pageImages";
 import type { Artifact } from "./pipeline";
+import type { PageRecipe } from "./rasterize";
 import { pdfUrl } from "./pdf";
 import { PdfView } from "./PdfView";
 
@@ -28,9 +30,26 @@ export function ArtifactView({
   );
 }
 
-// An artifact: the original PDF, or, for the kinds no stage produces yet, a note saying it can't be shown.
+// An artifact: the original PDF, the page images, or, for the kinds no stage produces yet, a note saying it can't
+// be shown.
 export function ArtifactContent({ project, artifact }: { project: Project; artifact: Artifact }) {
   if (artifact.kind === "pdf") return <PdfView key={project.pdfSha256} url={pdfUrl(project.pdfSha256)} />;
+  const pages = artifact.pages;
+  if (artifact.kind === "images" && pages) {
+    return (
+      <Filmstrip
+        key={artifact.id}
+        count={pages.length}
+        wide={false}
+        render={(i) => (
+          <figure className="film-item">
+            <figcaption>Page {pages[i].page}</figcaption>
+            <PageImageView recipe={pages[i].recipe} />
+          </figure>
+        )}
+      />
+    );
+  }
   return (
     <div className="text-view">
       <p>This artifact can't be shown yet.</p>
@@ -38,7 +57,53 @@ export function ArtifactContent({ project, artifact }: { project: Project; artif
   );
 }
 
-// For groups (no stage produces one yet, DESIGN.md §5.6).
+// A page image, from the device's cache or drawn again from its recipe (DESIGN.md §5.3), once it scrolls near the
+// view: a filmstrip of large scans would otherwise draw every page at once.
+function PageImageView({ recipe }: { recipe: PageRecipe }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setNear(true), {
+      rootMargin: "100% 0px",
+    });
+    observer.observe(box.current!);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!near) return;
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    pageImage(recipe).then(
+      ({ png }) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(png);
+        setUrl(objectUrl);
+      },
+      (err) => !cancelled && setError(`This page can't be drawn: ${err instanceof Error ? err.message : err}`),
+    );
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+    // The recipe's content, not the object, which is new on every render.
+  }, [near, JSON.stringify(recipe)]);
+
+  return (
+    <div ref={box} className="page-image">
+      {url ? (
+        <img src={url} alt={`Page ${recipe.page}`} />
+      ) : (
+        <div className="page-placeholder">{error ?? "Drawing the page…"}</div>
+      )}
+    </div>
+  );
+}
+
+// For groups of items.
 // The items of a group one below the other, scrolling continuously, so the end of one item and the start of the
 // next can be seen together. A counter in the corner says which item is in view.
 export function Filmstrip({ count, wide, render }: { count: number; wide: boolean; render: (i: number) => ReactNode }) {

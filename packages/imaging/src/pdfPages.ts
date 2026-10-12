@@ -8,15 +8,24 @@ import type { Rgb, RgbaImage } from "./image.ts";
 
 export type PdfDocument = pdfjs.PDFDocumentProxy;
 
-// Opens a PDF for page images. `assets` are the folders (or URLs) pdf.js needs to draw vector pages: fonts,
-// character maps, ... (apps/web/pdfjsAssets.ts provides them in the browser).
-export async function openPdf(
-  data: Uint8Array,
-  assets: { standardFontDataUrl?: string; cMapUrl?: string; wasmUrl?: string; iccUrl?: string } = {},
-): Promise<PdfDocument> {
+// Opens a PDF for page images. `options` are the folders (or URLs) pdf.js needs to draw vector pages: fonts,
+// character maps, ... (apps/web/pdfjsAssets.ts provides them in the browser), and in a Web Worker, which has no
+// DOM, what pdf.js would otherwise take from it (apps/web/src/pageImageWorker.ts).
+export type PdfOptions = {
+  standardFontDataUrl?: string;
+  cMapUrl?: string;
+  wasmUrl?: string;
+  iccUrl?: string;
+  useWorkerFetch?: boolean;
+  disableFontFace?: boolean;
+  CanvasFactory?: unknown;
+  FilterFactory?: unknown;
+};
+
+export async function openPdf(data: Uint8Array, assets: PdfOptions = {}): Promise<PdfDocument> {
   return pdfjs.getDocument({
     data,
-    ...assets,
+    ...(assets as Record<string, unknown>),
     // pdf.js's own decoders, not the browser's: JPEG decoders differ between browsers (DESIGN.md §3).
     isImageDecoderSupported: false,
     // Images as pixel arrays, not as bitmaps the browser holds (which can't be read back exactly).

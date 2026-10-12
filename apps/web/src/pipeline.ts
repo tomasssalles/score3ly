@@ -2,6 +2,7 @@
 // Built from what the Worker stores (api.ts) and what the code declares about each step (steps.ts).
 
 import type { ApiPipeline, ApiStage, RunMode } from "./api";
+import type { PageRecipe } from "./rasterize.ts";
 import { stepInfo } from "./steps.ts";
 
 export type { RunMode } from "./api";
@@ -26,6 +27,7 @@ export type Artifact = {
   kind: ArtifactKind;
   count: number; // 1 for a single item
   item?: "Page" | "System"; // what each item of a group is
+  pages?: { page: number; recipe: PageRecipe }[]; // page images: what each one is made from
 };
 
 export type Stage = {
@@ -52,10 +54,25 @@ export type Pipeline = { mode: RunMode; stages: Stage[] };
 // Fractions from 0 to 1. `stage` is null while no stage is running.
 export type Progress = { stage: number | null; pipeline: number };
 
+// A running stage whose heartbeat is older than this was interrupted (the app was closed): it can run again
+// (DESIGN.md §5.8). The same limit as the Worker's.
+export const STALE_MS = 3 * 60 * 1000;
+
+// The stage this device is running, and how far it is: only the device that runs a stage knows (§5.1).
+export type LocalRun = { stageId: string; progress: number };
+
 // The pipeline as the Worker stores it, made ready to show. The first planned stage after the finished ones is
-// the one whose turn it is: "ready".
-export function toPipeline(mode: RunMode, stored: ApiPipeline): Pipeline {
-  const stages = stored.stages.map(toStage);
+// the one whose turn it is: "ready". A stage running elsewhere shows no progress; one whose heartbeat stopped
+// counts as failed, and can run again.
+export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null, now = Date.now()): Pipeline {
+  const stages = stored.stages.map((s) => {
+    const stage = toStage(s);
+    if (local?.stageId === s.id) return { ...stage, status: "running" as const, progress: local.progress };
+    if (s.status === "running" && (s.heartbeatAt === null || now - Date.parse(s.heartbeatAt) > STALE_MS)) {
+      return { ...stage, status: "failed" as const, error: "Interrupted: the app was closed while this stage ran." };
+    }
+    return stage;
+  });
   const next = stages.findIndex((stage) => stage.status !== "done");
   if (next >= 0 && stages[next].status === "planned") stages[next] = { ...stages[next], status: "ready" };
   return { mode, stages };

@@ -6,6 +6,7 @@ import { STEPS } from "./steps.ts";
 // never edit an entry.
 const KINDS: Record<string, string> = {
   ingest: "ingest",
+  rasterize: "computed",
 };
 
 test("no step's kind ever changes", () => {

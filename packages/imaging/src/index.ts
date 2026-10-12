@@ -4,3 +4,4 @@ export * from "./rotate.ts";
 export * from "./skew.ts";
 export * from "./crop.ts";
 export * from "./regions.ts";
+export * from "./png.ts";
