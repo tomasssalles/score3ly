@@ -7,7 +7,7 @@
 A web app that converts PDFs of music scores into a formal, text-based encoding of the music: **MEI** (§6, "MEI").
 
 - **Input:** a PDF, usually a scan of an old score, sometimes a digitally typeset (vector) PDF.
-- **Output:** an MEI file, with an engraved rendering for side-by-side comparison with the original. Inside the pipeline, the models read and write a compact subset of LilyPond instead (§6, "The lens").
+- **Output:** an MEI file (the **export format**), with an engraved rendering for side-by-side comparison with the original. Inside the pipeline, the models read and write a compact subset of LilyPond instead (the **internal format**, §6, "The lens").
 - **Focus:** the **pipeline**, not just the end result.
   - Every step is configurable.
   - Every intermediate input and output can be inspected.
@@ -64,7 +64,7 @@ v1 was Python-only, local-only and command-line-only.
 - **Cheap:** runs on free tiers. Paid LLM calls are the only expected running cost.
 - **Transparent:** open source, simple deployment, documented strategy (this file).
 - **Runnable from anywhere:** start on the desktop, continue on the phone. Every pipeline stage should work on both.
-- **Reproducible and testable:** every artifact can be traced back to its inputs, code version, prompt version, model and configuration. Non-deterministic parts (LLM calls, human input) are recorded so they can be replayed (§12).
+- **Reproducible and testable:** every stage output (§5.2) can be traced back to its inputs, code version, prompt version, model and configuration. Non-deterministic parts (LLM calls, human input) are recorded so they can be replayed (§12).
 
 ### Non-goals (for now)
 - Multiple users, sharing, collaboration. Each person deploys their own instance to their own Cloudflare account, or runs the desktop version (§3, planned), with their own secrets, so the app has no user accounts and none are planned.
@@ -86,7 +86,7 @@ flowchart LR
   subgraph CF["Cloudflare (EU jurisdiction)"]
     W["Worker (Hono):<br/>API, auth boundary, LLM proxy"]
     D1[("D1 (SQLite):<br/>projects, configs, stages,<br/>provenance, LLM call records")]
-    R2[("R2:<br/>original PDFs and artifact<br/>content, by SHA-256")]
+    R2[("R2:<br/>original PDFs and stage<br/>outputs, by SHA-256")]
     W <--> D1
     W <--> R2
   end
@@ -104,8 +104,8 @@ flowchart LR
 | Data | Location | Why |
 |---|---|---|
 | Original PDFs | R2, key = SHA-256 of the file bytes | Source of truth. About 0.66 GB for 200 PDFs, well within R2's 10 GB free tier. Identifying PDFs by content makes deduplication and "resume an existing project?" trivial. |
-| Projects, step configs, stages, one row per artifact, provenance, fingerprints | D1 | Small, structured, relational. SQLite is easy to inspect and migrate. |
-| The content of stored artifacts (analysis JSON, extractions in the lens, issues, MEI files, human operations) | R2, key = SHA-256 of the content | Small, must never be lost, often not reproducible. One storage mechanism and one rule for everything stored (see below), plain files in the desktop version (§3), and far more room than D1 has. Content can't be queried there, so whatever the app filters or sums on (costs, counts, types of findings) is also a column in D1. |
+| Projects, step configs, stages, one row per stage output (§5.2), provenance, fingerprints | D1 | Small, structured, relational. SQLite is easy to inspect and migrate. |
+| The content of stored stage outputs (analysis JSON, extractions in the internal format, issues, MEI files, human operations) | R2, key = SHA-256 of the content | Small, must never be lost, often not reproducible. One storage mechanism and one rule for everything stored (see below), plain files in the desktop version (§3), and far more room than D1 has. Content can't be queried there, so whatever the app filters or sums on (costs, counts, types of findings) is also a column in D1. |
 | LLM call records (full request + response) | D1 (large payloads in R2) | Needed for provenance, cost tracking and replay tests (§12). |
 | Derived images (page images, preprocessed pages, system crops) | OPFS on the current device | Large (roughly 150–300 MB per PDF in colour, a third of that in grayscale) but regenerable from the PDF plus the recipe. Device-local means real deletion, no cloud quota, and no data residency issue. |
 | Final exports (the MEI file, optionally its engraved PDF) | Download, or an app-created folder in Google Drive | The user's own file space. Browsable anywhere. |
@@ -142,7 +142,7 @@ flowchart LR
 
 ```
 packages/
-  core/      Pipeline engine, artifact model, step definitions, config schemas.
+  core/      Pipeline engine, stage outputs and artifacts, step definitions, config schemas.
              Pure TypeScript, no DOM and no Cloudflare APIs.
   imaging/   Page images from PDFs, deterministic image operations, fingerprints. Pure TS/WASM.
              (Exists: page images, skew detection, rotation. The other packages don't exist yet.)
@@ -165,8 +165,8 @@ The core depends only on interfaces. Adapters live in `apps/*`.
 | Port | Adapters |
 |---|---|
 | `PdfSource` | Local file input, Google Drive (Picker) |
-| `BlobStore` (original PDFs, artifact content) | R2 via the Worker. A folder of files (desktop version). In-memory for tests. |
-| `ProjectStore` (projects, stages, artifact rows, provenance) | D1 via the Worker. A SQLite file (desktop version). SQLite or in-memory for tests. |
+| `BlobStore` (original PDFs, stage outputs) | R2 via the Worker. A folder of files (desktop version). In-memory for tests. |
+| `ProjectStore` (projects, stages, output rows, provenance) | D1 via the Worker. A SQLite file (desktop version). SQLite or in-memory for tests. |
 | `DerivativeCache` (regenerable images) | OPFS. In-memory for tests. |
 | `LlmProvider` | One adapter per provider (via the Worker). **Replay** adapter for tests. |
 | `Renderer` | Verovio in the browser. See §9. |
@@ -220,7 +220,7 @@ The project owner uses the web app. The desktop version mainly makes the app eas
   - The user can rename a project at any time ("Rename" in the project actions, §5.6). Renaming to a name that is taken is refused with a message, not numbered: numbering only applies to the default. Changing only the case of the project's own name is allowed.
   - Deleting a project frees its name.
 - **Deleting a project** (planned) keeps a trace in D1 but removes everything else:
-  - **Deleted:** the project's artifacts and its PDF, in D1, R2 and the device cache, unless another project that isn't deleted still uses them. That is checked with a query at deletion time, not with stored reference counts, which can drift.
+  - **Deleted:** the project's stage outputs and its PDF, in D1, R2 and the device cache, unless another project that isn't deleted still uses them. That is checked with a query at deletion time, not with stored reference counts, which can drift.
   - **Orphans in R2 are collected then too:** objects that no row in D1 refers to any more, from any project. They are left behind when a manual stage in progress is saved again (the new content is a new object, §2) or when an upload isn't followed by its row in D1. Nothing else deletes them: a save doesn't delete the object it replaces. This lists the whole bucket and compares it with D1, which is acceptable because deleting a project is rare.
   - **Kept:** the project's row, marked with a deletion time (`deleted_at`), and its entries in the cost ledger (§10).
   - A deleted project never appears in the UI again, except in the costs view. Picking its PDF again doesn't trigger the "already based on this file" dialog, unless other projects use that PDF.
@@ -261,9 +261,9 @@ The mode for new projects is a settings item. After installation it is "Auto".
 The browser drives the pipeline, so in either mode a run only advances while the app is open (§15, §16).
 
 Each step declares:
-- `id` and `version`, e.g. `transcribe_system@3` (see §11).
+- `id` and `version`, e.g. `extract@3` (see §11).
 - A **config schema** (Zod), which is also the source of its UI controls.
-- **Input** and **output artifact types**.
+- **Input** and **output types**.
 - **Granularity:** per document, per page, or per system. Steps can fan out, e.g. one page becomes many systems.
 - Its **kind:** `deterministic` (code), `llm`, or `human`.
 - Its **runtime:** browser (Web Worker) or Worker proxy (LLM calls).
@@ -272,30 +272,36 @@ While it runs, a stage **reports its own progress** as a fraction from 0 to 1, w
 - Only the code that performs the stage knows how far it is. It is handed a function to call whenever it has got further (e.g. after each system), and doesn't know about the bar or the circle that show the value. A stage running in a Web Worker can't call into the page, so there the function passes the value on as a message.
 - **A single LLM call has nothing to report while it waits,** so its share of the bar fills with the time elapsed out of the call's timeout, and jumps to full when the answer arrives. If the timeout is reached, the call has failed. For a stage that is one call, the share is the whole bar; for a stage with a call per system, each call fills its own slice.
 
-### 5.2 Artifacts and provenance
+### 5.2 Outputs, artifacts and provenance
 
-Every step output is an artifact with:
+**Terminology** (decided):
+- **Stage outputs** are internal: many and fine-grained, e.g. one per page, per system or per LLM request. They carry provenance and cache keys, have a row each in D1, and are what is stored or regenerated. They are saved as soon as each is done, so an interrupted stage resumes where it stopped, and a failed item (one system) can be retried alone.
+- **Stage artifacts** are what the user sees: few per stage, mostly for the whole score (the pages, the layout, the score so far, the MEI file, the issues), shown as tiles and in the artifact view (§5.6). A stage doesn't show 107 tiles for 107 systems. An artifact is built from the stage's outputs, as a view; some are stored as well for convenience (the MEI file for download), but an artifact never holds anything that isn't in, or computable from, the outputs. So provenance and caching live in one place, the outputs.
+- **The export format** is what the user gets: MEI (§6, "MEI"). **The internal format** is what the pipeline works with: the lens (§6, "The lens"). There is no single storage format: the outputs may hold either or both, as the stages need; that is settled when they are built.
+
+Every stage output has:
 - `step id@version`
 - a canonical config hash (JSON with sorted keys)
-- the IDs of its input artifacts
+- the IDs of the outputs it was made from
 - its `origin` (`computed` | `llm` | `manual` | `imported`)
 - a fingerprint (for images, see §8.3)
 - a timestamp
 
-LLM artifacts additionally reference their **call record**: prompt template version, filled-in context, image hashes, exact model ID, parameters, full response, token usage and cost.
+LLM outputs additionally reference their **call record**: prompt template version, filled-in context, image hashes, exact model ID, parameters, full response, token usage and cost.
 
-A **cache key** = hash(step id, version, canonical config, input artifact IDs).
-- Re-running a step with identical inputs and config hits the cache.
-- Artifacts of later stages may already exist when an earlier stage is run again with the same inputs and config. They are found through the cache key and reused.
+**The cache has two levels** (decided):
+- **Stage level:** the key is hash(step id, version, canonical config, the IDs of the stage's inputs). If it matches, the stage is skipped and its outputs reused. Outputs of later stages may already exist when an earlier stage is run again with the same inputs and config: they are found through the key and reused.
+- **Item level, when the stage's key doesn't match:** the stage runs, but each item checks its own key first: for an LLM request, the exact request (§7.2: an identical request is served from its record); for an image, its recipe (§8.6). Cheap code just runs again. Requests contain only what they really use (§5.5), so fixing one page's boxes changes only the requests that depend on that page; a request that contains the whole score (`review`) changes with any change upstream, as it should.
+- **An explicit retry of an item bypasses the cache** for it: serving the same recorded answer again would defeat the purpose. Errors (no answer, a timeout) are never cached anyway; answers that were paid for are.
 
-Every artifact has a row in D1, which belongs to the stage that produced it and says whether the artifact's content is stored (in R2, under its hash, §2) or only its recipe (§5.3).
+Every output has a row in D1, which belongs to the stage that produced it and says whether its content is stored (in R2, under its hash, §2) or only its recipe (§5.3).
 
 **Checking that stages are still valid:** a pipeline checks its stages against the hashes of their inputs and outputs. Stored content can change outside the app (e.g. files in the desktop version's data folder edited by hand), and a stage whose recorded inputs or outputs no longer match what is stored is not valid any more. How and when this is checked, and what the app does then, is still to be designed (§15).
 
 ### 5.3 Persisted vs. regenerable (important)
 
-- **Deterministic** artifacts (page images, preprocessing, crops, assembly) store only their **recipe plus fingerprint**. Images live in OPFS and can be regenerated. Small text outputs may be stored anyway for convenience.
-- **LLM** and **human** artifacts **must be persisted**. They cannot be regenerated: re-running an LLM call gives a different answer and costs money.
+- **Deterministic** outputs (page images, straightened pages, crops) store only their **recipe plus fingerprint**. Images live in OPFS and can be regenerated. Small text outputs may be stored anyway for convenience.
+- **LLM** and **human** outputs **must be persisted**. They cannot be regenerated: re-running an LLM call gives a different answer and costs money.
 - Rule: *anything you would hate to lose must never exist only as a cached image.*
 
 ### 5.4 Manual stages
@@ -310,9 +316,9 @@ The user intervenes by adding a manual stage to the pipeline. The manual stages 
 
 Rules:
 - **One manual stage covers the whole PDF,** however many items are fixed in it. Fixing the boxes on twelve pages is one `fix_layout` stage, not twelve. Otherwise the pipeline shown in the UI would get too long.
-- The artifacts of a manual stage have `origin = manual` and the corrected artifact as their parent.
+- The outputs of a manual stage have `origin = manual` and the corrected output as their parent.
 - Edits to images are stored as **replayable operations**, not as edited pixels: skew angles, boxes, bar line positions. Replaying them on the regenerated base image reproduces the edited result.
-- Text artifacts (analysis JSON, transcribed music) are stored edited, with a diff to their parent.
+- Text outputs (analysis JSON, extracted music) are stored edited, with a diff to their parent.
 - **Undo exists only inside a tool for manual work** (the tools aren't built yet), while it is open. Leaving the tool saves, and after that nothing can be undone: the stage can only be edited further or dropped (§5.5).
 - **A finished stage never changes.** Editing a finished manual stage creates a new manual stage, which starts from the finished state of the old one and takes its place in the pipeline. The old one becomes a replaced stage (§5.5) and stays in storage as it was. The reason is forking (§16): another project's pipeline can use the same stored stage, and it must not change there.
 
@@ -321,7 +327,7 @@ Rules:
 - Changing something in the middle (e.g. the config of stage N, or a manual stage added there) means running everything after that point again. The later stages are replaced: they leave the pipeline and are no longer shown.
 - To keep the old results and try something else, the project is forked (planned, §16), not branched.
 - **Any stage that isn't part of the recipe can be dropped:** manual stages, and extra stages the user added, such as a further review. Dropping is a change in the middle like any other: after a confirmation, the pipeline continues from the stage before the dropped one, with the same rules (run mode, reuse where the inputs match). Planned stages can't be dropped.
-- Execution is lazy and per item: only the pages and systems being looked at, or needed downstream, are computed.
+- **Execution is per item** (a page, a system), with each item's outputs saved as soon as it is done (§5.2).
 
 #### What a re-run follows
 A re-run follows **the pipeline as it was, not the standard recipe** of planned stages, for as long as the outcomes stay the same. This is the intended behaviour, not yet a technical definition; the details are worked out when we get there.
@@ -331,7 +337,7 @@ A re-run follows **the pipeline as it was, not the standard recipe** of planned 
 - **Proposed** (§15)**:** after a re-run, the app reports which manual fixes were carried over and which were dropped. Which ones are dropped depends on the outcome of the run, so it can't be said beforehand, and a dropped fix would otherwise go unnoticed.
 
 #### Replaced stages
-- **Replaced stages are kept in storage,** with their artifacts and full LLM call records (requests and responses). They are reused whenever possible: a stage that runs again with the same inputs and config, or an identical LLM request (§7.2), is served from what is stored and costs nothing.
+- **Replaced stages are kept in storage,** with their outputs and full LLM call records (requests and responses). They are reused whenever possible: a stage that runs again with the same inputs and config, or an identical LLM request (§7.2), is served from what is stored and costs nothing.
 - **They stay connected to their project in D1,** although the pipeline no longer shows them, so that deleting the project (§4) finds and deletes them too. Until then, a project's storage only grows.
 
 #### Confirmation before a re-run
@@ -344,26 +350,26 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 - **The pipeline is the main attraction; the artifact view is secondary.** The usual use is: new project, let it run, take the final MEI and leave. So the pipeline gets the comfortable place on every screen, and inspecting artifacts is what gets less comfortable on small screens.
 - **Two layout modes, nothing in between:** wide (from 1024 px, the same breakpoint as the header) and narrow. Resizing a window switches between them on the fly.
   - **Wide:** the **pipeline panel** on the left (project, run controls, the stages), the **artifact view** on the right, much larger. The panel collapses into a narrow strip that shows only an expand button (a chevron, like the one that collapses the panel) and the progress circles below it, "Pipeline" above "Stage", each labelled below and without numbers. "Stage" is only there while a stage runs. The chevron sits at exactly the same height as the one that collapses the expanded panel. The collapsed state is remembered per browser.
-  - **Narrow:** the pipeline panel is the only view. Picking an output (or a stage's details) opens it over the whole app, with a close button ("x") floating over its top right corner, white on translucent grey. The artifact is in the URL (`#/projects/<id>/artifacts/<artifact id>`), so the back button closes it too, and a reload keeps it open. A stage's details have a URL too (`#/projects/<id>/stages/<stage id>`). After closing, what was open stays selected in the panel, so the user sees what they last looked at (until the page is reloaded or another project is opened).
+  - **Narrow:** the pipeline panel is the only view. Picking an artifact (or a stage's details) opens it over the whole app, with a close button ("x") floating over its top right corner, white on translucent grey. The artifact is in the URL (`#/projects/<id>/artifacts/<artifact id>`), so the back button closes it too, and a reload keeps it open. A stage's details have a URL too (`#/projects/<id>/stages/<stage id>`). After closing, what was open stays selected in the panel, so the user sees what they last looked at (until the page is reloaded or another project is opened).
 - **The artifact view has no header of its own,** in either mode: it is the most valuable space on the screen. Which artifact is shown can be seen in the pipeline panel, where it is selected.
 - **Progress:** one indicator for the whole pipeline and one for the running stage, **never with numbers**. In the expanded panel, the pipeline's is a thin bar in the panel's head; the stage's is a bar in the running stage's card. The collapsed strip shows both as circles. The pipeline's total is a best guess (a second review round or a manual correction adds stages), and a change only moves the circle a little. A stage is a big chunk of work: doing something to every system is still one stage.
-- **Each stage declares its main output** (stages can have several). What the artifact view shows in wide mode, unless the user picked something:
+- **Each stage declares its main artifact** (stages can have several). What the artifact view shows in wide mode, unless the user picked something:
   - a new project: the original PDF;
   - when the pipeline finishes: the final MEI;
-  - when a project is opened: the latest stage's main output.
+  - when a project is opened: the latest stage's main artifact.
 
   Whether the view follows the pipeline while it runs is still to be decided (§15).
 - **Built so far:** the pipeline panel as described below, with **mock stages** (`apps/web/src/mockPipeline.ts`): made-up stages and outputs and a simulation of running them, kept in memory only, so a reload starts over. A dashed "Mock" box at the end of the panel can make the running stage fail and reset the mock. The mock is there to design the UI before the D1 schema for stages (§15); its types (`pipeline.ts`) are a first guess at the real data. Only the original PDF is real, shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Later: editing in the artifact view.
 
 #### The pipeline panel
 - **A small head stays in view,** and only what is below it scrolls: the project's name (one line, shortened in the middle) with its "⋮" and the collapse chevron, then the **run mode** (a small drop-down showing "Auto" or "Manual", §5.1, which takes less room than a switch), the pipeline's progress bar and, in Auto mode only, **Run** (green) or **Stop** (red) while a stage runs. Below the head, scrolling away: when the project was created and changed.
-- **The stages are stacked,** first at the top, as cards (rectangles). The original PDF is the output of the first stage, **Ingest**, so every card is a stage and every tile in it an output. There are no arrows between the cards: a stage's inputs are often not just the previous stage's outputs, and arrows would suggest they were.
+- **The stages are stacked,** first at the top, as cards (rectangles). The original PDF is the artifact of the first stage, **Ingest**, so every card is a stage and every tile in it an artifact. There are no arrows between the cards: a stage's inputs are often not just the previous stage's outputs, and arrows would suggest they were.
 - **A card shows:**
   - an icon for its kind (computed, LLM, manual), its name and a "⋮";
   - one line of facts: the model; once done, also the run time, the cost and a short result ("54 systems", "3 boxes moved, 1 added");
   - while running, its progress bar; when failed, the error;
   - its button, if it has one (below);
-  - at the bottom, its **outputs as tiles,** three per row, each with an **icon for its kind of artifact, never a thumbnail:** at a tile's size no content is recognizable, so a thumbnail adds nothing. (Not built yet: the tiles still show thumbnails for images and for the original PDF, §15.) Outputs are **grouped logically:** all 54 system crops are one tile with "×54", not 54 tiles. The first output is the stage's main one. Tiles are what gets selected (highlighted in coral), not the card.
+  - at the bottom, its **artifacts as tiles,** three per row, each with an **icon for its kind of artifact, never a thumbnail:** at a tile's size no content is recognizable, so a thumbnail adds nothing. (Not built yet: the tiles still show thumbnails for images and for the original PDF, §15.) Artifacts are **grouped logically:** all 54 system crops are one artifact, one tile with "×54", not 54 tiles (§5.2). The first artifact is the stage's main one. Tiles are what gets selected (highlighted in coral), not the card.
 - **Stage states:**
   - **done**;
   - **running**: a green border and its progress bar;
@@ -406,7 +412,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 
 ### The stages
 
-Stages marked **[manual]** are optional and added by the user (§5.4). Everything else is the recipe. Each stage has a short identifier, used throughout this document.
+Stages marked **[manual]** are optional and added by the user (§5.4). The last column lists each stage's artifacts, what the user sees (§5.2); its outputs are finer, e.g. one per page or per system. Everything else is the recipe. Each stage has a short identifier, used throughout this document.
 
 | # | Id | Stage | Kind | Artifacts |
 |---|---|---|---|---|
@@ -419,7 +425,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 | 7 | `analyze` | General analysis | LLM | JSON: metadata. JSON: observations per page and for the whole score (including the special bar lines) |
 | 8 | `fix_metadata` | Fix metadata **[manual]**, after `analyze` | manual | JSON: metadata |
 | 9 | `fix_observations` | Fix observations **[manual]**, after `analyze` | manual | JSON: observations |
-| 10 | `extract` | Extraction | LLM, per system | The JSON answers per system (the music, the stretches' classification). The MEI snippets per measure. The issues raised (see below) |
+| 10 | `extract` | Extraction | LLM, per system | The score so far, system by system (each system's answer in the internal format: the music, the stretches' classification). The issues raised (see below) |
 | 11 | `assemble` | Full MEI | computed | The MEI file. Its rendering as a PDF. All issues combined into one JSON. The warnings (see "Warnings") |
 | 12 | `review` | Review | LLM, per system | JSON: the issues, updated |
 | 13 | `apply_review` | Apply review results | LLM | The MEI file, the new rendering, the issues with what was applied, and the warnings |
@@ -467,15 +473,16 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - whether the previous system's extraction ended with a measure that continues into this system;
   - the marks left open by the previous system (slurs, ties, hairpins, 8va, pedal, per staff and voice), worked out by code from its extraction (see "Loose ends across systems" below);
   - the state the system begins with (clefs, keys, time signature), carried by code from the previous system's extraction;
-  - zoom crops on request (see "Zooming in" below).
+  - later, zoom crops on request (see "Zooming in" below).
 
-  The model classifies each stretch (see "Bar lines, stretches and measures"), extracts the music printed in each stretch, says whether the system's last measure continues into the next system, corrects the bar lines' kinds and the `scoreDef` where needed (the starting clefs, keys and time signatures, the staff labels and groups), and reports its doubts as issues. **It can't add or drop a stretch:** code rejects an answer that doesn't cover exactly the stretches asked for. **The extraction is stored per stretch** (its classification and its music), not per measure: stretches are fixed structure, so two versions of an extraction always match stretch by stretch, however the measures were regrouped (`apply_review`); code joins a measure's stretches into one MEI measure. **The snippets are built and validated after each system,** not at the end: if the model can't handle the score, the stage fails early, and an hour of calls isn't paid for answers that turn out not to parse. An early failure tells the user to step in earlier in the pipeline, or to use a stronger model.
+  The model classifies each stretch (see "Bar lines, stretches and measures"), extracts the music printed in each stretch, says whether the system's last measure continues into the next system, corrects the bar lines' kinds and the `scoreDef` where needed (the starting clefs, keys and time signatures, the staff labels and groups), and reports its doubts as issues. **It can't add or drop a stretch:** code rejects an answer that doesn't cover exactly the stretches asked for. **The extraction is stored per stretch** (its classification and its music), not per measure: stretches are fixed structure, so two versions of an extraction always match stretch by stretch, however the measures were regrouped (`apply_review`); code joins a measure's stretches into one MEI measure. **Each system's answer is checked as soon as it arrives,** not at the end: if the model can't handle the score, that shows early (systems fail one after another), and an hour of calls isn't paid for answers that turn out not to parse. It tells the user to step in earlier in the pipeline, or to use a stronger model.
   - **Models write music as a subset of LilyPond, wrapped in JSON** (decided), never MEI: code builds the MEI. So MEI's schemas are checked in our tests, as a check on our converter, not at run time (see "MEI").
   - **Checks after each system's answer,** on the system alone (code wraps it with the running state where needed):
     - **parsing:** the answer is valid JSON in our schema, and its LilyPond parses;
     - **durations:** each voice in each measure, its stretches joined, adds up to the time signature (incomplete and unmeasured measures excepted);
     - **the stretches** are exactly the ones asked for.
-  - **A failed check goes back to the model** in the same call, with the place and the problem, as one more round of the conversation (capped): most slips are fixed for the price of a short follow-up. A duration mismatch that persists becomes a warning (see "Warnings"), and the stage goes on; an answer that still doesn't parse fails the stage.
+  - **First version: a single turn per system** (decided), no follow-up rounds. A duration mismatch becomes a warning (see "Warnings"), which `review` sees, and the stage goes on. An answer that doesn't parse fails that system alone (the JSON itself is guaranteed by the provider's schema-constrained output, the LilyPond inside it isn't); the rest of the stage goes on, and the user retries the system, with a fresh call (§5.2), perhaps with another model config.
+  - **Later, perhaps: a failed check goes back to the model** in the same call, with the place and the problem, as one more round of the conversation, with a configurable cap: most slips might be fixed for the price of a short follow-up. Whether it pays off over `review` seeing the warnings is measured then.
   - **Loose ends across systems are matched by code** (decided), from the lens alone; the model lists nothing extra:
     - code parses each system's answer and finds the marks still open at its end: slurs, ties, hairpins, 8va, pedal, per staff and voice;
     - the next system's request says what is open ("slur 2 in staff 1, voice 1 continues from the previous system"), as it says whether the last measure continues; the model closes it on the note where it ends. The lens allows a closing mark without an opening one at the start of a system, where the request says it is open, and an opening mark left open at the end of a system;
@@ -496,7 +503,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
 - **The checks by code have no stage of their own:** validation happens inside `extract` and `assemble`. Problems that code finds without failing the stage are issues raised by code when they are a question about the page (a slur that never ends: "where does it end?"), and warnings otherwise (a measure whose durations don't add up; see "Warnings").
 - **`assemble`.** Code builds the MEI frame from the structure and the metadata, inserts the snippets, validates the whole document, renders it, and combines the issues of all systems.
   - **The rendering** (Verovio) can follow the original's layout or not: its `breaks` option `encoded` uses the page and system breaks in the MEI (below), so the rendering has the same systems as the original and the two can be compared system by system, as in `human_review`; `auto` computes its own breaks for the page size and ignores the encoded ones.
-- **`review`.** One call per system, with the same input as `extract`, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. Zoom crops and the crops of other systems come on request (see "Zooming in"), capped. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output. **Its prompt names the common mistakes** to pay attention to, foremost slurs and other spanners crossing bar lines and system breaks (every missed slur in the manual run, §13; no separate tracing pass).
+- **`review`.** One call per system, with the same input as `extract`, plus the extraction and the issues of the whole score. The model reviews the extraction, changes the chosen answers of unresolved issues, and adds an issue for every correction it wants; such an issue has at least two answers, the present state and the one the reviewer thinks is right, and possibly other reasonable ones. Zoom crops and the crops of other systems on request (see "Zooming in") come in a later version. **The review doesn't change the MEI and doesn't propose patches:** issues are its only output. **Its prompt names the common mistakes** to pay attention to, foremost slurs and other spanners crossing bar lines and system breaks (every missed slur in the manual run, §13; no separate tracing pass).
   - **The whole score goes into every call** (decided), so the model can check consistency across the score. It is sent in the compact format the models write the music in (the "lens", `extract`), not as MEI.
   - **Each call sees what the calls before it in the stage changed,** and the cost stays close to linear in the score's length, by prompt caching. A call's prompt is, in this order:
     1. the whole score;
@@ -516,7 +523,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). Everythin
   - **Answer: only the stretches it changes,** each in full, in exactly `extract`'s per-stretch format (classification and music), plus continuation flags and `scoreDef` changes where they change. Nothing unchanged is copied, so nothing can be miscopied or hallucinated there, and it isn't a custom patch language: a stretch is replaced as a whole. **Merging and splitting measures** are a changed classification ("these two stretches are one measure": the second goes from "new" to "continues"), so they are first-class without anything extra, and nothing but regrouping the fixed stretches is possible.
   - **Per issue, a boolean:** applied or not. If applied, `applied` becomes the chosen answer; if not, it stays, and the model's reason (e.g. the chosen answer contradicts what is printed) is shown to the user.
   - **Changes beyond the boxes:** the model may also change stretches of the systems just before and after its window, not only those under the boxes of the issues it applies, e.g. when an issue says a slur doesn't end at the box but continues into the next system, whose start then changes too. Every stretch changed outside the boxes comes with a reason. A change without one goes back to the model once; a change with one is accepted and becomes a warning, so a person sees what changed beyond the boxes and why.
-  - **Checks:** those of `extract` (parsing; durations of the affected measures; continuations consistent across systems), with failures going back to the model in the same call, capped; then the comparison before and after (below). Code then rebuilds and renumbers the measures, choosing the 0-or-1 start anew.
+  - **Checks:** those of `extract` (parsing; durations of the affected measures; continuations consistent across systems), handled as in `extract` (a single turn in the first version); then the comparison before and after (below). Code then rebuilds and renumbers the measures, choosing the 0-or-1 start anew.
   - **Model config:** the same kind of work as `extract` (§7.2: extracting the music notation).
 - **`human_review`.** The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
   - **The warnings of the version being reviewed** are shown too (see "Warnings"). The user never sees MEI or LilyPond.
@@ -554,7 +561,7 @@ What identifies the score, in the narrow sense: the layout (systems, measures, b
 To check against the MEI 5 guidelines: the details of the edition's description, which changed in MEI 5.
 
 #### MEI
-**The artifact is full MEI 5, close to MEI Basic** (decided): as simple as possible, focused on the musical content. The music uses only what MEI Basic allows; a few features of full MEI are used where needed, each a deliberate decision, listed in one place in the code (below) and explained in our documentation.
+**The export format is full MEI 5, close to MEI Basic** (decided): as simple as possible, focused on the musical content. The music uses only what MEI Basic allows; a few features of full MEI are used where needed, each a deliberate decision, listed in one place in the code (below) and explained in our documentation.
 - **Divisions:** an `mdiv` per piece or movement, labelled and linked to its entry in the header's `componentList`; an anthology of several works has an `mdiv` per work, with an `mdiv` per movement inside. (MEI's `<parts>` is something else: separate part books, one per player, which we don't produce.)
 - **Each division's `<score>` begins with a `scoreDef`:** the staves (`staffGrp`, `staffDef`) with their labels and instrument names as printed, and each staff's starting clef, key and time signature. It declares **every staff that appears anywhere in the division,** e.g. a third staff in one passage, an ossia staff; a measure leaves out the staves it doesn't have. Groups nest: the Mozart concerto in the test set, with two pianos (I and II) of two staves each, is one score with two braced `staffGrp`s labelled "Piano I" and "Piano II" inside the outer one, staves 1 to 4; not parts.
 - **Measures:** measure → `staff` (numbered as in the `staffDef`s) → `layer` (a voice) → notes. Code writes each measure's frame, from the classification of the stretches: its number (`@n`), `@metcon="false"` for an incomplete one, the bar lines' kinds (`@left`, `@right`), its zones (`@facs`, below) and one `staff` per staff present on its system. `extract` fills the layers: how many voices a staff has changes from measure to measure, and is content.
@@ -581,7 +588,7 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 
 #### The lens
 **The format models read and write** (decided at this level; the exact LilyPond subset and the JSON schema are settled when `extract` is built, §15).
-- **Two representations, each for its purpose:** MEI is the language of what users get (`assemble`'s file, downloads). Inside the pipeline, the extraction is kept in the lens, per stretch (`extract`): the stretch is our unit of work, and more precise than MEI's measures, which can be split across systems and are regrouped by `apply_review`, while stretches never change. `extract` and `apply_review` write the lens, `review` and `apply_review` read the whole score in it, and code builds the MEI from it.
+- **Two formats, each for its purpose:** MEI is the export format, what users get (`assemble`'s file, downloads). The lens is the internal format: inside the pipeline, the extraction is kept in it, per stretch (`extract`): the stretch is our unit of work, and more precise than MEI's measures, which can be split across systems and are regrouped by `apply_review`, while stretches never change. `extract` and `apply_review` write the lens, `review` and `apply_review` read the whole score in it, and code builds the MEI from it.
 - **JSON carries the structure** (the provider's schema-constrained output, §7.1): per stretch, its classification, the measure's kind, a printed measure number, and its staves with their voices; per system, whether its last measure continues, changes to the `scoreDef`, and the issues raised.
 - **One string per voice in each stretch,** in a subset of LilyPond: absolute pitches, explicit durations, slurs, ties, dynamics, hairpins and articulations written on the notes, markers for stem direction and cross-staff notes.
 - **A sketch** (field names not final):
@@ -601,10 +608,10 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 - **The lens is swappable** (e.g. a kern-like one) without touching MEI. Which lens transcribes best is an empirical question.
 
 #### Zooming in
-**Zoom crops on request, without tool calls** (decided), for `extract`, `review` and probably `apply_review`:
+**Zoom crops on request, without tool calls** (decided, for a later version: the first version has none), for `extract`, `review` and probably `apply_review`:
 - **The first answer has one of two shapes,** in one schema: the stage's answer itself, when the model needs nothing more (a clean system), or a list of requests: zoom boxes on the crops it was sent (and, for `review`, other systems' crops), at most N, each with a short reason ("dot near the A♭: staccato or smudge?").
 - **The second request** repeats the first, adds the model's requests as its answer and the zoom crops, each labelled (§7.2), and asks for the stage's answer; this one can't ask for more. Its prefix is the first request, so prompt caching makes the repeated part cheap.
-- **So at most two rounds per call,** plus the follow-ups for failed checks (`extract`). This is a tool loop with one round, built ourselves: the same on every provider (no tool-use APIs, no loop in the adapters), every call record a plain request and answer, and the cap enforced by the schema rather than by the model's judgement (the manual run's over-exploration, §13).
+- **So at most two rounds per call,** plus the follow-ups for failed checks, if those come too (`extract`). This is a tool loop with one round, built ourselves: the same on every provider (no tool-use APIs, no loop in the adapters), every call record a plain request and answer, and the cap enforced by the schema rather than by the model's judgement (the manual run's over-exploration, §13).
 - **Code cuts the zoom crops** from the deskewed page at the page image's resolution. A zoom gives the model real detail where its view of a large crop was shrunk (Claude sees at most 2576 px on the long edge); on a low-resolution scan it is only a closer look at the same pixels, which may still help it focus.
 - **The zoom boxes and their reasons are recorded** with the call (§5.2), and the issues that come from them can point at the same boxes: evidence for the reviewer and the user.
 - **Open, until `review` is built: accumulating zoom crops across stages.** The places `extract` zoomed into are the parts of the page that are hard to read, so the first `review` call for a system could get them from the start, with their reasons, and still ask for more; every later `review` and `apply_review` would get all zooms asked for so far, the set growing stage by stage. The caps could then differ, e.g. 3 per system for `extract` and 1 per system after it.
@@ -826,7 +833,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 |---|---|---|
 | Cloudflare Workers (static assets + API) | Hosting | Free tier. No heavy compute. |
 | Cloudflare D1 | Database | EU jurisdiction set at creation. Cannot be changed later. |
-| Cloudflare R2 | Original PDFs, artifact content, large LLM payloads | EU jurisdiction bucket. Cannot be changed later. |
+| Cloudflare R2 | Original PDFs, stage outputs, large LLM payloads | EU jurisdiction bucket. Cannot be changed later. |
 | Cloudflare Access | Login | Protects everything, including the API. |
 | Google Drive | Picking source PDFs. Optional export target. | `drive.file` scope, Picker for selection, app-created export folder. Publish the OAuth app to "production" status (even unverified), because refresh tokens expire after 7 days in "testing" status. |
 | Vision LLMs | Layout, analysis, extraction, review (§6) | Called **only through the Worker**: API keys stay in Worker secrets. |
@@ -841,7 +848,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - Entering the keys in the app is an optional roadmap item (§16).
 
 ### Data residency
-- PDFs and artifact content (R2) and everything else (D1) are in EU-jurisdiction Cloudflare storage. Images stay on the device unless sent to an LLM.
+- PDFs and stage outputs (R2) and everything else (D1) are in EU-jurisdiction Cloudflare storage. Images stay on the device unless sent to an LLM.
 - Cloudflare is a US company. An EU jurisdiction guarantees **where** data is stored, not which legal regime ultimately applies. This is acceptable for this project.
 - **LLM calls are the residency gap.** For EU processing:
   - Gemini and Claude are both available in EU regions through Google Vertex AI. Claude is also available through AWS Bedrock.
@@ -860,8 +867,8 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - **The app computes the cost itself:** the providers' APIs report token counts per call, not money. Cost = tokens × a price table per model, kept in the code.
 - **Currency: US dollars** for everything, since that is how the providers publish their prices. The amounts are estimates, not the invoice: the bill may be in another currency, with tax or discounts. The app doesn't convert.
 - **The cost is stored with each call, when it is made,** so a later price change doesn't rewrite history.
-- **Costs and statistics are kept in a ledger of their own** in D1, apart from the project's artifacts. It survives everything that removes artifacts:
-  - stages replaced by re-running from an earlier stage (§5.5), which are no longer visible in the pipeline (their artifacts are kept too, but only until the project is deleted);
+- **Costs and statistics are kept in a ledger of their own** in D1, apart from the project's stage outputs. It survives everything that removes outputs:
+  - stages replaced by re-running from an earlier stage (§5.5), which are no longer visible in the pipeline (their outputs are kept too, but only until the project is deleted);
   - deleted projects (§4).
 - **Statistics** kept there too: the runtime and cost of each stage and of whole pipelines, and averages per PDF page. This needs each stage's start and end time and each PDF's page count.
 
@@ -911,7 +918,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - **Golden-image tests:** deterministic image pipelines produce known raw-pixel hashes, or fingerprints within tolerance (§8.3).
 - **Fixture projects:** real scores with recorded LLM call records (request + response) and recorded human operations (angles, boxes, answers to issues), stored in `fixtures/`.
 - **Replay tests:** run a fixture end to end with the replay `LlmProvider`.
-  - Deterministic steps must reproduce identical artifact hashes. LLM and human steps return their recordings.
+  - Deterministic steps must reproduce identical output hashes. LLM and human steps return their recordings.
   - This tests the plumbing, assembly and resume logic with no API cost.
 - **Stale recordings:** a changed prompt or model changes the request hash, so replay misses. The test reports exactly which recordings are stale, and they are re-recorded against the live API.
 - **Quality evaluation** is separate from tests (§13): live runs, with repeated runs to measure variance. A temperature of 0 doesn't guarantee identical answers.
@@ -1014,7 +1021,7 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
 | Risk | Mitigation |
 |---|---|
 | **Infrastructure work crowding out quality work** (plumbing is fun) | Validate the approach by hand before building (§16). Measure quality on the test set early and often. |
-| Losing LLM output or human input because it was treated like cache | §5.3: LLM and human artifacts are always persisted. Eviction only touches deterministic artifacts. |
+| Losing LLM output or human input because it was treated like cache | §5.3: LLM and human outputs are always persisted. Eviction only touches deterministic outputs. |
 | Plausible but wrong notes from LLMs | §7.3: issues for every doubt, checks by code, review against the crops, measured slip-through rate. |
 | Regenerated images drifting from what the human or LLM worked on | §8: deterministic decoding and operations, normalized coordinates, fingerprint checks. |
 | Downscaled system images losing detail (models shrink large images, and piano systems are wide) | Stretch crops sent along with the system crop, and zoom crops on request (§6, `extract`, "Zooming in"). |
@@ -1036,7 +1043,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Define the lens exactly** (§6, "The lens"), when `extract` is built: the LilyPond subset, especially cross-staff notation, ornaments, ossia and lyrics, and the JSON schema.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
 - **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs, and for Claude on Vertex AI and Bedrock (§7.2).
-- **Design the D1 schema for stages and artifacts** (§5).
+- **Design the D1 schema for stages and their outputs** (§5).
 - **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
 - **Decide on reuse per item within a stage** (§5.5): a manual stage covers the whole PDF. If only one system's input changed, should the fixes on the unchanged systems carry over, with only the changed one dropped? Well-meant, but it makes the behaviour harder for the user to understand, more than it complicates the code.
 - **Decide on the report after a re-run** (§5.5, proposed): which manual fixes were carried over and which were dropped.
@@ -1055,7 +1062,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
 - **Settings page:** the model configs, the default config and the configs per kind of work (§7.2), the run mode for new projects (§5.1), the spending cap and the free-tier mark for model configs (§10). Now a placeholder text.
 - **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.2). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
-- **"Delete project"** in the project actions does nothing. Build deletion as in §4: `deleted_at`, the partial unique index on names (a migration that rebuilds the table), deleting artifacts and PDFs nothing else uses, the confirmations.
+- **"Delete project"** in the project actions does nothing. Build deletion as in §4: `deleted_at`, the partial unique index on names (a migration that rebuilds the table), deleting stage outputs and PDFs nothing else uses, the confirmations.
 - **Light theme** (§5.7).
 
 ### Infrastructure and cleanup
@@ -1113,7 +1120,9 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
       Note: the Worker's entry module (`apps/worker/src/index.ts`) may only export handlers: the Workers runtime refuses to start otherwise, and the tests (which import the module directly) don't notice. Helpers live in their own modules (e.g. `names.ts`).
 
-      Next: the stages. Details to come from the author.
+      Next: the stages, starting with the D1 schema (§15).
+
+      **The manual stages come later.** At first, when a model gets something wrong and the author wants it fixed, the fix goes in as a manual stage without a UI: a small internal API endpoint takes the corrected output (e.g. the fixed boxes as JSON) and adds it as a manual stage after the stage it corrects, and the stages after it run again as designed. Stored outputs are never edited in place (§5.4: a finished stage never changes). The data is the same as the real manual stages will produce later.
    2. Extract page images deterministically → OPFS → show in the UI. *The extraction, skew detection and rotation exist* (§8.1, §8.2, §8.4), not yet in the app.
    3. `layout` of one page → system boxes and bar lines; `fix_layout`.
    4. Crops → `extract` of one system with context → checks.
@@ -1136,4 +1145,4 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
      - **The price:** code that handles secrets, which has to be right.
    - **A "final touches" stage** (optional, late): the user edits the MEI directly in the app, in a code editor, validated and rendered again on saving. No stage can be added after it, so the issues, which a direct edit leaves unreliable, are no longer needed; its result goes to the export. Replacing the MEI by uploading a file edited in another program (MuseScore reads and writes MEI) is left out: such a round trip can lose the IDs that tie measures to the original.
    - **Desktop version** (optional, §3): Electron around the same app and server, with Node adapters for D1 and R2 and secrets in a local file.
-   - **Forking a project** from a given stage: a new, separate project that starts with the original's pipeline up to that stage. Each project keeps its own linear history. Behind the scenes, the fork reuses the original's artifacts without duplicating them.
+   - **Forking a project** from a given stage: a new, separate project that starts with the original's pipeline up to that stage. Each project keeps its own linear history. Behind the scenes, the fork reuses the original's stage outputs without duplicating them.
