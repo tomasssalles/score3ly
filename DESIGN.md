@@ -265,7 +265,7 @@ Each step declares:
 - A **config schema** (Zod), which is also the source of its UI controls.
 - **Input** and **output types**.
 - **Granularity:** per document, per page, or per system. Steps can fan out, e.g. one page becomes many systems.
-- Its **kind:** `deterministic` (code), `llm`, or `human`.
+- Its **kind:** `computed` (code), `llm` or `manual`, and nothing else (decided). `ingest` is computed.
 - Its **runtime:** browser (Web Worker) or Worker proxy (LLM calls).
 
 While it runs, a stage **reports its own progress** as a fraction from 0 to 1, which the UI shows (§5.6):
@@ -283,7 +283,7 @@ Every stage output has:
 - `step id@version`
 - a canonical config hash (JSON with sorted keys)
 - the IDs of the outputs it was made from
-- its `origin` (`computed` | `llm` | `manual` | `imported`)
+- its `origin`: the kind of the stage that produced it (`computed` | `llm` | `manual`)
 - a fingerprint (for images, see §8.3)
 - a timestamp
 
@@ -300,8 +300,8 @@ Every output has a row in D1, which belongs to the stage that produced it and sa
 
 ### 5.3 Persisted vs. regenerable (important)
 
-- **Deterministic** outputs (page images, straightened pages, crops) store only their **recipe plus fingerprint**. Images live in OPFS and can be regenerated. Small text outputs may be stored anyway for convenience.
-- **LLM** and **human** outputs **must be persisted**. They cannot be regenerated: re-running an LLM call gives a different answer and costs money.
+- **Computed** outputs (page images, straightened pages, crops) store only their **recipe plus fingerprint**. Images live in OPFS and can be regenerated. Small text outputs may be stored anyway for convenience.
+- **LLM** and **manual** outputs **must be persisted**, and so must the original PDF (`ingest`). They cannot be regenerated: re-running an LLM call gives a different answer and costs money.
 - Rule: *anything you would hate to lose must never exist only as a cached image.*
 
 ### 5.4 Manual stages
@@ -918,7 +918,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - **Golden-image tests:** deterministic image pipelines produce known raw-pixel hashes, or fingerprints within tolerance (§8.3).
 - **Fixture projects:** real scores with recorded LLM call records (request + response) and recorded human operations (angles, boxes, answers to issues), stored in `fixtures/`.
 - **Replay tests:** run a fixture end to end with the replay `LlmProvider`.
-  - Deterministic steps must reproduce identical output hashes. LLM and human steps return their recordings.
+  - Deterministic steps must reproduce identical output hashes. LLM and manual steps return their recordings.
   - This tests the plumbing, assembly and resume logic with no API cost.
 - **Stale recordings:** a changed prompt or model changes the request hash, so replay misses. The test reports exactly which recordings are stale, and they are re-recorded against the live API.
 - **Quality evaluation** is separate from tests (§13): live runs, with repeated runs to measure variance. A temperature of 0 doesn't guarantee identical answers.
@@ -1021,7 +1021,7 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
 | Risk | Mitigation |
 |---|---|
 | **Infrastructure work crowding out quality work** (plumbing is fun) | Validate the approach by hand before building (§16). Measure quality on the test set early and often. |
-| Losing LLM output or human input because it was treated like cache | §5.3: LLM and human outputs are always persisted. Eviction only touches deterministic outputs. |
+| Losing LLM output or human input because it was treated like cache | §5.3: LLM and manual outputs are always persisted. Eviction only touches computed outputs. |
 | Plausible but wrong notes from LLMs | §7.3: issues for every doubt, checks by code, review against the crops, measured slip-through rate. |
 | Regenerated images drifting from what the human or LLM worked on | §8: deterministic decoding and operations, normalized coordinates, fingerprint checks. |
 | Downscaled system images losing detail (models shrink large images, and piano systems are wide) | Stretch crops sent along with the system crop, and zoom crops on request (§6, `extract`, "Zooming in"). |
