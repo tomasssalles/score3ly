@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
+import { newPipeline, pipelineRoutes } from "./pipeline.ts";
 
 export type Project = {
   id: string;
@@ -13,29 +14,6 @@ export type Project = {
 };
 
 export type RunMode = "auto" | "manual";
-
-// A project's pipeline (DESIGN.md §5.8): its stages in order, each with its outputs.
-export type Pipeline = { stages: Stage[] };
-
-export type Stage = {
-  id: string;
-  step: string; // the step's id; its kind and title are declared in code
-  stepVersion: number | null; // set when the stage starts
-  status: "planned" | "running" | "failed" | "done" | "wip" | "stopped";
-  config: unknown; // the step's config: null while planned with the defaults
-  error: string | null;
-  note: string | null;
-  startedAt: string | null;
-  finishedAt: string | null;
-  outputs: Output[];
-};
-
-export type Output = {
-  id: string;
-  item: string; // '' for the whole score, 'p3' for a page, 'p3/s2' for a system on it
-  type: string; // e.g. 'pdf'
-  contentSha256: string | null; // stored content, in R2
-};
 
 type ProjectRow = {
   id: string;
@@ -60,23 +38,6 @@ function toProject(row: ProjectRow): Project {
     runMode: row.run_mode,
   };
 }
-
-// The version of the Ingest step that new projects get.
-const INGEST_VERSION = 1;
-
-type StageRow = {
-  id: string;
-  step: string;
-  step_version: number | null;
-  status: Stage["status"];
-  config_json: string | null;
-  error: string | null;
-  note: string | null;
-  started_at: string | null;
-  finished_at: string | null;
-};
-
-type OutputRow = { id: string; stage_id: string; item: string; type: string; content_sha256: string | null };
 
 function isNameConflict(err: unknown): boolean {
   return String(err).includes("UNIQUE constraint failed: projects.name");
@@ -161,7 +122,8 @@ app.get("/api/pdfs/:sha256/file", async (c) => {
   });
 });
 
-// Creates a project, with its first stage, Ingest, done from the start: its output is the PDF (DESIGN.md §5.1).
+// Creates a project, with its pipeline: Ingest, done from the start, its output the PDF (DESIGN.md §5.1), and the
+// recipe's other stages, planned.
 // The form has the PDF's 'sha256' and either the 'pdf' itself, which is stored in R2, or
 // only its 'filename' if R2 already has it.
 app.post("/api/projects", async (c) => {
@@ -199,10 +161,9 @@ app.post("/api/projects", async (c) => {
       lastOpenedAt: now,
       runMode: "auto",
     };
-    const stageId = crypto.randomUUID();
     const db = c.env.DB;
     try {
-      // A batch is one transaction: the project never exists without its Ingest stage.
+      // A batch is one transaction: the project never exists without its pipeline.
       await db.batch([
         db
           .prepare(
@@ -218,20 +179,7 @@ app.post("/api/projects", async (c) => {
             project.lastModifiedAt,
             project.lastOpenedAt,
           ),
-        // Ingest never runs and nothing looks it up, so it has no stage key.
-        db
-          .prepare(
-            "INSERT INTO stages (id, created_in, step, step_version, status, config_json, created_at, started_at, finished_at) VALUES (?, ?, 'ingest', ?, 'done', '{}', ?, ?, ?)",
-          )
-          .bind(stageId, project.id, INGEST_VERSION, now, now, now),
-        db
-          .prepare("INSERT INTO pipeline_entries (project_id, position, stage_id) VALUES (?, 1, ?)")
-          .bind(project.id, stageId),
-        db
-          .prepare(
-            "INSERT INTO outputs (id, stage_id, item, type, content_sha256, created_at) VALUES (?, ?, '', 'pdf', ?, ?)",
-          )
-          .bind(crypto.randomUUID(), stageId, project.pdfSha256, now),
+        ...newPipeline(db, project.id, project.pdfSha256, now),
       ]);
       return c.json(project, 201);
     } catch (err) {
@@ -287,47 +235,6 @@ app.post("/api/projects/:id/opened", async (c) => {
   return c.body(null, 204);
 });
 
-// The project's pipeline: its stages in order, with their outputs.
-app.get("/api/projects/:id/pipeline", async (c) => {
-  const db = c.env.DB;
-  const id = c.req.param("id");
-  if (!(await getProject(db, id))) return c.json({ error: "no such project" }, 404);
-  const [stages, outputs] = await db.batch([
-    db
-      .prepare(
-        "SELECT s.* FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? ORDER BY e.position",
-      )
-      .bind(id),
-    db
-      .prepare(
-        "SELECT o.* FROM pipeline_entries e JOIN outputs o ON o.stage_id = e.stage_id WHERE e.project_id = ? ORDER BY o.item, o.type",
-      )
-      .bind(id),
-  ]);
-  const byStage = new Map<string, OutputRow[]>();
-  for (const row of outputs.results as OutputRow[]) {
-    byStage.set(row.stage_id, [...(byStage.get(row.stage_id) ?? []), row]);
-  }
-  const pipeline: Pipeline = {
-    stages: (stages.results as StageRow[]).map((row) => ({
-      id: row.id,
-      step: row.step,
-      stepVersion: row.step_version,
-      status: row.status,
-      config: row.config_json === null ? null : JSON.parse(row.config_json),
-      error: row.error,
-      note: row.note,
-      startedAt: row.started_at,
-      finishedAt: row.finished_at,
-      outputs: (byStage.get(row.id) ?? []).map((o) => ({
-        id: o.id,
-        item: o.item,
-        type: o.type,
-        contentSha256: o.content_sha256,
-      })),
-    })),
-  };
-  return c.json(pipeline);
-});
+pipelineRoutes(app);
 
 export default app;

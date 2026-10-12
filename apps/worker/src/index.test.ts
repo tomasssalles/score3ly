@@ -12,8 +12,9 @@ let platform: Awaited<ReturnType<typeof getPlatformProxy<Env>>>;
 let env: Env;
 // The projects as migration 0002 converted them from the old schema.
 let migratedRows: Record<string, unknown>[];
-// The pipelines migration 0004 gave them.
+// The pipelines migrations 0004 and 0006 gave them.
 let migratedPipelines: Record<string, unknown>[];
+let migratedPlanned: Record<string, unknown>[];
 
 before(async () => {
   platform = await getPlatformProxy<Env>({ configPath: join(workerDir, "wrangler.jsonc"), persist: false });
@@ -39,11 +40,16 @@ before(async () => {
       "SELECT e.project_id, e.position, s.id AS stage_id, s.step, s.status, o.id AS output_id, o.item, o.type, o.content_sha256 FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id JOIN outputs o ON o.stage_id = s.id ORDER BY e.project_id",
     ).all()
   ).results;
+  migratedPlanned = (
+    await env.DB.prepare(
+      "SELECT e.project_id, e.position, s.step, s.status, s.config_json FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.position = 2 ORDER BY e.project_id",
+    ).all()
+  ).results;
 });
 
 beforeEach(async () => {
   await env.DB.exec(
-    "DELETE FROM outputs; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects;",
+    "DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects;",
   );
 });
 
@@ -140,11 +146,17 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
     },
   ]);
 
-  // Its first stage, Ingest, is done, with the PDF as its output.
+  // Its first stage, Ingest, is done, with the PDF as its output; the rest of the recipe is planned.
   const pipeline = (await (await app.request(`/api/projects/${project.id}/pipeline`, {}, env)).json()) as {
     stages: Record<string, unknown>[];
   };
-  assert.equal(pipeline.stages.length, 1);
+  assert.deepEqual(
+    pipeline.stages.map((s) => [s.step, s.status, s.config]),
+    [
+      ["ingest", "done", {}],
+      ["rasterize", "planned", null],
+    ],
+  );
   const [ingest] = pipeline.stages;
   assert.equal(ingest.step, "ingest");
   assert.equal(ingest.stepVersion, 1);
@@ -225,6 +237,13 @@ test("migration 0004 gives existing projects their Ingest stage, with the PDF as
     ],
   );
   assert.equal(new Set(migratedPipelines.map((row) => row.stage_id)).size, 4);
+});
+
+test("migration 0006 gives existing projects a planned rasterize stage", () => {
+  assert.deepEqual(
+    migratedPlanned.map((row) => [row.project_id, row.position, row.step, row.status, row.config_json]),
+    ["p1", "p2", "p3", "p4"].map((id) => [id, 2, "rasterize", "planned", null]),
+  );
 });
 
 test("deleted projects are left out everywhere, and their names are free", async () => {
@@ -447,4 +466,158 @@ test("a stored PDF can be downloaded by its hash", async () => {
   const unknown = await sha256Hex(pdfBytes("never stored"));
   assert.equal((await app.request(`/api/pdfs/${unknown}/file`, {}, env)).status, 404);
   assert.equal((await app.request("/api/pdfs/abc/file", {}, env)).status, 400);
+});
+
+// Running stages: what the browser reports while it runs one.
+
+type StageJson = Record<string, unknown> & { id: string; outputs: Record<string, unknown>[] };
+
+async function pipelineOf(projectId: string): Promise<StageJson[]> {
+  const response = await app.request(`/api/projects/${projectId}/pipeline`, {}, env);
+  return ((await response.json()) as { stages: StageJson[] }).stages;
+}
+
+function call(projectId: string, stageId: string, action: string, body?: unknown, method = "POST") {
+  return app.request(
+    `/api/projects/${projectId}/stages/${stageId}/${action}`,
+    {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    },
+    env,
+  );
+}
+
+const KEY = "c".repeat(64);
+const RECIPE_KEY = (n: number) => String(n).repeat(64).slice(0, 64);
+
+async function startRasterize(projectId: string, stageKey = KEY) {
+  const [ingest, rasterize] = await pipelineOf(projectId);
+  const response = await call(projectId, rasterize.id, "start", {
+    stepVersion: 1,
+    config: { pages: "1-2", dpi: 300 },
+    stageKey,
+    pageCount: 2,
+    inputIds: [ingest.outputs[0].id],
+  });
+  return { response, ingest, rasterize };
+}
+
+test("a stage runs: started, outputs recorded as they are done, finished", async () => {
+  const project = await createdProject("sonata.pdf");
+  const { response, ingest, rasterize } = await startRasterize(project.id);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { reused: false, stageId: rasterize.id });
+
+  let [, running] = await pipelineOf(project.id);
+  assert.equal(running.status, "running");
+  assert.equal(running.pageCount, 2);
+  assert.deepEqual(running.config, { pages: "1-2", dpi: 300 });
+  assert.ok(running.heartbeatAt);
+
+  for (const n of [1, 2]) {
+    const recorded = await call(project.id, rasterize.id, "outputs", {
+      outputs: [
+        { item: `p${n}`, type: "page_image", recipeKey: RECIPE_KEY(n), recipe: { page: n }, inputIds: [ingest.outputs[0].id] },
+      ],
+    });
+    assert.equal(recorded.status, 200);
+  }
+  // The same item again (e.g. after a retry) is left as it is.
+  await call(project.id, rasterize.id, "outputs", {
+    outputs: [{ item: "p1", type: "page_image", recipeKey: RECIPE_KEY(3) }],
+  });
+  assert.equal((await call(project.id, rasterize.id, "heartbeat")).status, 204);
+  assert.equal((await call(project.id, rasterize.id, "finish", { status: "done", note: "2 pages" })).status, 204);
+
+  [, running] = await pipelineOf(project.id);
+  assert.equal(running.status, "done");
+  assert.equal(running.note, "2 pages");
+  assert.deepEqual(
+    running.outputs.map((o) => [o.item, o.type, o.recipeKey, o.recipe]),
+    [
+      ["p1", "page_image", RECIPE_KEY(1), { page: 1 }],
+      ["p2", "page_image", RECIPE_KEY(2), { page: 2 }],
+    ],
+  );
+  const { results: links } = await env.DB.prepare("SELECT COUNT(*) AS n FROM output_inputs").all<{ n: number }>();
+  assert.equal(links[0].n, 2);
+  // A finished stage can't start again, nor take outputs.
+  assert.equal((await call(project.id, rasterize.id, "start", { stepVersion: 1, config: {}, stageKey: KEY, pageCount: 1, inputIds: [] })).status, 409);
+  assert.equal((await call(project.id, rasterize.id, "outputs", { outputs: [] })).status, 409);
+});
+
+test("a stage whose key matches a finished one is reused, and the planned stage disappears", async () => {
+  const first = await createdProject("sonata.pdf");
+  const { rasterize: done } = await startRasterize(first.id);
+  await call(first.id, done.id, "finish", { status: "done" });
+  const second = await createdProject("sonata.pdf");
+
+  const { response, rasterize: planned } = await startRasterize(second.id);
+
+  assert.deepEqual(await response.json(), { reused: true, stageId: done.id });
+  const [, reused] = await pipelineOf(second.id);
+  assert.equal(reused.id, done.id);
+  assert.equal(await env.DB.prepare("SELECT id FROM stages WHERE id = ?").bind(planned.id).first(), null);
+});
+
+test("a failed stage can run again; a running one only once its heartbeat is stale", async () => {
+  const project = await createdProject("sonata.pdf");
+  const { rasterize } = await startRasterize(project.id);
+  assert.equal((await startRasterize(project.id)).response.status, 409);
+  assert.equal((await call(project.id, rasterize.id, "finish", { status: "failed", error: "Out of memory" })).status, 204);
+  assert.equal((await pipelineOf(project.id))[1].error, "Out of memory");
+  assert.equal((await startRasterize(project.id)).response.status, 200);
+  await env.DB.prepare("UPDATE stages SET heartbeat_at = '2026-01-01T00:00:00.000Z' WHERE id = ?").bind(rasterize.id).run();
+  assert.equal((await startRasterize(project.id)).response.status, 200);
+  assert.equal((await call(project.id, rasterize.id, "finish", { status: "failed" })).status, 400);
+});
+
+test("a planned stage's config is set in place; a finished stage's config replaces it with a planned one", async () => {
+  const project = await createdProject("sonata.pdf");
+  const [, planned] = await pipelineOf(project.id);
+  assert.equal((await call(project.id, planned.id, "config", { config: { pages: "3" } }, "PUT")).status, 200);
+  let [, stage] = await pipelineOf(project.id);
+  assert.equal(stage.id, planned.id);
+  assert.deepEqual(stage.config, { pages: "3" });
+
+  await startRasterize(project.id);
+  await call(project.id, planned.id, "finish", { status: "done" });
+  const response = await call(project.id, planned.id, "config", { config: { pages: "4" } }, "PUT");
+  assert.equal(response.status, 200);
+  [, stage] = await pipelineOf(project.id);
+  assert.notEqual(stage.id, planned.id);
+  assert.equal(stage.status, "planned");
+  assert.deepEqual(stage.config, { pages: "4" });
+  // The replaced stage stays, for its key to be found.
+  assert.equal((await env.DB.prepare("SELECT status FROM stages WHERE id = ?").bind(planned.id).first())?.status, "done");
+  const [ingest] = await pipelineOf(project.id);
+  assert.equal((await call(project.id, ingest.id, "config", { config: {} }, "PUT")).status, 409);
+});
+
+test("stopping a stage throws its outputs away and puts a planned one with the same config in its place", async () => {
+  const project = await createdProject("sonata.pdf");
+  const { rasterize } = await startRasterize(project.id);
+  await call(project.id, rasterize.id, "outputs", { outputs: [{ item: "p1", type: "page_image", recipeKey: RECIPE_KEY(1) }] });
+
+  const response = await call(project.id, rasterize.id, "stop");
+
+  assert.equal(response.status, 200);
+  const [, stage] = await pipelineOf(project.id);
+  assert.notEqual(stage.id, rasterize.id);
+  assert.equal(stage.status, "planned");
+  assert.deepEqual(stage.config, { pages: "1-2", dpi: 300 });
+  assert.equal((await env.DB.prepare("SELECT status FROM stages WHERE id = ?").bind(rasterize.id).first())?.status, "stopped");
+  assert.equal(await env.DB.prepare("SELECT id FROM outputs WHERE stage_id = ?").bind(rasterize.id).first(), null);
+});
+
+test("stage requests check the project, the stage and the body", async () => {
+  const project = await createdProject("sonata.pdf");
+  const other = await createdProject("etude.pdf");
+  const [, rasterize] = await pipelineOf(project.id);
+  assert.equal((await call(other.id, rasterize.id, "heartbeat")).status, 404);
+  assert.equal((await call(project.id, rasterize.id, "heartbeat")).status, 409);
+  assert.equal((await call(project.id, rasterize.id, "start", { stepVersion: 1 })).status, 400);
+  assert.equal((await call(project.id, rasterize.id, "config", { pages: "1" }, "PUT")).status, 400);
 });
