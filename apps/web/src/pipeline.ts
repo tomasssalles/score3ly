@@ -30,6 +30,7 @@ export type Artifact = {
 
 export type Stage = {
   id: string; // unique within the project, used in the URL
+  stepId: string;
   step: string; // step id@version
   title: string;
   kind: StageKind;
@@ -70,6 +71,7 @@ function toStage(stored: ApiStage): Stage {
       : undefined;
   return {
     id: stored.id,
+    stepId: stored.step,
     step: stored.stepVersion === null ? stored.step : `${stored.step}@${stored.stepVersion}`,
     title: info.title,
     kind: info.kind,

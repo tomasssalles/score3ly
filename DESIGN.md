@@ -367,7 +367,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 - **A small head stays in view,** and only what is below it scrolls: the project's name (one line, shortened in the middle) with its "⋮" and the collapse chevron, then the **run mode** (a small drop-down showing "Auto" or "Manual", §5.1, which takes less room than a switch), the pipeline's progress bar and, in Auto mode only, **Run** (green) or **Stop** (red) while a stage runs. Below the head, scrolling away: when the project was created and changed.
 - **The stages are stacked,** first at the top, as cards (rectangles). The original PDF is the artifact of the first stage, **Ingest**, so every card is a stage and every tile in it an artifact. There are no arrows between the cards: a stage's inputs are often not just the previous stage's outputs, and arrows would suggest they were.
 - **A card shows:**
-  - an icon for its kind (ingest, computed, LLM, manual), its name and a "⋮";
+  - an **icon for its step,** not its kind (decided): Ingest an upload arrow, `rasterize` the usual image icon (a frame with a mountain and a sun). A step without an icon of its own shows its kind's (computed, LLM, manual). The kind is in the icon's tooltip and in the details. Then its name and a "⋮";
   - one line of facts: the model; once done, also the run time, the cost and a short result ("54 systems", "3 boxes moved, 1 added");
   - while running, its progress bar; when failed, the error;
   - its button, if it has one (below);
@@ -483,7 +483,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
   - **The resolution for vector pages,** 300 dpi by default. Scans keep their own pixels (§8.1).
   - **Colour, grayscale or binarized,** once the ablation is done (§15): if one clearly wins, it becomes a fixed default and no option; if it depends on the score, an option with the winner as default. The choice doesn't change what model calls cost (the providers bill images by pixel size, not by channels), only the size of the device cache and of the requests.
   - **Left out:** forcing a scanned page to be rendered (an edge case for debugging, not a user's choice) and a cap on the resolution of scans (models scale large images down themselves; it would only save device cache).
-  - Its artifact, the page images, gets the usual image icon: a frame with a mountain and a sun (§15).
+  - Its card shows the usual image icon (§5.6), which image artifacts (its page images among them) use too.
 - **`fix_skew`.** The user flips through the pages with arrows (no continuous scroll). Per page: a toggle that turns deskewing on or off, and lines drawn by clicking where their two ends should be, along the staff lines. Code computes the angle that makes those lines as horizontal as possible. A very small angle still means no rotation, but an angle set by hand may be larger than the 5 degrees allowed otherwise (§8.4). Still needed: deleting a line, moving its ends, and how all of this works on touch devices.
 - **`layout`.** Per page:
   - whether the page is severely skewed;
@@ -1102,7 +1102,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Test the finished pipeline on the two editions of Für Elise** (test set), for memorization (§13, "Baselines"): where the editions differ, does the extraction follow the page or the famous version?
 
 ### Placeholders to replace
-- **Pick an icon for each kind of artifact** (§5.6), once the list of stages is final and the kinds of artifact are known (page images: the usual image icon, decided), and remove the thumbnail from the original PDF's tile (`PdfThumb.tsx`).
+- **Pick an icon for each kind of artifact** (§5.6), once the list of stages is final and the kinds of artifact are known (image artifacts: the usual image icon, decided, as on `rasterize`'s card), and remove the thumbnail from the original PDF's tile (`PdfThumb.tsx`).
 - **Build the stages** one by one, with the Worker endpoints each needs, added as they are needed rather than planned ahead (decided). A form for "Change config" comes with them. The details in §5.6 are provisional until the possible stages are defined, and are settled then: what exactly a card shows, the icons, the fields of the details view, and which manual stages can be added where.
 - **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
 - **Settings page:** the model configs, the default config and the configs per kind of work (§7.2), the run mode for new projects (§5.1), the spending cap and the free-tier mark for model configs (§10). Now a placeholder text.

@@ -3,7 +3,7 @@ import type { Project } from "./api";
 import {
   ComputedIcon,
   DataIcon,
-  DocumentIcon,
+  ImageIcon,
   IngestIcon,
   LlmIcon,
   ManualIcon,
@@ -33,6 +33,12 @@ export type StageActions = {
   drop: (stageId: string) => void;
 };
 
+// Each step has its own icon (DESIGN.md §5.6). A step without one shows its kind's.
+const STEP_ICONS: Record<string, () => React.JSX.Element> = {
+  ingest: IngestIcon,
+  rasterize: ImageIcon,
+};
+
 const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {
   ingest: IngestIcon,
   computed: ComputedIcon,
@@ -59,7 +65,7 @@ export function StageCard({
   detailsShown: boolean;
   actions: StageActions;
 }) {
-  const Icon = KIND_ICONS[stage.kind];
+  const Icon = STEP_ICONS[stage.stepId] ?? KIND_ICONS[stage.kind];
   const planned = stage.status === "planned";
   const classes = ["stage-card", stage.status, detailsShown ? "selected" : ""].join(" ");
 
@@ -200,7 +206,7 @@ function ArtifactTile({
 
 function Thumb({ project, artifact }: { project: Project; artifact: Artifact }) {
   if (artifact.kind === "pdf") return <PdfThumb url={pdfUrl(project.pdfSha256)} />;
-  if (artifact.kind === "images") return <DocumentIcon />;
+  if (artifact.kind === "images") return <ImageIcon />;
   if (artifact.kind === "json") return <DataIcon />;
   return <MusicIcon />;
 }

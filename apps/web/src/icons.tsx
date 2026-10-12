@@ -60,12 +60,23 @@ export function MoreIcon() {
   );
 }
 
-// The kinds of stage: the PDF uploaded to the app (ingest), computed by code, by an LLM, or by hand.
+// Ingest: the PDF uploaded to the app.
 export function IngestIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" />
       <path d="M4 15v5h16v-5" />
+    </svg>
+  );
+}
+
+// The steps that have an icon of their own (StageCard.tsx), and image artifacts.
+export function ImageIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="M3.5 18l5.5-5 4 3.5 2.5-2.5 5 4.5" />
     </svg>
   );
 }
