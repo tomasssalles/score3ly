@@ -11,9 +11,10 @@ See DESIGN.md §13 for the rationale.
 | `<piece>.<method>.ly` | LilyPond produced by one extraction method, e.g. `audiveris`, `s3l-gemini`. |
 | `<piece>.<method>.musicxml` | MusicXML produced by an OMR tool, e.g. `newzik`. Rendered directly, not converted to LilyPond. |
 | `<piece>.<method>.pdf` | Engraving of that `.ly` or `.musicxml`, produced by the engrave command. |
+| `<piece>.soundslice.pdf` | Screenshots of Soundslice's rendering of its extraction, made by hand: its free tier and trial don't allow exporting the extracted music. |
 | `<piece>.<file>.marks.jsonl` | Highlighter strokes drawn in the viewer on `<piece>.<file>.pdf` (`<file>` is `orig` or a method). |
 
-Only the README, the `*.orig.pdf` inputs, their highlighter strokes (`*.orig.marks.jsonl`) and the `*.ly` and `*.musicxml` candidates are committed (public-domain scores, e.g. from IMSLP).
+Only the README, the `*.orig.pdf` inputs, their highlighter strokes (`*.orig.marks.jsonl`) the `*.ly` and `*.musicxml` candidates and the Soundslice screenshots (`*.soundslice.pdf`) are committed (public-domain scores, e.g. from IMSLP).
 Engravings, highlighter strokes on engravings and anything else produced here stay local (see `.gitignore`).
 
 ## Tooling

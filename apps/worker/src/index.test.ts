@@ -133,7 +133,6 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       created_at: project.createdAt,
       last_modified_at: project.createdAt,
       last_opened_at: project.createdAt,
-      page_count: null,
       run_mode: "auto",
       version: 0,
       next_issue_number: 1,

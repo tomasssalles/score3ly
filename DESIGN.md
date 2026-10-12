@@ -411,13 +411,13 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
   - **Money:** US dollars with two decimals, "$0.12" (§10).
 
 ### 5.8 The database
-The D1 schema for the pipeline (decided; built in `apps/worker/migrations/0003_pipeline.sql`, which has the columns and their comments). Artifacts have no table: a step's code defines them as views over its outputs (§5.2), and an artifact that is stored for convenience (the MEI file) is an output for the whole score.
+The D1 schema for the pipeline (decided; built in `apps/worker/migrations/0003_pipeline.sql`, which has the columns and their comments, and changed by the later migrations). Artifacts have no table: a step's code defines them as views over its outputs (§5.2), and an artifact that is stored for convenience (the MEI file) is an output for the whole score.
 
 | Table | One row per | Holds |
 |---|---|---|
-| `projects` | project | Besides §4: the run mode (§5.1), a version for optimistic locking (§4), the number the next issue gets (§6, "Issue ids"), the PDF's page count (statistics, §10), `deleted_at`. |
+| `projects` | project | Besides §4: the run mode (§5.1), a version for optimistic locking (§4), the number the next issue gets (§6, "Issue ids"), `deleted_at`. |
 | `pipeline_entries` | stage in a pipeline | Project, position (1, 2, 3, ... without gaps) and the stage. Nothing else: the pipeline is a list of pointers. |
-| `stages` | stage, planned ones included | The project it was created in, the step and its version, the status (`planned`, `running`, `failed`, `done`, `wip`, `stopped`), the step's config, the model config (LLM stages), the stage key, error, a short result, the stage it replaces (an edited manual stage, §5.4), times, a heartbeat, `deleted_at`. |
+| `stages` | stage, planned ones included | The project it was created in, the step and its version, the status (`planned`, `running`, `failed`, `done`, `wip`, `stopped`), the step's config, the model config (LLM stages), the stage key, its page count, error, a short result, the stage it replaces (an edited manual stage, §5.4), times, a heartbeat, `deleted_at`. |
 | `stage_inputs` | input of a stage | The outputs a stage read. |
 | `outputs` | item a stage produced | The stage, the item, the type (`pdf`, `layout`, `lens`, `mei`, ...), the content's hash (stored, in R2) or the recipe and its key (computed), the corrected output (manual), the call that produced it (LLM). One per stage, item and type. |
 | `output_inputs` | input of an output | The outputs an output was made from (§5.2). |
@@ -441,6 +441,8 @@ The D1 schema for the pipeline (decided; built in `apps/worker/migrations/0003_p
   - a stage is marked if no other project that isn't deleted has it in its pipeline, and it was created in P or in a project already deleted. A stage a fork still uses stays, and is marked when that fork is deleted; a stage created in a project that isn't deleted is never marked;
   - the calls of a marked stage are marked with it;
   - the outputs of marked stages, the content of stages and calls that nothing else uses, and the fingerprints of a PDF nothing else uses are deleted (§4).
+- **Each stage records its page count** (decided), when it starts, and it never changes: the number of pages its inputs cover. `rasterize`: the pages selected; `layout` and `analyze`: the same; per-system stages (`extract`, `review`, `apply_review`): the pages their systems are on; `assemble`: all selected pages, since it also builds the header from the metadata, which `analyze` read from every page, cover included. Pages without music aren't discounted: pages aren't classified (§6, `layout`). NULL for Ingest, which doesn't read the PDF.
+  - **Why on the stage, and not the project's:** the selection of pages can change within a project (`rasterize`'s config, then a re-run), and the replaced stages keep their statistics. A replaced `extract` is no longer in any pipeline, so "the `rasterize` stage in the same pipeline" can't give its count. Following its inputs back to its `rasterize` (`stage_inputs`, `output_inputs`) would, but for every statistics query; a column makes per-page averages one query over `stages` (§10).
 - **Two kinds of settings:** the user's, in the `settings` table (the default model config, the run mode for new projects, the spending cap, ...), and the device's, in the browser (`localStorage`), for what may differ between a phone and a laptop: screen size, touch or mouse, bandwidth. The collapsed pipeline panel (§5.6) is the first device setting.
 
 ## 6. Pipeline stages
@@ -476,6 +478,12 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
   - **Everything else is content,** read by `extract` and open to correction by the stages after it: how the stretches between bar lines form measures, the kinds of measure and of bar line, and so which measures exist and how they are numbered; and the `scoreDef` (clefs, keys, time signatures, staff labels and groups). Those are hard for a model to get right from a whole page (the stretches need the note durations read), and easy to correct later, now that no MEI is built in advance. A user of an automated app shouldn't be asked to transcribe them by hand before anything is extracted.
 
 #### Details per stage
+- **`rasterize`.** Its config (decided):
+  - **Which pages,** in the notation known from print dialogs: `1, 41-47`. Default: all pages. The numbers are the PDF's own pages, counted from 1, not the numbers printed on them (the Für Elise first edition's first page is printed "28"); the picker says so. Reasons: often only one piece of a large volume is wanted; the cover plus one piece in the middle lets `analyze` read the metadata from the cover; and every stage after it sees only the selected pages, so `layout` and `analyze` don't pay for pages nobody wants. (score2ly had a similar option.)
+  - **The resolution for vector pages,** 300 dpi by default. Scans keep their own pixels (§8.1).
+  - **Colour, grayscale or binarized,** once the ablation is done (§15): if one clearly wins, it becomes a fixed default and no option; if it depends on the score, an option with the winner as default. The choice doesn't change what model calls cost (the providers bill images by pixel size, not by channels), only the size of the device cache and of the requests.
+  - **Left out:** forcing a scanned page to be rendered (an edge case for debugging, not a user's choice) and a cap on the resolution of scans (models scale large images down themselves; it would only save device cache).
+  - Its artifact, the page images, gets the usual image icon: a frame with a mountain and a sun (§15).
 - **`fix_skew`.** The user flips through the pages with arrows (no continuous scroll). Per page: a toggle that turns deskewing on or off, and lines drawn by clicking where their two ends should be, along the staff lines. Code computes the angle that makes those lines as horizontal as possible. A very small angle still means no rotation, but an angle set by hand may be larger than the 5 degrees allowed otherwise (§8.4). Still needed: deleting a line, moving its ends, and how all of this works on touch devices.
 - **`layout`.** Per page:
   - whether the page is severely skewed;
@@ -781,6 +789,8 @@ LLMs fill in "musically likely" content. That is desirable for a smudge and dang
 Built: `packages/imaging/src/pdfPages.ts` (`openPdf`, `pageImage`), tested on the test set (§13). `npm run pages -w packages/imaging -- <file.pdf> <folder>` writes every page, as extracted and straightened, as PNGs.
 - **Scanned PDFs:** extract the embedded page image directly instead of rendering the page: the scan's own pixels, at its own resolution.
   - **A page counts as a scan** when it has exactly one image and that image covers at least 85% of the page. Other content, such as an invisible OCR text layer, is ignored. Anything else (vector music, a scan cut into several images, an image at an angle that isn't a right angle) is rendered.
+  - **This is decided per page, and exactly, not guessed.** How a PDF was made can't be known for sure (score2ly could only guess whether a PDF was vector), but that doesn't matter: what a page draws is listed exactly in its content stream, and the rule is a decision about that. A PDF that mixes scans and vector pages is handled page by page. Where the rule doesn't take the pixels directly (a scan cut into strips, or with a vector stamp or page number added), the page is rendered, which is always correct, only at our resolution instead of the scan's. Tests that decide by whether a page has text are wrong whenever a scan has an OCR layer or vector music is drawn as paths.
+  - **On the test set** (2026-10, all 83 pages of 14 PDFs): 79 pages are scans; the 4 pages of the only vector PDF (Debussy, Mutopia) are rendered, and have no image at all (about 1,100 to 1,400 path and 500 to 1,100 text operations each). Scans range from 785×1228 px at 200 dpi to 5400×7200 px at 600 dpi, and Bendel's resolution changes within the PDF (293 dpi on page 1, about 640 on the rest). Kinderscenen reports 72 dpi for 2000×2578 px scans: its PDF pages are as large as the images (about 28 inches wide), so the dpi means nothing there; the pixels are taken as they are. The test set has no PDF that mixes scans and vector pages, and no scan cut into strips, so that fallback hasn't been tried on real files.
   - **Decoding:** CCITT, JBIG2 and JPEG 2000 by pdf.js (JS and its WASM decoders, which need pdf.js's `wasm` folder), JPEG by pdf.js's own JS decoder: `isImageDecoderSupported: false` stops pdf.js from using the browser's. `isOffscreenCanvasSupported: false` makes pdf.js hand over images as pixel arrays rather than bitmaps.
   - **What the test set showed,** all handled:
     - 1-bit scans stored as a **stencil mask** (ink where a bit is 0, in the fill color);
@@ -902,11 +912,11 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - **The app computes the cost itself:** the providers' APIs report token counts per call, not money. Cost = tokens × a price table per model, kept in the code.
 - **Currency: US dollars** for everything, since that is how the providers publish their prices. The amounts are estimates, not the invoice: the bill may be in another currency, with tax or discounts. The app doesn't convert.
 - **The cost is stored with each call, when it is made,** so a later price change doesn't rewrite history.
-- **Costs and statistics come from the rows of the calls and the stages** (§5.8), with no ledger of their own: each call has its cost, each stage its start and end time, each project its page count. Those rows survive everything that removes outputs:
+- **Costs and statistics come from the rows of the calls and the stages** (§5.8), with no ledger of their own: each call has its cost, each stage its start and end time and its page count (§5.8). Those rows survive everything that removes outputs:
   - stages replaced by re-running from an earlier stage (§5.5), which are no longer visible in the pipeline;
   - stopped stages (§5.6);
   - deleted projects (§4): their project, stage and call rows are kept, marked as deleted.
-- **Statistics:** the runtime and cost of each stage and of whole pipelines, and averages per PDF page.
+- **Statistics:** the runtime and cost of each stage and of whole pipelines, and averages per page, using each stage's own page count (§5.8); perhaps also the issues raised per page, by models and by the user.
 - **The spending cap** sums the costs of the calls started in the last 24 hours, deleted projects included.
 
 #### The costs view
@@ -1001,7 +1011,7 @@ For trying the app by hand on prepared data, locally only (no remote test databa
 **The question:** how well can existing tools read a PDF, understand the music and write it in a formal text format? Any format counts, so MusicXML is rendered directly with MuseScore 4 (`npm run eval:engrave`), not converted to LilyPond first.
 - **Tested** (2026-10), covering free and open source to expensive proprietary: Soundslice (free tier), Newzik (7-day trial), PlayScore 2 (1-week trial), SmartScore 64 Pro (demo), Audiveris 5.11. Not tested: PhotoScore & NotateMe, ScanScore, Klangio Scan2Notes, Opuscan/Flat, ACE Studio, oemer, and research models (LEGATO and others, which mostly output notes and rhythms only, in ABC or kern). Ruled out: combining several tools' extractions with an LLM, which would cost more than any paid service.
 - **Results:** every tool is far from usable; even the best results need too much correction by hand.
-  - **Soundslice:** Mozart unrecognizable. A very polished UI, which asks multiple-choice questions about everything it was unsure of.
+  - **Soundslice:** Mozart unrecognizable. Its free tier doesn't allow exporting the extracted music, so its results in the test set are screenshots of its rendering (`<piece>.soundslice.pdf`). A very polished UI, which asks multiple-choice questions about everything it was unsure of.
   - **Newzik:** terrible throughout, and very verbose (141k characters of MusicXML for one Mozart page). Failed on the full Kinderscenen.
   - **PlayScore 2:** the best of the three on the whole test set, still not usable. Measures whose durations don't add up (Chopin, Kinderscenen p3, Villa-Lobos). Crashed on the full Kinderscenen.
   - **Audiveris** (batch mode): mostly very bad; Clair de Lune (a vector PDF engraved by LilyPond) surprisingly decent. Failed on Chopin (internal crash), Liszt (a cover page without staff lines aborts the export) and Kinderscenen (pages over its 20-megapixel limit).
@@ -1078,7 +1088,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 ### Decisions
 - **Compare `review` with and without renderings as model input** (§6, "Renderings"), on the test set, some day: run it both ways and compare what it finds, counting false findings as well as extra correct ones. If renderings help, they become the default, and a config option of `review` can turn them off.
 - **Define the lens exactly** (§6, "The lens"), when `extract` is built: the LilyPond subset, especially cross-staff notation, ornaments, ossia and lyrics, and the JSON schema.
-- **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1).
+- **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1). The outcome decides whether it becomes an option of `rasterize` or a fixed default (§6, `rasterize`).
 - **Decide how the LLM providers are accessed:** direct APIs versus Vertex AI / Bedrock for EU processing (§10). Adapters exist for the Anthropic and Gemini APIs, and for Claude on Vertex AI and Bedrock (§7.2).
 - **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
 - **Decide on the report after a re-run** (§5.5, proposed): which manual fixes were carried over and which were dropped.
@@ -1092,7 +1102,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Test the finished pipeline on the two editions of Für Elise** (test set), for memorization (§13, "Baselines"): where the editions differ, does the extraction follow the page or the famous version?
 
 ### Placeholders to replace
-- **Pick an icon for each kind of artifact** (§5.6), once the list of stages is final and the kinds of artifact are known, and remove the thumbnail from the original PDF's tile (`PdfThumb.tsx`).
+- **Pick an icon for each kind of artifact** (§5.6), once the list of stages is final and the kinds of artifact are known (page images: the usual image icon, decided), and remove the thumbnail from the original PDF's tile (`PdfThumb.tsx`).
 - **Build the stages** one by one, with the Worker endpoints each needs, added as they are needed rather than planned ahead (decided). A form for "Change config" comes with them. The details in §5.6 are provisional until the possible stages are defined, and are settled then: what exactly a card shows, the icons, the fields of the details view, and which manual stages can be added where.
 - **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
 - **Settings page:** the model configs, the default config and the configs per kind of work (§7.2), the run mode for new projects (§5.1), the spending cap and the free-tier mark for model configs (§10). Now a placeholder text.
