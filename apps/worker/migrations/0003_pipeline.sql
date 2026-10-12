@@ -84,7 +84,7 @@ CREATE TABLE stages (
   replaces_stage_id TEXT REFERENCES stages (id),
   created_at TEXT NOT NULL,
   started_at TEXT,
-  -- Written regularly while running; a running stage without a recent heartbeat was interrupted.
+  -- Written once a minute while running; a running stage without a heartbeat for about 3 minutes was interrupted.
   heartbeat_at TEXT,
   finished_at TEXT,
   deleted_at TEXT
