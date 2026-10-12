@@ -303,6 +303,7 @@ Every output has a row in D1, which belongs to the stage that produced it and sa
 - **Computed** outputs (page images, straightened pages, crops) store only their **recipe plus fingerprint**. Images live in OPFS and can be regenerated. Small text outputs may be stored anyway for convenience.
 - **LLM** and **manual** outputs **must be persisted**, and so must the original PDF (`ingest`). They cannot be regenerated: re-running an LLM call gives a different answer and costs money.
 - Rule: *anything you would hate to lose must never exist only as a cached image.*
+- **Regeneration is lazy, per device** (decided): a device computes a computed output only when something needs it, never the whole chain up front. Example: seven stages run on a laptop, and on the bus the user adds an eighth, manual stage on a phone. The phone has none of the laptop's images, but the eighth stage's inputs are there (stored outputs fetched from R2, or images regenerated from their recipes because the stage needs them), so the user simply continues. If the user then opens an earlier stage's images to inspect them, they are regenerated from their recipes then, and cached on the phone (§8.6).
 
 ### 5.4 Manual stages
 
