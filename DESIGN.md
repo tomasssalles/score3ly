@@ -907,7 +907,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 
 **Principle:** deterministic parts are tested directly. Non-deterministic parts (LLM calls, human input) are **recorded and replayed**.
 
-- **Unit tests:** image operations, the lens parser and checks, measure building, the MEI builder (validated against MEI 5 and MEI Basic, §6, "MEI").
+- **Unit tests:** image operations, the lens parser and checks, measure building, the MEI builder (validated against MEI 5 and MEI Basic, §6, "MEI"). Among the checks: a two-note tremolo with a wrong count fails the duration check (§15).
 - **Golden-image tests:** deterministic image pipelines produce known raw-pixel hashes, or fingerprints within tolerance (§8.3).
 - **Fixture projects:** real scores with recorded LLM call records (request + response) and recorded human operations (angles, boxes, answers to issues), stored in `fixtures/`.
 - **Replay tests:** run a fixture end to end with the replay `LlmProvider`.
@@ -1046,7 +1046,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Choose a license** (§5.6, the About page). Until then all rights are reserved.
 
 - **Test the finished pipeline on Kinderscenen** (test set), once it runs end to end. Among other things: whether `analyze` finds the systems and bar lines despite the old paper and decorations, or whether the user would have to fix most pages by hand, the scenario for content boxes (§6, `analyze`).
-- **Test the extraction on two-note tremolos** (two notes alternating fast, joined by beams, e.g. the left hand in the first movement of Beethoven's Pathétique), with a score added to the test set for it: the lens writes them as `\repeat tremolo 16 { c32 g32 }`, so the model has to work out the count, and a wrong count should be caught by the duration check. If models often miscount, a lens form closer to the page (the printed notes plus the number of strokes, as MEI's `<fTrem>` has them) is the alternative.
+- **Test the extraction on two-note tremolos** (two notes alternating fast, joined by beams, e.g. the left hand in the first movement of Beethoven's Pathétique), with a score added to the test set for it: the lens writes them as `\repeat tremolo 16 { c32 g32 }`, so the model has to work out the count, and a wrong count is caught by the duration check (a unit test, §12); the task is how often models get it right. If models often miscount, a lens form closer to the page (the printed notes plus the number of strokes, as MEI's `<fTrem>` has them) is the alternative.
 - **Test the finished pipeline on the two editions of Für Elise** (test set), for memorization (§13, "Baselines"): where the editions differ, does the extraction follow the page or the famous version?
 
 ### Placeholders to replace
