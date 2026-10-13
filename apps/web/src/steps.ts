@@ -3,7 +3,7 @@
 
 import type { ApiStage } from "./api";
 import type { Artifact, StageKind } from "./pipeline";
-import { configError, configOf, MAX_DPI, MIN_DPI, pageOfItem, type PageRecipe } from "./rasterize.ts";
+import { configError, configOf, resolveConfig, MAX_DPI, MIN_DPI, pageOfItem, type PageRecipe } from "./rasterize.ts";
 import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
 
@@ -21,10 +21,14 @@ export type ConfigField = {
 
 export type ConfigValues = Record<string, string | number>;
 
+// What a config is checked against besides itself: the PDF's page count (null while unknown).
+export type ConfigContext = { pageCount: number | null };
+
 export type StepConfig = {
   fields: ConfigField[];
   read: (stored: Record<string, unknown> | null) => ConfigValues; // the stored config, with defaults
-  check: (values: ConfigValues) => string | null; // why the values can't be used, or null
+  // Why the values can't be used, or null. Checked before saving, so a stage is never replaced by one that can't run.
+  check: (values: ConfigValues, context: ConfigContext) => string | null;
 };
 
 export type StepInfo = {
@@ -84,7 +88,12 @@ export const STEPS: Record<string, StepInfo> = {
         },
       ],
       read: (stored) => configOf(stored),
-      check: (values) => configError({ pages: String(values.pages).trim(), dpi: Number(values.dpi) }),
+      check: (values, { pageCount }) => {
+        const config = { pages: String(values.pages).trim(), dpi: Number(values.dpi) };
+        if (pageCount === null) return configError(config);
+        const resolved = resolveConfig(config, pageCount);
+        return "error" in resolved ? resolved.error : null;
+      },
     },
     artifacts: (stage) => {
       const pages = stage.outputs

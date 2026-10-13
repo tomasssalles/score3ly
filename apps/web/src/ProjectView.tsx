@@ -32,7 +32,8 @@ import { ProgressRing } from "./ProgressRing";
 import { ConfigDialog } from "./ConfigDialog";
 import { RUNNERS } from "./runners";
 import { CannotStart } from "./stageRunner";
-import { FIX_STARTS, stepInfo } from "./steps";
+import { FIX_STARTS, stepInfo, type ConfigContext } from "./steps";
+import { openPdfForImages } from "./pageImages";
 import { StageDetails } from "./StageDetails";
 import { useWide } from "./useWide";
 
@@ -80,7 +81,7 @@ export function ProjectView({
   const modeRef = useRef(mode);
   modeRef.current = mode;
   // The stage whose config is being edited.
-  const [configuring, setConfiguring] = useState<Stage | null>(null);
+  const [configuring, setConfiguring] = useState<{ stage: Stage; context: ConfigContext } | null>(null);
   const pipeline: Pipeline = stored ? toPipeline(mode, stored, local) : { mode, stages: [] };
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   // The panel scrolls to the current stage on opening the project, when an Auto run starts, and whenever
@@ -307,7 +308,13 @@ export function ProjectView({
     finish: (id) => void finish(id),
     changeConfig: (id) => {
       const stage = findStage(pipeline, id);
-      if (stage && stepInfo(stage.stepId).config) setConfiguring(stage);
+      if (stage && stepInfo(stage.stepId).config) {
+        // The PDF's page count, to check a page selection before saving. Unknown if the PDF can't be opened here.
+        openPdfForImages(project.pdfSha256).then(
+          ({ pageCount }) => setConfiguring({ stage, context: { pageCount } }),
+          () => setConfiguring({ stage, context: { pageCount: null } }),
+        );
+      }
       else setError(`"${stage?.title}" has nothing to set.`);
     },
     addFix: (id, step) => change(id, () => void addFix(id, step), replacesLater(id)),
@@ -337,14 +344,15 @@ export function ProjectView({
     },
   };
 
-  const configForm = configuring ? stepInfo(configuring.stepId).config : undefined;
+  const configForm = configuring ? stepInfo(configuring.stage.stepId).config : undefined;
   const configDialog = configuring && configForm && (
     <ConfigDialog
-      title={configuring.title}
+      title={configuring.stage.title}
       config={configForm}
-      values={configForm.read(stored?.stages.find((s) => s.id === configuring.id)?.config ?? null)}
+      values={configForm.read(stored?.stages.find((s) => s.id === configuring.stage.id)?.config ?? null)}
+      context={configuring.context}
       onSave={(values) => {
-        const stage = configuring;
+        const { stage } = configuring;
         change(stage.id, () => saveConfig(stage, values), replacesWork(stage.id));
       }}
       onCancel={() => setConfiguring(null)}

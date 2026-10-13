@@ -35,7 +35,8 @@ export type StageActions = {
   drop: (stageId: string) => void;
 };
 
-// Each step has its own icon (DESIGN.md §5.6). A step without one shows its kind's.
+// Each automated step has its own icon (DESIGN.md §5.6); manual stages all show their kind's, a wrench. A step
+// without one shows its kind's.
 const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   ingest: IngestIcon,
   rasterize: ImageIcon,
@@ -184,7 +185,7 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
     changes.push({ label: "Change config", onSelect: () => actions.changeConfig(stage.id) });
   }
   if (stage.status === "done") {
-    for (const fix of stage.fixes) changes.push({ label: `Add: ${fix.title}`, onSelect: () => actions.addFix(stage.id, fix.step) });
+    for (const fix of stage.fixes) changes.push({ label: `${fix.title} manually`, onSelect: () => actions.addFix(stage.id, fix.step) });
   }
   if (changes.length > 0) groups.push(changes);
   if (stage.droppable) {

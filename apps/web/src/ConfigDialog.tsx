@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { CloseIcon } from "./icons";
-import type { ConfigValues, StepConfig } from "./steps";
+import type { ConfigContext, ConfigValues, StepConfig } from "./steps";
 
 // A stage's config (DESIGN.md §5.6, "Change config"): the form its step declares (steps.ts).
 export function ConfigDialog({
   title,
   config,
   values: initial,
+  context,
   onSave,
   onCancel,
 }: {
   title: string;
   config: StepConfig;
   values: ConfigValues;
+  context: ConfigContext;
   onSave: (values: ConfigValues) => void;
   onCancel: () => void;
 }) {
@@ -30,7 +32,7 @@ export function ConfigDialog({
     config.fields.map((f) => [f.key, f.kind === "number" ? Number(texts[f.key]) : texts[f.key].trim()]),
   );
   const empty = config.fields.find((f) => f.kind === "number" && texts[f.key].trim() === "");
-  const problem = empty ? `Enter a value for "${empty.label}".` : config.check(values);
+  const problem = empty ? `Enter a value for "${empty.label}".` : config.check(values, context);
   const unchanged = config.fields.every((f) => values[f.key] === initial[f.key]);
 
   function save(e: React.FormEvent) {
