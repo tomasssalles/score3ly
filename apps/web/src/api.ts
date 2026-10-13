@@ -163,6 +163,7 @@ export type NewOutput = {
   recipe?: unknown;
   inputIds?: string[];
   callId?: string; // LLM outputs: the call whose answer it is
+  parentOutputId?: string; // manual outputs: the output they correct
 };
 
 export async function recordOutputs(project: Project, stageId: string, outputs: NewOutput[]): Promise<string[]> {
@@ -184,6 +185,28 @@ export async function finishStage(
 // Stops a running stage: a planned one with the same config takes its place.
 export async function stopStage(project: Project, stageId: string): Promise<ApiPipeline> {
   return (await send(stageUrl(project, stageId, "stop"))).json();
+}
+
+// Manual stages (DESIGN.md §5.4, §5.6).
+
+export type FixStart = { step: string; stepVersion: number; pageCount: number | null; inputIds: string[] };
+
+// Adds a manual stage, WIP, after a done stage. The stages after it are replaced.
+export async function addFixStage(
+  project: Project,
+  afterStageId: string,
+  start: FixStart,
+): Promise<{ stageId: string; pipeline: ApiPipeline }> {
+  return (await send(stageUrl(project, afterStageId, "fix"), start)).json();
+}
+
+// Edits a finished manual stage: a WIP copy takes its place.
+export async function editStage(project: Project, stageId: string): Promise<{ stageId: string; pipeline: ApiPipeline }> {
+  return (await send(stageUrl(project, stageId, "edit"))).json();
+}
+
+export async function dropStage(project: Project, stageId: string): Promise<ApiPipeline> {
+  return (await send(stageUrl(project, stageId, "drop"))).json();
 }
 
 // Stored content (DESIGN.md §2): uploaded under the SHA-256 of its bytes, which is returned. Uploading the same

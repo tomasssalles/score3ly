@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchPipeline, setRunMode, setStageConfig, stopStage, type ApiPipeline, type Project } from "./api";
+import {
+  addFixStage,
+  dropStage,
+  editStage,
+  fetchPipeline,
+  finishStage,
+  setRunMode,
+  setStageConfig,
+  stopStage,
+  type ApiPipeline,
+  type Project,
+} from "./api";
+import { FINISHERS } from "./finishFixSkew";
 import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ExpandIcon } from "./icons";
@@ -20,7 +32,7 @@ import { ProgressRing } from "./ProgressRing";
 import { ConfigDialog } from "./ConfigDialog";
 import { RUNNERS } from "./runners";
 import { CannotStart } from "./stageRunner";
-import { stepInfo } from "./steps";
+import { FIX_STARTS, stepInfo } from "./steps";
 import { StageDetails } from "./StageDetails";
 import { useWide } from "./useWide";
 
@@ -144,6 +156,74 @@ export function ProjectView({
     return pipeline.stages.slice(i).some((stage) => stage.status !== "planned" && stage.status !== "ready");
   }
 
+  // Whether a change right after this stage replaces stages that have already run.
+  function replacesLater(stageId: string): boolean {
+    const i = pipeline.stages.findIndex((stage) => stage.id === stageId);
+    return i >= 0 && i + 1 < pipeline.stages.length && replacesWork(pipeline.stages[i + 1].id);
+  }
+
+  // A new WIP manual stage: its editor opens.
+  function opened(result: { stageId: string; pipeline: ApiPipeline }) {
+    setStored(result.pipeline);
+    onChanged();
+    const stage = toPipeline(mode, result.pipeline).stages.find((s) => s.id === result.stageId);
+    const artifact = stage?.artifacts[0];
+    if (artifact) onSelectArtifact(artifact.id);
+  }
+
+  async function addFix(afterId: string, step: string) {
+    const after = stored?.stages.find((s) => s.id === afterId);
+    const start = FIX_STARTS[step];
+    if (!after || !start) return;
+    try {
+      opened(await addFixStage(project, afterId, { step, ...start(after) }));
+    } catch (err) {
+      setError(`Adding the stage failed: ${err}`);
+    }
+  }
+
+  async function edit(stageId: string) {
+    try {
+      opened(await editStage(project, stageId));
+    } catch (err) {
+      setError(`Editing the stage failed: ${err}`);
+    }
+  }
+
+  async function drop(stageId: string) {
+    try {
+      setStored(await dropStage(project, stageId));
+      onChanged();
+      scroll();
+    } catch (err) {
+      setError(`Dropping the stage failed: ${err}`);
+    }
+  }
+
+  // Finishes a WIP manual stage: what the step still has to record, then done. In Auto mode the pipeline carries on.
+  const finishing = useRef(false);
+  async function finish(stageId: string) {
+    if (finishing.current) return;
+    finishing.current = true;
+    setError(null);
+    try {
+      const latest = await fetchPipeline(project);
+      const stage = latest.stages.find((s) => s.id === stageId);
+      if (!stage || stage.status !== "wip") return;
+      const finisher = FINISHERS[stage.step];
+      const note = finisher ? await finisher(project, stage, latest) : undefined;
+      await finishStage(project, stageId, { status: "done", note });
+      const next = await fetchPipeline(project);
+      setStored(next);
+      onChanged();
+      if (modeRef.current === "auto") await run(next);
+    } catch (err) {
+      setError(`Finishing the stage failed: ${err}`);
+    } finally {
+      finishing.current = false;
+    }
+  }
+
   // Runs the stage whose turn it is, and in Auto mode the ones after it, until one fails, the user stops, or a
   // stage that can't run yet comes up.
   async function run(latest: ApiPipeline) {
@@ -214,32 +294,35 @@ export function ProjectView({
     }
   }
 
-  // Changing, adding and dropping manual stages isn't built yet: no step offers them so far.
-  const notBuilt = () => {};
+  // Fetches the pipeline again, e.g. after an editor saved a page. Errors don't matter: the next fetch catches up.
+  function refresh() {
+    fetchPipeline(project).then(setStored, () => {});
+  }
+
   const actions: PanelActions = {
     selectArtifact: onSelectArtifact,
     showDetails: onShowStage,
     run: () => stored && run(stored),
     stop,
-    finish: notBuilt,
+    finish: (id) => void finish(id),
     changeConfig: (id) => {
       const stage = findStage(pipeline, id);
       if (stage && stepInfo(stage.stepId).config) setConfiguring(stage);
       else setError(`"${stage?.title}" has nothing to set.`);
     },
-    addFix: (id) => change(id, notBuilt, replacesWork(id)),
-    edit: (id) => change(id, notBuilt, replacesWork(id)),
+    addFix: (id, step) => change(id, () => void addFix(id, step), replacesLater(id)),
+    edit: (id) => change(id, () => void edit(id), replacesLater(id)),
     // Always asks: the stage's own work is lost, and perhaps the stages after it too.
     drop: (id) =>
       setConfirmation({
         title: `Drop "${findStage(pipeline, id)?.title}"?`,
         text: [
           "The stage is removed, and the work done in it is lost. There is no undo.",
-          ...(replacesWork(id) ? OVERWRITE_TEXT : []),
+          ...(replacesLater(id) ? OVERWRITE_TEXT : []),
         ],
         confirmLabel: "Drop stage",
         danger: true,
-        action: notBuilt,
+        action: () => void drop(id),
       }),
     setMode: async (value) => {
       const previous = mode;
@@ -310,7 +393,7 @@ export function ProjectView({
         ) : (
           pickedArtifact && (
             <ArtifactView label={pickedArtifact.artifact.title} onClose={onCloseArtifact}>
-              <ArtifactContent project={project} artifact={pickedArtifact.artifact} />
+              <ArtifactContent project={project} artifact={pickedArtifact.artifact} onEdited={refresh} />
             </ArtifactView>
           )
         )}
@@ -356,7 +439,7 @@ export function ProjectView({
       ) : (
         shownArtifact && (
           <ArtifactView label={shownArtifact.artifact.title}>
-            <ArtifactContent project={project} artifact={shownArtifact.artifact} />
+            <ArtifactContent project={project} artifact={shownArtifact.artifact} onEdited={refresh} />
           </ArtifactView>
         )
       )}

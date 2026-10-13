@@ -4,6 +4,7 @@
 import type { ApiStage } from "./api";
 import type { Artifact, StageKind } from "./pipeline";
 import { configError, configOf, MAX_DPI, MIN_DPI, pageOfItem, type PageRecipe } from "./rasterize.ts";
+import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
 
 // One field of a step's config form.
@@ -30,7 +31,7 @@ export type StepInfo = {
   title: string;
   kind: StageKind; // never changes for a step (steps.test.ts)
   optional: boolean; // added by the user, not part of the recipe: can be dropped
-  fixes: string[]; // the manual stages that can be added after it
+  fixes: string[]; // the manual steps that can be added after it, by id
   config?: StepConfig; // none: nothing to set
   // The first is the main one. `earlier` are the stages before it in the pipeline, for its inputs.
   artifacts: (stage: ApiStage, earlier: ApiStage[]) => Artifact[];
@@ -99,7 +100,7 @@ export const STEPS: Record<string, StepInfo> = {
     title: "Skew analysis",
     kind: "computed",
     optional: false,
-    fixes: [],
+    fixes: ["fix_skew"],
     config: {
       fields: [
         {
@@ -150,6 +151,40 @@ STEPS.layout = {
     return pages.length === 0
       ? []
       : [{ id: `${stage.id}.layout`, title: "Layout", kind: "images", count: pages.length, item: "Page", pages }];
+  },
+};
+
+STEPS.fix_skew = {
+  title: "Fix skew",
+  kind: "manual",
+  optional: true,
+  fixes: [],
+  // The pages of the skew analysis before it, each with its own lines once saved, else the analysis's. While WIP,
+  // the artifact is the editor.
+  artifacts: (stage, earlier) => {
+    const recipes = pageRecipes(earlier);
+    const skew = [...earlier].reverse().find((s) => s.step === "skew_analysis");
+    const own = new Map(stage.outputs.filter((o) => o.type === "lines").map((o) => [o.item, o]));
+    const pages = (skew?.outputs ?? [])
+      .filter((output) => output.type === "skew" && output.contentSha256 !== null)
+      .flatMap((output) => {
+        const page = pageOfItem(output.item);
+        const recipe = page === null ? undefined : recipes.get(page);
+        const linesSha256 = own.get(output.item)?.contentSha256 ?? output.contentSha256!;
+        return page === null || !recipe ? [] : [{ page, recipe, linesSha256, item: output.item, parentId: output.id }];
+      })
+      .sort((a, b) => a.page - b.page);
+    if (pages.length === 0) return [];
+    const editor = stage.status === "wip" ? { stageId: stage.id } : undefined;
+    return [{ id: `${stage.id}.lines`, title: "Lines", kind: "images", count: pages.length, item: "Page", pages, editor }];
+  },
+};
+
+// What a manual step needs to be added after a stage (DESIGN.md §5.8): its version, page count and inputs.
+export const FIX_STARTS: Record<string, (after: ApiStage) => { stepVersion: number; pageCount: number | null; inputIds: string[] }> = {
+  fix_skew: (after) => {
+    const inputs = after.outputs.filter((o) => o.type === "skew");
+    return { stepVersion: FIX_SKEW_VERSION, pageCount: inputs.length, inputIds: inputs.map((o) => o.id) };
   },
 };
 

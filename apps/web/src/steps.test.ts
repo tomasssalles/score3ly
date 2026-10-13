@@ -9,6 +9,7 @@ const KINDS: Record<string, string> = {
   rasterize: "computed",
   skew_analysis: "computed",
   layout: "llm",
+  fix_skew: "manual",
 };
 
 test("no step's kind ever changes", () => {

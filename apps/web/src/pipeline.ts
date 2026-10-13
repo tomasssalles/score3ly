@@ -29,7 +29,9 @@ export type Artifact = {
   item?: "Page" | "System"; // what each item of a group is
   // Page images: what each one is made from, and, for lines drawn over it, the stored lines (a PageSkew).
   // With `layoutSha256`, the stored layout (a PageLayout): the page straightened as it says, with its boxes.
-  pages?: { page: number; recipe: PageRecipe; linesSha256?: string; layoutSha256?: string }[];
+  // `item` and `parentId` (the output a manual stage corrects) are there for an editor.
+  pages?: { page: number; recipe: PageRecipe; linesSha256?: string; layoutSha256?: string; item?: string; parentId?: string }[];
+  editor?: { stageId: string }; // a WIP manual stage's artifact: shown as its editor
 };
 
 export type Stage = {
@@ -47,7 +49,7 @@ export type Stage = {
   progress: number; // from 0 to 1 while running; known only on the device that runs the stage
   artifacts: Artifact[]; // the first is the main one; shown once the stage is done (or while a manual one is worked on)
   config: Record<string, string>;
-  fixes: string[]; // the manual stages that can be added after it, e.g. "Fix system boxes"
+  fixes: { step: string; title: string }[]; // the manual stages that can be added after it, e.g. "Fix skew"
   droppable: boolean; // not part of the recipe (DESIGN.md §5.5)
 };
 
@@ -68,7 +70,7 @@ export type LocalRun = { stageId: string; progress: number };
 // counts as failed, and can run again.
 export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null, now = Date.now()): Pipeline {
   const stages = stored.stages.map((s, i) => {
-    const stage = toStage(s, stored.stages.slice(0, i));
+    const stage = toStage(s, stored.stages.slice(0, i), stored.stages[i + 1]);
     if (local?.stageId === s.id) return { ...stage, status: "running" as const, progress: local.progress };
     if (s.status === "running" && (s.heartbeatAt === null || now - Date.parse(s.heartbeatAt) > STALE_MS)) {
       return { ...stage, status: "failed" as const, error: "Interrupted: the app was closed while this stage ran." };
@@ -80,7 +82,7 @@ export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun |
   return { mode, stages };
 }
 
-function toStage(stored: ApiStage, earlier: ApiStage[]): Stage {
+function toStage(stored: ApiStage, earlier: ApiStage[], next: ApiStage | undefined): Stage {
   const info = stepInfo(stored.step);
   // Stopped stages aren't in a pipeline; if one shows up anyway, it can run again like a failed one.
   const status: StageStatus = stored.status === "stopped" ? "failed" : stored.status;
@@ -105,7 +107,8 @@ function toStage(stored: ApiStage, earlier: ApiStage[]): Stage {
     config: Object.fromEntries(
       Object.entries(stored.config ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : JSON.stringify(value)]),
     ),
-    fixes: info.fixes,
+    // A fix already right after the stage isn't offered again (DESIGN.md §6).
+    fixes: info.fixes.filter((step) => next?.step !== step).map((step) => ({ step, title: stepInfo(step).title })),
     droppable: info.kind === "manual" || info.optional,
   };
 }

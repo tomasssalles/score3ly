@@ -30,7 +30,7 @@ export type StageActions = {
   stop: () => void;
   finish: (stageId: string) => void;
   changeConfig: (stageId: string) => void;
-  addFix: (stageId: string, title: string) => void;
+  addFix: (stageId: string, step: string) => void;
   edit: (stageId: string) => void;
   drop: (stageId: string) => void;
 };
@@ -184,7 +184,7 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
     changes.push({ label: "Change config", onSelect: () => actions.changeConfig(stage.id) });
   }
   if (stage.status === "done") {
-    for (const fix of stage.fixes) changes.push({ label: `Add: ${fix}`, onSelect: () => actions.addFix(stage.id, fix) });
+    for (const fix of stage.fixes) changes.push({ label: `Add: ${fix.title}`, onSelect: () => actions.addFix(stage.id, fix.step) });
   }
   if (changes.length > 0) groups.push(changes);
   if (stage.droppable) {

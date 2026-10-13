@@ -192,3 +192,30 @@ test("an LLM stage shows its model config's name, else its model string", () => 
   assert.equal(unnamed.model, "eu.anthropic.claude-opus-5-5");
   assert.equal(unnamed.cost, undefined);
 });
+
+test("Fix skew is offered after a skew analysis, unless one already follows it; while WIP its artifact is the editor", () => {
+  const skew = stage("s3", "skew_analysis", {
+    outputs: [{ id: "k1", item: "p1", type: "skew", contentSha256: SHA256, recipeKey: null, recipe: null }],
+  });
+  const rasterize = stage("s2", "rasterize", {
+    outputs: [{ id: "r1", item: "p1", type: "page_image", contentSha256: null, recipeKey: SHA256, recipe: { page: 1 } }],
+  });
+  let p = toPipeline("auto", { stages: [ingest, rasterize, skew, stage("s4", "layout", { status: "planned" })] });
+  assert.deepEqual(p.stages[2].fixes, [{ step: "fix_skew", title: "Fix skew" }]);
+
+  const own = "b".repeat(64);
+  const fix = stage("s5", "fix_skew", {
+    status: "wip",
+    outputs: [{ id: "f1", item: "p1", type: "lines", contentSha256: own, recipeKey: null, recipe: null }],
+  });
+  p = toPipeline("auto", { stages: [ingest, rasterize, skew, fix, stage("s4", "layout", { status: "planned" })] });
+  assert.deepEqual(p.stages[2].fixes, []);
+  const [artifact] = p.stages[3].artifacts;
+  assert.deepEqual(artifact.editor, { stageId: "s5" });
+  assert.equal(artifact.pages?.[0].linesSha256, own);
+  assert.equal(artifact.pages?.[0].parentId, "k1");
+  assert.equal(p.stages[3].droppable, true);
+  // The WIP stage is where the pipeline is: nothing can run until it is finished.
+  assert.equal(currentStage(p)?.id, "s5");
+  assert.equal(canRun(p), false);
+});

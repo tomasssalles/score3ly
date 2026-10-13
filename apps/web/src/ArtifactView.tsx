@@ -10,6 +10,7 @@ import { angleLabel, type PageSkew } from "./skewAnalysis";
 import type { SkewLine } from "@score3ly/imaging";
 import { pdfUrl } from "./pdf";
 import { PdfView } from "./PdfView";
+import { SkewEditor } from "./SkewEditor";
 
 // Shows one output or a stage's details, and nothing else: what is shown can be seen in the pipeline panel.
 // In narrow mode it covers the whole app and has a close button floating over it.
@@ -34,11 +35,26 @@ export function ArtifactView({
   );
 }
 
-// An artifact: the original PDF, the page images, or, for the kinds no stage produces yet, a note saying it can't
+// An artifact: the original PDF, the page images, a manual stage's editor, or, for the kinds no stage produces yet, a note saying it can't
 // be shown.
-export function ArtifactContent({ project, artifact }: { project: Project; artifact: Artifact }) {
+export function ArtifactContent({
+  project,
+  artifact,
+  onEdited,
+}: {
+  project: Project;
+  artifact: Artifact;
+  onEdited?: () => void; // an editor saved something
+}) {
   if (artifact.kind === "pdf") return <PdfView key={project.pdfSha256} url={pdfUrl(project.pdfSha256)} />;
   const pages = artifact.pages;
+  // A WIP manual stage's artifact is its editor (DESIGN.md §5.6).
+  if (artifact.editor && pages) {
+    const editable = pages.flatMap((p) =>
+      p.linesSha256 && p.item && p.parentId ? [{ ...p, linesSha256: p.linesSha256, item: p.item, parentId: p.parentId }] : [],
+    );
+    return <SkewEditor key={artifact.id} project={project} stageId={artifact.editor.stageId} pages={editable} onEdited={onEdited} />;
+  }
   if (artifact.kind === "images" && pages) {
     return (
       <Filmstrip
