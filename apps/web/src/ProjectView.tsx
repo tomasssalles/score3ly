@@ -89,6 +89,19 @@ export function ProjectView({
     scroll();
   }, [currentId]);
 
+  // While this device runs a stage, closing or reloading the tab asks first: the run stops, and an LLM answer still
+  // on its way is lost, although it is paid for. Browsers show their own text, not ours.
+  const runningHere = local !== null;
+  useEffect(() => {
+    if (!runningHere) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [runningHere]);
+
   // An ID that doesn't exist (an old or edited URL, or a replaced stage) counts as no pick.
   const pickedArtifact = artifactId === null ? null : findArtifact(pipeline, artifactId);
   const pickedStage = stageId === null ? null : findStage(pipeline, stageId);

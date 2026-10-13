@@ -2,6 +2,7 @@
 // and settings it needs; the Worker reads the secrets and creates the provider here.
 
 import { anthropicProvider, bedrockClaudeProvider, vertexClaudeProvider } from "./anthropic.ts";
+import { FakeProvider } from "./fake.ts";
 import { GoogleProvider } from "./google.ts";
 import type { Fetch, LlmProvider } from "./types.ts";
 
@@ -12,7 +13,8 @@ export type ProviderConfig =
   | { provider: "anthropic-vertex"; serviceAccount: string; region: string; projectId?: string }
   | { provider: "anthropic-bedrock"; region: string; apiKey: string }
   | { provider: "anthropic-bedrock"; region: string; accessKeyId: string; secretAccessKey: string }
-  | { provider: "google"; apiKey: string };
+  | { provider: "google"; apiKey: string }
+  | { provider: "fake" };
 
 export function createProvider(config: ProviderConfig, options: { fetch?: Fetch } = {}): LlmProvider {
   switch (config.provider) {
@@ -24,5 +26,7 @@ export function createProvider(config: ProviderConfig, options: { fetch?: Fetch 
       return bedrockClaudeProvider({ ...config, fetch: options.fetch });
     case "google":
       return new GoogleProvider({ apiKey: config.apiKey, fetch: options.fetch });
+    case "fake":
+      return new FakeProvider();
   }
 }

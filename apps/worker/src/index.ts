@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
+import { llmRoutes } from "./llmRoutes.ts";
 import { newPipeline, pipelineRoutes } from "./pipeline.ts";
 
 export type Project = {
@@ -271,5 +272,6 @@ app.post("/api/projects/:id/opened", async (c) => {
 });
 
 pipelineRoutes(app);
+llmRoutes(app);
 
 export default app;

@@ -141,6 +141,7 @@ export type StageStart = {
   stageKey: string;
   pageCount: number | null;
   inputIds: string[];
+  modelConfigId?: string | null; // LLM stages: the model config the stage uses
 };
 
 // Starts a stage. If a finished stage has the same key, the pipeline uses it instead: `reused`.
@@ -192,4 +193,76 @@ export async function putContent(bytes: Uint8Array<ArrayBuffer>, contentType: st
 
 export async function fetchJsonContent(sha256: string): Promise<unknown> {
   return (await checked(await fetch(`/api/content/${sha256}`))).json();
+}
+
+// LLM calls (apps/worker/src/llmRoutes.ts, DESIGN.md §7.2, §10).
+
+export type ModelConfig = {
+  id: string;
+  name: string | null;
+  provider: "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "fake";
+  model: string;
+  effort: "low" | "medium" | "high" | "xhigh" | "max" | null;
+  params: Record<string, string>;
+  secrets: Record<string, string>; // field → name of a Worker secret
+  freeTier: boolean;
+  supersedesId: string | null;
+  createdAt: string;
+};
+
+export type Settings = { defaultModelConfigId: string | null; spendingCapUsd: number | null };
+
+export async function fetchSettings(): Promise<Settings> {
+  return (await checked(await fetch("/api/settings"))).json();
+}
+
+export async function fetchModelConfig(id: string): Promise<ModelConfig> {
+  return (await checked(await fetch(`/api/model-configs/${id}`))).json();
+}
+
+export type LlmContent =
+  | { type: "text"; text: string }
+  | { type: "image"; image: { mediaType: "image/png" | "image/jpeg" | "image/webp"; base64: string } };
+
+export type LlmRequest = {
+  system?: string;
+  messages: { role: "user" | "assistant"; content: LlmContent[] }[];
+  maxOutputTokens?: number;
+  jsonSchema?: Record<string, unknown>;
+};
+
+export type LlmAnswer = {
+  callId: string;
+  cached: boolean; // served from an earlier identical request: nothing was paid
+  status: "ok" | "cut_off" | "refused" | "unparseable" | "error";
+  text: string | null;
+  json: unknown;
+  error: string | null;
+  usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number } | null;
+  costUsd: number | null;
+};
+
+// A call the Worker refused to make: `code` says why (e.g. "spending_cap", "no_spending_cap", "missing_secret").
+export class LlmRefused extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
+// One LLM request of a running stage. The Worker serves an identical earlier answer, or makes the call.
+export async function callLlm(project: Project, stageId: string, request: LlmRequest): Promise<LlmAnswer> {
+  const response = await fetch(stageUrl(project, stageId, "llm"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ request }),
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string; code?: string } | null;
+    if (body?.code) throw new LlmRefused(body.code, body.error ?? body.code);
+    throw new ApiError(response.status);
+  }
+  return response.json();
 }

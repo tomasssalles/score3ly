@@ -226,20 +226,21 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Starts a stage (or runs a failed or interrupted one again). The browser sends what it resolved: the step's
-  // version, the config, the stage key, the page count and the outputs it reads. If a finished stage that isn't
+  // version, the config, the model config (LLM stages), the stage key, the page count and the outputs it reads. If a finished stage that isn't
   // deleted has the same key, the pipeline points to it instead and nothing runs ({ reused: true }).
   app.post("/api/projects/:pid/stages/:sid/start", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
-    const { stepVersion, config, stageKey, pageCount, inputIds } = body ?? {};
+    const { stepVersion, config, stageKey, pageCount, inputIds, modelConfigId = null } = body ?? {};
     if (
       !Number.isInteger(stepVersion) ||
       typeof config !== "object" ||
       config === null ||
       !isKey(stageKey) ||
       !(pageCount === null || Number.isInteger(pageCount)) ||
-      !isStringArray(inputIds)
+      !isStringArray(inputIds) ||
+      !(modelConfigId === null || typeof modelConfigId === "string")
     ) {
       return c.json({ error: "expected 'stepVersion', 'config', 'stageKey', 'pageCount' and 'inputIds'" }, 400);
     }
@@ -251,6 +252,10 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       return c.json({ error: `the stage can't start: it is ${stage.status}` }, 409);
     }
     const iso = now.toISOString();
+    if (modelConfigId !== null) {
+      const exists = await db.prepare("SELECT id FROM model_configs WHERE id = ?").bind(modelConfigId).first();
+      if (!exists) return c.json({ error: "no such model config" }, 404);
+    }
     const reusable = await db
       .prepare("SELECT id FROM stages WHERE stage_key = ? AND status = 'done' AND deleted_at IS NULL AND id != ? LIMIT 1")
       .bind(stageKey, sid)
@@ -270,9 +275,9 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     await db.batch([
       db
         .prepare(
-          "UPDATE stages SET status = 'running', step_version = ?, config_json = ?, stage_key = ?, page_count = ?, error = NULL, started_at = COALESCE(started_at, ?), heartbeat_at = ?, finished_at = NULL WHERE id = ?",
+          "UPDATE stages SET status = 'running', step_version = ?, config_json = ?, model_config_id = ?, stage_key = ?, page_count = ?, error = NULL, started_at = COALESCE(started_at, ?), heartbeat_at = ?, finished_at = NULL WHERE id = ?",
         )
-        .bind(stepVersion, JSON.stringify(config), stageKey, pageCount, iso, iso, sid),
+        .bind(stepVersion, JSON.stringify(config), modelConfigId, stageKey, pageCount, iso, iso, sid),
       ...inputIds.map((outputId: string) =>
         db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(sid, outputId),
       ),
