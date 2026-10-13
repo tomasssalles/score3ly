@@ -1,6 +1,7 @@
 // What LLM steps share in the browser (DESIGN.md §7.2): the model config a stage uses, the part of the stage key that
 // depends on it, images for requests, and asking the model.
 
+import { CLAUDE_IMAGE_LIMIT, type SizeLimit } from "@score3ly/imaging";
 import { callLlm, fetchModelConfig, fetchSettings, type LlmAnswer, type LlmRequest, type ModelConfig } from "./api";
 import { CannotStart, type StageRun } from "./stageRunner";
 
@@ -17,6 +18,21 @@ export async function stageModelConfig(stageConfig: Record<string, unknown> | nu
 // parameters or secrets, which don't change the answer.
 export function modelKey(config: ModelConfig): { provider: string; model: string; effort: string | null } {
   return { provider: config.provider, model: config.model, effort: config.effort };
+}
+
+// The largest image to send, by the model config's provider (not its model string, which the app doesn't interpret,
+// §7.2): Claude on any of its three providers sees at most 2576 px and about 3.75 megapixels (Opus 4.7 and later;
+// older Claude models shrink further on their own). Gemini's limits aren't checked yet: Claude's are used for it
+// too, and for the fake provider.
+export function imageLimit(config: ModelConfig): SizeLimit {
+  switch (config.provider) {
+    case "anthropic":
+    case "anthropic-vertex":
+    case "anthropic-bedrock":
+    case "google":
+    case "fake":
+      return CLAUDE_IMAGE_LIMIT;
+  }
 }
 
 export async function pngContent(png: Blob): Promise<{ type: "image"; image: { mediaType: "image/png"; base64: string } }> {

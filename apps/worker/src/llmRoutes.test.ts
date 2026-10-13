@@ -176,6 +176,13 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   const recorded = await (await app.request(`/api/content/${rows[0].request_sha256}`, {}, env)).text();
   assert.ok(!recorded.includes(PNG) && recorded.includes('"sha256"'));
 
+  // The stage shows its model config and what its calls cost.
+  const { stages } = await json<{ stages: Record<string, unknown>[] }>(
+    await app.request(`/api/projects/${stage.projectId}/pipeline`, {}, env),
+  );
+  assert.deepEqual(stages[1].modelConfig, { name: null, model: "fake-model" });
+  assert.equal(stages[1].costUsd, first.costUsd);
+
   // The same request again, from another stage with another config of the same model: served, nothing paid.
   const other = await runningStage((await modelConfig({ name: "Same model, other config" })).id);
   const second = await json(await call(other));

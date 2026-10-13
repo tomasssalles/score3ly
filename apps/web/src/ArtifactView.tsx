@@ -162,7 +162,7 @@ function LinesOverlay({ sha256 }: { sha256: string }) {
 }
 
 // A page's stored layout (`layout`): the page straightened as the layout says, its system boxes and bar lines
-// (dashed) drawn over it in the same colours the model saw, each box numbered; a flag and the model's note when it
+// drawn over it in the same colours the model saw, each box numbered; a flag and the model's note when it
 // wasn't satisfied.
 function LayoutPageView({ recipe, layoutSha256 }: { recipe: PageRecipe; layoutSha256: string }) {
   const [layout, setLayout] = useState<PageLayout | null>(null);

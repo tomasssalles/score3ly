@@ -29,6 +29,8 @@ export type ApiStage = {
   startedAt: string | null;
   heartbeatAt: string | null;
   finishedAt: string | null;
+  modelConfig: { name: string | null; model: string } | null; // LLM stages: the model config used
+  costUsd: number | null; // what its LLM calls cost
   outputs: ApiOutput[];
 };
 

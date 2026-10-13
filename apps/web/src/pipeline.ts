@@ -39,7 +39,7 @@ export type Stage = {
   title: string;
   kind: StageKind;
   status: StageStatus;
-  model?: string; // LLM stages
+  model?: string; // LLM stages: the model config's name, else its model string (DESIGN.md §7.2)
   seconds?: number; // run time, once done
   cost?: number; // US dollars, LLM stages once done
   note?: string; // one short fact about the result, e.g. "3 boxes moved"
@@ -96,6 +96,8 @@ function toStage(stored: ApiStage, earlier: ApiStage[]): Stage {
     kind: info.kind,
     status,
     seconds,
+    model: stored.modelConfig ? (stored.modelConfig.name ?? stored.modelConfig.model) : undefined,
+    cost: stored.costUsd ?? undefined,
     note: stored.note ?? undefined,
     error: stored.error ?? undefined,
     progress: 0,

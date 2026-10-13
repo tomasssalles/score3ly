@@ -20,6 +20,9 @@ export type Stage = {
   startedAt: string | null;
   heartbeatAt: string | null; // written once a minute while running
   finishedAt: string | null;
+  // LLM stages: the model config used, for the card (its name, else its model string), and what its calls cost.
+  modelConfig: { name: string | null; model: string } | null;
+  costUsd: number | null;
   outputs: Output[];
 };
 
@@ -53,6 +56,9 @@ type StageRow = {
   started_at: string | null;
   heartbeat_at: string | null;
   finished_at: string | null;
+  mc_name?: string | null;
+  mc_model?: string | null;
+  cost_usd?: number | null;
 };
 
 type OutputRow = {
@@ -111,7 +117,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
   const [stages, outputs] = await db.batch([
     db
       .prepare(
-        "SELECT s.* FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? ORDER BY e.position",
+        "SELECT s.*, m.name AS mc_name, m.model AS mc_model, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
       )
       .bind(projectId),
     db
@@ -137,6 +143,8 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
       startedAt: row.started_at,
       heartbeatAt: row.heartbeat_at,
       finishedAt: row.finished_at,
+      modelConfig: row.mc_model ? { name: row.mc_name ?? null, model: row.mc_model } : null,
+      costUsd: row.cost_usd ?? null,
       outputs: (byStage.get(row.id) ?? []).map((o) => ({
         id: o.id,
         item: o.item,

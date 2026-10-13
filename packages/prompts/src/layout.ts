@@ -3,7 +3,7 @@
 // answers in all. Boxes and positions are fractions of the image sent (left, right, top, bottom from 0 to 1).
 
 // Raise whenever the texts, the schema or the checks change.
-export const LAYOUT_PROMPT_VERSION = 1;
+export const LAYOUT_PROMPT_VERSION = 2;
 
 // The first answer and up to two checks of the drawing.
 export const LAYOUT_ROUNDS = 3;
@@ -26,7 +26,7 @@ export const LAYOUT_FIRST = `Find the layout of this page. Give "satisfied": fal
 
 export function layoutCheck(round: number): string {
   const last = round === LAYOUT_ROUNDS;
-  return `This is the page with your answer drawn on it: each system's box and its bar lines (dashed) in its own colour, with its number in a label at the top left corner of its box. Check every box: does it hold the whole system, with everything printed around it that belongs to it, without cutting anything off? Check every bar line: is it exactly on a bar line of the page, and is none missing and none extra? Is any system missing, or is one box holding two systems?
+  return `This is the page with your answer drawn on it: each system's box and its bar lines in its own colour, drawn thin, with its number in a label at the top left corner of its box. Check every box: does it hold the whole system, with everything printed around it that belongs to it, without cutting anything off? Check every bar line: is it exactly on a bar line of the page, and is none missing and none extra? Is any system missing, or is one box holding two systems?
 
 If anything needs changing, answer with the whole corrected layout and "satisfied": false${last ? "" : ": you will see it drawn again"}. If nothing needs changing, answer with the same layout and "satisfied": true.${last ? " This is the last check: if the layout still isn't right, give your best version, \"satisfied\": false, and say in the note what is wrong with it, for a person to fix." : ""}`;
 }

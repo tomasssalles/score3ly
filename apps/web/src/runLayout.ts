@@ -1,9 +1,9 @@
 // Runs `layout` (DESIGN.md §6): per page, the straightened page (by the lines of the latest skew stage before it)
-// shrunk to the model's limits is sent with the prompt; the answer is drawn on the page and sent back for the model
+// shrunk to the model's limits (by its provider) is sent with the prompt; the answer is drawn on the page and sent back for the model
 // to check, at most LAYOUT_ROUNDS answers in all. The last answer is stored as the page's layout; if the model still
 // wasn't satisfied, the page is flagged for a person.
 
-import { CLAUDE_IMAGE_LIMIT, deskewAngle, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION, type Skew } from "@score3ly/imaging";
+import { deskewAngle, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION, type Skew } from "@score3ly/imaging";
 import {
   checkLayoutAnswer,
   LAYOUT_FIRST,
@@ -18,7 +18,7 @@ import {
 import { fetchJsonContent, markUnusable, putContent, type LlmRequest } from "./api";
 import { canonicalJson } from "./keys";
 import { LAYOUT_VERSION, layoutNote, layoutStageKey, type PageLayout } from "./layout";
-import { ask, modelKey, pngContent, stageModelConfig } from "./llm";
+import { ask, imageLimit, modelKey, pngContent, stageModelConfig } from "./llm";
 import { drawnPage, modelPage, pageImage, pngSize, type ModelPageRecipe } from "./pageImages";
 import { pageOfItem, type PageRecipe } from "./rasterize";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
@@ -40,7 +40,7 @@ export async function runLayout(run: StageRun): Promise<void> {
     .sort((a, b) => a.page - b.page);
 
   const config = await stageModelConfig(stage.config);
-  const imageRecipe = { limit: CLAUDE_IMAGE_LIMIT, scale: SCALE_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
+  const imageRecipe = { limit: imageLimit(config), scale: SCALE_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
   const stageKey = await layoutStageKey({
     promptVersion: LAYOUT_PROMPT_VERSION,
     model: modelKey(config),

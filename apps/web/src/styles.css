@@ -938,14 +938,11 @@ body {
   white-space: nowrap;
 }
 
+/* Thicker than in the model's view, which must not hide the music: here the boxes should stand out. */
 .layout-system rect,
 .layout-system line {
-  stroke-width: 2;
+  stroke-width: 3;
   vector-effect: non-scaling-stroke;
-}
-
-.layout-system .bar-line {
-  stroke-dasharray: 8 8;
 }
 
 .system-label {

@@ -1,13 +1,16 @@
 // Drawing a page's layout over its image (DESIGN.md §6, `layout`): the system boxes, each in its own colour, its bar
 // lines in the same colour, and its number in a small label at its top left corner. The model checks its answer on
 // this drawing, and the user sees the same colours in the artifact. Our own pixels (§8.2): no canvas, no fonts.
+//
+// For the model, the lines are thin and solid: they should cover as little of the music as possible, and where a
+// drawn bar line lies exactly on a printed one it hides it, while one beside it shows as a pair of lines.
 
 import type { Box } from "./crop.ts";
 import type { Rgb, RgbaImage } from "./image.ts";
 
 // The version of the drawing: part of every check round's request (through the image). Raise it whenever the
 // drawing changes.
-export const DRAW_VERSION = 1;
+export const DRAW_VERSION = 2;
 
 // The 7 colours boxes cycle through: Okabe–Ito without its black, which colour-blind people can tell apart.
 export const LAYOUT_COLORS: Rgb[] = [
@@ -27,7 +30,7 @@ export type LayoutSystem = { box: Box; barLines: number[] };
 
 export function drawLayout(image: RgbaImage, systems: LayoutSystem[]): RgbaImage {
   const out: RgbaImage = { width: image.width, height: image.height, data: new Uint8ClampedArray(image.data) };
-  const thickness = Math.max(2, Math.round(Math.max(image.width, image.height) / 700));
+  const thickness = Math.max(1, Math.round(Math.max(image.width, image.height) / 1300));
   systems.forEach((system, i) => {
     const color = LAYOUT_COLORS[i % LAYOUT_COLORS.length];
     const x0 = Math.round(system.box.left * image.width);
@@ -38,10 +41,7 @@ export function drawLayout(image: RgbaImage, systems: LayoutSystem[]): RgbaImage
     fill(out, x0, y1 - thickness, x1 - x0, thickness, color);
     fill(out, x0, y0, thickness, y1 - y0, color);
     fill(out, x1 - thickness, y0, thickness, y1 - y0, color);
-    for (const x of system.barLines) {
-      const bx = Math.round(x * image.width - thickness / 2);
-      dashed(out, bx, y0, thickness, y1 - y0, color, thickness * 4);
-    }
+    for (const x of system.barLines) fill(out, Math.round(x * image.width - thickness / 2), y0, thickness, y1 - y0, color);
     label(out, String(i + 1), x0, y0, color, thickness);
   });
   return out;
@@ -57,11 +57,6 @@ function fill(image: RgbaImage, x0: number, y0: number, w: number, h: number, co
       image.data[i + 3] = 255;
     }
   }
-}
-
-// A vertical dashed line: bar lines stay visible under it.
-function dashed(image: RgbaImage, x: number, y0: number, w: number, h: number, color: Rgb, dash: number) {
-  for (let y = y0; y < y0 + h; y += 2 * dash) fill(image, x, y, w, Math.min(dash, y0 + h - y), color);
 }
 
 // Digits 3 wide and 5 high, row by row, a bit per pixel from the left.
@@ -80,7 +75,7 @@ const DIGITS: Record<string, number[]> = {
 
 // A number in black on a filled label of the box's colour, at the box's top left corner, inside it.
 function label(image: RgbaImage, text: string, x0: number, y0: number, color: Rgb, thickness: number) {
-  const scale = thickness * 2;
+  const scale = Math.max(3, thickness * 3);
   const pad = scale;
   const width = text.length * 4 * scale - scale + 2 * pad;
   const height = 5 * scale + 2 * pad;

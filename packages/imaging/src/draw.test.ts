@@ -14,11 +14,11 @@ test("boxes cycle through the 7 colours, and bar lines take their box's colour",
   // The right edge of each box, and its bar line.
   systems.forEach((s, i) => {
     const y = Math.round(((s.box.top + s.box.bottom) / 2) * 1000);
-    assert.deepEqual(at(898, y), LAYOUT_COLORS[i % 7], `box ${i + 1}`);
+    assert.deepEqual(at(899, y), LAYOUT_COLORS[i % 7], `box ${i + 1}`);
     assert.deepEqual(at(500, Math.round(s.box.top * 1000) + 3), LAYOUT_COLORS[i % 7], `bar line ${i + 1}`);
   });
   assert.deepEqual(at(5, 5), [255, 255, 255]);
   // The input isn't changed.
   assert.deepEqual([...image.data.subarray(0, 3)], [255, 255, 255]);
-  assert.deepEqual([...image.data.subarray((500 * 1000 + 898) * 4, (500 * 1000 + 898) * 4 + 3)], [255, 255, 255]);
+  assert.deepEqual([...image.data.subarray((500 * 1000 + 899) * 4, (500 * 1000 + 899) * 4 + 3)], [255, 255, 255]);
 });

@@ -1,4 +1,5 @@
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
+import { FittedText } from "./FittedText";
 import type { Project } from "./api";
 import {
   ComputedIcon,
@@ -109,8 +110,9 @@ export function StageCard({
   );
 }
 
+// The model config on a line of its own, shortened in the middle if it doesn't fit (§5.7), then the facts.
 function Facts({ stage }: { stage: Stage }) {
-  const facts = [stage.model];
+  const facts: (string | undefined)[] = [];
   if (stage.status === "done") {
     if (stage.seconds !== undefined) facts.push(duration(stage.seconds));
     if (stage.cost !== undefined) facts.push(dollars(stage.cost));
@@ -118,7 +120,16 @@ function Facts({ stage }: { stage: Stage }) {
   }
   if (stage.status === "wip") facts.push("Not finished yet");
   const shown = facts.filter(Boolean);
-  return shown.length > 0 ? <p className="stage-facts">{shown.join(" · ")}</p> : null;
+  return (
+    <>
+      {stage.model && (
+        <p className="stage-facts stage-model">
+          <FittedText text={stage.model} lines={1} />
+        </p>
+      )}
+      {shown.length > 0 && <p className="stage-facts">{shown.join(" · ")}</p>}
+    </>
+  );
 }
 
 // What a Run button says: "Retry" for a stage that failed.

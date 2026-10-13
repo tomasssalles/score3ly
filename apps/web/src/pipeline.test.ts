@@ -28,6 +28,8 @@ function stage(id: string, step: string, fields: Partial<ApiStage> = {}): ApiSta
     startedAt: T0,
     heartbeatAt: null,
     finishedAt: T0,
+    modelConfig: null,
+    costUsd: null,
     outputs: [],
     ...fields,
   };
@@ -176,4 +178,17 @@ test("skew_analysis's artifact shows the page images of the rasterize before it,
     ],
   );
   assert.equal(defaultArtifactId(p), "s3.lines");
+});
+
+test("an LLM stage shows its model config's name, else its model string, and what its calls cost", () => {
+  const named = toPipeline("auto", {
+    stages: [ingest, stage("s2", "layout", { modelConfig: { name: "Opus EU", model: "eu.anthropic.claude-opus-5-5" }, costUsd: 0.42 })],
+  }).stages[1];
+  assert.equal(named.model, "Opus EU");
+  assert.equal(named.cost, 0.42);
+  const unnamed = toPipeline("auto", {
+    stages: [ingest, stage("s2", "layout", { modelConfig: { name: null, model: "eu.anthropic.claude-opus-5-5" } })],
+  }).stages[1];
+  assert.equal(unnamed.model, "eu.anthropic.claude-opus-5-5");
+  assert.equal(unnamed.cost, undefined);
 });
