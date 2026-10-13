@@ -41,6 +41,14 @@ export const RECIPE = ["ingest", "rasterize", "skew_analysis", "layout"] as cons
 // The version of the Ingest step that new projects get.
 const INGEST_VERSION = 1;
 
+// The manual steps (DESIGN.md §5.4). A step's kind is declared in the web app; the Worker needs to know these to
+// add, edit and drop them, and to leave them out when the stages after a change are replaced (§5.8).
+export const MANUAL_STEPS = ["fix_skew"] as const;
+
+function isManual(step: string): boolean {
+  return (MANUAL_STEPS as readonly string[]).includes(step);
+}
+
 // A running stage whose heartbeat is older than this was interrupted (the tab was closed): it can run again.
 export const STALE_MS = 3 * 60 * 1000;
 
@@ -111,6 +119,51 @@ function plannedStage(
       .prepare("INSERT OR REPLACE INTO pipeline_entries (project_id, position, stage_id) VALUES (?, ?, ?)")
       .bind(projectId, position, id),
   ];
+}
+
+// The statements that rewrite a pipeline from `position` on: the entries before it stay, `head` (stage ids) comes
+// at `position`, and then the stages that were after `after`, replaced (DESIGN.md §5.5): a planned one keeps its
+// row, one that ran gets a planned copy with its config, and a manual one is dropped (for now, §5.8).
+async function rewriteFrom(
+  db: D1Database,
+  projectId: string,
+  position: number,
+  head: string[],
+  after: number,
+  now: string,
+): Promise<D1PreparedStatement[]> {
+  const { results: later } = await db
+    .prepare(
+      "SELECT s.id, s.step, s.status, s.config_json FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position > ? ORDER BY e.position",
+    )
+    .bind(projectId, after)
+    .all<{ id: string; step: string; status: StageStatus; config_json: string | null }>();
+  const statements = [
+    db.prepare("DELETE FROM pipeline_entries WHERE project_id = ? AND position >= ?").bind(projectId, position),
+  ];
+  let next = position;
+  const point = (stageId: string) =>
+    db
+      .prepare("INSERT INTO pipeline_entries (project_id, position, stage_id) VALUES (?, ?, ?)")
+      .bind(projectId, next++, stageId);
+  for (const id of head) statements.push(point(id));
+  for (const row of later) {
+    if (isManual(row.step)) continue;
+    if (row.status === "planned") statements.push(point(row.id));
+    else statements.push(...plannedStage(db, projectId, next++, row.step, row.config_json, now));
+  }
+  return statements;
+}
+
+// Whether a stage of the project's pipeline is running (an interrupted one doesn't count).
+async function anyRunning(db: D1Database, projectId: string, now: number): Promise<boolean> {
+  const { results } = await db
+    .prepare(
+      "SELECT s.* FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND s.status = 'running'",
+    )
+    .bind(projectId)
+    .all<StageRow>();
+  return results.some((stage) => !isStale(stage, now));
 }
 
 async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline> {
@@ -216,18 +269,20 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       return c.json({ error: "the stage is running" }, 409);
     }
     if (stage.step === "ingest") return c.json({ error: "Ingest has no config" }, 409);
+    if (isManual(stage.step)) return c.json({ error: "a manual stage has no config" }, 409);
     const statements: D1PreparedStatement[] = [touchProject(db, pid, now)];
     if (stage.status === "planned") {
       statements.push(db.prepare("UPDATE stages SET config_json = ? WHERE id = ?").bind(configJson, sid));
     } else {
-      statements.push(...plannedStage(db, pid, position, stage.step, configJson, now));
-      const { results: later } = await db
-        .prepare(
-          "SELECT e.position, s.step, s.config_json FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position > ? ORDER BY e.position",
-        )
-        .bind(pid, position)
-        .all<{ position: number; step: string; config_json: string | null }>();
-      for (const row of later) statements.push(...plannedStage(db, pid, row.position, row.step, row.config_json, now));
+      const id = crypto.randomUUID();
+      statements.push(
+        db
+          .prepare(
+            "INSERT INTO stages (id, created_in, step, status, config_json, created_at) VALUES (?, ?, ?, 'planned', ?, ?)",
+          )
+          .bind(id, pid, stage.step, configJson, now),
+        ...(await rewriteFrom(db, pid, position, [id], position, now)),
+      );
     }
     await db.batch(statements);
     return c.json(await readPipeline(db, pid));
@@ -294,8 +349,9 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json({ reused: false, stageId: sid });
   });
 
-  // Records outputs of a running stage, as soon as each is done (DESIGN.md §5.2). An item already recorded is
-  // left as it is. Returns the outputs' ids, in the order sent.
+  // Records outputs of a running stage, as soon as each is done (DESIGN.md §5.2), or of a WIP manual stage, as the
+  // user works. A running stage's item already recorded is left as it is; a WIP stage's is overwritten. Returns the
+  // outputs' ids, in the order sent.
   app.post("/api/projects/:pid/stages/:sid/outputs", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
@@ -311,21 +367,25 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
           (o.recipeKey === undefined || isKey(o.recipeKey)) &&
           (o.contentSha256 !== undefined || o.recipeKey !== undefined) &&
           (o.inputIds === undefined || isStringArray(o.inputIds)) &&
-          (o.callId === undefined || typeof o.callId === "string"),
+          (o.callId === undefined || typeof o.callId === "string") &&
+          (o.parentOutputId === undefined || typeof o.parentOutputId === "string"),
       );
     if (!valid) return c.json({ error: "expected 'outputs' with an item, a type, and a content hash or a recipe key" }, 400);
     const found = await entry(db, pid, sid);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
-    if (found.stage.status !== "running") return c.json({ error: "the stage isn't running" }, 409);
+    const wip = found.stage.status === "wip";
+    if (found.stage.status !== "running" && !wip) return c.json({ error: "the stage isn't running" }, 409);
     const now = new Date().toISOString();
     const ids = outputs.map(() => crypto.randomUUID());
+    // A WIP stage's item saved again: the new content replaces the old, in the same row.
+    const insert = wip
+      ? "INSERT INTO outputs (id, stage_id, item, type, content_sha256, recipe_key, recipe_json, call_id, parent_output_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (stage_id, item, type) DO UPDATE SET content_sha256 = excluded.content_sha256, recipe_key = excluded.recipe_key, recipe_json = excluded.recipe_json, parent_output_id = excluded.parent_output_id"
+      : "INSERT OR IGNORE INTO outputs (id, stage_id, item, type, content_sha256, recipe_key, recipe_json, call_id, parent_output_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     const statements: D1PreparedStatement[] = [];
     outputs.forEach((o: Record<string, unknown>, i: number) => {
       statements.push(
         db
-          .prepare(
-            "INSERT OR IGNORE INTO outputs (id, stage_id, item, type, content_sha256, recipe_key, recipe_json, call_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          )
+          .prepare(insert)
           .bind(
             ids[i],
             sid,
@@ -335,6 +395,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
             o.recipeKey ?? null,
             o.recipe === undefined ? null : JSON.stringify(o.recipe),
             o.callId ?? null,
+            o.parentOutputId ?? null,
             now,
           ),
         ...((o.inputIds as string[] | undefined) ?? []).map((inputId) =>
@@ -346,7 +407,11 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
         ),
       );
     });
-    statements.push(db.prepare("UPDATE stages SET heartbeat_at = ? WHERE id = ?").bind(now, sid));
+    statements.push(
+      wip
+        ? touchProject(db, pid, now)
+        : db.prepare("UPDATE stages SET heartbeat_at = ? WHERE id = ?").bind(now, sid),
+    );
     await db.batch(statements);
     const { results } = await db
       .prepare("SELECT id, item, type FROM outputs WHERE stage_id = ?")
@@ -367,7 +432,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.body(null, 204);
   });
 
-  // Ends a running stage: done, with a short result, or failed, with the error.
+  // Ends a running stage: done, with a short result, or failed, with the error. A WIP manual stage is finished the
+  // same way (done only): the user clicked Finish.
   app.post("/api/projects/:pid/stages/:sid/finish", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
@@ -385,7 +451,10 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     }
     const found = await entry(db, pid, sid);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
-    if (found.stage.status !== "running") return c.json({ error: "the stage isn't running" }, 409);
+    const { stage } = found;
+    if (stage.status !== "running" && !(stage.status === "wip" && status === "done")) {
+      return c.json({ error: "the stage isn't running" }, 409);
+    }
     const now = new Date().toISOString();
     await db.batch([
       db
@@ -417,6 +486,106 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...plannedStage(db, pid, position, stage.step, stage.config_json, now),
       touchProject(db, pid, now),
     ]);
+    return c.json(await readPipeline(db, pid));
+  });
+
+  // Adds a manual stage, WIP, right after a done stage (DESIGN.md §5.6): body { step, stepVersion, pageCount,
+  // inputIds }. The stages after it are replaced. Returns the pipeline and the new stage's id.
+  app.post("/api/projects/:pid/stages/:sid/fix", async (c) => {
+    const db = c.env.DB;
+    const { pid, sid } = c.req.param();
+    const body = await c.req.json().catch(() => null);
+    const { step, stepVersion, pageCount, inputIds } = body ?? {};
+    if (
+      typeof step !== "string" ||
+      !isManual(step) ||
+      !Number.isInteger(stepVersion) ||
+      !(pageCount === null || Number.isInteger(pageCount)) ||
+      !isStringArray(inputIds)
+    ) {
+      return c.json({ error: "expected a manual 'step', 'stepVersion', 'pageCount' and 'inputIds'" }, 400);
+    }
+    const found = await entry(db, pid, sid);
+    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    const { stage, position } = found;
+    if (stage.status !== "done") return c.json({ error: "a fix can only follow a done stage" }, 409);
+    const next = await db
+      .prepare("SELECT s.step FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position = ?")
+      .bind(pid, position + 1)
+      .first<{ step: string }>();
+    if (next?.step === step) return c.json({ error: "this fix already follows that stage" }, 409);
+    const now = new Date();
+    if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
+    const iso = now.toISOString();
+    const id = crypto.randomUUID();
+    await db.batch([
+      db
+        .prepare(
+          "INSERT INTO stages (id, created_in, step, step_version, status, config_json, page_count, created_at, started_at) VALUES (?, ?, ?, ?, 'wip', '{}', ?, ?, ?)",
+        )
+        .bind(id, pid, step, stepVersion, pageCount, iso, iso),
+      ...inputIds.map((outputId: string) =>
+        db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(id, outputId),
+      ),
+      ...(await rewriteFrom(db, pid, position + 1, [id], position, iso)),
+      touchProject(db, pid, iso),
+    ]);
+    return c.json({ stageId: id, pipeline: await readPipeline(db, pid) });
+  });
+
+  // Edits a finished manual stage (DESIGN.md §5.4): a new WIP stage, with the same outputs and inputs, takes its
+  // place and records which one it replaces; the old one stays as it was. The stages after it are replaced.
+  app.post("/api/projects/:pid/stages/:sid/edit", async (c) => {
+    const db = c.env.DB;
+    const { pid, sid } = c.req.param();
+    const found = await entry(db, pid, sid);
+    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    const { stage, position } = found;
+    if (!isManual(stage.step) || stage.status !== "done") {
+      return c.json({ error: "only a finished manual stage can be edited" }, 409);
+    }
+    const now = new Date();
+    if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
+    const iso = now.toISOString();
+    const id = crypto.randomUUID();
+    await db.batch([
+      db
+        .prepare(
+          "INSERT INTO stages (id, created_in, step, step_version, status, config_json, page_count, replaces_stage_id, created_at, started_at) SELECT ?, ?, step, step_version, 'wip', config_json, page_count, id, ?, ? FROM stages WHERE id = ?",
+        )
+        .bind(id, pid, iso, iso, sid),
+      db
+        .prepare("INSERT INTO stage_inputs (stage_id, output_id) SELECT ?, output_id FROM stage_inputs WHERE stage_id = ?")
+        .bind(id, sid),
+      db
+        .prepare(
+          "INSERT INTO outputs (id, stage_id, item, type, content_sha256, recipe_key, recipe_json, parent_output_id, created_at) SELECT lower(hex(randomblob(16))), ?, item, type, content_sha256, recipe_key, recipe_json, parent_output_id, ? FROM outputs WHERE stage_id = ?",
+        )
+        .bind(id, iso, sid),
+      db
+        .prepare(
+          "INSERT INTO output_inputs (output_id, input_id) SELECT n.id, i.input_id FROM outputs o JOIN output_inputs i ON i.output_id = o.id JOIN outputs n ON n.stage_id = ? AND n.item = o.item AND n.type = o.type WHERE o.stage_id = ?",
+        )
+        .bind(id, sid),
+      ...(await rewriteFrom(db, pid, position, [id], position, iso)),
+      touchProject(db, pid, iso),
+    ]);
+    return c.json({ stageId: id, pipeline: await readPipeline(db, pid) });
+  });
+
+  // Drops a manual stage, WIP or finished (DESIGN.md §5.5): its entry goes, and the stages after it move up and are
+  // replaced. The stage's row and outputs stay, like a replaced stage's.
+  app.post("/api/projects/:pid/stages/:sid/drop", async (c) => {
+    const db = c.env.DB;
+    const { pid, sid } = c.req.param();
+    const found = await entry(db, pid, sid);
+    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    const { stage, position } = found;
+    if (!isManual(stage.step)) return c.json({ error: "only stages outside the recipe can be dropped" }, 409);
+    const now = new Date();
+    if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
+    const iso = now.toISOString();
+    await db.batch([...(await rewriteFrom(db, pid, position, [], position, iso)), touchProject(db, pid, iso)]);
     return c.json(await readPipeline(db, pid));
   });
 }

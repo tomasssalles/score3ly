@@ -643,3 +643,139 @@ test("stage requests check the project, the stage and the body", async () => {
   assert.equal((await call(project.id, rasterize.id, "start", { stepVersion: 1 })).status, 400);
   assert.equal((await call(project.id, rasterize.id, "config", { pages: "1" }, "PUT")).status, 400);
 });
+
+// Manual stages: added after a done stage, worked on while WIP, finished, edited and dropped.
+
+const LINES = (n: number) => String.fromCharCode(96 + n).repeat(64); // 'aaa…', 'bbb…'
+
+// A project whose rasterize and skew_analysis are done, with one skew output per page.
+async function analyzedProject(filename: string) {
+  const project = await createdProject(filename);
+  const { rasterize } = await startRasterize(project.id, RECIPE_KEY(7));
+  await call(project.id, rasterize.id, "outputs", {
+    outputs: [1, 2].map((n) => ({ item: `p${n}`, type: "page_image", recipeKey: RECIPE_KEY(n) })),
+  });
+  await call(project.id, rasterize.id, "finish", { status: "done" });
+  const skew = (await pipelineOf(project.id))[2];
+  await call(project.id, skew.id, "start", {
+    stepVersion: 1,
+    config: { maxAngle: 5 },
+    stageKey: RECIPE_KEY(8),
+    pageCount: 2,
+    inputIds: [],
+  });
+  await call(project.id, skew.id, "outputs", {
+    outputs: [1, 2].map((n) => ({ item: `p${n}`, type: "skew", contentSha256: LINES(n) })),
+  });
+  await call(project.id, skew.id, "finish", { status: "done" });
+  const stages = await pipelineOf(project.id);
+  return { project, skew: stages[2], stages };
+}
+
+function addFix(projectId: string, stageId: string, step = "fix_skew") {
+  return call(projectId, stageId, "fix", { step, stepVersion: 1, pageCount: 2, inputIds: [] });
+}
+
+test("a manual stage is added WIP after a done stage, saved as the user works, and finished", async () => {
+  const { project, skew, stages } = await analyzedProject("fix.pdf");
+  const response = await addFix(project.id, skew.id);
+  assert.equal(response.status, 200);
+  const { stageId } = (await response.json()) as { stageId: string };
+
+  let pipeline = await pipelineOf(project.id);
+  assert.deepEqual(
+    pipeline.map((s) => [s.step, s.status]),
+    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["layout", "planned"]],
+  );
+  // The planned layout keeps its row.
+  assert.equal(pipeline[4].id, stages[3].id);
+
+  // Saving a page again overwrites it.
+  const parent = skew.outputs[0].id;
+  await call(project.id, stageId, "outputs", {
+    outputs: [{ item: "p1", type: "lines", contentSha256: LINES(1), parentOutputId: parent }],
+  });
+  await call(project.id, stageId, "outputs", {
+    outputs: [{ item: "p1", type: "lines", contentSha256: LINES(3), parentOutputId: parent }],
+  });
+  pipeline = await pipelineOf(project.id);
+  assert.deepEqual(pipeline[3].outputs.map((o) => [o.item, o.contentSha256]), [["p1", LINES(3)]]);
+
+  // A WIP stage can't fail or start; it can be finished.
+  assert.equal((await call(project.id, stageId, "finish", { status: "failed", error: "x" })).status, 409);
+  assert.equal((await call(project.id, stageId, "finish", { status: "done", note: "1 page changed" })).status, 204);
+  pipeline = await pipelineOf(project.id);
+  assert.equal(pipeline[3].status, "done");
+  assert.equal(pipeline[3].note, "1 page changed");
+  // A done stage's outputs can't change any more.
+  const late = await call(project.id, stageId, "outputs", {
+    outputs: [{ item: "p2", type: "lines", contentSha256: LINES(2) }],
+  });
+  assert.equal(late.status, 409);
+});
+
+test("a fix can't follow the same stage twice, nor a stage that isn't done, nor be anything but manual", async () => {
+  const { project, skew, stages } = await analyzedProject("twice.pdf");
+  assert.equal((await addFix(project.id, skew.id)).status, 200);
+  assert.equal((await addFix(project.id, skew.id)).status, 409);
+  assert.equal((await addFix(project.id, stages[3].id)).status, 409); // layout, planned
+  assert.equal((await addFix(project.id, skew.id, "layout")).status, 400);
+});
+
+test("adding a fix replaces the stages after it that ran; a change before a manual stage drops it", async () => {
+  const { project, skew } = await analyzedProject("replace.pdf");
+  const layout = (await pipelineOf(project.id))[3];
+  await call(project.id, layout.id, "start", { stepVersion: 1, config: {}, stageKey: RECIPE_KEY(9), pageCount: 2, inputIds: [] });
+  await call(project.id, layout.id, "finish", { status: "done" });
+
+  await addFix(project.id, skew.id);
+  let pipeline = await pipelineOf(project.id);
+  assert.equal(pipeline[4].step, "layout");
+  assert.equal(pipeline[4].status, "planned");
+  assert.notEqual(pipeline[4].id, layout.id);
+
+  // A config change in rasterize: skew_analysis and layout get planned copies, fix_skew goes.
+  await call(project.id, pipeline[1].id, "config", { config: { pages: "1", dpi: 300 } }, "PUT");
+  pipeline = await pipelineOf(project.id);
+  assert.deepEqual(
+    pipeline.map((s) => [s.step, s.status]),
+    [["ingest", "done"], ["rasterize", "planned"], ["skew_analysis", "planned"], ["layout", "planned"]],
+  );
+});
+
+test("editing a finished manual stage puts a WIP copy in its place; the old one stays", async () => {
+  const { project, skew } = await analyzedProject("edit.pdf");
+  const { stageId } = (await (await addFix(project.id, skew.id)).json()) as { stageId: string };
+  await call(project.id, stageId, "outputs", {
+    outputs: [1, 2].map((n) => ({ item: `p${n}`, type: "lines", contentSha256: LINES(n), parentOutputId: skew.outputs[n - 1].id })),
+  });
+  // Only a finished manual stage can be edited.
+  assert.equal((await call(project.id, stageId, "edit")).status, 409);
+  assert.equal((await call(project.id, skew.id, "edit")).status, 409);
+  await call(project.id, stageId, "finish", { status: "done" });
+
+  const response = await call(project.id, stageId, "edit");
+  assert.equal(response.status, 200);
+  const edited = ((await response.json()) as { stageId: string }).stageId;
+  const pipeline = await pipelineOf(project.id);
+  assert.equal(pipeline[3].id, edited);
+  assert.equal(pipeline[3].status, "wip");
+  assert.deepEqual(pipeline[3].outputs.map((o) => [o.item, o.contentSha256]), [["p1", LINES(1)], ["p2", LINES(2)]]);
+  const old = await env.DB.prepare("SELECT status FROM stages WHERE id = ?").bind(stageId).first<{ status: string }>();
+  assert.equal(old?.status, "done");
+  const row = await env.DB.prepare("SELECT replaces_stage_id FROM stages WHERE id = ?").bind(edited).first();
+  assert.equal(row?.replaces_stage_id, stageId);
+});
+
+test("dropping a manual stage takes it out and moves the later stages up; recipe stages can't be dropped", async () => {
+  const { project, skew } = await analyzedProject("drop.pdf");
+  const { stageId } = (await (await addFix(project.id, skew.id)).json()) as { stageId: string };
+  assert.equal((await call(project.id, skew.id, "drop")).status, 409);
+  assert.equal((await call(project.id, stageId, "drop")).status, 200);
+  const pipeline = await pipelineOf(project.id);
+  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout"]);
+  const { results } = await env.DB.prepare("SELECT position FROM pipeline_entries WHERE project_id = ? ORDER BY position")
+    .bind(project.id)
+    .all<{ position: number }>();
+  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4]);
+});
