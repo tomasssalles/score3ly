@@ -1,4 +1,5 @@
-import { luminance, type RgbaImage, tanDeg } from "./image.ts";
+import { cosDeg, luminance, type RgbaImage, sinDeg, tanDeg } from "./image.ts";
+import { paperColor, rotate } from "./rotate.ts";
 
 export type SkewOptions = {
   maxAngle?: number; // degrees searched either way; default 5
@@ -44,12 +45,72 @@ export type Staff = { top: number; bottom: number };
 //
 // Outliers such as hairpins or long slurs are lines at other angles, but much less ink than the staves, so they
 // only add a little to every candidate.
+//
+// Two passes (DESIGN.md §8.4): the strips treat a line as flat within each strip, which holds for small angles
+// only. So the first pass finds the page's angle over the whole range (with more strips the larger the range), and
+// if it is more than TWO_PASS_ABOVE, the working image is straightened by that angle and measured again near 0°,
+// where the staves and lines are found as on any page; they are then turned back onto the page.
 export function findSkew(image: RgbaImage, options: SkewOptions = {}): Skew {
   const maxAngle = options.maxAngle ?? 5;
   const margin = options.margin ?? 0.04;
   const work = shrinkForWork(image);
+  const first = measure(work, maxAngle, margin);
+  if (first.atLimit || Math.abs(first.angle) <= TWO_PASS_ABOVE) return first;
+
+  const straight = rotateGray(work, -first.angle);
+  const second = measure(straight, TWO_PASS_ABOVE, margin);
+  const { width, height } = work;
+  const cx = width / 2;
+  const cy = height / 2;
+  const cos = cosDeg(first.angle);
+  const sin = sinDeg(first.angle);
+  // A point of the straightened image, as fractions, back onto the page: turned clockwise by the first angle.
+  const back = (x: number, y: number) => {
+    const dx = x * width - cx;
+    const dy = y * height - cy;
+    return [round((cx + dx * cos - dy * sin) / width), round((cy + dx * sin + dy * cos) / height)];
+  };
+  // A staff's row where it crosses the center line: the line through the turned point, at the page's angle,
+  // crosses the center line at cy + d / cos.
+  const row = (y: number) => round((cy + (y * height - cy) / cos) / height);
+  return {
+    angle: Math.round((first.angle + second.angle) * 1000) / 1000,
+    confidence: first.confidence,
+    atLimit: false,
+    staves: second.staves.map((staff) => ({ top: row(staff.top), bottom: row(staff.bottom) })),
+    lines: second.lines.map((line) => {
+      const [x0, y0] = back(line.x0, line.y0);
+      const [x1, y1] = back(line.x1, line.y1);
+      return { x0, y0, x1, y1, angle: Math.round((line.angle + first.angle) * 1000) / 1000 };
+    }),
+  };
+}
+
+// Above this angle (degrees), findSkew measures a second time on the straightened working image.
+const TWO_PASS_ABOVE = 2;
+
+// The working image turned by `degrees`, its uncovered corners filled with the paper's gray, by our own rotation
+// (DESIGN.md §8.2).
+function rotateGray(gray: Gray, degrees: number): Gray {
+  const rgba = new Uint8ClampedArray(gray.data.length * 4);
+  for (let i = 0; i < gray.data.length; i++) {
+    rgba[4 * i] = rgba[4 * i + 1] = rgba[4 * i + 2] = gray.data[i];
+    rgba[4 * i + 3] = 255;
+  }
+  const image = { width: gray.width, height: gray.height, data: rgba };
+  const turned = rotate(image, degrees, paperColor(image));
+  const data = new Uint8Array(gray.data.length);
+  for (let i = 0; i < data.length; i++) data[i] = turned.data[4 * i];
+  return { width: gray.width, height: gray.height, data };
+}
+
+// One pass over the working image: the angle within ±maxAngle, the staves and the lines at that angle.
+function measure(work: Gray, maxAngle: number, margin: number): Skew {
   const response = lineResponse(work);
-  const strips = stripProfiles(response, work.width, work.height, margin);
+  // A line drops by width × tan(angle) across a strip; strips narrow enough to keep that under about 3.5 pixels
+  // over the whole range, and never fewer than 48.
+  const count = Math.max(MIN_STRIPS, Math.ceil((work.width * tanDeg(maxAngle)) / MAX_DROP));
+  const strips = stripProfiles(response, work.width, work.height, margin, count);
   if (strips.total === 0) return { angle: 0, confidence: 0, atLimit: false, staves: [], lines: [] };
 
   const score = (angle: number) => profileEnergy(strips, angle);
@@ -245,7 +306,8 @@ function lineResponse(gray: Gray): Float32Array {
   return out;
 }
 
-const STRIPS = 48;
+const MIN_STRIPS = 48;
+const MAX_DROP = 3.5; // pixels a line at the largest angle searched may drop across a strip
 
 type Strips = {
   profiles: Float64Array[]; // per strip: the sum of line responses per row
@@ -257,17 +319,17 @@ type Strips = {
   strength: number; // per pixel: the mean line response at which a row counts as crossing a strip (findStaves)
 };
 
-function stripProfiles(response: Float32Array, width: number, height: number, margin: number): Strips {
+function stripProfiles(response: Float32Array, width: number, height: number, margin: number, count: number): Strips {
   const x0 = Math.round(width * margin);
   const x1 = width - x0;
   const y0 = Math.round(height * margin);
   const y1 = height - y0;
-  const stripWidth = (x1 - x0) / STRIPS;
+  const stripWidth = (x1 - x0) / count;
   const profiles: Float64Array[] = [];
   const offsets: number[] = [];
   const widths: number[] = [];
   let total = 0;
-  for (let s = 0; s < STRIPS; s++) {
+  for (let s = 0; s < count; s++) {
     const from = x0 + Math.round(s * stripWidth);
     const to = x0 + Math.round((s + 1) * stripWidth);
     const profile = new Float64Array(height);

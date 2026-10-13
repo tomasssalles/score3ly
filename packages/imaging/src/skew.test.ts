@@ -117,6 +117,28 @@ test("the lines' angles agree with the page's, and the deskew angle from them is
   }
 });
 
+test("large angles, with a large enough maximum: found in two passes, with the lines turned back onto the page", () => {
+  const page = musicPage();
+  for (const [angle, maxAngle] of [[15, 20], [-30, 45]]) {
+    const turned = rotate(page, angle, paper);
+    const skew = findSkew(turned, { maxAngle });
+    assertNear(skew.angle, angle, `turned by ${angle}°`);
+    assert.equal(skew.atLimit, false);
+    assert.ok(skew.lines.length >= 3, `${skew.lines.length} lines at ${angle}°`);
+    for (const line of skew.lines) {
+      assertNear(line.angle, angle, `a line at ${angle}°`);
+      // The ends lie on the turned page's line: their slope is its angle (the page is 1200 × 1600).
+      const slope = ((line.y1 - line.y0) * 1600) / ((line.x1 - line.x0) * 1200);
+      assertNear((Math.atan(slope) * 180) / Math.PI, angle, "the ends' slope");
+    }
+    assertNear(deskewAngle(skew.lines, turned.width) ?? 0, angle, `deskew angle at ${angle}°`);
+  }
+});
+
+test("a large angle beyond the default maximum gives no lines", () => {
+  assert.deepEqual(findSkew(rotate(musicPage(), 15, paper)).lines, []);
+});
+
 test("pages without staves, and angles at the limit, report no lines", () => {
   assert.deepEqual(findSkew(createImage(800, 1000, paper)).lines, []);
   assert.deepEqual(findSkew(rotate(musicPage(), 2.5, paper), { maxAngle: 1 }).lines, []);

@@ -8,7 +8,8 @@ import { createCanvas } from "@napi-rs/canvas";
 import { luminance, type RgbaImage } from "./image.ts";
 import { openPdf, pageImage, type CreateCanvas } from "./pdfPages.ts";
 import { deskewAngle, findSkew } from "./skew.ts";
-import { deskew, rotate } from "./rotate.ts";
+import { deskew, paperColor, rotate } from "./rotate.ts";
+import { crop } from "./crop.ts";
 
 const testset = join(dirname(fileURLToPath(import.meta.url)), "../../../testset");
 const pdfjsRoot = dirname(fileURLToPath(import.meta.resolve("pdfjs-dist/package.json")));
@@ -119,6 +120,19 @@ test("on real pages turned by a known angle, the lines and the deskew angle from
     const angle = deskewAngle(skew.lines, turned.width) ?? 0;
     assert.ok(Math.abs(angle - (base + 1.5)) <= 0.05, `${name}: ${base}° turned by 1.5° gives ${angle}°`);
   }
+});
+
+test("a real page turned far beyond the default maximum is found with a larger one", async () => {
+  // Kinderscenen p3, without the scanner's black borders, turned by 20°.
+  const scan = (await page("schumann_kinderscenen_first_edition", 3)).image;
+  const paper = crop(scan, { left: 0.05, right: 0.92, top: 0.05, bottom: 0.94 });
+  const base = deskewAngle(findSkew(paper).lines, paper.width) ?? 0;
+  const turned = rotate(paper, 20, paperColor(paper));
+  assert.deepEqual(findSkew(turned).lines, [], "the default maximum");
+  const skew = findSkew(turned, { maxAngle: 25 });
+  assert.ok(skew.lines.length >= 3, `${skew.lines.length} lines`);
+  const angle = deskewAngle(skew.lines, turned.width) ?? 0;
+  assert.ok(Math.abs(angle - (base + 20)) <= 0.05, `${base}° turned by 20° gives ${angle}°`);
 });
 
 test("covers have no lines", async () => {
