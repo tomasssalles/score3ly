@@ -33,7 +33,7 @@ export type Output = {
 };
 
 // The planned stages, in order (DESIGN.md §6). New projects get all of them; Ingest is done from the start.
-export const RECIPE = ["ingest", "rasterize", "skew_analysis"] as const;
+export const RECIPE = ["ingest", "rasterize", "skew_analysis", "layout"] as const;
 
 // The version of the Ingest step that new projects get.
 const INGEST_VERSION = 1;
@@ -302,7 +302,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
           (o.contentSha256 === undefined || isKey(o.contentSha256)) &&
           (o.recipeKey === undefined || isKey(o.recipeKey)) &&
           (o.contentSha256 !== undefined || o.recipeKey !== undefined) &&
-          (o.inputIds === undefined || isStringArray(o.inputIds)),
+          (o.inputIds === undefined || isStringArray(o.inputIds)) &&
+          (o.callId === undefined || typeof o.callId === "string"),
       );
     if (!valid) return c.json({ error: "expected 'outputs' with an item, a type, and a content hash or a recipe key" }, 400);
     const found = await entry(db, pid, sid);
@@ -315,7 +316,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       statements.push(
         db
           .prepare(
-            "INSERT OR IGNORE INTO outputs (id, stage_id, item, type, content_sha256, recipe_key, recipe_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO outputs (id, stage_id, item, type, content_sha256, recipe_key, recipe_json, call_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
           )
           .bind(
             ids[i],
@@ -325,6 +326,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
             o.contentSha256 ?? null,
             o.recipeKey ?? null,
             o.recipe === undefined ? null : JSON.stringify(o.recipe),
+            o.callId ?? null,
             now,
           ),
         ...((o.inputIds as string[] | undefined) ?? []).map((inputId) =>

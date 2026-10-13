@@ -156,6 +156,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       ["ingest", "done", {}],
       ["rasterize", "planned", null],
       ["skew_analysis", "planned", null],
+      ["layout", "planned", null],
     ],
   );
   const [ingest] = pipeline.stages;
@@ -240,12 +241,13 @@ test("migration 0004 gives existing projects their Ingest stage, with the PDF as
   assert.equal(new Set(migratedPipelines.map((row) => row.stage_id)).size, 4);
 });
 
-test("migrations 0006 and 0007 give existing projects planned rasterize and skew_analysis stages", () => {
+test("migrations 0006, 0007 and 0010 give existing projects the recipe's planned stages", () => {
   assert.deepEqual(
     migratedPlanned.map((row) => [row.project_id, row.position, row.step, row.status, row.config_json]),
     ["p1", "p2", "p3", "p4"].flatMap((id) => [
       [id, 2, "rasterize", "planned", null],
       [id, 3, "skew_analysis", "planned", null],
+      [id, 4, "layout", "planned", null],
     ]),
   );
 });
