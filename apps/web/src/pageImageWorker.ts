@@ -3,19 +3,35 @@
 
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
-import { decodePng, encodePng, findSkew, openPdf, pageImage, type PdfDocument, type Skew } from "@score3ly/imaging";
+import {
+  decodePng,
+  deskew,
+  drawLayout,
+  encodePng,
+  findSkew,
+  openPdf,
+  pageImage,
+  shrinkToFit,
+  type LayoutSystem,
+  type PdfDocument,
+  type SizeLimit,
+  type Skew,
+} from "@score3ly/imaging";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export type PageImageRequest =
   | { id: number; type: "open"; sha256: string; pdf: ArrayBuffer }
   | { id: number; type: "page"; sha256: string; page: number; dpi: number }
-  | { id: number; type: "skew"; png: ArrayBuffer; maxAngle: number };
+  | { id: number; type: "skew"; png: ArrayBuffer; maxAngle: number }
+  // An image made from another: straightened by `angle`, then shrunk to `limit`, then with a layout drawn on it.
+  | { id: number; type: "derive"; png: ArrayBuffer; angle?: number; limit?: SizeLimit; draw?: LayoutSystem[] };
 
 export type PageImageResponse =
   | { id: number; type: "opened"; pageCount: number; pdfjsVersion: string }
   | { id: number; type: "page"; png: Uint8Array<ArrayBuffer>; width: number; height: number; source: string; dpi: number }
   | { id: number; type: "skew"; skew: Skew }
+  | { id: number; type: "derived"; png: Uint8Array<ArrayBuffer>; width: number; height: number }
   | { id: number; type: "error"; message: string };
 
 const scope = self as unknown as {
@@ -88,6 +104,15 @@ async function handle(request: PageImageRequest): Promise<void> {
   if (request.type === "skew") {
     const image = await decodePng(new Uint8Array(request.png));
     scope.postMessage({ id: request.id, type: "skew", skew: findSkew(image, { maxAngle: request.maxAngle }) });
+    return;
+  }
+  if (request.type === "derive") {
+    let image = await decodePng(new Uint8Array(request.png));
+    if (request.angle !== undefined) image = deskew(image, request.angle);
+    if (request.limit) image = shrinkToFit(image, request.limit);
+    if (request.draw) image = drawLayout(image, request.draw);
+    const png = await encodePng(image);
+    scope.postMessage({ id: request.id, type: "derived", png, width: image.width, height: image.height }, [png.buffer]);
     return;
   }
   const doc = await docs.get(request.sha256);

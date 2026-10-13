@@ -7,7 +7,7 @@ import { keyOf } from "./keys";
 import { pdfUrl } from "./pdf";
 import type { PageImageRequest, PageImageResponse } from "./pageImageWorker";
 import type { PageRecipe } from "./rasterize";
-import type { Skew } from "@score3ly/imaging";
+import type { LayoutSystem, SizeLimit, Skew } from "@score3ly/imaging";
 
 // A request without its id (Omit on each member of the union, not on the union).
 type Unsent = PageImageRequest extends infer R ? (R extends PageImageRequest ? Omit<R, "id"> : never) : never;
@@ -84,4 +84,47 @@ export async function measureSkew(png: Blob, maxAngle: number): Promise<Skew> {
   const answer = await ask({ type: "skew", png: bytes, maxAngle }, [bytes]);
   if (answer.type !== "skew") throw new Error("Unexpected answer from the page image worker.");
   return answer.skew;
+}
+
+// A page straightened by an angle (DESIGN.md §8.6): what `layout` and later stages see, and what the layout's
+// artifact shows. Null angle: the page as it is.
+export type StraightRecipe = { page: PageRecipe; angle: number | null; deskew: number; rotate: number };
+
+// A straightened page shrunk to a model's limits: the image sent in requests.
+export type ModelPageRecipe = { straight: StraightRecipe; limit: SizeLimit; scale: number };
+
+async function derive(png: Blob, options: { angle?: number; limit?: SizeLimit; draw?: LayoutSystem[] }): Promise<Uint8Array<ArrayBuffer>> {
+  const bytes = await png.arrayBuffer();
+  const answer = await ask({ type: "derive", png: bytes, ...options }, [bytes]);
+  if (answer.type !== "derived") throw new Error("Unexpected answer from the page image worker.");
+  return answer.png;
+}
+
+async function cachedOr(recipe: unknown, make: () => Promise<Uint8Array<ArrayBuffer>>): Promise<Blob> {
+  const key = await keyOf(recipe);
+  const cached = await cachedImage(key);
+  if (cached) return cached;
+  const png = await make();
+  await cacheImage(key, png);
+  return new Blob([png], { type: "image/png" });
+}
+
+export async function straightPage(recipe: StraightRecipe): Promise<Blob> {
+  if (recipe.angle === null) return (await pageImage(recipe.page)).png;
+  return cachedOr(recipe, async () => derive((await pageImage(recipe.page)).png, { angle: recipe.angle! }));
+}
+
+export async function modelPage(recipe: ModelPageRecipe): Promise<Blob> {
+  return cachedOr(recipe, async () => derive(await straightPage(recipe.straight), { limit: recipe.limit }));
+}
+
+// The image sent to a model with a layout drawn on it, for it to check (not cached: each answer gives another).
+export async function drawnPage(recipe: ModelPageRecipe, systems: LayoutSystem[]): Promise<Blob> {
+  return new Blob([await derive(await modelPage(recipe), { draw: systems })], { type: "image/png" });
+}
+
+// A PNG's size, from its header.
+export async function pngSize(png: Blob): Promise<{ width: number; height: number }> {
+  const view = new DataView(await png.slice(16, 24).arrayBuffer());
+  return { width: view.getUint32(0), height: view.getUint32(4) };
 }

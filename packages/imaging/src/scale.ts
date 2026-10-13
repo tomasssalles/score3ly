@@ -6,6 +6,10 @@
 
 import type { RgbaImage } from "./image.ts";
 
+// The version of the shrinking code: part of the recipe of the images sent to models. Raise it whenever the result
+// changes.
+export const SCALE_VERSION = 1;
+
 export type SizeLimit = { maxLongEdge: number; maxPixels: number };
 
 // Claude's high-resolution vision (Opus 4.7 and later): at most 2576 pixels on the long edge and about 3.75

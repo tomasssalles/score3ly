@@ -132,6 +132,27 @@ export const STEPS: Record<string, StepInfo> = {
   },
 };
 
+STEPS.layout = {
+  title: "Layout",
+  kind: "llm",
+  optional: false,
+  fixes: [],
+  artifacts: (stage, earlier) => {
+    const recipes = pageRecipes(earlier);
+    const pages = stage.outputs
+      .filter((output) => output.type === "layout" && output.contentSha256 !== null)
+      .flatMap((output) => {
+        const page = pageOfItem(output.item);
+        const recipe = page === null ? undefined : recipes.get(page);
+        return page === null || !recipe ? [] : [{ page, recipe, layoutSha256: output.contentSha256! }];
+      })
+      .sort((a, b) => a.page - b.page);
+    return pages.length === 0
+      ? []
+      : [{ id: `${stage.id}.layout`, title: "Layout", kind: "images", count: pages.length, item: "Page", pages }];
+  },
+};
+
 // A step this version of the app doesn't know (e.g. from a newer one) is shown by its id, without artifacts.
 export function stepInfo(step: string): StepInfo {
   return STEPS[step] ?? { title: step, kind: "computed", optional: false, fixes: [], artifacts: () => [] };

@@ -28,7 +28,8 @@ export type Artifact = {
   count: number; // 1 for a single item
   item?: "Page" | "System"; // what each item of a group is
   // Page images: what each one is made from, and, for lines drawn over it, the stored lines (a PageSkew).
-  pages?: { page: number; recipe: PageRecipe; linesSha256?: string }[];
+  // With `layoutSha256`, the stored layout (a PageLayout): the page straightened as it says, with its boxes.
+  pages?: { page: number; recipe: PageRecipe; linesSha256?: string; layoutSha256?: string }[];
 };
 
 export type Stage = {

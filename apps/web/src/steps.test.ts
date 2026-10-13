@@ -8,6 +8,7 @@ const KINDS: Record<string, string> = {
   ingest: "ingest",
   rasterize: "computed",
   skew_analysis: "computed",
+  layout: "llm",
 };
 
 test("no step's kind ever changes", () => {

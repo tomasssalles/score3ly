@@ -5,6 +5,10 @@
 import type { Box } from "./crop.ts";
 import type { Rgb, RgbaImage } from "./image.ts";
 
+// The version of the drawing: part of every check round's request (through the image). Raise it whenever the
+// drawing changes.
+export const DRAW_VERSION = 1;
+
 // The 7 colours boxes cycle through: Okabe–Ito without its black, which colour-blind people can tell apart.
 export const LAYOUT_COLORS: Rgb[] = [
   [230, 159, 0], // orange

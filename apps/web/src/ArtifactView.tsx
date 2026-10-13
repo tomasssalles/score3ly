@@ -1,7 +1,9 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { fetchJsonContent, type Project } from "./api";
 import { CloseIcon } from "./icons";
-import { pageImage } from "./pageImages";
+import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
+import type { PageLayout } from "./layout";
+import { pageImage, straightPage, type StraightRecipe } from "./pageImages";
 import type { Artifact } from "./pipeline";
 import type { PageRecipe } from "./rasterize";
 import { angleLabel, type PageSkew } from "./skewAnalysis";
@@ -46,7 +48,11 @@ export function ArtifactContent({ project, artifact }: { project: Project; artif
         render={(i) => (
           <figure className="film-item">
             <figcaption>Page {pages[i].page}</figcaption>
-            <PageImageView recipe={pages[i].recipe} linesSha256={pages[i].linesSha256} />
+            {pages[i].layoutSha256 ? (
+              <LayoutPageView recipe={pages[i].recipe} layoutSha256={pages[i].layoutSha256} />
+            ) : (
+              <PageImageView recipe={pages[i].recipe} linesSha256={pages[i].linesSha256} />
+            )}
           </figure>
         )}
       />
@@ -62,7 +68,17 @@ export function ArtifactContent({ project, artifact }: { project: Project; artif
 // A page image, from the device's cache or drawn again from its recipe (DESIGN.md §5.3), once it scrolls near the
 // view: a filmstrip of large scans would otherwise draw every page at once. With `linesSha256`, the lines that should
 // be horizontal (skew_analysis) are drawn over it in red, each labelled with its angle (§6).
-function PageImageView({ recipe, linesSha256 }: { recipe: PageRecipe; linesSha256?: string }) {
+function PageImageView({
+  recipe,
+  linesSha256,
+  straight,
+  children,
+}: {
+  recipe: PageRecipe;
+  linesSha256?: string;
+  straight?: StraightRecipe; // show the page straightened so, instead of as rasterized
+  children?: ReactNode; // drawn over the image
+}) {
   const box = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -80,7 +96,7 @@ function PageImageView({ recipe, linesSha256 }: { recipe: PageRecipe; linesSha25
     if (!near) return;
     let cancelled = false;
     let objectUrl: string | null = null;
-    pageImage(recipe).then(
+    (straight ? straightPage(straight).then((png) => ({ png })) : pageImage(recipe)).then(
       ({ png }) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(png);
@@ -93,7 +109,7 @@ function PageImageView({ recipe, linesSha256 }: { recipe: PageRecipe; linesSha25
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
     // The recipe's content, not the object, which is new on every render.
-  }, [near, JSON.stringify(recipe)]);
+  }, [near, JSON.stringify(recipe), JSON.stringify(straight)]);
 
   return (
     <div ref={box} className="page-image">
@@ -101,6 +117,7 @@ function PageImageView({ recipe, linesSha256 }: { recipe: PageRecipe; linesSha25
         <>
           <img src={url} alt={`Page ${recipe.page}`} />
           {linesSha256 && <LinesOverlay sha256={linesSha256} />}
+          {children}
         </>
       ) : (
         <div className="page-placeholder">{error ?? "Drawing the page…"}</div>
@@ -141,6 +158,70 @@ function LinesOverlay({ sha256 }: { sha256: string }) {
         </span>
       ))}
     </div>
+  );
+}
+
+// A page's stored layout (`layout`): the page straightened as the layout says, its system boxes and bar lines
+// (dashed) drawn over it in the same colours the model saw, each box numbered; a flag and the model's note when it
+// wasn't satisfied.
+function LayoutPageView({ recipe, layoutSha256 }: { recipe: PageRecipe; layoutSha256: string }) {
+  const [layout, setLayout] = useState<PageLayout | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchJsonContent(layoutSha256).then(
+      (json) => !cancelled && setLayout(json as PageLayout),
+      () => !cancelled && setError(true),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [layoutSha256]);
+
+  if (error) return <div className="page-placeholder">The layout couldn't be loaded.</div>;
+  if (!layout) return <div className="page-placeholder">Loading the layout…</div>;
+  const straight: StraightRecipe = { page: recipe, angle: layout.angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
+  return (
+    <>
+      {(layout.flagged || layout.severelySkewed) && (
+        <p className="layout-flags">
+          {layout.flagged && <span className="layout-flag">Flagged for a check{layout.note ? `: ${layout.note}` : ""}</span>}
+          {layout.severelySkewed && <span className="layout-flag">Severely skewed</span>}
+        </p>
+      )}
+      <PageImageView recipe={recipe} straight={straight}>
+        <div className="lines-overlay">
+          <svg viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+            {layout.systems.map((system, i) => {
+              const color = LAYOUT_COLOR_HEX[i % LAYOUT_COLOR_HEX.length];
+              const { left, right, top, bottom } = system.box;
+              return (
+                <g key={i} stroke={color} className="layout-system">
+                  <rect x={left} y={top} width={right - left} height={bottom - top} fill="none" />
+                  {system.barLines.map((x, j) => (
+                    <line key={j} x1={x} x2={x} y1={top} y2={bottom} className="bar-line" />
+                  ))}
+                </g>
+              );
+            })}
+          </svg>
+          {layout.systems.map((system, i) => (
+            <span
+              key={i}
+              className="system-label"
+              style={{
+                left: `${system.box.left * 100}%`,
+                top: `${system.box.top * 100}%`,
+                background: LAYOUT_COLOR_HEX[i % LAYOUT_COLOR_HEX.length],
+              }}
+            >
+              {i + 1}
+            </span>
+          ))}
+        </div>
+      </PageImageView>
+    </>
   );
 }
 

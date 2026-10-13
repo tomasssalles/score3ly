@@ -160,6 +160,7 @@ export type NewOutput = {
   recipeKey?: string;
   recipe?: unknown;
   inputIds?: string[];
+  callId?: string; // LLM outputs: the call whose answer it is
 };
 
 export async function recordOutputs(project: Project, stageId: string, outputs: NewOutput[]): Promise<string[]> {
@@ -270,4 +271,9 @@ export async function callLlm(project: Project, stageId: string, request: LlmReq
 // When the LLM price table was collected (DESIGN.md §10).
 export async function fetchPrices(): Promise<{ asOf: string }> {
   return (await checked(await fetch("/api/prices"))).json();
+}
+
+// An answer the stage can't use although it is valid JSON: it won't be served from the cache again.
+export async function markUnusable(project: Project, stageId: string, callId: string, reason: string): Promise<void> {
+  await send(stageUrl(project, stageId, `llm-calls/${callId}/unusable`), { reason });
 }

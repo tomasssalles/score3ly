@@ -1,5 +1,9 @@
 import { cosDeg, type RgbaImage, type Rgb, sinDeg } from "./image.ts";
 
+// The rotation code's version: part of the recipe of straightened pages (DESIGN.md §8.6). Raise it whenever the
+// rotation gives other pixels.
+export const ROTATE_VERSION = 1;
+
 // Rotates the image's content by `degrees` about its center, clockwise as seen on screen (negative: counter-
 // clockwise). The output has the same size as the input: corners that rotate out are cut off, and areas that
 // rotate in are filled with `background`. Keeping the size keeps normalized coordinates simple (DESIGN.md §8.2);

@@ -920,7 +920,8 @@ body {
   height: 100%;
 }
 
-.lines-overlay line {
+/* Only the skew lines, directly in the overlay's drawing: a layout's bar lines take their box's colour. */
+.lines-overlay svg > line {
   stroke: #e3241b;
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
@@ -935,6 +936,39 @@ body {
   color: #fff;
   font: 600 11px var(--mono);
   white-space: nowrap;
+}
+
+.layout-system rect,
+.layout-system line {
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.layout-system .bar-line {
+  stroke-dasharray: 8 8;
+}
+
+.system-label {
+  position: absolute;
+  padding: 1px 5px;
+  border-radius: 0 0 3px 0;
+  color: #000;
+  font: 600 12px var(--mono);
+}
+
+.layout-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+
+.layout-flag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--danger);
+  color: #000;
+  font-size: 12px;
 }
 
 .line-label.failed {

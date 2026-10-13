@@ -91,6 +91,17 @@ export function SkewIcon() {
   );
 }
 
+// Layout: systems as boxes on a page.
+export function LayoutIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="3.5" width="16" height="17" rx="1.5" />
+      <rect x="6.5" y="6" width="11" height="4.5" />
+      <rect x="6.5" y="13" width="11" height="4.5" />
+    </svg>
+  );
+}
+
 export function ComputedIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">

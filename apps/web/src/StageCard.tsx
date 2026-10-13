@@ -5,6 +5,7 @@ import {
   DataIcon,
   ImageIcon,
   IngestIcon,
+  LayoutIcon,
   LlmIcon,
   ManualIcon,
   MoreIcon,
@@ -39,6 +40,7 @@ const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   ingest: IngestIcon,
   rasterize: ImageIcon,
   skew_analysis: SkewIcon,
+  layout: LayoutIcon,
 };
 
 const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {
