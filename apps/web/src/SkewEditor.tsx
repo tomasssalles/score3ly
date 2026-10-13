@@ -2,20 +2,24 @@
 // a toggle. Hand: dragging pans, tapping a line selects it, its end handles can be dragged, and Delete deletes it.
 // Drawing: click, move, click with a mouse (the line follows the pointer); tap, tap on touch (the first tap leaves
 // a dot). Never press and drag: on a phone the user zooms in close for each end, and zooms out and pans in between.
-// Two fingers always pan and zoom; so do Ctrl + wheel and the buttons. Each change is saved at once.
+// Two fingers always pan and zoom; so do Ctrl + wheel and the buttons. Each change is saved at once. Undo and redo
+// go through a page's changes since the editor was opened (§5.4).
 
 import type { SkewLine } from "@score3ly/imaging";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { fetchJsonContent, putContent, recordOutputs, type Project } from "./api";
 import { linesBytes } from "./finishFixSkew";
 import { lineThrough, type PageLines } from "./fixSkew";
+import { canRedo, canUndo, pushState, redo, startHistory, undo, type History } from "./history";
 import {
   CollapseIcon,
   ExpandIcon,
   FitIcon,
   HandIcon,
   LineIcon,
+  RedoIcon,
   TrashIcon,
+  UndoIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "./icons";
@@ -40,6 +44,9 @@ const MAX_SCALE = 8;
 // and opened again before the pipeline is fetched again.
 const saved = new Map<string, SkewLine[]>();
 
+// Each page's changes while the editor is open, by item: a page keeps its own when the user flips to another.
+type Histories = Map<string, History<SkewLine[]>>;
+
 export function SkewEditor({
   project,
   stageId,
@@ -53,6 +60,7 @@ export function SkewEditor({
 }) {
   const [index, setIndex] = useState(0);
   const [mode, setMode] = useState<Mode>("hand");
+  const histories = useRef<Histories>(new Map());
   const page = pages[Math.min(index, pages.length - 1)];
   const go = (i: number) => setIndex(Math.max(0, Math.min(pages.length - 1, i)));
   return (
@@ -63,6 +71,7 @@ export function SkewEditor({
       page={page}
       mode={mode}
       setMode={setMode}
+      histories={histories.current}
       nav={{ index, count: pages.length, go }}
       onEdited={onEdited}
     />
@@ -85,6 +94,7 @@ function PageEditor({
   page,
   mode,
   setMode,
+  histories,
   nav,
   onEdited,
 }: {
@@ -93,6 +103,7 @@ function PageEditor({
   page: EditorPage;
   mode: Mode;
   setMode: (mode: Mode) => void;
+  histories: Histories;
   nav: { index: number; count: number; go: (i: number) => void };
   onEdited?: () => void;
 }) {
@@ -136,7 +147,11 @@ function PageEditor({
       .catch((err) => !cancelled && setError(`This page can't be drawn: ${err instanceof Error ? err.message : err}`));
     const local = saved.get(savedKey);
     (local ? Promise.resolve(local) : fetchJsonContent(page.linesSha256).then((json) => (json as PageLines).lines)).then(
-      (found) => !cancelled && setLines(found),
+      (found) => {
+        if (cancelled) return;
+        if (!histories.has(page.item)) histories.set(page.item, startHistory(found));
+        setLines(found);
+      },
       () => !cancelled && setError("The lines couldn't be loaded."),
     );
     return () => {
@@ -242,6 +257,30 @@ function PageEditor({
     return best;
   }
 
+  // A change by the user: a new state in the page's history, saved.
+  function change(next: SkewLine[]) {
+    const history = histories.get(page.item);
+    if (!history || next === history.present) return; // e.g. a handle that was grabbed and couldn't move
+    histories.set(page.item, pushState(history, next));
+    save(next);
+  }
+
+  // One step back or forward in the page's history, saved like any change. A line that was started is dropped
+  // first, as the last thing done.
+  function step(move: typeof undo) {
+    const history = histories.get(page.item);
+    if (!history || gesture.current.kind === "handle") return;
+    if (anchor) {
+      setAnchor(null);
+      if (move === undo) return;
+    }
+    const next = move(history);
+    if (next === history) return;
+    histories.set(page.item, next);
+    setSelected(null);
+    save(next.present);
+  }
+
   // Saves the page's lines: stored content, and the stage's output for the page (overwritten while WIP).
   function save(next: SkewLine[]) {
     setLines(next);
@@ -260,7 +299,7 @@ function PageEditor({
 
   function deleteSelected() {
     if (selected === null || !lines) return;
-    save(lines.filter((_, i) => i !== selected));
+    change(lines.filter((_, i) => i !== selected));
     setSelected(null);
   }
 
@@ -280,7 +319,7 @@ function PageEditor({
     const line = lineThrough(anchor, q, image.width, image.height);
     if (!line) return;
     setAnchor(null);
-    save([...lines, line]);
+    change([...lines, line]);
   }
 
   function onPointerDown(event: React.PointerEvent) {
@@ -294,7 +333,7 @@ function PageEditor({
     pointers.current.set(event.pointerId, p);
     if (pointers.current.size === 2) {
       // A handle being dragged keeps where it got to.
-      if (gesture.current.kind === "handle" && linesRef.current) save(linesRef.current);
+      if (gesture.current.kind === "handle" && linesRef.current) change(linesRef.current);
       const [a, b] = [...pointers.current.values()];
       gesture.current = { kind: "pinch", mid: midpoint(a, b), dist: Math.hypot(a.x - b.x, a.y - b.y) };
     } else if (pointers.current.size === 1) {
@@ -361,11 +400,16 @@ function PageEditor({
     }
     if (pointers.current.size === 0) gesture.current = { kind: "none" };
     if (g.kind === "pending" && g.id === event.pointerId && !cancelled) tap(local(event));
-    if (g.kind === "handle" && g.id === event.pointerId && linesRef.current) save(linesRef.current);
+    if (g.kind === "handle" && g.id === event.pointerId && linesRef.current) change(linesRef.current);
   }
 
   function onKeyDown(event: React.KeyboardEvent) {
-    if (event.key === "Delete" || event.key === "Backspace") {
+    const key = event.key.toLowerCase();
+    if ((event.ctrlKey || event.metaKey) && (key === "z" || key === "y")) {
+      // Ctrl or Cmd + Z undoes; with Shift, or Ctrl + Y, it redoes.
+      event.preventDefault();
+      step(key === "y" || event.shiftKey ? redo : undo);
+    } else if (event.key === "Delete" || event.key === "Backspace") {
       event.preventDefault();
       deleteSelected();
     } else if (event.key === "Escape") {
@@ -387,6 +431,7 @@ function PageEditor({
 
   const s = view.scale;
   const selectedLine = selected === null ? null : lines?.[selected];
+  const history = histories.get(page.item);
 
   return (
     <div className="skew-editor" onKeyDown={onKeyDown}>
@@ -459,6 +504,28 @@ function PageEditor({
             <TrashIcon />
           </button>
         </div>
+        <div className="skew-tools">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Undo"
+            title="Undo"
+            disabled={!anchor && !(history && canUndo(history))}
+            onClick={() => step(undo)}
+          >
+            <UndoIcon />
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Redo"
+            title="Redo"
+            disabled={!(history && canRedo(history))}
+            onClick={() => step(redo)}
+          >
+            <RedoIcon />
+          </button>
+        </div>
       </div>
 
       <div
@@ -482,7 +549,14 @@ function PageEditor({
             }}
           >
             <img src={image.url} alt={`Page ${page.page}`} draggable={false} />
-            <svg viewBox={`0 0 ${image.width} ${image.height}`} width={image.width} height={image.height} aria-hidden="true">
+            {/* --px is one screen pixel in the drawing's units: the content is scaled by CSS, which scales strokes too. */}
+            <svg
+              viewBox={`0 0 ${image.width} ${image.height}`}
+              width={image.width}
+              height={image.height}
+              style={{ "--px": `${1 / s}px` } as CSSProperties}
+              aria-hidden="true"
+            >
               {lines.map((line, i) => {
                 const [a, b] = ends(line);
                 return (

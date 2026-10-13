@@ -112,13 +112,14 @@ export function PipelinePanel({
               </button>
             ))}
         </div>
+        {/* In the head, so it stays in view while the list scrolls to the current stage. */}
+        {error && <p className="panel-error">{error}</p>}
       </div>
 
       <p className="project-dates">
         Created {shortDate(project.createdAt)} · changed {ago(project.lastModifiedAt)}
       </p>
 
-      {error && <p className="panel-error">{error}</p>}
       <ol className="stage-list" ref={list}>
         {pipeline.stages.map((stage) => (
           <StageCard

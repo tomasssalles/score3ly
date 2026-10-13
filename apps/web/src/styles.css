@@ -698,7 +698,7 @@ body {
 
 /* Loading the pipeline, or running or changing a stage, failed; or a stage can't run. */
 .panel-error {
-  margin: 0 16px 12px;
+  margin: 0;
   font-size: 13px;
   line-height: 1.4;
   color: var(--danger);
@@ -1492,16 +1492,16 @@ body {
   pointer-events: none;
 }
 
+/* Widths in screen pixels (--px, set by the editor): as thick as skew_analysis's lines at any zoom. */
 .skew-line line,
 .skew-rubber {
   stroke: #e3241b;
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
+  stroke-width: calc(2 * var(--px));
 }
 
 .skew-line.selected line {
   stroke: var(--accent);
-  stroke-width: 4;
+  stroke-width: calc(4 * var(--px));
 }
 
 .skew-line text {
@@ -1514,7 +1514,7 @@ body {
 }
 
 .skew-rubber {
-  stroke-dasharray: 6 4;
+  stroke-dasharray: calc(6 * var(--px)) calc(4 * var(--px));
 }
 
 .skew-handle {

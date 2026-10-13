@@ -222,6 +222,24 @@ export function FitIcon() {
   );
 }
 
+export function UndoIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 14L4 9l5-5" />
+      <path d="M4 9h10a5.5 5.5 0 0 1 0 11h-3" />
+    </svg>
+  );
+}
+
+export function RedoIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M15 14l5-5-5-5" />
+      <path d="M20 9H10a5.5 5.5 0 0 0 0 11h3" />
+    </svg>
+  );
+}
+
 export function TrashIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
