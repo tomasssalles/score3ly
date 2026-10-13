@@ -22,3 +22,11 @@ export function versionParts({ version, commit, dirty, dev }: BuildInfo): string
 export function versionText(build: BuildInfo): string {
   return versionParts(build).join(" ");
 }
+
+// The LLM price table is stale once it is older than this: costs may be off, and a new version should update it
+// (DESIGN.md §10).
+export const PRICES_STALE_DAYS = 90;
+
+export function pricesStale(asOf: string, now = Date.now()): boolean {
+  return now - Date.parse(asOf) > PRICES_STALE_DAYS * 24 * 60 * 60 * 1000;
+}

@@ -8,6 +8,10 @@
 
 import type { LlmUsage, ProviderId } from "./types.ts";
 
+// When the prices below were collected. Each call records the prices its cost was computed with, so updating the
+// table doesn't change past costs; the About page shows this date, so stale prices are noticed (§10).
+export const PRICES_AS_OF = "2026-10-06";
+
 export type Price = { input: number; output: number; cacheRead: number; cacheWrite: number };
 
 // Cache writes are 1.25 × the input price (5-minute cache), as Anthropic bills them.

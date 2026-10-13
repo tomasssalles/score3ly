@@ -266,3 +266,8 @@ export async function callLlm(project: Project, stageId: string, request: LlmReq
   }
   return response.json();
 }
+
+// When the LLM price table was collected (DESIGN.md §10).
+export async function fetchPrices(): Promise<{ asOf: string }> {
+  return (await checked(await fetch("/api/prices"))).json();
+}

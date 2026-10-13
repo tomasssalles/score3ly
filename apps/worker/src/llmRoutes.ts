@@ -6,7 +6,7 @@
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "./keys.ts";
 import { createProvider, LlmError, type Effort, type LlmContent, type ProviderConfig, type ProviderId } from "./llm/index.ts";
-import { costOf, priceOf } from "./llm/prices.ts";
+import { costOf, PRICES_AS_OF, priceOf } from "./llm/prices.ts";
 
 const PROVIDERS: ProviderId[] = ["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "fake"];
 const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
@@ -202,6 +202,9 @@ export type CallAnswer = {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function llmRoutes(app: Hono<{ Bindings: Env }>) {
+  // When the price table was collected (llm/prices.ts), for the About page.
+  app.get("/api/prices", (c) => c.json({ asOf: PRICES_AS_OF }));
+
   app.get("/api/settings", async (c) => c.json(await readSettings(c.env.DB)));
 
   app.put("/api/settings/:key", async (c) => {
@@ -273,6 +276,21 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       .bind(new Date().toISOString(), c.req.param("id"))
       .run();
     return result.meta.changes === 0 ? c.json({ error: "no such model config" }, 404) : c.body(null, 204);
+  });
+
+  // An answer that is valid JSON but that the stage can't use (e.g. LilyPond inside it that doesn't parse, or boxes
+  // outside the page): it is marked unparseable, so it is never served from the cache again and a retry asks anew
+  // (§5.2). Its cost stays in the records: it was paid for.
+  app.post("/api/projects/:pid/stages/:sid/llm-calls/:callId/unusable", async (c) => {
+    const { pid, sid, callId } = c.req.param();
+    const body = await c.req.json().catch(() => null);
+    if (typeof body?.reason !== "string" || body.reason.trim() === "") return c.json({ error: "expected a 'reason'" }, 400);
+    const result = await c.env.DB.prepare(
+      "UPDATE llm_calls SET status = 'unparseable', error = ? WHERE id = ? AND status = 'ok' AND EXISTS (SELECT 1 FROM pipeline_entries e WHERE e.project_id = ? AND e.stage_id = ?)",
+    )
+      .bind(body.reason.trim(), callId, pid, sid)
+      .run();
+    return result.meta.changes === 0 ? c.json({ error: "no such usable call" }, 404) : c.body(null, 204);
   });
 
   // One LLM request of a running stage. Errors the stage can act on carry a `code`.
@@ -395,7 +413,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         status === "ok" ? null : status === "cut_off" ? "The answer was cut off." : status === "refused" ? `The model declined${response.stopDetail ? ` (${response.stopDetail})` : ""}.` : "The answer ended unexpectedly.";
       await db
         .prepare(
-          "UPDATE llm_calls SET status = ?, error = ?, response_model = ?, response_sha256 = ?, input_tokens = ?, output_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, cost_usd = ?, finished_at = ? WHERE id = ?",
+          "UPDATE llm_calls SET status = ?, error = ?, response_model = ?, response_sha256 = ?, input_tokens = ?, output_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, cost_usd = ?, price_json = ?, finished_at = ? WHERE id = ?",
         )
         .bind(
           status,
@@ -407,6 +425,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
           response.usage.cacheReadTokens,
           response.usage.cacheWriteTokens,
           costUsd,
+          config.freeTier || !price ? null : JSON.stringify({ ...price, asOf: PRICES_AS_OF }),
           new Date().toISOString(),
           callId,
         )

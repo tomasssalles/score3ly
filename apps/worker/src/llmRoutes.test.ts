@@ -171,6 +171,7 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   assert.equal(rows[0].status, "ok");
   assert.equal(rows[0].cost_usd, first.costUsd);
   assert.equal(rows[0].response_model, "fake-model");
+  assert.deepEqual(JSON.parse(rows[0].price_json as string), { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25, asOf: "2026-10-06" });
   // The request is recorded without the image, which is replaced by its hash.
   const recorded = await (await app.request(`/api/content/${rows[0].request_sha256}`, {}, env)).text();
   assert.ok(!recorded.includes(PNG) && recorded.includes('"sha256"'));
@@ -211,6 +212,23 @@ test("failed answers are recorded but never served from the record", async () =>
   assert.ok(rows.every((r) => r.status !== "ok"));
 });
 
+test("an answer the stage can't use is marked so, and isn't served again", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const stage = await runningStage((await modelConfig()).id);
+  const first = await json(await call(stage));
+  const mark = (reason: unknown) =>
+    send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm-calls/${first.callId}/unusable`, { reason });
+  assert.equal((await mark("")).status, 400);
+  assert.equal((await mark("Line 3: unknown note name")).status, 204);
+  assert.equal((await mark("again")).status, 404);
+  const [row] = await calls();
+  assert.equal(row.status, "unparseable");
+  assert.equal(row.error, "Line 3: unknown note name");
+  assert.ok((row.cost_usd as number) > 0);
+  const again = await json(await call(stage));
+  assert.equal(again.cached, false);
+});
+
 test("the spending cap stops new calls, but not answers already paid for; free-tier calls neither count nor stop", async () => {
   const config = await modelConfig();
   const stage = await runningStage(config.id);
@@ -231,6 +249,19 @@ test("the spending cap stops new calls, but not answers already paid for; free-t
   const answer = await json(await call(free, request("Free question")));
   assert.equal(answer.status, "ok");
   assert.equal(answer.costUsd, 0);
+});
+
+test("free-tier configs are always allowed: without a spending cap, and without a known price", async () => {
+  const free = await runningStage((await modelConfig({ freeTier: true })).id);
+  assert.equal((await json(await call(free))).status, "ok");
+  const unpriced = await runningStage(
+    (await modelConfig({ freeTier: true, provider: "google", model: "gemini-x", secrets: { apiKey: "NO_SUCH_SECRET" } })).id,
+  );
+  // It gets as far as the secrets: nothing about money stops it.
+  assert.equal((await json(await call(unpriced))).code, "missing_secret");
+  const [row] = await calls();
+  assert.equal(row.cost_usd, 0);
+  assert.equal(row.price_json, null);
 });
 
 test("a call needs a running stage with a model config, a price, and the config's secrets", async () => {

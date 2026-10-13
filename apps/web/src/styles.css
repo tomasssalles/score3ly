@@ -1318,3 +1318,8 @@ body {
 .nowrap {
   white-space: nowrap;
 }
+
+/* A fact on the About page that needs attention, e.g. stale prices. */
+.about-facts .stale {
+  color: var(--danger);
+}

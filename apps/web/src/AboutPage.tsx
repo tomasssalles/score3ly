@@ -1,7 +1,13 @@
-import { Fragment } from "react";
-import { AUTHOR, REPOSITORY_URL, versionParts } from "./about";
+import { Fragment, useEffect, useState } from "react";
+import { AUTHOR, pricesStale, REPOSITORY_URL, versionParts } from "./about";
+import { fetchPrices } from "./api";
+import { shortDate } from "./time";
 
 export function AboutPage() {
+  const [pricesAsOf, setPricesAsOf] = useState<string | null>(null);
+  useEffect(() => {
+    fetchPrices().then((prices) => setPricesAsOf(prices.asOf), () => {});
+  }, []);
   const version = versionParts({
     version: __APP_VERSION__,
     commit: __APP_COMMIT__,
@@ -28,6 +34,15 @@ export function AboutPage() {
             </Fragment>
           ))}
         </dd>
+        {pricesAsOf && (
+          <>
+            <dt>LLM prices</dt>
+            <dd>
+              As of {shortDate(pricesAsOf)}, used to estimate costs.
+              {pricesStale(pricesAsOf) && <span className="stale"> Older than three months: costs may be off.</span>}
+            </dd>
+          </>
+        )}
         <dt>Author</dt>
         <dd>{AUTHOR}</dd>
         <dt>Source code</dt>
