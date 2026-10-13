@@ -211,7 +211,7 @@ test("Fix skew is offered after a skew analysis, unless one already follows it; 
   p = toPipeline("auto", { stages: [ingest, rasterize, skew, fix, stage("s4", "layout", { status: "planned" })] });
   assert.deepEqual(p.stages[2].fixes, []);
   const [artifact] = p.stages[3].artifacts;
-  assert.deepEqual(artifact.editor, { stageId: "s5" });
+  assert.deepEqual(artifact.editor, { stageId: "s5", step: "fix_skew" });
   assert.equal(artifact.pages?.[0].linesSha256, own);
   assert.equal(artifact.pages?.[0].parentId, "k1");
   assert.equal(p.stages[3].droppable, true);

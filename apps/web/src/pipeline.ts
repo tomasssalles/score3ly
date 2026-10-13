@@ -31,7 +31,7 @@ export type Artifact = {
   // With `layoutSha256`, the stored layout (a PageLayout): the page straightened as it says, with its boxes.
   // `item` and `parentId` (the output a manual stage corrects) are there for an editor.
   pages?: { page: number; recipe: PageRecipe; linesSha256?: string; layoutSha256?: string; item?: string; parentId?: string }[];
-  editor?: { stageId: string }; // a WIP manual stage's artifact: shown as its editor
+  editor?: { stageId: string; step: string }; // a WIP manual stage's artifact: shown as its step's editor
 };
 
 export type Stage = {

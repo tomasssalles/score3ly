@@ -247,3 +247,24 @@ export function TrashIcon() {
     </svg>
   );
 }
+
+// A box drawn by two opposite corners: a dashed rectangle with a dot at two corners.
+export function BoxIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 5h14v14H5z" />
+      <circle cx="5" cy="5" r="2" fill="currentColor" />
+      <circle cx="19" cy="19" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
+// A bar line across a staff.
+export function BarLineIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 7h18M3 10.5h18M3 14h18M3 17.5h18" strokeWidth="1" />
+      <path d="M12 5v15" strokeWidth="2.4" />
+    </svg>
+  );
+}

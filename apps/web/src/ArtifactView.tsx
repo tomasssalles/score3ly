@@ -11,6 +11,8 @@ import type { SkewLine } from "@score3ly/imaging";
 import { pdfUrl } from "./pdf";
 import { PdfView } from "./PdfView";
 import { SkewEditor } from "./SkewEditor";
+import { LayoutEditor } from "./LayoutEditor";
+import { firstNumbers } from "./fixLayout";
 
 // Shows one output or a stage's details, and nothing else: what is shown can be seen in the pipeline panel.
 // In narrow mode it covers the whole app and has a close button floating over it.
@@ -49,11 +51,20 @@ export function ArtifactContent({
   if (artifact.kind === "pdf") return <PdfView key={project.pdfSha256} url={pdfUrl(project.pdfSha256)} />;
   const pages = artifact.pages;
   // A WIP manual stage's artifact is its editor (DESIGN.md §5.6).
-  if (artifact.editor && pages) {
+  if (artifact.editor?.step === "fix_skew" && pages) {
     const editable = pages.flatMap((p) =>
       p.linesSha256 && p.item && p.parentId ? [{ ...p, linesSha256: p.linesSha256, item: p.item, parentId: p.parentId }] : [],
     );
     return <SkewEditor key={artifact.id} project={project} stageId={artifact.editor.stageId} pages={editable} onEdited={onEdited} />;
+  }
+  if (artifact.editor?.step === "fix_layout" && pages) {
+    const editable = pages.flatMap((p) =>
+      p.layoutSha256 && p.item && p.parentId ? [{ ...p, layoutSha256: p.layoutSha256, item: p.item, parentId: p.parentId }] : [],
+    );
+    return <LayoutEditor key={artifact.id} project={project} stageId={artifact.editor.stageId} pages={editable} onEdited={onEdited} />;
+  }
+  if (artifact.kind === "images" && pages?.some((p) => p.layoutSha256)) {
+    return <LayoutFilmstrip key={artifact.id} pages={pages.flatMap((p) => (p.layoutSha256 ? [{ ...p, layoutSha256: p.layoutSha256 }] : []))} />;
   }
   if (artifact.kind === "images" && pages) {
     return (
@@ -64,11 +75,7 @@ export function ArtifactContent({
         render={(i) => (
           <figure className="film-item">
             <figcaption>Page {pages[i].page}</figcaption>
-            {pages[i].layoutSha256 ? (
-              <LayoutPageView recipe={pages[i].recipe} layoutSha256={pages[i].layoutSha256} />
-            ) : (
-              <PageImageView recipe={pages[i].recipe} linesSha256={pages[i].linesSha256} />
-            )}
+            <PageImageView recipe={pages[i].recipe} linesSha256={pages[i].linesSha256} />
           </figure>
         )}
       />
@@ -177,26 +184,44 @@ function LinesOverlay({ sha256 }: { sha256: string }) {
   );
 }
 
-// A page's stored layout (`layout`): the page straightened as the layout says, its system boxes and bar lines
-// drawn over it in the same colours the model saw, each box numbered; a flag and the model's note when it
-// wasn't satisfied.
-function LayoutPageView({ recipe, layoutSha256 }: { recipe: PageRecipe; layoutSha256: string }) {
-  const [layout, setLayout] = useState<PageLayout | null>(null);
+// The pages of a layout (`layout`, `fix_layout`): all of them are loaded first, since the systems are numbered from
+// page to page (the first system on page 2 is 5 if page 1 has 4).
+function LayoutFilmstrip({ pages }: { pages: { page: number; recipe: PageRecipe; layoutSha256: string }[] }) {
+  const [layouts, setLayouts] = useState<PageLayout[] | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetchJsonContent(layoutSha256).then(
-      (json) => !cancelled && setLayout(json as PageLayout),
+    Promise.all(pages.map((p) => fetchJsonContent(p.layoutSha256) as Promise<PageLayout>)).then(
+      (loaded) => !cancelled && setLayouts(loaded),
       () => !cancelled && setError(true),
     );
     return () => {
       cancelled = true;
     };
-  }, [layoutSha256]);
+  }, [pages.map((p) => p.layoutSha256).join()]);
 
-  if (error) return <div className="page-placeholder">The layout couldn't be loaded.</div>;
-  if (!layout) return <div className="page-placeholder">Loading the layout…</div>;
+  if (error) return <div className="text-view"><p>The layouts couldn't be loaded.</p></div>;
+  if (!layouts) return <div className="text-view"><p>Loading the layouts…</p></div>;
+  const firsts = firstNumbers(layouts.map((layout) => layout.systems.length));
+  return (
+    <Filmstrip
+      count={pages.length}
+      wide={false}
+      render={(i) => (
+        <figure className="film-item">
+          <figcaption>Page {pages[i].page}</figcaption>
+          <LayoutPageView recipe={pages[i].recipe} layout={layouts[i]} first={firsts[i]} />
+        </figure>
+      )}
+    />
+  );
+}
+
+// A page's layout: the page straightened as the layout says, its system boxes and bar lines drawn over it in the
+// same colours the model saw, each box numbered (from `first`); a flag and the model's note when it wasn't
+// satisfied.
+function LayoutPageView({ recipe, layout, first }: { recipe: PageRecipe; layout: PageLayout; first: number }) {
   const straight: StraightRecipe = { page: recipe, angle: layout.angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
   return (
     <>
@@ -232,7 +257,7 @@ function LayoutPageView({ recipe, layoutSha256 }: { recipe: PageRecipe; layoutSh
                 background: LAYOUT_COLOR_HEX[i % LAYOUT_COLOR_HEX.length],
               }}
             >
-              {i + 1}
+              {first + i}
             </span>
           ))}
         </div>

@@ -4,6 +4,7 @@
 import type { ApiStage } from "./api";
 import type { Artifact, StageKind } from "./pipeline";
 import { configError, configOf, resolveConfig, MAX_DPI, MIN_DPI, pageOfItem, type PageRecipe } from "./rasterize.ts";
+import { FIX_LAYOUT_VERSION } from "./fixLayout.ts";
 import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
 
@@ -146,7 +147,7 @@ STEPS.layout = {
   title: "Layout",
   kind: "llm",
   optional: false,
-  fixes: [],
+  fixes: ["fix_layout"],
   artifacts: (stage, earlier) => {
     const recipes = pageRecipes(earlier);
     const pages = stage.outputs
@@ -160,6 +161,32 @@ STEPS.layout = {
     return pages.length === 0
       ? []
       : [{ id: `${stage.id}.layout`, title: "Layout", kind: "images", count: pages.length, item: "Page", pages }];
+  },
+};
+
+STEPS.fix_layout = {
+  title: "Fix layout",
+  kind: "manual",
+  optional: true,
+  fixes: [],
+  // The pages of the layout before it, each with its own layout once saved, else the model's. While WIP, the
+  // artifact is the editor.
+  artifacts: (stage, earlier) => {
+    const recipes = pageRecipes(earlier);
+    const layout = [...earlier].reverse().find((s) => s.step === "layout");
+    const own = new Map(stage.outputs.filter((o) => o.type === "layout").map((o) => [o.item, o]));
+    const pages = (layout?.outputs ?? [])
+      .filter((output) => output.type === "layout" && output.contentSha256 !== null)
+      .flatMap((output) => {
+        const page = pageOfItem(output.item);
+        const recipe = page === null ? undefined : recipes.get(page);
+        const layoutSha256 = own.get(output.item)?.contentSha256 ?? output.contentSha256!;
+        return page === null || !recipe ? [] : [{ page, recipe, layoutSha256, item: output.item, parentId: output.id }];
+      })
+      .sort((a, b) => a.page - b.page);
+    if (pages.length === 0) return [];
+    const editor = stage.status === "wip" ? { stageId: stage.id, step: "fix_layout" } : undefined;
+    return [{ id: `${stage.id}.layout`, title: "Layout", kind: "images", count: pages.length, item: "Page", pages, editor }];
   },
 };
 
@@ -184,7 +211,7 @@ STEPS.fix_skew = {
       })
       .sort((a, b) => a.page - b.page);
     if (pages.length === 0) return [];
-    const editor = stage.status === "wip" ? { stageId: stage.id } : undefined;
+    const editor = stage.status === "wip" ? { stageId: stage.id, step: "fix_skew" } : undefined;
     return [{ id: `${stage.id}.lines`, title: "Lines", kind: "images", count: pages.length, item: "Page", pages, editor }];
   },
 };
@@ -194,6 +221,10 @@ export const FIX_STARTS: Record<string, (after: ApiStage) => { stepVersion: numb
   fix_skew: (after) => {
     const inputs = after.outputs.filter((o) => o.type === "skew");
     return { stepVersion: FIX_SKEW_VERSION, pageCount: inputs.length, inputIds: inputs.map((o) => o.id) };
+  },
+  fix_layout: (after) => {
+    const inputs = after.outputs.filter((o) => o.type === "layout");
+    return { stepVersion: FIX_LAYOUT_VERSION, pageCount: inputs.length, inputIds: inputs.map((o) => o.id) };
   },
 };
 

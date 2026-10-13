@@ -11,7 +11,7 @@ import {
   type ApiPipeline,
   type Project,
 } from "./api";
-import { FINISHERS } from "./finishFixSkew";
+import { FINISHERS } from "./finishers";
 import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ExpandIcon } from "./icons";

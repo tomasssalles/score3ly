@@ -10,6 +10,7 @@ const KINDS: Record<string, string> = {
   skew_analysis: "computed",
   layout: "llm",
   fix_skew: "manual",
+  fix_layout: "manual",
 };
 
 test("no step's kind ever changes", () => {

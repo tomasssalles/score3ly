@@ -1355,15 +1355,15 @@ body {
   color: var(--danger);
 }
 
-/* The fix_skew editor: a toolbar and the page (panned and zoomed by hand). */
-.skew-editor {
+/* The editors of manual stages (fix_skew, fix_layout): a toolbar and the page, panned and zoomed by hand. */
+.page-editor {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.skew-toolbar {
+.editor-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1373,11 +1373,11 @@ body {
 }
 
 /* Room for the floating close button. */
-.artifact-view.overlay .skew-toolbar {
+.artifact-view.overlay .editor-toolbar {
   padding-right: 60px;
 }
 
-.skew-tools {
+.editor-tools {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -1389,14 +1389,14 @@ body {
   background: none;
 }
 
-.skew-page {
+.editor-page {
   min-width: 72px;
   text-align: center;
   font-size: 14px;
 }
 
 /* Over the page, only when something went wrong (a page not saved). */
-.skew-error {
+.editor-error {
   position: absolute;
   left: 12px;
   right: 12px;
@@ -1410,7 +1410,13 @@ body {
 }
 
 
-.skew-mode {
+/* The modes (tools): one button each, side by side; the chosen one's border is on top of its neighbours'. */
+.editor-modes {
+  gap: 0;
+}
+
+.editor-mode {
+  position: relative;
   display: grid;
   place-items: center;
   width: 40px;
@@ -1419,31 +1425,29 @@ body {
   border: 1px solid var(--line);
   background: none;
   color: var(--muted);
-  font: 500 13px var(--sans);
   cursor: pointer;
 }
 
-.skew-mode:first-child {
+.editor-mode + .editor-mode {
+  margin-left: -1px;
+}
+
+.editor-mode:first-child {
   border-radius: 8px 0 0 8px;
 }
 
-.skew-mode:last-child {
+.editor-mode:last-child {
   border-radius: 0 8px 8px 0;
-  border-left: 0;
 }
 
-.skew-mode[aria-checked="true"] {
+.editor-mode[aria-checked="true"] {
+  z-index: 1;
   background: var(--raised);
   color: var(--accent);
   border-color: var(--accent);
 }
 
-.skew-mode:last-child[aria-checked="true"] {
-  border-left: 1px solid var(--accent);
-  margin-left: -1px;
-}
-
-.skew-viewport {
+.editor-viewport {
   position: relative;
   flex: 1;
   min-height: 0;
@@ -1454,15 +1458,17 @@ body {
   outline: none;
 }
 
-.skew-viewport.hand {
+.editor-viewport.hand {
   cursor: grab;
 }
 
-.skew-viewport.draw {
+.editor-viewport.draw,
+.editor-viewport.box,
+.editor-viewport.bar {
   cursor: crosshair;
 }
 
-.skew-viewport .page-placeholder {
+.editor-viewport .page-placeholder {
   aspect-ratio: auto;
   position: absolute;
   inset: 0;
@@ -1470,14 +1476,14 @@ body {
   place-items: center;
 }
 
-.skew-content {
+.editor-content {
   position: absolute;
   left: 0;
   top: 0;
   transform-origin: 0 0;
 }
 
-.skew-content img {
+.editor-content img {
   display: block;
   width: 100%;
   height: 100%;
@@ -1485,7 +1491,7 @@ body {
   -webkit-user-drag: none;
 }
 
-.skew-content svg {
+.editor-content svg {
   position: absolute;
   inset: 0;
   overflow: visible;
@@ -1517,14 +1523,51 @@ body {
   stroke-dasharray: calc(6 * var(--px)) calc(4 * var(--px));
 }
 
-.skew-handle {
+.editor-handle {
   fill: rgba(255, 123, 114, 0.35);
   stroke: var(--accent);
 }
 
-.skew-anchor {
+.editor-anchor {
   fill: #e3241b;
 }
 
 
 
+
+/* fix_layout's editor: boxes and bar lines in their system's colour, widths in screen pixels (--px). The selected
+   system stands out; the others are dimmed but visible, since the overlap is what is being checked. */
+.layout-box rect:not(.layout-label),
+.layout-bar {
+  stroke-width: calc(2 * var(--px));
+}
+
+.layout-box.dimmed {
+  opacity: 0.45;
+}
+
+.layout-box.selected rect:not(.layout-label),
+.layout-box.selected .layout-bar {
+  stroke-width: calc(3 * var(--px));
+}
+
+.layout-box .layout-bar.selected {
+  stroke-width: calc(6 * var(--px));
+}
+
+.layout-label {
+  stroke: none;
+}
+
+.layout-label-text {
+  stroke: none;
+  fill: #000;
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.editor-rubber {
+  stroke: var(--accent);
+  stroke-width: calc(2 * var(--px));
+  stroke-dasharray: calc(6 * var(--px)) calc(4 * var(--px));
+}

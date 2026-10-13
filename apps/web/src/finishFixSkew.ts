@@ -34,7 +34,3 @@ export async function finishFixSkew(project: Project, stage: ApiStage, pipeline:
   }
   return fixSkewNote(changed, pages.length);
 }
-
-export const FINISHERS: Record<string, (project: Project, stage: ApiStage, pipeline: ApiPipeline) => Promise<string>> = {
-  fix_skew: finishFixSkew,
-};
