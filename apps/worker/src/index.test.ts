@@ -42,7 +42,7 @@ before(async () => {
   ).results;
   migratedPlanned = (
     await env.DB.prepare(
-      "SELECT e.project_id, e.position, s.step, s.status, s.config_json FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.position = 2 ORDER BY e.project_id",
+      "SELECT e.project_id, e.position, s.step, s.status, s.config_json FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.position >= 2 ORDER BY e.project_id, e.position",
     ).all()
   ).results;
 });
@@ -155,6 +155,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
     [
       ["ingest", "done", {}],
       ["rasterize", "planned", null],
+      ["skew_analysis", "planned", null],
     ],
   );
   const [ingest] = pipeline.stages;
@@ -239,11 +240,30 @@ test("migration 0004 gives existing projects their Ingest stage, with the PDF as
   assert.equal(new Set(migratedPipelines.map((row) => row.stage_id)).size, 4);
 });
 
-test("migration 0006 gives existing projects a planned rasterize stage", () => {
+test("migrations 0006 and 0007 give existing projects planned rasterize and skew_analysis stages", () => {
   assert.deepEqual(
     migratedPlanned.map((row) => [row.project_id, row.position, row.step, row.status, row.config_json]),
-    ["p1", "p2", "p3", "p4"].map((id) => [id, 2, "rasterize", "planned", null]),
+    ["p1", "p2", "p3", "p4"].flatMap((id) => [
+      [id, 2, "rasterize", "planned", null],
+      [id, 3, "skew_analysis", "planned", null],
+    ]),
   );
+});
+
+test("content is stored under its hash, and served as it was sent", async () => {
+  const bytes = pdfBytes('{"lines":[]}');
+  const sha256 = await sha256Hex(bytes);
+  const put = (hash: string) =>
+    app.request(`/api/content/${hash}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: bytes }, env);
+  assert.equal((await put(sha256)).status, 204);
+  assert.equal((await put(sha256)).status, 204); // again: harmless
+  const response = await app.request(`/api/content/${sha256}`, {}, env);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Content-Type"), "application/json");
+  assert.equal(await response.text(), '{"lines":[]}');
+  assert.equal((await put("d".repeat(64))).status, 400);
+  assert.equal((await app.request(`/api/content/${"e".repeat(64)}`, {}, env)).status, 404);
+  assert.equal((await app.request("/api/content/nothex", {}, env)).status, 400);
 });
 
 test("deleted projects are left out everywhere, and their names are free", async () => {

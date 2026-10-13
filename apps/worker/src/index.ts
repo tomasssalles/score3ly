@@ -122,6 +122,41 @@ app.get("/api/pdfs/:sha256/file", async (c) => {
   });
 });
 
+// Stored outputs' content (DESIGN.md §2): any file, in R2 under the SHA-256 of its bytes, which R2 checks. Storing
+// the same content again is harmless. Objects never change, so they can be cached for good.
+function contentKey(sha256: string): string {
+  return `content/${sha256}`;
+}
+
+app.put("/api/content/:sha256", async (c) => {
+  const sha256 = c.req.param("sha256");
+  if (!isSha256(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
+  const body = await c.req.arrayBuffer();
+  try {
+    await c.env.PDFS.put(contentKey(sha256), body, {
+      sha256,
+      httpMetadata: { contentType: c.req.header("Content-Type") ?? "application/octet-stream" },
+    });
+  } catch {
+    return c.json({ error: "the content doesn't match its SHA-256" }, 400);
+  }
+  return c.body(null, 204);
+});
+
+app.get("/api/content/:sha256", async (c) => {
+  const sha256 = c.req.param("sha256");
+  if (!isSha256(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
+  const object = await c.env.PDFS.get(contentKey(sha256));
+  if (!object) return c.json({ error: "no such content" }, 404);
+  return new Response(object.body, {
+    headers: {
+      "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
+      "Content-Length": String(object.size),
+      "Cache-Control": "private, max-age=31536000, immutable",
+    },
+  });
+});
+
 // Creates a project, with its pipeline: Ingest, done from the start, its output the PDF (DESIGN.md §5.1), and the
 // recipe's other stages, planned.
 // The form has the PDF's 'sha256' and either the 'pdf' itself, which is stored in R2, or

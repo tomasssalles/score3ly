@@ -15,7 +15,16 @@ export type Skew = {
   atLimit: boolean;
   // The staves found at that angle, top to bottom (see findStaves).
   staves: Staff[];
+  // The lines that should be horizontal (DESIGN.md §8.4): at most 5, the top lines of staves spread over the page,
+  // each measured on its own. None when no staves were found or the angle is at the limit of the search.
+  lines: SkewLine[];
 };
+
+// A line that should be horizontal, from (x0, y0) to (x1, y1) in fractions of the page's width and height, with
+// its own angle in degrees (positive when it descends to the right). Found by findSkew, or drawn by a person.
+export type SkewLine = { x0: number; y0: number; x1: number; y1: number; angle: number };
+
+export const MAX_LINES = 5;
 
 // A staff: five evenly spaced lines. Positions are fractions of the page's height, where the staff crosses the
 // page's vertical center line (the page is skewed, so elsewhere they differ a little).
@@ -41,7 +50,7 @@ export function findSkew(image: RgbaImage, options: SkewOptions = {}): Skew {
   const work = shrinkForWork(image);
   const response = lineResponse(work);
   const strips = stripProfiles(response, work.width, work.height, margin);
-  if (strips.total === 0) return { angle: 0, confidence: 0, atLimit: false, staves: [] };
+  if (strips.total === 0) return { angle: 0, confidence: 0, atLimit: false, staves: [], lines: [] };
 
   const score = (angle: number) => profileEnergy(strips, angle);
 
@@ -78,23 +87,96 @@ export function findSkew(image: RgbaImage, options: SkewOptions = {}): Skew {
   const median = values[values.length >> 1];
   const confidence = fineBest.value > 0 ? Math.max(0, Math.min(1, 1 - median / fineBest.value)) : 0;
 
+  const atLimit = Math.abs(angle) > maxAngle - 0.1;
+  const found = findStaves(strips, angle);
   return {
     angle: Math.round(angle * 1000) / 1000,
     confidence: Math.round(confidence * 1000) / 1000,
-    atLimit: Math.abs(angle) > maxAngle - 0.1,
-    staves: findStaves(strips, angle),
+    atLimit,
+    staves: found.map((staff) => ({ top: round(staff.top / strips.height), bottom: round(staff.bottom / strips.height) })),
+    lines: atLimit ? [] : spread(found, MAX_LINES).flatMap((staff) => measureLine(strips, angle, staff.top) ?? []),
   };
 }
 
-// Whether to straighten a page, by the rule of DESIGN.md §8.4: best effort, low risk. A wrong "no" leaves a music
-// page a little skewed; a wrong "yes" rotates a page that didn't need it. So only pages with staves, and only
-// angles that are trustworthy and large enough to matter.
-export function shouldDeskew(skew: Skew, width: number): { deskew: boolean; reason: string } {
-  if (skew.staves.length === 0) return { deskew: false, reason: "no staves found" };
-  if (skew.atLimit) return { deskew: false, reason: "the angle is at the limit of the search" };
-  // Rotation blurs a little: not worth it if the lines drift by less than a pixel across the page.
-  if (Math.abs(tanDeg(skew.angle)) * width < 1) return { deskew: false, reason: "the angle is too small to matter" };
-  return { deskew: true, reason: `${skew.staves.length} staves, skewed by ${skew.angle}°` };
+// The version of the deskew decision (deskewAngle). Part of the recipe of straightened pages (DESIGN.md §8.6):
+// changing the rule changes them, and nothing before them.
+export const DESKEW_VERSION = 1;
+
+// Whether and by how much to straighten a page, from its lines (DESIGN.md §8.4): best effort, low risk. No lines,
+// no deskewing. Otherwise the angle that fits all lines best, longer lines counting more, unless it is too small to
+// matter: rotation blurs a little, so not if the lines drift by less than a pixel across the page. Null: leave the
+// page as it is.
+export function deskewAngle(lines: SkewLine[], width: number): number | null {
+  let weight = 0;
+  let sum = 0;
+  for (const line of lines) {
+    const length = Math.abs(line.x1 - line.x0);
+    weight += length;
+    sum += length * tanDeg(line.angle);
+  }
+  if (weight === 0) return null;
+  const tan = sum / weight;
+  if (Math.abs(tan) * width < 1) return null;
+  return Math.round(((Math.atan(tan) * 180) / Math.PI) * 1000) / 1000;
+}
+
+// At most n of the items, the first, the last and evenly in between.
+function spread<T>(items: T[], n: number): T[] {
+  if (items.length <= n) return items;
+  return Array.from({ length: n }, (_, i) => items[Math.round((i * (items.length - 1)) / (n - 1))]);
+}
+
+// One staff line, measured on its own: in every strip it crosses, the row where its response peaks (to a fraction
+// of a row), and a straight line fitted through those points, longer responses counting more. `row` is where the
+// line crosses the page's center, along the page's angle. Its ends are the first and last strips it crosses.
+function measureLine(strips: Strips, angle: number, row: number): SkewLine | null {
+  const { profiles, offsets, widths, height, width } = strips;
+  const tan = tanDeg(angle);
+  const points: { x: number; y: number; w: number }[] = [];
+  const ends: number[] = [];
+  for (let s = 0; s < profiles.length; s++) {
+    const expected = Math.round(row + offsets[s] * tan);
+    const profile = profiles[s];
+    let peak = -1;
+    for (let y = expected - 2; y <= expected + 2; y++) {
+      if (y >= 1 && y < height - 1 && (peak < 0 || profile[y] > profile[peak])) peak = y;
+    }
+    if (peak < 0 || profile[peak] < strips.strength * widths[s]) continue;
+    const around = profile[peak - 1] + profile[peak] + profile[peak + 1];
+    const y = (profile[peak - 1] * (peak - 1) + profile[peak] * peak + profile[peak + 1] * (peak + 1)) / around;
+    points.push({ x: offsets[s] + width / 2, y, w: profile[peak] });
+    ends.push(s);
+  }
+  if (points.length < 2) return null;
+  let sw = 0;
+  let sx = 0;
+  let sy = 0;
+  for (const p of points) {
+    sw += p.w;
+    sx += p.w * p.x;
+    sy += p.w * p.y;
+  }
+  const mx = sx / sw;
+  const my = sy / sw;
+  let sxx = 0;
+  let sxy = 0;
+  for (const p of points) {
+    sxx += p.w * (p.x - mx) * (p.x - mx);
+    sxy += p.w * (p.x - mx) * (p.y - my);
+  }
+  if (sxx === 0) return null;
+  const slope = sxy / sxx;
+  const first = ends[0];
+  const last = ends[ends.length - 1];
+  const xa = offsets[first] + width / 2 - widths[first] / 2;
+  const xb = offsets[last] + width / 2 + widths[last] / 2;
+  return {
+    x0: round(xa / width),
+    y0: round((my + slope * (xa - mx)) / height),
+    x1: round(xb / width),
+    y1: round((my + slope * (xb - mx)) / height),
+    angle: Math.round(((Math.atan(slope) * 180) / Math.PI) * 1000) / 1000,
+  };
 }
 
 const WORK_WIDTH = 1800;
@@ -154,8 +236,10 @@ type Strips = {
   profiles: Float64Array[]; // per strip: the sum of line responses per row
   offsets: number[]; // per strip: its center's horizontal distance from the inner region's center, in pixels
   widths: number[]; // per strip: its width in pixels
+  width: number;
   height: number;
   total: number;
+  strength: number; // per pixel: the mean line response at which a row counts as crossing a strip (findStaves)
 };
 
 function stripProfiles(response: Float32Array, width: number, height: number, margin: number): Strips {
@@ -182,7 +266,7 @@ function stripProfiles(response: Float32Array, width: number, height: number, ma
     offsets.push((from + to) / 2 - width / 2);
     widths.push(to - from);
   }
-  return { profiles, offsets, widths, height, total };
+  return { profiles, offsets, widths, width, height, total, strength: 0 };
 }
 
 // The sum of squares of the strips' profiles added up along lines at `angle`. Shifts are fractional, so each
@@ -218,8 +302,9 @@ const STAFF_COVERAGE = 0.4; // share of the strips all five lines of a staff mus
 const SPACING_TOLERANCE = 0.15; // how unevenly a staff's lines may be spaced, as a share of the spacing
 const SPACING_AGREEMENT = 0.25; // how far a staff's spacing may be from the page's typical one, as a share
 
-// The staves on a page skewed by `angle`: five lines, evenly spaced, that start and end together. Only used to
-// decide whether to deskew the page (DESIGN.md §8.4), never to read music or to tell what a page is.
+// The staves on a page skewed by `angle`: five lines, evenly spaced, that start and end together, as rows where
+// they cross the page's center. Only used for the lines that decide whether to deskew the page (DESIGN.md §8.4),
+// never to read music or to tell what a page is.
 //
 // 1. Lines: rows (along the angle) that cross enough of the strips. A strip counts when the row's mean line
 //    response in it is strong enough for this page, so a staff line counts across a page even where notes
@@ -227,7 +312,7 @@ const SPACING_AGREEMENT = 0.25; // how far a staff's spacing may be from the pag
 // 2. Staves: five lines in a row with even spacing, which cross the same strips (a staff's lines start and end
 //    together; the horizontal strokes of ornaments and engravings don't).
 // 3. The staves of a page share one spacing (give or take): staves with another spacing are dropped.
-function findStaves(strips: Strips, angle: number): Staff[] {
+function findStaves(strips: Strips, angle: number): { top: number; bottom: number }[] {
   const { profiles, offsets, widths, height } = strips;
   const tan = tanDeg(angle);
   const shifts = offsets.map((offset) => Math.round(offset * tan));
@@ -238,6 +323,7 @@ function findStaves(strips: Strips, angle: number): Staff[] {
   means.sort((a, b) => a - b);
   const strong = means[Math.floor(means.length * 0.98)] ?? 0;
   const strength = Math.min(LINE_STRENGTH_MAX, Math.max(LINE_STRENGTH_MIN, LINE_STRENGTH * strong));
+  strips.strength = strength;
   // Whether a row (as at the page's center line) crosses strip s with a line. A line may fall between rows: the
   // strongest of three neighbouring rows counts.
   const crosses = (s: number, y: number) => {
@@ -310,9 +396,7 @@ function findStaves(strips: Strips, angle: number): Staff[] {
 
   const spacings = found.map((staff) => staff.spacing).sort((a, b) => a - b);
   const typical = spacings[spacings.length >> 1];
-  return found
-    .filter((staff) => Math.abs(staff.spacing - typical) <= SPACING_AGREEMENT * typical)
-    .map((staff) => ({ top: round(staff.top / height), bottom: round(staff.bottom / height) }));
+  return found.filter((staff) => Math.abs(staff.spacing - typical) <= SPACING_AGREEMENT * typical);
 }
 
 function round(fraction: number): number {

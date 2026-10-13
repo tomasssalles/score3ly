@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { createCanvas } from "@napi-rs/canvas";
 import { luminance, type RgbaImage } from "./image.ts";
 import { openPdf, pageImage, type CreateCanvas } from "./pdfPages.ts";
-import { findSkew } from "./skew.ts";
+import { deskewAngle, findSkew } from "./skew.ts";
 import { deskew, rotate } from "./rotate.ts";
 
 const testset = join(dirname(fileURLToPath(import.meta.url)), "../../../testset");
@@ -99,6 +99,32 @@ test("a real page's skew is found again after turning it by a known angle", asyn
   const turned = findSkew(rotate(image, 1.5, [255, 255, 255])).angle;
   assert.ok(Math.abs(turned - (base + 1.5)) <= 0.05, `${base}° turned by 1.5° measured ${turned}°`);
   assert.ok(Math.abs(findSkew(deskew(image, base)).angle) <= 0.03);
+});
+
+test("on real pages turned by a known angle, the lines and the deskew angle from them follow", async () => {
+  for (const [name, pageNumber] of [
+    ["villa-lobos_bachianas_brasileiras_4_prelude", 1],
+    ["beethoven_fuer_elise_leipzig", 1],
+    ["debussy_clair_de_lune_mutopia", 2],
+  ] as const) {
+    const { image } = await page(name, pageNumber);
+    const base = deskewAngle(findSkew(image).lines, image.width) ?? 0;
+    const turned = rotate(image, 1.5, [255, 255, 255]);
+    const skew = findSkew(turned);
+    assert.ok(skew.lines.length >= 3, `${name}: ${skew.lines.length} lines`);
+    // A scanned page isn't perfectly flat: its lines differ by up to about 0.2° (a vector page's agree to 0.005°).
+    for (const line of skew.lines) {
+      assert.ok(Math.abs(line.angle - (base + 1.5)) <= 0.25, `${name}: a line at ${line.angle}°, page at ${base + 1.5}°`);
+    }
+    const angle = deskewAngle(skew.lines, turned.width) ?? 0;
+    assert.ok(Math.abs(angle - (base + 1.5)) <= 0.05, `${name}: ${base}° turned by 1.5° gives ${angle}°`);
+  }
+});
+
+test("covers have no lines", async () => {
+  for (const name of ["bendel_la_cascade", "liszt_consolations_first_edition", "schumann_kinderscenen_first_edition"]) {
+    assert.deepEqual(findSkew((await page(name, 1)).image).lines, [], name);
+  }
 });
 
 test("staves are found on music pages and not on covers", async () => {

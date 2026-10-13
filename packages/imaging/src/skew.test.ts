@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createImage } from "./image.ts";
 import { rotate } from "./rotate.ts";
-import { findSkew, shouldDeskew, type Skew } from "./skew.ts";
+import { deskewAngle, findSkew, type SkewLine } from "./skew.ts";
 import { drawLine, fillRect, musicPage } from "./testPages.ts";
 
 const paper = [250, 247, 238] as [number, number, number];
@@ -53,7 +53,7 @@ test("a large scan is measured just as well", () => {
 });
 
 test("an empty page has no skew and no confidence", () => {
-  assert.deepEqual(findSkew(createImage(800, 1000, paper)), { angle: 0, confidence: 0, atLimit: false, staves: [] });
+  assert.deepEqual(findSkew(createImage(800, 1000, paper)), { angle: 0, confidence: 0, atLimit: false, staves: [], lines: [] });
 });
 
 test("angles beyond the search range aren't found, and the result says it is at the limit", () => {
@@ -92,18 +92,42 @@ test("evenly spaced lines that don't start and end together aren't a staff", () 
   assert.deepEqual(findSkew(page).staves, []);
 });
 
-test("a page is deskewed only with staves, at a trustworthy angle, large enough to matter", () => {
-  const staves = [{ top: 0.1, bottom: 0.12 }];
-  const skew = (angle: number, more: Partial<Skew> = {}): Skew => ({
-    angle,
-    confidence: 0.7,
-    atLimit: false,
-    staves,
-    ...more,
-  });
-  assert.equal(shouldDeskew(skew(0.4), 2500).deskew, true);
-  assert.match(shouldDeskew(skew(0.4, { staves: [] }), 2500).reason, /no staves/);
-  assert.match(shouldDeskew(skew(4.95, { atLimit: true }), 2500).reason, /limit/);
-  assert.match(shouldDeskew(skew(0.01), 2500).reason, /too small/); // 0.4 px across the page
-  assert.equal(shouldDeskew(skew(0.03), 2500).deskew, true); // 1.3 px
+test("at most 5 lines, from staves spread over the page, each measured on its own", () => {
+  for (const angle of [0, -1.5, 3]) {
+    const { lines } = findSkew(rotate(musicPage(), angle, paper));
+    assert.equal(lines.length, 5, `at ${angle}°`);
+    for (const line of lines) {
+      assertNear(line.angle, angle, `a line at ${angle}°`);
+      assert.ok(line.x1 - line.x0 > 0.6, `a line ${line.x0} to ${line.x1}`);
+      // The ends lie on the line: their slope is the line's angle (in pixels: the page is 1200 × 1600).
+      const slope = ((line.y1 - line.y0) * 1600) / ((line.x1 - line.x0) * 1200);
+      assertNear((Math.atan(slope) * 180) / Math.PI, angle, "the ends' slope");
+    }
+    // Spread: the first staff's top line and the last staff's.
+    assert.ok(lines[0].y0 + lines[0].y1 < 2 * 0.15 && lines[4].y0 + lines[4].y1 > 2 * 0.8);
+  }
+});
+
+test("the lines' angles agree with the page's, and the deskew angle from them is as precise", () => {
+  const page = musicPage();
+  for (const angle of [-1.1, 0.35, 2.7]) {
+    const turned = rotate(page, angle, paper);
+    const skew = findSkew(turned);
+    assertNear(deskewAngle(skew.lines, turned.width) ?? 0, angle, `deskew angle at ${angle}°`);
+  }
+});
+
+test("pages without staves, and angles at the limit, report no lines", () => {
+  assert.deepEqual(findSkew(createImage(800, 1000, paper)).lines, []);
+  assert.deepEqual(findSkew(rotate(musicPage(), 2.5, paper), { maxAngle: 1 }).lines, []);
+});
+
+test("a page is deskewed only with lines, by the angle that fits them, if it is large enough to matter", () => {
+  const line = (angle: number, x0 = 0.1, x1 = 0.9): SkewLine => ({ x0, y0: 0.2, x1, y1: 0.2, angle });
+  assert.equal(deskewAngle([], 2500), null);
+  assert.equal(deskewAngle([line(0.4)], 2500), 0.4);
+  assert.equal(deskewAngle([line(0.01)], 2500), null); // 0.4 px across the page
+  assert.equal(deskewAngle([line(0.03)], 2500), 0.03); // 1.3 px
+  // Longer lines count more: 0.8 long at 1°, 0.2 long at 0°.
+  assert.equal(deskewAngle([line(1), line(0, 0.4, 0.6)], 2500), 0.8);
 });
