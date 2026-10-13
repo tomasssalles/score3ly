@@ -16,7 +16,6 @@ import {
   SkewIcon,
   StopIcon,
 } from "./icons";
-import { dollars } from "./money";
 import { pdfUrl } from "./pdf";
 import { PdfThumb } from "./PdfThumb";
 import { hasArtifacts, type Artifact, type RunMode, type Stage, type StageKind } from "./pipeline";
@@ -115,7 +114,6 @@ function Facts({ stage }: { stage: Stage }) {
   const facts: (string | undefined)[] = [];
   if (stage.status === "done") {
     if (stage.seconds !== undefined) facts.push(duration(stage.seconds));
-    if (stage.cost !== undefined) facts.push(dollars(stage.cost));
     facts.push(stage.note);
   }
   if (stage.status === "wip") facts.push("Not finished yet");

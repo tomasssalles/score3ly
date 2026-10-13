@@ -180,7 +180,7 @@ test("skew_analysis's artifact shows the page images of the rasterize before it,
   assert.equal(defaultArtifactId(p), "s3.lines");
 });
 
-test("an LLM stage shows its model config's name, else its model string, and what its calls cost", () => {
+test("an LLM stage shows its model config's name, else its model string", () => {
   const named = toPipeline("auto", {
     stages: [ingest, stage("s2", "layout", { modelConfig: { name: "Opus EU", model: "eu.anthropic.claude-opus-5-5" }, costUsd: 0.42 })],
   }).stages[1];
