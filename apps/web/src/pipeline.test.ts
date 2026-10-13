@@ -140,3 +140,40 @@ test("the stage this device runs shows its progress; one running elsewhere none;
   assert.equal(local.stages[1].status, "running");
   assert.deepEqual(progressOf(local), { stage: 0.25, pipeline: 0.625 });
 });
+
+test("skew_analysis's artifact shows the page images of the rasterize before it, with each page's stored lines", () => {
+  const recipe = (page: number) => ({ step: "rasterize", version: 1, pdf: SHA256, page, dpi: 300, pdfjs: "6" });
+  const rasterize = stage("s2", "rasterize", {
+    outputs: [1, 2].map((n) => ({
+      id: `r${n}`,
+      item: `p${n}`,
+      type: "page_image",
+      contentSha256: null,
+      recipeKey: "k".repeat(64),
+      recipe: recipe(n),
+    })),
+  });
+  const skew = stage("s3", "skew_analysis", {
+    note: "lines on 1 of 2 pages",
+    outputs: [2, 1].map((n) => ({
+      id: `k${n}`,
+      item: `p${n}`,
+      type: "skew",
+      contentSha256: String(n).repeat(64),
+      recipeKey: null,
+      recipe: null,
+    })),
+  });
+  const p = toPipeline("auto", { stages: [ingest, rasterize, skew] });
+  const [artifact] = p.stages[2].artifacts;
+  assert.equal(artifact.id, "s3.lines");
+  assert.equal(artifact.title, "Staff lines");
+  assert.deepEqual(
+    artifact.pages?.map((page) => [page.page, page.recipe.page, page.linesSha256]),
+    [
+      [1, 1, "1".repeat(64)],
+      [2, 2, "2".repeat(64)],
+    ],
+  );
+  assert.equal(defaultArtifactId(p), "s3.lines");
+});

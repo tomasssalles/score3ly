@@ -7,6 +7,7 @@ import { keyOf } from "./keys";
 import { pdfUrl } from "./pdf";
 import type { PageImageRequest, PageImageResponse } from "./pageImageWorker";
 import type { PageRecipe } from "./rasterize";
+import type { Skew } from "@score3ly/imaging";
 
 // A request without its id (Omit on each member of the union, not on the union).
 type Unsent = PageImageRequest extends infer R ? (R extends PageImageRequest ? Omit<R, "id"> : never) : never;
@@ -75,4 +76,12 @@ export async function pageImage(recipe: PageRecipe): Promise<{ png: Blob; comput
   if (answer.type !== "page") throw new Error("Unexpected answer from the page image worker.");
   await cacheImage(key, answer.png);
   return { png: new Blob([answer.png], { type: "image/png" }), computed: true };
+}
+
+// The skew of a page image (DESIGN.md §8.4), measured in the worker.
+export async function measureSkew(png: Blob, maxAngle: number): Promise<Skew> {
+  const bytes = await png.arrayBuffer();
+  const answer = await ask({ type: "skew", png: bytes, maxAngle }, [bytes]);
+  if (answer.type !== "skew") throw new Error("Unexpected answer from the page image worker.");
+  return answer.skew;
 }

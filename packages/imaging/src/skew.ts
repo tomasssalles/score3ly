@@ -120,6 +120,8 @@ export function deskewAngle(lines: SkewLine[], width: number): number | null {
   return Math.round(((Math.atan(tan) * 180) / Math.PI) * 1000) / 1000;
 }
 
+const MAX_GAP = 2;
+
 // At most n of the items, the first, the last and evenly in between.
 function spread<T>(items: T[], n: number): T[] {
   if (items.length <= n) return items;
@@ -127,8 +129,10 @@ function spread<T>(items: T[], n: number): T[] {
 }
 
 // One staff line, measured on its own: in every strip it crosses, the row where its response peaks (to a fraction
-// of a row), and a straight line fitted through those points, longer responses counting more. `row` is where the
-// line crosses the page's center, along the page's angle. Its ends are the first and last strips it crosses.
+// of a row), and a straight line fitted through those points, stronger responses counting more. `row` is where the
+// line crosses the page's center, along the page's angle. Only the longest run of strips it crosses counts (gaps of
+// up to MAX_GAP strips allowed, where notes or text interrupt it): strokes beyond the staff's ends, e.g. of an
+// ornamental border, would otherwise stretch the line and pull its angle. Its ends are that run's ends.
 function measureLine(strips: Strips, angle: number, row: number): SkewLine | null {
   const { profiles, offsets, widths, height, width } = strips;
   const tan = tanDeg(angle);
@@ -147,6 +151,17 @@ function measureLine(strips: Strips, angle: number, row: number): SkewLine | nul
     points.push({ x: offsets[s] + width / 2, y, w: profile[peak] });
     ends.push(s);
   }
+  // The longest run.
+  let runStart = 0;
+  let best = { from: 0, to: -1 };
+  for (let i = 0; i < ends.length; i++) {
+    if (i > 0 && ends[i] - ends[i - 1] > MAX_GAP + 1) runStart = i;
+    if (i - runStart > best.to - best.from) best = { from: runStart, to: i };
+  }
+  points.splice(best.to + 1);
+  points.splice(0, best.from);
+  ends.splice(best.to + 1);
+  ends.splice(0, best.from);
   if (points.length < 2) return null;
   let sw = 0;
   let sx = 0;

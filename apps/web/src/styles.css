@@ -902,6 +902,47 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
+.page-image {
+  position: relative;
+}
+
+/* The lines that should be horizontal (skew_analysis), in red over the page. */
+.lines-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lines-overlay svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.lines-overlay line {
+  stroke: #e3241b;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.line-label {
+  position: absolute;
+  transform: translate(0, -115%);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #e3241b;
+  color: #fff;
+  font: 600 11px var(--mono);
+  white-space: nowrap;
+}
+
+.line-label.failed {
+  left: 8px;
+  top: 8px;
+  transform: none;
+}
+
 .page-placeholder {
   display: grid;
   place-items: center;

@@ -3,17 +3,19 @@
 
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
-import { encodePng, openPdf, pageImage, type PdfDocument } from "@score3ly/imaging";
+import { decodePng, encodePng, findSkew, openPdf, pageImage, type PdfDocument, type Skew } from "@score3ly/imaging";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export type PageImageRequest =
   | { id: number; type: "open"; sha256: string; pdf: ArrayBuffer }
-  | { id: number; type: "page"; sha256: string; page: number; dpi: number };
+  | { id: number; type: "page"; sha256: string; page: number; dpi: number }
+  | { id: number; type: "skew"; png: ArrayBuffer; maxAngle: number };
 
 export type PageImageResponse =
   | { id: number; type: "opened"; pageCount: number; pdfjsVersion: string }
   | { id: number; type: "page"; png: Uint8Array<ArrayBuffer>; width: number; height: number; source: string; dpi: number }
+  | { id: number; type: "skew"; skew: Skew }
   | { id: number; type: "error"; message: string };
 
 const scope = self as unknown as {
@@ -81,6 +83,11 @@ async function handle(request: PageImageRequest): Promise<void> {
     if (!docs.has(request.sha256)) docs.set(request.sha256, openPdf(new Uint8Array(request.pdf), options));
     const doc = await docs.get(request.sha256)!;
     scope.postMessage({ id: request.id, type: "opened", pageCount: doc.numPages, pdfjsVersion: pdfjs.version ?? "" });
+    return;
+  }
+  if (request.type === "skew") {
+    const image = await decodePng(new Uint8Array(request.png));
+    scope.postMessage({ id: request.id, type: "skew", skew: findSkew(image, { maxAngle: request.maxAngle }) });
     return;
   }
   const doc = await docs.get(request.sha256);

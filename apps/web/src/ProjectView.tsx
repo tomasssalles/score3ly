@@ -17,10 +17,10 @@ import {
 } from "./pipeline";
 import { PipelinePanel, type PanelActions } from "./PipelinePanel";
 import { ProgressRing } from "./ProgressRing";
-import { configOf, type RasterizeConfig } from "./rasterize";
-import { RasterizeConfigDialog } from "./RasterizeConfigDialog";
+import { ConfigDialog } from "./ConfigDialog";
 import { RUNNERS } from "./runners";
 import { CannotStart } from "./stageRunner";
+import { stepInfo } from "./steps";
 import { StageDetails } from "./StageDetails";
 import { useWide } from "./useWide";
 
@@ -211,8 +211,8 @@ export function ProjectView({
     finish: notBuilt,
     changeConfig: (id) => {
       const stage = findStage(pipeline, id);
-      if (stage?.stepId === "rasterize") setConfiguring(stage);
-      else setError(`"${stage?.title}" has no config to change yet.`);
+      if (stage && stepInfo(stage.stepId).config) setConfiguring(stage);
+      else setError(`"${stage?.title}" has nothing to set.`);
     },
     addFix: (id) => change(id, notBuilt, replacesWork(id)),
     edit: (id) => change(id, notBuilt, replacesWork(id)),
@@ -241,12 +241,15 @@ export function ProjectView({
     },
   };
 
-  const configDialog = configuring && (
-    <RasterizeConfigDialog
-      config={configOf(stored?.stages.find((s) => s.id === configuring.id)?.config ?? null)}
-      onSave={(config: RasterizeConfig) => {
+  const configForm = configuring ? stepInfo(configuring.stepId).config : undefined;
+  const configDialog = configuring && configForm && (
+    <ConfigDialog
+      title={configuring.title}
+      config={configForm}
+      values={configForm.read(stored?.stages.find((s) => s.id === configuring.id)?.config ?? null)}
+      onSave={(values) => {
         const stage = configuring;
-        change(stage.id, () => saveConfig(stage, config), replacesWork(stage.id));
+        change(stage.id, () => saveConfig(stage, values), replacesWork(stage.id));
       }}
       onCancel={() => setConfiguring(null)}
     />

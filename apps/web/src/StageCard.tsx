@@ -11,6 +11,7 @@ import {
   MusicIcon,
   PlayIcon,
   RetryIcon,
+  SkewIcon,
   StopIcon,
 } from "./icons";
 import { dollars } from "./money";
@@ -37,6 +38,7 @@ export type StageActions = {
 const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   ingest: IngestIcon,
   rasterize: ImageIcon,
+  skew_analysis: SkewIcon,
 };
 
 const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {

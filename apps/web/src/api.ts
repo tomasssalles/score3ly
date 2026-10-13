@@ -1,3 +1,5 @@
+import { sha256Hex } from "./sha256.ts";
+
 // Mirrors the Worker's Project type (apps/worker/src/index.ts).
 export type Project = {
   id: string;
@@ -178,4 +180,16 @@ export async function finishStage(
 // Stops a running stage: a planned one with the same config takes its place.
 export async function stopStage(project: Project, stageId: string): Promise<ApiPipeline> {
   return (await send(stageUrl(project, stageId, "stop"))).json();
+}
+
+// Stored content (DESIGN.md §2): uploaded under the SHA-256 of its bytes, which is returned. Uploading the same
+// content again is harmless.
+export async function putContent(bytes: Uint8Array<ArrayBuffer>, contentType: string): Promise<string> {
+  const sha256 = await sha256Hex(bytes);
+  await checked(await fetch(`/api/content/${sha256}`, { method: "PUT", headers: { "Content-Type": contentType }, body: bytes }));
+  return sha256;
+}
+
+export async function fetchJsonContent(sha256: string): Promise<unknown> {
+  return (await checked(await fetch(`/api/content/${sha256}`))).json();
 }

@@ -27,7 +27,8 @@ export type Artifact = {
   kind: ArtifactKind;
   count: number; // 1 for a single item
   item?: "Page" | "System"; // what each item of a group is
-  pages?: { page: number; recipe: PageRecipe }[]; // page images: what each one is made from
+  // Page images: what each one is made from, and, for lines drawn over it, the stored lines (a PageSkew).
+  pages?: { page: number; recipe: PageRecipe; linesSha256?: string }[];
 };
 
 export type Stage = {
@@ -65,8 +66,8 @@ export type LocalRun = { stageId: string; progress: number };
 // the one whose turn it is: "ready". A stage running elsewhere shows no progress; one whose heartbeat stopped
 // counts as failed, and can run again.
 export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null, now = Date.now()): Pipeline {
-  const stages = stored.stages.map((s) => {
-    const stage = toStage(s);
+  const stages = stored.stages.map((s, i) => {
+    const stage = toStage(s, stored.stages.slice(0, i));
     if (local?.stageId === s.id) return { ...stage, status: "running" as const, progress: local.progress };
     if (s.status === "running" && (s.heartbeatAt === null || now - Date.parse(s.heartbeatAt) > STALE_MS)) {
       return { ...stage, status: "failed" as const, error: "Interrupted: the app was closed while this stage ran." };
@@ -78,7 +79,7 @@ export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun |
   return { mode, stages };
 }
 
-function toStage(stored: ApiStage): Stage {
+function toStage(stored: ApiStage, earlier: ApiStage[]): Stage {
   const info = stepInfo(stored.step);
   // Stopped stages aren't in a pipeline; if one shows up anyway, it can run again like a failed one.
   const status: StageStatus = stored.status === "stopped" ? "failed" : stored.status;
@@ -97,7 +98,7 @@ function toStage(stored: ApiStage): Stage {
     note: stored.note ?? undefined,
     error: stored.error ?? undefined,
     progress: 0,
-    artifacts: info.artifacts(stored),
+    artifacts: info.artifacts(stored, earlier),
     config: Object.fromEntries(
       Object.entries(stored.config ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : JSON.stringify(value)]),
     ),

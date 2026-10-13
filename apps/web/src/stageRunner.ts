@@ -32,7 +32,8 @@ export type StageItem = {
   make: () => Promise<Omit<NewOutput, "item" | "type">>;
 };
 
-export type StagePlan = StageStart & { items: StageItem[]; note: string };
+// The note is the card's short result, e.g. "12 pages": text, or computed once the items are done.
+export type StagePlan = StageStart & { items: StageItem[]; note: string | (() => string) };
 
 const HEARTBEAT_MS = 60 * 1000;
 
@@ -54,7 +55,9 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
       }
       run.progress((i + 1) / items.length);
     }
-    if (!signal.aborted) await finishStage(project, stage.id, { status: "done", note });
+    if (!signal.aborted) {
+      await finishStage(project, stage.id, { status: "done", note: typeof note === "function" ? note() : note });
+    }
   } catch (err) {
     if (signal.aborted) return;
     const message = err instanceof Error ? err.message : String(err);

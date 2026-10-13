@@ -7,6 +7,7 @@ import { STEPS } from "./steps.ts";
 const KINDS: Record<string, string> = {
   ingest: "ingest",
   rasterize: "computed",
+  skew_analysis: "computed",
 };
 
 test("no step's kind ever changes", () => {

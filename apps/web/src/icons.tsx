@@ -81,6 +81,16 @@ export function ImageIcon() {
   );
 }
 
+// Skew analysis: a tilted line against a level one, and the angle between them.
+export function SkewIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3.5 18.5h17M3.5 18.5 19 9.5" />
+      <path d="M12 18.5a8.5 8.5 0 0 0-1-4" />
+    </svg>
+  );
+}
+
 export function ComputedIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">

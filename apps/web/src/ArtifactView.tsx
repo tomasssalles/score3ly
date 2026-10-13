@@ -1,9 +1,11 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import type { Project } from "./api";
+import { fetchJsonContent, type Project } from "./api";
 import { CloseIcon } from "./icons";
 import { pageImage } from "./pageImages";
 import type { Artifact } from "./pipeline";
 import type { PageRecipe } from "./rasterize";
+import { angleLabel, type PageSkew } from "./skewAnalysis";
+import type { SkewLine } from "@score3ly/imaging";
 import { pdfUrl } from "./pdf";
 import { PdfView } from "./PdfView";
 
@@ -44,7 +46,7 @@ export function ArtifactContent({ project, artifact }: { project: Project; artif
         render={(i) => (
           <figure className="film-item">
             <figcaption>Page {pages[i].page}</figcaption>
-            <PageImageView recipe={pages[i].recipe} />
+            <PageImageView recipe={pages[i].recipe} linesSha256={pages[i].linesSha256} />
           </figure>
         )}
       />
@@ -58,8 +60,9 @@ export function ArtifactContent({ project, artifact }: { project: Project; artif
 }
 
 // A page image, from the device's cache or drawn again from its recipe (DESIGN.md §5.3), once it scrolls near the
-// view: a filmstrip of large scans would otherwise draw every page at once.
-function PageImageView({ recipe }: { recipe: PageRecipe }) {
+// view: a filmstrip of large scans would otherwise draw every page at once. With `linesSha256`, the lines that should
+// be horizontal (skew_analysis) are drawn over it in red, each labelled with its angle (§6).
+function PageImageView({ recipe, linesSha256 }: { recipe: PageRecipe; linesSha256?: string }) {
   const box = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -95,10 +98,48 @@ function PageImageView({ recipe }: { recipe: PageRecipe }) {
   return (
     <div ref={box} className="page-image">
       {url ? (
-        <img src={url} alt={`Page ${recipe.page}`} />
+        <>
+          <img src={url} alt={`Page ${recipe.page}`} />
+          {linesSha256 && <LinesOverlay sha256={linesSha256} />}
+        </>
       ) : (
         <div className="page-placeholder">{error ?? "Drawing the page…"}</div>
       )}
+    </div>
+  );
+}
+
+// The lines over a page: stretched to the page (the coordinates are fractions of it), with labels as HTML so the
+// stretching doesn't distort them.
+function LinesOverlay({ sha256 }: { sha256: string }) {
+  const [lines, setLines] = useState<SkewLine[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchJsonContent(sha256).then(
+      (skew) => !cancelled && setLines((skew as PageSkew).lines),
+      () => !cancelled && setError(true),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [sha256]);
+
+  if (error) return <span className="line-label failed">Lines not loaded</span>;
+  if (!lines) return null;
+  return (
+    <div className="lines-overlay">
+      <svg viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+        {lines.map((line, i) => (
+          <line key={i} x1={line.x0} y1={line.y0} x2={line.x1} y2={line.y1} />
+        ))}
+      </svg>
+      {lines.map((line, i) => (
+        <span key={i} className="line-label" style={{ left: `${line.x0 * 100}%`, top: `${line.y0 * 100}%` }}>
+          {angleLabel(line.angle)}
+        </span>
+      ))}
     </div>
   );
 }
