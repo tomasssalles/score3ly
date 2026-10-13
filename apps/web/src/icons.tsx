@@ -185,11 +185,13 @@ export function HandIcon() {
   );
 }
 
-export function PenIcon() {
+// A line with its two ends: drawing a line by its ends.
+export function LineIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 20l1-4L16 5l3 3L8 19z" />
-      <path d="M14 7l3 3" />
+      <path d="M7.2 15.8l9.6-7.6" />
+      <circle cx="5.5" cy="17.2" r="2.2" fill="currentColor" />
+      <circle cx="18.5" cy="6.8" r="2.2" fill="currentColor" />
     </svg>
   );
 }

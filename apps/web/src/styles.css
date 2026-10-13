@@ -1355,7 +1355,7 @@ body {
   color: var(--danger);
 }
 
-/* The fix_skew editor: a toolbar, the page (panned and zoomed by hand), and what its lines mean. */
+/* The fix_skew editor: a toolbar and the page (panned and zoomed by hand). */
 .skew-editor {
   flex: 1;
   min-height: 0;
@@ -1390,23 +1390,32 @@ body {
 }
 
 .skew-page {
-  min-width: 96px;
+  min-width: 72px;
   text-align: center;
   font-size: 14px;
 }
 
-.skew-count {
-  margin-left: 6px;
-  color: var(--muted);
-  font: 12px var(--mono);
+/* Over the page, only when something went wrong (a page not saved). */
+.skew-error {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: #000;
+  font-size: 13px;
 }
 
+
 .skew-mode {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: grid;
+  place-items: center;
+  width: 40px;
   height: 36px;
-  padding: 0 10px;
+  padding: 0;
   border: 1px solid var(--line);
   background: none;
   color: var(--muted);
@@ -1517,28 +1526,5 @@ body {
   fill: #e3241b;
 }
 
-.skew-status {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 40px;
-  padding: 6px 12px;
-  border-top: 1px solid var(--line);
-  font-size: 14px;
-}
 
-.skew-saving {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 12px;
-}
 
-.skew-cancel {
-  padding: 4px 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--raised);
-  color: var(--fg);
-  font: 500 13px var(--sans);
-  cursor: pointer;
-}

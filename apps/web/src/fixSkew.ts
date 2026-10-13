@@ -37,13 +37,6 @@ export function lineThrough(
   };
 }
 
-// What a page's lines mean, shown under it (§6): `angle` is the deskew decision for them (deskewAngle).
-export function linesStatus(lines: SkewLine[], angle: number | null): string {
-  if (lines.length === 0) return "No lines: left as it is";
-  if (angle === null) return "Too small to matter";
-  return `Straightened by ${Math.abs(angle).toFixed(2)}°`;
-}
-
 // The card's short result, e.g. "lines changed on 2 of 10 pages".
 export function fixSkewNote(changed: number, pages: number): string {
   if (changed === 0) return "no changes";

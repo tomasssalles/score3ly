@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fixSkewNote, lineThrough, linesStatus } from "./fixSkew.ts";
+import { fixSkewNote, lineThrough } from "./fixSkew.ts";
 
 test("a drawn line is stored from left to right, in fractions of the page, with its angle", () => {
   const line = lineThrough({ x: 900, y: 210 }, { x: 100, y: 200 }, 1000, 2000);
@@ -19,13 +19,6 @@ test("ends outside the page are kept on its edge", () => {
   const line = lineThrough({ x: -10, y: 50 }, { x: 1010, y: 60 }, 1000, 1000)!;
   assert.equal(line.x0, 0);
   assert.equal(line.x1, 1);
-});
-
-test("the status says what the lines mean for the page", () => {
-  assert.equal(linesStatus([], null), "No lines: left as it is");
-  const line = { x0: 0, y0: 0, x1: 1, y1: 0, angle: 0 };
-  assert.equal(linesStatus([line], null), "Too small to matter");
-  assert.equal(linesStatus([line], -1.3), "Straightened by 1.30°");
 });
 
 test("the note counts the pages whose lines changed", () => {

@@ -4,17 +4,17 @@
 // a dot). Never press and drag: on a phone the user zooms in close for each end, and zooms out and pans in between.
 // Two fingers always pan and zoom; so do Ctrl + wheel and the buttons. Each change is saved at once.
 
-import { deskewAngle, type SkewLine } from "@score3ly/imaging";
+import type { SkewLine } from "@score3ly/imaging";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchJsonContent, putContent, recordOutputs, type Project } from "./api";
 import { linesBytes } from "./finishFixSkew";
-import { lineThrough, linesStatus, MAX_FIX_ANGLE, type PageLines } from "./fixSkew";
+import { lineThrough, type PageLines } from "./fixSkew";
 import {
   CollapseIcon,
   ExpandIcon,
   FitIcon,
   HandIcon,
-  PenIcon,
+  LineIcon,
   TrashIcon,
   ZoomInIcon,
   ZoomOutIcon,
@@ -104,8 +104,6 @@ function PageEditor({
   const [selected, setSelected] = useState<number | null>(null);
   const [anchor, setAnchor] = useState<Point | null>(null); // drawing: the first end, in image px
   const [hover, setHover] = useState<Point | null>(null); // drawing with a mouse: where the pointer is
-  const [notice, setNotice] = useState<string | null>(null);
-  const [saving, setSaving] = useState(0);
   // The latest values, for the pointer handlers.
   const viewRef = useRef(view);
   const linesRef = useRef(lines);
@@ -248,7 +246,6 @@ function PageEditor({
   function save(next: SkewLine[]) {
     setLines(next);
     saved.set(savedKey, next);
-    setSaving((n) => n + 1);
     saveChain.current = saveChain.current
       .then(async () => {
         const sha256 = await putContent(linesBytes({ lines: next }), "application/json");
@@ -258,8 +255,7 @@ function PageEditor({
         setError(null);
         onEdited?.();
       })
-      .catch((err) => setError(`Saving failed: ${err instanceof Error ? err.message : err}`))
-      .finally(() => setSaving((n) => n - 1));
+      .catch((err) => setError(`Saving failed: ${err instanceof Error ? err.message : err}`));
   }
 
   function deleteSelected() {
@@ -278,16 +274,12 @@ function PageEditor({
     const q = toImage(p);
     if (!anchor) {
       setAnchor(q);
-      setNotice(null);
       return;
     }
+    // A second end straight above or below the first (a slip) is ignored: the line waits for another.
     const line = lineThrough(anchor, q, image.width, image.height);
-    if (!line) {
-      setNotice(`Too steep: lines can be at most ${MAX_FIX_ANGLE}°.`);
-      return;
-    }
+    if (!line) return;
     setAnchor(null);
-    setNotice(null);
     save([...lines, line]);
   }
 
@@ -379,7 +371,6 @@ function PageEditor({
     } else if (event.key === "Escape") {
       setAnchor(null);
       setSelected(null);
-      setNotice(null);
     } else if (event.key === "ArrowLeft" && nav.index > 0) {
       nav.go(nav.index - 1);
     } else if (event.key === "ArrowRight" && nav.index < nav.count - 1) {
@@ -392,10 +383,8 @@ function PageEditor({
     setSelected(null);
     setAnchor(null);
     setHover(null);
-    setNotice(null);
   }
 
-  const status = image && lines ? linesStatus(lines, deskewAngle(lines, image.width)) : null;
   const s = view.scale;
   const selectedLine = selected === null ? null : lines?.[selected];
 
@@ -413,10 +402,7 @@ function PageEditor({
             <CollapseIcon />
           </button>
           <span className="skew-page">
-            Page {page.page}
-            <span className="skew-count">
-              {nav.index + 1} / {nav.count}
-            </span>
+            Page {nav.index + 1}/{nav.count}
           </span>
           <button
             type="button"
@@ -434,22 +420,22 @@ function PageEditor({
             role="radio"
             aria-checked={mode === "hand"}
             className="skew-mode"
+            aria-label="Hand"
             title="Hand: pan, select lines, move their ends"
             onClick={() => switchMode("hand")}
           >
             <HandIcon />
-            <span>Hand</span>
           </button>
           <button
             type="button"
             role="radio"
             aria-checked={mode === "draw"}
             className="skew-mode"
+            aria-label="Draw"
             title="Draw: click or tap at both ends of a line"
             onClick={() => switchMode("draw")}
           >
-            <PenIcon />
-            <span>Draw</span>
+            <LineIcon />
           </button>
         </div>
         <div className="skew-tools">
@@ -521,16 +507,7 @@ function PageEditor({
         ) : (
           <div className="page-placeholder">{error ?? "Drawing the page…"}</div>
         )}
-      </div>
-
-      <div className="skew-status">
-        {anchor && (
-          <button type="button" className="skew-cancel" onClick={() => (setAnchor(null), setNotice(null))}>
-            Cancel line
-          </button>
-        )}
-        <span>{notice ?? (error && image ? error : status)}</span>
-        {saving > 0 && <span className="skew-saving">Saving…</span>}
+        {error && image && <p className="skew-error">{error}</p>}
       </div>
     </div>
   );
