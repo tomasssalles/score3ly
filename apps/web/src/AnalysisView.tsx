@@ -1,21 +1,25 @@
-// `analyze`'s artifacts (DESIGN.md §6): the metadata and the observations, read-only, with links into the pages. A
-// metadata field's page opens the pages as they are, scrolled to that page, so the user can look at the others too; a
-// place in the observations ("system 17, bar line 4") opens the pages with the layout's numbered boxes, that system in
-// the middle of the view. While the pages are open, only the item that was clicked is shown above them, in a thin strip;
-// closing the pages shows the whole list again. (To try out; it may evolve.)
+// `analyze`'s observations (DESIGN.md §6), read-only, with links into the pages: a place ("system 17, bar line 4")
+// opens the pages with the layout's numbered boxes, that system in the middle of the view. While the pages are open,
+// only the item that was clicked is shown above them, in a thin strip; closing the pages shows the whole list again.
+// (To try out; it may evolve.) The metadata, `analyze`'s and `fix_metadata`'s, is MetadataView's.
 
-import type { Place, Role, TextField } from "@score3ly/prompts";
+import type { Place } from "@score3ly/prompts";
 import { useEffect, useState, type ReactNode } from "react";
-import { CONFIDENCE_SYMBOLS, type ShownConfidence, type StoredMetadata, type StoredObservations } from "./analyze";
-import { fetchJsonContent } from "./api";
-import { Filmstrip, LayoutFilmstrip, PageImageView } from "./ArtifactView";
+import type { StoredObservations } from "./analyze";
+import { fetchJsonContent, type Project } from "./api";
+import { LayoutFilmstrip } from "./ArtifactView";
 import { CloseIcon } from "./icons";
+import { MetadataView } from "./MetadataView";
 import type { Artifact } from "./pipeline";
-import type { PageRecipe } from "./rasterize";
 
-type Focus = { text: ReactNode; page?: number; system?: number };
+type Focus = { text: ReactNode; system?: number };
 
-export function AnalysisView({ artifact }: { artifact: Artifact }) {
+export function AnalysisView({ project, artifact, onEdited }: { project: Project; artifact: Artifact; onEdited?: () => void }) {
+  if (artifact.analysis!.view === "metadata") return <MetadataView project={project} artifact={artifact} onEdited={onEdited} />;
+  return <ObservationsView artifact={artifact} />;
+}
+
+function ObservationsView({ artifact }: { artifact: Artifact }) {
   const analysis = artifact.analysis!;
   const [data, setData] = useState<unknown>(null);
   const [error, setError] = useState(false);
@@ -45,150 +49,18 @@ export function AnalysisView({ artifact }: { artifact: Artifact }) {
             <CloseIcon />
           </button>
         </div>
-        {analysis.view === "observations" ? (
-          <LayoutFilmstrip
-            pages={pages.flatMap((p) => (p.layoutSha256 ? [{ ...p, layoutSha256: p.layoutSha256 }] : []))}
-            focusSystem={focus.system}
-          />
-        ) : (
-          <PagesFilmstrip pages={pages} page={focus.page} />
-        )}
+        <LayoutFilmstrip
+          pages={pages.flatMap((p) => (p.layoutSha256 ? [{ ...p, layoutSha256: p.layoutSha256 }] : []))}
+          focusSystem={focus.system}
+        />
       </div>
     );
   }
   return (
     <div className="text-view analysis">
-      {analysis.view === "metadata" ? (
-        <MetadataList metadata={data as StoredMetadata} confirmed={analysis.confirmed} onFocus={setFocus} />
-      ) : (
-        <ObservationsList observations={data as StoredObservations} onFocus={setFocus} />
-      )}
+      <ObservationsList observations={data as StoredObservations} onFocus={setFocus} />
     </div>
   );
-}
-
-// The pages as they are, opened at one of them.
-function PagesFilmstrip({ pages, page }: { pages: { page: number; recipe: PageRecipe }[]; page?: number }) {
-  const index = pages.findIndex((p) => p.page === page);
-  return (
-    <Filmstrip
-      count={pages.length}
-      wide={false}
-      focus={index >= 0 ? { index } : undefined}
-      render={(i) => (
-        <figure className="film-item">
-          <figcaption>Page {pages[i].page}</figcaption>
-          <PageImageView recipe={pages[i].recipe} />
-        </figure>
-      )}
-    />
-  );
-}
-
-function Confidence({ value }: { value: ShownConfidence }) {
-  const { symbol, label } = CONFIDENCE_SYMBOLS[value];
-  return (
-    <span className={value === "confirmed" ? "confidence confirmed" : "confidence"} title={label} aria-label={label}>
-      {symbol}
-    </span>
-  );
-}
-
-// The sections of the metadata (DESIGN.md §6, "Metadata"): Titles, Work, Arrangement, Pieces or movements, Edition,
-// in that order. Each lists its kinds of item in a fixed order: people by their role, the other fields by name.
-type Kind = { role: Role; label: string } | { field: TextField; label: string };
-
-const WORK: Kind[] = [
-  { role: "composer", label: "Composer" },
-  { role: "lyricist", label: "Lyricist" },
-  { role: "librettist", label: "Librettist" },
-  { field: "catalogueNumbers", label: "Catalogue number" },
-  { field: "dedications", label: "Dedication" },
-  { field: "instrumentation", label: "Instrumentation" },
-  { field: "compositionDates", label: "Composition date" },
-];
-const ARRANGEMENT: Kind[] = [
-  { role: "arranger", label: "Arranger" },
-  { role: "translator", label: "Translator" },
-];
-const EDITION: Kind[] = [
-  { role: "editor", label: "Editor" },
-  { role: "other", label: "Other" },
-  { field: "publishers", label: "Publisher" },
-  { field: "places", label: "Place" },
-  { field: "dates", label: "Date" },
-  { field: "plateNumbers", label: "Plate number" },
-  { field: "notices", label: "Notice" },
-];
-
-const TITLE_TYPES: Record<string, string> = { main: "Title", subtitle: "Subtitle", alternative: "Alternative title", translated: "Translated title" };
-
-function MetadataList({
-  metadata,
-  confirmed,
-  onFocus,
-}: {
-  metadata: StoredMetadata;
-  confirmed: boolean;
-  onFocus: (focus: Focus) => void;
-}) {
-  // One field: its label and text, its page as a link, its confidence.
-  const row = (key: string, label: string, text: string, item: { page: number; confidence: ShownConfidence }) => {
-    const shown = confirmed ? "confirmed" : item.confidence;
-    const content = (
-      <>
-        <span className="field-label">{label}</span>
-        <span className="field-text">{text}</span>
-      </>
-    );
-    return (
-      <li key={key} className="analysis-row">
-        {content}
-        <button
-          type="button"
-          className="page-link"
-          onClick={() =>
-            onFocus({
-              page: item.page,
-              text: (
-                <>
-                  {content} <span className="page-link static">p. {item.page}</span> <Confidence value={shown} />
-                </>
-              ),
-            })
-          }
-        >
-          p. {item.page}
-        </button>
-        <Confidence value={shown} />
-      </li>
-    );
-  };
-  // A section's rows, kind by kind.
-  const rows = (kinds: Kind[]) =>
-    kinds.flatMap((kind) =>
-      "role" in kind
-        ? metadata.people.flatMap((p, i) =>
-            p.role === kind.role ? [row(`p${i}`, kind.label, p.printedRole ? `${p.name} (${p.printedRole})` : p.name, p)] : [],
-          )
-        : (metadata[kind.field] ?? []).map((item, i) => row(`${kind.field}${i}`, kind.label, item.text, item)),
-    );
-  const section = (title: string, items: ReactNode[]) =>
-    items.length > 0 && (
-      <section key={title}>
-        <h3>{title}</h3>
-        <ul>{items}</ul>
-      </section>
-    );
-  const sections = [
-    section("Titles", metadata.titles.map((t, i) => row(`t${i}`, TITLE_TYPES[t.type] ?? "Title", t.text, t))),
-    section("Work", rows(WORK)),
-    section("Arrangement", rows(ARRANGEMENT)),
-    section("Pieces or movements", metadata.pieces.map((p, i) => row(`m${i}`, `From system ${p.system}`, p.title, p))),
-    section("Edition", rows(EDITION)),
-  ];
-  if (sections.every((s) => !s)) return <p className="muted">No metadata was found on the pages.</p>;
-  return <>{sections}</>;
 }
 
 function ObservationsList({ observations, onFocus }: { observations: StoredObservations; onFocus: (focus: Focus) => void }) {

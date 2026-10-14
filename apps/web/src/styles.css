@@ -1198,6 +1198,15 @@ body {
   color: var(--danger);
 }
 
+.dropdown-heading {
+  padding: 4px 10px 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .panel-actions {
   flex: none;
   display: flex;
@@ -1677,6 +1686,122 @@ body {
   inset: 0;
   z-index: 2;
   background: var(--surface);
+}
+
+/* fix_metadata's form: the list above, with a "+" for the whole form, a "⋮" on every field, and a field in edit mode
+   as a drop-down and inputs, stacked on a phone. */
+.metadata-tools {
+  max-width: 760px;
+  margin: 0 auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Beside the artifact view's floating close button on a phone, not under it. */
+.artifact-view.overlay .metadata-tools {
+  padding-right: 48px;
+}
+
+.metadata-add .dropdown-list {
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+}
+
+.field-actions .dropdown-button {
+  width: 28px;
+  height: 28px;
+}
+
+.analysis-row .field-actions {
+  align-self: center;
+}
+
+.page-link.icon {
+  display: inline-grid;
+  place-items: center;
+  padding: 1px 7px;
+}
+
+.page-link.icon .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.analysis-row.editing {
+  align-items: flex-start;
+}
+
+.field-kind,
+.field-input {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font: 16px var(--sans); /* 16px keeps phones from zooming in */
+}
+
+textarea.field-input {
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+.field-kind:focus,
+.field-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.field-inputs {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.field-inputs .field-input {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.field-inputs .field-input.number {
+  flex: 0 0 120px;
+}
+
+.field-done {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #000;
+  font: 600 14px var(--sans);
+  cursor: pointer;
+}
+
+.field-problem {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+/* The strip holds one field of the list. */
+.analysis-strip-text {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analysis-strip-text > .analysis-row {
+  flex: 1;
+  border-bottom: 0;
+  padding: 0;
 }
 
 .muted {

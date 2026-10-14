@@ -3,9 +3,11 @@
 
 import type { ApiPipeline, ApiStage, Project } from "./api";
 import { finishFixLayout } from "./finishFixLayout";
+import { finishFixMetadata } from "./finishFixMetadata";
 import { finishFixSkew } from "./finishFixSkew";
 
 export const FINISHERS: Record<string, (project: Project, stage: ApiStage, pipeline: ApiPipeline) => Promise<string>> = {
   fix_skew: finishFixSkew,
   fix_layout: finishFixLayout,
+  fix_metadata: finishFixMetadata,
 };

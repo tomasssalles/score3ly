@@ -8,18 +8,20 @@ export type MenuItem = {
   danger?: boolean; // shown in red, e.g. deleting something
 };
 
-// A button that opens a short menu of items, in groups separated by a line. Closes on a pick, on Esc, and on a
+// A button that opens a short menu of items, in groups separated by a line, each with an optional heading. Closes on a pick, on Esc, and on a
 // tap or click outside. The arrow keys move between the items.
 export function DropdownMenu({
   icon,
   label,
   groups,
+  headings,
   className = "",
   buttonClassName = "icon-button",
 }: {
   icon: ReactNode; // the button's content: an icon, or e.g. the current choice and a chevron
   label: string; // the button's accessible name
   groups: MenuItem[][];
+  headings?: string[]; // a heading above each group
   className?: string;
   buttonClassName?: string;
 }) {
@@ -78,7 +80,8 @@ export function DropdownMenu({
       {open && (
         <div className="dropdown-list" role="menu" ref={list} onKeyDown={onKeyDown}>
           {groups.map((group, g) => (
-            <div className="dropdown-group" role="group" key={g}>
+            <div className="dropdown-group" role="group" key={g} aria-label={headings?.[g]}>
+              {headings?.[g] && <div className="dropdown-heading">{headings[g]}</div>}
               {group.map((item) => {
                 const className = item.danger ? "danger" : undefined;
                 return item.href ? (
