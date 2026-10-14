@@ -4,7 +4,7 @@
 // the middle of the view. While the pages are open, only the item that was clicked is shown above them, in a thin strip;
 // closing the pages shows the whole list again. (To try out; it may evolve.)
 
-import type { Place, TextField } from "@score3ly/prompts";
+import type { Place, Role, TextField } from "@score3ly/prompts";
 import { useEffect, useState, type ReactNode } from "react";
 import { CONFIDENCE_SYMBOLS, type ShownConfidence, type StoredMetadata, type StoredObservations } from "./analyze";
 import { fetchJsonContent } from "./api";
@@ -94,12 +94,31 @@ function Confidence({ value }: { value: ShownConfidence }) {
   );
 }
 
-const TEXT_SECTIONS: { title: string; fields: [TextField, string][] }[] = [
-  { title: "The work", fields: [["catalogueNumbers", "Catalogue number"], ["dedications", "Dedication"], ["instrumentation", "Instrumentation"]] },
-  {
-    title: "The edition",
-    fields: [["publishers", "Publisher"], ["places", "Place"], ["dates", "Date"], ["plateNumbers", "Plate number"], ["notices", "Notice"]],
-  },
+// The sections of the metadata (DESIGN.md §6, "Metadata"): Titles, Work, Arrangement, Pieces or movements, Edition,
+// in that order. Each lists its kinds of item in a fixed order: people by their role, the other fields by name.
+type Kind = { role: Role; label: string } | { field: TextField; label: string };
+
+const WORK: Kind[] = [
+  { role: "composer", label: "Composer" },
+  { role: "lyricist", label: "Lyricist" },
+  { role: "librettist", label: "Librettist" },
+  { field: "catalogueNumbers", label: "Catalogue number" },
+  { field: "dedications", label: "Dedication" },
+  { field: "instrumentation", label: "Instrumentation" },
+  { field: "compositionDates", label: "Composition date" },
+];
+const ARRANGEMENT: Kind[] = [
+  { role: "arranger", label: "Arranger" },
+  { role: "translator", label: "Translator" },
+];
+const EDITION: Kind[] = [
+  { role: "editor", label: "Editor" },
+  { role: "other", label: "Other" },
+  { field: "publishers", label: "Publisher" },
+  { field: "places", label: "Place" },
+  { field: "dates", label: "Date" },
+  { field: "plateNumbers", label: "Plate number" },
+  { field: "notices", label: "Notice" },
 ];
 
 const TITLE_TYPES: Record<string, string> = { main: "Title", subtitle: "Subtitle", alternative: "Alternative title", translated: "Translated title" };
@@ -145,40 +164,31 @@ function MetadataList({
       </li>
     );
   };
-  const empty =
-    metadata.titles.length + metadata.people.length + metadata.pieces.length === 0 &&
-    TEXT_SECTIONS.every((s) => s.fields.every(([f]) => metadata[f].length === 0));
-  if (empty) return <p className="muted">No metadata was found on the pages.</p>;
-  return (
-    <>
-      {(metadata.titles.length > 0 || metadata.people.length > 0) && (
-        <section>
-          <h3>Titles and people</h3>
-          <ul>
-            {metadata.titles.map((t, i) => row(`t${i}`, TITLE_TYPES[t.type] ?? "Title", t.text, t))}
-            {metadata.people.map((p, i) =>
-              row(`p${i}`, p.role[0].toUpperCase() + p.role.slice(1), p.printedRole ? `${p.name} (${p.printedRole})` : p.name, p),
-            )}
-          </ul>
-        </section>
-      )}
-      {metadata.pieces.length > 0 && (
-        <section>
-          <h3>Pieces or movements</h3>
-          <ul>{metadata.pieces.map((p, i) => row(`m${i}`, `From system ${p.system}`, p.title, p))}</ul>
-        </section>
-      )}
-      {TEXT_SECTIONS.map(
-        (section) =>
-          section.fields.some(([f]) => metadata[f].length > 0) && (
-            <section key={section.title}>
-              <h3>{section.title}</h3>
-              <ul>{section.fields.flatMap(([f, label]) => metadata[f].map((item, i) => row(`${f}${i}`, label, item.text, item)))}</ul>
-            </section>
-          ),
-      )}
-    </>
-  );
+  // A section's rows, kind by kind.
+  const rows = (kinds: Kind[]) =>
+    kinds.flatMap((kind) =>
+      "role" in kind
+        ? metadata.people.flatMap((p, i) =>
+            p.role === kind.role ? [row(`p${i}`, kind.label, p.printedRole ? `${p.name} (${p.printedRole})` : p.name, p)] : [],
+          )
+        : (metadata[kind.field] ?? []).map((item, i) => row(`${kind.field}${i}`, kind.label, item.text, item)),
+    );
+  const section = (title: string, items: ReactNode[]) =>
+    items.length > 0 && (
+      <section key={title}>
+        <h3>{title}</h3>
+        <ul>{items}</ul>
+      </section>
+    );
+  const sections = [
+    section("Titles", metadata.titles.map((t, i) => row(`t${i}`, TITLE_TYPES[t.type] ?? "Title", t.text, t))),
+    section("Work", rows(WORK)),
+    section("Arrangement", rows(ARRANGEMENT)),
+    section("Pieces or movements", metadata.pieces.map((p, i) => row(`m${i}`, `From system ${p.system}`, p.title, p))),
+    section("Edition", rows(EDITION)),
+  ];
+  if (sections.every((s) => !s)) return <p className="muted">No metadata was found on the pages.</p>;
+  return <>{sections}</>;
 }
 
 function ObservationsList({ observations, onFocus }: { observations: StoredObservations; onFocus: (focus: Focus) => void }) {

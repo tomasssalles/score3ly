@@ -9,15 +9,23 @@ import type {
 } from "@score3ly/prompts";
 import { keyOf } from "./keys.ts";
 
-export const ANALYZE_VERSION = 1;
+export const ANALYZE_VERSION = 2;
 
 // What is stored per page (item p<n>, type `analysis`): the page's own answer, and which systems are on it.
 export type PageAnalysis = { page: number; systems: number[]; metadata: PageMetadata; observations: PageObservations };
 
-// What is stored for the whole score: the metadata (item '', type `metadata`) and the observations (item '', type
-// `observations`): the whole score's, and every page's.
+// What is stored for the whole score: the metadata (item '', type `metadata`), the observations (item '', type
+// `observations`): the whole score's, and every page's, and where the pieces start (below).
 export type StoredMetadata = ScoreMetadata;
 export type StoredObservations = { score: ScoreObservations; pages: (PageObservations & { page: number })[] };
+
+// Where the pieces start (item '', type `pieces`): the first system of every piece, ascending, each once. All that
+// `extract` reads of the metadata (§6): a corrected composer leaves it the same. Empty: the score is one piece.
+export type StoredPieces = number[];
+
+export function piecesOf(metadata: { pieces: { system: number }[] }): StoredPieces {
+  return [...new Set(metadata.pieces.map((p) => p.system))].sort((a, b) => a - b);
+}
 
 // The stage key (§5.2): the step, its version, the prompt's version, the model, the images' recipe, and per page the
 // page image's recipe key and the stored layout it is analysed with.

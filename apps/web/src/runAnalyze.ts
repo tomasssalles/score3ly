@@ -1,6 +1,7 @@
 // Runs `analyze` (DESIGN.md §6): every page on its own, one after the other (the page straightened as the layout says,
 // then the same page with the layout drawn on it, systems numbered in the whole score and bar lines numbered), then
-// one call for the whole score with every page's result and every page drawn, in gray. The whole-score request's
+// one call for the whole score with every page's result and every page drawn, in gray. Where the pieces start is
+// derived from its metadata, as an output of its own (what `extract` reads). The whole-score request's
 // size is checked before anything is paid for: a score too long for one call stops before its first page.
 
 import { DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
@@ -23,6 +24,7 @@ import {
   analyzeStageKey,
   ANALYZE_VERSION,
   pageResultsForScore,
+  piecesOf,
   type PageAnalysis,
   type StoredObservations,
 } from "./analyze";
@@ -195,6 +197,15 @@ export async function runAnalyze(run: StageRun): Promise<void> {
             pages: all.map((r) => ({ page: r.page, ...r.observations })),
           };
           return { contentSha256: await putContent(json(stored), "application/json"), callId };
+        },
+      },
+      {
+        item: "",
+        type: "pieces",
+        make: async () => {
+          const { answer, callId } = await scoreAnswer();
+          pieces = answer.metadata.pieces.length;
+          return { contentSha256: await putContent(json(piecesOf(answer.metadata)), "application/json"), callId };
         },
       },
     ],

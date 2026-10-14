@@ -4,7 +4,7 @@
 // are the labels drawn on the pages: "system 17, bar line 4"; bar line 0 is the start of the system.
 
 // Raise whenever the texts, the schemas or the checks change.
-export const ANALYZE_PROMPT_VERSION = 1;
+export const ANALYZE_PROMPT_VERSION = 2;
 
 export const ANALYZE_PAGE_MAX_OUTPUT_TOKENS = 16_000;
 export const ANALYZE_SCORE_MAX_OUTPUT_TOKENS = 32_000;
@@ -15,6 +15,7 @@ export type Confidence = (typeof CONFIDENCES)[number];
 export const TITLE_TYPES = ["main", "subtitle", "alternative", "translated"] as const;
 // MEI's header has an element for each but "translator" and "other" (DESIGN.md §6, "Metadata").
 export const ROLES = ["composer", "arranger", "editor", "lyricist", "librettist", "translator", "other"] as const;
+export type Role = (typeof ROLES)[number];
 export const SPECIAL_BAR_LINES = ["double", "final", "startRepeat", "endRepeat", "startEndRepeat", "dashed"] as const;
 export const CHANGE_KINDS = ["clef", "key", "time", "ottava", "tempo", "other"] as const;
 
@@ -23,6 +24,7 @@ export const TEXT_FIELDS = [
   "catalogueNumbers",
   "dedications",
   "instrumentation",
+  "compositionDates",
   "publishers",
   "places",
   "dates",
@@ -34,7 +36,7 @@ export type TextField = (typeof TEXT_FIELDS)[number];
 // What a page gives, or (with `page` on every item) what the whole score gives.
 export type Metadata<Extra = object> = {
   titles: ({ text: string; type: (typeof TITLE_TYPES)[number]; confidence: Confidence } & Extra)[];
-  people: ({ name: string; role: (typeof ROLES)[number]; printedRole: string; confidence: Confidence } & Extra)[];
+  people: ({ name: string; role: Role; printedRole: string; confidence: Confidence } & Extra)[];
   pieces: ({ title: string; system: number; confidence: Confidence } & Extra)[];
 } & Record<TextField, ({ text: string; confidence: Confidence } & Extra)[]>;
 
@@ -80,7 +82,8 @@ Metadata fields, each as printed (keep the page's language and spelling):
 - people, each with a role (composer, arranger, editor, lyricist, librettist, translator, other) and the role as printed ("Revidiert und mit Fingersatz versehen von", "Op. 15 von"); empty if no role is printed;
 - pieces or movements, each with its title or number as printed and the system where it starts;
 - catalogue numbers (e.g. "Op. 15", "BWV 846", "No. 3"), dedications, instrumentation as printed (e.g. "für Klavier zu vier Händen");
-- the edition: publishers, places, dates, plate numbers (e.g. "E. 1234 B."), and other notices (copyright, printer).
+- composition dates: when or where the work was written, as printed (e.g. "komponiert 1838", "Wien, im März 1825"); rarely printed;
+- the edition: publishers, places, dates of the edition (of its publication or printing, not of the composition), plate numbers (e.g. "E. 1234 B."), and other notices (copyright, printer).
 
 Give every metadata item your confidence in your reading of it: "high" when it is clearly legible, "medium" when it is a reasonable guess (partly legible, or an unusual spelling you are unsure of), "low" when you are very unsure (stained, faded, cut off).`;
 

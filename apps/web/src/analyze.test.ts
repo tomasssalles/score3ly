@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { analyzeNote, pageResultsForScore, type PageAnalysis } from "./analyze.ts";
+import { analyzeNote, pageResultsForScore, piecesOf, type PageAnalysis } from "./analyze.ts";
 
 const emptyMetadata = {
   titles: [],
@@ -9,6 +9,7 @@ const emptyMetadata = {
   catalogueNumbers: [],
   dedications: [],
   instrumentation: [],
+  compositionDates: [],
   publishers: [],
   places: [],
   dates: [],
@@ -31,4 +32,10 @@ test("the note counts pages, and pieces when there are several", () => {
   assert.equal(analyzeNote(1, 0), "1 page");
   assert.equal(analyzeNote(12, 1), "12 pages");
   assert.equal(analyzeNote(22, 13), "22 pages · 13 pieces");
+});
+
+test("the pieces start at their systems, ascending, each once", () => {
+  const piece = (system: number) => ({ title: "", system, confidence: "high" as const, page: 1 });
+  assert.deepEqual(piecesOf({ pieces: [] }), []);
+  assert.deepEqual(piecesOf({ pieces: [piece(14), piece(1), piece(30), piece(14)] }), [1, 14, 30]);
 });
