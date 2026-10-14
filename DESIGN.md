@@ -1192,6 +1192,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 
 ### Decisions
 - **Verify the prompt and schema of `layout`** (the project owner; `packages/prompts/src/layout.ts`): the texts, the rounds, what counts as a bar line and what a box must hold, before the first real runs.
+- **Verify the prompts and schemas of `analyze`** (the project owner; `packages/prompts/src/analyze.ts`): the page and whole-score texts, the metadata fields and the observations' shape, the confidence levels, the places (systems and bar lines by their labels), and the checks, before the first real run.
 - **Compare `review` with and without renderings as model input** (§6, "Renderings"), on the test set, some day: run it both ways and compare what it finds, counting false findings as well as extra correct ones. If renderings help, they become the default, and a config option of `review` can turn them off.
 - **Define the lens exactly** (§6, "The lens"), when `extract` is built: the LilyPond subset, especially cross-staff notation, ornaments, ossia and lyrics, and the JSON schema.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1). The outcome decides whether it becomes an option of `rasterize` or a fixed default (§6, `rasterize`).
