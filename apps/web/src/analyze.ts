@@ -20,11 +20,12 @@ export type StoredMetadata = ScoreMetadata;
 export type StoredObservations = { score: ScoreObservations; pages: (PageObservations & { page: number })[] };
 
 // Where the pieces start (item '', type `pieces`): the first system of every piece, ascending, each once. All that
-// `extract` reads of the metadata (§6): a corrected composer leaves it the same. Empty: the score is one piece.
+// `extract` reads of the metadata (§6): a corrected composer leaves it the same. It always starts with system 1: the
+// systems before the first piece the metadata names are a piece too, so naming that piece later changes nothing.
 export type StoredPieces = number[];
 
 export function piecesOf(metadata: { pieces: { system: number }[] }): StoredPieces {
-  return [...new Set(metadata.pieces.map((p) => p.system))].sort((a, b) => a - b);
+  return [...new Set([1, ...metadata.pieces.map((p) => p.system)])].sort((a, b) => a - b);
 }
 
 // The stage key (§5.2): the step, its version, the prompt's version, the model, the images' recipe, and per page the

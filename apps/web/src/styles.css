@@ -1718,15 +1718,46 @@ body {
   align-self: center;
 }
 
-.page-link.icon {
-  display: inline-grid;
-  place-items: center;
-  padding: 1px 7px;
+/* A metadata field: label, text, page, eye, confidence, "⋮" in one line; on a phone the label above the rest. */
+.analysis-row.metadata-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
 }
 
-.page-link.icon .icon {
-  width: 14px;
-  height: 14px;
+@media (max-width: 599px) {
+  .analysis-row.metadata-row {
+    grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  }
+
+  .analysis-row.metadata-row .field-label {
+    grid-column: 1 / -1;
+  }
+}
+
+/* A metadata field's page, and the eye that opens the pages there. */
+.field-page {
+  min-width: 40px;
+  color: var(--muted);
+  font: 12px var(--mono);
+  white-space: nowrap;
+}
+
+.analysis-row .field-open {
+  align-self: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  color: var(--fg);
+}
+
+.analysis-row .field-open:hover {
+  border-color: var(--accent);
+}
+
+.field-open .icon {
+  width: 18px;
+  height: 18px;
 }
 
 .analysis-row.editing {

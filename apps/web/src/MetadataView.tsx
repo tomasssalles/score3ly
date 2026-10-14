@@ -1,6 +1,6 @@
 // The metadata (DESIGN.md §6): `analyze`'s and a finished `fix_metadata`'s, read-only, and a WIP `fix_metadata`'s
-// form. Both list the fields by section, each with its page as a link and its confidence. Clicking a page opens the
-// pages there (a field without a page opens them at the first), with only that field in a thin strip above them.
+// form. Both list the fields by section, each with its page ("p. –" without one), an eye and its confidence. The eye
+// opens the pages at the field's page (at the first without one), with only that field in a thin strip above them.
 // In the form, every field has a "⋮" with Edit and Remove, also in the strip, so it can be edited while looking at
 // the page, and one "+" adds any kind of field. A field is saved when it leaves edit mode, and when the form closes.
 
@@ -28,7 +28,7 @@ import {
   type FieldKind,
   type MetadataRow,
 } from "./fixMetadata";
-import { AnalyzeIcon, CloseIcon, MoreIcon, PlusIcon } from "./icons";
+import { CloseIcon, EyeIcon, MoreIcon, PlusIcon } from "./icons";
 import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
 import type { PageRecipe } from "./rasterize";
@@ -186,7 +186,7 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
         key={index}
         row={row}
         confirmed={analysis.confirmed}
-        onOpen={() => setFocus(index)}
+        onOpen={focus === null ? () => setFocus(index) : undefined}
         actions={form && { edit: () => edit(index), remove: () => remove(index) }}
       />
     );
@@ -260,21 +260,18 @@ function Field({
 }: {
   row: MetadataRow;
   confirmed: boolean; // every field shown as confirmed
-  onOpen: () => void;
+  onOpen?: () => void; // none in the strip, where the pages are open already
   actions: { edit: () => void; remove: () => void } | null;
 }) {
   const { label, text } = shown(row);
   return (
-    <li className="analysis-row">
+    <li className="analysis-row metadata-row">
       <span className="field-label">{label}</span>
       <span className="field-text">{text}</span>
-      {row.page === null ? (
-        <button type="button" className="page-link icon" aria-label="Look in the score" title="Look in the score" onClick={onOpen}>
-          <AnalyzeIcon />
-        </button>
-      ) : (
-        <button type="button" className="page-link" onClick={onOpen}>
-          p. {row.page}
+      <span className="field-page">p. {row.page ?? "–"}</span>
+      {onOpen && (
+        <button type="button" className="icon-button field-open" aria-label="Show in the score" title="Show in the score" onClick={onOpen}>
+          <EyeIcon />
         </button>
       )}
       <Confidence value={confirmed ? "confirmed" : row.confidence} />

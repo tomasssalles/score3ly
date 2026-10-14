@@ -289,3 +289,13 @@ export function PlusIcon() {
     </svg>
   );
 }
+
+// An eye: show something (e.g. a field in the score).
+export function EyeIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}

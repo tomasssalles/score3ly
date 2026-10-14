@@ -34,8 +34,9 @@ test("the note counts pages, and pieces when there are several", () => {
   assert.equal(analyzeNote(22, 13), "22 pages · 13 pieces");
 });
 
-test("the pieces start at their systems, ascending, each once", () => {
+test("the pieces start at their systems, ascending, each once, the first always at system 1", () => {
   const piece = (system: number) => ({ title: "", system, confidence: "high" as const, page: 1 });
-  assert.deepEqual(piecesOf({ pieces: [] }), []);
+  assert.deepEqual(piecesOf({ pieces: [] }), [1]);
   assert.deepEqual(piecesOf({ pieces: [piece(14), piece(1), piece(30), piece(14)] }), [1, 14, 30]);
+  assert.deepEqual(piecesOf({ pieces: [piece(30), piece(5)] }), [1, 5, 30]);
 });
