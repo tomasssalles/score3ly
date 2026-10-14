@@ -1670,8 +1670,13 @@ body {
   gap: 4px 10px;
 }
 
-.artifact-view.overlay .analysis-strip {
-  padding-right: 60px;
+/* On a phone the pages cover the whole app, the artifact view's own close button too: the strip's closes them, back
+   to the list, and only from there does the list's close the artifact. */
+.artifact-view.overlay .analysis-focus {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  background: var(--surface);
 }
 
 .muted {
