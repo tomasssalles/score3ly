@@ -1,15 +1,19 @@
 // PNG files of our images, encoded and decoded by our own code (DESIGN.md §8.6): the device's image cache stores
 // page images as PNG, lossless and much smaller than raw pixels for line art. Compression is the platform's
 // (CompressionStream "deflate" is the zlib format PNG wants), available in browsers, their Web Workers and Node.
-// The decoder reads what the encoder writes (8-bit RGBA, not interlaced), with any of PNG's row filters.
+// The decoder reads what the encoder writes (8-bit RGBA or gray, not interlaced), with any of PNG's row filters.
 
-import type { RgbaImage } from "./image.ts";
+import { luminance, type RgbaImage } from "./image.ts";
 
 const SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
 
-export async function encodePng(image: RgbaImage): Promise<Uint8Array<ArrayBuffer>> {
-  const { width, height, data } = image;
-  const stride = width * 4;
+// With `gray`, the image is stored as 8-bit gray (its luminance): a quarter of the raw size, and much smaller for
+// colour scans (DESIGN.md §6, `analyze`'s whole-score call). Transparency is dropped.
+export async function encodePng(image: RgbaImage, options: { gray?: boolean } = {}): Promise<Uint8Array<ArrayBuffer>> {
+  const { width, height } = image;
+  const channels = options.gray ? 1 : 4;
+  const data = options.gray ? luminance(image) : image.data;
+  const stride = width * channels;
   // Each row starts with its filter type: "Up" (the difference to the row above) suits scans and line art.
   const raw = new Uint8Array((stride + 1) * height);
   for (let y = 0; y < height; y++) {
@@ -24,7 +28,7 @@ export async function encodePng(image: RgbaImage): Promise<Uint8Array<ArrayBuffe
   const view = new DataView(header.buffer);
   view.setUint32(0, width);
   view.setUint32(4, height);
-  header.set([8, 6, 0, 0, 0], 8); // 8 bits, RGBA, deflate, adaptive filtering, not interlaced
+  header.set([8, options.gray ? 0 : 6, 0, 0, 0], 8); // 8 bits, gray or RGBA, deflate, adaptive filtering, not interlaced
   const compressed = await transform(raw, new CompressionStream("deflate"));
   return concat([
     new Uint8Array(SIGNATURE),
@@ -39,6 +43,7 @@ export async function decodePng(bytes: Uint8Array): Promise<RgbaImage> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let width = 0;
   let height = 0;
+  let channels = 4;
   const parts: Uint8Array[] = [];
   for (let at = 8; at < bytes.length; ) {
     const length = view.getUint32(at);
@@ -48,7 +53,10 @@ export async function decodePng(bytes: Uint8Array): Promise<RgbaImage> {
       width = view.getUint32(at + 8);
       height = view.getUint32(at + 12);
       const [depth, color, , , interlace] = body.subarray(8);
-      if (depth !== 8 || color !== 6 || interlace !== 0) throw new Error("only 8-bit RGBA PNGs without interlacing");
+      if (depth !== 8 || (color !== 6 && color !== 0) || interlace !== 0) {
+        throw new Error("only 8-bit RGBA or gray PNGs without interlacing");
+      }
+      channels = color === 6 ? 4 : 1;
     } else if (type === "IDAT") {
       parts.push(body);
     } else if (type === "IEND") {
@@ -57,16 +65,16 @@ export async function decodePng(bytes: Uint8Array): Promise<RgbaImage> {
     at += 12 + length;
   }
   const raw = await transform(concat(parts), new DecompressionStream("deflate"));
-  const stride = width * 4;
+  const stride = width * channels;
   const data = new Uint8ClampedArray(stride * height);
   for (let y = 0; y < height; y++) {
     const filter = raw[y * (stride + 1)];
     const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
     const row = y * stride;
     for (let x = 0; x < stride; x++) {
-      const left = x >= 4 ? data[row + x - 4] : 0;
+      const left = x >= channels ? data[row + x - channels] : 0;
       const up = y > 0 ? data[row - stride + x] : 0;
-      const upLeft = x >= 4 && y > 0 ? data[row - stride + x - 4] : 0;
+      const upLeft = x >= channels && y > 0 ? data[row - stride + x - channels] : 0;
       let predicted = 0;
       if (filter === 1) predicted = left;
       else if (filter === 2) predicted = up;
@@ -76,7 +84,13 @@ export async function decodePng(bytes: Uint8Array): Promise<RgbaImage> {
       data[row + x] = (line[x] + predicted) & 255;
     }
   }
-  return { width, height, data };
+  if (channels === 4) return { width, height, data };
+  // Gray: back to RGBA, opaque.
+  const rgba = new Uint8ClampedArray(width * height * 4);
+  for (let p = 0; p < width * height; p++) {
+    rgba.set([data[p], data[p], data[p], 255], p * 4);
+  }
+  return { width, height, data: rgba };
 }
 
 function paeth(a: number, b: number, c: number): number {

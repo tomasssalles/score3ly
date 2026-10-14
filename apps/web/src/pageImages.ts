@@ -7,7 +7,7 @@ import { keyOf } from "./keys";
 import { pdfUrl } from "./pdf";
 import type { PageImageRequest, PageImageResponse } from "./pageImageWorker";
 import type { PageRecipe } from "./rasterize";
-import type { LayoutSystem, SizeLimit, Skew } from "@score3ly/imaging";
+import type { DrawOptions, LayoutSystem, SizeLimit, Skew } from "@score3ly/imaging";
 
 // A request without its id (Omit on each member of the union, not on the union).
 type Unsent = PageImageRequest extends infer R ? (R extends PageImageRequest ? Omit<R, "id"> : never) : never;
@@ -93,7 +93,9 @@ export type StraightRecipe = { page: PageRecipe; angle: number | null; deskew: n
 // A straightened page shrunk to a model's limits: the image sent in requests.
 export type ModelPageRecipe = { straight: StraightRecipe; limit: SizeLimit; scale: number };
 
-async function derive(png: Blob, options: { angle?: number; limit?: SizeLimit; draw?: LayoutSystem[] }): Promise<Uint8Array<ArrayBuffer>> {
+type DeriveOptions = { angle?: number; limit?: SizeLimit; draw?: LayoutSystem[]; drawOptions?: DrawOptions; gray?: boolean };
+
+async function derive(png: Blob, options: DeriveOptions): Promise<Uint8Array<ArrayBuffer>> {
   const bytes = await png.arrayBuffer();
   const answer = await ask({ type: "derive", png: bytes, ...options }, [bytes]);
   if (answer.type !== "derived") throw new Error("Unexpected answer from the page image worker.");
@@ -121,6 +123,28 @@ export async function modelPage(recipe: ModelPageRecipe): Promise<Blob> {
 // The image sent to a model with a layout drawn on it, for it to check (not cached: each answer gives another).
 export async function drawnPage(recipe: ModelPageRecipe, systems: LayoutSystem[]): Promise<Blob> {
   return new Blob([await derive(await modelPage(recipe), { draw: systems })], { type: "image/png" });
+}
+
+// A page sent to a model with its layout drawn on it, labelled for `analyze` (systems numbered in the whole score from
+// `first`, bar lines numbered), in colour or gray (DESIGN.md §6). Cached under its recipe: the drawing is ours and
+// deterministic. `draw` is the drawing code's version (DRAW_VERSION).
+export type LayoutPageRecipe = {
+  page: ModelPageRecipe;
+  systems: LayoutSystem[];
+  first: number;
+  barLineNumbers: boolean;
+  gray: boolean;
+  draw: number;
+};
+
+export async function layoutPage(recipe: LayoutPageRecipe): Promise<Blob> {
+  return cachedOr(recipe, async () =>
+    derive(await modelPage(recipe.page), {
+      draw: recipe.systems,
+      drawOptions: { first: recipe.first, barLineNumbers: recipe.barLineNumbers },
+      gray: recipe.gray,
+    }),
+  );
 }
 
 // A PNG's size, from its header.

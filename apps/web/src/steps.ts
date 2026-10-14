@@ -216,6 +216,57 @@ STEPS.fix_skew = {
   },
 };
 
+// The pages of the latest layout (`layout` or `fix_layout`) before a stage, with their page images.
+function layoutPages(earlier: ApiStage[]): { page: number; recipe: PageRecipe; layoutSha256: string }[] {
+  const recipes = pageRecipes(earlier);
+  const layout = [...earlier].reverse().find((s) => s.step === "layout" || s.step === "fix_layout");
+  return (layout?.outputs ?? [])
+    .filter((o) => o.type === "layout" && o.contentSha256 !== null)
+    .flatMap((o) => {
+      const page = pageOfItem(o.item);
+      const recipe = page === null ? undefined : recipes.get(page);
+      return page === null || !recipe ? [] : [{ page, recipe, layoutSha256: o.contentSha256! }];
+    })
+    .sort((a, b) => a.page - b.page);
+}
+
+STEPS.analyze = {
+  title: "Analyze",
+  kind: "llm",
+  optional: false,
+  fixes: [],
+  // The metadata, with the pages as they are (to look for a field), and the observations, with the pages as the
+  // layout numbers them (§6).
+  artifacts: (stage, earlier) => {
+    const pages = layoutPages(earlier);
+    const of = (type: string) => stage.outputs.find((o) => o.item === "" && o.type === type)?.contentSha256 ?? null;
+    const metadata = of("metadata");
+    const observations = of("observations");
+    const artifacts: Artifact[] = [];
+    if (metadata) {
+      artifacts.push({
+        id: `${stage.id}.metadata`,
+        title: "Metadata",
+        kind: "json",
+        count: 1,
+        pages: pages.map(({ page, recipe }) => ({ page, recipe })),
+        analysis: { view: "metadata", sha256: metadata, confirmed: false },
+      });
+    }
+    if (observations) {
+      artifacts.push({
+        id: `${stage.id}.observations`,
+        title: "Observations",
+        kind: "json",
+        count: 1,
+        pages,
+        analysis: { view: "observations", sha256: observations, confirmed: false },
+      });
+    }
+    return artifacts;
+  },
+};
+
 // What a manual step needs to be added after a stage (DESIGN.md §5.8): its version, page count and inputs.
 export const FIX_STARTS: Record<string, (after: ApiStage) => { stepVersion: number; pageCount: number | null; inputIds: string[] }> = {
   fix_skew: (after) => {

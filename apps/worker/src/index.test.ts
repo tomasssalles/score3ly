@@ -157,6 +157,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       ["rasterize", "planned", null],
       ["skew_analysis", "planned", null],
       ["layout", "planned", null],
+      ["analyze", "planned", null],
     ],
   );
   const [ingest] = pipeline.stages;
@@ -241,13 +242,14 @@ test("migration 0004 gives existing projects their Ingest stage, with the PDF as
   assert.equal(new Set(migratedPipelines.map((row) => row.stage_id)).size, 4);
 });
 
-test("migrations 0006, 0007 and 0010 give existing projects the recipe's planned stages", () => {
+test("migrations 0006, 0007, 0010 and 0011 give existing projects the recipe's planned stages", () => {
   assert.deepEqual(
     migratedPlanned.map((row) => [row.project_id, row.position, row.step, row.status, row.config_json]),
     ["p1", "p2", "p3", "p4"].flatMap((id) => [
       [id, 2, "rasterize", "planned", null],
       [id, 3, "skew_analysis", "planned", null],
       [id, 4, "layout", "planned", null],
+      [id, 5, "analyze", "planned", null],
     ]),
   );
 });
@@ -685,7 +687,7 @@ test("a manual stage is added WIP after a done stage, saved as the user works, a
   let pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status]),
-    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["layout", "planned"]],
+    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["layout", "planned"], ["analyze", "planned"]],
   );
   // The planned layout keeps its row.
   assert.equal(pipeline[4].id, stages[3].id);
@@ -739,7 +741,7 @@ test("adding a fix replaces the stages after it that ran; a change before a manu
   pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status]),
-    [["ingest", "done"], ["rasterize", "planned"], ["skew_analysis", "planned"], ["layout", "planned"]],
+    [["ingest", "done"], ["rasterize", "planned"], ["skew_analysis", "planned"], ["layout", "planned"], ["analyze", "planned"]],
   );
 });
 
@@ -773,9 +775,9 @@ test("dropping a manual stage takes it out and moves the later stages up; recipe
   assert.equal((await call(project.id, skew.id, "drop")).status, 409);
   assert.equal((await call(project.id, stageId, "drop")).status, 200);
   const pipeline = await pipelineOf(project.id);
-  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout"]);
+  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze"]);
   const { results } = await env.DB.prepare("SELECT position FROM pipeline_entries WHERE project_id = ? ORDER BY position")
     .bind(project.id)
     .all<{ position: number }>();
-  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4]);
+  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5]);
 });

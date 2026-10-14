@@ -268,3 +268,15 @@ export function BarLineIcon() {
     </svg>
   );
 }
+
+// A magnifying glass over a page of music: analyze.
+export function AnalyzeIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 3h10v7M5 3v18h7" />
+      <path d="M8 7h5M8 10h3" />
+      <circle cx="16" cy="15" r="4" />
+      <path d="M19 18l3 3" />
+    </svg>
+  );
+}

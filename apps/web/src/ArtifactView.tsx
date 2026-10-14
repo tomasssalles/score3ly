@@ -11,6 +11,7 @@ import type { SkewLine } from "@score3ly/imaging";
 import { pdfUrl } from "./pdf";
 import { PdfView } from "./PdfView";
 import { SkewEditor } from "./SkewEditor";
+import { AnalysisView } from "./AnalysisView";
 import { LayoutEditor } from "./LayoutEditor";
 import { firstNumbers } from "./fixLayout";
 
@@ -50,6 +51,7 @@ export function ArtifactContent({
 }) {
   if (artifact.kind === "pdf") return <PdfView key={project.pdfSha256} url={pdfUrl(project.pdfSha256)} />;
   const pages = artifact.pages;
+  if (artifact.analysis) return <AnalysisView key={artifact.id} artifact={artifact} />;
   // A WIP manual stage's artifact is its editor (DESIGN.md §5.6).
   if (artifact.editor?.step === "fix_skew" && pages) {
     const editable = pages.flatMap((p) =>
@@ -91,7 +93,7 @@ export function ArtifactContent({
 // A page image, from the device's cache or drawn again from its recipe (DESIGN.md §5.3), once it scrolls near the
 // view: a filmstrip of large scans would otherwise draw every page at once. With `linesSha256`, the lines that should
 // be horizontal (skew_analysis) are drawn over it in red, each labelled with its angle (§6).
-function PageImageView({
+export function PageImageView({
   recipe,
   linesSha256,
   straight,
@@ -186,7 +188,14 @@ function LinesOverlay({ sha256 }: { sha256: string }) {
 
 // The pages of a layout (`layout`, `fix_layout`): all of them are loaded first, since the systems are numbered from
 // page to page (the first system on page 2 is 5 if page 1 has 4).
-function LayoutFilmstrip({ pages }: { pages: { page: number; recipe: PageRecipe; layoutSha256: string }[] }) {
+// With `focusSystem`, it opens with that system (its number in the whole score) in the middle of the view.
+export function LayoutFilmstrip({
+  pages,
+  focusSystem,
+}: {
+  pages: { page: number; recipe: PageRecipe; layoutSha256: string }[];
+  focusSystem?: number;
+}) {
   const [layouts, setLayouts] = useState<PageLayout[] | null>(null);
   const [error, setError] = useState(false);
 
@@ -204,10 +213,19 @@ function LayoutFilmstrip({ pages }: { pages: { page: number; recipe: PageRecipe;
   if (error) return <div className="text-view"><p>The layouts couldn't be loaded.</p></div>;
   if (!layouts) return <div className="text-view"><p>Loading the layouts…</p></div>;
   const firsts = firstNumbers(layouts.map((layout) => layout.systems.length));
+  let focus: { index: number; y: number } | undefined;
+  if (focusSystem !== undefined) {
+    const index = layouts.findIndex((l, i) => focusSystem >= firsts[i] && focusSystem < firsts[i] + l.systems.length);
+    if (index >= 0) {
+      const { top, bottom } = layouts[index].systems[focusSystem - firsts[index]].box;
+      focus = { index, y: (top + bottom) / 2 };
+    }
+  }
   return (
     <Filmstrip
       count={pages.length}
       wide={false}
+      focus={focus}
       render={(i) => (
         <figure className="film-item">
           <figcaption>Page {pages[i].page}</figcaption>
@@ -269,9 +287,53 @@ function LayoutPageView({ recipe, layout, first }: { recipe: PageRecipe; layout:
 // For groups of items.
 // The items of a group one below the other, scrolling continuously, so the end of one item and the start of the
 // next can be seen together. A counter in the corner says which item is in view.
-export function Filmstrip({ count, wide, render }: { count: number; wide: boolean; render: (i: number) => ReactNode }) {
+// With `focus`, it opens scrolled to an item: its top at the top of the view, or with `y` (a fraction of the item's
+// page image) that point in the middle of the view. Pages load as they come near, and change size when they do, so it
+// keeps that place until the user scrolls.
+export function Filmstrip({
+  count,
+  wide,
+  render,
+  focus,
+}: {
+  count: number;
+  wide: boolean;
+  render: (i: number) => ReactNode;
+  focus?: { index: number; y?: number };
+}) {
   const scroller = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (!focus) return;
+    const el = scroller.current!;
+    const content = el.firstElementChild as HTMLElement;
+    let following = true;
+    const place = () => {
+      const item = el.querySelectorAll<HTMLElement>(".film-item")[focus.index];
+      if (!following || !item) return;
+      const top = el.getBoundingClientRect().top - el.scrollTop;
+      const image = item.querySelector<HTMLElement>(".page-image");
+      if (focus.y !== undefined && image) {
+        const rect = image.getBoundingClientRect();
+        el.scrollTop = rect.top - top + focus.y * rect.height - el.clientHeight / 2;
+      } else {
+        el.scrollTop = item.getBoundingClientRect().top - top - 8;
+      }
+    };
+    const stop = () => {
+      following = false;
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(content);
+    const events = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+    for (const event of events) el.addEventListener(event, stop, { passive: true });
+    return () => {
+      observer.disconnect();
+      for (const event of events) el.removeEventListener(event, stop);
+    };
+  }, [focus?.index, focus?.y]);
 
   useEffect(() => {
     const el = scroller.current!;

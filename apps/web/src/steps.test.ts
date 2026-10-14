@@ -9,6 +9,7 @@ const KINDS: Record<string, string> = {
   rasterize: "computed",
   skew_analysis: "computed",
   layout: "llm",
+  analyze: "llm",
   fix_skew: "manual",
   fix_layout: "manual",
 };

@@ -1571,3 +1571,109 @@ body {
   stroke-width: calc(2 * var(--px));
   stroke-dasharray: calc(6 * var(--px)) calc(4 * var(--px));
 }
+
+/* analyze's metadata and observations: a list of fields, each with links into the pages; while the pages are open,
+   a thin strip with the field that was clicked. */
+.text-view.analysis section {
+  max-width: 760px;
+  margin: 0 auto 20px;
+}
+
+.text-view.analysis h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.text-view.analysis ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analysis-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.field-label {
+  flex: 0 0 150px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.field-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.page-link {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--fg);
+  font: 12px var(--mono);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.page-link:hover {
+  border-color: var(--accent);
+}
+
+.page-link.static {
+  cursor: default;
+}
+
+.confidence {
+  min-width: 24px;
+  color: var(--muted);
+  font: 600 13px var(--mono);
+}
+
+.confidence.confirmed {
+  color: var(--green);
+}
+
+.analysis-focus {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.analysis-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.analysis-strip-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.artifact-view.overlay .analysis-strip {
+  padding-right: 60px;
+}
+
+.muted {
+  color: var(--muted);
+}

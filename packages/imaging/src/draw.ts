@@ -28,7 +28,13 @@ export const LAYOUT_COLOR_HEX = LAYOUT_COLORS.map((c) => `#${c.map((v) => v.toSt
 // A system: its box (our boxes, crop.ts) and its bar lines' x positions, in fractions of the page.
 export type LayoutSystem = { box: Box; barLines: number[] };
 
-export function drawLayout(image: RgbaImage, systems: LayoutSystem[]): RgbaImage {
+// How the systems are labelled: from `first` (the number of the page's first system in the whole score, default 1),
+// and, with `barLineNumbers`, each bar line numbered within its system, in a small label just above the box's top
+// edge, so that it covers no notes (`analyze`, DESIGN.md §6).
+export type DrawOptions = { first?: number; barLineNumbers?: boolean };
+
+export function drawLayout(image: RgbaImage, systems: LayoutSystem[], options: DrawOptions = {}): RgbaImage {
+  const first = options.first ?? 1;
   const out: RgbaImage = { width: image.width, height: image.height, data: new Uint8ClampedArray(image.data) };
   const thickness = Math.max(1, Math.round(Math.max(image.width, image.height) / 1300));
   systems.forEach((system, i) => {
@@ -42,7 +48,17 @@ export function drawLayout(image: RgbaImage, systems: LayoutSystem[]): RgbaImage
     fill(out, x0, y0, thickness, y1 - y0, color);
     fill(out, x1 - thickness, y0, thickness, y1 - y0, color);
     for (const x of system.barLines) fill(out, Math.round(x * image.width - thickness / 2), y0, thickness, y1 - y0, color);
-    label(out, String(i + 1), x0, y0, color, thickness);
+    label(out, String(first + i), x0, y0, color, thickness);
+    if (options.barLineNumbers) {
+      const scale = Math.max(2, thickness * 2);
+      system.barLines.forEach((x, j) => {
+        const text = String(j + 1);
+        const size = labelSize(text, scale);
+        // Centred on the bar line, just above the box; inside it if the box is at the top of the page.
+        const top = y0 - size.height >= 0 ? y0 - size.height : y0;
+        label(out, text, Math.round(x * image.width - size.width / 2), top, color, thickness, scale);
+      });
+    }
   });
   return out;
 }
@@ -73,12 +89,15 @@ const DIGITS: Record<string, number[]> = {
   "9": [0b111, 0b101, 0b111, 0b001, 0b111],
 };
 
-// A number in black on a filled label of the box's colour, at the box's top left corner, inside it.
-function label(image: RgbaImage, text: string, x0: number, y0: number, color: Rgb, thickness: number) {
-  const scale = Math.max(3, thickness * 3);
+function labelSize(text: string, scale: number): { width: number; height: number } {
+  return { width: text.length * 4 * scale - scale + 2 * scale, height: 5 * scale + 2 * scale };
+}
+
+// A number in black on a filled label of the box's colour, with its top left corner at (x0, y0).
+function label(image: RgbaImage, text: string, x0: number, y0: number, color: Rgb, thickness: number, size?: number) {
+  const scale = size ?? Math.max(3, thickness * 3);
   const pad = scale;
-  const width = text.length * 4 * scale - scale + 2 * pad;
-  const height = 5 * scale + 2 * pad;
+  const { width, height } = labelSize(text, scale);
   fill(image, x0, y0, width, height, color);
   [...text].forEach((ch, n) => {
     const rows = DIGITS[ch];

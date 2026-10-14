@@ -32,6 +32,8 @@ export type Artifact = {
   // `item` and `parentId` (the output a manual stage corrects) are there for an editor.
   pages?: { page: number; recipe: PageRecipe; linesSha256?: string; layoutSha256?: string; item?: string; parentId?: string }[];
   editor?: { stageId: string; step: string }; // a WIP manual stage's artifact: shown as its step's editor
+  // `analyze`'s metadata or observations: the stored JSON, shown as a view with links into the pages (`pages`).
+  analysis?: { view: "metadata" | "observations"; sha256: string; confirmed: boolean };
 };
 
 export type Stage = {

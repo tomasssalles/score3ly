@@ -2,6 +2,7 @@ import { DropdownMenu, type MenuItem } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import type { Project } from "./api";
 import {
+  AnalyzeIcon,
   ComputedIcon,
   DataIcon,
   ImageIcon,
@@ -42,6 +43,7 @@ const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   rasterize: ImageIcon,
   skew_analysis: SkewIcon,
   layout: LayoutIcon,
+  analyze: AnalyzeIcon,
 };
 
 const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {

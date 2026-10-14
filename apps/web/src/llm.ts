@@ -35,6 +35,62 @@ export function imageLimit(config: ModelConfig): SizeLimit {
   }
 }
 
+// What a provider accepts in one request (DESIGN.md §6, `analyze`): images are sent inline, as base64. Claude's API:
+// 32 MB per request, 10 MB per image, and with more than 20 images none may be larger than 2000 px either way
+// (the vision docs, 2026-10). Bedrock and Vertex AI: 5 MB per image, and less per request than the API (assumed 20 MB
+// until checked). Gemini, as Gemini said (to check against Google's documentation): 20 MB per request, 7 MB per image
+// at the least.
+export type RequestLimits = {
+  maxRequestBytes: number;
+  maxImageBytes: number;
+  manyImages: { above: number; limit: SizeLimit } | null; // a smaller size for every image when there are many
+};
+
+const MB = 1024 * 1024;
+
+export function requestLimits(config: ModelConfig): RequestLimits {
+  const many = { above: 20, limit: { maxLongEdge: 2000, maxPixels: CLAUDE_IMAGE_LIMIT.maxPixels } };
+  switch (config.provider) {
+    case "anthropic":
+    case "fake":
+      return { maxRequestBytes: 32 * MB, maxImageBytes: 10 * MB, manyImages: many };
+    case "anthropic-vertex":
+    case "anthropic-bedrock":
+      return { maxRequestBytes: 20 * MB, maxImageBytes: 5 * MB, manyImages: many };
+    case "google":
+      return { maxRequestBytes: 20 * MB, maxImageBytes: 7 * MB, manyImages: null };
+  }
+}
+
+// The image limit for a request with `count` images: smaller when there are many (above).
+export function imageLimitFor(config: ModelConfig, count: number): SizeLimit {
+  const many = requestLimits(config).manyImages;
+  return many && count > many.above ? many.limit : imageLimit(config);
+}
+
+// Why a request is too big for its provider, or null. Counts the base64 of its images and the length of its texts.
+export function requestSizeProblem(config: ModelConfig, request: LlmRequest): string | null {
+  const limits = requestLimits(config);
+  let total = (request.system?.length ?? 0) + JSON.stringify(request.jsonSchema ?? null).length;
+  for (const message of request.messages) {
+    for (const part of message.content) {
+      if (part.type === "image") {
+        const bytes = part.image.base64.length;
+        if (bytes > limits.maxImageBytes) {
+          return `an image is ${(bytes / MB).toFixed(1)} MB, more than the ${limits.maxImageBytes / MB} MB the provider takes`;
+        }
+        total += bytes;
+      } else {
+        total += part.text.length;
+      }
+    }
+  }
+  // Some room for the request's own JSON.
+  return total > limits.maxRequestBytes * 0.95
+    ? `the request would be ${(total / MB).toFixed(1)} MB, more than the ${limits.maxRequestBytes / MB} MB the provider takes`
+    : null;
+}
+
 export async function pngContent(png: Blob): Promise<{ type: "image"; image: { mediaType: "image/png"; base64: string } }> {
   const bytes = new Uint8Array(await png.arrayBuffer());
   let binary = "";

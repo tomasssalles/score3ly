@@ -12,6 +12,7 @@ import {
   openPdf,
   pageImage,
   shrinkToFit,
+  type DrawOptions,
   type LayoutSystem,
   type PdfDocument,
   type SizeLimit,
@@ -24,8 +25,18 @@ export type PageImageRequest =
   | { id: number; type: "open"; sha256: string; pdf: ArrayBuffer }
   | { id: number; type: "page"; sha256: string; page: number; dpi: number }
   | { id: number; type: "skew"; png: ArrayBuffer; maxAngle: number }
-  // An image made from another: straightened by `angle`, then shrunk to `limit`, then with a layout drawn on it.
-  | { id: number; type: "derive"; png: ArrayBuffer; angle?: number; limit?: SizeLimit; draw?: LayoutSystem[] };
+  // An image made from another: straightened by `angle`, then shrunk to `limit`, then with a layout drawn on it (labelled
+  // as `drawOptions` say), and stored as gray if `gray`.
+  | {
+      id: number;
+      type: "derive";
+      png: ArrayBuffer;
+      angle?: number;
+      limit?: SizeLimit;
+      draw?: LayoutSystem[];
+      drawOptions?: DrawOptions;
+      gray?: boolean;
+    };
 
 export type PageImageResponse =
   | { id: number; type: "opened"; pageCount: number; pdfjsVersion: string }
@@ -110,8 +121,8 @@ async function handle(request: PageImageRequest): Promise<void> {
     let image = await decodePng(new Uint8Array(request.png));
     if (request.angle !== undefined) image = deskew(image, request.angle);
     if (request.limit) image = shrinkToFit(image, request.limit);
-    if (request.draw) image = drawLayout(image, request.draw);
-    const png = await encodePng(image);
+    if (request.draw) image = drawLayout(image, request.draw, request.drawOptions);
+    const png = await encodePng(image, { gray: request.gray });
     scope.postMessage({ id: request.id, type: "derived", png, width: image.width, height: image.height }, [png.buffer]);
     return;
   }
