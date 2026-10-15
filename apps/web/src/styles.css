@@ -1198,6 +1198,12 @@ body {
   color: var(--danger);
 }
 
+.dropdown-list [role="menuitem"]:disabled {
+  color: var(--muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
 .dropdown-heading {
   padding: 4px 10px 2px;
   color: var(--muted);
@@ -1760,18 +1766,51 @@ body {
   height: 18px;
 }
 
+/* A field in edit mode: its kind, page or system, and ✓ in one row (pickers like the run mode's), its text below. */
 .analysis-row.editing {
-  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
 }
 
-.field-kind,
+.field-edit-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-edit-label {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.field-edit-space {
+  flex: 1;
+}
+
+.field-picker .dropdown-list {
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+
+.field-kind-picker .dropdown-list {
+  width: 220px;
+}
+
+.number-picker .dropdown-list {
+  width: 110px;
+}
+
 .field-input {
   box-sizing: border-box;
+  width: 100%;
   min-height: 36px;
   padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--raised);
   color: var(--fg);
   font: 16px var(--sans); /* 16px keeps phones from zooming in */
 }
@@ -1781,38 +1820,27 @@ textarea.field-input {
   resize: vertical;
 }
 
-.field-kind:focus,
 .field-input:focus {
   border-color: var(--accent);
   outline: none;
 }
 
-.field-inputs {
-  flex: 1 1 260px;
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.field-inputs .field-input {
-  flex: 1 1 180px;
-  min-width: 0;
-}
-
-.field-inputs .field-input.number {
-  flex: 0 0 120px;
-}
-
 .field-done {
-  min-height: 36px;
-  padding: 0 14px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: 0;
   border-radius: 8px;
   background: var(--accent);
-  color: #000;
-  font: 600 14px var(--sans);
+  color: var(--on-accent);
   cursor: pointer;
+}
+
+.field-done .icon {
+  stroke-width: 2.4;
 }
 
 .field-problem {

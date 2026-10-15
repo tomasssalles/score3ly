@@ -2,7 +2,7 @@
 // sections, the stored format and the rows the form edits, the checks, and the card's note. The form is in
 // MetadataView.tsx, finishing in finishFixMetadata.ts.
 
-import { ROLES, TEXT_FIELDS, TITLE_TYPES, type Role, type TextField } from "@score3ly/prompts";
+import { TEXT_FIELDS, TITLE_TYPES, type Role, type TextField } from "@score3ly/prompts";
 import type { ShownConfidence } from "./analyze";
 import type { ApiStage } from "./api";
 
@@ -18,18 +18,13 @@ type Common = { page: number | null; confidence: ShownConfidence };
 // The metadata as stored by `analyze` (pages always set, nothing confirmed) and by `fix_metadata`, and as shown.
 export type ShownMetadata = {
   titles: ({ text: string; type: TitleType } & Common)[];
-  people: ({ name: string; role: Role; printedRole: string } & Common)[];
+  people: ({ name: string; role: Role } & Common)[];
   pieces: ({ title: string; system: number } & Common)[];
 } & Record<TextKind, ({ text: string } & Common)[]>;
 
-// One field of the form. A piece's system is null only while it is being typed.
-export type MetadataRow = Common &
-  (
-    | { kind: "title"; type: TitleType; text: string }
-    | { kind: "person"; role: Role; name: string; printedRole: string }
-    | { kind: "piece"; title: string; system: number | null }
-    | { kind: "text"; field: TextKind; text: string }
-  );
+// One field of the form: its kind (an id in FIELD_KINDS), its text, and for a piece the system where it starts (null
+// only when every system already starts another piece). A piece's page is its system's.
+export type MetadataRow = Common & { kind: string; text: string; system: number | null };
 
 // `analyze`'s metadata output, and its pieces output if it has one.
 export function analyzeOutputs(analyze: ApiStage | undefined) {
@@ -37,36 +32,37 @@ export function analyzeOutputs(analyze: ApiStage | undefined) {
   return metadata ? { metadata, pieces: analyze!.outputs.find((o) => o.item === "" && o.type === "pieces") } : null;
 }
 
-// Stored metadata, with the lists an older version didn't have (e.g. `compositionDates`, `comments`) as empty.
+// Stored metadata, with the lists an older version didn't have (e.g. `compositionDates`, `comments`) as empty, and
+// without what it had and no longer has (a person's printed role).
 export function normalizeMetadata(json: unknown): ShownMetadata {
   const m = (json ?? {}) as Partial<ShownMetadata>;
   return {
     titles: m.titles ?? [],
-    people: m.people ?? [],
+    people: (m.people ?? []).map(({ name, role, page, confidence }) => ({ name, role, page, confidence })),
     pieces: m.pieces ?? [],
     ...(Object.fromEntries([...TEXT_FIELDS, "comments"].map((f) => [f, m[f as TextKind] ?? []])) as Record<TextKind, []>),
   };
 }
 
 export function rowsOf(m: ShownMetadata): MetadataRow[] {
+  const row = (kind: string, text: string, item: Common, system: number | null = null): MetadataRow => ({
+    kind,
+    text,
+    system,
+    page: item.page,
+    confidence: item.confidence,
+  });
   return [
-    ...m.titles.map((t): MetadataRow => ({ kind: "title", ...t })),
-    ...m.people.map((p): MetadataRow => ({ kind: "person", ...p })),
-    ...m.pieces.map((p): MetadataRow => ({ kind: "piece", ...p })),
-    ...[...TEXT_FIELDS, "comments" as const].flatMap((field) => m[field].map((t): MetadataRow => ({ kind: "text", field, ...t }))),
+    ...m.titles.map((t) => row(`title:${t.type}`, t.text, t)),
+    ...m.people.map((p) => row(`person:${p.role}`, p.name, p)),
+    ...m.pieces.map((p) => row("piece", p.title, p, p.system)),
+    ...[...TEXT_FIELDS, "comments" as const].flatMap((field) => m[field].map((t) => row(`text:${field}`, t.text, t))),
   ];
 }
 
-// A field with nothing in it, which isn't stored.
+// A field with nothing in it, which isn't stored. A piece without a title still says where it starts.
 export function rowEmpty(row: MetadataRow): boolean {
-  switch (row.kind) {
-    case "person":
-      return !row.name.trim();
-    case "piece":
-      return !row.title.trim() && row.system === null;
-    default:
-      return !row.text.trim();
-  }
+  return !row.text.trim() && (row.kind !== "piece" || row.system === null);
 }
 
 // The rows as stored: empty ones dropped, the pieces by their system.
@@ -75,19 +71,12 @@ export function metadataOf(rows: MetadataRow[]): ShownMetadata {
   for (const row of rows) {
     if (rowEmpty(row)) continue;
     const { page, confidence } = row;
-    switch (row.kind) {
-      case "title":
-        m.titles.push({ text: row.text.trim(), type: row.type, page, confidence });
-        break;
-      case "person":
-        m.people.push({ name: row.name.trim(), role: row.role, printedRole: row.printedRole.trim(), page, confidence });
-        break;
-      case "piece":
-        if (row.system !== null) m.pieces.push({ title: row.title.trim(), system: row.system, page, confidence });
-        break;
-      case "text":
-        m[row.field].push({ text: row.text.trim(), page, confidence });
-    }
+    const text = row.text.trim();
+    const [sort, which] = row.kind.split(":");
+    if (sort === "title") m.titles.push({ text, type: which as TitleType, page, confidence });
+    else if (sort === "person") m.people.push({ name: text, role: which as Role, page, confidence });
+    else if (sort === "piece") m.pieces.push({ title: text, system: row.system!, page, confidence });
+    else m[which as TextKind].push({ text, page, confidence });
   }
   m.pieces.sort((a, b) => a.system - b.system);
   return m;
@@ -100,18 +89,18 @@ export function confirmAll(m: ShownMetadata): ShownMetadata {
 
 // Two fields the same, but for their confidence.
 export function sameField(a: MetadataRow, b: MetadataRow): boolean {
-  const strip = (row: MetadataRow) => JSON.stringify({ ...row, confidence: null }, Object.keys({ ...row }).sort());
-  return strip(a) === strip(b);
+  return a.kind === b.kind && a.text === b.text && a.system === b.system && a.page === b.page;
 }
 
-// Why a piece can't be saved, if it can't: its system is required, must exist, and starts no other piece.
-export function pieceProblem(row: MetadataRow, others: MetadataRow[], systemCount: number): string | null {
+// The systems pieces start at, but for the one being edited: they can't be picked for it.
+export function takenSystems(rows: MetadataRow[], except: number): Set<number> {
+  return new Set(rows.flatMap((r, i) => (i !== except && r.kind === "piece" && r.system !== null ? [r.system] : [])));
+}
+
+// Why a piece can't be saved, if it can't: it starts at a system no other piece starts at.
+export function pieceProblem(row: MetadataRow, others: MetadataRow[]): string | null {
   if (row.kind !== "piece") return null;
-  if (row.system === null) return "A piece needs the system where it starts.";
-  if (Number.isNaN(row.system)) return "The system is a number.";
-  if (!Number.isInteger(row.system) || row.system < 1 || row.system > systemCount) {
-    return `There is no system ${row.system}: the systems are numbered 1 to ${systemCount}.`;
-  }
+  if (row.system === null) return "Every system already starts a piece.";
   if (others.some((o) => o.kind === "piece" && o.system === row.system)) return `Another piece starts at system ${row.system}.`;
   return null;
 }
@@ -134,92 +123,78 @@ export function fixMetadataNote(changed: number): string {
 }
 
 // The kinds of field, in the form's order: the sections in their order, and each section's kinds in theirs
-// (DESIGN.md §6, "Metadata"). `label` names the field; `make` is a new, empty one, for the form's "+".
-export type FieldKind = { section: string; label: string; matches: (row: MetadataRow) => boolean; make: () => MetadataRow };
+// (DESIGN.md §6, "Metadata"). `label` names the field, `short` too where the edit mode's picker needs it shorter.
+export type FieldKind = { id: string; section: string; label: string; short?: string };
 
-const blank = { page: null, confidence: "confirmed" as const };
-const title = (type: TitleType, label: string): FieldKind => ({
-  section: "Titles",
-  label,
-  matches: (r) => r.kind === "title" && r.type === type,
-  make: () => ({ kind: "title", type, text: "", ...blank }),
-});
-const person = (section: string, role: Role, label: string): FieldKind => ({
-  section,
-  label,
-  matches: (r) => r.kind === "person" && r.role === role,
-  make: () => ({ kind: "person", role, name: "", printedRole: "", ...blank }),
-});
-const text = (section: string, field: TextKind, label: string): FieldKind => ({
-  section,
-  label,
-  matches: (r) => r.kind === "text" && r.field === field,
-  make: () => ({ kind: "text", field, text: "", ...blank }),
-});
+const kind = (section: string, id: string, label: string, short?: string): FieldKind => ({ id, section, label, short });
 
 export const FIELD_KINDS: FieldKind[] = [
-  title("main", "Title"),
-  title("subtitle", "Subtitle"),
-  title("alternative", "Alternative title"),
-  title("translated", "Translated title"),
-  person("Work", "composer", "Composer"),
-  person("Work", "lyricist", "Lyricist"),
-  person("Work", "librettist", "Librettist"),
-  text("Work", "catalogueNumbers", "Catalogue number"),
-  text("Work", "dedications", "Dedication"),
-  text("Work", "instrumentation", "Instrumentation"),
-  text("Work", "compositionDates", "Composition date"),
-  person("Arrangement", "arranger", "Arranger"),
-  person("Arrangement", "translator", "Translator"),
-  {
-    section: "Pieces or movements",
-    label: "Piece or movement",
-    matches: (r) => r.kind === "piece",
-    make: () => ({ kind: "piece", title: "", system: null, ...blank }),
-  },
-  person("Edition", "editor", "Editor"),
-  person("Edition", "other", "Other person"),
-  text("Edition", "publishers", "Publisher"),
-  text("Edition", "places", "Place"),
-  text("Edition", "dates", "Date"),
-  text("Edition", "plateNumbers", "Plate number"),
-  text("Edition", "notices", "Notice"),
-  text("Comment", "comments", "Comment"),
+  kind("Titles", "title:main", "Title"),
+  kind("Titles", "title:subtitle", "Subtitle"),
+  kind("Titles", "title:alternative", "Alternative title"),
+  kind("Titles", "title:translated", "Translated title"),
+  kind("Work", "person:composer", "Composer"),
+  kind("Work", "person:lyricist", "Lyricist"),
+  kind("Work", "person:librettist", "Librettist"),
+  kind("Work", "text:catalogueNumbers", "Catalogue number"),
+  kind("Work", "text:dedications", "Dedication"),
+  kind("Work", "text:instrumentation", "Instrumentation"),
+  kind("Work", "text:compositionDates", "Composition date"),
+  kind("Arrangement", "person:arranger", "Arranger"),
+  kind("Arrangement", "person:translator", "Translator"),
+  kind("Pieces or movements", "piece", "Piece or movement", "Piece/Mov."),
+  kind("Edition", "person:editor", "Editor"),
+  kind("Edition", "person:other", "Other person"),
+  kind("Edition", "text:publishers", "Publisher"),
+  kind("Edition", "text:places", "Place"),
+  kind("Edition", "text:dates", "Date"),
+  kind("Edition", "text:plateNumbers", "Plate number"),
+  kind("Edition", "text:notices", "Notice"),
+  kind("Comment", "text:comments", "Comment"),
 ];
 
 export const SECTIONS = [...new Set(FIELD_KINDS.map((k) => k.section))];
 
 export function kindOf(row: MetadataRow): FieldKind {
-  return FIELD_KINDS.find((k) => k.matches(row))!;
+  return FIELD_KINDS.find((k) => k.id === row.kind)!;
+}
+
+// The systems and their pages, for the pieces: `pageOf[n - 1]` is the page of system n.
+export type Systems = { pageOf: number[] };
+
+// The first system no other piece starts at, or null.
+function freeSystem(rows: MetadataRow[], except: number, systems: Systems): number | null {
+  const taken = takenSystems(rows, except);
+  for (let n = 1; n <= systems.pageOf.length; n++) if (!taken.has(n)) return n;
+  return null;
+}
+
+// A new, empty field of a kind, for the form's "+" (a piece at the first free system, on its page).
+export function newRow(kind: FieldKind, rows: MetadataRow[], systems: Systems): MetadataRow {
+  return withKind({ kind: "text:comments", text: "", system: null, page: null, confidence: "confirmed" }, kind, rows, -1, systems);
+}
+
+// A field (the row at `index`, or a new one) turned into another kind, its text kept. Becoming a piece, it starts at
+// the first free system and takes that system's page; no longer a piece, it keeps the page.
+export function withKind(row: MetadataRow, kind: FieldKind, rows: MetadataRow[], index: number, systems: Systems): MetadataRow {
+  if (kind.id !== "piece") return { ...row, kind: kind.id, system: null };
+  if (row.kind === "piece") return row;
+  const system = freeSystem(rows, index, systems);
+  return { ...row, kind: "piece", system, page: system === null ? row.page : (systems.pageOf[system - 1] ?? null) };
+}
+
+// A piece moved to another system, and to its page.
+export function withSystem(row: MetadataRow, system: number, systems: Systems): MetadataRow {
+  return { ...row, system, page: systems.pageOf[system - 1] ?? null };
 }
 
 // The rows (by their index) in the form's order: section by section, kind by kind, and within a kind as stored;
-// the pieces by their system (one still being typed last).
+// the pieces by their system.
 export function sectionsOf(rows: MetadataRow[]): { title: string; indices: number[] }[] {
   const order = (i: number) => FIELD_KINDS.indexOf(kindOf(rows[i]));
-  const system = (i: number) => {
-    const row = rows[i];
-    return row.kind === "piece" ? (row.system ?? Infinity) : 0;
-  };
+  const system = (i: number) => rows[i].system ?? Infinity;
   const sorted = rows.map((_, i) => i).sort((a, b) => order(a) - order(b) || system(a) - system(b) || a - b);
   return SECTIONS.map((title) => ({ title, indices: sorted.filter((i) => kindOf(rows[i]).section === title) })).filter(
     (s) => s.indices.length > 0,
   );
-}
-
-// The choices of a field's drop-down in edit mode: the other kinds it can become, keeping what was typed.
-export const TITLE_CHOICES = FIELD_KINDS.filter((k) => k.section === "Titles");
-export const ROLE_CHOICES = ROLES.map((role) => FIELD_KINDS.find((k) => k.matches({ kind: "person", role, name: "", printedRole: "", ...blank }))!);
-export const TEXT_CHOICES = FIELD_KINDS.filter((k) => {
-  const row = k.make();
-  return row.kind === "text" && row.field !== "comments";
-});
-
-// A field turned into another kind (a composer into an arranger), what was typed kept.
-export function withKind(row: MetadataRow, kind: FieldKind): MetadataRow {
-  const made = kind.make();
-  if (made.kind === "title" && row.kind === "title") return { ...row, type: made.type };
-  if (made.kind === "person" && row.kind === "person") return { ...row, role: made.role };
-  if (made.kind === "text" && row.kind === "text") return { ...row, field: made.field };
-  return row;
 }

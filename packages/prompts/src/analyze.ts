@@ -4,7 +4,7 @@
 // are the labels drawn on the pages: "system 17, bar line 4"; bar line 0 is the start of the system.
 
 // Raise whenever the texts, the schemas or the checks change.
-export const ANALYZE_PROMPT_VERSION = 2;
+export const ANALYZE_PROMPT_VERSION = 3;
 
 export const ANALYZE_PAGE_MAX_OUTPUT_TOKENS = 16_000;
 export const ANALYZE_SCORE_MAX_OUTPUT_TOKENS = 32_000;
@@ -36,7 +36,7 @@ export type TextField = (typeof TEXT_FIELDS)[number];
 // What a page gives, or (with `page` on every item) what the whole score gives.
 export type Metadata<Extra = object> = {
   titles: ({ text: string; type: (typeof TITLE_TYPES)[number]; confidence: Confidence } & Extra)[];
-  people: ({ name: string; role: Role; printedRole: string; confidence: Confidence } & Extra)[];
+  people: ({ name: string; role: Role; confidence: Confidence } & Extra)[];
   pieces: ({ title: string; system: number; confidence: Confidence } & Extra)[];
 } & Record<TextField, ({ text: string; confidence: Confidence } & Extra)[]>;
 
@@ -79,7 +79,7 @@ The pages come with their layout drawn on them: each system in a box of its own 
 
 Metadata fields, each as printed (keep the page's language and spelling):
 - titles, each with its type: main, subtitle, alternative (another title of the same work), translated (the title in another language, e.g. "Kinderscenen / Scènes d'enfants");
-- people, each with a role (composer, arranger, editor, lyricist, librettist, translator, other) and the role as printed ("Revidiert und mit Fingersatz versehen von", "Op. 15 von"); empty if no role is printed;
+- people, each with a role (composer, arranger, editor, lyricist, librettist, translator, other). Where the printed role says more than the role does, or for "other", add it after the name in parentheses, as printed ("H. Germer (Fingersatz)", "J. Schmidt (Stecher)");
 - pieces or movements, each with its title or number as printed and the system where it starts;
 - catalogue numbers (e.g. "Op. 15", "BWV 846", "No. 3"), dedications, instrumentation as printed (e.g. "für Klavier zu vier Händen");
 - composition dates: when or where the work was written, as printed (e.g. "komponiert 1838", "Wien, im März 1825"); rarely printed;
@@ -136,7 +136,7 @@ function metadataSchema(withPage: boolean) {
   const list = (properties: Record<string, unknown>) => ({ type: "array", items: object({ ...properties, ...extra }) });
   return object({
     titles: list({ text: str, type: { type: "string", enum: [...TITLE_TYPES] }, confidence }),
-    people: list({ name: str, role: { type: "string", enum: [...ROLES] }, printedRole: str, confidence }),
+    people: list({ name: str, role: { type: "string", enum: [...ROLES] }, confidence }),
     pieces: list({ title: str, system: int, confidence }),
     ...Object.fromEntries(TEXT_FIELDS.map((field) => [field, list({ text: str, confidence })])),
   });

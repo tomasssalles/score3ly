@@ -8,27 +8,28 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { CONFIDENCE_SYMBOLS, type ShownConfidence } from "./analyze";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { Filmstrip, PageImageView } from "./ArtifactView";
-import { DropdownMenu } from "./DropdownMenu";
+import { DropdownMenu, type MenuItem } from "./DropdownMenu";
 import { metadataOutputs, type MetadataParents } from "./finishFixMetadata";
 import {
   FIELD_KINDS,
   kindOf,
   metadataOf,
+  newRow,
   normalizeMetadata,
   pieceProblem,
-  ROLE_CHOICES,
   rowEmpty,
   rowsOf,
   sameField,
   SECTIONS,
   sectionsOf,
-  TEXT_CHOICES,
-  TITLE_CHOICES,
+  takenSystems,
   withKind,
+  withSystem,
   type FieldKind,
   type MetadataRow,
+  type Systems,
 } from "./fixMetadata";
-import { CloseIcon, EyeIcon, MoreIcon, PlusIcon } from "./icons";
+import { CheckIcon, ChevronDownIcon, CloseIcon, EyeIcon, MoreIcon, PlusIcon } from "./icons";
 import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
 import type { PageRecipe } from "./rasterize";
@@ -44,7 +45,7 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
   const form = artifact.editor?.step === "fix_metadata" && analysis.parents ? { stageId: artifact.editor.stageId, parents: analysis.parents } : null;
   const pages = artifact.pages ?? [];
   const [rows, setRows] = useState<MetadataRow[] | null>(null);
-  const [systemCount, setSystemCount] = useState(0);
+  const [systems, setSystems] = useState<Systems>({ pageOf: [] });
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [focus, setFocus] = useState<number | null>(null); // the row whose pages are open
@@ -57,10 +58,11 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
       (loaded) => !cancelled && setRows(loaded),
       () => !cancelled && setError("This couldn't be loaded."),
     );
-    // The systems a piece can start at: all of them, numbered across the pages.
+    // The systems a piece can start at: all of them, numbered across the pages, each with its page.
     if (form) {
-      Promise.all(pages.flatMap((p) => (p.layoutSha256 ? [fetchJsonContent(p.layoutSha256) as Promise<PageLayout>] : []))).then(
-        (layouts) => !cancelled && setSystemCount(layouts.reduce((n, l) => n + l.systems.length, 0)),
+      const withLayout = pages.filter((p) => p.layoutSha256);
+      Promise.all(withLayout.map((p) => fetchJsonContent(p.layoutSha256!) as Promise<PageLayout>)).then(
+        (layouts) => !cancelled && setSystems({ pageOf: layouts.flatMap((l, i) => l.systems.map(() => withLayout[i].page)) }),
         () => !cancelled && setError("The layout couldn't be loaded."),
       );
     }
@@ -86,7 +88,7 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
   function commit(current: MetadataRow[], edit: Editing): MetadataRow[] | null {
     const { index, draft, added } = edit;
     if (rowEmpty(draft)) return current.filter((_, i) => i !== index);
-    const problem = pieceProblem(draft, current.filter((_, i) => i !== index), systemCount);
+    const problem = pieceProblem(draft, current.filter((_, i) => i !== index));
     if (problem) {
       setEditing({ ...edit, problem });
       return null;
@@ -148,18 +150,19 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
   function add(kind: FieldKind) {
     const ended = finishEditing();
     if (!ended) return;
-    setRows([...ended.rows, kind.make()]);
-    setEditing({ index: ended.rows.length, draft: kind.make(), added: true, problem: null });
+    const made = newRow(kind, ended.rows, systems);
+    setRows([...ended.rows, made]);
+    setEditing({ index: ended.rows.length, draft: made, added: true, problem: null });
   }
 
   // Closing the form saves the field being edited, if it can be saved.
-  const latest = useRef({ rows, editing, systemCount });
-  latest.current = { rows, editing, systemCount };
+  const latest = useRef({ rows, editing });
+  latest.current = { rows, editing };
   useEffect(
     () => () => {
-      const { rows, editing, systemCount } = latest.current;
+      const { rows, editing } = latest.current;
       if (!rows || !editing || rowEmpty(editing.draft)) return;
-      if (pieceProblem(editing.draft, rows.filter((_, i) => i !== editing.index), systemCount)) return;
+      if (pieceProblem(editing.draft, rows.filter((_, i) => i !== editing.index))) return;
       if (!editing.added && sameField(editing.draft, rows[editing.index])) return;
       save(rows.map((row, i) => (i === editing.index ? { ...editing.draft, confidence: "confirmed" } : row)));
     },
@@ -175,6 +178,9 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
         <FieldEditor
           key={index}
           editing={editing}
+          rows={rows}
+          systems={systems}
+          pages={pages.map((p) => p.page)}
           onChange={(draft) => setEditing({ ...editing, draft, problem: null })}
           onDone={() => finishEditing() !== null}
           onCancel={cancelEditing}
@@ -198,16 +204,12 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
       <div className="analysis-focus">
         <div className="analysis-strip">
           <ul className="analysis-strip-text">{field(focus)}</ul>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Close the pages"
-            onClick={() => {
-              if (finishEditing()) setFocus(null);
-            }}
-          >
-            <CloseIcon />
-          </button>
+          {/* Hidden while the field is edited: leaving it saves it, and the strip stays compact. */}
+          {editing?.index !== focus && (
+            <button type="button" className="icon-button" aria-label="Close the pages" onClick={() => setFocus(null)}>
+              <CloseIcon />
+            </button>
+          )}
         </div>
         <PagesFilmstrip key={`${focus}:${page}`} pages={pages} page={page ?? undefined} />
       </div>
@@ -242,14 +244,8 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
 
 // A field's label and text as shown.
 function shown(row: MetadataRow): { label: string; text: string } {
-  switch (row.kind) {
-    case "piece":
-      return { label: row.system === null ? "Piece or movement" : `From system ${row.system}`, text: row.title };
-    case "person":
-      return { label: kindOf(row).label, text: row.printedRole ? `${row.name} (${row.printedRole})` : row.name };
-    default:
-      return { label: kindOf(row).label, text: row.text };
-  }
+  if (row.kind === "piece") return { label: row.system === null ? "Piece or movement" : `From system ${row.system}`, text: row.text };
+  return { label: kindOf(row).label, text: row.text };
 }
 
 function Field({
@@ -287,45 +283,58 @@ function Field({
   );
 }
 
-// A field in edit mode: its kind as a drop-down where it has others to become, its text as inputs, its page.
+// A field in edit mode, in two rows (DESIGN.md §6): its kind, its page (a piece: its system, which sets the page) and
+// the ✓; then its text.
 function FieldEditor({
   editing,
+  rows,
+  systems,
+  pages,
   onChange,
   onDone,
   onCancel,
 }: {
   editing: Editing;
+  rows: MetadataRow[];
+  systems: Systems;
+  pages: number[]; // the pages of the score, for the page picker
   onChange: (draft: MetadataRow) => void;
   onDone: () => boolean;
   onCancel: () => void;
 }) {
   const row = editing.draft;
-  const first = useRef<HTMLElement | null>(null);
-  useEffect(() => first.current?.focus(), []);
-  const set = (change: Partial<MetadataRow>) => onChange({ ...row, ...change } as MetadataRow);
-
-  const choices = row.kind === "title" ? TITLE_CHOICES : row.kind === "person" ? ROLE_CHOICES : row.kind === "text" && row.field !== "comments" ? TEXT_CHOICES : null;
+  const text = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  useEffect(() => text.current?.focus(), []);
   const kind = kindOf(row);
-  const input = (value: string, onValue: (v: string) => void, placeholder: string, focusFirst = false) => (
-    <input
-      ref={focusFirst ? (el) => void (first.current = el) : undefined}
-      className="field-input"
-      value={value}
-      placeholder={placeholder}
-      aria-label={placeholder}
-      onChange={(e) => onValue(e.target.value)}
-    />
-  );
+  const taken = takenSystems(rows, editing.index);
 
   function onKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") {
       e.stopPropagation();
       onCancel();
-    } else if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) {
+    } else if (e.key === "Enter" && e.target === text.current && !(e.target instanceof HTMLTextAreaElement)) {
       e.preventDefault();
       onDone();
     }
   }
+
+  const picker = (value: string, label: string, groups: MenuItem[][], headings?: string[], className = "") => (
+    <DropdownMenu
+      className={`mode-picker field-picker ${className}`}
+      buttonClassName="mode-button"
+      icon={
+        <>
+          {value}
+          <ChevronDownIcon />
+        </>
+      }
+      label={label}
+      groups={groups}
+      headings={headings}
+    />
+  );
+  const numbers = (values: number[], current: number | null, pick: (n: number) => void, disabled?: Set<number>) =>
+    values.map((n) => ({ label: String(n), current: n === current, disabled: disabled?.has(n), onSelect: () => pick(n) }));
 
   return (
     <li
@@ -335,71 +344,68 @@ function FieldEditor({
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onDone();
       }}
     >
-      {choices ? (
-        <select
-          className="field-label field-kind"
-          aria-label="Kind of field"
-          value={kind.label}
-          onChange={(e) => onChange(withKind(row, choices.find((k) => k.label === e.target.value)!))}
-        >
-          {choices.map((k) => (
-            <option key={k.label}>{k.label}</option>
-          ))}
-        </select>
-      ) : (
-        <span className="field-label">{kind.label}</span>
-      )}
-      <span className="field-inputs">
-        {row.kind === "title" && input(row.text, (text) => set({ text }), "Title as printed", true)}
-        {row.kind === "person" && (
+      <div className="field-edit-head">
+        {picker(
+          kind.short ?? kind.label,
+          "Kind of field",
+          SECTIONS.map((s) =>
+            FIELD_KINDS.filter((k) => k.section === s).map((k) => ({
+              label: k.label,
+              current: k.id === kind.id,
+              onSelect: () => onChange(withKind(row, k, rows, editing.index, systems)),
+            })),
+          ),
+          SECTIONS,
+          "field-kind-picker",
+        )}
+        {row.kind === "piece" ? (
           <>
-            {input(row.name, (name) => set({ name }), "Name", true)}
-            {input(row.printedRole, (printedRole) => set({ printedRole }), "Role as printed (optional)")}
+            <span className="field-edit-label">from system</span>
+            {picker(
+              row.system === null ? "–" : String(row.system),
+              "Starts at system",
+              [numbers(systems.pageOf.map((_, i) => i + 1), row.system, (n) => onChange(withSystem(row, n, systems)), taken)],
+              undefined,
+              "number-picker",
+            )}
+          </>
+        ) : (
+          <>
+            <span className="field-edit-label">p.</span>
+            {picker(
+              row.page === null ? "–" : String(row.page),
+              "Page",
+              [[{ label: "–", current: row.page === null, onSelect: () => onChange({ ...row, page: null }) }, ...numbers(pages, row.page, (n) => onChange({ ...row, page: n }))]],
+              undefined,
+              "number-picker",
+            )}
           </>
         )}
-        {row.kind === "piece" && (
-          <>
-            {input(row.title, (title) => set({ title }), "Title or number", true)}
-            <input
-              className="field-input number"
-              inputMode="numeric"
-              value={row.system ?? ""}
-              placeholder="Starts at system"
-              aria-label="Starts at system"
-              onChange={(e) => set({ system: e.target.value.trim() === "" ? null : Number(e.target.value) })}
-            />
-          </>
-        )}
-        {row.kind === "text" &&
-          (row.field === "comments" ? (
-            <textarea
-              ref={(el) => void (first.current = el)}
-              className="field-input"
-              rows={3}
-              value={row.text}
-              placeholder="Comment"
-              aria-label="Comment"
-              onChange={(e) => set({ text: e.target.value })}
-            />
-          ) : (
-            input(row.text, (text) => set({ text }), "As printed", true)
-          ))}
-        <input
-          className="field-input number"
-          inputMode="numeric"
-          value={row.page ?? ""}
-          placeholder="Page"
-          aria-label="Page (empty: none)"
-          title="Page (empty: none)"
-          onChange={(e) => {
-            const page = e.target.value.trim();
-            set({ page: page === "" || !/^\d+$/.test(page) ? null : Number(page) });
-          }}
-        />
-        <button type="button" className="field-done" onClick={onDone}>
-          Done
+        <span className="field-edit-space" />
+        <button type="button" className="field-done" aria-label="Done" title="Done" onClick={onDone}>
+          <CheckIcon />
         </button>
-      </span>
+      </div>
+      {row.kind === "text:comments" ? (
+        <textarea
+          ref={text}
+          className="field-input"
+          rows={2}
+          value={row.text}
+          placeholder="Comment"
+          aria-label="Comment"
+          onChange={(e) => onChange({ ...row, text: e.target.value })}
+        />
+      ) : (
+        <input
+          ref={text}
+          className="field-input"
+          value={row.text}
+          placeholder={row.kind === "piece" ? "Title or number" : row.kind.startsWith("person:") ? "Name" : "As printed"}
+          aria-label={kind.label}
+          onChange={(e) => onChange({ ...row, text: e.target.value })}
+        />
+      )}
       {editing.problem && <p className="field-problem">{editing.problem}</p>}
     </li>
   );

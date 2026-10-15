@@ -6,10 +6,11 @@ export type MenuItem = {
   onSelect?: () => void;
   current?: boolean; // the page that is open, or the choice that is set
   danger?: boolean; // shown in red, e.g. deleting something
+  disabled?: boolean; // shown dimmed, and can't be picked
 };
 
 // A button that opens a short menu of items, in groups separated by a line, each with an optional heading. Closes on a pick, on Esc, and on a
-// tap or click outside. The arrow keys move between the items.
+// tap or click outside. The arrow keys move between the items. It opens with the current choice in view.
 export function DropdownMenu({
   icon,
   label,
@@ -30,11 +31,11 @@ export function DropdownMenu({
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
 
-  const items = () => [...(list.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? [])];
+  const items = () => [...(list.current?.querySelectorAll<HTMLElement>("[role=menuitem]:not([disabled])") ?? [])];
 
   useEffect(() => {
     if (!open) return;
-    items()[0]?.focus();
+    (items().find((item) => item.hasAttribute("aria-current")) ?? items()[0])?.focus();
     const onPointerDown = (e: PointerEvent) => {
       if (!root.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -102,6 +103,7 @@ export function DropdownMenu({
                     role="menuitem"
                     className={className}
                     aria-current={item.current ? "true" : undefined}
+                    disabled={item.disabled}
                     onClick={() => {
                       close();
                       item.onSelect?.();
