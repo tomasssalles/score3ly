@@ -281,8 +281,8 @@ function newId(rows: ObsRow[]): string {
 }
 
 // A new item of a kind, for the form's "+": at the start of the first system (an ottava from its first stretch,
-// open at its end; an ending from its first bar line), a note on the first page, staves for the first system that
-// has none. The user's, so no confidence, and confirmed.
+// open at its end; an ending from its first bar line), a note on the first page, the staves of the first system that
+// has none: one staff, more added with "Add a staff above/below" like on any system (DESIGN.md §6). The user's, so no confidence, and confirmed.
 export function newRow(k: ObsKind, rows: ObsRow[], systems: ScoreSystems, pages: number[]): ObsRow {
   const row = { ...blank(k.list, newId(rows), null), kind: k.kind };
   if (k.section === "Whole score") return row;
@@ -292,8 +292,8 @@ export function newRow(k: ObsKind, rows: ObsRow[], systems: ScoreSystems, pages:
     case "systems": {
       const reported = reportedSystems(rows, -1);
       const free = systems.findIndex((_, i) => !reported.has(i + 1));
-      if (free < 0) return { ...row, page, staves: 2, instruments: ["", ""] };
-      return { ...row, system: free + 1, page: systems[free].page, staves: 2, instruments: ["", ""] };
+      if (free < 0) return { ...row, page, staves: 1, instruments: [""] };
+      return { ...row, system: free + 1, page: systems[free].page, staves: 1, instruments: [""] };
     }
     case "ottavas":
       return fitStaff({ ...row, page, text: "8va", start: { system: 1, at: "stretch", number: 1 } }, rows, systems);
@@ -401,12 +401,6 @@ export function removeStaff(rows: ObsRow[], index: number, which: "top" | "botto
     const { number, of } = r.staff!;
     return { ...r, staff: { number: which === "top" ? number - 1 : number, of: of - 1 } };
   });
-}
-
-// Whether a system's number of staves can be picked: only while nothing names one of its staves (otherwise staves are
-// added and removed above or below, DESIGN.md §6).
-export function stavesPickable(rows: ObsRow[], system: number | null, systems: ScoreSystems): boolean {
-  return system === null || naming(rows, system, systems).length === 0;
 }
 
 // Two items the same, but for their confidence and whether they are confirmed.

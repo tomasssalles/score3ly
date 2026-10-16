@@ -18,7 +18,6 @@ import {
   rowsOf,
   sectionsOf,
   shownConfidence,
-  stavesPickable,
   withPlace,
   type ObsRow,
   type ScoreSystems,
@@ -121,16 +120,14 @@ test("a span can't end before it starts; staves are given once per system", () =
   assert.match(obsProblem({ ...ottava, end: at(1, "start") }, others, systems)!, /ends before it starts/);
   const second = newRow(OBS_KINDS.find((k) => k.list === "systems")!, rows, systems, [1, 2]);
   assert.equal(second.system, 4); // the first system without staves
+  assert.equal(second.staves, 1); // more with "Add a staff above/below"
   assert.match(obsProblem({ ...second, system: 1 }, rows, systems)!, /given already/);
 });
 
-test("a change of a system's number of staves, by hand, must leave the staves named on it agreeing", () => {
+test("a system's staves moved to another system must leave the staves named on the old one agreeing", () => {
   const system2 = rows[find("p1-2")];
   const others = rows.filter((r) => r.id !== "p1-2");
-  assert.match(obsProblem({ ...system2, staves: 3 }, others, systems)!, /staff 1\/2 of system 2, which has 3 staves/);
-  // The picker is offered only where nothing names its staves.
-  assert.equal(stavesPickable(rows, 2, systems), false);
-  assert.equal(stavesPickable(rows, 3, systems), true);
+  assert.match(obsProblem({ ...system2, system: 4 }, others, systems)!, /system 2, whose staves aren't reported/);
 });
 
 test("a staff added above or below renumbers what names that system's staves", () => {

@@ -38,7 +38,6 @@ import {
   sectionsOf,
   shownConfidence,
   stavesOf,
-  stavesPickable,
   staffSystems,
   withPlace,
   type ObsRow,
@@ -404,28 +403,15 @@ function ItemEditor({
         (n) => onChange({ ...row, system: n, page: systems[n - 1]?.page ?? row.page }),
         reportedSystems(rows, editing.index),
       );
-      const pickable = stavesPickable(others, row.system, systems);
       lines = (
         <>
           <div className="field-edit-line">
             <span className="field-edit-label">system</span>
             <Picker value={row.system === null ? "–" : String(row.system)} label="System" groups={groups} headings={headings} className="number-picker system-picker" />
-            <span className="field-edit-label">staves</span>
-            <Picker
-              value={String(row.staves)}
-              label="Staves"
-              groups={[
-                Array.from({ length: 8 }, (_, k) => k + 1).map((k) => ({
-                  label: String(k),
-                  current: k === row.staves,
-                  disabled: !pickable && k !== row.staves,
-                  onSelect: () => onChange({ ...row, staves: k, instruments: Array.from({ length: k }, (_, j) => row.instruments[j] ?? "") }),
-                })),
-              ]}
-              className="number-picker"
-            />
+            <span className="field-edit-label">
+              {row.staves} staff{row.staves === 1 ? "" : "s"} (more or fewer with ⋮)
+            </span>
           </div>
-          {!pickable && <p className="field-hint">Something names its staves: add or remove staves with ⋮ instead.</p>}
           {row.instruments.map((instrument, k) => (
             <input
               key={k}
