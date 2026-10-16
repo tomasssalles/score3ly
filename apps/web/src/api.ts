@@ -236,7 +236,7 @@ export type ModelConfig = {
   createdAt: string;
 };
 
-export type Settings = { defaultModelConfigId: string | null; spendingCapUsd: number | null; newProjectRunMode: RunMode };
+export type Settings = { defaultModelConfigId: string | null; spendingCapUsd: number; newProjectRunMode: RunMode };
 
 export async function fetchSettings(): Promise<Settings> {
   return (await checked(await fetch("/api/settings"))).json();
@@ -283,7 +283,7 @@ export type LlmAnswer = {
   costUsd: number | null;
 };
 
-// A call the Worker refused to make: `code` says why (e.g. "spending_cap", "no_spending_cap", "missing_secret").
+// A call the Worker refused to make: `code` says why (e.g. "spending_cap", "no_price", "missing_secret").
 export class LlmRefused extends Error {
   readonly code: string;
 

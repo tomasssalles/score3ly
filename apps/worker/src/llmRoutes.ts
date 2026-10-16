@@ -66,11 +66,11 @@ function toModelConfig(row: ModelConfigRow): ModelConfig {
 // The settings the Worker knows, with their defaults. Settings that depend on the device stay in the browser (§5.8).
 export type Settings = {
   defaultModelConfigId: string | null; // the model config of LLM stages unless one is chosen for the stage (§7.2)
-  spendingCapUsd: number | null; // at most this much within any 24 hours; required for configs that aren't free (§10)
+  spendingCapUsd: number; // at most this much within any 24 hours, for configs that aren't free (§10): $1 until changed
   newProjectRunMode: "auto" | "manual"; // the run mode a new project starts with (§5.1)
 };
 
-const DEFAULT_SETTINGS: Settings = { defaultModelConfigId: null, spendingCapUsd: null, newProjectRunMode: "auto" };
+const DEFAULT_SETTINGS: Settings = { defaultModelConfigId: null, spendingCapUsd: 1, newProjectRunMode: "auto" };
 
 export async function readSettings(db: D1Database): Promise<Settings> {
   const { results } = await db.prepare("SELECT key, value_json FROM settings").all<{ key: string; value_json: string }>();
@@ -81,9 +81,8 @@ export async function readSettings(db: D1Database): Promise<Settings> {
 function settingProblem(key: string, value: unknown): string | null {
   if (key === "defaultModelConfigId") return value === null || typeof value === "string" ? null : "expected a model config id or null";
   if (key === "spendingCapUsd") {
-    return value === null || (typeof value === "number" && Number.isFinite(value) && value > 0)
-      ? null
-      : "expected an amount in US dollars above 0, or null";
+    // There is always a cap: it can be changed, never removed.
+    return typeof value === "number" && Number.isFinite(value) && value > 0 ? null : "expected an amount in US dollars above 0";
   }
   if (key === "newProjectRunMode") return value === "auto" || value === "manual" ? null : "expected 'auto' or 'manual'";
   return "no such setting";
@@ -367,9 +366,6 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         );
       }
       const { spendingCapUsd } = await readSettings(db);
-      if (spendingCapUsd === null) {
-        return c.json({ error: "Set a spending cap before using a model config that isn't free tier.", code: "no_spending_cap" }, 409);
-      }
       const spent = await db
         .prepare(
           "SELECT COALESCE(SUM(c.cost_usd), 0) AS spent FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.free_tier = 0 AND c.started_at >= ?",

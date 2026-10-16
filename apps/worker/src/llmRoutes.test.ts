@@ -148,7 +148,9 @@ test("model configs: checked per provider, edited by copy on change, deleted by 
 });
 
 test("settings: checked, with defaults", async () => {
-  assert.deepEqual(await json(await app.request("/api/settings", {}, env)), { defaultModelConfigId: null, spendingCapUsd: null, newProjectRunMode: "auto" });
+  assert.deepEqual(await json(await app.request("/api/settings", {}, env)), { defaultModelConfigId: null, spendingCapUsd: 1, newProjectRunMode: "auto" });
+  // There is always a cap.
+  assert.equal((await send("/api/settings/spendingCapUsd", { value: null }, "PUT")).status, 400);
   assert.equal((await send("/api/settings/spendingCapUsd", { value: -1 }, "PUT")).status, 400);
   assert.equal((await send("/api/settings/nothing", { value: 1 }, "PUT")).status, 400);
   assert.equal((await send("/api/settings/defaultModelConfigId", { value: "missing" }, "PUT")).status, 404);
@@ -239,11 +241,6 @@ test("an answer the stage can't use is marked so, and isn't served again", async
 test("the spending cap stops new calls, but not answers already paid for; free-tier calls neither count nor stop", async () => {
   const config = await modelConfig();
   const stage = await runningStage(config.id);
-  // No cap, no paid calls.
-  const refused = await call(stage);
-  assert.equal(refused.status, 409);
-  assert.equal((await json(refused)).code, "no_spending_cap");
-
   await send("/api/settings/spendingCapUsd", { value: 0.0001 }, "PUT");
   assert.equal((await json(await call(stage))).status, "ok"); // under the cap when it started; overshoots it
   const capped = await call(stage, request("Another question"));
