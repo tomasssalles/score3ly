@@ -1,8 +1,9 @@
 // The metadata (DESIGN.md §6): `analyze`'s and a finished `fix_metadata`'s, read-only, and a WIP `fix_metadata`'s
 // form. Both list the fields by section, each with its page ("p. –" without one), an eye and its confidence. The eye
 // opens the pages at the field's page (at the first without one), with only that field in a thin strip above them.
-// In the form, every field has a "⋮" with Edit and Remove, also in the strip, so it can be edited while looking at
-// the page, and one "+" adds any kind of field. A field is saved when it leaves edit mode, and when the form closes.
+// In the form, every field has a "⋮" with Edit, Confirm (Unconfirm) and Remove, also in the strip, so it can be
+// edited while looking at the page, and one "+" adds any kind of field. A field is saved when it leaves edit mode,
+// when it is confirmed or unconfirmed, and when the form closes. Saving an edit confirms the field; adding one too.
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { CONFIDENCE_SYMBOLS, type ShownConfidence } from "./analyze";
@@ -22,6 +23,7 @@ import {
   sameField,
   SECTIONS,
   sectionsOf,
+  shownConfidence,
   takenSystems,
   withKind,
   withSystem,
@@ -83,8 +85,9 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
       .catch((err) => setError(`Saving failed: ${err instanceof Error ? err.message : err}`));
   }
 
-  // The field being edited, ended: saved if it changed (and confirmed, DESIGN.md §6), removed if it was emptied.
-  // Returns the rows after it, or null if it can't be saved yet. A field left as it was keeps its confidence.
+  // The field being edited, ended: saved if it changed (and confirmed, keeping the model's confidence, DESIGN.md §6),
+  // removed if it was emptied. Returns the rows after it, or null if it can't be saved yet. A field left as it was
+  // isn't confirmed by that.
   function commit(current: MetadataRow[], edit: Editing): MetadataRow[] | null {
     const { index, draft, added } = edit;
     if (rowEmpty(draft)) return current.filter((_, i) => i !== index);
@@ -94,7 +97,7 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
       return null;
     }
     if (!added && sameField(draft, current[index])) return current;
-    return current.map((row, i) => (i === index ? { ...draft, confidence: "confirmed" } : row));
+    return current.map((row, i) => (i === index ? { ...draft, confirmed: true } : row));
   }
 
   // Ends the edit. Returns the rows after it and the index of the row it removed (an emptied field), or null if the
@@ -147,6 +150,15 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
     save(next);
   }
 
+  function setConfirmed(index: number, confirmed: boolean) {
+    const ended = finishEditing();
+    if (!ended) return;
+    const i = after(index, ended.removed);
+    const next = ended.rows.map((row, j) => (j === i ? { ...row, confirmed } : row));
+    setRows(next);
+    save(next);
+  }
+
   function add(kind: FieldKind) {
     const ended = finishEditing();
     if (!ended) return;
@@ -164,7 +176,7 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
       if (!rows || !editing || rowEmpty(editing.draft)) return;
       if (pieceProblem(editing.draft, rows.filter((_, i) => i !== editing.index))) return;
       if (!editing.added && sameField(editing.draft, rows[editing.index])) return;
-      save(rows.map((row, i) => (i === editing.index ? { ...editing.draft, confidence: "confirmed" } : row)));
+      save(rows.map((row, i) => (i === editing.index ? { ...editing.draft, confirmed: true } : row)));
     },
     [],
   );
@@ -191,9 +203,14 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
       <Field
         key={index}
         row={row}
-        confirmed={analysis.confirmed}
         onOpen={focus === null ? () => setFocus(index) : undefined}
-        actions={form && { edit: () => edit(index), remove: () => remove(index) }}
+        actions={
+          form && {
+            edit: () => edit(index),
+            confirm: () => setConfirmed(index, !row.confirmed),
+            remove: () => remove(index),
+          }
+        }
       />
     );
   };
@@ -250,15 +267,14 @@ function shown(row: MetadataRow): { label: string; text: string } {
 
 function Field({
   row,
-  confirmed,
   onOpen,
   actions,
 }: {
   row: MetadataRow;
-  confirmed: boolean; // every field shown as confirmed
   onOpen?: () => void; // none in the strip, where the pages are open already
-  actions: { edit: () => void; remove: () => void } | null;
+  actions: { edit: () => void; confirm: () => void; remove: () => void } | null;
 }) {
+  const confidence = shownConfidence(row);
   const { label, text } = shown(row);
   return (
     <li className="analysis-row metadata-row">
@@ -270,13 +286,22 @@ function Field({
           <EyeIcon />
         </button>
       )}
-      <Confidence value={confirmed ? "confirmed" : row.confidence} />
+      {confidence ? <Confidence value={confidence} /> : <span className="confidence" />}
       {actions && (
         <DropdownMenu
           icon={<MoreIcon />}
           label={`${label}: actions`}
           className="field-actions"
-          groups={[[{ label: "Edit", onSelect: actions.edit }], [{ label: "Remove", onSelect: actions.remove, danger: true }]]}
+          groups={[
+            [
+              { label: "Edit", onSelect: actions.edit },
+              // A field the user added has no confidence of the model's to go back to.
+              row.confirmed
+                ? { label: "Unconfirm", onSelect: actions.confirm, disabled: row.confidence === null }
+                : { label: "Confirm", onSelect: actions.confirm },
+            ],
+            [{ label: "Remove", onSelect: actions.remove, danger: true }],
+          ]}
         />
       )}
     </li>

@@ -251,7 +251,7 @@ STEPS.analyze = {
         kind: "json",
         count: 1,
         pages,
-        analysis: { view: "metadata", sha256: metadata, confirmed: false },
+        analysis: { view: "metadata", sha256: metadata },
       });
     }
     if (observations) {
@@ -261,7 +261,7 @@ STEPS.analyze = {
         kind: "json",
         count: 1,
         pages,
-        analysis: { view: "observations", sha256: observations, confirmed: false },
+        analysis: { view: "observations", sha256: observations },
       });
     }
     return artifacts;
@@ -290,7 +290,6 @@ STEPS.fix_metadata = {
         analysis: {
           view: "metadata",
           sha256: own ?? parents.metadata.contentSha256!,
-          confirmed: false,
           parents: { metadata: parents.metadata.id, pieces: parents.pieces?.id },
         },
         editor,

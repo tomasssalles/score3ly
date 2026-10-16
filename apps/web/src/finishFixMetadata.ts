@@ -1,9 +1,9 @@
-// Finishing a `fix_metadata` stage (DESIGN.md §6): every field is confirmed (the user saw it, set it or left it),
-// and the metadata and where the pieces start are recorded, from what the user saved, else from `analyze`'s.
+// Finishing a `fix_metadata` stage (DESIGN.md §6): the metadata and where the pieces start are recorded, from what the
+// user saved, else from `analyze`'s. Finishing confirms nothing: only what the user confirmed is.
 
 import { piecesOf } from "./analyze";
 import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
-import { analyzeOutputs, changedFields, confirmAll, fixMetadataNote, normalizeMetadata, type ShownMetadata } from "./fixMetadata";
+import { analyzeOutputs, changedFields, confirmedFields, fixMetadataNote, normalizeMetadata, type ShownMetadata } from "./fixMetadata";
 import { canonicalJson } from "./keys";
 
 export const jsonBytes = (value: unknown): Uint8Array<ArrayBuffer> => new TextEncoder().encode(canonicalJson(value));
@@ -40,7 +40,6 @@ export async function finishFixMetadata(project: Project, stage: ApiStage, pipel
   const original = normalizeMetadata(await fetchJsonContent(found.metadata.contentSha256!));
   const saved = stage.outputs.find((o) => o.item === "" && o.type === "metadata" && o.contentSha256);
   const current = saved ? normalizeMetadata(await fetchJsonContent(saved.contentSha256!)) : original;
-  const confirmed = confirmAll(current);
-  await recordOutputs(project, stage.id, await metadataOutputs(confirmed, parents));
-  return fixMetadataNote(changedFields(original, confirmed));
+  await recordOutputs(project, stage.id, await metadataOutputs(current, parents));
+  return fixMetadataNote(changedFields(original, current), confirmedFields(current));
 }

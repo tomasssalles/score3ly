@@ -34,7 +34,7 @@ export type Artifact = {
   editor?: { stageId: string; step: string }; // a WIP manual stage's artifact: shown as its step's editor
   // `analyze`'s metadata or observations: the stored JSON, shown as a view with links into the pages (`pages`).
   // `parents`: for `fix_metadata`'s form, the outputs of `analyze` it corrects.
-  analysis?: { view: "metadata" | "observations"; sha256: string; confirmed: boolean; parents?: { metadata: string; pieces?: string } };
+  analysis?: { view: "metadata" | "observations"; sha256: string; parents?: { metadata: string; pieces?: string } };
 };
 
 export type Stage = {
