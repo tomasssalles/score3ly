@@ -1387,6 +1387,16 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
+/* What to draw, in one short line under the toolbar. */
+.editor-hint {
+  margin: 0;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
 /* Room for the floating close button. */
 .artifact-view.overlay .editor-toolbar {
   padding-right: 60px;

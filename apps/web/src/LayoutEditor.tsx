@@ -391,6 +391,7 @@ function PageEditor({
           onRedo={() => stepBack(redo)}
         />
       </div>
+      <p className="editor-hint">Boxes tight around each system. Bar lines only inside a system, not at its start or end.</p>
 
       <PageCanvas
         viewport={viewport}
