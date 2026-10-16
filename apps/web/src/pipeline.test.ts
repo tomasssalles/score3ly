@@ -219,3 +219,13 @@ test("Fix skew is offered after a skew analysis, unless one already follows it; 
   assert.equal(currentStage(p)?.id, "s5");
   assert.equal(canRun(p), false);
 });
+
+test("after analyze, both fixes are offered; one among the manual stages that follow it isn't offered again", () => {
+  const analyze = stage("s5", "analyze");
+  let p = toPipeline("auto", { stages: [ingest, analyze] });
+  assert.deepEqual(p.stages[1].fixes.map((f) => f.step), ["fix_metadata", "fix_observations"]);
+  p = toPipeline("auto", { stages: [ingest, analyze, stage("s6", "fix_metadata", { status: "wip" })] });
+  assert.deepEqual(p.stages[1].fixes.map((f) => f.step), ["fix_observations"]);
+  p = toPipeline("auto", { stages: [ingest, analyze, stage("s6", "fix_metadata"), stage("s7", "fix_observations", { status: "wip" })] });
+  assert.deepEqual(p.stages[1].fixes, []);
+});

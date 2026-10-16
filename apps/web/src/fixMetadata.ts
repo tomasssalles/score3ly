@@ -127,7 +127,7 @@ export function confirmedFields(m: ShownMetadata): number {
 }
 
 // The card's result: "2 changed · 5 confirmed", "5 confirmed", or "no changes".
-export function fixMetadataNote(changed: number, confirmed: number): string {
+export function fixNote(changed: number, confirmed: number): string {
   const parts = [changed > 0 && `${changed} changed`, confirmed > 0 && `${confirmed} confirmed`].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : "no changes";
 }

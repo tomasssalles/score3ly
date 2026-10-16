@@ -163,6 +163,15 @@ export function ProjectView({
     return i >= 0 && i + 1 < pipeline.stages.length && replacesWork(pipeline.stages[i + 1].id);
   }
 
+  // Whether adding a fix after this stage replaces stages that have already run: the fix goes after the manual
+  // stages that already follow it, which stay (DESIGN.md §6).
+  function fixReplaces(stageId: string): boolean {
+    let j = pipeline.stages.findIndex((stage) => stage.id === stageId) + 1;
+    if (j <= 0) return false;
+    while (j < pipeline.stages.length && pipeline.stages[j].kind === "manual") j++;
+    return j < pipeline.stages.length && replacesWork(pipeline.stages[j].id);
+  }
+
   // A new WIP manual stage: its editor opens.
   function opened(result: { stageId: string; pipeline: ApiPipeline }) {
     setStored(result.pipeline);
@@ -317,7 +326,7 @@ export function ProjectView({
       }
       else setError(`"${stage?.title}" has nothing to set.`);
     },
-    addFix: (id, step) => change(id, () => void addFix(id, step), replacesLater(id)),
+    addFix: (id, step) => change(id, () => void addFix(id, step), fixReplaces(id)),
     edit: (id) => change(id, () => void edit(id), replacesLater(id)),
     // Always asks: the stage's own work is lost, and perhaps the stages after it too.
     drop: (id) =>

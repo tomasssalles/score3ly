@@ -4,7 +4,7 @@ import {
   changedFields,
   confirmedFields,
   FIELD_KINDS,
-  fixMetadataNote,
+  fixNote,
   metadataOf,
   newRow,
   normalizeMetadata,
@@ -134,8 +134,8 @@ test("an edit, an addition and a removal each count as one changed field; confir
 });
 
 test("the card's note", () => {
-  assert.equal(fixMetadataNote(0, 0), "no changes");
-  assert.equal(fixMetadataNote(2, 5), "2 changed · 5 confirmed");
-  assert.equal(fixMetadataNote(0, 5), "5 confirmed");
-  assert.equal(fixMetadataNote(1, 0), "1 changed");
+  assert.equal(fixNote(0, 0), "no changes");
+  assert.equal(fixNote(2, 5), "2 changed · 5 confirmed");
+  assert.equal(fixNote(0, 5), "5 confirmed");
+  assert.equal(fixNote(1, 0), "1 changed");
 });

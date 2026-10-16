@@ -33,8 +33,8 @@ export type Artifact = {
   pages?: { page: number; recipe: PageRecipe; linesSha256?: string; layoutSha256?: string; item?: string; parentId?: string }[];
   editor?: { stageId: string; step: string }; // a WIP manual stage's artifact: shown as its step's editor
   // `analyze`'s metadata or observations: the stored JSON, shown as a view with links into the pages (`pages`).
-  // `parents`: for `fix_metadata`'s form, the outputs of `analyze` it corrects.
-  analysis?: { view: "metadata" | "observations"; sha256: string; parents?: { metadata: string; pieces?: string } };
+  // `parents`: for the forms of `fix_metadata` and `fix_observations`, the outputs of `analyze` they correct.
+  analysis?: { view: "metadata" | "observations"; sha256: string; parents?: { metadata?: string; pieces?: string; observations?: string } };
 };
 
 export type Stage = {
@@ -73,7 +73,7 @@ export type LocalRun = { stageId: string; progress: number };
 // counts as failed, and can run again.
 export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null, now = Date.now()): Pipeline {
   const stages = stored.stages.map((s, i) => {
-    const stage = toStage(s, stored.stages.slice(0, i), stored.stages[i + 1]);
+    const stage = toStage(s, stored.stages.slice(0, i), fixesAfter(stored.stages, i));
     if (local?.stageId === s.id) return { ...stage, status: "running" as const, progress: local.progress };
     if (s.status === "running" && (s.heartbeatAt === null || now - Date.parse(s.heartbeatAt) > STALE_MS)) {
       return { ...stage, status: "failed" as const, error: "Interrupted: the app was closed while this stage ran." };
@@ -85,7 +85,15 @@ export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun |
   return { mode, stages };
 }
 
-function toStage(stored: ApiStage, earlier: ApiStage[], next: ApiStage | undefined): Stage {
+// The manual stages right after stage `i`: a fix of that stage goes after them (the Worker puts it there), and one
+// already among them isn't offered again (DESIGN.md §6).
+function fixesAfter(stages: ApiStage[], i: number): ApiStage[] {
+  const after = stages.slice(i + 1);
+  const end = after.findIndex((s) => stepInfo(s.step).kind !== "manual");
+  return end < 0 ? after : after.slice(0, end);
+}
+
+function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[]): Stage {
   const info = stepInfo(stored.step);
   // Stopped stages aren't in a pipeline; if one shows up anyway, it can run again like a failed one.
   const status: StageStatus = stored.status === "stopped" ? "failed" : stored.status;
@@ -110,8 +118,7 @@ function toStage(stored: ApiStage, earlier: ApiStage[], next: ApiStage | undefin
     config: Object.fromEntries(
       Object.entries(stored.config ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : JSON.stringify(value)]),
     ),
-    // A fix already right after the stage isn't offered again (DESIGN.md §6).
-    fixes: info.fixes.filter((step) => next?.step !== step).map((step) => ({ step, title: stepInfo(step).title })),
+    fixes: info.fixes.filter((step) => !following.some((s) => s.step === step)).map((step) => ({ step, title: stepInfo(step).title })),
     droppable: info.kind === "manual" || info.optional,
   };
 }

@@ -43,7 +43,7 @@ const INGEST_VERSION = 1;
 
 // The manual steps (DESIGN.md §5.4). A step's kind is declared in the web app; the Worker needs to know these to
 // add, edit and drop them, and to leave them out when the stages after a change are replaced (§5.8).
-export const MANUAL_STEPS = ["fix_skew", "fix_layout", "fix_metadata"] as const;
+export const MANUAL_STEPS = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations"] as const;
 
 function isManual(step: string): boolean {
   return (MANUAL_STEPS as readonly string[]).includes(step);
@@ -489,8 +489,10 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json(await readPipeline(db, pid));
   });
 
-  // Adds a manual stage, WIP, right after a done stage (DESIGN.md §5.6): body { step, stepVersion, pageCount,
-  // inputIds }. The stages after it are replaced. Returns the pipeline and the new stage's id.
+  // Adds a manual stage, WIP, after a done stage (DESIGN.md §5.6): body { step, stepVersion, pageCount, inputIds }.
+  // It goes after the manual stages that already follow the stage (e.g. `fix_observations` after `fix_metadata`,
+  // both after `analyze`, §6), WIP or finished, which stay; the stages after those are replaced. Returns the
+  // pipeline and the new stage's id.
   app.post("/api/projects/:pid/stages/:sid/fix", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
@@ -509,11 +511,14 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage, position } = found;
     if (stage.status !== "done") return c.json({ error: "a fix can only follow a done stage" }, 409);
-    const next = await db
-      .prepare("SELECT s.step FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position = ?")
-      .bind(pid, position + 1)
-      .first<{ step: string }>();
-    if (next?.step === step) return c.json({ error: "this fix already follows that stage" }, 409);
+    const { results: following } = await db
+      .prepare("SELECT e.position, s.step FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position > ? ORDER BY e.position")
+      .bind(pid, position)
+      .all<{ position: number; step: string }>();
+    const end = following.findIndex((s) => !isManual(s.step));
+    const run = end < 0 ? following : following.slice(0, end);
+    if (run.some((s) => s.step === step)) return c.json({ error: "this fix already follows that stage" }, 409);
+    const last = run.at(-1)?.position ?? position;
     const now = new Date();
     if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
     const iso = now.toISOString();
@@ -527,7 +532,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...inputIds.map((outputId: string) =>
         db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(id, outputId),
       ),
-      ...(await rewriteFrom(db, pid, position + 1, [id], position, iso)),
+      ...(await rewriteFrom(db, pid, last + 1, [id], last, iso)),
       touchProject(db, pid, iso),
     ]);
     return c.json({ stageId: id, pipeline: await readPipeline(db, pid) });

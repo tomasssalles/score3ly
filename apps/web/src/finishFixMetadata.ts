@@ -3,7 +3,7 @@
 
 import { piecesOf } from "./analyze";
 import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
-import { analyzeOutputs, changedFields, confirmedFields, fixMetadataNote, normalizeMetadata, type ShownMetadata } from "./fixMetadata";
+import { analyzeOutputs, changedFields, confirmedFields, fixNote, normalizeMetadata, type ShownMetadata } from "./fixMetadata";
 import { canonicalJson } from "./keys";
 
 export const jsonBytes = (value: unknown): Uint8Array<ArrayBuffer> => new TextEncoder().encode(canonicalJson(value));
@@ -41,5 +41,5 @@ export async function finishFixMetadata(project: Project, stage: ApiStage, pipel
   const saved = stage.outputs.find((o) => o.item === "" && o.type === "metadata" && o.contentSha256);
   const current = saved ? normalizeMetadata(await fetchJsonContent(saved.contentSha256!)) : original;
   await recordOutputs(project, stage.id, await metadataOutputs(current, parents));
-  return fixMetadataNote(changedFields(original, current), confirmedFields(current));
+  return fixNote(changedFields(original, current), confirmedFields(current));
 }

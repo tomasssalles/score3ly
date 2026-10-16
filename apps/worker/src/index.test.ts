@@ -724,6 +724,23 @@ test("a fix can't follow the same stage twice, nor a stage that isn't done, nor 
   assert.equal((await addFix(project.id, skew.id, "layout")).status, 400);
 });
 
+test("a second fix of the same stage goes after the first, which stays, WIP or finished", async () => {
+  const { project, skew } = await analyzedProject("second.pdf");
+  const { stageId: first } = (await (await addFix(project.id, skew.id)).json()) as { stageId: string };
+  // (Any manual step can be sent; which fixes fit after which stage is the app's business.)
+  const response = await addFix(project.id, skew.id, "fix_layout");
+  assert.equal(response.status, 200);
+  const pipeline = await pipelineOf(project.id);
+  assert.deepEqual(
+    pipeline.map((s) => [s.step, s.status]),
+    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["fix_layout", "wip"], ["layout", "planned"], ["analyze", "planned"]],
+  );
+  assert.equal(pipeline[3].id, first);
+  // Neither can be added again after the same stage.
+  assert.equal((await addFix(project.id, skew.id)).status, 409);
+  assert.equal((await addFix(project.id, skew.id, "fix_layout")).status, 409);
+});
+
 test("adding a fix replaces the stages after it that ran; a change before a manual stage drops it", async () => {
   const { project, skew } = await analyzedProject("replace.pdf");
   const layout = (await pipelineOf(project.id))[3];

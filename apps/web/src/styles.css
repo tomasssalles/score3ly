@@ -1751,6 +1751,17 @@ body {
   }
 }
 
+/* An observation: no page column (the sections are pages). */
+.analysis-row.metadata-row.obs-row {
+  grid-template-columns: 150px minmax(0, 1fr) auto auto auto;
+}
+
+@media (max-width: 599px) {
+  .analysis-row.metadata-row.obs-row {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+  }
+}
+
 /* A metadata field's page, and the eye that opens the pages there. */
 .field-page {
   min-width: 40px;
@@ -1794,6 +1805,44 @@ body {
   margin-left: 6px;
   color: var(--muted);
   font-size: 13px;
+}
+
+/* A line of pickers in an item's edit mode: a place (system, position), a staff, staves, a page. */
+.field-edit-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-edit-line .field-edit-label:first-child {
+  min-width: 36px;
+  margin-left: 0;
+}
+
+.field-edit-kind {
+  font-size: 14px;
+}
+
+.field-edit-places {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-add-place {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: none;
+  color: var(--fg);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.position-picker .dropdown-list {
+  width: 140px;
 }
 
 .field-edit-space {

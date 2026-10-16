@@ -297,7 +297,13 @@ function observationsProblem(
 // Whether a page's staves agree (DESIGN.md §6, "staff k/n"): each system on the page reported at most once, with at
 // least one staff, and every staff named on a system (k/n) with n its reported number of staves. An ottava is on the
 // systems of its start and its end, or on every system of the page when it runs through it.
-export function stavesProblem(o: PageObservations<object>, systemsOnPage: number[]): string | null {
+export type StavesOf = {
+  systems: Pick<SystemItem, "system" | "staves">[];
+  changes: Pick<ChangeItem, "kind" | "place" | "staff">[];
+  ottavas: Pick<OttavaItem, "text" | "staff" | "start" | "end">[];
+};
+
+export function stavesProblem(o: StavesOf, systemsOnPage: number[]): string | null {
   const staves = new Map<number, number>();
   for (const s of o.systems) {
     if (staves.has(s.system)) return `system ${s.system} is reported twice`;

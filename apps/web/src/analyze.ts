@@ -21,11 +21,16 @@ export type PageAnalysis = { page: number; systems: number[]; metadata: PageMeta
 
 // What is stored for the whole score: the metadata (item '', type `metadata`), and the observations (item '', type
 // `observations`): one document, the pages' items as the whole score's call corrected them, and the items of the
-// whole score; every item with an id (a page's "p7-3", an added one "a2", the whole score's "s1").
+// whole score; every item with an id (a page's "p7-3", an added one "a2", the whole score's "s1", one the user added
+// in `fix_observations` "u1"). `fix_observations` stores the same, every item also saying whether the user
+// confirmed it (`analyze`'s don't: nothing is), and the user's own items without a confidence (DESIGN.md §6).
 export type StoredMetadata = ScoreMetadata;
 type WithId = { id: string };
-export type StoredPage = { page: number } & PageObservations<WithId>;
-export type StoredObservations = { pages: StoredPage[]; score: ScoreObservations<WithId> };
+export type Stored<T> = Omit<T, "confidence"> & { id: string; confidence: Confidence | null; confirmed?: boolean };
+type StoredLists<T> = { [K in keyof T]: T[K] extends (infer I)[] ? Stored<I>[] : never };
+export type StoredPage = { page: number } & StoredLists<PageObservations>;
+export type StoredScore = StoredLists<ScoreObservations>;
+export type StoredObservations = { pages: StoredPage[]; score: StoredScore };
 
 // Where the pieces start (item '', type `pieces`): the first system of every piece, ascending, each once. All that
 // `extract` reads of the metadata (§6): a corrected composer leaves it the same. It always starts with system 1: the
@@ -78,7 +83,7 @@ function placeOrder(p: Place): number {
 
 // Where an item starts, for sorting a list: an item open at its start before everything on its end's system, one open
 // at both ends before everything.
-function firstPlace(item: object): number {
+export function firstPlace(item: object): number {
   const i = item as { system?: number; place?: Place; start?: Place | null; end?: Place | null };
   if (i.system !== undefined) return i.system * 1e7;
   if (i.place) return placeOrder(i.place);
@@ -108,7 +113,7 @@ export function combineObservations(pages: PageAnalysis[], answer: ScoreAnswer):
   let n = 0;
   const score = Object.fromEntries(
     SCORE_LISTS.map((list) => [list, (answer.score[list] as object[]).map((item) => ({ id: `s${++n}`, ...item }))]),
-  ) as ScoreObservations<WithId>;
+  ) as StoredScore;
   return { pages: stored, score };
 }
 

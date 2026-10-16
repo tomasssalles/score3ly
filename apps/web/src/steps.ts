@@ -6,6 +6,7 @@ import type { Artifact, StageKind } from "./pipeline";
 import { configError, configOf, resolveConfig, MAX_DPI, MIN_DPI, pageOfItem, type PageRecipe } from "./rasterize.ts";
 import { FIX_LAYOUT_VERSION } from "./fixLayout.ts";
 import { analyzeOutputs, FIX_METADATA_VERSION } from "./fixMetadata.ts";
+import { FIX_OBSERVATIONS_VERSION } from "./fixObservations.ts";
 import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
 
@@ -235,7 +236,7 @@ STEPS.analyze = {
   title: "Analyze",
   kind: "llm",
   optional: false,
-  fixes: ["fix_metadata"],
+  fixes: ["fix_metadata", "fix_observations"],
   // The metadata, with the pages as they are (to look for a field), and the observations, with the pages as the
   // layout numbers them (§6).
   artifacts: (stage, earlier) => {
@@ -298,6 +299,33 @@ STEPS.fix_metadata = {
   },
 };
 
+STEPS.fix_observations = {
+  title: "Fix observations",
+  kind: "manual",
+  optional: true,
+  fixes: [],
+  // The observations the user saved, else `analyze`'s, with the pages and their layouts (the boxes, and the systems
+  // and bar lines places are picked from). While WIP, the artifact is the form.
+  artifacts: (stage, earlier) => {
+    const analyze = [...earlier].reverse().find((s) => s.step === "analyze");
+    const parent = analyze?.outputs.find((o) => o.item === "" && o.type === "observations" && o.contentSha256);
+    if (!parent) return [];
+    const own = stage.outputs.find((o) => o.item === "" && o.type === "observations")?.contentSha256;
+    const editor = stage.status === "wip" ? { stageId: stage.id, step: "fix_observations" } : undefined;
+    return [
+      {
+        id: `${stage.id}.observations`,
+        title: "Observations",
+        kind: "json",
+        count: 1,
+        pages: layoutPages(earlier),
+        analysis: { view: "observations", sha256: own ?? parent.contentSha256!, parents: { observations: parent.id } },
+        editor,
+      },
+    ];
+  },
+};
+
 // What a manual step needs to be added after a stage (DESIGN.md §5.8): its version, page count and inputs.
 export const FIX_STARTS: Record<string, (after: ApiStage) => { stepVersion: number; pageCount: number | null; inputIds: string[] }> = {
   fix_skew: (after) => {
@@ -311,6 +339,10 @@ export const FIX_STARTS: Record<string, (after: ApiStage) => { stepVersion: numb
   fix_metadata: (after) => {
     const inputs = after.outputs.filter((o) => o.item === "" && (o.type === "metadata" || o.type === "pieces"));
     return { stepVersion: FIX_METADATA_VERSION, pageCount: after.pageCount, inputIds: inputs.map((o) => o.id) };
+  },
+  fix_observations: (after) => {
+    const inputs = after.outputs.filter((o) => o.item === "" && o.type === "observations");
+    return { stepVersion: FIX_OBSERVATIONS_VERSION, pageCount: after.pageCount, inputIds: inputs.map((o) => o.id) };
   },
 };
 

@@ -13,6 +13,7 @@ const KINDS: Record<string, string> = {
   fix_skew: "manual",
   fix_layout: "manual",
   fix_metadata: "manual",
+  fix_observations: "manual",
 };
 
 test("no step's kind ever changes", () => {
