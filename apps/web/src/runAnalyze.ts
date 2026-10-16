@@ -17,6 +17,7 @@ import {
   analyzePageText,
   checkPageAnswer,
   checkScoreAnswer,
+  stavesProblem,
   type ScoreAnswer,
 } from "@score3ly/prompts";
 import {
@@ -28,6 +29,7 @@ import {
   pageResultsForScore,
   piecesOf,
   type PageAnalysis,
+  type StoredObservations,
 } from "./analyze";
 import { fetchJsonContent, markUnusable, putContent, type LlmContent, type LlmRequest } from "./api";
 import { firstNumbers } from "./fixLayout";
@@ -122,7 +124,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
   }
 
   // The whole-score call, once for both of its outputs. A retry that recorded one asks again, served from the cache.
-  let score: Promise<{ answer: ScoreAnswer; callId: string; all: PageAnalysis[] }> | null = null;
+  let score: Promise<{ answer: ScoreAnswer; callId: string; observations: StoredObservations }> | null = null;
   const scoreAnswer = () =>
     (score ??= (async () => {
       const all = await Promise.all(pages.map((p) => resultOf(p.output.item)));
@@ -132,7 +134,17 @@ export async function runAnalyze(run: StageRun): Promise<void> {
         await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
         throw new Error(`The whole score: the answer can't be used: ${checked.problem}.`);
       }
-      return { answer: checked, callId: answer.callId, all };
+      // The pages as corrected: their staves must still agree.
+      const observations = combineObservations(all, checked);
+      const staves = observations.pages
+        .map((p) => stavesProblem(p, all.find((r) => r.page === p.page)!.systems))
+        .map((problem, i) => problem && `page ${observations.pages[i].page}: ${problem}`)
+        .find((problem) => problem);
+      if (staves) {
+        await markUnusable(run.project, run.stage.id, answer.callId, staves).catch(() => {});
+        throw new Error(`The whole score: the answer can't be used: ${staves}.`);
+      }
+      return { answer: checked, callId: answer.callId, observations };
     })());
 
   const pageInputs = (i: number): string[] => [pages[i].output.id, pages[i].image.id];
@@ -193,9 +205,8 @@ export async function runAnalyze(run: StageRun): Promise<void> {
         item: "",
         type: "observations",
         make: async () => {
-          const { answer, callId, all } = await scoreAnswer();
+          const { answer, callId, observations: stored } = await scoreAnswer();
           pieces = answer.metadata.pieces.length;
-          const stored = combineObservations(all, answer);
           return { contentSha256: await putContent(json(stored), "application/json"), callId };
         },
       },

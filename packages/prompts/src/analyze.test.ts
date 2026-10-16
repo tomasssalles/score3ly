@@ -24,7 +24,10 @@ const emptyLists = () => Object.fromEntries(PAGE_LISTS.map((list) => [list, []])
 const at = (system: number, at: string, number = 0) => ({ system, at, number });
 
 const observations = (overrides: Record<string, unknown> = {}) => ({
-  systems: [{ system: 5, staves: 2, instruments: ["piano right hand", "piano left hand"], confidence: "high" }],
+  systems: [
+    { system: 5, staves: 2, instruments: ["piano right hand", "piano left hand"], confidence: "high" },
+    { system: 6, staves: 2, instruments: ["piano right hand", "piano left hand"], confidence: "high" },
+  ],
   changes: [{ kind: "key", text: "G major", place: at(5, "start"), staff: null, confidence: "high" }],
   ottavas: [{ text: "8va", staff: { number: 1, of: 2 }, start: at(6, "stretch", 2), end: null, confidence: "medium" }],
   specialBarLines: [{ kind: "endRepeat", place: at(6, "barLine", 4), confidence: "high" }],
@@ -75,6 +78,20 @@ test("a special bar line is never in a stretch, and a staff is one of its system
   assert.match(problem(checkPageAnswer(clef({ number: 3, of: 2 }), context)), /no staff 3\/2/);
 });
 
+test("a staff k/n names a system whose staves are reported, n of them", () => {
+  const clef = (system: number, of: number) =>
+    page({ changes: [{ kind: "clef", text: "bass", place: at(system, "start"), staff: { number: 1, of }, confidence: "high" }] });
+  assert.match(problem(checkPageAnswer(clef(5, 3), context)), /staff 1\/3 of system 5, which has 2 staves/);
+  const unreported = { ...page(), observations: { ...observations(), systems: [observations().systems[0]], ottavas: [] } };
+  unreported.observations.changes = clef(6, 2).observations.changes;
+  assert.match(problem(checkPageAnswer(unreported, context)), /system 6, whose staves aren't reported/);
+  // An ottava through the whole page is on every system of the page.
+  const through = page({ ottavas: [{ text: "8va", staff: { number: 1, of: 2 }, start: null, end: null, confidence: "high" }] });
+  assert.ok(!("problem" in checkPageAnswer(through, context)));
+  const twice = page({ systems: [...observations().systems, observations().systems[0]] });
+  assert.match(problem(checkPageAnswer(twice, context)), /system 5 is reported twice/);
+});
+
 test("a spanning item may be open at either end, or both", () => {
   const ending = (start: object | null, end: object | null) => page({ endings: [{ numbers: "2.", start, end, confidence: "high" }] });
   assert.ok(!("problem" in checkPageAnswer(ending(null, at(5, "barLine", 2)), context)));
@@ -92,8 +109,8 @@ test("an answer of the wrong form can't be used", () => {
 test("a page's items are numbered through its lists", () => {
   const numbered = withIds(7, observations() as unknown as PageObservations);
   assert.equal(numbered.systems[0].id, "p7-1");
-  assert.equal(numbered.changes[0].id, "p7-2");
-  assert.equal(numbered.notes[0].id, "p7-6");
+  assert.equal(numbered.changes[0].id, "p7-3");
+  assert.equal(numbered.notes[0].id, "p7-7");
 });
 
 // The whole score: systems 1 and 2 on page 1, 5 and 6 on page 2; items p2-1 (a system) and p2-2 (a change).

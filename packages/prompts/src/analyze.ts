@@ -4,7 +4,7 @@
 // are named by the labels drawn on the pages: "system 17, bar line 4", "system 17, stretch 2", "system 17, end".
 
 // Raise whenever the texts, the schemas or the checks change.
-export const ANALYZE_PROMPT_VERSION = 4;
+export const ANALYZE_PROMPT_VERSION = 5;
 
 export const ANALYZE_PAGE_MAX_OUTPUT_TOKENS = 16_000;
 export const ANALYZE_SCORE_MAX_OUTPUT_TOKENS = 32_000;
@@ -119,7 +119,7 @@ The pages come with their layout drawn on them: each system in a box of its own 
 - "stretch" with its number: the music between two of these. Stretch 1 runs from the start to bar line 1, stretch k from bar line k - 1 to bar line k, and the last from the last bar line to the end: a system with n bar lines drawn has n + 1 stretches (one stretch when it has none).
 Give "number" 0 for "start" and "end". Read the numbers from the labels; don't count.
 
-A staff is named by its position in its system: staff k of n, numbered from the top, where n is the number of staves of the system ("number": 2, "of": 3 for the middle staff of three).
+A staff is named by its position in its system: staff k of n, numbered from the top, where n is the number of staves you give for that system ("number": 2, "of": 3 for the middle staff of three).
 
 Metadata fields, each as printed (keep the page's language and spelling):
 - titles, each with its type: main, subtitle, alternative (another title of the same work), translated (the title in another language, e.g. "Kinderscenen / Scènes d'enfants");
@@ -159,7 +159,7 @@ export const ANALYZE_SCORE_SYSTEM = `${SHARED}
 
 You see the whole score: every page with its layout drawn on it (in gray, small), and what was found on each page when it was analysed on its own, without the others. Combine them, resolving conflicts, and add what only the whole shows:
 - metadata: one entry per thing, from the pages' candidates. Where pages disagree, take the best reading: a title legible on the cover is better than the same title faded on a later page, which must not replace it, but a legible reading replaces an unsure one. Give each entry the page it was read on and your confidence in it. Several titles may all be right (a title in two languages, a subtitle). Pieces or movements: in order, each with the system where it starts.
-- the pages' observations: every item has an id. Don't repeat the items that are right. Give corrections (the item's id and the whole item as it should be: a misread kind, a wrong place, a confidence that the other pages raise or lower), removals (the ids of items that are wrong or duplicated), and additions (items a page missed, with their page; places on that page). An item open at a page's edge stays open: don't join it to its other part on the next page.
+- the pages' observations: every item has an id. Don't repeat the items that are right. Give corrections (the item's id and the whole item as it should be: a misread kind, a wrong place, a confidence that the other pages raise or lower), removals (the ids of items that are wrong or duplicated), and additions (items a page missed, with their page; places on that page). An item open at a page's edge stays open: don't join it to its other part on the next page. If you correct a system's number of staves, correct every staff named on it too.
 - observations about the whole score: the instrumentation (which staves are which instrument, and where that changes, e.g. "systems 12-20 add a third staff, probably a voice: lyrics below it"), the style, the form, music that recurs (a theme that returns, a passage repeated note for note, with its places: a note hard to read in one place may be clear in another), and notes for the transcription: anything a person transcribing one system at a time should know about the rest. One item per thing.`;
 
 export const ANALYZE_SCORE_TEXT = `These were the results of the pages, one by one (JSON; every metadata item has the page it was found on, every observation item its id). Combine them, looking at the pages above where you need to.`;
@@ -288,9 +288,35 @@ function observationsProblem(
       if (problem) return problem;
     }
   }
-  for (const s of o.systems) if (s.staves < 1) return `system ${s.system} has ${s.staves} staves`;
   for (const b of o.specialBarLines) {
     if (!BAR_LINE_PLACES.includes(b.place.at)) return `a ${b.kind} bar line is in ${placeName(b.place)}, not at a bar line`;
+  }
+  return null;
+}
+
+// Whether a page's staves agree (DESIGN.md §6, "staff k/n"): each system on the page reported at most once, with at
+// least one staff, and every staff named on a system (k/n) with n its reported number of staves. An ottava is on the
+// systems of its start and its end, or on every system of the page when it runs through it.
+export function stavesProblem(o: PageObservations<object>, systemsOnPage: number[]): string | null {
+  const staves = new Map<number, number>();
+  for (const s of o.systems) {
+    if (staves.has(s.system)) return `system ${s.system} is reported twice`;
+    if (s.staves < 1) return `system ${s.system} has ${s.staves} staves`;
+    staves.set(s.system, s.staves);
+  }
+  const named: [Staff, number[], string][] = [
+    ...o.changes.flatMap((c): [Staff, number[], string][] => (c.staff ? [[c.staff, [c.place.system], `a ${c.kind} change`]] : [])),
+    ...o.ottavas.map((c): [Staff, number[], string] => {
+      const ends = [c.start, c.end].flatMap((p) => (p ? [p.system] : []));
+      return [c.staff, ends.length > 0 ? ends : systemsOnPage, `the ottava "${c.text}"`];
+    }),
+  ];
+  for (const [staff, systems, what] of named) {
+    for (const system of systems) {
+      const count = staves.get(system);
+      if (count === undefined) return `${what} names staff ${staff.number}/${staff.of} of system ${system}, whose staves aren't reported`;
+      if (count !== staff.of) return `${what} names staff ${staff.number}/${staff.of} of system ${system}, which has ${count} staves`;
+    }
   }
   return null;
 }
@@ -357,18 +383,23 @@ function metadataProblem(metadata: Metadata<{ page?: number }>, context: Analyze
   return null;
 }
 
-// A page's answer, checked: the expected shape, and every place on the page (the context's systems are the page's).
+// A page's answer, checked: the expected shape, every place on the page (the context's systems are the page's), and
+// its staves.
 // Returns the reason it can't be used, or the answer.
 export function checkPageAnswer(json: unknown, context: AnalyzeContext): PageAnswer | Problem {
   const shape = shapeProblem(json, ANALYZE_PAGE_SCHEMA, "");
   if (shape) return { problem: `the answer doesn't have the expected form: ${shape}` };
   const answer = normalized(json as PageAnswer);
-  const problem = observationsProblem(answer.observations, () => null, context) ?? metadataProblem(answer.metadata, context);
+  const problem =
+    observationsProblem(answer.observations, () => null, context) ??
+    stavesProblem(answer.observations, [...context.systems.keys()]) ??
+    metadataProblem(answer.metadata, context);
   return problem ? { problem } : answer;
 }
 
 // The whole score's answer, checked: the expected shape, corrections and removals of items that exist (a correction
-// in the item's own list), every place on its item's page, every page among the pages.
+// in the item's own list), every place on its item's page, every page among the pages. Whether the staves agree is
+// checked on the pages as corrected (stavesProblem).
 export function checkScoreAnswer(json: unknown, context: AnalyzeContext): ScoreAnswer | Problem {
   const shape = shapeProblem(json, ANALYZE_SCORE_SCHEMA, "");
   if (shape) return { problem: `the answer doesn't have the expected form: ${shape}` };

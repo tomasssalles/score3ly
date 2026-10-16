@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { PageObservations, ScoreAnswer } from "@score3ly/prompts";
+import { stavesProblem, type PageObservations, type ScoreAnswer } from "@score3ly/prompts";
 import { analyzeNote, combineObservations, pageItems, pageResultsForScore, piecesOf, placeLabel, type PageAnalysis } from "./analyze.ts";
 
 const emptyMetadata = {
@@ -99,6 +99,23 @@ test("the observations become one document: corrected, removed and added items, 
   assert.deepEqual(stored.pages[1].endings, []);
   assert.deepEqual(stored.pages[1].directions, [{ id: "a1", text: "Fine", place: at(3, "end"), confidence: "medium" }]);
   assert.deepEqual(stored.score.style, [{ id: "s1", text: "romantic", confidence: "high" }]);
+});
+
+test("a correction that changes a system's staves leaves the staves named on it disagreeing, as the run checks", () => {
+  const page: PageAnalysis = {
+    page: 1,
+    systems: [1],
+    metadata: emptyMetadata,
+    observations: {
+      ...noObservations(),
+      systems: [{ system: 1, staves: 2, instruments: [], confidence: "high" }], // p1-1
+      ottavas: [{ text: "8va", staff: { number: 1, of: 2 }, start: at(1, "stretch", 1), end: null, confidence: "high" }], // p1-2
+    },
+  };
+  assert.equal(stavesProblem(page.observations, [1]), null);
+  const corrections = { ...noObservations<{ id: string }>(), systems: [{ id: "p1-1", system: 1, staves: 3, instruments: [], confidence: "high" as const }] };
+  const [stored] = combineObservations([page], answer({ corrections })).pages;
+  assert.match(stavesProblem(stored, [1])!, /staff 1\/2 of system 1, which has 3 staves/);
 });
 
 test("places by name", () => {
