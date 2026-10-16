@@ -411,7 +411,7 @@ function FieldEditor({
   );
 }
 
-function Confidence({ value }: { value: ShownConfidence }) {
+export function Confidence({ value }: { value: ShownConfidence }) {
   const { symbol, label } = CONFIDENCE_SYMBOLS[value];
   return (
     <span className={value === "confirmed" ? "confidence confirmed" : "confidence"} title={label} aria-label={label}>

@@ -1,15 +1,16 @@
-// `analyze`'s observations (DESIGN.md §6), read-only, with links into the pages: a place ("system 17, bar line 4")
-// opens the pages with the layout's numbered boxes, that system in the middle of the view. While the pages are open,
+// `analyze`'s observations (DESIGN.md §6), read-only, each item with its confidence, with links into the pages: a
+// place ("system 17, bar line 4") opens the pages with the layout's numbered boxes, that system in the middle of the
+// view. While the pages are open,
 // only the item that was clicked is shown above them, in a thin strip; closing the pages shows the whole list again.
 // (To try out; it may evolve.) The metadata, `analyze`'s and `fix_metadata`'s, is MetadataView's.
 
-import type { Place } from "@score3ly/prompts";
+import type { BarLineItem, ChangeItem, Confidence, Place, Staff, TextItem } from "@score3ly/prompts";
 import { useEffect, useState, type ReactNode } from "react";
-import type { StoredObservations } from "./analyze";
+import { placeLabel, type StoredObservations } from "./analyze";
 import { fetchJsonContent, type Project } from "./api";
 import { LayoutFilmstrip } from "./ArtifactView";
 import { CloseIcon } from "./icons";
-import { MetadataView } from "./MetadataView";
+import { Confidence as ConfidenceSymbol, MetadataView } from "./MetadataView";
 import type { Artifact } from "./pipeline";
 
 type Focus = { text: ReactNode; system?: number };
@@ -65,9 +66,9 @@ function ObservationsView({ artifact }: { artifact: Artifact }) {
 
 function ObservationsList({ observations, onFocus }: { observations: StoredObservations; onFocus: (focus: Focus) => void }) {
   const { score, pages } = observations;
-  // A place as a link: it opens the pages with that system in the middle.
+  // A place as a link: it opens the pages with that system in the middle, the item in the strip above them.
   const at = (p: Place, what: string) => {
-    const label = p.barLine === 0 ? `system ${p.system}` : `system ${p.system}, bar line ${p.barLine}`;
+    const label = placeLabel(p);
     return (
       <button
         type="button"
@@ -78,102 +79,83 @@ function ObservationsList({ observations, onFocus }: { observations: StoredObser
       </button>
     );
   };
-  const range = (start: Place, end: Place) => (
+  // A span, either end of which may be open (it continues beyond the page).
+  const span = (start: Place | null, end: Place | null, what: string) => (
     <>
-      {at(start, "from")} – {at(end, "to")}
+      {start ? <>from {at(start, what)}</> : "from the previous page"} {end ? <>to {at(end, what)}</> : "on to the next page"}
     </>
   );
-  const text = (label: string, value: string) =>
-    value && (
-      <li className="analysis-row">
-        <span className="field-label">{label}</span>
-        <span className="field-text">{value}</span>
-      </li>
-    );
+  const row = (key: string, label: ReactNode, body: ReactNode, confidence: Confidence) => (
+    <li key={key} className="analysis-row">
+      <span className="field-label">{label}</span>
+      <span className="field-text">{body}</span>
+      <ConfidenceSymbol value={confidence} />
+    </li>
+  );
+  const texts = (label: string, items: (TextItem & { id: string })[]) => items.map((t) => row(t.id, label, t.text, t.confidence));
+  const staff = (s: Staff | null) => s && <span className="staff">staff {s.number}/{s.of}</span>;
   return (
     <>
       <section>
         <h3>The whole score</h3>
         <ul>
-          {text("Instrumentation", score.instrumentation)}
-          {text("Style", score.style)}
-          {text("Form", score.form)}
-          {score.repeats.map((r, i) => (
-            <li key={`r${i}`} className="analysis-row">
-              <span className="field-label">Repeat</span>
-              <span className="field-text">
-                {r.text} {range(r.from, r.to)}
-                {r.endings.map((e, j) => (
-                  <span key={j}>
-                    {" "}
-                    · ending {e.numbers} {range(e.start, e.end)}
-                  </span>
-                ))}
-              </span>
-            </li>
-          ))}
-          {score.recurringMaterial.map((m, i) => (
-            <li key={`m${i}`} className="analysis-row">
-              <span className="field-label">Recurs</span>
-              <span className="field-text">
+          {texts("Instrumentation", score.instrumentation)}
+          {texts("Style", score.style)}
+          {texts("Form", score.form)}
+          {score.recurringMaterial.map((m) =>
+            row(
+              m.id,
+              "Recurs",
+              <>
                 {m.description}{" "}
                 {m.places.map((p, j) => (
                   <span key={j}>{at(p, m.description)} </span>
                 ))}
-              </span>
-            </li>
-          ))}
-          {text("For the transcription", score.notesForExtraction)}
+              </>,
+              m.confidence,
+            ),
+          )}
+          {texts("For the transcription", score.notesForTranscription)}
         </ul>
       </section>
       {pages.map((page) => (
         <section key={page.page}>
           <h3>Page {page.page}</h3>
           <ul>
-            {page.systems.map((s) => (
-              <li key={`s${s.system}`} className="analysis-row">
-                <span className="field-label">{at({ system: s.system, barLine: 0 }, `${s.staves} staves`)}</span>
-                <span className="field-text">
-                  {s.staves} stave{s.staves === 1 ? "" : "s"}
-                  {s.instruments.length > 0 && `: ${s.instruments.join(", ")}`}
-                </span>
-              </li>
-            ))}
-            {page.changes.map((c, i) => (
-              <li key={`c${i}`} className="analysis-row">
-                <span className="field-label">{c.kind[0].toUpperCase() + c.kind.slice(1)}</span>
-                <span className="field-text">
-                  {c.text} {at(c, c.text)}
-                </span>
-              </li>
-            ))}
-            {page.specialBarLines.map((b, i) => (
-              <li key={`b${i}`} className="analysis-row">
-                <span className="field-label">Bar line</span>
-                <span className="field-text">
-                  {BAR_LINES[b.kind] ?? b.kind} {at(b, BAR_LINES[b.kind] ?? b.kind)}
-                </span>
-              </li>
-            ))}
-            {page.endings.map((e, i) => (
-              <li key={`e${i}`} className="analysis-row">
-                <span className="field-label">Ending {e.numbers}</span>
-                <span className="field-text">
-                  {e.fromPreviousPage && "from the previous page "}
-                  {range(e.start, e.end)}
-                  {e.toNextPage && " on to the next page"}
-                </span>
-              </li>
-            ))}
-            {page.directions.map((d, i) => (
-              <li key={`d${i}`} className="analysis-row">
-                <span className="field-label">Direction</span>
-                <span className="field-text">
-                  {d.text} {at(d, d.text)}
-                </span>
-              </li>
-            ))}
-            {text("Notes", page.notes)}
+            {page.systems.map((s) =>
+              row(
+                s.id,
+                at({ system: s.system, at: "start", number: 0 }, `${s.staves} staves`),
+                <>
+                  {s.staves} staves{s.instruments.length > 0 && `: ${s.instruments.join(", ")}`}
+                </>,
+                s.confidence,
+              ),
+            )}
+            {page.changes.map((c) =>
+              row(
+                c.id,
+                CHANGES[c.kind],
+                <>
+                  {c.text} {staff(c.staff)} {at(c.place, c.text)}
+                </>,
+                c.confidence,
+              ),
+            )}
+            {page.ottavas.map((o) =>
+              row(
+                o.id,
+                "Ottava",
+                <>
+                  {o.text} {staff(o.staff)} {span(o.start, o.end, o.text)}
+                </>,
+                o.confidence,
+              ),
+            )}
+            {page.specialBarLines.map((b) => row(b.id, "Bar line", <>{BAR_LINES[b.kind]} {at(b.place, BAR_LINES[b.kind])}</>, b.confidence))}
+            {page.endings.map((e) => row(e.id, `Ending ${e.numbers}`, span(e.start, e.end, `Ending ${e.numbers}`), e.confidence))}
+            {page.directions.map((d) => row(d.id, "Direction", <>{d.text} {at(d.place, d.text)}</>, d.confidence))}
+            {texts("Note", page.notes)}
           </ul>
         </section>
       ))}
@@ -181,7 +163,9 @@ function ObservationsList({ observations, onFocus }: { observations: StoredObser
   );
 }
 
-const BAR_LINES: Record<string, string> = {
+const CHANGES: Record<ChangeItem["kind"], string> = { clef: "Clef", key: "Key", time: "Time", tempo: "Tempo", other: "Change" };
+
+const BAR_LINES: Record<BarLineItem["kind"], string> = {
   double: "Double bar line",
   final: "Final bar line",
   startRepeat: "Start repeat",
