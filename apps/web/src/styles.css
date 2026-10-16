@@ -1274,6 +1274,37 @@ body {
   color: var(--danger);
 }
 
+.settings-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* An amount: "$" and the input, the problem below. */
+.settings-amount {
+  display: grid;
+  grid-template-columns: auto 96px;
+  align-items: center;
+  justify-items: end;
+  gap: 4px 6px;
+}
+
+.settings-amount .field-input {
+  text-align: right;
+}
+
+.settings-currency {
+  color: var(--muted);
+}
+
+.settings-amount .settings-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+}
+
 .page-view .placeholder-note {
   font: 12px var(--mono);
 }
