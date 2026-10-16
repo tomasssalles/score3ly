@@ -252,6 +252,11 @@ export async function putSetting<K extends keyof Settings>(key: K, value: Settin
   return (await checked(response)).json();
 }
 
+// The model configs that aren't deleted, oldest first.
+export async function fetchModelConfigs(): Promise<ModelConfig[]> {
+  return (await checked(await fetch("/api/model-configs"))).json();
+}
+
 export async function fetchModelConfig(id: string): Promise<ModelConfig> {
   return (await checked(await fetch(`/api/model-configs/${id}`))).json();
 }

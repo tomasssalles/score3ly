@@ -1274,6 +1274,67 @@ body {
   color: var(--danger);
 }
 
+.settings-section {
+  margin-top: 32px;
+}
+
+.settings-section h3 {
+  margin: 0 0 12px;
+  font: 600 16px var(--sans);
+}
+
+.model-configs {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.model-config {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+}
+
+.page-view .model-config-name {
+  margin: 0 0 8px;
+  color: var(--fg);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.badge.muted {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.model-config-facts {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr); /* the same in every card */
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.model-config-facts dt {
+  color: var(--muted);
+}
+
+.model-config-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.model-config-facts .mono {
+  font: 12.5px var(--mono);
+}
+
+.model-config-hint {
+  color: var(--muted);
+}
+
 .settings-hint {
   display: block;
   margin-top: 4px;

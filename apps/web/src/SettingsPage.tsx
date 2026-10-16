@@ -1,18 +1,21 @@
-// The settings (DESIGN.md §5.1, §5.8, §10): the user's, stored by the Worker. So far the run mode new projects start
-// with and the spending cap. A pick is saved at once, an amount when it is left or Enter is pressed.
+// The settings (DESIGN.md §5.1, §5.8, §7.2, §10): the user's, stored by the Worker. So far the run mode new projects
+// start with and the spending cap, and the model configs, read-only. A pick is saved at once, an amount when it is
+// left or Enter is pressed.
 
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { fetchSettings, putSetting, type Settings } from "./api";
+import { fetchModelConfigs, fetchSettings, putSetting, type ModelConfig, type Settings } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
 import { ChevronDownIcon } from "./icons";
 import { MODE_LABELS, MODES } from "./pipeline";
 
 export function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [configs, setConfigs] = useState<ModelConfig[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSettings().then(setSettings, () => setError("The settings couldn't be loaded."));
+    fetchModelConfigs().then(setConfigs, () => setError("The model configs couldn't be loaded."));
   }, []);
 
   async function save<K extends keyof Settings>(key: K, value: Settings[K]) {
@@ -63,7 +66,75 @@ export function SettingsPage() {
           </dd>
         </dl>
       )}
+      {settings && configs && <ModelConfigs configs={configs} defaultId={settings.defaultModelConfigId} />}
     </div>
+  );
+}
+
+const PROVIDERS: Record<ModelConfig["provider"], string> = {
+  anthropic: "Anthropic API",
+  "anthropic-vertex": "Claude on Google Vertex AI",
+  "anthropic-bedrock": "Claude on AWS Bedrock",
+  google: "Google Gemini API",
+  fake: "Fake (no network, for tests)",
+};
+
+// The providers' fields by name (the Worker's FIELDS); one it doesn't know is shown as stored.
+const FIELD_LABELS: Record<string, string> = {
+  apiKey: "API key",
+  serviceAccount: "Service account",
+  accessKeyId: "Access key ID",
+  secretAccessKey: "Secret access key",
+  region: "Region",
+  projectId: "Project",
+};
+
+// The model configs (DESIGN.md §7.2), as stored: each with its name (else its model), whether it is the default and
+// on a free tier, its provider, model and effort, its plain values (a region, a project) and its secrets by the name
+// of the Worker secret, never a value.
+function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultId: string | null }) {
+  return (
+    <section className="settings-section">
+      <h3>Model configs</h3>
+      {configs.length === 0 && <p>No model configs yet.</p>}
+      <ul className="model-configs">
+        {configs.map((config) => (
+          <li key={config.id} className="model-config">
+            <p className="model-config-name">
+              {config.name ?? config.model}
+              {config.id === defaultId && <span className="badge">Default</span>}
+              {config.freeTier && <span className="badge muted">Free tier</span>}
+            </p>
+            <dl className="model-config-facts">
+              <dt>Provider</dt>
+              <dd>{PROVIDERS[config.provider] ?? config.provider}</dd>
+              <dt>Model</dt>
+              <dd className="mono">{config.model}</dd>
+              <dt>Effort</dt>
+              <dd>{config.effort ?? "the model's default"}</dd>
+              {Object.entries(config.params).map(([key, value]) => (
+                <Fact key={`p-${key}`} label={key} value={value} />
+              ))}
+              {Object.entries(config.secrets).map(([field, secret]) => (
+                <Fact key={`s-${field}`} label={field} value={secret} hint="Worker secret" />
+              ))}
+            </dl>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Fact({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <>
+      <dt>{FIELD_LABELS[label] ?? label}</dt>
+      <dd>
+        <span className="mono">{value}</span>
+        {hint && <span className="model-config-hint"> ({hint})</span>}
+      </dd>
+    </>
   );
 }
 
