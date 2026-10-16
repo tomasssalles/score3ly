@@ -942,7 +942,7 @@ Three levels; the most specific wins:
   - **Vertex AI:** its global, multi-region (`eu`, `us`) and regional endpoints, their prices, and which models each serves.
   - **Gemini's current models and prices** on Google AI Studio, from Google's own pricing page (third-party pages disagree).
   - **The script that generates the shipped list:** which files or APIs, and how it maps their entries to our rows.
-  - **Prices that change with the prompt's length** (Haiku 5.5 above 100,000 tokens, Gemini Pro above 200,000): not modelled, since our prompts are smaller; to confirm that this stays true.
+  - **Prices that change with the prompt's length** (Haiku 5.5 above 100,000 tokens, Gemini Pro above 200,000): not modelled, since our prompts are believed to be smaller. Stays open until the pipeline is finished and has run on most of the test set with a real model (§15, "Measure the prompt lengths").
   - **Model strings on Vertex AI** (with or without an `@` version) for the current models.
 
 ### 7.3 Known LLM risk: plausible wrong notes
@@ -1323,6 +1323,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Losing an LLM answer that was paid for** when the tab is closed or a phone suspends the page mid-call is **accepted** (decided), even if its cost doesn't reach the records. While this device runs a stage, closing or reloading the tab asks first (built; browsers show their own wording, not ours). Some day, perhaps: the Worker finishes the call and stores the answer on its own (a Durable Object or Workflow), so resuming finds it.
 
 ### Experiments (some day)
+- **Measure the prompt lengths** (when the pipeline is finished): run it on most of the test set with a real model, and get statistics of the prompts' lengths per stage. They decide whether prices that change above a prompt length (Haiku 5.5 above 100,000 tokens, Gemini Pro above 200,000) must be modelled (§7.2, "Supported models, prices and the config form").
 Possible improvements to accuracy or speed, deliberately left out of the first prototype.
 - **Pitch guides,** if extraction turns out painfully slow: faint labelled lines for the staff lines and ledger-line positions (E4, G4, …, C6) drawn on each crop, so the model reads a label instead of judging a pixel height, its biggest time sink in the manual run (§13). It needs the staff lines detected, which is error-prone, and a wrong detection would make the extraction worse.
 - **Printed symbols instead of pitches, for accidentals and 8va** (a proposal, not decided; a big change to the lens, the code and the prompts). The model reports what is printed, and code works out what it means:
