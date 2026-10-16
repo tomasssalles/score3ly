@@ -58,6 +58,9 @@ export type Stage = {
 
 export type Pipeline = { mode: RunMode; stages: Stage[] };
 
+export const MODES: RunMode[] = ["auto", "manual"];
+export const MODE_LABELS: Record<RunMode, string> = { auto: "Auto", manual: "Manual" };
+
 // Fractions from 0 to 1. `stage` is null while no stage is running.
 export type Progress = { stage: number | null; pipeline: number };
 

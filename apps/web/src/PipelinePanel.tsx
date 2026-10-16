@@ -3,7 +3,7 @@ import type { Project } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { ChevronDownIcon, CollapseIcon, MoreIcon, StopIcon } from "./icons";
-import { canRun, currentStage, runningStage, type Pipeline, type Progress, type RunMode } from "./pipeline";
+import { canRun, currentStage, MODE_LABELS, MODES, runningStage, type Pipeline, type Progress, type RunMode } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
 import { RunLabel, StageCard, type StageActions } from "./StageCard";
 import { ago, shortDate } from "./time";
@@ -12,8 +12,6 @@ export type PanelActions = StageActions & {
   setMode: (mode: RunMode) => void;
 };
 
-const MODES: RunMode[] = ["auto", "manual"];
-const MODE_LABELS: Record<RunMode, string> = { auto: "Auto", manual: "Manual" };
 
 // The current project's pipeline: a small head that stays in view (the project, the run mode, the progress and,
 // in Auto mode, Run or Stop), and below it the stages, first to last, which scroll.

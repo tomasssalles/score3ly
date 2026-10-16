@@ -236,10 +236,20 @@ export type ModelConfig = {
   createdAt: string;
 };
 
-export type Settings = { defaultModelConfigId: string | null; spendingCapUsd: number | null };
+export type Settings = { defaultModelConfigId: string | null; spendingCapUsd: number | null; newProjectRunMode: RunMode };
 
 export async function fetchSettings(): Promise<Settings> {
   return (await checked(await fetch("/api/settings"))).json();
+}
+
+// Sets one setting; returns them all.
+export async function putSetting<K extends keyof Settings>(key: K, value: Settings[K]): Promise<Settings> {
+  const response = await fetch(`/api/settings/${key}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  return (await checked(response)).json();
 }
 
 export async function fetchModelConfig(id: string): Promise<ModelConfig> {

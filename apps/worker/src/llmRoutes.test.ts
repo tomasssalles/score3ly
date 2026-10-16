@@ -148,7 +148,7 @@ test("model configs: checked per provider, edited by copy on change, deleted by 
 });
 
 test("settings: checked, with defaults", async () => {
-  assert.deepEqual(await json(await app.request("/api/settings", {}, env)), { defaultModelConfigId: null, spendingCapUsd: null });
+  assert.deepEqual(await json(await app.request("/api/settings", {}, env)), { defaultModelConfigId: null, spendingCapUsd: null, newProjectRunMode: "auto" });
   assert.equal((await send("/api/settings/spendingCapUsd", { value: -1 }, "PUT")).status, 400);
   assert.equal((await send("/api/settings/nothing", { value: 1 }, "PUT")).status, 400);
   assert.equal((await send("/api/settings/defaultModelConfigId", { value: "missing" }, "PUT")).status, 404);

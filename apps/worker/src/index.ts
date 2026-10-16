@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
-import { llmRoutes } from "./llmRoutes.ts";
+import { llmRoutes, readSettings } from "./llmRoutes.ts";
 import { newPipeline, pipelineRoutes } from "./pipeline.ts";
 
 export type Project = {
@@ -185,6 +185,7 @@ app.post("/api/projects", async (c) => {
 
   const now = new Date().toISOString();
   const base = defaultName(filename);
+  const { newProjectRunMode } = await readSettings(c.env.DB);
   // Another project may take the chosen name between the lookup and the insert: then look again.
   for (let attempt = 0; ; attempt++) {
     const project: Project = {
@@ -195,7 +196,7 @@ app.post("/api/projects", async (c) => {
       createdAt: now,
       lastModifiedAt: now,
       lastOpenedAt: now,
-      runMode: "auto",
+      runMode: newProjectRunMode,
     };
     const db = c.env.DB;
     try {

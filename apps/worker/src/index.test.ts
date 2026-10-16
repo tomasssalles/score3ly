@@ -317,6 +317,20 @@ test("the run mode can be changed, and nothing else in the same request is requi
   assert.equal((await patch({})).status, 400);
 });
 
+test("a new project starts in the run mode the settings say", async () => {
+  const setMode = (value: unknown) =>
+    app.request(
+      "/api/settings/newProjectRunMode",
+      { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value }) },
+      env,
+    );
+  assert.equal((await setMode("sometimes")).status, 400);
+  assert.equal((await setMode("manual")).status, 200);
+  assert.equal((await createdProject("manual.pdf")).runMode, "manual");
+  await setMode("auto");
+  assert.equal((await createdProject("auto.pdf")).runMode, "auto");
+});
+
 test("names only have to be unique among projects that aren't deleted", async () => {
   const insert = (id: string, name: string, deletedAt: string | null) =>
     env.DB.prepare(

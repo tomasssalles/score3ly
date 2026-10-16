@@ -67,11 +67,12 @@ function toModelConfig(row: ModelConfigRow): ModelConfig {
 export type Settings = {
   defaultModelConfigId: string | null; // the model config of LLM stages unless one is chosen for the stage (§7.2)
   spendingCapUsd: number | null; // at most this much within any 24 hours; required for configs that aren't free (§10)
+  newProjectRunMode: "auto" | "manual"; // the run mode a new project starts with (§5.1)
 };
 
-const DEFAULT_SETTINGS: Settings = { defaultModelConfigId: null, spendingCapUsd: null };
+const DEFAULT_SETTINGS: Settings = { defaultModelConfigId: null, spendingCapUsd: null, newProjectRunMode: "auto" };
 
-async function readSettings(db: D1Database): Promise<Settings> {
+export async function readSettings(db: D1Database): Promise<Settings> {
   const { results } = await db.prepare("SELECT key, value_json FROM settings").all<{ key: string; value_json: string }>();
   const stored = Object.fromEntries(results.map((r) => [r.key, JSON.parse(r.value_json)]));
   return { ...DEFAULT_SETTINGS, ...Object.fromEntries(Object.keys(DEFAULT_SETTINGS).filter((k) => k in stored).map((k) => [k, stored[k]])) };
@@ -84,6 +85,7 @@ function settingProblem(key: string, value: unknown): string | null {
       ? null
       : "expected an amount in US dollars above 0, or null";
   }
+  if (key === "newProjectRunMode") return value === "auto" || value === "manual" ? null : "expected 'auto' or 'manual'";
   return "no such setting";
 }
 

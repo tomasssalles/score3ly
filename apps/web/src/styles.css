@@ -1227,6 +1227,8 @@ body {
 
 /* Pages from the menu */
 .page-view {
+  flex: 1; /* the whole height, so that a menu opened near the top isn't cut off */
+  min-height: 0;
   width: 100%;
   max-width: 680px;
   box-sizing: border-box;
@@ -1243,6 +1245,33 @@ body {
 .page-view p {
   margin: 0 0 10px;
   color: var(--muted);
+}
+
+/* Settings: a label and its control per row. */
+.settings-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 12px 24px;
+  margin: 12px 0 0;
+}
+
+.settings-list dt {
+  font-size: 14px;
+}
+
+.settings-list dd {
+  margin: 0;
+}
+
+/* The controls are at the right edge: their menus open leftwards. */
+.settings-list .mode-picker .dropdown-list {
+  left: auto;
+  right: 0;
+}
+
+.page-view .settings-error {
+  color: var(--danger);
 }
 
 .page-view .placeholder-note {
