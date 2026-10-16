@@ -1261,6 +1261,7 @@ body {
 }
 
 .settings-list dd {
+  justify-self: end; /* every control flush right */
   margin: 0;
 }
 
@@ -1346,7 +1347,7 @@ body {
 /* An amount: "$" and the input, the problem below. */
 .settings-amount {
   display: grid;
-  grid-template-columns: auto 96px;
+  grid-template-columns: auto calc(6.5ch + 18px); /* "999.00", with the padding and the border */
   align-items: center;
   justify-items: end;
   gap: 4px 6px;

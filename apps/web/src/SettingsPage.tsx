@@ -172,7 +172,7 @@ function SpendingCap({ value, onSave }: { value: number | null; onSave: (usd: nu
         className="field-input"
         inputMode="decimal"
         value={text}
-        placeholder="Not set"
+        placeholder="–"
         aria-label="Spending cap in US dollars per 24 hours"
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
