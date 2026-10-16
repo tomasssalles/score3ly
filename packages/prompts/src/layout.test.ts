@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkLayoutAnswer, LAYOUT_ROUNDS, layoutCheck } from "./layout.ts";
+import { checkLayoutAnswer, LAYOUT_ROUNDS, LAYOUT_SYSTEM, layoutCheck } from "./layout.ts";
 
 const system = (fields = {}) => ({ left: 0.05, right: 0.95, top: 0.1, bottom: 0.3, barLines: [0.9, 0.3, 0.6], ...fields });
 const answer = (systems: unknown[]) => ({ severelySkewed: false, systems, satisfied: true, note: "" });
@@ -23,4 +23,12 @@ test("boxes outside the page, the wrong way round, or bar lines outside their bo
 test("only the last check asks for a note on what is still wrong", () => {
   assert.doesNotMatch(layoutCheck(2), /last check/);
   assert.match(layoutCheck(LAYOUT_ROUNDS), /last check/);
+});
+
+test("the boxes are tight, and the bar lines are the inner ones only", () => {
+  assert.match(LAYOUT_SYSTEM, /tight around everything/);
+  assert.match(LAYOUT_SYSTEM, /Don't add a margin/);
+  assert.match(LAYOUT_SYSTEM, /not the one at its very end/);
+  assert.doesNotMatch(LAYOUT_SYSTEM, /including the one at the very end/);
+  assert.match(layoutCheck(2), /none drawn at the system's start or end/);
 });

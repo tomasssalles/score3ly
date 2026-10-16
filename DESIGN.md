@@ -1241,7 +1241,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 
 ### Decisions
 - **Verify the prompt and schema of `layout`** (the project owner; `packages/prompts/src/layout.ts`): the texts, the rounds, what counts as a bar line and what a box must hold, before the first real runs.
-- **Tight boxes and inner bar lines in `layout`** (§6): the prompt (boxes tight around the system, its symbols and labels; the bar lines inside it, not at its start or end), the check rounds, `fix_layout`'s hint, margins for the crops in code; places with start and end of system and stretches in `analyze`'s drawing, prompt, schema and checks.
+- **Tight boxes and inner bar lines** (§6; `layout`'s prompt and check rounds done, prompt version 3): `fix_layout`'s hint, margins for the crops in code; places with start and end of system and stretches in `analyze`'s drawing, prompt, schema and checks.
 - **Rework `analyze`'s observations** (§6): a confidence on every observation item, ids, spanning items open at page edges, "staff k/n" where it matters, the whole-score call answering with corrections, removals, additions and the score-wide items, code applying them into one observations document, no repeat items, and the view to match.
 - **Confirming in `fix_metadata`** (§6): Confirm and Unconfirm in "⋮", `confirmed` stored beside the confidence, Finish confirming nothing, the card's "2 changed · 5 confirmed".
 - **Build `fix_observations`** (§6), after the rework of the observations: the form, places by pickers, adding and removing staves above or below.
