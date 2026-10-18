@@ -49,14 +49,15 @@ v1 was Python-only, local-only and command-line-only.
 **Where v2 starts from:** experience from other projects shows that current vision LLMs read difficult material very well, at a cost of cents per call.
 
 ### Scope
-- **Focus:** classical piano scores. This is hard enough already, because it involves:
+- **The scope is as much printed music as possible,** ideally most of it, never limited to one genre or instrumentation. We will probably never support all music, but that is what we strive for.
+- **The first priority:** classical piano scores, the project owner's background, where the knowledge and the examples come from. This is hard enough already, because it involves:
   - multiple voices per staff
   - the staff count changing mid-piece (e.g. 3 staves in a passage, 2 elsewhere)
   - lyrics below systems
   - editorial notes, ossia and alternative versions
   - a reduction staff for an orchestral part
   - two-piano double systems
-- **Also possible:** other instrumentations are not excluded, but they are not optimized for initially.
+- **Everything else is in scope too,** prioritized after it, not excluded: other instrumentations, lead sheets, Baroque continuo, popular music.
 - **Possible later: image input (PNG, JPEG)** in addition to PDFs. It is almost no extra work: an image is a page image, so it skips PDF extraction and joins the same pipeline at `rasterize` (§6), with JPEGs going through the same bundled decoder (§8.1).
 
 ### Goals
@@ -1320,6 +1321,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Nested tuplets** (a later version): a tuplet inside a tuplet, e.g. a triplet inside a quintuplet. Rare outside complex modern music; until then the parser rejects them, and the model raises an issue.
 - **Beams across bar lines** (a later version, `beamSpan`): MEI's `<beam>` is a container inside a voice in one measure, so a beam reaching into the next measure needs `<beamSpan>`, written at the measure level and pointing to its first and last notes (`@startid`, `@endid`, the list of notes). Beam grouping is musical, beams across bar lines included (§6, "Musical content and typesetting"), but MEI Basic excludes `beamSpan`, so it would be a deliberate step beyond it (§6, "MEI"). Cross-staff beams need no span: the notes stay in their voice and point to the other staff (`@staff`). Until then such a beam is split at the bar line.
 - **Tuplets across bar lines** (a later version, `tupletSpan`): the same for tuplets, `<tuplet>` being a container in one measure; `<tupletSpan>` is also excluded from MEI Basic.
+- **Chord symbols and figured bass** (a later version): letters above the staff naming the harmony (`C`, `Am7`, `G/B`), typical of lead sheets (a melody plus chord symbols: jazz, pop songbooks), and numbers and accidentals under a bass line (`6`, `6/4`, `7`, `♯`) for the continuo player of Baroque music to fill in the chords. MEI has `<harm>` for both (figured bass structured inside it as `<fb>` with `<f>`), and it is in MEI Basic. LilyPond writes them in contexts of their own (`\chordmode`, `\figuremode`), the same kind of construct as lyrics.
 - **Alternative versions of passages** (a later version): transcribing every alternative the page gives for a passage, e.g. an ossia (an easier version, one for a smaller keyboard, an editor's reading, usually on a small extra staff above a few measures, sometimes in small notes in the main staff; common in virtuoso piano music such as Liszt's), with the text that explains it where there is one, attached to it. **Transcribing and encoding every alternative is musical content; how one is shown is typesetting** (an extra staff, small notes, a footnote) and outside our scope. So:
   - **the lens's JSON schema, `extract` and `review`** get a way to write alternatives for a passage, with their texts;
   - **both stages get crops of the original showing the alternatives,** and `review` gets a rendering of each version on its own, never mixed;
