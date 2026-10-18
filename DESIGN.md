@@ -822,8 +822,11 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 
 **Decided elsewhere in the lens:** key signatures are in the JSON, never inside a string: key changes come at the start of a stretch, and code needs them to resolve accidentals. They are written as MEI does, the printed symbols only (`"0"`, `"1s"`, `"4f"`), with no mode: G major and E minor have the same signature, and the mode isn't printed. Texts are written by `extract` where they are, in the strings; `analyze`'s directions ("rit.", "dolce") are only context.
 
-**Open, to settle before the JSON schema:**
-- **How the prompt describes the format:** what is in (every token and rule, with references to LilyPond) or what is out (standard LilyPond, minus what we removed, restricted or changed). Drafts of both are compared for length and complexity; that also settles the exact token lists (dynamics, articulations, ornaments, glissando, trill extensions), each weighed against the prompt's length.
+**How the prompt describes the format** (decided): **what is in,** every token and rule, with references to LilyPond to keep it short, under one opening line, "LilyPond with these differences". Drafted both ways: "what is in" took about 520 words, "what is out" (standard LilyPond minus what we removed, restricted or changed) about 320, but its list of what is not allowed never ends (LilyPond is huge, and the draft still missed things a model could write, e.g. `\harmonic`, `\xNote`, `\slashedGrace`), and the parser accepts a closed list anyway: the model would find out what is allowed by having answers rejected, and a rejected answer stops the run. A list of what to use is also easier to keep in mind late in a long context than prohibitions, doubles as the checklist of what to look for on the page, and is the parser's own spec, so it can be generated from the code and never drift from the parser. Its length is mostly LilyPond names the model already knows.
+
+**Still open:**
+- **The exact token list,** reviewed by the project owner: the draft's (the lists above, plus `\glissando`, `\startTrillSpan`, `\stopTrillSpan`), each weighed against the prompt's length.
+- **To verify with LilyPond itself** (not installed in the cloud session): that labelled slurs are accepted on single notes inside a chord (`< c'\=1( e'\=2( >4`), needed for one curve per chord note; and, against an engraving reference, the convention for an accidental after a clef change in the middle of a measure (above).
 
 #### Zooming in
 **Zoom crops on request, without tool calls** (decided, for a later version: the first version has none), for `extract`, `review` and probably `apply_review`:
