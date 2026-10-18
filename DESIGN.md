@@ -824,9 +824,49 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 
 **How the prompt describes the format** (decided): **what is in,** every token and rule, with references to LilyPond to keep it short, under one opening line, "LilyPond with these differences". Drafted both ways: "what is in" took about 520 words, "what is out" (standard LilyPond minus what we removed, restricted or changed) about 320, but its list of what is not allowed never ends (LilyPond is huge, and the draft still missed things a model could write, e.g. `\harmonic`, `\xNote`, `\slashedGrace`), and the parser accepts a closed list anyway: the model would find out what is allowed by having answers rejected, and a rejected answer stops the run. A list of what to use is also easier to keep in mind late in a long context than prohibitions, doubles as the checklist of what to look for on the page, and is the parser's own spec, so it can be generated from the code and never drift from the parser. Its length is mostly LilyPond names the model already knows.
 
-**Still open:**
-- **The exact token list,** reviewed by the project owner: the draft's (the lists above, plus `\glissando`, `\startTrillSpan`, `\stopTrillSpan`), each weighed against the prompt's length.
-- **To verify with LilyPond itself** (not installed in the cloud session): that labelled slurs are accepted on single notes inside a chord (`< c'\=1( e'\=2( >4`), needed for one curve per chord note; and, against an engraving reference, the convention for an accidental after a clef change in the middle of a measure (above).
+**The token list** (decided): the draft below, with breath marks and caesuras added, and nothing that is a task for a later version (lyrics, nested tuplets, alternatives, beams and tuplets across bar lines, chord symbols and figured bass, repeat signs, harp pedals). What is missing shows up in format issues and the format gap report. **Labelled slurs on single notes inside a chord** (`< c' \=1( e' \=2( >4`, one curve per chord note) are part of it: whether LilyPond itself compiles them doesn't matter, since we never build LilyPond; the lens only borrows its notation, and the form is close enough to LilyPond's to be natural for a model.
+
+**The prompt's description, as drafted** (the wording is settled when `extract`'s prompt is written; the list is generated from the parser's code then):
+
+```markdown
+## The music of a voice
+
+Each voice of each stretch is one string: LilyPond with these differences. Write only what is listed here: the parser rejects anything else. Separate every token with a space, also a note from its marks (`c'4 -. \=1(`). Quoted text is one token, spaces included.
+
+### Notes, rests, chords
+- **Note:** letter, octave, duration: `g'4.`. Octaves are absolute (LilyPond's absolute mode): `c'` is middle C, `c''` the C above, `c` the C below, `c,` the one below that. Name the note from its place on the staff and the current clef.
+- **Accidentals are printed symbols, never part of the name** (no `fis`, `bes`). Write each printed accidental as a token right before its note: `\sharp`, `\flat`, `\natural`, `\doublesharp`, `\doubleflat`. Write exactly the accidentals printed, courtesy ones included (without their parentheses), and none that aren't: a G that sounds G♭ because of the key signature or an earlier accidental is written `g`. Code works out the sounding pitch.
+- **Durations:** `1 2 4 8 16 32 64 128 \breve`, with dots. Every note and rest has its own; never leave one out.
+- **Rests:** `r4` printed, `s4` invisible (the voice has nothing there and no rest is printed). A whole-measure rest has the measure's duration (`R1` in 4/4, `R2.` in 3/4); a multi-measure rest adds the count (`R1*12`).
+- **Chords:** `< c' \flat e' g' >4`, the duration after `>`. Inside the brackets, after a note, only that note's own marks: its fingering and its curves (`< c' \=1( e' \=2( >4`).
+
+### Marks, after the note, rest or chord they belong to
+- **Curves:** every tie, slur and phrasing slur is a curve, `\=N(` where it starts and `\=N)` where it ends. Number the curves open at the same time from 1, top to bottom. Never `~`, `(` or `\(`.
+- **Articulations:** `-.` `-!` `->` `-^` `--` `-_` `\fermata`
+- **Ornaments:** `\trill` `\mordent` `\prall` `\turn`; a trill line `\startTrillSpan` … `\stopTrillSpan`
+- **Other:** `\arpeggio` `\glissando` `\laissezVibrer` (a tie to nothing)
+- **Fingering:** `-1` to `-5`
+- **Dynamics:** `\ppp` … `\fff`, `\sf` `\sfz` `\fz` `\fp` `\sfp` `\rfz`; hairpins `\<` `\>`, ended by `\!` or the next dynamic
+- **Beams:** `[` after the first note, `]` after the last
+- **Tremolo on one note:** on its duration, `c'4:32`
+- **Pedal:** `\sustainOn` `\sustainOff` `\unaCorda` `\treCorde`
+- **Pauses:** `\breathe` (a breath mark), `\caesura` (a full stop of the music, //)
+- **Text:** `^"dolce"` above, `_"rit."` below, `-"…"` either
+
+### Commands, before the notes they apply to
+- `\clef treble`, `bass`, `alto`, `tenor`, `"treble_8"`, `"bass_8"`
+- `\ottava #1` (8va), `#-1` (8vb), `#2` (15ma), `#-2` (15mb); `\ottava #0` ends it. Write the notes where they are printed under the line; code transposes them.
+- `\change Staff = "3"`: the following notes are on staff 3 (the staff's number in the score), until the next change.
+- `\stemUp` `\stemDown` `\stemNeutral`, only where the stem direction separates voices or hands.
+- `\tuplet 3/2 { … }` (not nested), `\repeat tremolo 4 { c'16 e'16 }` (two alternating notes)
+- `\grace`, `\acciaccatura`, `\appoggiatura`, before one note or `{ … }`
+
+**Clef, ottava, pedal, breath marks and caesuras belong to the staff:** write them in the voice they are printed at, right before or after the note where they are; they apply to every voice on that staff (a caesura to every staff).
+
+**If something printed can't be written with these tokens,** write your best workaround and raise a format issue.
+```
+
+**Still open:** the convention for an accidental after a clef change in the middle of a measure (above): whether it still applies to the rest of the measure.
 
 #### Zooming in
 **Zoom crops on request, without tool calls** (decided, for a later version: the first version has none), for `extract`, `review` and probably `apply_review`:
