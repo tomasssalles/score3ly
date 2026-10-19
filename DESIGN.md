@@ -1502,6 +1502,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **The image cache's size limit and LRU eviction,** and `navigator.storage.persist()` (§8.5, §8.6).
 - **Google Drive** (§3, §10): picking source PDFs with the Picker, and exporting to an app-created folder.
 - **Try regeneration on a second device** (§5.3): a project run on one device, continued on another whose image cache is empty.
+- **Try the editors with touch and on a real phone:** `fix_layout` hasn't been tried with touch at all, `fix_skew` only through Chromium's emulation of touch at phone size.
 - **Store the fingerprints** (§8.3) of the images sent to a model or worked on by a person (`layout`, `analyze`, the editors), in `image_fingerprints` (migration 0003; nothing writes to it), and check a regenerated image against them.
 - **Optimistic locking** (§4): `projects.version` exists, but no request checks it yet. Two devices running or changing the same pipeline at once aren't guarded against, except that a running stage can't be started again.
 - **Images for the LLMs,** what is left. They are PNGs from our own encoder (`packages/imaging/src/png.ts`), so the bytes and the request hash (§12) are the same everywhere, and shrunk by our own code to Claude's limits (`packages/imaging/src/scale.ts`; 2576 px on the long edge, 4784 visual tokens):
