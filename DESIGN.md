@@ -1591,7 +1591,11 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [ ] `human_review`
 
 **With real models and scores**
-- [ ] Verify the prompts of `layout` and `analyze`
+- [ ] Check the prompt and the response schema of `layout`
+- [ ] Check the prompt and the response schema of `analyze`
+- [ ] Check the prompt and the response schema of `extract`
+- [ ] Check the prompt and the response schema of `review`
+- [ ] Check the prompt and the response schema of `apply_review`
 - [ ] Run the pipeline with a real LLM
 - [ ] The first fixture, and replay tests (§12)
 - [ ] Results on the test set, compared with the baselines in the viewer (§13)
