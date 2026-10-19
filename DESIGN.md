@@ -1,6 +1,6 @@
 # Design Document — Score-to-MEI Pipeline (v2)
 
-> Status: draft. The early assessment (§16 steps 1–4) is done and the app is being built from the outside inwards (§16 step 6): projects, the project picker and the project view exist and run locally; the pipeline panel shows the real stages from D1 (§5.8), of which only Ingest exists yet. This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. Concrete **tasks**, including the decisions still to be made, are collected in §15.
+> Status: draft. Progress is tracked in one place, the checklist of the first release (§16, "The first release"). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. Concrete **tasks**, including the decisions still to be made, are collected in §15.
 
 ## 1. What this app is
 
@@ -140,8 +140,8 @@ flowchart LR
 packages/
   core/      Pipeline engine, stage outputs and artifacts, step definitions, config schemas.
              Pure TypeScript, no DOM and no Cloudflare APIs.
-  imaging/   Page images from PDFs, deterministic image operations, fingerprints. Pure TS/WASM.
-             (Exists: page images, skew detection, rotation. The other packages don't exist yet.)
+  imaging/   Page images from PDFs, deterministic image operations (skew, rotation, scaling, crops, PNG),
+             fingerprints. Pure TS/WASM.
   notation/  Lens parser and checks, measure building from stretches,
              MEI builder (the frame from the structure and metadata, the music from the lens).
   prompts/   Versioned prompt templates and their output schemas.
@@ -153,6 +153,8 @@ fixtures/    Recorded test projects (§12).
 testset/     Evaluation test set (§13): inputs, their strokes and .ly/.musicxml candidates committed, rest ignored.
 DESIGN.md
 ```
+
+The Worker's entry module (`apps/worker/src/index.ts`) may only export handlers: the Workers runtime refuses to start otherwise, and the tests (which import the module directly) don't notice. Helpers live in their own modules (e.g. `names.ts`).
 
 ### Ports and adapters
 
@@ -201,7 +203,7 @@ The project owner uses the web app. The desktop version mainly makes the app eas
 - **Builds for three platforms** (GitHub Actions) and updates (e.g. electron-updater from GitHub Releases).
 - **Migrations on users' machines,** run at startup.
 
-**When:** after the first vertical slice works (§16 step 6). Until then, only the rule above has to hold, and the current code follows it.
+**When:** after the first release (§16, "The first release"). Until then, only the rule above has to hold, and the current code follows it.
 
 ## 4. Identity and projects
 
@@ -357,7 +359,13 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
   - when a project is opened: the latest stage's main artifact.
 
   Whether the view follows the pipeline while it runs is still to be decided (§15).
-- **Built so far:** the pipeline panel as described below, showing the project's real stages (`GET /api/projects/<id>/pipeline`, §5.8). Ingest, `rasterize` and `skew_analysis` exist (§6): creating a project adds Ingest, done, with the PDF as its output, and the others, planned; migrations 0004, 0006 and 0007 added them to the projects created before. A step's config form is declared with the step (`steps.ts`) and shown by one dialog for all steps (`ConfigDialog.tsx`). **A config is checked when it is saved** (decided), before the confirmation that stages will be replaced, against the PDF too (a page selection beyond its last page): a stage must never be replaced by one that can't run, since the old config is then lost. Only if the PDF can't be opened on the device is the page count left unchecked until the stage runs. What the code declares about each step (title, kind, how its outputs become artifacts) is in `apps/web/src/steps.ts`; `pipeline.ts` turns the stored stages into what the panel shows; `runners.ts` lists the steps that can run. Running a stage works as described here: Run (and Retry), Stop, progress, Auto mode carrying on to the next stage, "Change config" with its dialog and the confirmation when stages that ran are replaced. Manual stages can be added, finished, edited and dropped (below, and §5.8); `fix_skew` is the first. The run mode is stored with the project (`PATCH /api/projects/<id>` with `runMode`). The original PDF is shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`. Later: editing in the artifact view.
+- **How it is built:** the pipeline panel shows the project's stages (`GET /api/projects/<id>/pipeline`, §5.8). Creating a project adds Ingest, done, with the PDF as its output, and the recipe's other stages, planned; a migration adds a new recipe stage, planned, to the projects created before. A step's config form is declared with the step (`steps.ts`) and shown by one dialog for all steps (`ConfigDialog.tsx`). **A config is checked when it is saved** (decided), before the confirmation that stages will be replaced, against the PDF too (a page selection beyond its last page): a stage must never be replaced by one that can't run, since the old config is then lost. Only if the PDF can't be opened on the device is the page count left unchecked until the stage runs. What the code declares about each step (title, kind, how its outputs become artifacts) is in `apps/web/src/steps.ts`; `pipeline.ts` turns the stored stages into what the panel shows; `runners.ts` lists the steps that can run. Running a stage works as described here: Run (and Retry), Stop, progress, Auto mode carrying on to the next stage, "Change config" with its dialog and the confirmation when stages that ran are replaced. Manual stages can be added, finished, edited and dropped (below, and §5.8). The run mode is stored with the project (`PATCH /api/projects/<id>` with `runMode`). The original PDF is shown with pdf.js (its legacy build: the modern one needs browser features many phones don't have yet). The Worker serves the PDF at `GET /api/pdfs/<sha256>/file`.
+
+#### The header
+- **Narrow screens** show the wordmark and "+ New project" on one row and the project picker on its own row below. From 1024 px, everything is on one row, with the picker in the middle.
+- **New project:** the button picks a PDF (a local file; Drive later), and the browser hashes it. Its hash is looked up first (`GET /api/pdfs/<sha256>?filename=...`, which returns the PDF's projects, most recently opened first, and the name a new project would get). An unknown PDF is uploaded and gets a project right away, in one request (`POST /api/projects`) that stores it in R2 and adds the project to D1 with the default name (§4). A known PDF opens a dialog that lists its projects to open one, with "+ New project" as the last item, showing the name the new project would get; that project is created without uploading the file again (`POST /api/projects` with the `filename` instead of the `pdf`).
+- **The open project is part of the URL** (`#/projects/<id>`), so it survives a reload, each tab has its own, and the back button and bookmarks work. Any other URL means no project is open, which is how a fresh tab or device starts. "Last opened" (§4) is shared by all devices and only sorts the list: a project created or opened elsewhere never changes what this tab shows.
+- **The project picker** shows the open project's name, or "Open a project". Opening it turns the name into a filter field over all projects (name, how long ago it was opened, PDF file name), most recently opened first (`GET /api/projects`), fetched when the app loads. Picking a project opens it and marks it as opened (`POST /api/projects/<id>/opened`); creating a project opens it too. Loading a URL or going back doesn't mark the project as opened.
 
 #### The pipeline panel
 - **A small head stays in view,** and only what is below it scrolls: the project's name (one line, shortened in the middle) with its "⋮" and the collapse chevron, then the **run mode** (a small drop-down showing "Auto" or "Manual", §5.1, which takes less room than a switch), the pipeline's progress bar and, in Auto mode only, **Run** (green) or **Stop** (red) while a stage runs, and, when something went wrong that isn't a stage's own failure (a stage that can't start, a request that failed), the error: in the head, so the list scrolling to the current stage doesn't take it out of view. Below the head, scrolling away: when the project was created and changed.
@@ -383,9 +391,9 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 - **Groups are shown as a filmstrip:** the items one below the other with a small gap, scrolling continuously, with a counter in a corner ("12 / 54"). That way the end of one system and the start of the next are on screen together, which helps when checking musical content. `extract` shows each system's crop with its music below it.
 - **Auto-scroll:** the list scrolls to the current stage (the first that isn't done) when the project is opened, when an Auto run starts, and whenever another stage gets its turn, in both modes: as an Auto run moves on, and in Manual mode when a stage finishes and the next one becomes ready. The stage is brought to about the middle of the view, or as far up as the list goes when few stages follow it.
 
-- **The menu** (☰, at the far right of the header, after "+ New project") leads to the app's own pages: Statistics (including costs, §10), Settings, Help and About, in three groups separated by lines (what you look at, what you change, help). Each page has its own URL (`#/stats`, `#/settings`, `#/help`, `#/about`) and replaces the project view while it is open, so the back button returns to the project. Statistics and Help are placeholders for now (§15); Settings has its first item (below, §15). Help will not be a page of its own: it will lead to a user guide, a Markdown file in the repository on GitHub. Anything urgent (the spending cap reached, a missing key) must not hide in the menu: it is shown where the user is.
+- **The menu** (☰, at the far right of the header, after "+ New project") leads to the app's own pages: Statistics (including costs, §10), Settings, Help and About, in three groups separated by lines (what you look at, what you change, help). Each page has its own URL (`#/stats`, `#/settings`, `#/help`, `#/about`) and replaces the project view while it is open, so the back button returns to the project. Help will not be a page of its own: it will lead to a user guide, a Markdown file in the repository on GitHub. Anything urgent (the spending cap reached, a missing key) must not hide in the menu: it is shown where the user is.
 - **The settings page has a "Developer" section** (decided) with a button that downloads **the format gap report:** one file (e.g. a zip) built in the browser, so that access to D1 and R2 is the app's own. It goes through every project not deleted, reads the latest list of issues in its pipeline where there is one, and keeps the format issues. Nothing extra is stored for it, no table and no images: the crops are rebuilt from their recipes on demand, as for every other issue. Per issue: the crop with its boxes, the whole page image, the issue itself, the project's name, the PDF's name, the metadata, and the stage that raised it (step and version, model config, the prompt's and the lens's versions, the call). The script that groups and counts them for analysis works on that file.
-- **Project actions:** a "⋮" button next to the project's name in the pipeline panel opens a menu of things to do with the project: "Rename", then a line, then "Delete project" in red (`--danger`, kept apart from the coral accent). Deleting isn't built yet (§15): picking it only closes the menu.
+- **Project actions:** a "⋮" button next to the project's name in the pipeline panel opens a menu of things to do with the project: "Rename", then a line, then "Delete project" in red (`--danger`, kept apart from the coral accent).
   - **Rename** opens a dialog with the name selected. "Rename" stays disabled while the name is empty (after trimming) or unchanged; a name over 200 characters gets a message right away. A name another project has (ignoring case) is refused by the Worker (409) with "A project with that name already exists. Names must be unique (case-insensitive).", and the dialog stays open. The field has no visible label (the dialog's title says it all), only one for screen readers. Both menus share one component (`DropdownMenu`).
 - **The About page:** the wordmark (centered), what the app does ("A music transcription tool, driven by vision LLMs, that converts printed scores into MEI, an open, XML-based standard for encoding music notation."), its version (§11), the author (Tomás Silveira Salles), a link to the repository on GitHub, and the license. There is no license yet (§15), so all rights are reserved, and the page says so: the code can be read on GitHub but not copied, changed or shared.
 - **Leaving a project loses nothing,** whether for a page from the menu, another project or a closed tab, because manual work is saved as it happens (§5.4). Once editing exists, changes not saved yet are saved or confirmed before the project view goes away.
@@ -597,7 +605,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
   - **Saving** (decided): when a field leaves edit mode and when the form is closed, not while typing.
   - **Outputs:** item `''`, type `metadata`, in `analyze`'s format plus the comments (`comments`), with pages that may be empty, each entry with its confidence and whether it is confirmed, empty items dropped, its parent `analyze`'s metadata output; and item `''`, type `pieces`, derived from it as in `analyze`. The card's result: "2 changed · 5 confirmed", or "no changes". The count compares the two lists without knowing which field became which: an added, an edited and a removed field each count once, but a field removed and another added count as one edit.
   - **Confirming, built:** each item stores the model's `confidence` (null for what the user added) and `confirmed`; `analyze`'s metadata has no `confirmed` and reads as unconfirmed. The "⋮" has Edit, Confirm or Unconfirm (disabled on a field the user added: there is no confidence to go back to) and Remove; confirming saves at once. An edit left unchanged confirms nothing. Finish records the metadata as it is. The card: "2 changed · 5 confirmed", "5 confirmed" or "no changes" (confirming isn't a change). Tried in Chromium at both widths.
-  - **Built** (`apps/web/src/fixMetadata.ts`, `MetadataView.tsx`, `finishFixMetadata.ts`): the form and the read-only view are one component, which `analyze`'s Metadata artifact uses too. Tried in Chromium at both widths, on metadata made up for the test: adding (a piece at a system that doesn't exist is refused), editing (a composer made an arranger moves to Arrangement), removing, an edit left as it was keeping the model's confidence, editing in the strip over the pages, a comment being typed saved when the form closes, Finish. Not yet: putting the second of `fix_metadata` and `fix_observations` right after the first, since `fix_observations` doesn't exist.
+  - **Built** (`apps/web/src/fixMetadata.ts`, `MetadataView.tsx`, `finishFixMetadata.ts`): the form and the read-only view are one component, which `analyze`'s Metadata artifact uses too. Tried in Chromium at both widths, on metadata made up for the test: adding (a piece at a system that doesn't exist is refused), editing (a composer made an arranger moves to Arrangement), removing, an edit left as it was keeping the model's confidence, editing in the strip over the pages, a comment being typed saved when the form closes, Finish.
 - **`fix_layout`.** The system boxes and the positions of the bar lines, nothing else (the rest is content, above). A page's systems can be removed altogether, or drawn on a page where `layout` found none. It works like `fix_skew`'s editor wherever it can (decided): the same zoom and pan (pinch, two fingers, Ctrl + wheel, the buttons, one finger dragging), the page arrows and "Page 3/10", saving each change at once, undo and redo per page, an output for every page on Finish, and it can't be added twice after the same stage.
   - **The page shown** is the page straightened as `layout` straightened it (its stored angle): the boxes and bar lines are fractions of that image.
   - **Boxes:** each has its own colour, cycling through 7 that colour-blind people can tell apart (e.g. Okabe–Ito without its black), and a small label in its colour at a corner. One box is selected: opaque, thicker, with handles at its corners and the middles of its edges; the others are dimmed but visible, since the overlap with the neighbouring systems is what the user is checking. Outlines only, no fill, which would hide the music. Tapping a box selects it; tapping again where boxes overlap selects the next one under that point; tapping a label always works.
@@ -1478,11 +1486,10 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Pick an icon for each kind of artifact** (§5.6), once the list of stages is final and the kinds of artifact are known (image artifacts: the usual image icon, decided, as on `rasterize`'s card), and remove the thumbnail from the original PDF's tile (`PdfThumb.tsx`).
 - **Build the stages** one by one, with the Worker endpoints each needs, added as they are needed rather than planned ahead (decided). A form for "Change config" comes with them. The details in §5.6 are provisional until the possible stages are defined, and are settled then: what exactly a card shows, the icons, the fields of the details view, and which manual stages can be added where.
 - **Statistics page:** the costs view and the statistics (§10). Now a placeholder text.
-- **Settings page:** the model configs, the default config and the configs per kind of work (§7.2), the spending cap and the free-tier mark for model configs (§10). Built so far: the run mode for new projects (§5.1) and the spending cap (§10), one row per setting, its label (with a short hint where needed) left and its control right; below them "Model configs", read-only: a card per config with its name (else its model), badges for the default and free tier, its provider, model and effort, its plain values and its secrets by the Worker secret's name. Not yet: adding, editing and deleting configs, choosing the default, the free-tier mark.
+- **Settings page, the model configs** (§7.2, §10): adding, editing and deleting configs, choosing the default, the configs per kind of work, the free-tier mark. Today the page has one row per setting (the run mode for new projects, the spending cap), its label (with a short hint where needed) left and its control right, and below them "Model configs", read-only: a card per config with its name (else its model), badges for the default and free tier, its provider, model and effort, its plain values and its secrets by the Worker secret's name.
 - **Help:** write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.2). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
 - **"Delete project"** in the project actions does nothing. Build deletion as in §4 and §5.8: marking the project, its stages and calls, deleting what nothing else uses, the confirmations. The columns and the partial unique index on names exist (migration 0003); listing projects and numbering default names don't filter deleted projects yet.
 - **Light theme** (§5.7).
-- **A unit test that no step's kind ever changes** (§5.8): a committed list of every step id with its kind; the test fails when a step's kind differs from the list or a step is missing from it. New steps are added to the list; entries are never edited. *Built* (`apps/web/src/steps.test.ts`), with Ingest as its only entry so far.
 
 ### Infrastructure and cleanup
 - **MEI in the evaluation tooling** (§13): score3ly's output is MEI, but the engrave command only handles `.ly` (LilyPond) and `.musicxml` (MuseScore). Add `<piece>.<method>.mei`, engraved to PDF with Verovio in Node, so score3ly's results show in the viewer next to the baselines; commit `.mei` candidates like the others, and update §13's naming and wording, which still assume LilyPond output.
@@ -1493,14 +1500,13 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Build the test environments** (§12): the start script, the build script and a first environment.
 - **Try the page images in Firefox, Safari and on phones** (§8.1): they work in Chromium, in a Web Worker. Check that pdf.js loads in a worker there, that the pixels match Node's (scans exactly, vector pages "close"), that the PNG bytes match (they do in Chromium), and the memory needed for large scans on a phone (a 5400×7200 scan is about 155 MB as RGBA).
 - **The image cache's size limit and LRU eviction,** and `navigator.storage.persist()` (§8.5, §8.6).
-- **Fingerprints** of the page images (§8.3) aren't stored yet: they are for images a model or a person works on, which starts with `layout`.
+- **Store the fingerprints** (§8.3) of the images sent to a model or worked on by a person (`layout`, `analyze`, the editors), in `image_fingerprints` (migration 0003; nothing writes to it), and check a regenerated image against them.
 - **Optimistic locking** (§4): `projects.version` exists, but no request checks it yet. Two devices running or changing the same pipeline at once aren't guarded against, except that a running stage can't be started again.
-- **Images for the LLMs:** prepare page and system images for the requests (§14).
-  - **Encode** them as PNG, in our own code (`packages/imaging/src/png.ts`, built), so the bytes are the same everywhere and the request hash (§12) is stable: identical in Chromium and Node so far; to check in Firefox and Safari, and if they differ, hash the pixels, not the file, in the request's key. PNG rather than JPEG: lossless, and small for line art.
-  - **Size:** Claude's high-resolution models (Opus 4.7 and later) see at most 2576 px on the long edge and 4784 visual tokens (28×28-pixel patches, about 3.75 megapixels); a larger image is shrunk by the API, out of our control. So we decide: shrink a page ourselves (deterministically) to fit, and send wide systems as they fit, or with measure crops alongside (§14). Other limits: 10 MB per image (base64) on Anthropic's API, 5 MB on Bedrock and Vertex, 32 MB per request. *Shrinking is built* (`packages/imaging/src/scale.ts`, used by `layout`). To check with the first real calls: whether a colour scan at 2576 px stays under 5 MB as PNG for Bedrock, and what to do if not (grayscale, or a smaller limit for that provider).
-  - **Coordinates:** boxes a model returns refer to the image it was sent; with our fractions of the image (§6) they map back to the page however the image was shrunk.
-  - **Gemini** has its own limits and resolution settings; what Gemini said about them is in §6 (`analyze`), to check against Google's documentation when we use it. `imageLimit` gives Gemini Claude's limits for now; each provider's adapter should declare its own (§6, `analyze`).
-- **LLM calls, what is left** (the endpoint, records, costs and cap are built, §7.2): the settings page for model configs, the default config and the cap; the configs per kind of work (§7.2); checking Bedrock's and Vertex AI's prices against the list prices that stand in for them (`llm/prices.ts`); the cost of unparseable answers.
+- **Images for the LLMs,** what is left. They are PNGs from our own encoder (`packages/imaging/src/png.ts`), so the bytes and the request hash (§12) are the same everywhere, and shrunk by our own code to Claude's limits (`packages/imaging/src/scale.ts`; 2576 px on the long edge, 4784 visual tokens):
+  - **The PNG bytes in Firefox and Safari:** identical in Chromium and Node; if they differ elsewhere, hash the pixels, not the file, in the request's key.
+  - **5 MB per image on Bedrock and Vertex AI** (10 MB on Anthropic's API, 32 MB per request): check with the first real calls whether a colour scan at 2576 px stays under it as PNG, and what to do if not (grayscale, or a smaller limit for that provider). `layout` doesn't check its requests' size yet (§6).
+  - **Gemini's limits:** what Gemini said about them is in §6 (`analyze`), to check against Google's documentation when we use it. `imageLimit` gives Gemini Claude's limits for now; each provider's adapter should declare its own.
+- **LLM calls, what is left:** the configs per kind of work (§7.2); checking Bedrock's and Vertex AI's prices against the list prices that stand in for them (`llm/prices.ts`); the cost of unparseable answers.
 - **Keep the device awake while a pipeline runs** (the browser's Screen Wake Lock): the browser drives the pipeline, so a phone that goes to sleep pauses the run. The lock only holds while the app is in front; switching to another tab or app releases it. A run that was paused anyway must resume where it stopped.
 - **Losing an LLM answer that was paid for** when the tab is closed or a phone suspends the page mid-call is **accepted** (decided), even if its cost doesn't reach the records. While this device runs a stage, closing or reloading the tab asks first (built; browsers show their own wording, not ours). Some day, perhaps: the Worker finishes the call and stores the answer on its own (a Durable Object or Workflow), so resuming finds it.
 
@@ -1530,30 +1536,8 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
 5. **Fold the notes into this document:** *Done (2026-10-11).* The notes of 2026-10-02 to 2026-10-06 (baselines, formats, MEI, the manual run) are in §1, §6 and §13, and the notes file is deleted.
-6. **Build the app,** after or in parallel with step 5, from the outside inwards as usual. First milestone, a vertical slice:
-   1. Pick a PDF (local file only) → hash → upload to R2 → project in D1. *Built, local only.* The "+ New project" button picks a PDF, the browser hashes it, and one request (`POST /api/projects`) stores it in R2 and adds a row to the `projects` table in D1 (`id`, `name`, `pdf_sha256`, `pdf_filename`, `created_at`, `last_modified_at`, `last_opened_at`), with the default name from §4. The API can also rename a project (`PATCH /api/projects/<id>`, 409 if the name is taken) and record that it was opened (`POST /api/projects/<id>/opened`), and lists all projects, most recently opened first (`GET /api/projects`).
-
-      The header has a **project picker**. Narrow screens show the wordmark and "+ New project" on one row and the picker on its own row below. From 1024 px, everything is on one row, with the picker in the middle. The **open project is part of the URL** (`#/projects/<id>`), so it survives a reload, each tab has its own, and the back button and bookmarks work. Any other URL means no project is open, which is how a fresh tab or device starts. "Last opened" is shared by all devices and only sorts the list: a project created or opened elsewhere never changes what this tab shows. The picker shows the open project's name, or "Open a project". Opening the picker turns the name into a filter field over all projects (name, how long ago it was opened, PDF file name). Picking a project opens it and marks it as opened; creating a project opens it too. Loading a URL or going back doesn't mark the project as opened. The list is fetched when the app loads.
-
-      Picking a PDF first looks up its hash (`GET /api/pdfs/<sha256>?filename=...`, which returns the PDF's projects, most recently opened first, and the name a new project would get). An unknown PDF is uploaded and gets a project right away. A known PDF opens a dialog that lists its projects to open one, with "+ New project" as the last item, showing the name the new project would get. A new project on a known PDF is created without uploading the file again (`POST /api/projects` with the `filename` instead of the `pdf`).
-
-      Below the header is the project view (§5.6): the pipeline panel, with the project's real stages (only Ingest so far), and the artifact view. What is left to do here is in §15.
-
-      Note: the Worker's entry module (`apps/worker/src/index.ts`) may only export handlers: the Workers runtime refuses to start otherwise, and the tests (which import the module directly) don't notice. Helpers live in their own modules (e.g. `names.ts`).
-
-      The D1 schema for the stages exists (§5.8, migration 0003). Next: the stages.
-
-      **The manual stages come later.** At first, when a model gets something wrong and the author wants it fixed, the fix goes in as a manual stage without a UI: a small internal API endpoint takes the corrected output (e.g. the fixed boxes as JSON) and adds it as a manual stage after the stage it corrects, and the stages after it run again as designed. Stored outputs are never edited in place (§5.4: a finished stage never changes). The data is the same as the real manual stages will produce later.
-   2. Extract page images deterministically → OPFS → show in the UI. *Done* (2026-10-12): `rasterize` (§6). Skew detection and rotation exist (§8.2, §8.4), not yet in the app.
-   3. `layout` of one page → system boxes and bar lines; `fix_layout`.
-   4. Crops → `extract` of one system with context → checks.
-   5. Record the LLM calls, turn the result into the first fixture, and compare against the baselines in the viewer.
-
-   Then: `assemble`, `review` and `apply_review`, `human_review`, the pipeline of stages in D1 and in the UI (§5.1), manual stages (§5.4), re-running from a stage with confirmation (§5.5), regeneration on a second device, Drive integration.
-
-   Also planned, details still to be worked out:
-   - **Costs view, statistics, and the spending cap** (§10).
-   - **Deleting a project** (§4).
+6. **Build the app,** from the outside inwards: the first release, below.
+7. **Later,** details still to be worked out:
    - **Running the pipeline on the server** (optional but desirable; big, and tricky to get right). Today the browser drives the pipeline and does all the PDF and image work, so a run only advances while the app is open and, on a phone, on screen.
      - **Preferred: all-in.** The whole pipeline runs on the server, PDF and image work included. The browser only shows results and takes the user's input, and a run doesn't depend on any device.
      - **Whether that is possible is the thing to think about first.** A Cloudflare Worker has little memory and, on the free plan, almost no CPU time, and it has no canvas to render vector PDFs with. Image work may need the paid plan ($5/month), or a container, or may not fit Cloudflare at all.
@@ -1568,3 +1552,52 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
    - **A "final touches" stage** (optional, late): the user edits the MEI directly in the app, in a code editor, validated and rendered again on saving. No stage can be added after it, so the issues, which a direct edit leaves unreliable, are no longer needed; its result goes to the export. Replacing the MEI by uploading a file edited in another program (MuseScore reads and writes MEI) is left out: such a round trip can lose the IDs that tie measures to the original.
    - **Desktop version** (optional, §3): Electron around the same app and server, with Node adapters for D1 and R2 and secrets in a local file.
    - **Forking a project** from a given stage: a new, separate project that starts with the original's pipeline up to that stage. Each project keeps its own linear history. Behind the scenes, the fork reuses the original's stage outputs without duplicating them.
+
+### The first release
+The main parts of the first release, and the measure of progress: ticked items stay. Finer tasks are in §15.
+
+**Assessment**
+- [x] Evaluation tooling: engrave command, viewer, highlighter (§13)
+- [x] Baselines from existing tools (§13)
+- [x] Manual run of the pipeline with Opus in a chat (§13)
+- [x] Decide to build the app
+
+**The app's frame**
+- [x] Projects: create from a local PDF, pick, rename (§4, §5.6)
+- [x] The project view: the pipeline panel and the artifact view, wide and narrow (§5.6)
+- [x] The pipeline in D1: stages, outputs, run, stop, retry, Auto and Manual, config changes with confirmation (§5.8)
+- [x] Manual stages: add, finish, edit, drop (§5.4, §5.8)
+- [x] LLM calls through the Worker: the providers' adapters, call records, the cache, costs, the spending cap (§7.2, §10)
+- [x] Settings page: run mode, spending cap, model configs read-only
+- [ ] Model configs: decide (§15), then supported models and prices in the database, and the config form (§7.2)
+- [ ] Delete a project (§4)
+- [ ] Costs view and statistics (§10)
+- [ ] Download the MEI (and its rendering)
+
+**The stages**
+- [x] `rasterize` (§6)
+- [x] `skew_analysis` and `fix_skew`
+- [x] `layout` and `fix_layout`
+- [x] `analyze`, `fix_metadata` and `fix_observations`
+- [x] Define the lens and the symbolic format (§6)
+- [ ] The lens's parser and checks
+- [ ] Crops with margins for `extract`
+- [ ] The linking code (§6, `analyze`)
+- [ ] `extract`
+- [ ] The MEI builder, validated against MEI 5 and MEI Basic (§6, "MEI")
+- [ ] `assemble`, with the rendering by Verovio (§9)
+- [ ] `review` and `apply_review`
+- [ ] `human_review`
+
+**With real models and scores**
+- [ ] Verify the prompts of `layout` and `analyze`
+- [ ] Run the pipeline with a real LLM
+- [ ] The first fixture, and replay tests (§12)
+- [ ] Results on the test set, compared with the baselines in the viewer (§13)
+
+**Deployment**
+- [ ] The remote D1 database and R2 bucket in the EU, and a first deployment
+- [ ] Cloudflare Access in front of it
+- [ ] Tried in Firefox, Safari and on a phone
+- [ ] The user guide (Help)
+- [ ] A license
