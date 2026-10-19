@@ -1537,9 +1537,8 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (§13, "The manual run"; its lessons are in §6).
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
    *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
-5. **Fold the notes into this document:** *Done (2026-10-11).* The notes of 2026-10-02 to 2026-10-06 (baselines, formats, MEI, the manual run) are in §1, §6 and §13, and the notes file is deleted.
-6. **Build the app,** from the outside inwards: the first release, below.
-7. **Later,** details still to be worked out:
+5. **Build the app,** from the outside inwards: the first release, below.
+6. **Later,** details still to be worked out:
    - **Running the pipeline on the server** (optional but desirable; big, and tricky to get right). Today the browser drives the pipeline and does all the PDF and image work, so a run only advances while the app is open and, on a phone, on screen.
      - **Preferred: all-in.** The whole pipeline runs on the server, PDF and image work included. The browser only shows results and takes the user's input, and a run doesn't depend on any device.
      - **Whether that is possible is the thing to think about first.** A Cloudflare Worker has little memory and, on the free plan, almost no CPU time, and it has no canvas to render vector PDFs with. Image work may need the paid plan ($5/month), or a container, or may not fit Cloudflare at all.
