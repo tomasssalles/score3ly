@@ -826,3 +826,15 @@ test("issue numbers are reserved per project, never twice", async () => {
   const response = await app.request(`/api/projects/${other.id}/issue-numbers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ count: 1 }) }, env);
   assert.deepEqual(await response.json(), { first: 1 });
 });
+
+test("migration 0014 adds the fake model config as the default, once, and keeps a default already chosen", async () => {
+  const config = await env.DB.prepare("SELECT name, provider, model, free_tier FROM model_configs WHERE id = 'fake-model'").first();
+  assert.deepEqual(config, { name: "Fake model", provider: "fake", model: "fake", free_tier: 0 });
+  const setting = async () => (await env.DB.prepare("SELECT value_json FROM settings WHERE key = 'defaultModelConfigId'").first())?.value_json;
+  assert.equal(await setting(), '"fake-model"');
+  // Run again with another default: nothing changes.
+  await env.DB.prepare("UPDATE settings SET value_json = '\"other\"' WHERE key = 'defaultModelConfigId'").run();
+  await env.DB.exec(withoutComments(readFileSync(join(workerDir, "migrations", "0014_fake_model_config.sql"), "utf8")));
+  assert.equal(await setting(), '"other"');
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM model_configs WHERE provider = 'fake'").first())?.n, 1);
+});
