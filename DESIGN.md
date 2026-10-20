@@ -282,7 +282,7 @@ Every stage output has:
 - a canonical config hash (JSON with sorted keys)
 - the IDs of the outputs it was made from
 - its `origin`: the kind of the stage that produced it (`ingest` | `computed` | `llm` | `manual`)
-- for an image sent to a model or worked on by a person, its fingerprint (§8.3)
+- for an image from which a stored result was computed, its fingerprint (§8.3)
 - a timestamp
 
 LLM outputs additionally reference their **call record**: prompt template version, filled-in context, the images' recipe keys and hashes, exact model ID, parameters, full response, token usage and cost.
@@ -299,7 +299,7 @@ Every output has a row in D1, which belongs to the stage that produced it and sa
 
 ### 5.3 Persisted vs. regenerable (important)
 
-- **Computed** outputs (page images, straightened pages, crops) store only their **recipe** (and its key), plus a fingerprint for an image a model or a person worked on (§8.3). Images live in OPFS and can be regenerated. Small text outputs may be stored anyway for convenience.
+- **Computed** outputs (page images, straightened pages, crops) store only their **recipe** (and its key), plus a fingerprint for an image from which a stored result was computed (§8.3). Images live in OPFS and can be regenerated. Small text outputs may be stored anyway for convenience.
 - **Ingest**, **LLM** and **manual** outputs **must be persisted**: everything that isn't computed. They cannot be regenerated: re-running an LLM call gives a different answer and costs money.
 - Rule: *anything you would hate to lose must never exist only as a cached image.*
 - **Regeneration is lazy, per device** (decided): a device computes a computed output only when something needs it, never the whole chain up front. Example: seven stages run on a laptop, and on the bus the user adds an eighth, manual stage on a phone. The phone has none of the laptop's images, but the eighth stage's inputs are there (stored outputs fetched from R2, or images regenerated from their recipes because the stage needs them), so the user simply continues. If the user then opens an earlier stage's images to inspect them, they are regenerated from their recipes then, and cached on the phone (§8.6).
@@ -428,7 +428,7 @@ The D1 schema for the pipeline (decided; built in `apps/worker/migrations/0003_p
 | `output_inputs` | input of an output | The outputs an output was made from (§5.2). |
 | `llm_calls` | LLM call | The stage, the model config, the request key, the model the response names (`response_model`), the full request and response (in R2), the status (`running`, `ok`, `error`, `unparseable`, `refused`, `cut_off`), the error, tokens (output tokens include thinking: Gemini reports thinking apart, and its adapter adds it), the cost, times, `deleted_at`. |
 | `model_configs` | version of a model config | Optional name, provider, model, effort, plain parameters (region, project), secrets as `{field: secret name}` (Bedrock with a key pair needs two), the free-tier mark, the row it supersedes, `deleted_at`. Append-only (§7.2). |
-| `image_fingerprints` | image sent to a model or worked on by a person | Its recipe key, its PDF, and the fingerprint (§8.3): dimensions, the hash of the raw pixels, the thumbnail. |
+| `image_fingerprints` | image from which a stored result was computed (§8.3) | Its recipe key, its PDF, and the fingerprint (§8.3): dimensions, the hash of the raw pixels, the thumbnail. |
 | `settings` | user setting | A key and a JSON value. |
 
 - **Planned stages have a row** (status `planned`), so all there is to know about a stage lives in `stages`, and a pipeline entry is only a pointer. A planned stage is unfinished, so it may change: its config is NULL while it takes the settings' choice (§7.2), or what the user picked for it. When it starts, its config is the resolved one (what it actually used), and its version and stage key are set. "Ready" isn't stored: it is the first planned stage after the done ones.
@@ -1150,7 +1150,7 @@ Built: `packages/imaging/src/pdfPages.ts` (`openPdf`, `pageImage`), tested on th
 - Human and LLM coordinates are stored in **normalized units**, so they survive regeneration at a different resolution.
 
 ### 8.3 Fingerprints: verifying "close", not just "identical"
-**Which images:** every image sent to a model (the straightened pages of `layout` and `analyze`; later the crops of `extract`, `review` and `apply_review`) and every image a person worked on in an editor (the page images of `fix_skew`, the straightened pages of `fix_layout`; later the pages of `human_review`), stored when the image is first sent or opened, with its recipe key (`image_fingerprints`, §5.8).
+**Which images** (decided): every image from which a stored result was computed, by code, a model or a person: the page images (`skew_analysis` measures its lines on them, `fix_skew` shows them), the straightened and scaled pages sent by `layout` and `analyze`, the straightened pages of `fix_layout`, and later the crops of `extract`, `review` and `apply_review` and the pages of `human_review`. Not the images that are only shown, or only lead to other images (the full-resolution straightened page before it is scaled for a request): a mismatch there shows in the images made from them. Stored when the result is first computed from the image, with its recipe key, one per recipe key (`image_fingerprints`, §5.8).
 
 **Why:** the stored results refer to those pixels: a model's boxes and answers, a person's lines and boxes. Keys hold only recipes (§5.2), so a result is reused whichever device makes the image again; that is right as long as the images are close, as they are expected to be. A fingerprint says when one isn't, so that the user knows the coordinates or answers may not fit the image on this device. **A warning, never a stop:** which device is right can't be told, and significant mismatches aren't expected.
 
@@ -1216,7 +1216,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - **The code versions** are those of our image functions, plus pdf.js's for the page images (§11).
 - **Stored as PNG** (`cache/<key>.png`), encoded by our own code: a raw RGBA page is about 35 MB, a PNG of line art much smaller and lossless. Reading costs a decode.
   - **Built:** the encoder and decoder (`packages/imaging/src/png.ts`: 8-bit RGBA, the "Up" row filter, compressed with the platform's `CompressionStream`, so the same in browsers and Node) and the cache (`apps/web/src/imageCache.ts`), keyed by the hash of the recipe as canonical JSON. Where OPFS isn't available (some private windows), images are kept in memory while the page is open. The artifact view shows the cached PNG directly (an `<img>`), with no decode. Not built: the size limit, LRU eviction and `navigator.storage.persist()` (§8.5).
-- **The key isn't the fingerprint** (§8.3): the key says what an image should be, the fingerprint, stored in D1 for every image sent to a model or worked on by a person, what it was. An image regenerated on another device is checked against it.
+- **The key isn't the fingerprint** (§8.3): the key says what an image should be, the fingerprint, stored in D1 for every image from which a stored result was computed, what it was. An image regenerated on another device is checked against it.
 
 ## 9. Rendering
 
@@ -1507,7 +1507,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Try regeneration on a second device** (§5.3): a project run on one device, continued on another whose image cache is empty.
 - **Try the editors with touch and on a real phone:** `fix_layout` hasn't been tried with touch at all, `fix_skew` only through Chromium's emulation of touch at phone size.
 - **Request keys by recipe** (§5.2, §7.2): the browser sends each image's recipe key with the request, the Worker's request key uses it instead of the image's hash, and the browser asks for a cached call before it makes the request's images.
-- **Store the fingerprints** (§8.3) of the images sent to a model or worked on by a person (`layout`, `analyze`, the editors), in `image_fingerprints` (migration 0003; nothing writes to it), and check a regenerated image against them.
+- **Store the fingerprints** (§8.3) of the images from which a stored result was computed (`skew_analysis`, `layout`, `analyze`, the editors), in `image_fingerprints` (migration 0003; nothing writes to it), and check a regenerated image against them.
 - **Optimistic locking** (§4): `projects.version` exists, but no request checks it yet. Two devices running or changing the same pipeline at once aren't guarded against, except that a running stage can't be started again.
 - **Images for the LLMs,** what is left. They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk by our own code to Claude's limits (`packages/imaging/src/scale.ts`; 2576 px on the long edge, 4784 visual tokens):
   - **5 MB per image on Bedrock and Vertex AI** (10 MB on Anthropic's API, 32 MB per request): check with the first real calls whether a colour scan at 2576 px stays under it as PNG, and what to do if not (grayscale, or a smaller limit for that provider). `layout` doesn't check its requests' size yet (§6).
