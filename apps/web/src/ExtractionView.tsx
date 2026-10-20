@@ -1,4 +1,4 @@
-// `extract`'s artifacts (DESIGN.md §6, §5.6): the score so far, system by system (each system's crop with its music
+// `extract`'s artifacts (DESIGN.md §6, §5.6): the transcription, system by system (each system's crop with its music
 // below it, as a filmstrip, so that the end of one system and the start of the next are on screen together), and the
 // issues raised, all of them in the score's order. The music is shown as the lens has it; the warnings come with their
 // system.

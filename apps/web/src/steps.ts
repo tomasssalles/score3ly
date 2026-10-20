@@ -331,7 +331,7 @@ STEPS.extract = {
   kind: "llm",
   optional: false,
   fixes: [],
-  // The score so far, system by system, and the issues raised. The pages of the latest layout come along, for the
+  // The transcription, system by system, and the issues raised. The pages of the latest layout come along, for the
   // systems' crops.
   artifacts: (stage, earlier) => {
     const systems = stage.outputs
@@ -340,7 +340,7 @@ STEPS.extract = {
     if (systems.length === 0) return [];
     const pages = layoutPages(earlier);
     return [
-      { id: `${stage.id}.music`, title: "Score so far", kind: "music", count: systems.length, item: "System", pages, extraction: { view: "music", systems } },
+      { id: `${stage.id}.music`, title: "Transcription", kind: "music", count: systems.length, item: "System", pages, extraction: { view: "music", systems } },
       { id: `${stage.id}.issues`, title: "Issues", kind: "json", count: 1, pages, extraction: { view: "issues", systems } },
     ];
   },
