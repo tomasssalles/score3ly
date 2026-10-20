@@ -480,7 +480,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
 | 4 | `fix_skew` | Fix the lines **[manual]**, after `skew_analysis` | manual | The lines, as in `skew_analysis` |
 | 5 | `layout` | Layout | LLM, per page | The layout: the straightened pages with the system boxes and the bar lines drawn over them. Stored per page as JSON |
 | 6 | `fix_layout` | Fix system boxes and bar lines **[manual]**, after `layout` | manual | The layout, as in `layout`; the editor while it is WIP |
-| 7 | `analyze` | General analysis | LLM, per page and for the whole score | Metadata and Observations, as views. Stored as JSON: the metadata, the observations (one document: the pages' items as the whole-score call corrected them, including the special bar lines, and the score-wide items) and where the pieces start, which isn't shown |
+| 7 | `analyze` | General analysis | LLM, per page and for the whole score | Metadata (including the pieces and where they start) and Observations, as views. Stored as JSON: the metadata, the observations (one document: the pages' items as the whole-score call corrected them, including the special bar lines, and the score-wide items), and `pieces`, where the pieces start, taken from the metadata as an output of its own for `extract` |
 | 8 | `fix_metadata` | Fix metadata **[manual]**, after `analyze` | manual | JSON: metadata |
 | 9 | `fix_observations` | Fix observations **[manual]**, after `analyze` | manual | JSON: observations |
 | 10 | `extract` | Extraction | LLM, per system | The score so far, system by system (each system's answer in the internal format: the music, the stretches' classification). The issues raised (see below) |
