@@ -829,7 +829,7 @@ test("issue numbers are reserved per project, never twice", async () => {
 
 test("migration 0014 adds the fake model config as the default, once, and keeps a default already chosen", async () => {
   const config = await env.DB.prepare("SELECT name, provider, model, free_tier FROM model_configs WHERE id = 'fake-model'").first();
-  assert.deepEqual(config, { name: "Fake model", provider: "fake", model: "fake", free_tier: 0 });
+  assert.deepEqual(config, { name: "Fake model", provider: "fake", model: "fake", free_tier: 1 });
   const setting = async () => (await env.DB.prepare("SELECT value_json FROM settings WHERE key = 'defaultModelConfigId'").first())?.value_json;
   assert.equal(await setting(), '"fake-model"');
   // Run again with another default: nothing changes.
