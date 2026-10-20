@@ -281,6 +281,19 @@ export function AnalyzeIcon() {
   );
 }
 
+// A quarter note turning into a letter: `extract` transcribes the music into text.
+export function ExtractIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <ellipse className="filled-shape" cx="5.4" cy="9.6" rx="2.4" ry="1.8" transform="rotate(-20 5.4 9.6)" />
+      <path d="M7.6 9V2.5" />
+      <path d="M10.5 10.5l3.5 3.5M14 10.8V14h-3.2" />
+      <path d="M15.8 15.9c.6-.4 1.4-.6 2.4-.6 1.7 0 2.6.7 2.6 2.3v4.2" />
+      <path d="M20.8 18.3h-2.6c-1.6 0-2.6.7-2.6 1.8 0 1 .8 1.7 1.9 1.7 1.4 0 2.6-.7 3.3-1.8" />
+    </svg>
+  );
+}
+
 // A plus: add something.
 export function PlusIcon() {
   return (

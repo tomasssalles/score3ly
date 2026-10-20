@@ -3,6 +3,7 @@ import { FittedText } from "./FittedText";
 import type { Project } from "./api";
 import {
   AnalyzeIcon,
+  ExtractIcon,
   ComputedIcon,
   DataIcon,
   ImageIcon,
@@ -44,6 +45,7 @@ const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   skew_analysis: SkewIcon,
   layout: LayoutIcon,
   analyze: AnalyzeIcon,
+  extract: ExtractIcon,
 };
 
 const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {

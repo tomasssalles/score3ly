@@ -430,6 +430,11 @@ body {
   stroke-linejoin: round;
 }
 
+/* A filled part of a line icon, e.g. a note's head. */
+.icon .filled-shape {
+  fill: currentColor;
+}
+
 .icon-button {
   flex: none;
   display: grid;
