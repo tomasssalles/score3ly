@@ -2,8 +2,10 @@
 // §7.2). Its answer follows the request's JSON schema with the simplest values (empty arrays, zeros, the first
 // option), and its "tokens" are estimated from the request's text and images. Some model names make it fail on purpose:
 // "fake-error" (a server error), "fake-refusal", "fake-cut-off", "fake-unparseable".
-// `extract`'s answer can't be that simple: it must cover exactly the stretches asked for, with a voice on every staff.
-// So for a request in its form, the fake reads the request's JSON and answers with whole-measure rests in 4/4.
+// Two steps get more than that, so the pipeline runs end to end: `layout` (two systems on every page, each with three
+// bar lines, so that the later stages have systems to work on) and `extract`, whose answer must cover exactly the
+// stretches asked for, with a voice on every staff (the fake reads the request's JSON and answers with whole-measure
+// rests in 4/4).
 
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse } from "./types.ts";
 
@@ -13,7 +15,7 @@ export class FakeProvider implements LlmProvider {
   async send(request: LlmRequest): Promise<LlmResponse> {
     if (request.model === "fake-error") throw new LlmError("server", "The fake provider failed, as asked.", 500);
     if (request.model === "fake-unparseable") throw new LlmError("invalid_output", "The fake answer isn't JSON.");
-    const answer = request.jsonSchema ? (fakeExtract(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
+    const answer = request.jsonSchema ? (fakeLayout(request) ?? fakeExtract(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
     const text = typeof answer === "string" ? answer : JSON.stringify(answer);
     const stop = request.model === "fake-refusal" ? "refusal" : request.model === "fake-cut-off" ? "max_tokens" : "end";
     return {
@@ -126,4 +128,13 @@ function fakeExtract(request: LlmRequest): unknown {
     rightBarLine: "single",
   }));
   return { startRepeat: false, staves, groups: [], stretches, lastMeasureContinues: false, issues: [] };
+}
+
+// A `layout` answer (its schema has "systems", "satisfied" and "severelySkewed"): two systems, each with three bar
+// lines, satisfied.
+function fakeLayout(request: LlmRequest): unknown {
+  const properties = (request.jsonSchema?.properties ?? {}) as Record<string, unknown>;
+  if (!("systems" in properties && "satisfied" in properties && "severelySkewed" in properties)) return null;
+  const system = (top: number) => ({ left: 0.1, right: 0.9, top, bottom: top + 0.2, barLines: [0.3, 0.5, 0.7] });
+  return { severelySkewed: false, systems: [system(0.2), system(0.55)], satisfied: true, note: "" };
 }

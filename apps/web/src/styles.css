@@ -2068,9 +2068,12 @@ textarea.field-input {
   color: var(--muted);
 }
 
-.stretch-music pre {
+.film-item .stretch-music pre {
   margin: 0;
   max-width: none;
+  padding: 1px 0 1px 12px;
+  border: none;
+  background: none;
 }
 
 .voice-name {
