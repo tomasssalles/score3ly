@@ -7,7 +7,7 @@ import { keyOf } from "./keys";
 import { pdfUrl } from "./pdf";
 import type { PageImageRequest, PageImageResponse } from "./pageImageWorker";
 import type { PageRecipe } from "./rasterize";
-import type { DrawOptions, LayoutSystem, SizeLimit, Skew } from "@score3ly/imaging";
+import type { Box, DrawOptions, LayoutSystem, SizeLimit, Skew } from "@score3ly/imaging";
 
 // A request without its id (Omit on each member of the union, not on the union).
 type Unsent = PageImageRequest extends infer R ? (R extends PageImageRequest ? Omit<R, "id"> : never) : never;
@@ -93,7 +93,7 @@ export type StraightRecipe = { page: PageRecipe; angle: number | null; deskew: n
 // A straightened page shrunk to a model's limits: the image sent in requests.
 export type ModelPageRecipe = { straight: StraightRecipe; limit: SizeLimit; scale: number };
 
-type DeriveOptions = { angle?: number; limit?: SizeLimit; draw?: LayoutSystem[]; drawOptions?: DrawOptions; gray?: boolean };
+type DeriveOptions = { angle?: number; crop?: Box; limit?: SizeLimit; draw?: LayoutSystem[]; drawOptions?: DrawOptions; gray?: boolean };
 
 async function derive(png: Blob, options: DeriveOptions): Promise<Uint8Array<ArrayBuffer>> {
   const bytes = await png.arrayBuffer();
@@ -118,6 +118,15 @@ export async function straightPage(recipe: StraightRecipe): Promise<Blob> {
 
 export async function modelPage(recipe: ModelPageRecipe): Promise<Blob> {
   return cachedOr(recipe, async () => derive(await straightPage(recipe.straight), { limit: recipe.limit }));
+}
+
+// A part of a straightened page shrunk to a model's limits (DESIGN.md §8.6): the system and stretch crops `extract`
+// sends, and its artifact shows. The box is a fraction of the straightened page, margins included; `crop` is the crop
+// code's version (CROP_VERSION).
+export type CropRecipe = { straight: StraightRecipe; box: Box; crop: number; limit: SizeLimit; scale: number };
+
+export async function cropImage(recipe: CropRecipe): Promise<Blob> {
+  return cachedOr(recipe, async () => derive(await straightPage(recipe.straight), { crop: recipe.box, limit: recipe.limit }));
 }
 
 // The image sent to a model with a layout drawn on it, for it to check (not cached: each answer gives another).

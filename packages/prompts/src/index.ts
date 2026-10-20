@@ -2,3 +2,4 @@
 // changed prompt runs again where it is used, and nowhere else.
 export * from "./layout.ts";
 export * from "./analyze.ts";
+export * from "./extract.ts";

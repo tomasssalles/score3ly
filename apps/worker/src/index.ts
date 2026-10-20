@@ -272,6 +272,21 @@ app.post("/api/projects/:id/opened", async (c) => {
   return c.body(null, 204);
 });
 
+// Reserves `count` issue numbers (DESIGN.md §6, "Issue ids"): a short number per project, never reused, not even after
+// a re-run drops the issue. Returns the first; the others follow it.
+app.post("/api/projects/:id/issue-numbers", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const count = body?.count;
+  if (!Number.isInteger(count) || count < 1 || count > 1000) return c.json({ error: "expected a 'count' from 1 to 1000" }, 400);
+  const row = await c.env.DB.prepare(
+    "UPDATE projects SET next_issue_number = next_issue_number + ? WHERE id = ? AND deleted_at IS NULL RETURNING next_issue_number",
+  )
+    .bind(count, c.req.param("id"))
+    .first<{ next_issue_number: number }>();
+  if (!row) return c.json({ error: "no such project" }, 404);
+  return c.json({ first: row.next_issue_number - count });
+});
+
 pipelineRoutes(app);
 llmRoutes(app);
 

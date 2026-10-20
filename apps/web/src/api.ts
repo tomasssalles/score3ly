@@ -317,3 +317,8 @@ export async function fetchPrices(): Promise<{ asOf: string }> {
 export async function markUnusable(project: Project, stageId: string, callId: string, reason: string): Promise<void> {
   await send(stageUrl(project, stageId, `llm-calls/${callId}/unusable`), { reason });
 }
+
+// Reserves `count` issue numbers for the project (DESIGN.md §6, "Issue ids"): never reused. Returns the first.
+export async function reserveIssueNumbers(project: Project, count: number): Promise<number> {
+  return ((await (await send(`/api/projects/${project.id}/issue-numbers`, { count })).json()) as { first: number }).first;
+}

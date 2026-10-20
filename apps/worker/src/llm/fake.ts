@@ -2,6 +2,8 @@
 // §7.2). Its answer follows the request's JSON schema with the simplest values (empty arrays, zeros, the first
 // option), and its "tokens" are estimated from the request's text and images. Some model names make it fail on purpose:
 // "fake-error" (a server error), "fake-refusal", "fake-cut-off", "fake-unparseable".
+// `extract`'s answer can't be that simple: it must cover exactly the stretches asked for, with a voice on every staff.
+// So for a request in its form, the fake reads the request's JSON and answers with whole-measure rests in 4/4.
 
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse } from "./types.ts";
 
@@ -11,7 +13,7 @@ export class FakeProvider implements LlmProvider {
   async send(request: LlmRequest): Promise<LlmResponse> {
     if (request.model === "fake-error") throw new LlmError("server", "The fake provider failed, as asked.", 500);
     if (request.model === "fake-unparseable") throw new LlmError("invalid_output", "The fake answer isn't JSON.");
-    const answer = request.jsonSchema ? simplest(request.jsonSchema) : "Fake answer.";
+    const answer = request.jsonSchema ? (fakeExtract(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
     const text = typeof answer === "string" ? answer : JSON.stringify(answer);
     const stop = request.model === "fake-refusal" ? "refusal" : request.model === "fake-cut-off" ? "max_tokens" : "end";
     return {
@@ -67,4 +69,61 @@ function simplest(schema: Record<string, unknown>): unknown {
     default:
       return null;
   }
+}
+
+type ExtractRequest = {
+  stretches: number;
+  firstOfPiece: boolean;
+  staves: { staff: number }[];
+  voices: { voice: number }[];
+  signatures: { staff: number; clef: string; key: string }[];
+  hints: { staves: { count: number } | null };
+};
+
+// An `extract` answer for a request in its form (its schema has "stretches" and "lastMeasureContinues"): the piece's
+// staves, or as many as the hints say (two if they say nothing), one voice per staff with a whole-measure rest in every
+// stretch, every stretch a new measure.
+function fakeExtract(request: LlmRequest): unknown {
+  const properties = (request.jsonSchema?.properties ?? {}) as Record<string, unknown>;
+  if (!("stretches" in properties && "lastMeasureContinues" in properties)) return null;
+  const texts = request.messages.flatMap((m) => m.content.flatMap((c) => (c.type === "text" ? [c.text] : [])));
+  const last = texts.at(-1) ?? "";
+  let r: ExtractRequest;
+  try {
+    r = JSON.parse(last.slice(last.indexOf("\n\n{") + 2)) as ExtractRequest;
+  } catch {
+    return null;
+  }
+  const count = r.staves.length > 0 ? r.staves.length : (r.hints?.staves?.count ?? 2);
+  const numbers = r.staves.length > 0 ? r.staves.map((s) => s.staff) : Array.from({ length: count }, (_, i) => i + 1);
+  const knownStaves = new Set(r.staves.map((s) => s.staff));
+  const knownVoices = new Set(r.voices.map((v) => v.voice));
+  const staves = numbers.map((staff, i) => {
+    const sig = r.signatures.find((s) => s.staff === staff);
+    return {
+      staff,
+      description: knownStaves.has(staff) ? null : `staff ${staff}`,
+      label: null,
+      clef: sig?.clef ?? (i === 0 ? "treble" : "bass"),
+      key: sig?.key ?? "0",
+      time: r.firstOfPiece ? "4/4" : null,
+    };
+  });
+  const stretches = Array.from({ length: r.stretches }, (_, i) => ({
+    stretch: i + 1,
+    class: "new",
+    kind: "normal",
+    printedNumber: null,
+    measureNumber: null,
+    changes: [],
+    ending: null,
+    voices: numbers.map((staff) => ({
+      voice: staff,
+      staff,
+      description: i === 0 && !knownVoices.has(staff) ? `voice on staff ${staff}` : null,
+      music: "R1",
+    })),
+    rightBarLine: "single",
+  }));
+  return { startRepeat: false, staves, groups: [], stretches, lastMeasureContinues: false, issues: [] };
 }

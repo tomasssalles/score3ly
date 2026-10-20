@@ -10,6 +10,7 @@ const KINDS: Record<string, string> = {
   skew_analysis: "computed",
   layout: "llm",
   analyze: "llm",
+  extract: "llm",
   fix_skew: "manual",
   fix_layout: "manual",
   fix_metadata: "manual",

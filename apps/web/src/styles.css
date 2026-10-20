@@ -2053,3 +2053,71 @@ textarea.field-input {
   color: var(--muted);
   font-size: 13px;
 }
+
+/* `extract`'s music, below each system's crop: the lens as text, issues and warnings */
+.system-music {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.system-staves,
+.stretch-head {
+  margin: 0;
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
+.stretch-music pre {
+  margin: 0;
+  max-width: none;
+}
+
+.voice-name {
+  color: var(--muted);
+}
+
+.extraction-warning {
+  margin: 0;
+  padding: 4px 8px;
+  border-left: 3px dashed #e0a030;
+  font-size: 13px;
+}
+
+.issue-card {
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--raised);
+  font-size: 13px;
+}
+
+.issue-card p,
+.issue-card ul {
+  margin: 2px 0;
+}
+
+.issue-card ul {
+  padding-left: 18px;
+}
+
+.issue-card li.applied {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.issue-head,
+.issue-tokens {
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
+.issues-list {
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  gap: 8px;
+}
+
+.crop-placeholder {
+  aspect-ratio: 5;
+}

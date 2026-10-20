@@ -4,6 +4,7 @@
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import {
+  crop,
   decodePng,
   deskew,
   drawLayout,
@@ -12,6 +13,7 @@ import {
   openPdf,
   pageImage,
   shrinkToFit,
+  type Box,
   type DrawOptions,
   type LayoutSystem,
   type PdfDocument,
@@ -25,13 +27,15 @@ export type PageImageRequest =
   | { id: number; type: "open"; sha256: string; pdf: ArrayBuffer }
   | { id: number; type: "page"; sha256: string; page: number; dpi: number }
   | { id: number; type: "skew"; png: ArrayBuffer; maxAngle: number }
-  // An image made from another: straightened by `angle`, then shrunk to `limit`, then with a layout drawn on it (labelled
-  // as `drawOptions` say), and stored as gray if `gray`.
+  // An image made from another: straightened by `angle`, then cut to `crop` (a box, fractions of the straightened
+  // image), then shrunk to `limit`, then with a layout drawn on it (labelled as `drawOptions` say), and stored as gray
+  // if `gray`.
   | {
       id: number;
       type: "derive";
       png: ArrayBuffer;
       angle?: number;
+      crop?: Box;
       limit?: SizeLimit;
       draw?: LayoutSystem[];
       drawOptions?: DrawOptions;
@@ -120,6 +124,7 @@ async function handle(request: PageImageRequest): Promise<void> {
   if (request.type === "derive") {
     let image = await decodePng(new Uint8Array(request.png));
     if (request.angle !== undefined) image = deskew(image, request.angle);
+    if (request.crop) image = crop(image, request.crop);
     if (request.limit) image = shrinkToFit(image, request.limit);
     if (request.draw) image = drawLayout(image, request.draw, request.drawOptions);
     const png = await encodePng(image, { gray: request.gray });

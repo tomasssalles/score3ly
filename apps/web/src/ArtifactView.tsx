@@ -12,6 +12,7 @@ import { pdfUrl } from "./pdf";
 import { PdfView } from "./PdfView";
 import { SkewEditor } from "./SkewEditor";
 import { AnalysisView } from "./AnalysisView";
+import { ExtractionView } from "./ExtractionView";
 import { LayoutEditor } from "./LayoutEditor";
 import { firstNumbers } from "./fixLayout";
 
@@ -52,6 +53,7 @@ export function ArtifactContent({
   if (artifact.kind === "pdf") return <PdfView key={project.pdfSha256} url={pdfUrl(project.pdfSha256)} />;
   const pages = artifact.pages;
   if (artifact.analysis) return <AnalysisView key={artifact.id} project={project} artifact={artifact} onEdited={onEdited} />;
+  if (artifact.extraction) return <ExtractionView key={artifact.id} artifact={artifact} />;
   // A WIP manual stage's artifact is its editor (DESIGN.md §5.6).
   if (artifact.editor?.step === "fix_skew" && pages) {
     const editable = pages.flatMap((p) =>
