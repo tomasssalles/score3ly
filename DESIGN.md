@@ -29,7 +29,7 @@ Two goals decided what score3ly should produce:
 - everything musical, as opposed to typesetting: pitches, durations, rests, ties, slurs, articulations, tremolo, dynamics, and what a player needs: voices, cross-staff notes, stem directions;
 - room for editorial notes and alternatives, clearly separated from the music;
 - unambiguous to parse, and, once what isn't musical is removed, one way to encode given music, or equivalences that are trivial to recognize. No format guarantees that by itself: it takes a normalizer, and ours is the conversion from the lens (§6);
-- conversion to other formats. Lossless conversion to ABC or kern is impossible (they express less), and LilyPond can only be imported from a subset we define.
+- conversion to other formats. Lossless conversion to ABC or kern is impossible (they express less).
 
 **MEI fits best** (§6, "MEI"): XML from the musicology community, with the musical content apart from the layout, pitches as name and octave, durations as note values (no ticks), written and sounding values kept apart (`accid` and `accid.ges`), dynamics, slurs and the like attached to notes, irregular measures marked as such (`@metcon`), editorial markup (`app`/`rdg`, `choice`, `supplied`, `unclear`, `annot`), links to image regions (`facsimile`), and MEI Basic, an official subset with "one way of encoding for every feature". Verovio renders it in the browser and keeps the MEI's ids in its SVG. MusicXML was the fallback (the best ecosystem of tools, but heavy normalization and weak editorial markup); the other formats would be views derived from MEI. Export to them is a later question: no converter between MEI and LilyPond exists in either direction, and Verovio doesn't write MusicXML.
 
@@ -64,7 +64,9 @@ v1 was Python-only, local-only and command-line-only.
 
 ### Non-goals (for now)
 - Multiple users, sharing, collaboration. Each person deploys their own instance to their own Cloudflare account, or runs the desktop version (§3, planned), with their own secrets, so the app has no user accounts and none are planned.
-- MusicXML output.
+- MusicXML output, or any export but MEI (§9).
+- Other input formats (LilyPond, MusicXML), with score3ly as a normalizer that turns music written in any of them into its well-behaved MEI, a starting point for further work by machines.
+- Fixing printing mistakes: the transcription is as printed (§6, "Issues").
 - Offline-first operation.
 
 ## 2. Architecture overview
@@ -264,7 +266,8 @@ Each step declares:
 - **Input** and **output types**.
 - **Granularity:** per document, per page, or per system. Steps can fan out, e.g. one page becomes many systems.
 - Its **kind:** `ingest`, `computed` (code), `llm` or `manual`, and nothing else (decided). `ingest` is the kind of the first stage only: it doesn't run (the PDF is given when the project is created), so the UI treats it apart (no run, progress or retry; it is done from the start), and its output is stored like LLM and manual outputs (§5.3).
-- Its **runtime:** browser (Web Worker) or Worker proxy (LLM calls).
+
+Every stage runs in the browser, its heavy work in Web Workers; an LLM stage sends each of its requests through the Worker (§7.2), which makes the call.
 
 While it runs, a stage **reports its own progress** as a fraction from 0 to 1, which the UI shows (§5.6):
 - Only the code that performs the stage knows how far it is. It is handed a function to call whenever it has got further (e.g. after each system), and doesn't know about the bar or the circle that show the value. A stage running in a Web Worker can't call into the page, so there the function passes the value on as a message.
@@ -683,7 +686,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
     4. the system's own part: its crops, its extraction, the neighbouring systems' crops.
 
     Parts 1 to 3 of a call are the start of the next call's prompt, so with a cache breakpoint at the end of part 3 each call pays the full price only for the entries added by the call before it, and the rest is read from the cache. Without the append-only log, every change to the issues would break the cache, and the cost would grow with the score's length times the number of issues, which is itself roughly proportional to the length. The calls run one after another (§10), so the cache stays warm between them.
-- **Renderings** (decided): `assemble` renders the MEI for people, for the side-by-side view in `human_review`. Models don't get renderings, at first: `review` compares the crops with the extraction as text (the LilyPond subset), as in the manual run (§16 step 3), and `apply_review` changes text. Whether a rendering of the system next to its crop helps `review` is measured later on the test set (§15); if it does, it becomes the default and can be turned off in `review`'s config. A rendering can mislead in its own way: differences of engraving (spacing, stem directions, Verovio's own choices) look like errors to a model comparing pictures.
+- **Renderings** (decided): `assemble` renders the MEI for people, for the side-by-side view in `human_review`. Models don't get renderings, at first: `review` compares the crops with the extraction as text (the lens), as in the manual run (§16 step 3), and `apply_review` changes text. Whether a rendering of the system next to its crop helps `review` is measured later on the test set (§15); if it does, it becomes the default and can be turned off in `review`'s config. A rendering can mislead in its own way: differences of engraving (spacing, stem directions, Verovio's own choices) look like errors to a model comparing pictures.
 - **`apply_review`** (decided):
   - **Which issues:** those that need applying (below). Systems with none aren't called.
   - **One call per system where at least one such issue begins** (its first system), applying all issues that begin there. The call's window is that system and, for an issue that reaches it, the next one (an issue spans at most 2 consecutive systems, see "Issues"). Calls run in score order; each sees the earlier calls' changes through the append-only log, so a system changed by one call is up to date when the next call's window includes it. Chained issues (systems 1–2, 2–3, 3–4, …) are applied one call each, and no window is ever larger than 2 systems.
@@ -760,7 +763,7 @@ To check against the MEI 5 guidelines: the details of the edition's description,
 
 **So we go beyond MEI Basic in three places:** the header's work, pieces and edition (titles and people would fit), the `facsimile` element, and `@accid.ges` on `note` (decided: MEI Basic keeps it only on the `<accid>` child element, its class being left out of the note's gestural attributes in the customization; we already go beyond Basic in the header, and later tasks will in the music, so the plain attribute it is). Later tasks add more (§15: beams and tuplets across bar lines, alternatives). One file of full MEI 5, rather than a strict MEI Basic file with `fileDesc/@corresp` pointing to a second file with the rest, which MEI Basic would allow.
 
-**Validation is in the tests, not at run time:** models never write MEI (`extract`), so every element comes from our code, and conformance is a property of the code, not of a run. At run time only content varies inside a fixed structure, and a validator (libxml2 as WASM, a few MB) would add nothing but weight. The tests cover every construct of the LilyPond subset and every case of the frame (nested `mdiv`, staff groups, split measures, the header fields), and check every MEI file they produce twice:
+**Validation is in the tests, not at run time:** models never write MEI (`extract`), so every element comes from our code, and conformance is a property of the code, not of a run. At run time only content varies inside a fixed structure, and a validator (libxml2 as WASM, a few MB) would add nothing but weight. The tests cover every construct of the symbolic format and every case of the frame (staff groups, split measures, the header fields; nested `mdiv`s once they exist), and check every MEI file they produce twice:
 1. it validates against full MEI 5;
 2. with exactly the elements we decided to use outside MEI Basic removed (the list in the code, the single source of truth), it validates against MEI Basic. Using anything else outside it fails the test until it is added to the list on purpose.
 
@@ -839,7 +842,7 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 #### The symbolic format
 **The strings inside the lens:** the music of one voice in one stretch (decided, as an experiment: §15, "Compare the symbolic format with plain LilyPond"). It borrows LilyPond's notation, but it isn't a subset of LilyPond: the model reports the symbols printed, and code works out what they mean, for accidentals and 8va.
 - **Standard LilyPond wherever we don't need to diverge** (decided): every token is LilyPond's own, with its usual meaning, unless there is a good reason. What the model writes naturally then needs no explaining, and the prompt stays short (see "The lens": the whole format is in the prompt).
-- **Why:** the model looks only at the note in front of it. In the manual run it wrote G♮ for a G♭ whose flat was in the key signature far to the left (§13), and a missed flat on the first G of a measure spoils every later G in it: six fixes. With symbols, a missed flat is one mistake, and fixing it fixes the other notes too; the same for a misread 8va line. MEI keeps the written accidental (`accid`) apart from the sounding one (`accid.ges`), and both are filled exactly; Verovio prints `accid` as given, so the rendering shows the page's accidentals, courtesy ones included, instead of choosing its own. A printing error (an accidental the engraver forgot) stays visible, and a reviewer can raise it.
+- **Why:** the model looks only at the note in front of it. In the manual run it wrote G♮ for a G♭ whose flat was in the key signature far to the left (§13), and a missed flat on the first G of a measure spoils every later G in it: six fixes. With symbols, a missed flat is one mistake, and fixing it fixes the other notes too; the same for a misread 8va line. MEI keeps the written accidental (`accid`) apart from the sounding one (`accid.ges`), and both are filled exactly; Verovio prints `accid` as given, so the rendering shows the page's accidentals, courtesy ones included, instead of choosing its own. A printing error (an accidental the engraver forgot) stays as printed: fixing it is outside score3ly (§6, "Issues"), and the user can do it in a notation editor.
 - **The model still uses its understanding of the music:** reporting symbols is its task, and interpreting what it sees is how it does it well. Musical sense fills gaps and decides what isn't fully clear on the page (a smudged accidental, a faint note); it is why LLMs give better results than OMR. The prompt says so; only where the page is clear does what is printed win over what would be likely.
 - **Tokens: a lexer that follows LilyPond's own rules on whitespace** (decided). Splitting at whitespace only would force the model to write unlike the LilyPond it knows (`< c' e' >4` instead of `<c' e'>4`, `c'4 -. \=1(` instead of `c'4-.\=1(`). Our token set is small, so a real lexer stays small: each token class is one pattern, matched longest first, and whitespace is optional wherever LilyPond's is:
   - notes and rests (`g'4.`, `r8`, `s4`, `R1*12`, with `:32` for a tremolo); `<` `>` around a chord; `{` `}`; `[` `]`; `\=N(` and `\=N)`;
@@ -952,7 +955,7 @@ Each voice of each stretch is one string: LilyPond with these differences. Write
 
 **Defences:**
 - **The `extract` prompt:** encode what the music means, never how it should look; attach every dynamic, hairpin, articulation and slur to the notes it applies to; never let layout influence what is encoded; never simplify to suit the format, and report what can't be expressed as a format issue (see "Issues") instead of dropping it silently. In the manual run, Claude saw three slurs in the left hand (m23→24, m25→26), one from each note of a chord to the next chord, and silently wrote one, because that is simpler in LilyPond; it reported most of its other simplifications, but not this one. The pedal-line and the triple-slur examples go in the prompt.
-- **Hacks are impossible in the lens:** it has no layout controls (no `\override`, `\tweak`, spacer-only voices or separate `Dynamics` contexts); beam grouping (manual beams) and stem direction where it separates voices or hands are in the lens, as musical content, not as layout controls; and dynamics and hairpins can only be written on notes or rests in a voice. The parser rejects anything outside the subset (`extract`'s checks). In MEI, `<dynam>` and `<hairpin>` refer to a staff and to notes or beats; where they appear on the page is decided by the renderer, from the musical data. A dynamic printed between the two staves of a braced instrument applies to both (MEI `staff="1 2"`); how the lens says so is in "The symbolic format" ("Dynamics between staves").
+- **Hacks are impossible in the lens:** it has no layout controls (no `\override`, `\tweak`, spacer-only voices or separate `Dynamics` contexts); beam grouping (manual beams) and stem direction where it separates voices or hands are in the lens, as musical content, not as layout controls; and dynamics and hairpins can only be written on notes or rests in a voice. The parser rejects anything that isn't one of the symbolic format's tokens (`extract`'s checks). In MEI, `<dynam>` and `<hairpin>` refer to a staff and to notes or beats; where they appear on the page is decided by the renderer, from the musical data. A dynamic printed between the two staves of a braced instrument applies to both (MEI `staff="1 2"`); how the lens says so is in "The symbolic format" ("Dynamics between staves").
 - **`review` and `apply_review`:** check only the musical content against the original and ignore typesetting; an issue is about the music ("the hairpin looks too high" is not one). They read the extraction as text, not only a rendering, since a rendering can look right while the source is wrong (the pedal-line hack would render plausibly).
 
 #### Bar lines, stretches and measures
@@ -1040,7 +1043,7 @@ Every call returns JSON validated by a Zod schema, using the provider's schema-c
 ### 7.2 Prompts and model configs
 - Prompt templates are versioned in `packages/prompts` and are part of their step's version.
 - Every call is recorded (§5.2), and identical requests are served from the record instead of being paid for again.
-- **Provider, model and thinking budget or effort are the user's choice.** The app is meant to be flexible here and doesn't prescribe a model. The user guide will recommend Claude Opus 5.5 for everything, except perhaps a second review with a different model for variety. The prompts are tuned on Opus, so the app offers the choice but can't promise the same quality with another model.
+- **Provider, model and thinking budget or effort are the user's choice.** The app is meant to be flexible here and doesn't prescribe a model. The user guide will recommend Claude Opus 5.5 for everything: the only evidence so far is the project owner's manual runs with Gemini 3.1 Pro, a Gemini Flash and Opus 5.5, and even Gemini 3.1 Pro got far too much wrong. The prompts are tuned on Opus, so the app offers the choice but can't promise the same quality with another model.
 
 #### Calling the providers
 Built: `apps/worker/src/llm/`. One small request and response shape for every provider (`LlmProvider`, §3): a system prompt, messages of text and images, a maximum of output tokens, an effort, and optionally a JSON schema the answer must follow (the provider's schema-constrained output, §7.1; the answer is then parsed). The response says which model answered, the text (and parsed JSON), why it stopped (finished, cut off, refused) and the tokens. Errors are typed and say whether retrying can help.
@@ -1079,7 +1082,7 @@ Built: `apps/worker/src/llm/`. One small request and response shape for every pr
 #### Which config a stage uses
 Three levels; the most specific wins:
 1. **The config picked for a stage in a project** ("Change config" in the stage's "⋮", §5.6). Full flexibility, not normal use.
-2. **Advanced settings: a config per kind of work.** First draft of the kinds: finding layout boxes, extracting metadata, extracting the music notation, review.
+2. **Advanced settings: a config per kind of work.** First draft of the kinds: finding layout boxes (`layout`), analyzing the pages (`analyze`: metadata and observations), extracting the music notation (`extract`, `apply_review`), review (`review`).
 3. **The default config:** one settings item. With it, and nothing else set, the pipeline is "fire and wait".
 
 - **Model configs are append-only** (§5.8): editing one adds a new row and marks the old one deleted (copy on change), and deleting one only marks it. So a stage and each of its calls refer to the row they actually used, and editing or deleting a config, or renaming a secret, doesn't rewrite the history of old projects. The secrets' names are part of the row; a secret's value isn't recorded in any way.
@@ -1201,7 +1204,7 @@ Built, in `findSkew`, from the same line responses and strips, at the angle foun
 - **Memory:** a 300 dpi page held in canvas memory is about 35 MB, and mobile Safari strictly limits total canvas memory. Process one page at a time in a Web Worker, using typed arrays / `OffscreenCanvas`.
 - **Latency:** generate lazily, current page first.
 - **Eviction:** call `navigator.storage.persist()`, but assume the OPFS cache can disappear at any time. Missing derivatives are simply regenerated.
-- **Rotation:** an LRU cache with a configurable size limit (§8.6). Deletion is real deletion.
+- **Size:** the image cache is an LRU cache with a configurable size limit (§8.6), the least recently used images deleted first. Deletion is real deletion.
 - **Bundle size:** avoid OpenCV.js (about 10 MB). With LLMs doing the reading, preprocessing is light enough to write by hand.
 
 ### 8.6 The image cache
@@ -1258,7 +1261,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 
 ### Cost
 - Storage and hosting: free tiers.
-- LLM calls: cents per call. Roughly per PDF: about 12 page analyses, about 50 system transcriptions, plus reviews and fixes. Cheaper models (e.g. Flash-class) for easy steps, stronger models where accuracy matters.
+- LLM calls: cents per call. Roughly per PDF: about 12 page analyses, about 50 system transcriptions, plus reviews and fixes. The recommended model is Opus 5.5 for every stage (§7.2).
 - **LLM requests are sequential and synchronous for now:** one at a time, no parallel calls, no overnight batch requests. Further optimizations are decided once we see how long an extraction takes.
 
 #### How costs are computed and kept
@@ -1352,7 +1355,7 @@ For trying the app by hand on prepared data, locally only (no remote test databa
 **Human evaluation, supported by tooling.** There is no ground-truth encoding for interesting scores (only for PDFs engraved from a source that is published with them, such as Mutopia's LilyPond, a narrow and easy subdomain). Every format can also express the same music in many ways, so comparing source text is meaningless. And the errors music OCR still makes are big and obvious: improvements are visible from a glance at the rendered output. Precise automatic metrics would be the right tool for a production system tuned over years, not for this project.
 
 ### Test set
-- `testset/` in the repo. Small, since evaluation is by hand. Only the input PDFs (public domain, e.g. from IMSLP), the highlighter strokes on them and the `.ly` and `.musicxml` candidates are committed. The inputs never change, so their strokes stay valid on any machine. Engravings, strokes on engravings and any other files produced there stay local. Its README documents the tooling and why each piece was picked.
+- `testset/` in the repo. Small, since evaluation is by hand. Only the input PDFs (public domain, e.g. from IMSLP), the highlighter strokes on them, the `.ly` and `.musicxml` candidates and the Soundslice screenshots are committed. The inputs never change, so their strokes stay valid on any machine. Engravings, strokes on engravings and any other files produced there stay local. Its README documents the tooling and why each piece was picked.
 - Input PDFs are chosen to cover the phenomena in §1 rather than random pieces: multiple voices per staff, staff count changes, lyrics, editorial notes and ossia/alternatives, reduction staff, two-piano double systems, old ornamented scans, clean vector PDFs, a few non-piano cases.
 - Naming: `<piece>.orig.pdf` is the input. Each extraction method adds `<piece>.<method>.<format>`, in the format the method writes: `.musicxml` from OMR tools (e.g. `fuer_elise.audiveris.musicxml`), rendered directly, so a tool isn't judged on a lossy `musicxml2ly` conversion; `.ly` from LilyPond (e.g. the manual run's `bendel_la_cascade_p4.claude-chat.ly`); `.mei` from score3ly (e.g. `fuer_elise.s3l-opus.mei`, once the engrave command handles MEI, §15). Baselines are the best results from existing tools (§16 step 2).
 
@@ -1428,7 +1431,7 @@ Bendel, La Cascade p4, transcribed by Claude Opus 5.5 in a claude.ai chat with c
 | Regenerated images drifting from what the human or LLM worked on | §8: deterministic decoding and operations, normalized coordinates, fingerprint checks. |
 | Downscaled system images losing detail (models shrink large images, and piano systems are wide) | Stretch crops sent along with the system crop, and zoom crops on request (§6, `extract`, "Zooming in"). |
 | Bugs in building the MEI or rendering it, misleading the user in `human_review` | Tests of the MEI builder, validated against the MEI schemas (§6, "MEI"); `review` reads the lens, not the rendering. |
-| ML costs creeping up | Per-call cost logging, reuse of recorded requests, cheaper models for easy steps. |
+| ML costs creeping up | Per-call cost logging, reuse of recorded requests, the spending cap (§10). |
 | Two devices editing the same project | Optimistic locking (§4). |
 | Irreversible infrastructure choices | D1 and R2 jurisdictions are set at creation. Scripted in the repo. |
 
@@ -1540,7 +1543,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 2. **Baselines from existing tools:** *Done.* Extract test-set pieces with existing services, paid ones included. The aim is the best transcription obtainable without building anything new. MusicXML outputs are judged by rendering them directly (plus automated checks such as measure durations), not after a lossy `musicxml2ly` conversion. Tools and results: §13, "Baselines". Audiveris is installed only from https://github.com/Audiveris/audiveris/releases: `audiveris.com` and `audiveris.net` are scam sites.
 3. **Manual run of the intended pipeline:** extract a few test-set pieces by following §6–7 by hand (cropping, prompting the LLMs, assembling), without building the app. *Done* for Bendel p4 with Claude Opus 5.5 in a chat (§13, "The manual run"; its lessons are in §6).
 4. **Decision:** compare 3 against 2 in the viewer and decide whether to build the app. Possible reasons: better results, equal results more cheaply or faster, an open tool that does the job well and gives the user full control and transparency, or simply wanting to.
-   *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design plus the improvements documented in the notes it should work very well.
+   *Decided (2026-10-06): build it.* Every existing tool tested, paid or free, was far from usable. Opus 5.5 in a chat was far better, and with this design, which builds on the manual run's lessons (§13), it should work very well.
 5. **Build the app,** from the outside inwards: the first release, below.
 6. **Later,** details still to be worked out:
    - **Running the pipeline on the server** (optional but desirable; big, and tricky to get right). Today the browser drives the pipeline and does all the PDF and image work, so a run only advances while the app is open and, on a phone, on screen.
