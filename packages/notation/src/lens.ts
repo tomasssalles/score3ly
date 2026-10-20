@@ -130,7 +130,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     fail(`the answer must have exactly the stretches 1 to ${context.stretches}, in order, and has ${answer.stretches.map((s) => s.stretch).join(", ") || "none"}`);
   }
 
-  // The staves: each number once, a new one with a description, a clef and a key each, a time on every staff at a
+  // The staves: each number once, a new one with a description and a known one without, a clef and a key each, a time on every staff at a
   // piece's start.
   if (answer.staves.length === 0) fail("the system has no staves");
   const known = new Map(before.staves.map((s) => [s.staff, s]));
@@ -139,7 +139,11 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     if (!Number.isInteger(s.staff) || s.staff < 1) fail(`a staff's number must be a whole number from 1, not ${s.staff}`);
     if (onSystem.has(s.staff)) fail(`staff ${s.staff} is on the system twice`);
     onSystem.add(s.staff);
-    if (!known.has(s.staff) && !s.description?.trim()) fail(`staff ${s.staff} is new and needs a description`);
+    if (known.has(s.staff)) {
+      if (s.description !== null) fail(`staff ${s.staff} is already known: its description must be null`);
+    } else if (!s.description?.trim()) {
+      fail(`staff ${s.staff} is new and needs a description`);
+    }
     if (!normalizeClef(s.clef)) fail(`staff ${s.staff}: "${s.clef}" isn't a clef`);
     if (!parseKey(s.key)) fail(`staff ${s.staff}: "${s.key}" isn't a key signature (e.g. "0", "2s", "3f")`);
     if (s.time !== null && !parseTime(s.time)) fail(`staff ${s.staff}: "${s.time}" isn't a time signature (e.g. "3/4", "C", "C|")`);

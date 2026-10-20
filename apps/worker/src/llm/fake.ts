@@ -5,7 +5,7 @@
 // Two steps get more than that, so the pipeline runs end to end: `layout` (two systems on every page, each with three
 // bar lines, so that the later stages have systems to work on) and `extract`, whose answer must cover exactly the
 // stretches asked for, with a voice on every staff (the fake reads the request's JSON and answers with whole-measure
-// rests in 4/4).
+// rests in 4/4, a made-up doubt on every system and a format issue on the first, so their views can be seen).
 
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse } from "./types.ts";
 
@@ -74,6 +74,7 @@ function simplest(schema: Record<string, unknown>): unknown {
 }
 
 type ExtractRequest = {
+  system: number;
   stretches: number;
   firstOfPiece: boolean;
   staves: { staff: number }[];
@@ -84,7 +85,7 @@ type ExtractRequest = {
 
 // An `extract` answer for a request in its form (its schema has "stretches" and "lastMeasureContinues"): the piece's
 // staves, or as many as the hints say (two if they say nothing), one voice per staff with a whole-measure rest in every
-// stretch, every stretch a new measure.
+// stretch, every stretch a new measure; with the issues above.
 function fakeExtract(request: LlmRequest): unknown {
   const properties = (request.jsonSchema?.properties ?? {}) as Record<string, unknown>;
   if (!("stretches" in properties && "lastMeasureContinues" in properties)) return null;
@@ -127,7 +128,36 @@ function fakeExtract(request: LlmRequest): unknown {
     })),
     rightBarLine: "single",
   }));
-  return { startRepeat: false, staves, groups: [], stretches, lastMeasureContinues: false, issues: [] };
+  const box = { left: 0.1, right: 0.4, top: 0.2, bottom: 0.6 };
+  const issues: unknown[] = [
+    {
+      boxes: [{ image: "stretch 1", box }],
+      location: "the first note",
+      question: "Is the dot after the first note a staccato or a smudge? (A made-up doubt from the fake model.)",
+      answers: [
+        { key: "a", text: "a staccato" },
+        { key: "b", text: "a smudge" },
+      ],
+      applied: "b",
+      class: "reading",
+      lilypond: null,
+    },
+  ];
+  if (r.system === 1) {
+    issues.push({
+      boxes: [{ image: "system", box }],
+      location: null,
+      question: "A harmonic is printed here, which the format can't write. (A made-up format issue from the fake model.)",
+      answers: [
+        { key: "a", text: "left out" },
+        { key: "b", text: "written as a plain note" },
+      ],
+      applied: "a",
+      class: "format",
+      lilypond: ["\\harmonic"],
+    });
+  }
+  return { startRepeat: false, staves, groups: [], stretches, lastMeasureContinues: false, issues };
 }
 
 // A `layout` answer (its schema has "systems", "satisfied" and "severelySkewed"): two systems, each with three bar

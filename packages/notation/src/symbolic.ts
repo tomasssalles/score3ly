@@ -5,7 +5,7 @@
 // spans.ts).
 
 // Raise whenever the format changes: what the prompt describes, what the parser accepts.
-export const LENS_VERSION = 1;
+export const LENS_VERSION = 2;
 
 export const ACCIDENTALS = ["flat", "sharp", "natural", "doubleflat", "doublesharp"] as const;
 export type Accidental = (typeof ACCIDENTALS)[number];

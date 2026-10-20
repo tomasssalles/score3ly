@@ -94,6 +94,9 @@ test("the next system reuses staves and voices without descriptions, and carries
   assert.deepEqual(second.warnings, []);
   assert.deepEqual(second.codeIssues, []);
   assert.equal(second.state.count, 4);
+  const staff = system(2, {}, false);
+  staff.staves[0].description = "piano right hand";
+  assert.match(unusable(staff, context(2, { system: 2, firstOfPiece: false }), first.state), /staff 1 is already known/);
   const described = system(2, {}, false);
   described.stretches[0].voices[0].description = "melody again";
   assert.match(unusable(described, context(2, { system: 2, firstOfPiece: false }), first.state), /already known/);
