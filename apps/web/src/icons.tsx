@@ -294,6 +294,27 @@ export function ExtractIcon() {
   );
 }
 
+// A staff with two boxes on it: shows or hides the boxes of issues and warnings on the score. The staff is lighter, so
+// the boxes stand out at the icon's size.
+export function BoxesIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path className="faint-stroke" d="M3 6h18M3 9h18M3 12h18M3 15h18M3 18h18" />
+      <rect x="3.5" y="4" width="9.5" height="7" rx=".5" />
+      <rect x="10" y="15.3" width="10.5" height="4.7" rx=".5" />
+    </svg>
+  );
+}
+
+// </>: the raw source, as against its rendering.
+export function SourceIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14" />
+    </svg>
+  );
+}
+
 // A plus: add something.
 export function PlusIcon() {
   return (

@@ -435,6 +435,12 @@ body {
   fill: currentColor;
 }
 
+/* A lighter part of a line icon, e.g. the staff under the boxes. */
+.icon .faint-stroke {
+  stroke-width: 1.2;
+  opacity: 0.75;
+}
+
 .icon-button {
   flex: none;
   display: grid;
