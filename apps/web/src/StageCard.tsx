@@ -1,11 +1,11 @@
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
-import type { Project } from "./api";
 import {
   AnalyzeIcon,
   ExtractIcon,
   ComputedIcon,
   DataIcon,
+  DocumentIcon,
   ImageIcon,
   IngestIcon,
   LayoutIcon,
@@ -18,8 +18,6 @@ import {
   SkewIcon,
   StopIcon,
 } from "./icons";
-import { pdfUrl } from "./pdf";
-import { PdfThumb } from "./PdfThumb";
 import { hasArtifacts, type Artifact, type RunMode, type Stage, type StageKind } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
 import { KIND_LABELS } from "./StageDetails";
@@ -58,7 +56,6 @@ const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {
 // One stage of the pipeline: what it is, how it went, what it can do next, and its artifacts as tiles.
 // A planned stage (not its turn yet) is only a dimmed title.
 export function StageCard({
-  project,
   stage,
   mode,
   busy,
@@ -66,7 +63,6 @@ export function StageCard({
   detailsShown,
   actions,
 }: {
-  project: Project;
   stage: Stage;
   mode: RunMode;
   busy: boolean; // a stage is running: nothing may change until it stops
@@ -101,7 +97,6 @@ export function StageCard({
           {stage.artifacts.map((artifact) => (
             <li key={artifact.id}>
               <ArtifactTile
-                project={project}
                 artifact={artifact}
                 selected={artifact.id === selectedArtifactId}
                 onSelect={() => actions.selectArtifact(artifact.id)}
@@ -198,15 +193,12 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
   return groups;
 }
 
-// An artifact as a tile: an icon for its kind (the original PDF still shows its first page, DESIGN.md §15). A
-// group says how many items it has.
+// An artifact as a tile: an icon for its kind, never a thumbnail (DESIGN.md §5.6). A group says how many items it has.
 function ArtifactTile({
-  project,
   artifact,
   selected,
   onSelect,
 }: {
-  project: Project;
   artifact: Artifact;
   selected: boolean;
   onSelect: () => void;
@@ -214,7 +206,7 @@ function ArtifactTile({
   return (
     <button type="button" className="output-tile" aria-current={selected ? "true" : undefined} onClick={onSelect}>
       <span className="output-thumb">
-        <Thumb project={project} artifact={artifact} />
+        <ArtifactIcon artifact={artifact} />
         {artifact.count > 1 && <span className="output-count">×{artifact.count}</span>}
       </span>
       <span className="output-title">{artifact.title}</span>
@@ -222,8 +214,8 @@ function ArtifactTile({
   );
 }
 
-function Thumb({ project, artifact }: { project: Project; artifact: Artifact }) {
-  if (artifact.kind === "pdf") return <PdfThumb url={pdfUrl(project.pdfSha256)} />;
+function ArtifactIcon({ artifact }: { artifact: Artifact }) {
+  if (artifact.kind === "pdf") return <DocumentIcon />;
   if (artifact.kind === "images") return <ImageIcon />;
   if (artifact.kind === "json") return <DataIcon />;
   return <MusicIcon />;

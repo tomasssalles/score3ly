@@ -122,7 +122,6 @@ export function PipelinePanel({
         {pipeline.stages.map((stage) => (
           <StageCard
             key={stage.id}
-            project={project}
             stage={stage}
             mode={pipeline.mode}
             busy={busy}

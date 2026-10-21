@@ -809,16 +809,6 @@ body {
   overflow: hidden;
 }
 
-.pdf-thumb {
-  display: contents;
-}
-
-.output-thumb canvas {
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-}
-
 .output-thumb .icon {
   width: 26px;
   height: 26px;
