@@ -20,10 +20,10 @@ export const MEI_VERSION = "5.1";
 export const MEI_NS = "http://www.music-encoding.org/ns/mei";
 
 // What we use beyond MEI Basic, on purpose (DESIGN.md §6, "So we go beyond MEI Basic"): the header's work, pieces and
-// edition, how the file was made, the user's comment, the facsimile with the measures' zones, a bar line in the middle
-// of a measure, the sounding accidental on the note, and the link from a piece to its entry in the header.
+// edition, how the file was made, the user's comment, the facsimile with the measures' zones, the sounding accidental on
+// the note, and the link from a piece to its entry in the header.
 export const BEYOND_BASIC = {
-  elements: ["workList", "manifestationList", "encodingDesc", "notesStmt", "facsimile", "barLine"],
+  elements: ["workList", "manifestationList", "encodingDesc", "notesStmt", "facsimile"],
   attributes: [
     { element: "note", attribute: "accid.ges" },
     { element: "measure", attribute: "facs" },
@@ -148,18 +148,20 @@ const FACS_SCALE = 10000;
 const scaled = (v: number) => Math.round(v * FACS_SCALE);
 export const zoneId = (system: number, stretches: number[]) => `z${system}t${stretches[0]}-${stretches[stretches.length - 1]}`;
 
-// A surface per page ("surface 3 is page 3 of the project's PDF"), a zone per part of a measure.
+// A surface per page ("surface 3 is page 3 of the project's PDF"), a zone per MEI measure and system it is on.
 function facsimile(score: Score): XmlElement | null {
   const pages = new Map<number, XmlElement[]>();
   for (const piece of score.pieces) {
     for (const m of piece.measures) {
-      for (const part of m.parts) {
-        const system = score.system(part.system);
-        const box = partBox(system.box, system.barLines, part.stretches);
-        if (!box) continue;
-        const zones = pages.get(system.page) ?? [];
-        zones.push(el("zone", { "xml:id": zoneId(part.system, part.stretches), ulx: scaled(box.left), uly: scaled(box.top), lrx: scaled(box.right), lry: scaled(box.bottom) }));
-        pages.set(system.page, zones);
+      for (const segment of measureSegments(score, m, false)) {
+        for (const part of segmentParts(segment)) {
+          const system = score.system(part.system);
+          const box = partBox(system.box, system.barLines, part.stretches);
+          if (!box) continue;
+          const zones = pages.get(system.page) ?? [];
+          zones.push(el("zone", { "xml:id": zoneId(part.system, part.stretches), ulx: scaled(box.left), uly: scaled(box.top), lrx: scaled(box.right), lry: scaled(box.bottom) }));
+          pages.set(system.page, zones);
+        }
       }
     }
   }
@@ -169,6 +171,41 @@ function facsimile(score: Score): XmlElement | null {
     {},
     [...pages.entries()].sort((a, b) => a[0] - b[0]).map(([page, zones]) => el("surface", { "xml:id": `surface-${page}`, n: page, ulx: 0, uly: 0, lrx: FACS_SCALE, lry: FACS_SCALE }, zones)),
   );
+}
+
+// A measure as MEI measures (DESIGN.md §6, "MEI"): an MEI measure runs from bar line to bar line, so a measure is
+// divided at every bar line printed inside it (a repeat after a pickup), each part `@metcon="false"` with the
+// measure's number. A system break inside a measure is layout, not a bar line: the full score keeps such a measure
+// whole, with the break inside it; a system alone (`atSystems`) has only its own part.
+export type Segment = { system: number; stretch: number }[];
+
+export function measureSegments(score: Score, m: ScoreMeasure, atSystems: boolean): Segment[] {
+  const segments: Segment[] = [];
+  let current: Segment = [];
+  for (const part of m.parts) {
+    for (const stretch of part.stretches) {
+      const prev = current[current.length - 1];
+      const divides = prev && (prev.system !== part.system ? atSystems : score.stretch(prev.system, prev.stretch).stretch.rightBarLine !== "none");
+      if (divides) {
+        segments.push(current);
+        current = [];
+      }
+      current.push({ system: part.system, stretch });
+    }
+  }
+  if (current.length) segments.push(current);
+  return segments;
+}
+
+// A segment's stretches by system.
+function segmentParts(segment: Segment): { system: number; stretches: number[] }[] {
+  const parts: { system: number; stretches: number[] }[] = [];
+  for (const s of segment) {
+    const last = parts[parts.length - 1];
+    if (last && last.system === s.system) last.stretches.push(s.stretch);
+    else parts.push({ system: s.system, stretches: [s.stretch] });
+  }
+  return parts;
 }
 
 function partBox(box: Box | null, barLines: number[], stretches: number[]): Box | null {
@@ -271,7 +308,8 @@ function valueOf(length: Fraction): Duration | null {
 
 // --- A piece -----------------------------------------------------------------------------------------------------
 
-type Control = { el: XmlElement; part: number }; // a control event, and the part (system) of its measure it starts in
+// A control event, the stretch it starts in, and for one placed by time its onset in the measure.
+type Control = { el: XmlElement; system: number; stretch: number; onset: Fraction | null };
 type Open = { el: XmlElement }; // one whose end isn't known yet
 type CurveStart = { id: string; pitch: Pitch | null; alter: number | null; index: number; open: Open };
 type VoiceState = {
@@ -285,7 +323,7 @@ type OpenOttava = Open & { voice: number; staff: number; first: string | null; l
 type OttavaChange = { staff: number; measure: number; onset: Fraction; value: number };
 
 // Where an event is: its measure, the part (system) and the stretch, and its onset within the measure and the part.
-type Place = { measure: ScoreMeasure; part: number; system: LensSystem; systemNumber: number; stretch: LensStretch; offset: Fraction; partOffset: Fraction; unit: number };
+type Place = { measure: ScoreMeasure; system: LensSystem; systemNumber: number; stretch: LensStretch; offset: Fraction };
 
 class PieceWriter {
   private readonly voices = new Map<number, VoiceState>();
@@ -322,39 +360,39 @@ class PieceWriter {
     let lastSystem: number | null = null;
     for (const [i, m] of piece.measures.entries()) {
       const built = measures[i];
-      const parts = m.parts.map((p, j) => ({ p, j })).filter(({ p }) => !only || only.has(p.system));
-      if (parts.length === 0) continue;
-      const ending = this.endingOf(m);
-      if (ending && (ending.startsHere || !endingRun)) {
-        endingRun = el("ending", { "xml:id": `p${piece.index + 1}e${i + 1}`, label: ending.label ?? undefined });
-        sectionChildren.push(endingRun);
-      } else if (!ending) endingRun = null;
-      if (only) {
-        // Each part a measure of its own.
-        for (const { p, j } of parts) {
-          if (!firstScoreDef) firstScoreDef = this.scoreDefAt(p.system);
-          else if (j === 0) for (const change of built.changes) push(change);
-          push(this.measureElement(m, built, [j], true));
-        }
-      } else {
-        const first = m.parts[0].system;
+      const segments = measureSegments(score, m, !!only);
+      for (const [k, segment] of segments.entries()) {
+        if (only && !only.has(segment[0].system)) continue;
+        const ending = this.endingOf(segment);
+        if (ending && (ending.startsHere || !endingRun)) {
+          endingRun = el("ending", { "xml:id": `p${piece.index + 1}e${segment[0].system}t${segment[0].stretch}`, label: ending.label ?? undefined });
+          sectionChildren.push(endingRun);
+        } else if (!ending) endingRun = null;
+        const first = segment[0].system;
         if (!firstScoreDef) firstScoreDef = this.scoreDefAt(first);
         else {
-          if (first !== lastSystem) push(score.system(first).page !== score.system(lastSystem!).page ? el("pb") : el("sb"));
-          for (const change of built.changes) push(change);
+          if (!only && k === 0 && first !== lastSystem) push(score.system(first).page !== score.system(lastSystem!).page ? el("pb") : el("sb"));
+          for (const change of this.changesAt(m, segment[0], k === 0)) push(change);
         }
-        push(this.measureElement(m, built, m.parts.map((_, j) => j), false));
-        lastSystem = m.parts[m.parts.length - 1].system;
+        push(this.measureElement(m, built, segments, k));
+        lastSystem = segment[segment.length - 1].system;
+        if (ending?.endsHere) endingRun = null;
       }
-      if (ending?.endsHere) endingRun = null;
+    }
+    // A system alone: what points outside it is left out.
+    if (only) {
+      const ids = new Set([...elements(el("section", {}, sectionChildren))].flatMap((e) => e.attrs.filter(([k]) => k === "xml:id").map(([, v]) => v)));
+      for (const e of elements(el("section", {}, sectionChildren))) {
+        if (e.name === "measure") e.children = e.children.filter((c) => typeof c === "string" || c.name === "staff" || refsOf(c).every((r) => ids.has(r)));
+      }
     }
     const attrs: Record<string, string | number | undefined> = { "xml:id": `piece-${piece.index + 1}`, n: piece.index + 1, label: title || undefined };
     if (!only && (this.score.pieces.length > 1 || (this.metadata?.pieces.length ?? 0) > 0)) attrs.corresp = `#work-piece-${piece.index + 1}`;
     return el("mdiv", attrs, [el("score", {}, [firstScoreDef ?? this.scoreDefAt(piece.systems[0].number), el("section", {}, sectionChildren)])]);
   }
 
-  private endingOf(m: ScoreMeasure): (LensEnding & { endsHere: boolean }) | null {
-    const stretches = m.parts.flatMap((p) => p.stretches.map((s) => this.score.stretch(p.system, s).stretch));
+  private endingOf(segment: Segment): (LensEnding & { endsHere: boolean }) | null {
+    const stretches = segment.map((s) => this.score.stretch(s.system, s.stretch).stretch);
     const first = stretches.find((s) => s.ending);
     if (!first?.ending) return null;
     const label = stretches.find((s) => s.ending?.label)?.ending?.label ?? null;
@@ -478,9 +516,9 @@ class PieceWriter {
   private measure(m: ScoreMeasure): BuiltMeasure {
     this.controls = [];
     const offsets = stretchOffsets(this.score, m);
-    const runs: { run: Run; part: number; offset: Fraction }[] = [];
-    for (const [j, part] of m.parts.entries()) {
-      for (const stretch of part.stretches) for (const run of this.score.stretch(part.system, stretch).runs) runs.push({ run, part: j, offset: offsets.get(`${part.system}/${stretch}`)! });
+    const runs: { run: Run; system: number; offset: Fraction }[] = [];
+    for (const part of m.parts) {
+      for (const stretch of part.stretches) for (const run of this.score.stretch(part.system, stretch).runs) runs.push({ run, system: part.system, offset: offsets.get(`${part.system}/${stretch}`)! });
     }
     const content = new Map<string, XmlNode[]>(); // by `${voice}/${system}/${stretch}`
     const home = new Map<number, number>(); // each voice's layer: on the staff it starts on in the measure
@@ -488,28 +526,23 @@ class PieceWriter {
     const voiceIds = [...new Set(runs.map((r) => r.run.voice))].sort((a, b) => a - b);
     for (const v of voiceIds) {
       this.accidentals = new Map();
-      for (const { run, part, offset } of runs.filter((r) => r.run.voice === v)) {
-        const p = m.parts[part];
-        const system = this.score.system(p.system);
-        const stretch = this.score.stretch(p.system, run.stretch).stretch;
-        const partStart = offsets.get(`${p.system}/${p.stretches[0]}`)!;
-        const time = parseTime(m.time ?? "") ?? { unit: 4 };
-        const place: Place = { measure: m, part, system: system.answer, systemNumber: p.system, stretch, offset, partOffset: sub(offset, partStart), unit: time.unit };
-        content.set(`${v}/${p.system}/${run.stretch}`, this.run(run, place, home.get(v)!));
+      for (const { run, system, offset } of runs.filter((r) => r.run.voice === v)) {
+        const stretch = this.score.stretch(system, run.stretch).stretch;
+        const place: Place = { measure: m, system: this.score.system(system).answer, systemNumber: system, stretch, offset };
+        content.set(`${v}/${system}/${run.stretch}`, this.run(run, place, home.get(v)!));
       }
     }
-    return { content, controls: this.controls, changes: this.changesAt(m) };
+    return { content, controls: this.controls, home, offsets, unit: (parseTime(m.time ?? "") ?? { unit: 4 }).unit };
   }
 
-  // The definitions that change where a measure starts: the clefs, keys and times printed at a new system's start that
-  // differ from those in effect, and the stretch's own changes.
-  private changesAt(m: ScoreMeasure): XmlElement[] {
-    const first = m.parts[0];
-    const system = this.score.system(first.system);
-    const stretch = this.score.stretch(first.system, first.stretches[0]).stretch;
+  // The definitions that change where an MEI measure starts: at a measure's start, the clefs, keys and times printed at
+  // a new system's start that differ from those in effect; and the stretch's own changes.
+  private changesAt(m: ScoreMeasure, at: { system: number; stretch: number }, measureStart: boolean): XmlElement[] {
+    const system = this.score.system(at.system);
+    const stretch = this.score.stretch(at.system, at.stretch).stretch;
     const previous = this.piece.systems[this.piece.systems.indexOf(system) - 1];
     const before = previous ? this.endState(previous.number) : null;
-    const startsSystem = first.stretches[0] === firstStretch(system.answer);
+    const startsSystem = measureStart && at.stretch === firstStretch(system.answer);
     const changed = new Map<number, Record<string, string | number>>();
     const set = (staff: number, attrs: Record<string, string | number>) => changed.set(staff, { ...(changed.get(staff) ?? {}), ...attrs });
     if (startsSystem && before) {
@@ -648,7 +681,7 @@ class PieceWriter {
         if (event.value !== 0) {
           const o = el("octave", { "xml:id": `${id}o`, dis: Math.abs(event.value) === 2 ? 15 : 8, "dis.place": event.value > 0 ? "above" : "below", staff, startid: "", endid: "" });
           this.openOttavas.set(staff, { el: o, voice: ctx.run.voice, staff, first: null, last: null });
-          this.controls.push({ el: o, part: place.part });
+          this.controls.push({ el: o, system: place.systemNumber, stretch: place.stretch.stretch, onset: null });
         }
         return [];
       }
@@ -659,16 +692,16 @@ class PieceWriter {
         ctx.stem = event.direction === "neutral" ? null : event.direction;
         return [];
       case "event": {
-        const at = tstamp(this.partOnset(onset, place), place.unit);
         const allStaves = place.system.staves.map((s) => s.staff).join(" ");
         const top = place.system.staves[0].staff;
         const e =
           event.name === "breathe"
-            ? el("breath", { tstamp: at, staff: ctx.staff })
+            ? el("breath", { tstamp: "", staff: ctx.staff })
             : event.name === "caesura"
-              ? el("caesura", { tstamp: at, staff: allStaves })
-              : el("repeatMark", { func: event.name === "segnoMark" ? "segno" : event.name === "codaMark" ? "coda" : "fine", tstamp: at, staff: top }, event.name === "fine" ? ["Fine"] : []);
-        this.controls.push({ el: e, part: place.part });
+              ? el("caesura", { tstamp: "", staff: allStaves })
+              : el("repeatMark", { func: event.name === "segnoMark" ? "segno" : event.name === "codaMark" ? "coda" : "fine", tstamp: "", staff: top }, event.name === "fine" ? ["Fine"] : []);
+        // Its beat is counted from the start of its MEI measure, known when the measure is written.
+        this.controls.push({ el: e, system: place.systemNumber, stretch: place.stretch.stretch, onset });
         return [];
       }
       case "tuplet": {
@@ -700,11 +733,6 @@ class PieceWriter {
         return out;
       }
     }
-  }
-
-  private partOnset(onset: Fraction, place: Place): Fraction {
-    // Within the measure for the full score; within the part's own measure for a system alone.
-    return this.only ? add(place.partOffset, sub(onset, place.offset)) : onset;
   }
 
   private closeOttava(staff: number) {
@@ -762,7 +790,7 @@ class PieceWriter {
     const { place } = ctx;
     const v = this.voice(ctx.run.voice);
     const staff = ctx.staff;
-    const add = (e: XmlElement) => this.controls.push({ el: e, part: place.part });
+    const add = (e: XmlElement) => this.controls.push({ el: e, system: place.systemNumber, stretch: place.stretch.stretch, onset: null });
     const between = (placement: string | null) => (placement === "_" ? this.bracedBelow(place.system, staff) : null);
     const staffOf = (placement: string | null) => {
       const below = between(placement);
@@ -873,81 +901,72 @@ class PieceWriter {
     return null;
   }
 
-  // The measure element: its staves and layers from the parts asked for, its bar lines, its control events.
-  private measureElement(m: ScoreMeasure, built: BuiltMeasure, parts: number[], alone: boolean): XmlElement {
+  // An MEI measure: one segment of a measure (`segments[k]`), its staves and layers, its bar lines, its control events.
+  private measureElement(m: ScoreMeasure, built: BuiltMeasure, segments: Segment[], k: number): XmlElement {
     const { score, piece } = this;
-    const partsOf = parts.map((j) => m.parts[j]);
-    const stretches = partsOf.flatMap((p) => p.stretches.map((s) => ({ system: p.system, stretch: s, data: score.stretch(p.system, s) })));
-    // A glissando closes on the next note of its voice: done here, after the measure's notes are known.
+    const segment = segments[k];
+    const stretches = segment.map((s) => ({ ...s, data: score.stretch(s.system, s.stretch) }));
     const lastStretch = stretches[stretches.length - 1].data.stretch;
-    const systemStaves = new Set(partsOf.flatMap((p) => score.system(p.system).answer.staves.map((s) => s.staff)));
+    const systemStaves = new Set(stretches.flatMap((s) => score.system(s.system).answer.staves.map((x) => x.staff)));
     const staffOrder = piece.staves.map((s) => s.staff).filter((n) => systemStaves.has(n));
-    // Each voice's home: the staff it starts on in the measure.
-    const home = new Map<number, number>();
-    for (const s of stretches) for (const r of s.data.runs) if (!home.has(r.voice)) home.set(r.voice, r.staff);
     const staffEls = staffOrder.map((staff) => {
-      const voices = [...home.entries()].filter(([, h]) => h === staff).map(([v]) => v).sort((a, b) => a - b);
+      const voices = [...built.home.entries()].filter(([, h]) => h === staff).map(([v]) => v).sort((a, b) => a - b);
       const layers = (voices.length ? voices : [null]).map((v, li) => {
         const children: XmlNode[] = [];
         for (const [i, s] of stretches.entries()) {
           const prev = stretches[i - 1];
-          if (prev && prev.system !== s.system) children.push(el("sb"));
+          if (prev && prev.system !== s.system) children.push(el("sb")); // a system break inside the measure
           const nodes = v === null ? null : built.content.get(`${v}/${s.system}/${s.stretch}`);
           if (nodes) children.push(...nodes);
           else if (s.data.length.n > 0) children.push(...spaceValues(s.data.length).map((d) => el("space", durAttrs(d))));
-          // A bar line inside the measure (not at a system's end, where the system break is).
-          const next = stretches[i + 1];
-          if (next && next.system === s.system && s.data.stretch.rightBarLine !== "none") {
-            children.push(el("barLine", { form: s.data.stretch.rightBarLine === "single" ? "single" : BAR_FORMS[s.data.stretch.rightBarLine] }));
-          }
         }
         const description = v === null ? undefined : piece.voices.find((x) => x.voice === v)?.description;
         return el("layer", { n: li + 1, label: description }, children);
       });
       return el("staff", { n: staff }, layers);
     });
-    const ids = new Set<string>();
-    for (const s of staffEls) for (const e of elements(s)) {
-      const id = e.attrs.find(([k]) => k === "xml:id")?.[1];
-      if (id) ids.add(id);
-    }
+    const start = built.offsets.get(`${segment[0].system}/${segment[0].stretch}`)!;
     const controls = built.controls
-      .filter((c) => parts.includes(c.part) || !alone)
-      .filter((c) => {
-        const refs = refsOf(c.el);
-        if (refs.some((r) => r === "")) return false; // never closed
-        return !alone || refs.every((r) => ids.has(r));
-      })
-      .map((c) => c.el);
-    const isFirstPart = parts[0] === 0;
-    const system = score.system(partsOf[0].system);
-    const startRepeat = isFirstPart && ((stretches[0].stretch === firstStretch(system.answer) && system.answer.startRepeat) || this.previousStartsRepeat(m));
+      .filter((c) => segment.some((s) => s.system === c.system && s.stretch === c.stretch))
+      .filter((c) => !refsOf(c.el).some((r) => r === "")) // never closed
+      .map((c) => {
+        if (c.onset) c.el.attrs = c.el.attrs.map(([key, v]) => [key, key === "tstamp" ? String(tstamp(sub(c.onset!, start), built.unit)) : v]);
+        return c.el;
+      });
+    const before = k > 0 ? segments[k - 1][segments[k - 1].length - 1] : this.lastStretchBefore(m);
+    const system = score.system(segment[0].system);
+    // A start repeat: the system's own, where the segment starts the system; or the bar line before it.
+    const startRepeat =
+      (segment[0].stretch === firstStretch(system.answer) && system.answer.startRepeat) ||
+      (before !== null && score.stretch(before.system, before.stretch).stretch.rightBarLine === "startRepeat");
+    // Divided at a bar line inside it, or, for a system alone, at the system break: each part is incomplete.
+    const finest = measureSegments(score, m, true).length > 1;
+    const divided = segments.length > 1 || (!!this.only && finest);
     const attrs: Record<string, string | number | undefined> = {
-      "xml:id": alone ? `p${piece.index + 1}m${m.index + 1}${m.parts.length > 1 ? `-${parts[0] + 1}` : ""}` : `p${piece.index + 1}m${m.index + 1}`,
+      "xml:id": `p${piece.index + 1}m${m.index + 1}${finest ? `-s${segment[0].system}t${segment[0].stretch}` : ""}`,
       n: m.count > 1 ? `${m.n}–${m.n + m.count - 1}` : m.n,
-      metcon: m.kind === "incomplete" || (alone && m.parts.length > 1) ? "false" : undefined,
+      metcon: m.kind === "incomplete" || divided ? "false" : undefined,
       left: startRepeat ? "rptstart" : undefined,
       // A start repeat between two measures is the next one's left bar line.
       right: lastStretch.rightBarLine === "startRepeat" ? undefined : BAR_RENDITION[lastStretch.rightBarLine],
-      facs: !alone && m.parts.every((p) => score.system(p.system).box) ? m.parts.map((p) => `#${zoneId(p.system, p.stretches)}`).join(" ") : undefined,
+      facs: !this.only && segmentParts(segment).every((p) => score.system(p.system).box) ? segmentParts(segment).map((p) => `#${zoneId(p.system, p.stretches)}`).join(" ") : undefined,
     };
     return el("measure", attrs, [...staffEls, ...controls]);
   }
 
-  // A start-repeat bar line at the end of the measure before it.
-  private previousStartsRepeat(m: ScoreMeasure): boolean {
+  // The last stretch of the measure before this one, in the piece.
+  private lastStretchBefore(m: ScoreMeasure): { system: number; stretch: number } | null {
     const prev = this.piece.measures[m.index - 1];
-    if (!prev) return false;
+    if (!prev) return null;
     const last = prev.parts[prev.parts.length - 1];
-    const s = this.score.stretch(last.system, last.stretches[last.stretches.length - 1]).stretch;
-    return s.rightBarLine === "startRepeat";
+    return { system: last.system, stretch: last.stretches[last.stretches.length - 1] };
   }
 }
 
-const BAR_FORMS: Partial<Record<LensStretch["rightBarLine"], string>> = { double: "dbl", final: "end", startRepeat: "rptstart", endRepeat: "rptend", bothRepeats: "rptboth", dashed: "dashed" };
-
 type RunContext = { run: Run; place: Place; home: number; staff: number; stem: "up" | "down" | null; k: number };
-type BuiltMeasure = { content: Map<string, XmlNode[]>; controls: Control[]; changes: XmlElement[] };
+// A measure's content, by `${voice}/${system}/${stretch}`; its control events; each voice's staff (its layer is there);
+// where each stretch starts in it; the time signature's unit, for beats.
+type BuiltMeasure = { content: Map<string, XmlNode[]>; controls: Control[]; home: Map<number, number>; offsets: Map<string, Fraction>; unit: number };
 
 function firstStretch(answer: LensSystem): number {
   return answer.stretches.find((s) => s.class !== "none")?.stretch ?? 1;

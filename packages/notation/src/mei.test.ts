@@ -85,12 +85,21 @@ function richScore(): ScoreSystemInput[] {
     ],
   };
   // A second piece.
-  const s4 = system([stretch(1, [voice(1, 1, "c''4\\mordent d''4\\prall e''4\\turn\\startTrillSpan f''4\\stopTrillSpan", "melody"), voice(2, 2, "c1\\unaCorda", "bass")]), stretch(2, [voice(1, 1, "g''1\\caesura"), voice(2, 2, "c1\\treCorde")], { rightBarLine: "final" })], {}, true);
+  // A second piece, with a measure divided by a start repeat after its first half (stretches 2 and 3).
+  const s4 = system(
+    [
+      stretch(1, [voice(1, 1, "c''4\\mordent d''4\\prall e''4\\turn\\startTrillSpan f''4\\stopTrillSpan", "melody"), voice(2, 2, "c1\\unaCorda", "bass")]),
+      stretch(2, [voice(1, 1, "g''2\\=1("), voice(2, 2, "c2\\treCorde")], { rightBarLine: "startRepeat" }),
+      stretch(3, [voice(1, 1, "g''4\\=1) \\caesura a''4"), voice(2, 2, "c2")], { class: "continues", kind: null, rightBarLine: "final" }),
+    ],
+    {},
+    true,
+  );
   return [
     { number: 1, page: 1, box: box(0.1), barLines: [0.3, 0.5, 0.7], answer: s1 },
     { number: 2, page: 1, box: box(0.5), barLines: [0.3, 0.5, 0.7], answer: s2 },
     { number: 3, page: 2, box: box(0.1), barLines: [0.5], answer: s3 },
-    { number: 4, page: 2, box: box(0.5), barLines: [0.5], answer: s4 },
+    { number: 4, page: 2, box: box(0.5), barLines: [0.4, 0.7], answer: s4 },
   ];
 }
 
@@ -186,11 +195,11 @@ test("curves: a tie between notes of the same pitch, also across a system break;
 test("a measure split across systems is one measure in the full score, half a measure on each system alone", () => {
   const score = buildScore(richScore(), [1, 4]);
   const full = buildMei(score);
-  const split = find(full, "p1m4")!;
+  const split = find(full, "p1m4-s1t4")!;
   assert.equal(attrOf(split, "facs"), "#z1t4-4 #z2t1-1");
   assert.ok(named(split, "sb").length > 0);
   const alone = buildMei(score, { systems: [2] });
-  assert.equal(attrOf(find(alone, "p1m4-2"), "metcon"), "false");
+  assert.equal(attrOf(find(alone, "p1m4-s2t1"), "metcon"), "false");
   // Nothing in a system alone points outside it.
   const ids = new Set([...elements(alone)].flatMap((e) => e.attrs.filter(([k]) => k === "xml:id").map(([, v]) => v)));
   for (const e of elements(alone)) {
@@ -202,7 +211,7 @@ test("measures are numbered per piece, a pickup 0 when the printed numbers say s
   const root = buildMei(buildScore(richScore(), [1, 4]));
   const numbers = named(named(root, "mdiv")[0], "measure").map((m) => attrOf(m, "n"));
   assert.deepEqual(numbers, ["0", "1", "2", "3", "4", "5", "6", "7", "8–11"]);
-  assert.deepEqual(named(named(root, "mdiv")[1], "measure").map((m) => attrOf(m, "n")), ["1", "2"]);
+  assert.deepEqual(named(named(root, "mdiv")[1], "measure").map((m) => attrOf(m, "n")), ["1", "2", "2"]);
 });
 
 test("dynamics printed between braced staves apply to both; texts are dynamics or directions by their words", () => {
@@ -216,4 +225,16 @@ test("dynamics printed between braced staves apply to both; texts are dynamics o
 test("text from users and models is escaped", () => {
   const xml = serialize(buildMei(buildScore(richScore(), [1, 4]), { metadata: METADATA }));
   assert.ok(xml.includes("Scènes d'enfants &lt;&amp; \"more\"&gt;"));
+});
+
+test("a bar line inside a measure divides it into MEI measures, incomplete, with its number; a tie crosses it", () => {
+  const root = buildMei(buildScore(richScore(), [1, 4]));
+  const first = find(root, "p2m2-s4t2")!;
+  const second = find(root, "p2m2-s4t3")!;
+  assert.deepEqual([attrOf(first, "n"), attrOf(first, "metcon"), attrOf(first, "right")], ["2", "false", undefined]);
+  assert.deepEqual([attrOf(second, "n"), attrOf(second, "metcon"), attrOf(second, "left")], ["2", "false", "rptstart"]);
+  assert.equal(named(root, "barLine").length, 0);
+  assert.ok(named(root, "tie").some((t) => attrOf(t, "startid") === "#s4t2v1e0" && attrOf(t, "endid") === "#s4t3v1e0"));
+  // The caesura's beat counts from the start of its own MEI measure.
+  assert.equal(attrOf(named(second, "caesura")[0], "tstamp"), "2");
 });
