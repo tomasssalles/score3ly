@@ -317,7 +317,7 @@ export function EngraveIcon() {
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M3.2 3.1c.6-.4 1.4-.6 2.4-.6 1.7 0 2.6.7 2.6 2.3V9" />
       <path d="M8.2 5.5H5.6C4 5.5 3 6.2 3 7.3c0 1 .8 1.7 1.9 1.7 1.4 0 2.6-.7 3.3-1.8" />
-      <path d="M10.5 10.5l3.5 3.5M14 10.8V14h-3.2" />
+      <path d="M11.3 11.3l3.5 3.5M14.8 11.6v3.2h-3.2" />
       <ellipse className="filled-shape" cx="17.4" cy="20" rx="2.4" ry="1.8" transform="rotate(-20 17.4 20)" />
       <path d="M19.6 19.4v-6.5" />
     </svg>
