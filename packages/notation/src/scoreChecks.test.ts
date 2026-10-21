@@ -94,3 +94,8 @@ test("a courtesy signature that doesn't match the next system's start is a warni
   assert.match(w[0].message, /courtesy key signature 2s/);
   assert.deepEqual(w[0].places, [{ system: 1, stretch: 3 }, { system: 2, stretch: 1 }]);
 });
+
+test("two end repeats in a row are no warning: the second goes back to the first", () => {
+  const a = system(4, true, { startRepeat: true }, (i) => (i === 2 || i === 4 ? { rightBarLine: "endRepeat" } : {}));
+  assert.deepEqual(checkScore(checked([a], [1]), [1]).warnings, []);
+});

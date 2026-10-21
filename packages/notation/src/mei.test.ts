@@ -251,3 +251,26 @@ test("engrave's rendering copy divides a measure at its system break, with the b
   assert.equal(order[order.indexOf("p1m4-s1t4") + 1], "sb");
   assert.equal(named(first, "sb").length, 0);
 });
+
+test("tremolos on chords: two chords alternating (fTrem), and a chord repeated (bTrem)", async () => {
+  const s = system(
+    [
+      stretch(1, [voice(1, 1, "\\repeat tremolo 4 { <c' e'>16 <g' c''>16 } <e' g'>2:32", "melody"), voice(2, 2, "c1", "bass")]),
+      stretch(2, [voice(1, 1, "\\repeat tremolo 8 { <c' e'>32 <d' f'>32 } r2"), voice(2, 2, "c1")], { rightBarLine: "final" }),
+    ],
+    {},
+    true,
+  );
+  const root = buildMei(buildScore([{ number: 1, page: 1, box: box(0.1), barLines: [0.5], answer: s }], [1]));
+  await assertValid(root);
+  const [fTrem] = named(root, "fTrem");
+  assert.equal(attrOf(fTrem, "unitdur"), "16");
+  // Two chords, each written with half of the tremolo's length: 4 × (1/16 + 1/16) = 1/2, so a quarter each.
+  assert.deepEqual(fTrem.children.map((c) => (typeof c === "string" ? c : `${c.name}:${attrOf(c, "dur")}`)), ["chord:4", "chord:4"]);
+  assert.equal(named(fTrem, "note").length, 4);
+  const [bTrem] = named(root, "bTrem");
+  assert.equal(attrOf(bTrem, "unitdur"), "32");
+  assert.equal(named(bTrem, "chord").length, 1);
+  // 8 × (1/32 + 1/32) = 1/2 again: quarter-note chords.
+  assert.deepEqual(named(root, "fTrem")[1].children.map((c) => (typeof c === "string" ? c : attrOf(c, "dur"))), ["4", "4"]);
+});

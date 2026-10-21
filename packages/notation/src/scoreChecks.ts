@@ -50,9 +50,9 @@ function pieceEnd(last: CheckedScoreSystem, codeIssues: CodeIssue[], warnings: W
 
 type Ending = { label: string | null; start: StretchPlace; end: StretchPlace; endBarLine: string; next: number };
 
-// The repeat structure (§6, "No links between items"): an end repeat goes back to the nearest start repeat before it,
-// or to the piece's start; repeats don't nest. Endings: one that another ending follows ends at an end repeat (it goes
-// back), and an ending is never alone.
+// The repeat structure (§6, "No links between items"): an end repeat goes back to the nearest repeat sign before it, a
+// start repeat or another end repeat (`|: A :| B :|` plays A A B B), or to the piece's start; repeats don't nest.
+// Endings: one that another ending follows ends at an end repeat (it goes back), and an ending is never alone.
 function repeats(piece: CheckedScoreSystem[], warnings: Warning[]) {
   const stretches = piece.flatMap((s) => s.answer.stretches.filter((t) => t.class !== "none").map((t) => ({ system: s, stretch: t })));
   let open: StretchPlace | null = null;
