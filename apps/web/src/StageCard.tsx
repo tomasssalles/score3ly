@@ -5,7 +5,6 @@ import {
   ExtractIcon,
   ComputedIcon,
   DataIcon,
-  DocumentIcon,
   ImageIcon,
   IngestIcon,
   LayoutIcon,
@@ -13,6 +12,7 @@ import {
   ManualIcon,
   MoreIcon,
   MusicIcon,
+  PdfIcon,
   PlayIcon,
   RetryIcon,
   SkewIcon,
@@ -215,7 +215,7 @@ function ArtifactTile({
 }
 
 function ArtifactIcon({ artifact }: { artifact: Artifact }) {
-  if (artifact.kind === "pdf") return <DocumentIcon />;
+  if (artifact.kind === "pdf") return <PdfIcon />;
   if (artifact.kind === "images") return <ImageIcon />;
   if (artifact.kind === "json") return <DataIcon />;
   return <MusicIcon />;

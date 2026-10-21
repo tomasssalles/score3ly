@@ -1,10 +1,14 @@
 // Small line icons, drawn in the current text color.
 
-export function DocumentIcon() {
+// A PDF: a sheet with a folded corner, wide enough for its name.
+export function PdfIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6 3h8l4 4v14H6z" />
-      <path d="M14 3v4h4M9 12h6M9 15.5h6M9 19h3" />
+      <path d="M4 3h11l5 5v13H4z" />
+      <path d="M15 3v5h5" />
+      <text className="icon-text" x="12" y="16.3" textAnchor="middle">
+        PDF
+      </text>
     </svg>
   );
 }

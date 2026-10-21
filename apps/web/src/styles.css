@@ -435,6 +435,13 @@ body {
   fill: currentColor;
 }
 
+/* A word in an icon, e.g. "PDF" on a sheet. */
+.icon .icon-text {
+  fill: currentColor;
+  stroke: none;
+  font: 800 5.6px var(--sans);
+}
+
 /* A lighter part of a line icon, e.g. the staff under the boxes. */
 .icon .faint-stroke {
   stroke-width: 1.2;
