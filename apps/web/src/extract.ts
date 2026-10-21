@@ -6,7 +6,7 @@ import type { LayoutSystem } from "@score3ly/prompts";
 import { keyOf } from "./keys.ts";
 import type { SystemHints } from "./linking.ts";
 
-export const EXTRACT_VERSION = 1;
+export const EXTRACT_VERSION = 2;
 
 // The margins code adds to the tight boxes of the layout (§6, `layout`: "margins are code's"), in one place.
 // Horizontally a fraction of the page's width, vertically of the system's height (at least a little of the page's).
@@ -145,19 +145,7 @@ export function storedExtraction(
     lilypond: issue.class === "format" ? issue.lilypond : null,
   });
   const places = (list: StretchPlace[]) => list.flatMap((p) => placeBox(p) ?? []);
-  const fromCode = (issue: CodeIssue): StoredIssue => ({
-    id: id++,
-    source: "code",
-    class: "reading",
-    boxes: places(issue.places),
-    location: null,
-    question: issue.question,
-    answers: issue.answers,
-    choices: [],
-    applied: issue.applied,
-    resolved: false,
-    lilypond: null,
-  });
+  const fromCode = (issue: CodeIssue): StoredIssue => codeIssue(issue, id++, places);
   const warning = (w: Warning): StoredWarning => ({ message: w.message, boxes: places(w.places) });
   return {
     system: system.number,
@@ -166,6 +154,27 @@ export function storedExtraction(
     issues: [...checked.answer.issues.map(fromModel), ...checked.codeIssues.map(fromCode)],
     warnings: checked.warnings.map(warning),
   };
+}
+
+// What the checks of the whole score found (item '', type `score_checks`): issues raised by code, numbered from
+// `first`, and warnings, their boxes on the pages.
+export type StoredScoreChecks = { issues: StoredIssue[]; warnings: StoredWarning[] };
+
+export function storedScoreChecks(
+  checked: { codeIssues: CodeIssue[]; warnings: Warning[] },
+  placeBox: (place: StretchPlace) => { page: number; box: Box } | null,
+  first: number,
+): StoredScoreChecks {
+  let id = first;
+  const places = (list: StretchPlace[]) => list.flatMap((p) => placeBox(p) ?? []);
+  return {
+    issues: checked.codeIssues.map((issue) => codeIssue(issue, id++, places)),
+    warnings: checked.warnings.map((w) => ({ message: w.message, boxes: places(w.places) })),
+  };
+}
+
+function codeIssue(issue: CodeIssue, id: number, places: (list: StretchPlace[]) => { page: number; box: Box }[]): StoredIssue {
+  return { id, source: "code", class: "reading", boxes: places(issue.places), location: null, question: issue.question, answers: issue.answers, choices: [], applied: issue.applied, resolved: false, lilypond: null };
 }
 
 // The stage key (§5.2): the step, its version, the prompt's and the lens's versions, the model, the images' recipe,

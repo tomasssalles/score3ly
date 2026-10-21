@@ -10,6 +10,7 @@
   --wordmark: #ffffff;
   --accent: #ff7b72; /* coral, 8.4:1 on black */
   --danger: #ff5c5c; /* destructive actions, e.g. deleting */
+  --warning: #e0a030; /* warnings about a transcription */
   --green: #3fb950;
   --progress: var(--green); /* progress bars and circles */
   --on-accent: #000000;
@@ -2065,7 +2066,92 @@ textarea.field-input {
   font-size: 13px;
 }
 
-/* `extract`'s music, below each system's crop: the lens as text, issues and warnings */
+/* The Transcription (`extract`): its toggles above the filmstrip; each system's crop with the boxes of issues and
+   warnings over it, its music below (rendered, or the raw source), then the issues' and warnings' text. */
+.transcription {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-mode[aria-pressed="true"] {
+  z-index: 1;
+  background: var(--raised);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.note-boxes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.note-box {
+  fill: transparent;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+}
+
+.note-box.issue {
+  stroke: var(--accent);
+}
+
+.note-box.warning {
+  stroke: var(--warning);
+  stroke-dasharray: 6 4;
+}
+
+.note-label {
+  position: absolute;
+  transform: translate(0, -100%);
+  min-width: 18px;
+  padding: 1px 4px;
+  border: none;
+  border-radius: 3px 3px 3px 0;
+  color: #000;
+  font: 600 11px var(--mono);
+  cursor: pointer;
+}
+
+.note-label.issue {
+  background: var(--accent);
+}
+
+.note-label.warning {
+  background: var(--warning);
+}
+
+/* Verovio draws black on transparent: the rendering sits on white, like the paper above it. */
+.system-rendering {
+  margin-top: 8px;
+}
+
+.rendering {
+  padding: 4px;
+  border-radius: 2px;
+  background: #fff;
+}
+
+.rendering svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.rendering-placeholder {
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 2px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* The raw source (LilyPond-based), as the lens has it. */
 .system-music {
   margin-top: 8px;
   display: grid;
@@ -2091,11 +2177,10 @@ textarea.field-input {
   color: var(--muted);
 }
 
-.extraction-warning {
-  margin: 0;
-  padding: 4px 8px;
-  border-left: 3px dashed #e0a030;
-  font-size: 13px;
+.system-notes {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
 }
 
 .issue-card {
@@ -2103,6 +2188,11 @@ textarea.field-input {
   border-left: 3px solid var(--accent);
   background: var(--raised);
   font-size: 13px;
+  scroll-margin: 16px;
+}
+
+.issue-card.warning {
+  border-left: 3px dashed var(--warning);
 }
 
 .issue-card p,
@@ -2123,13 +2213,6 @@ textarea.field-input {
 .issue-tokens {
   font: 12px var(--mono);
   color: var(--muted);
-}
-
-.issues-list {
-  max-width: 900px;
-  margin: 0 auto;
-  display: grid;
-  gap: 8px;
 }
 
 .crop-placeholder {

@@ -35,9 +35,9 @@ export type Artifact = {
   // `analyze`'s metadata or observations: the stored JSON, shown as a view with links into the pages (`pages`).
   // `parents`: for the forms of `fix_metadata` and `fix_observations`, the outputs of `analyze` they correct.
   analysis?: { view: "metadata" | "observations"; sha256: string; parents?: { metadata?: string; pieces?: string; observations?: string } };
-  // `extract`'s systems (their stored extractions, by item: page and index on it), shown as the music so far or as the
-  // issues raised; `pages` has their pages with their layouts.
-  extraction?: { view: "music" | "issues"; systems: { item: string; sha256: string; index: number }[] };
+  // `extract`'s Transcription: its systems (their stored extractions, by item: page and index on it), the checks of the
+  // whole score, and where the pieces start (for the renderings); `pages` has their pages with their layouts.
+  extraction?: { systems: { item: string; sha256: string; index: number }[]; checksSha256: string | null; piecesSha256: string | null };
 };
 
 export type Stage = {

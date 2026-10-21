@@ -2,10 +2,11 @@
 // starts from what the one before it left (the piece's staves and voices, the signatures, the marks left open, a
 // measure that continues). Each call gets the system's crop, a crop of each of its stretches, the previous and the next
 // system (not across a piece's boundary), and the request; each answer is checked as soon as it arrives. One that
-// can't be used stops the run there: the answers so far are kept, and a retry starts again at that system.
+// can't be used stops the run there: the answers so far are kept, and a retry starts again at that system. Once every
+// system is in, the checks of the whole score run on all of them, and what they find is one more output.
 
 import { CROP_VERSION, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
-import { checkSystem, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
+import { checkScore, checkSystem, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
 import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractImageLabels, extractText } from "@score3ly/prompts";
 import type { StoredObservations, StoredPieces } from "./analyze";
 import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers, type LlmContent, type LlmRequest } from "./api";
@@ -19,7 +20,9 @@ import {
   stretchBox,
   stretchCropBoxes,
   storedExtraction,
+  storedScoreChecks,
   systemCropBox,
+  type StoredScoreChecks,
   type ImageSource,
   type ScoreSystem,
   type StoredExtraction,
@@ -125,16 +128,23 @@ export async function runExtract(run: StageRun): Promise<void> {
   };
   function stateBefore(n: number): ScoreState {
     if (bounds(n).first || !byNumber.has(n - 1)) return pieceStart();
-    const after = states.get(n - 1);
+    return stateAfter(n - 1);
+  }
+  function stateAfter(n: number): ScoreState {
+    const after = states.get(n);
     if (after) return after;
-    const previous = stored.get(n - 1);
-    if (!previous) throw new Error(`The extraction of system ${n - 1} is missing.`);
-    const s = byNumber.get(n - 1)!;
-    const checked = checkSystem(previous.answer, contextOf(s, bounds(n - 1).first, labelsOf(s)), stateBefore(n - 1));
-    if ("problem" in checked) throw new Error(`The stored extraction of system ${n - 1} no longer passes the checks: ${checked.problem}.`);
-    states.set(n - 1, checked.state);
+    const extraction = stored.get(n);
+    if (!extraction) throw new Error(`The extraction of system ${n} is missing.`);
+    const s = byNumber.get(n)!;
+    const checked = checkSystem(extraction.answer, contextOf(s, bounds(n).first, labelsOf(s)), stateBefore(n));
+    if ("problem" in checked) throw new Error(`The stored extraction of system ${n} no longer passes the checks: ${checked.problem}.`);
+    states.set(n, checked.state);
     return checked.state;
   }
+  // The checks of the whole score, once every system is in: stored as an output of their own.
+  let scoreChecks: StoredScoreChecks | null = null;
+  const recordedChecks = stage.outputs.find((o) => o.item === "" && o.type === "score_checks" && o.contentSha256);
+  if (recordedChecks) scoreChecks = (await fetchJsonContent(recordedChecks.contentSha256!)) as StoredScoreChecks;
 
   const inputsOf = (s: (typeof systems)[number]) => [pages[s.pageIndex].output.id, pages[s.pageIndex].image.id, obs.output.id, pcs.output.id];
 
@@ -146,69 +156,86 @@ export async function runExtract(run: StageRun): Promise<void> {
     pageCount: pages.filter((_, i) => layouts[i].systems.length > 0).length,
     inputIds: [...new Set(systems.flatMap(inputsOf))],
     note: () => {
-      const all = [...stored.values()];
+      const all = [...stored.values(), ...(scoreChecks ? [scoreChecks] : [])];
       return extractNote(systems.length, all.reduce((n, x) => n + x.issues.length, 0), all.reduce((n, x) => n + x.warnings.length, 0));
     },
-    items: systems.map((s) => ({
-      item: s.item,
-      type: "extraction",
-      make: async () => {
-        const { first, last } = bounds(s.number);
-        const before = stateBefore(s.number);
-        const stretches = s.layout.barLines.length + 1;
-        const labels = labelsOf(s);
-        const limit = imageLimitFor(config, labels.length);
-        const crop = (system: (typeof systems)[number], box: ImageSource["box"]) =>
-          cropImage({ straight: straight(system.pageIndex), box, crop: CROP_VERSION, limit, scale: SCALE_VERSION });
+    items: [
+      ...systems.map((s) => ({
+        item: s.item,
+        type: "extraction",
+        make: async () => {
+          const { first, last } = bounds(s.number);
+          const before = stateBefore(s.number);
+          const stretches = s.layout.barLines.length + 1;
+          const labels = labelsOf(s);
+          const limit = imageLimitFor(config, labels.length);
+          const crop = (system: (typeof systems)[number], box: ImageSource["box"]) =>
+            cropImage({ straight: straight(system.pageIndex), box, crop: CROP_VERSION, limit, scale: SCALE_VERSION });
 
-        // The images, each after its label, and where each was cut from (for the model's issue boxes).
-        const sources = new Map<string, ImageSource>();
-        const content: LlmContent[] = [];
-        const add = async (label: string, caption: string, system: (typeof systems)[number], box: ImageSource["box"]) => {
-          sources.set(label, { page: system.page, box });
-          content.push({ type: "text", text: caption }, await pngContent(await crop(system, box)));
-        };
-        await add("system", `System ${s.number}:`, s, systemCropBox(s.layout));
-        for (const [i, box] of stretchCropBoxes(s.layout).entries()) await add(`stretch ${i + 1}`, `System ${s.number}, stretch ${i + 1}:`, s, box);
-        const previous = byNumber.get(s.number - 1);
-        if (labels.includes("previous system") && previous) await add("previous system", `Previous system (${previous.number}):`, previous, systemCropBox(previous.layout));
-        const next = byNumber.get(s.number + 1);
-        if (labels.includes("next system") && next) await add("next system", `Next system (${next.number}):`, next, systemCropBox(next.layout));
+          // The images, each after its label, and where each was cut from (for the model's issue boxes).
+          const sources = new Map<string, ImageSource>();
+          const content: LlmContent[] = [];
+          const add = async (label: string, caption: string, system: (typeof systems)[number], box: ImageSource["box"]) => {
+            sources.set(label, { page: system.page, box });
+            content.push({ type: "text", text: caption }, await pngContent(await crop(system, box)));
+          };
+          await add("system", `System ${s.number}:`, s, systemCropBox(s.layout));
+          for (const [i, box] of stretchCropBoxes(s.layout).entries()) await add(`stretch ${i + 1}`, `System ${s.number}, stretch ${i + 1}:`, s, box);
+          const previous = byNumber.get(s.number - 1);
+          if (labels.includes("previous system") && previous) await add("previous system", `Previous system (${previous.number}):`, previous, systemCropBox(previous.layout));
+          const next = byNumber.get(s.number + 1);
+          if (labels.includes("next system") && next) await add("next system", `Next system (${next.number}):`, next, systemCropBox(next.layout));
 
-        const requestJson = extractRequest({
-          system: s,
-          stretches,
-          firstOfPiece: first,
-          lastOfPiece: last,
-          state: before,
-          hints: systemHints(observations, spans, s.number, s.page),
-          observations,
-        });
-        content.push({ type: "text", text: extractText(requestJson) });
-        const request: LlmRequest = {
-          system: EXTRACT_SYSTEM,
-          messages: [{ role: "user", content }],
-          maxOutputTokens: EXTRACT_MAX_OUTPUT_TOKENS,
-          jsonSchema: EXTRACT_SCHEMA as unknown as Record<string, unknown>,
-        };
-        const tooBig = requestSizeProblem(config, request);
-        if (tooBig) throw new Error(`System ${s.number}: ${tooBig}.`);
+          const requestJson = extractRequest({
+            system: s,
+            stretches,
+            firstOfPiece: first,
+            lastOfPiece: last,
+            state: before,
+            hints: systemHints(observations, spans, s.number, s.page),
+            observations,
+          });
+          content.push({ type: "text", text: extractText(requestJson) });
+          const request: LlmRequest = {
+            system: EXTRACT_SYSTEM,
+            messages: [{ role: "user", content }],
+            maxOutputTokens: EXTRACT_MAX_OUTPUT_TOKENS,
+            jsonSchema: EXTRACT_SCHEMA as unknown as Record<string, unknown>,
+          };
+          const tooBig = requestSizeProblem(config, request);
+          if (tooBig) throw new Error(`System ${s.number}: ${tooBig}.`);
 
-        const kept = s.number > 1 ? ` The answers for systems 1–${s.number - 1} are kept.` : "";
-        const answer = await ask(run, request, `System ${s.number}`);
-        const checked = checkSystem(answer.json, contextOf(s, first, labels), before);
-        if ("problem" in checked) {
-          await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
-          throw new Error(`Couldn't use the answer for system ${s.number}: ${checked.problem}.${kept}`);
-        }
-        states.set(s.number, checked.state);
-        const count = checked.answer.issues.length + checked.codeIssues.length;
-        const firstId = count > 0 ? await reserveIssueNumbers(run.project, count) : 1;
-        const result = storedExtraction(s, checked, sources, placeBox, firstId);
-        stored.set(s.number, result);
-        const contentSha256 = await putContent(json(result), "application/json");
-        return { contentSha256, inputIds: inputsOf(s), callId: answer.callId };
+          const kept = s.number > 1 ? ` The answers for systems 1–${s.number - 1} are kept.` : "";
+          const answer = await ask(run, request, `System ${s.number}`);
+          const checked = checkSystem(answer.json, contextOf(s, first, labels), before);
+          if ("problem" in checked) {
+            await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
+            throw new Error(`Couldn't use the answer for system ${s.number}: ${checked.problem}.${kept}`);
+          }
+          states.set(s.number, checked.state);
+          const count = checked.answer.issues.length + checked.codeIssues.length;
+          const firstId = count > 0 ? await reserveIssueNumbers(run.project, count) : 1;
+          const result = storedExtraction(s, checked, sources, placeBox, firstId);
+          stored.set(s.number, result);
+          const contentSha256 = await putContent(json(result), "application/json");
+          return { contentSha256, inputIds: inputsOf(s), callId: answer.callId };
+        },
+      })),
+      {
+        item: "",
+        type: "score_checks",
+        make: async () => {
+          const checked = checkScore(
+            systems.map((s) => ({ number: s.number, answer: stored.get(s.number)!.answer, state: stateAfter(s.number) })),
+            pieces,
+          );
+          const count = checked.codeIssues.length;
+          const firstId = count > 0 ? await reserveIssueNumbers(run.project, count) : 1;
+          scoreChecks = storedScoreChecks(checked, placeBox, firstId);
+          const contentSha256 = await putContent(json(scoreChecks), "application/json");
+          return { contentSha256, inputIds: [...new Set(systems.flatMap(inputsOf))] };
+        },
       },
-    })),
+    ],
   });
 }

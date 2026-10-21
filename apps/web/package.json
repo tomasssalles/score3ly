@@ -16,7 +16,8 @@
     "@score3ly/prompts": "*",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "verovio": "^6.3.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

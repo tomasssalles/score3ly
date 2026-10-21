@@ -331,18 +331,20 @@ STEPS.extract = {
   kind: "llm",
   optional: false,
   fixes: [],
-  // The transcription, system by system, and the issues raised. The pages of the latest layout come along, for the
-  // systems' crops.
+  // The Transcription: the systems with their music, issues and warnings (§6). The pages of the latest layout come along,
+  // for the systems' crops, and the latest pieces, for the renderings.
   artifacts: (stage, earlier) => {
     const systems = stage.outputs
       .filter((o) => o.type === "extraction" && o.contentSha256 !== null)
       .map((o) => ({ item: o.item, sha256: o.contentSha256!, index: Number(o.item.split("/s")[1] ?? 1) }));
     if (systems.length === 0) return [];
+    const checksSha256 = stage.outputs.find((o) => o.item === "" && o.type === "score_checks")?.contentSha256 ?? null;
+    const pieces = [...earlier]
+      .reverse()
+      .find((s) => (s.step === "fix_metadata" || s.step === "analyze") && s.outputs.some((o) => o.item === "" && o.type === "pieces" && o.contentSha256));
+    const piecesSha256 = pieces?.outputs.find((o) => o.item === "" && o.type === "pieces")?.contentSha256 ?? null;
     const pages = layoutPages(earlier);
-    return [
-      { id: `${stage.id}.music`, title: "Transcription", kind: "music", count: systems.length, item: "System", pages, extraction: { view: "music", systems } },
-      { id: `${stage.id}.issues`, title: "Issues", kind: "json", count: 1, pages, extraction: { view: "issues", systems } },
-    ];
+    return [{ id: `${stage.id}.music`, title: "Transcription", kind: "music", count: systems.length, item: "System", pages, extraction: { systems, checksSha256, piecesSha256 } }];
   },
 };
 
