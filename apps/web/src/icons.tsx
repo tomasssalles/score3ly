@@ -1,5 +1,18 @@
 // Small line icons, drawn in the current text color.
 
+// An MEI file: the same sheet as a PDF's, with its own name (`engrave`'s artifact).
+export function MeiIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 3h11l5 5v13H4z" />
+      <path d="M15 3v5h5" />
+      <text className="icon-text" x="12" y="16.3" textAnchor="middle">
+        MEI
+      </text>
+    </svg>
+  );
+}
+
 // A PDF: a sheet with a folded corner, wide enough for its name.
 export function PdfIcon() {
   return (
@@ -294,6 +307,19 @@ export function ExtractIcon() {
       <path d="M10.5 10.5l3.5 3.5M14 10.8V14h-3.2" />
       <path d="M15.8 15.9c.6-.4 1.4-.6 2.4-.6 1.7 0 2.6.7 2.6 2.3v4.2" />
       <path d="M20.8 18.3h-2.6c-1.6 0-2.6.7-2.6 1.8 0 1 .8 1.7 1.9 1.7 1.4 0 2.6-.7 3.3-1.8" />
+    </svg>
+  );
+}
+
+// The inverse of `extract`'s: a letter turning into a quarter note. `engrave` turns the text into engraved music.
+export function EngraveIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3.2 3.1c.6-.4 1.4-.6 2.4-.6 1.7 0 2.6.7 2.6 2.3V9" />
+      <path d="M8.2 5.5H5.6C4 5.5 3 6.2 3 7.3c0 1 .8 1.7 1.9 1.7 1.4 0 2.6-.7 3.3-1.8" />
+      <path d="M10.5 10.5l3.5 3.5M14 10.8V14h-3.2" />
+      <ellipse className="filled-shape" cx="17.4" cy="20" rx="2.4" ry="1.8" transform="rotate(-20 17.4 20)" />
+      <path d="M19.6 19.4v-6.5" />
     </svg>
   );
 }
