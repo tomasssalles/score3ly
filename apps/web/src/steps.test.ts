@@ -11,6 +11,7 @@ const KINDS: Record<string, string> = {
   layout: "llm",
   analyze: "llm",
   extract: "llm",
+  engrave: "computed",
   fix_skew: "manual",
   fix_layout: "manual",
   fix_metadata: "manual",

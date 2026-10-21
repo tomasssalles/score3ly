@@ -159,6 +159,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       ["layout", "planned", null],
       ["analyze", "planned", null],
       ["extract", "planned", null],
+      ["engrave", "planned", null],
     ],
   );
   const [ingest] = pipeline.stages;
@@ -243,7 +244,7 @@ test("migration 0004 gives existing projects their Ingest stage, with the PDF as
   assert.equal(new Set(migratedPipelines.map((row) => row.stage_id)).size, 4);
 });
 
-test("migrations 0006, 0007, 0010, 0011 and 0013 give existing projects the recipe's planned stages", () => {
+test("migrations 0006, 0007, 0010, 0011, 0013 and 0015 give existing projects the recipe's planned stages", () => {
   assert.deepEqual(
     migratedPlanned.map((row) => [row.project_id, row.position, row.step, row.status, row.config_json]),
     ["p1", "p2", "p3", "p4"].flatMap((id) => [
@@ -252,6 +253,7 @@ test("migrations 0006, 0007, 0010, 0011 and 0013 give existing projects the reci
       [id, 4, "layout", "planned", null],
       [id, 5, "analyze", "planned", null],
       [id, 6, "extract", "planned", null],
+      [id, 7, "engrave", "planned", null],
     ]),
   );
 });
@@ -703,7 +705,7 @@ test("a manual stage is added WIP after a done stage, saved as the user works, a
   let pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status]),
-    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"]],
+    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["engrave", "planned"]],
   );
   // The planned layout keeps its row.
   assert.equal(pipeline[4].id, stages[3].id);
@@ -749,7 +751,7 @@ test("a second fix of the same stage goes after the first, which stays, WIP or f
   const pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status]),
-    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["fix_layout", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"]],
+    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["fix_layout", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["engrave", "planned"]],
   );
   assert.equal(pipeline[3].id, first);
   // Neither can be added again after the same stage.
@@ -774,7 +776,7 @@ test("adding a fix replaces the stages after it that ran; a change before a manu
   pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status]),
-    [["ingest", "done"], ["rasterize", "planned"], ["skew_analysis", "planned"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"]],
+    [["ingest", "done"], ["rasterize", "planned"], ["skew_analysis", "planned"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["engrave", "planned"]],
   );
 });
 
@@ -808,11 +810,11 @@ test("dropping a manual stage takes it out and moves the later stages up; recipe
   assert.equal((await call(project.id, skew.id, "drop")).status, 409);
   assert.equal((await call(project.id, stageId, "drop")).status, 200);
   const pipeline = await pipelineOf(project.id);
-  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract"]);
+  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "engrave"]);
   const { results } = await env.DB.prepare("SELECT position FROM pipeline_entries WHERE project_id = ? ORDER BY position")
     .bind(project.id)
     .all<{ position: number }>();
-  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7]);
 });
 
 test("issue numbers are reserved per project, never twice", async () => {

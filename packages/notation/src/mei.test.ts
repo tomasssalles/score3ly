@@ -238,3 +238,16 @@ test("a bar line inside a measure divides it into MEI measures, incomplete, with
   // The caesura's beat counts from the start of its own MEI measure.
   assert.equal(attrOf(named(second, "caesura")[0], "tstamp"), "2");
 });
+
+test("engrave's rendering copy divides a measure at its system break, with the break between the two", async () => {
+  const score = buildScore(richScore(), [1, 4]);
+  const root = buildMei(score, { divideAtSystemBreaks: true });
+  await assertValid(root);
+  const first = find(root, "p1m4-s1t4")!;
+  const second = find(root, "p1m4-s2t1")!;
+  assert.deepEqual([attrOf(first, "metcon"), attrOf(first, "right"), attrOf(second, "metcon")], ["false", "invis", "false"]);
+  const section = named(root, "section")[0];
+  const order = section.children.flatMap((c) => (typeof c === "string" ? [] : [c.name === "measure" ? attrOf(c, "xml:id") : c.name]));
+  assert.equal(order[order.indexOf("p1m4-s1t4") + 1], "sb");
+  assert.equal(named(first, "sb").length, 0);
+});

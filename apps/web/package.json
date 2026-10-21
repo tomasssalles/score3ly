@@ -14,9 +14,11 @@
     "@score3ly/imaging": "*",
     "@score3ly/notation": "*",
     "@score3ly/prompts": "*",
+    "jspdf": "^4.2.1",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "svg2pdf.js": "^2.8.1",
     "verovio": "^6.3.0"
   },
   "devDependencies": {

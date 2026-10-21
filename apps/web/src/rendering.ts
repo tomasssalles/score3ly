@@ -2,7 +2,7 @@
 // (renderWorker.ts), cached on the device under the hash of the MEI, the options and Verovio's version. A rendering is
 // a view: made when it is needed, never stored.
 
-import { cachedSvg, cacheSvg } from "./imageCache.ts";
+import { cachedSvg, cachedSvgs, cacheSvg, cacheSvgs } from "./imageCache.ts";
 import { keyOf } from "./keys.ts";
 import type { RenderRequest, RenderResponse } from "./renderWorker.ts";
 
@@ -26,7 +26,7 @@ export const SYSTEM_OPTIONS = {
 
 let worker: Worker | null = null;
 let nextId = 1;
-const pending = new Map<number, { resolve: (svg: string) => void; reject: (error: Error) => void }>();
+const pending = new Map<number, { resolve: (svgs: string[]) => void; reject: (error: Error) => void }>();
 
 function getWorker(): Worker {
   if (worker) return worker;
@@ -36,7 +36,7 @@ function getWorker(): Worker {
     if (!waiting) return;
     pending.delete(event.data.id);
     if ("error" in event.data) waiting.reject(new Error(event.data.error));
-    else waiting.resolve(event.data.svg);
+    else waiting.resolve(event.data.svgs);
   });
   worker.addEventListener("error", (event) => {
     for (const waiting of pending.values()) waiting.reject(new Error(event.message || "The rendering worker failed."));
@@ -46,15 +46,30 @@ function getWorker(): Worker {
   return worker;
 }
 
+function ask(mei: string, options: Record<string, unknown>, allPages: boolean): Promise<string[]> {
+  const id = nextId++;
+  return new Promise<string[]>((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    getWorker().postMessage({ id, mei, options, allPages } satisfies RenderRequest);
+  });
+}
+
+// One system on one line (the Transcription).
 export async function renderMei(mei: string, options: Record<string, unknown> = SYSTEM_OPTIONS): Promise<string> {
   const key = await keyOf({ mei, options, verovio: VEROVIO_VERSION });
   const cached = await cachedSvg(key);
   if (cached) return cached;
-  const id = nextId++;
-  const svg = await new Promise<string>((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    getWorker().postMessage({ id, mei, options } satisfies RenderRequest);
-  });
+  const [svg] = await ask(mei, options, false);
   await cacheSvg(key, svg);
   return svg;
+}
+
+// Every page of an engraving (`engrave`).
+export async function renderPages(mei: string, options: Record<string, unknown>): Promise<string[]> {
+  const key = await keyOf({ mei, options, verovio: VEROVIO_VERSION, pages: true });
+  const cached = await cachedSvgs(key);
+  if (cached) return cached;
+  const svgs = await ask(mei, options, true);
+  await cacheSvgs(key, svgs);
+  return svgs;
 }

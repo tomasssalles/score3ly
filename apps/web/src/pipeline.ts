@@ -2,6 +2,7 @@
 // Built from what the Worker stores (api.ts) and what the code declares about each step (steps.ts).
 
 import type { ApiPipeline, ApiStage, RunMode } from "./api";
+import type { EngraveConfig, EngraveSources } from "./engrave.ts";
 import type { PageRecipe } from "./rasterize.ts";
 import { stepInfo } from "./steps.ts";
 
@@ -17,7 +18,7 @@ export type StageStatus =
   | "ready" // its turn: it can run (in Manual mode, with its Run button)
   | "planned"; // not its turn yet: shown dimmed
 
-export type ArtifactKind = "pdf" | "images" | "json" | "music";
+export type ArtifactKind = "pdf" | "images" | "json" | "music" | "mei";
 
 // One tile in a stage's card: what the user sees of the stage's outputs (DESIGN.md §5.2). A group of similar
 // items (e.g. all the system crops) is one artifact, which the artifact view shows one item after the other.
@@ -38,6 +39,9 @@ export type Artifact = {
   // `extract`'s Transcription: its systems (their stored extractions, by item: page and index on it), the checks of the
   // whole score, and where the pieces start (for the renderings); `pages` has their pages with their layouts.
   extraction?: { systems: { item: string; sha256: string; index: number }[]; checksSha256: string | null; piecesSha256: string | null };
+  // `engrave`'s MEI file, and what it and its engraving are made from, with the stage's config; shown as the file or as
+  // the engraving. Both can be downloaded.
+  engraving?: { view: "mei" | "pdf"; meiSha256: string; sources: EngraveSources; config: EngraveConfig };
 };
 
 export type Stage = {

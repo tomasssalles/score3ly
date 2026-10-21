@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Picker } from "./fieldList";
 import { CloseIcon } from "./icons";
 import type { ConfigContext, ConfigValues, StepConfig } from "./steps";
 
@@ -59,22 +60,39 @@ export function ConfigDialog({
         </div>
         {config.fields.map((field) => (
           <div key={field.key}>
-            <label className="field">
-              {field.label}
-              <input
-                type={field.kind}
-                inputMode={field.kind === "number" ? "decimal" : undefined}
-                autoComplete="off"
-                spellCheck={false}
-                placeholder={field.placeholder}
-                min={field.min}
-                max={field.max}
-                step={field.step}
-                value={texts[field.key]}
-                onChange={(e) => setTexts((t) => ({ ...t, [field.key]: e.target.value }))}
-                aria-describedby={field.hint ? `config-${field.key}-hint` : undefined}
-              />
-            </label>
+            {field.kind === "choice" ? (
+              <div className="field">
+                <span>{field.label}</span>
+                <Picker
+                  value={field.options?.find((o) => o.value === texts[field.key])?.label ?? texts[field.key]}
+                  label={field.label}
+                  groups={[
+                    (field.options ?? []).map((o) => ({
+                      label: o.label,
+                      current: o.value === texts[field.key],
+                      onSelect: () => setTexts((t) => ({ ...t, [field.key]: o.value })),
+                    })),
+                  ]}
+                />
+              </div>
+            ) : (
+              <label className="field">
+                {field.label}
+                <input
+                  type={field.kind}
+                  inputMode={field.kind === "number" ? "decimal" : undefined}
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder={field.placeholder}
+                  min={field.min}
+                  max={field.max}
+                  step={field.step}
+                  value={texts[field.key]}
+                  onChange={(e) => setTexts((t) => ({ ...t, [field.key]: e.target.value }))}
+                  aria-describedby={field.hint ? `config-${field.key}-hint` : undefined}
+                />
+              </label>
+            )}
             {field.hint && (
               <p id={`config-${field.key}-hint`} className="field-hint">
                 {field.hint}

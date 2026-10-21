@@ -58,6 +58,33 @@ export function ChevronDownIcon() {
   );
 }
 
+export function ChevronUpIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 15l6-6 6 6" />
+    </svg>
+  );
+}
+
+// Back to the top: an arrow up to a line.
+export function TopIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 4h14M12 20V8M7 13l5-5 5 5" />
+    </svg>
+  );
+}
+
+// Downloading a file: an arrow down into a tray.
+export function DownloadIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5" />
+      <path d="M4 15v5h16v-5" />
+    </svg>
+  );
+}
+
 export function MenuIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">

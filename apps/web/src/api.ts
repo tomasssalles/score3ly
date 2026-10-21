@@ -221,6 +221,10 @@ export async function fetchJsonContent(sha256: string): Promise<unknown> {
   return (await checked(await fetch(`/api/content/${sha256}`))).json();
 }
 
+export async function fetchTextContent(sha256: string): Promise<string> {
+  return (await checked(await fetch(`/api/content/${sha256}`))).text();
+}
+
 // LLM calls (apps/worker/src/llmRoutes.ts, DESIGN.md §7.2, §10).
 
 export type ModelConfig = {

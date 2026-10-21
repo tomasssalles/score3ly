@@ -9,12 +9,14 @@ import { analyzeOutputs, FIX_METADATA_VERSION } from "./fixMetadata.ts";
 import { FIX_OBSERVATIONS_VERSION } from "./fixObservations.ts";
 import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
+import { BREAKS, engraveConfigOf, engraveSources, PAGE_SIZES } from "./engrave.ts";
 
 // One field of a step's config form.
 export type ConfigField = {
   key: string;
   label: string;
-  kind: "text" | "number";
+  kind: "text" | "number" | "choice";
+  options?: { value: string; label: string }[]; // a choice's
   hint?: string;
   placeholder?: string;
   min?: number;
@@ -345,6 +347,44 @@ STEPS.extract = {
     const piecesSha256 = pieces?.outputs.find((o) => o.item === "" && o.type === "pieces")?.contentSha256 ?? null;
     const pages = layoutPages(earlier);
     return [{ id: `${stage.id}.music`, title: "Transcription", kind: "music", count: systems.length, item: "System", pages, extraction: { systems, checksSha256, piecesSha256 } }];
+  },
+};
+
+STEPS.engrave = {
+  title: "Engrave",
+  kind: "computed",
+  optional: false,
+  fixes: [],
+  config: {
+    fields: [
+      {
+        key: "breaks",
+        label: "Systems and pages",
+        kind: "choice",
+        options: Object.entries(BREAKS).map(([value, label]) => ({ value, label })),
+        hint: "Only the engraving: the MEI file keeps the original's breaks either way.",
+      },
+      {
+        key: "pageSize",
+        label: "Page size",
+        kind: "choice",
+        options: Object.entries(PAGE_SIZES).map(([value, { label }]) => ({ value, label })),
+      },
+    ],
+    read: (stored) => engraveConfigOf(stored),
+    check: () => null,
+  },
+  // The MEI file (the main artifact: what the user takes and leaves with, §5.6) and its engraving as a PDF. The
+  // engraving is made from the same sources as the MEI, with the stage's config.
+  artifacts: (stage, earlier) => {
+    const mei = stage.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
+    const sources = engraveSources(earlier);
+    if (!mei || "missing" in sources) return [];
+    const engraving = { meiSha256: mei.contentSha256!, sources, config: engraveConfigOf(stage.config) };
+    return [
+      { id: `${stage.id}.mei`, title: "MEI", kind: "mei", count: 1, engraving: { ...engraving, view: "mei" } },
+      { id: `${stage.id}.pdf`, title: "PDF", kind: "pdf", count: 1, engraving: { ...engraving, view: "pdf" } },
+    ];
   },
 };
 

@@ -54,3 +54,11 @@ export async function cachedSvg(key: string): Promise<string | null> {
 }
 
 export const cacheSvg = (key: string, svg: string): Promise<void> => cacheFile(`${key}.svg`, new Blob([svg], { type: "image/svg+xml" }));
+
+// Several renderings at once (an engraving's pages), as one JSON file.
+export async function cachedSvgs(key: string): Promise<string[] | null> {
+  const blob = await cachedFile(`${key}.json`);
+  return blob ? (JSON.parse(await blob.text()) as string[]) : null;
+}
+
+export const cacheSvgs = (key: string, svgs: string[]): Promise<void> => cacheFile(`${key}.json`, new Blob([JSON.stringify(svgs)], { type: "application/json" }));

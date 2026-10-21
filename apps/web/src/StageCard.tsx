@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import {
@@ -5,6 +6,7 @@ import {
   ExtractIcon,
   EngraveIcon,
   ComputedIcon,
+  DownloadIcon,
   DataIcon,
   ImageIcon,
   IngestIcon,
@@ -12,6 +14,7 @@ import {
   LlmIcon,
   ManualIcon,
   MoreIcon,
+  MeiIcon,
   MusicIcon,
   PdfIcon,
   PlayIcon,
@@ -34,6 +37,7 @@ export type StageActions = {
   addFix: (stageId: string, step: string) => void;
   edit: (stageId: string) => void;
   drop: (stageId: string) => void;
+  download: (artifactId: string) => Promise<void>; // a file the stage made (`engrave`'s MEI and PDF)
 };
 
 // Each automated step has its own icon (DESIGN.md §5.6); manual stages all show their kind's, a wrench. A step
@@ -93,6 +97,7 @@ export function StageCard({
       {stage.status === "running" && <ProgressBar value={stage.progress} label={`${stage.title}: progress`} />}
       {stage.status === "failed" && <p className="stage-error">{stage.error}</p>}
       <StageButton stage={stage} mode={mode} actions={actions} />
+      {stage.status === "done" && <Downloads stage={stage} actions={actions} />}
 
       {hasArtifacts(stage) && stage.artifacts.length > 0 && (
         <ul className="output-grid">
@@ -176,6 +181,33 @@ function StageButton({ stage, mode, actions }: { stage: Stage; mode: RunMode; ac
   return null;
 }
 
+// A stage's files to take away (`engrave`: the MEI and the PDF, §5.6): a button with a menu of them. Making the PDF
+// takes a moment, which the button says.
+function Downloads({ stage, actions }: { stage: Stage; actions: StageActions }) {
+  const files = stage.artifacts.filter((a) => a.engraving);
+  const [pending, setPending] = useState<string | null>(null);
+  if (files.length === 0) return null;
+  const take = (id: string) => {
+    setPending(id);
+    actions.download(id).finally(() => setPending(null));
+  };
+  const LABELS: Record<string, string> = { mei: "MEI file (.mei)", pdf: "Engraved score (.pdf)" };
+  return (
+    <DropdownMenu
+      className="stage-downloads"
+      buttonClassName="button-secondary stage-button"
+      icon={
+        <>
+          <DownloadIcon />
+          {pending ? "Preparing…" : "Download"}
+        </>
+      }
+      label="Download"
+      groups={[files.map((a) => ({ label: LABELS[a.engraving!.view], disabled: pending !== null, onSelect: () => take(a.id) }))]}
+    />
+  );
+}
+
 function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] {
   const groups: MenuItem[][] = [[{ label: "Show details", onSelect: () => actions.showDetails(stage.id) }]];
   if (busy || stage.kind === "ingest") return groups;
@@ -220,5 +252,6 @@ function ArtifactIcon({ artifact }: { artifact: Artifact }) {
   if (artifact.kind === "pdf") return <PdfIcon />;
   if (artifact.kind === "images") return <ImageIcon />;
   if (artifact.kind === "json") return <DataIcon />;
+  if (artifact.kind === "mei") return <MeiIcon />;
   return <MusicIcon />;
 }

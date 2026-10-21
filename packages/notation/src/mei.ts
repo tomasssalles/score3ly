@@ -55,12 +55,15 @@ export type MeiOptions = {
   metadata?: MeiMetadata | null;
   application?: MeiApplication | null;
   systems?: number[]; // only these systems, each on its own (the Transcription); else the whole score
+  // A copy for rendering with the original's breaks (`engrave`): a measure split by a system break is divided there,
+  // since Verovio doesn't break inside a measure. Never the file that is stored or downloaded.
+  divideAtSystemBreaks?: boolean;
 };
 
 export function buildMei(score: Score, options: MeiOptions = {}): XmlElement {
   const only = options.systems ? new Set(options.systems) : null;
   const pieces = score.pieces.filter((p) => !only || p.systems.some((s) => only.has(s.number)));
-  const music = pieces.map((piece) => new PieceWriter(score, piece, only, options.metadata ?? null).mdiv());
+  const music = pieces.map((piece) => new PieceWriter(score, piece, only, options.metadata ?? null, !!options.divideAtSystemBreaks).mdiv());
   const header = header_(score, options.metadata ?? null, options.application ?? null, !only);
   const body = el("music", {}, [!only ? facsimile(score) : null, el("body", {}, music)]);
   return el("mei", { xmlns: MEI_NS, meiversion: MEI_VERSION }, [header, body]);
@@ -337,12 +340,14 @@ class PieceWriter {
   private readonly piece: ScorePiece;
   private readonly only: Set<number> | null;
   private readonly metadata: MeiMetadata | null;
+  private readonly divide: boolean; // divide measures at system breaks: for a system alone, and engrave's rendering copy
 
-  constructor(score: Score, piece: ScorePiece, only: Set<number> | null, metadata: MeiMetadata | null) {
+  constructor(score: Score, piece: ScorePiece, only: Set<number> | null, metadata: MeiMetadata | null, divide: boolean) {
     this.score = score;
     this.piece = piece;
     this.only = only;
     this.metadata = metadata;
+    this.divide = !!only || divide;
     this.collectKeys();
     this.collectOttavas();
   }
@@ -360,7 +365,7 @@ class PieceWriter {
     let lastSystem: number | null = null;
     for (const [i, m] of piece.measures.entries()) {
       const built = measures[i];
-      const segments = measureSegments(score, m, !!only);
+      const segments = measureSegments(score, m, this.divide);
       for (const [k, segment] of segments.entries()) {
         if (only && !only.has(segment[0].system)) continue;
         const ending = this.endingOf(segment);
@@ -371,7 +376,7 @@ class PieceWriter {
         const first = segment[0].system;
         if (!firstScoreDef) firstScoreDef = this.scoreDefAt(first);
         else {
-          if (!only && k === 0 && first !== lastSystem) push(score.system(first).page !== score.system(lastSystem!).page ? el("pb") : el("sb"));
+          if (!only && first !== lastSystem) push(score.system(first).page !== score.system(lastSystem!).page ? el("pb") : el("sb"));
           for (const change of this.changesAt(m, segment[0], k === 0)) push(change);
         }
         push(this.measureElement(m, built, segments, k));
@@ -941,7 +946,7 @@ class PieceWriter {
       (before !== null && score.stretch(before.system, before.stretch).stretch.rightBarLine === "startRepeat");
     // Divided at a bar line inside it, or, for a system alone, at the system break: each part is incomplete.
     const finest = measureSegments(score, m, true).length > 1;
-    const divided = segments.length > 1 || (!!this.only && finest);
+    const divided = segments.length > 1;
     const attrs: Record<string, string | number | undefined> = {
       "xml:id": `p${piece.index + 1}m${m.index + 1}${finest ? `-s${segment[0].system}t${segment[0].stretch}` : ""}`,
       n: m.count > 1 ? `${m.n}–${m.n + m.count - 1}` : m.n,

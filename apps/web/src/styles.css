@@ -2124,7 +2124,7 @@ textarea.field-input {
   background: #fff;
 }
 
-.rendering svg {
+.rendering > svg {
   display: block;
   width: 100%;
   height: auto;
@@ -2205,4 +2205,152 @@ textarea.field-input {
 
 .crop-placeholder {
   aspect-ratio: 5;
+}
+
+/* `engrave`: the download button on its card, the engraved pages, the MEI file. */
+.stage-downloads .button-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.engraved-page {
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.engraved-page > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.mei-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mei-query,
+.mei-number-input {
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font: 16px var(--sans); /* 16px keeps phones from zooming in */
+}
+
+.mei-query {
+  width: 12em;
+}
+
+.mei-number-input {
+  width: 4.5em;
+}
+
+.mei-query:focus,
+.mei-number-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.mei-count {
+  min-width: 4.5em;
+  font: 12px var(--mono);
+  color: var(--muted);
+  text-align: center;
+}
+
+.mei-goto {
+  gap: 6px;
+}
+
+.mei-go {
+  padding: 6px 12px;
+}
+
+.mei-go:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.mei-piece .mode-button {
+  max-width: 14em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mei-problem {
+  color: var(--danger);
+}
+
+.mei-scroller {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #0d0e10;
+}
+
+/* Only the lines in view are drawn, each placed by its number. */
+.mei-lines {
+  position: relative;
+  min-width: 100%;
+  font: 13px/20px var(--mono);
+}
+
+.mei-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 20px;
+  padding-left: 12px;
+  white-space: pre;
+}
+
+.mei-line.target {
+  background: rgba(255, 123, 114, 0.18);
+}
+
+.mei-number {
+  display: inline-block;
+  margin-right: 2ch;
+  text-align: right;
+  color: #5c6068;
+  user-select: none;
+}
+
+/* The highlighting, after GitHub's dark theme. */
+.mei-tag {
+  color: #7ee787;
+}
+
+.mei-attr {
+  color: #79c0ff;
+}
+
+.mei-value {
+  color: #a5d6ff;
+}
+
+.mei-punct {
+  color: var(--muted);
+}
+
+.mei-text {
+  color: var(--fg);
+}
+
+.mei-match {
+  background: rgba(224, 160, 48, 0.35);
+}
+
+.mei-current {
+  background: #e0a030;
+  color: #000;
 }

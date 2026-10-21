@@ -704,6 +704,15 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
   - **Icons** (decided): the card's is the inverse of `extract`'s (a quarter note turning into a letter): a letter turning into a quarter note (`EngraveIcon`). The MEI artifact's tile is the PDF's sheet with "MEI" on it (`MeiIcon`).
   - **A download button on its card** for the MEI and the PDF: the usual use is "let it run, take the final MEI and leave" (§5.6).
   - **Stored:** the MEI (what is downloaded); the PDF is made again from the MEI and the config when needed.
+  - **Built** (`apps/web/src/engrave.ts`, `runEngrave.ts`, `engraving.ts`, `EngravingView.tsx`, `meiView.ts`; migration 0015 adds it, planned, at the end of existing pipelines, and the Worker's `RECIPE` has it). Tried in Chromium at both widths, with the fake model. Decisions made while building it (to confirm):
+    - **What it reads:** the latest `extract` (`apply_review` once it exists), the latest `layout` or `fix_layout`, the latest metadata and `pieces` (`fix_metadata` or `analyze`). Its page count is the pages selected in `rasterize`.
+    - **Config:** "Systems and pages" (as in the original, the default, or chosen by the engraver) and the page size (A4, the default, or US Letter), as pickers (the config dialog's first choice fields). No staff size: Verovio's staves are 7.2 mm on the page whatever its `scale`, which only sizes the SVG. A change of config re-runs the stage (it is in the stage key), which takes a moment.
+    - **Output:** item `''`, type `mei`, the file with how it was made (score3ly, the app's version, the repository). The card's result: "96 measures", or "13 pieces · 412 measures".
+    - **The engraving with the original's breaks** is made from the same sources as the file, with the measures divided at system breaks (the MEI builder's `divideAtSystemBreaks`), not by rewriting the stored file; with the engraver's breaks, from the stored file. Verovio renders every page in the Web Worker, cached on the device like the Transcription's renderings.
+    - **The artifacts:** "MEI" (the main one) and "PDF" (a sheet with "PDF", `PdfIcon`, as the original's), shown as Verovio's pages on white.
+    - **The PDF** is made in the browser when it is downloaded, from the pages' SVG, with jsPDF and svg2pdf.js (loaded only then). svg2pdf.js doesn't scale the SVG Verovio nests each page in, so the nested one becomes a scaled group first.
+    - **The download button** ("Download", under the card's facts) opens a menu: "MEI file (.mei)" and "Engraved score (.pdf)"; it says "Preparing…" while the PDF is made. Files are named after the project.
+    - **The MEI view:** only the lines in view are drawn (a fixed line height), numbered, highlighted per line (tags, attributes, values, text; colours after GitHub's dark theme). Search (case ignored): Enter or the arrows go to the next match, Shift + Enter to the previous, with "2 / 16". Go to: a piece (a picker, when there are several), or a measure (in the piece in view), a system or a page by number, from `mdiv`, `measure @n` and the measures' facsimile zones, whose ids name their system (`z<system>t…`) and whose surface is the page; a number that doesn't exist says so. A button goes back to the top.
 - **The Transcription** (decided): the artifact of `extract`, and the base of `review`'s, `apply_review`'s and `human_review`'s views (the form of the human review). A filmstrip of the systems, each with its crop of the original and, below it, its music:
   - **rendered** from a small MEI of the system alone, with Verovio's `breaks: "none"`, so it is one system whatever its width; a measure split across systems is half a measure in each (`@metcon="false"`). The small MEI and its rendering are views (made when the system scrolls into view, cached on the device), not stored;
   - **or raw:** a toggle (♪ | `</>`, icons only, like the editors' modes) shows the lens instead, called "the raw source (LilyPond-based)": the elements the artifact had before renderings (the staves at the system's start, then each stretch's head and a line per voice); for debugging, not ordinary use;
@@ -1609,7 +1618,7 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 ### The first release
 The main parts of the first release, and the measure of progress: ticked items stay. Finer tasks are in §15.
 
-**Next:** build `engrave`. From then on the app is usable end to end, in principle, except that model configs still have to be added directly in the database (the config form isn't built).
+**Next:** the app is usable end to end, in principle, except that model configs still have to be added directly in the database (the config form isn't built): decide and build the model configs, then run the pipeline with a real model.
 
 **Assessment**
 - [x] Evaluation tooling: engrave command, viewer, highlighter (§13)
@@ -1643,7 +1652,7 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [x] The checks of the whole score at the end of `extract` (`apply_review` runs them too, once it exists)
 - [ ] `review` and `apply_review`
 - [ ] `human_review`
-- [ ] `engrave`: the full score's MEI, its view, the PDF, the download
+- [x] `engrave`: the full score's MEI, its view, the PDF, the download
 
 **With real models and scores**
 - [ ] Check the prompt and the response schema of `layout`

@@ -4,8 +4,9 @@
 import createVerovioModule from "verovio/wasm";
 import { VerovioToolkit } from "verovio/esm";
 
-export type RenderRequest = { id: number; mei: string; options: Record<string, unknown> };
-export type RenderResponse = { id: number; svg: string } | { id: number; error: string };
+// One page (a system alone), or every page (an engraving).
+export type RenderRequest = { id: number; mei: string; options: Record<string, unknown>; allPages?: boolean };
+export type RenderResponse = { id: number; svgs: string[] } | { id: number; error: string };
 
 let toolkit: Promise<VerovioToolkit> | null = null;
 
@@ -17,7 +18,8 @@ self.addEventListener("message", async (event: MessageEvent<RenderRequest>) => {
     const tk = await toolkit;
     tk.setOptions(options);
     if (!tk.loadData(mei)) throw new Error(tk.getLog().trim() || "Verovio couldn't read the MEI.");
-    post({ id, svg: tk.renderToSVG(1) });
+    const count = event.data.allPages ? tk.getPageCount() : 1;
+    post({ id, svgs: Array.from({ length: count }, (_, i) => tk.renderToSVG(i + 1)) });
   } catch (err) {
     post({ id, error: err instanceof Error ? err.message : String(err) });
   }
