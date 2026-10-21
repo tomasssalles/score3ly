@@ -139,7 +139,7 @@ export function engraveNote(score: Score): string {
 }
 
 // A file name from the project's name: what a file system would refuse is replaced.
-export function downloadName(projectName: string, extension: "mei" | "pdf"): string {
+export function downloadName(projectName: string, extension: "mei" | "engraved.pdf" | "zip" | "report.json"): string {
   const base = projectName.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_").trim() || "score";
   return `${base}.${extension}`;
 }

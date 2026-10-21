@@ -34,8 +34,7 @@ import { RUNNERS } from "./runners";
 import { CannotStart } from "./stageRunner";
 import { FIX_STARTS, stepInfo, type ConfigContext } from "./steps";
 import { openPdfForImages } from "./pageImages";
-import { downloadName } from "./engrave";
-import { engravedPdf, meiFile, saveFile } from "./engraving";
+import { download } from "./downloads";
 import { StageDetails } from "./StageDetails";
 import { useWide } from "./useWide";
 
@@ -331,14 +330,13 @@ export function ProjectView({
     addFix: (id, step) => change(id, () => void addFix(id, step), fixReplaces(id)),
     edit: (id) => change(id, () => void edit(id), replacesLater(id)),
     // Always asks: the stage's own work is lost, and perhaps the stages after it too.
-    // `engrave`'s files: the stored MEI as it is, the PDF made now (§6, `engrave`).
-    download: async (artifactId) => {
-      const artifact = pipeline.stages.flatMap((s) => s.artifacts).find((a) => a.id === artifactId);
-      const engraving = artifact?.engraving;
-      if (!engraving) return;
+    // `engrave`'s files (§6, `engrave`, "Downloads"), with the report on the pipeline up to the stage.
+    download: async (stageId, kind) => {
+      const engraving = findStage(pipeline, stageId)?.artifacts.find((a) => a.engraving)?.engraving;
+      const position = stored?.stages.findIndex((s) => s.id === stageId) ?? -1;
+      if (!engraving || !stored || position < 0) return;
       try {
-        if (engraving.view === "mei") saveFile(await meiFile(engraving), downloadName(project.name, "mei"));
-        else saveFile(await engravedPdf(engraving), downloadName(project.name, "pdf"));
+        await download(kind, project, stored.stages.slice(0, position + 1), engraving);
       } catch (err) {
         setError(`The download failed: ${err instanceof Error ? err.message : err}`);
       }

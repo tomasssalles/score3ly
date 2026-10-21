@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
+import { DOWNLOADS, type DownloadKind } from "./downloads";
 import { FittedText } from "./FittedText";
 import {
   AnalyzeIcon,
@@ -37,7 +38,7 @@ export type StageActions = {
   addFix: (stageId: string, step: string) => void;
   edit: (stageId: string) => void;
   drop: (stageId: string) => void;
-  download: (artifactId: string) => Promise<void>; // a file the stage made (`engrave`'s MEI and PDF)
+  download: (stageId: string, kind: DownloadKind) => Promise<void>; // the files the stage made (`engrave`'s)
 };
 
 // Each automated step has its own icon (DESIGN.md §5.6); manual stages all show their kind's, a wrench. A step
@@ -181,17 +182,15 @@ function StageButton({ stage, mode, actions }: { stage: Stage; mode: RunMode; ac
   return null;
 }
 
-// A stage's files to take away (`engrave`: the MEI and the PDF, §5.6): a button with a menu of them. Making the PDF
-// takes a moment, which the button says.
+// A stage's files to take away (`engrave`'s, §5.6): a button with a menu of them, everything in one zip first. Making
+// the PDF takes a moment, which the button says.
 function Downloads({ stage, actions }: { stage: Stage; actions: StageActions }) {
-  const files = stage.artifacts.filter((a) => a.engraving);
-  const [pending, setPending] = useState<string | null>(null);
-  if (files.length === 0) return null;
-  const take = (id: string) => {
-    setPending(id);
-    actions.download(id).finally(() => setPending(null));
+  const [pending, setPending] = useState<DownloadKind | null>(null);
+  if (!stage.artifacts.some((a) => a.engraving)) return null;
+  const take = (kind: DownloadKind) => {
+    setPending(kind);
+    actions.download(stage.id, kind).finally(() => setPending(null));
   };
-  const LABELS: Record<string, string> = { mei: "MEI file (.mei)", pdf: "Engraved score (.pdf)" };
   return (
     <DropdownMenu
       className="stage-downloads"
@@ -203,7 +202,7 @@ function Downloads({ stage, actions }: { stage: Stage; actions: StageActions }) 
         </>
       }
       label="Download"
-      groups={[files.map((a) => ({ label: LABELS[a.engraving!.view], disabled: pending !== null, onSelect: () => take(a.id) }))]}
+      groups={[DOWNLOADS.map((d) => ({ label: d.label, disabled: pending !== null, onSelect: () => take(d.kind) }))]}
     />
   );
 }

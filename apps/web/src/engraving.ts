@@ -36,9 +36,13 @@ export async function engravedPages(engraving: Engraving): Promise<string[]> {
 
 // The pages as a PDF of the config's page size.
 export async function engravedPdf(engraving: Engraving): Promise<Blob> {
-  const svgs = await engravedPages(engraving);
+  return pdfOfPages(await engravedPages(engraving), engraving.config.pageSize);
+}
+
+// Verovio's pages (SVG) as a PDF of that page size.
+export async function pdfOfPages(svgs: string[], pageSize: EngraveConfig["pageSize"]): Promise<Blob> {
   const [{ jsPDF }, { svg2pdf }] = await Promise.all([import("jspdf"), import("svg2pdf.js")]);
-  const { width, height } = PAGE_SIZES[engraving.config.pageSize];
+  const { width, height } = PAGE_SIZES[pageSize];
   const pdf = new jsPDF({ unit: "mm", format: [width, height], orientation: "portrait" });
   // svg2pdf reads computed styles, so each page is put in the document while it is converted, out of sight.
   const holder = document.createElement("div");
