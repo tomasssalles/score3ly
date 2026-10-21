@@ -10,7 +10,6 @@
   --wordmark: #ffffff;
   --accent: #ff7b72; /* coral, 8.4:1 on black */
   --danger: #ff5c5c; /* destructive actions, e.g. deleting */
-  --warning: #e0a030; /* warnings about a transcription */
   --green: #3fb950;
   --progress: var(--green); /* progress bars and circles */
   --on-accent: #000000;
@@ -1599,6 +1598,11 @@ body {
   border-radius: 0 8px 8px 0;
 }
 
+/* A toggle on its own, e.g. the Transcription's boxes. */
+.editor-mode:only-child {
+  border-radius: 8px;
+}
+
 .editor-mode[aria-checked="true"] {
   z-index: 1;
   background: var(--raised);
@@ -2091,38 +2095,25 @@ textarea.field-input {
 
 .note-box {
   fill: transparent;
-  stroke-width: 2;
+  stroke-width: 3;
   vector-effect: non-scaling-stroke;
   cursor: pointer;
 }
 
-.note-box.issue {
-  stroke: var(--accent);
-}
-
 .note-box.warning {
-  stroke: var(--warning);
-  stroke-dasharray: 6 4;
+  stroke-dasharray: 8 5;
 }
 
+/* Like the layout's system labels: inside the box's top left corner, in its colour. */
 .note-label {
   position: absolute;
-  transform: translate(0, -100%);
   min-width: 18px;
-  padding: 1px 4px;
+  padding: 1px 5px;
   border: none;
-  border-radius: 3px 3px 3px 0;
+  border-radius: 0 0 3px 0;
   color: #000;
-  font: 600 11px var(--mono);
+  font: 600 12px var(--mono);
   cursor: pointer;
-}
-
-.note-label.issue {
-  background: var(--accent);
-}
-
-.note-label.warning {
-  background: var(--warning);
 }
 
 /* Verovio draws black on transparent: the rendering sits on white, like the paper above it. */
@@ -2192,7 +2183,7 @@ textarea.field-input {
 }
 
 .issue-card.warning {
-  border-left: 3px dashed var(--warning);
+  border-left-style: dashed;
 }
 
 .issue-card p,

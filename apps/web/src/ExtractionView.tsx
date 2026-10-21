@@ -5,7 +5,7 @@
 // brings its text into view. Both toggles are remembered on the device.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { CLAUDE_IMAGE_LIMIT, CROP_VERSION, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
+import { CLAUDE_IMAGE_LIMIT, CROP_VERSION, DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { buildMei, serialize, type LensStretch, type Score } from "@score3ly/notation";
 import { fetchJsonContent } from "./api";
 import { Filmstrip } from "./ArtifactView";
@@ -90,15 +90,21 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
   const loaded = useTranscription(artifact);
   const [view, setView] = useRemembered<View>("score3ly.transcription.view", "rendered", ["rendered", "raw"]);
   const [boxes, setBoxes] = useRemembered<"shown" | "hidden">("score3ly.transcription.boxes", "shown", ["shown", "hidden"]);
-  const homes = useMemo(() => {
-    const byHome = new Map<number, Note[]>();
+  // Each note's text below its system, and its colour: the layout's 7 colours (§6, `fix_layout`), in turn in the
+  // order the texts are shown, so neighbouring boxes differ. The box, its label and its card share it.
+  const { homes, colors } = useMemo(() => {
+    const homes = new Map<number, Note[]>();
+    const colors = new Map<string, string>();
     if (loaded && loaded !== "error") {
       for (const note of loaded.notes) {
         const home = homeOf(note, loaded.systems) ?? loaded.systems[0]?.extraction.system;
-        if (home !== undefined) byHome.set(home, [...(byHome.get(home) ?? []), note]);
+        if (home !== undefined) homes.set(home, [...(homes.get(home) ?? []), note]);
+      }
+      for (const s of loaded.systems) {
+        for (const note of homes.get(s.extraction.system) ?? []) colors.set(note.key, LAYOUT_COLOR_HEX[colors.size % LAYOUT_COLOR_HEX.length]);
       }
     }
-    return byHome;
+    return { homes, colors };
   }, [loaded]);
 
   if (loaded === "error") return <div className="text-view"><p>The transcription couldn't be loaded.</p></div>;
@@ -138,13 +144,17 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
                 System {extraction.system} · page {extraction.page}
               </figcaption>
               <CropView recipe={s.recipe} label={`System ${extraction.system}`}>
-                {boxes === "shown" && <BoxOverlay boxes={boxesOnCrop(notes, extraction.page, s.crop)} onPick={reveal} />}
+                {boxes === "shown" && <BoxOverlay boxes={boxesOnCrop(notes, extraction.page, s.crop)} colors={colors} onPick={reveal} />}
               </CropView>
               {view === "rendered" ? <SystemRendering score={score} system={extraction.system} /> : <RawSource extraction={extraction} />}
               {own.length > 0 && (
                 <div className="system-notes">
                   {own.map((note) =>
-                    note.kind === "issue" ? <IssueCard key={note.key} id={note.key} issue={note.issue} /> : <WarningCard key={note.key} id={note.key} warning={note.warning} />,
+                    note.kind === "issue" ? (
+                      <IssueCard key={note.key} id={note.key} issue={note.issue} color={colors.get(note.key)} />
+                    ) : (
+                      <WarningCard key={note.key} id={note.key} warning={note.warning} color={colors.get(note.key)} />
+                    ),
                   )}
                 </div>
               )}
@@ -199,8 +209,16 @@ function CropView({ recipe, label, children }: { recipe: CropRecipe; label: stri
   );
 }
 
-// The boxes of issues and warnings on a crop: an SVG stretched over it, the labels as buttons.
-function BoxOverlay({ boxes, onPick }: { boxes: { note: Note; box: { left: number; right: number; top: number; bottom: number } }[]; onPick: (key: string) => void }) {
+// The boxes of issues and warnings on a crop, each in its note's colour: an SVG stretched over it, the labels as buttons.
+function BoxOverlay({
+  boxes,
+  colors,
+  onPick,
+}: {
+  boxes: { note: Note; box: { left: number; right: number; top: number; bottom: number } }[];
+  colors: Map<string, string>;
+  onPick: (key: string) => void;
+}) {
   if (boxes.length === 0) return null;
   return (
     <>
@@ -209,6 +227,7 @@ function BoxOverlay({ boxes, onPick }: { boxes: { note: Note; box: { left: numbe
           <rect
             key={i}
             className={note.kind === "issue" ? "note-box issue" : "note-box warning"}
+            stroke={colors.get(note.key)}
             x={box.left}
             y={box.top}
             width={box.right - box.left}
@@ -222,7 +241,7 @@ function BoxOverlay({ boxes, onPick }: { boxes: { note: Note; box: { left: numbe
           key={i}
           type="button"
           className={note.kind === "issue" ? "note-label issue" : "note-label warning"}
-          style={{ left: `${box.left * 100}%`, top: `${box.top * 100}%` }}
+          style={{ left: `${box.left * 100}%`, top: `${box.top * 100}%`, background: colors.get(note.key) }}
           title={note.kind === "issue" ? `Issue #${note.issue.id}` : "Warning"}
           onClick={() => onPick(note.key)}
         >
@@ -306,9 +325,9 @@ function RawSource({ extraction }: { extraction: StoredExtraction }) {
   );
 }
 
-function IssueCard({ id, issue }: { id: string; issue: StoredIssue }) {
+function IssueCard({ id, issue, color }: { id: string; issue: StoredIssue; color?: string }) {
   return (
-    <div className="issue-card" id={id}>
+    <div className="issue-card" id={id} style={{ borderLeftColor: color }}>
       <p className="issue-head">
         #{issue.id} · {issue.class}
         {issue.source === "code" ? " · raised by code" : ""}
@@ -333,9 +352,9 @@ function IssueCard({ id, issue }: { id: string; issue: StoredIssue }) {
 }
 
 // A warning, in the same card as an issue: nothing to answer, only its explanation.
-function WarningCard({ id, warning }: { id: string; warning: StoredWarning }) {
+function WarningCard({ id, warning, color }: { id: string; warning: StoredWarning; color?: string }) {
   return (
-    <div className="issue-card warning" id={id}>
+    <div className="issue-card warning" id={id} style={{ borderLeftColor: color }}>
       <p className="issue-head">! · warning</p>
       <p>{warning.message}</p>
     </div>
