@@ -14,10 +14,10 @@ export type DownloadKind = "bundle" | "mei" | "pdf" | "report";
 
 // In the order of the card's menu: the bundle first.
 export const DOWNLOADS: { kind: DownloadKind; label: string }[] = [
-  { kind: "bundle", label: "Everything (.zip)" },
-  { kind: "mei", label: "MEI file (.mei)" },
-  { kind: "pdf", label: "Engraved score (.pdf)" },
-  { kind: "report", label: "Run report (.json)" },
+  { kind: "bundle", label: "Bundle (.zip)" },
+  { kind: "mei", label: "MEI source (.mei)" },
+  { kind: "pdf", label: "Re-engraved score (.pdf)" },
+  { kind: "report", label: "Report (.json)" },
 ];
 
 type Engraving = NonNullable<Artifact["engraving"]>;
@@ -42,13 +42,13 @@ async function report(project: Project, stages: ApiStage[], engraving: Engraving
 export async function download(kind: DownloadKind, project: Project, stages: ApiStage[], engraving: Engraving): Promise<void> {
   const name = (extension: Parameters<typeof downloadName>[1]) => downloadName(project.name, extension);
   if (kind === "mei") return saveFile(await meiFile(engraving), name("mei"));
-  if (kind === "pdf") return saveFile(await engravedPdf(engraving), name("engraved.pdf"));
+  if (kind === "pdf") return saveFile(await engravedPdf(engraving), name("pdf"));
   if (kind === "report") return saveFile(await report(project, stages, engraving), name("report.json"));
   const [mei, pdf, json, { zip }] = await Promise.all([meiFile(engraving), engravedPdf(engraving), report(project, stages, engraving), import("fflate")]);
   const bytes = async (blob: Blob) => new Uint8Array(await blob.arrayBuffer());
   const files = {
     [name("mei")]: [await bytes(mei), { level: 6 }],
-    [name("engraved.pdf")]: [await bytes(pdf), { level: 0 }], // already compressed
+    [name("pdf")]: [await bytes(pdf), { level: 0 }], // already compressed
     [name("report.json")]: [await bytes(json), { level: 6 }],
   } as const;
   const archive = await new Promise<Uint8Array>((resolve, reject) => zip(files as never, (err, data) => (err ? reject(err) : resolve(data))));
