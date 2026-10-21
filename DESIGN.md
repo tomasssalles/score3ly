@@ -682,7 +682,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
   - **Checks,** as soon as an answer arrives (`checkSystem`): the structure (an unusable answer stops the run, the answers before it kept); then issues raised by code (a continuation that doesn't match across a system break, a piece's first stretch read as continuing, a stretch of no measure before stretches of one, a printed number on a stretch that doesn't start a measure, marks with two ends that don't match) and warnings (durations, the offset of printed measure numbers, a stretch of no measure with notes, a change in the order of the staves).
   - **Decisions made while building it** (to confirm): curve numbers are per voice (a curve in voice 1 and one in voice 2 may have the same number); hairpins, trill lines and glissandos are per voice, ottavas and the pedal per staff (the staff the voice is on where they are written); all voices of a stretch must last the same (a stretch spans one stretch of time), and a measure is the sum of its stretches; a mismatch of marks is an issue raised by code with no answers and `applied` null, its box the stretch where it was found; a staff or a voice from the list given a description makes the answer unusable, as does a new one without (decided).
   - **Outputs:** one per system, item `p<n>/s<k>`, type `extraction`: the answer as the model gave it, its issues (the model's with their boxes on the pages, then code's, numbered from the project's counter, `POST /api/projects/<id>/issue-numbers`) and its warnings (with the boxes of their stretches). What a system leaves to the next is worked out again from the stored answers when a retry needs it, not stored. The card's result: "54 systems · 12 issues · 3 warnings".
-  - **Artifacts:** "Transcription", a filmstrip of the systems, each crop with its music below it (the staves, then each stretch with its voices as the lens has them), its warnings and its issues; and "Issues", all of them in the score's order. **Whether users should see the symbolic format at all is open** (§15): it looks like LilyPond but isn't, and doesn't compile.
+  - **Artifacts, as built so far** (to be changed into "The Transcription" as decided below: renderings instead of the lens, boxes on the crops, the raw toggle, and no Issues artifact): "Transcription", a filmstrip of the systems, each crop with its music below it as the lens has it, its warnings and its issues; and "Issues", all of them in the score's order.
   - **The fake provider** answers an `extract` request (recognized by its schema) with the piece's staves, or two, a voice per staff and a whole-measure rest in 4/4 in every stretch, and a `layout` request with two systems per page, so the pipeline runs end to end without a model (§7.2).
   - **Not done:** zoom crops, follow-up rounds for failed checks, ties (which curves are ties is worked out when the MEI is built), pitches and ottavas resolved, the 0-or-1 numbering of a pickup (only the offset warning).
 - **The checks by code have no stage of their own:** validation happens inside `extract` and `apply_review`, on the lens, after each system and for the whole score at the stage's end. Problems that code finds without failing the stage are issues raised by code when they are a question about the page (a slur that never ends: "where does it end?"), and warnings otherwise (a measure whose durations don't add up; see "Warnings").
@@ -1502,7 +1502,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Decide on the report after a re-run** (§5.5, proposed): which manual fixes were carried over and which were dropped.
 - **Polish the wording of the confirmation before a re-run** (§5.5).
 - **Decide whether the artifact view follows the pipeline while it runs** (§5.6).
-- **Think through what should and shouldn't be a stage** (§6, "A stage exists where there is a config or a decision"): the rule isn't carved in stone.
 - **Decide whether the app opens like an installed app on a phone** (§5.7): the web app manifest sets no display mode, so from the home screen it opens as a normal browser page. As an installed app it would get the whole screen, but lose the browser's back button (which closes an artifact or a menu page, §5.6) and the address bar. It would then need the same back and forward buttons as the desktop version (§3).
 - **Choose a license** (§5.6, the About page). Until then all rights are reserved.
 
@@ -1586,6 +1585,8 @@ Whether to build the app at all is decided by evidence first (steps 1–4).
 
 ### The first release
 The main parts of the first release, and the measure of progress: ticked items stay. Finer tasks are in §15.
+
+**Next:** finish `extract` (the Transcription, the MEI builder per system, the checks of the whole score), then build `engrave`. From then on the app is usable end to end, in principle, except that model configs still have to be added directly in the database (the config form isn't built).
 
 **Assessment**
 - [x] Evaluation tooling: engrave command, viewer, highlighter (§13)
