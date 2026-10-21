@@ -16,9 +16,10 @@ export const ENGRAVE_VERSION = 1;
 // Whether the engraving keeps the original's system and page breaks, and the page size.
 export type EngraveConfig = { breaks: "original" | "auto"; pageSize: "a4" | "letter" };
 
-export const DEFAULT_ENGRAVE_CONFIG: EngraveConfig = { breaks: "original", pageSize: "a4" };
+export const DEFAULT_ENGRAVE_CONFIG: EngraveConfig = { breaks: "auto", pageSize: "a4" };
 
-export const BREAKS = { original: "As in the original", auto: "Chosen by the engraver" } as const;
+// The default first.
+export const BREAKS = { auto: "Decided by the engraving software", original: "As in the original" } as const;
 
 // Page sizes in millimetres (Verovio counts tenths of them).
 export const PAGE_SIZES = {

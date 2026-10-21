@@ -359,7 +359,7 @@ STEPS.engrave = {
     fields: [
       {
         key: "breaks",
-        label: "Systems and pages",
+        label: "System and page breaks",
         kind: "choice",
         options: Object.entries(BREAKS).map(([value, label]) => ({ value, label })),
         hint: "Only the engraving: the MEI file keeps the original's breaks either way.",
