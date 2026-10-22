@@ -7,6 +7,7 @@ import {
   defaultArtifactId,
   findArtifact,
   findStage,
+  nextStaleAt,
   progressOf,
   runningStage,
   toPipeline,
@@ -228,4 +229,18 @@ test("after analyze, both fixes are offered; one among the manual stages that fo
   assert.deepEqual(p.stages[1].fixes.map((f) => f.step), ["fix_observations"]);
   p = toPipeline("auto", { stages: [ingest, analyze, stage("s6", "fix_metadata"), stage("s7", "fix_observations", { status: "wip" })] });
   assert.deepEqual(p.stages[1].fixes, []);
+});
+
+test("the panel looks again when a stage running elsewhere would count as interrupted", () => {
+  const now = Date.parse("2026-10-12T10:10:00.000Z");
+  const pipeline = (...heartbeats: (string | null)[]) => ({
+    stages: [ingest, ...heartbeats.map((heartbeatAt, i) => stage(`s${i + 2}`, "rasterize", { status: "running", heartbeatAt }))],
+  });
+  // Three minutes after the heartbeat, and the earliest of several.
+  assert.equal(nextStaleAt(pipeline("2026-10-12T10:09:00.000Z"), null, now), Date.parse("2026-10-12T10:12:00.001Z"));
+  assert.equal(nextStaleAt(pipeline("2026-10-12T10:09:30.000Z", "2026-10-12T10:08:00.000Z"), null, now), Date.parse("2026-10-12T10:11:00.001Z"));
+  // Already interrupted, or run by this device: nothing to wait for.
+  assert.equal(nextStaleAt(pipeline("2026-10-12T10:00:00.000Z"), null, now), null);
+  assert.equal(nextStaleAt(pipeline("2026-10-12T10:09:00.000Z"), { stageId: "s2", progress: 0.5 }, now), null);
+  assert.equal(nextStaleAt({ stages: [ingest] }, null, now), null);
 });

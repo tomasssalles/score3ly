@@ -138,6 +138,16 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
   };
 }
 
+// When the next stage running elsewhere would count as interrupted, if its heartbeat doesn't come (ms since the epoch),
+// or null if none is running elsewhere. The panel fetches the pipeline then: a heartbeat may have come meanwhile.
+export function nextStaleAt(stored: ApiPipeline, local: LocalRun | null = null, now = Date.now()): number | null {
+  const times = stored.stages
+    .filter((s) => s.status === "running" && s.id !== local?.stageId && s.heartbeatAt !== null)
+    .map((s) => Date.parse(s.heartbeatAt!) + STALE_MS + 1)
+    .filter((t) => t > now);
+  return times.length > 0 ? Math.min(...times) : null;
+}
+
 export function hasArtifacts(stage: Stage): boolean {
   return stage.status === "done" || stage.status === "wip";
 }

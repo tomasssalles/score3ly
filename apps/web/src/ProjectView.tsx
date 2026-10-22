@@ -20,6 +20,7 @@ import {
   defaultArtifactId,
   findArtifact,
   findStage,
+  nextStaleAt,
   progressOf,
   toPipeline,
   type LocalRun,
@@ -98,6 +99,17 @@ export function ProjectView({
     // heartbeat is old, and can run again (DESIGN.md §5.8).
     return () => controller.current?.abort();
   }, [project.id]);
+
+  // A stage running on another device turns "Interrupted" once its heartbeat is too old: the pipeline is fetched
+  // again then, in case one came meanwhile.
+  useEffect(() => {
+    const at = stored ? nextStaleAt(stored, local) : null;
+    if (at === null) return;
+    const timer = setTimeout(() => {
+      fetchPipeline(project).then(setStored, () => setStored((s) => (s ? { ...s } : s)));
+    }, at - Date.now());
+    return () => clearTimeout(timer);
+  }, [stored, local?.stageId]);
 
   useEffect(() => {
     scroll();
