@@ -1552,7 +1552,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Lyrics** (a later version): lines of their own above or below a staff, not in one, with text tokens, durations and invisible rests; the same quoted-text question as in the symbolic format.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1). The outcome decides whether it becomes an option of `rasterize` or a fixed default (§6, `rasterize`).
 - **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
-- **Carry manual stages through a re-run** (§5.5, §5.8): today a change before a manual stage drops it. A re-run should reuse it when its inputs come out the same, and drop it otherwise. The confirmation before a re-run (§5.5) must then change with it: it names the manual stages whose work is lost, which today is every manual stage after the change, and would then be only those whose inputs change (or, where that can't be known before running, say that they may be lost).
+- **Carry manual stages through a re-run** (§5.5, §5.8): today a change before a manual stage drops it. A re-run should reuse it when its inputs come out the same, and drop it otherwise.
 - **Decide on the report after a re-run** (§5.5, proposed): which manual fixes were carried over and which were dropped.
 - **Polish the wording of the confirmation before a re-run** (§5.5).
 - **Decide whether the artifact view follows the pipeline while it runs** (§5.6).
