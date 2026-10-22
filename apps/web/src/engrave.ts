@@ -3,23 +3,22 @@
 // downloads. The engraving (Verovio's pages, the PDF) is made from the same sources and the config when it is needed,
 // never stored. What doesn't need the browser is here; the runner is runEngrave.ts, the views EngravingView.tsx.
 
-import { buildScore, type MeiMetadata, type Score } from "@score3ly/notation";
+import { buildScore, meiString, type MeiMetadata, type Score } from "@score3ly/notation";
+import { REPOSITORY_URL } from "./about.ts";
 import type { ApiStage } from "./api";
 import type { StoredExtraction } from "./extract.ts";
 import { normalizeMetadata } from "./fixMetadata.ts";
 import { keyOf } from "./keys.ts";
 import type { PageLayout } from "./layout";
+import { indexMei } from "./meiView.ts";
 import { pageOfItem } from "./rasterize.ts";
 
 export const ENGRAVE_VERSION = 1;
 
-// Whether the engraving keeps the original's system and page breaks, and the page size.
-export type EngraveConfig = { breaks: "original" | "auto"; pageSize: "a4" | "letter" };
+// The page size. The engraving always has Verovio's own breaks (DESIGN.md §6, `engrave`).
+export type EngraveConfig = { pageSize: "a4" | "letter" };
 
-export const DEFAULT_ENGRAVE_CONFIG: EngraveConfig = { breaks: "auto", pageSize: "a4" };
-
-// The default first.
-export const BREAKS = { auto: "Decided by the engraving software", original: "As in the original" } as const;
+export const DEFAULT_ENGRAVE_CONFIG: EngraveConfig = { pageSize: "a4" };
 
 // Page sizes in millimetres (Verovio counts tenths of them).
 export const PAGE_SIZES = {
@@ -28,9 +27,8 @@ export const PAGE_SIZES = {
 } as const;
 
 export function engraveConfigOf(stored: Record<string, unknown> | null): EngraveConfig {
-  const breaks = stored?.breaks === "auto" || stored?.breaks === "original" ? stored.breaks : DEFAULT_ENGRAVE_CONFIG.breaks;
   const pageSize = stored?.pageSize === "a4" || stored?.pageSize === "letter" ? stored.pageSize : DEFAULT_ENGRAVE_CONFIG.pageSize;
-  return { breaks, pageSize };
+  return { pageSize };
 }
 
 // What `engrave` is built from: the latest extraction's systems, the latest layout's pages, the latest metadata and
@@ -42,7 +40,8 @@ export type EngraveSources = {
   pieces: { id: string; sha256: string };
 };
 
-const EXTRACTION_STEPS = ["extract"]; // `apply_review` too, once it exists
+// The steps whose stages produce the extraction `engrave` reads; `final_touches` is offered after the latest (§6).
+export const EXTRACTION_STEPS = ["extract"]; // `apply_review` too, once it exists
 const LAYOUT_STEPS = ["layout", "fix_layout"];
 const METADATA_STEPS = ["fix_metadata", "analyze"];
 
@@ -71,6 +70,21 @@ export function engraveSources(earlier: ApiStage[]): EngraveSources | { missing:
   };
 }
 
+// What `engrave` reads: the sources it builds the MEI from, or, when `final_touches` comes right before it, that
+// stage's MEI, taken as it is.
+export type EngraveInput = { built: EngraveSources } | { edited: { id: string; sha256: string } };
+
+export function engraveInput(earlier: ApiStage[]): EngraveInput | { missing: string } {
+  const last = earlier.at(-1);
+  if (last?.step === "final_touches") {
+    const mei = last.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
+    if (last.status !== "done" || !mei) return { missing: "the final touches aren't finished yet." };
+    return { edited: { id: mei.id, sha256: mei.contentSha256! } };
+  }
+  const sources = engraveSources(earlier);
+  return "missing" in sources ? sources : { built: sources };
+}
+
 export const sourceIds = (sources: EngraveSources): string[] => [
   ...sources.extractions.map((e) => e.id),
   ...sources.layouts.map((l) => l.id),
@@ -79,8 +93,10 @@ export const sourceIds = (sources: EngraveSources): string[] => [
 ];
 
 // The stage key (§5.2): the step, its version, the MEI builder's (the format's) version, the config, and the content of
-// what it reads.
-export function engraveStageKey(config: EngraveConfig, sources: EngraveSources, lensVersion: number): Promise<string> {
+// what it reads (with `final_touches`'s MEI, that file).
+export function engraveStageKey(config: EngraveConfig, input: EngraveInput, lensVersion: number): Promise<string> {
+  if ("edited" in input) return keyOf({ step: "engrave", version: ENGRAVE_VERSION, config, mei: input.edited.sha256 });
+  const sources = input.built;
   return keyOf({
     step: "engrave",
     version: ENGRAVE_VERSION,
@@ -110,6 +126,11 @@ export async function loadScore(sources: EngraveSources, fetch: (sha256: string)
   return { score: buildScore(systems, pieces), metadata: meiMetadata(metadata) };
 }
 
+// The full score's MEI as `engrave` stores it: the file, with how it was made.
+export function meiText(score: Score, metadata: MeiMetadata): string {
+  return meiString(score, { metadata, application: { name: "score3ly", version: __APP_VERSION__, url: REPOSITORY_URL } });
+}
+
 // The stored metadata (`analyze`'s or `fix_metadata`'s) as the MEI header takes it: without pages and confidences.
 export function meiMetadata(stored: unknown): MeiMetadata {
   const m = normalizeMetadata(stored);
@@ -136,6 +157,20 @@ export function engraveNote(score: Score): string {
   const measures = score.pieces.reduce((n, p) => n + p.measures.reduce((k, m) => k + m.count, 0), 0);
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   return [...(score.pieces.length > 1 ? [plural(score.pieces.length, "piece")] : []), plural(measures, "measure")].join(" · ");
+}
+
+// The same for an MEI file edited by hand (`final_touches`): its pieces (`mdiv`) and measures (`measure @n`, a
+// multi-measure rest's range counting each, a measure divided by a bar line inside it once).
+export function meiNote(text: string): string {
+  const index = indexMei(text.split("\n"));
+  const numbers = new Set<string>();
+  for (const m of index.measures) {
+    const [from, to = from] = m.n.split("–").map(Number);
+    if (!Number.isInteger(from) || !Number.isInteger(to)) numbers.add(`${m.piece}/line ${m.line}`); // a number edited away
+    else for (let n = from; n <= to; n++) numbers.add(`${m.piece}/${n}`);
+  }
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  return [...(index.pieces.length > 1 ? [plural(index.pieces.length, "piece")] : []), plural(numbers.size, "measure")].join(" · ");
 }
 
 // A file name from the project's name: what a file system would refuse is replaced.

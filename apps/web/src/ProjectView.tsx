@@ -183,11 +183,11 @@ export function ProjectView({
   }
 
   async function addFix(afterId: string, step: string) {
-    const after = stored?.stages.find((s) => s.id === afterId);
+    const index = stored?.stages.findIndex((s) => s.id === afterId) ?? -1;
     const start = FIX_STARTS[step];
-    if (!after || !start) return;
+    if (!stored || index < 0 || !start) return;
     try {
-      opened(await addFixStage(project, afterId, { step, ...start(after) }));
+      opened(await addFixStage(project, afterId, { step, ...start(stored.stages[index], stored.stages.slice(0, index + 1)) }));
     } catch (err) {
       setError(`Adding the stage failed: ${err}`);
     }

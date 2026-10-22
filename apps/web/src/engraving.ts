@@ -1,11 +1,9 @@
-// `engrave`'s engraving (DESIGN.md §6, `engrave`): Verovio's pages, made when they are shown or downloaded, never
-// stored. With the original's breaks, Verovio gets a copy of the MEI in which a measure split by a system break is
-// divided there (it doesn't break inside a measure); with its own breaks, the stored file as it is. The PDF is made
-// from the pages in the browser (jsPDF and svg2pdf.js, loaded only when a PDF is made).
+// `engrave`'s engraving (DESIGN.md §6, `engrave`): Verovio's pages of the stored MEI, with its own breaks, made when
+// they are shown or downloaded, never stored. The PDF is made from the pages in the browser (jsPDF and svg2pdf.js,
+// loaded only when a PDF is made).
 
-import { buildMei, serialize } from "@score3ly/notation";
-import { fetchJsonContent, fetchTextContent } from "./api";
-import { loadScore, PAGE_SIZES, type EngraveConfig } from "./engrave";
+import { fetchTextContent } from "./api";
+import { PAGE_SIZES, type EngraveConfig } from "./engrave";
 import type { Artifact } from "./pipeline";
 import { renderPages } from "./rendering";
 
@@ -15,7 +13,7 @@ type Engraving = NonNullable<Artifact["engraving"]>;
 export function pageOptions(config: EngraveConfig): Record<string, unknown> {
   const size = PAGE_SIZES[config.pageSize];
   return {
-    breaks: config.breaks === "original" ? "encoded" : "auto",
+    breaks: "auto",
     pageWidth: Math.round(size.width * 10),
     pageHeight: Math.round(size.height * 10),
     scale: 40,
@@ -24,14 +22,8 @@ export function pageOptions(config: EngraveConfig): Record<string, unknown> {
   };
 }
 
-async function meiToEngrave(engraving: Engraving): Promise<string> {
-  if (engraving.config.breaks === "auto") return fetchTextContent(engraving.meiSha256);
-  const { score, metadata } = await loadScore(engraving.sources, fetchJsonContent);
-  return serialize(buildMei(score, { metadata, divideAtSystemBreaks: true }));
-}
-
 export async function engravedPages(engraving: Engraving): Promise<string[]> {
-  return renderPages(await meiToEngrave(engraving), pageOptions(engraving.config));
+  return renderPages(await fetchTextContent(engraving.meiSha256), pageOptions(engraving.config));
 }
 
 // The pages as a PDF of the config's page size.

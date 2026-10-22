@@ -2,9 +2,9 @@
 // Built from what the Worker stores (api.ts) and what the code declares about each step (steps.ts).
 
 import type { ApiPipeline, ApiStage, RunMode } from "./api";
-import type { EngraveConfig, EngraveSources } from "./engrave.ts";
+import type { EngraveConfig } from "./engrave.ts";
 import type { PageRecipe } from "./rasterize.ts";
-import { stepInfo } from "./steps.ts";
+import { fixOffered, stepInfo } from "./steps.ts";
 
 export type { RunMode } from "./api";
 
@@ -39,9 +39,12 @@ export type Artifact = {
   // `extract`'s Transcription: its systems (their stored extractions, by item: page and index on it), the checks of the
   // whole score, and where the pieces start (for the renderings); `pages` has their pages with their layouts.
   extraction?: { systems: { item: string; sha256: string; index: number }[]; checksSha256: string | null; piecesSha256: string | null };
-  // `engrave`'s MEI file, and what it and its engraving are made from, with the stage's config; shown as the file or as
-  // the engraving. Both can be downloaded.
-  engraving?: { view: "mei" | "pdf"; meiSha256: string; sources: EngraveSources; config: EngraveConfig };
+  // `engrave`'s MEI file, with the stage's config for its engraving; shown as the file or as the engraving. Both can be
+  // downloaded.
+  engraving?: { view: "mei" | "pdf"; meiSha256: string; config: EngraveConfig };
+  // `final_touches`'s MEI: the stage and the ones before it, as stored (its texts are its outputs, or built from
+  // theirs). Shown as the MEI view, editable while the stage is WIP (with `editor`).
+  finalTouches?: { stage: ApiStage; earlier: ApiStage[] };
 };
 
 export type Stage = {
@@ -59,7 +62,7 @@ export type Stage = {
   progress: number; // from 0 to 1 while running; known only on the device that runs the stage
   artifacts: Artifact[]; // the first is the main one; shown once the stage is done (or while a manual one is worked on)
   config: Record<string, string>;
-  fixes: { step: string; title: string }[]; // the manual stages that can be added after it, e.g. "Fix skew"
+  fixes: { step: string; title: string; label: string }[]; // the manual stages that can be added after it: "Fix skew", "Fix skew manually"
   droppable: boolean; // not part of the recipe (DESIGN.md §5.5)
 };
 
@@ -83,7 +86,7 @@ export type LocalRun = { stageId: string; progress: number };
 // counts as failed, and can run again.
 export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null, now = Date.now()): Pipeline {
   const stages = stored.stages.map((s, i) => {
-    const stage = toStage(s, stored.stages.slice(0, i), fixesAfter(stored.stages, i));
+    const stage = toStage(s, stored.stages.slice(0, i), fixesAfter(stored.stages, i), stored.stages.slice(i + 1));
     if (local?.stageId === s.id) return { ...stage, status: "running" as const, progress: local.progress };
     if (s.status === "running" && (s.heartbeatAt === null || now - Date.parse(s.heartbeatAt) > STALE_MS)) {
       return { ...stage, status: "failed" as const, error: "Interrupted: the app was closed while this stage ran." };
@@ -103,7 +106,7 @@ function fixesAfter(stages: ApiStage[], i: number): ApiStage[] {
   return end < 0 ? after : after.slice(0, end);
 }
 
-function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[]): Stage {
+function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], later: ApiStage[]): Stage {
   const info = stepInfo(stored.step);
   // Stopped stages aren't in a pipeline; if one shows up anyway, it can run again like a failed one.
   const status: StageStatus = stored.status === "stopped" ? "failed" : stored.status;
@@ -128,7 +131,9 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[]): 
     config: Object.fromEntries(
       Object.entries(stored.config ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : JSON.stringify(value)]),
     ),
-    fixes: info.fixes.filter((step) => !following.some((s) => s.step === step)).map((step) => ({ step, title: stepInfo(step).title })),
+    fixes: info.fixes
+      .filter((step) => !following.some((s) => s.step === step) && fixOffered(step, later))
+      .map((step) => ({ step, title: stepInfo(step).title, label: stepInfo(step).addLabel ?? `${stepInfo(step).title} manually` })),
     droppable: info.kind === "manual" || info.optional,
   };
 }

@@ -1,50 +1,6 @@
-// The MEI file as `engrave`'s artifact shows it (DESIGN.md §6, `engrave`): what doesn't need React. Each line's syntax
-// highlighting, the places to go to (pieces and measures, from the file's own `mdiv` and `measure @n`), the elements
-// and their ids (to go between a line and the engraving), and searching. The file is the builder's, one element per
-// line, so lines are enough.
-
-export type TokenKind = "tag" | "attr" | "value" | "text" | "punct";
-export type Token = { kind: TokenKind; text: string };
-
-// A line's tokens: tags and their names, attributes, values, the text between tags, and punctuation.
-export function highlight(line: string): Token[] {
-  const tokens: Token[] = [];
-  const push = (kind: TokenKind, text: string) => {
-    const last = tokens[tokens.length - 1];
-    if (last && last.kind === kind) last.text += text;
-    else tokens.push({ kind, text });
-  };
-  let i = 0;
-  let inTag = false;
-  while (i < line.length) {
-    const rest = line.slice(i);
-    let m: RegExpExecArray | null;
-    if (!inTag) {
-      if ((m = /^(<\?|<\/?)([\w:.-]*)/.exec(rest))) {
-        push("punct", m[1]);
-        if (m[2]) push("tag", m[2]);
-        inTag = true;
-      } else {
-        m = /^[^<]+/.exec(rest)!;
-        push("text", m[0]);
-      }
-    } else if ((m = /^\s+/.exec(rest))) {
-      push("text", m[0]);
-    } else if ((m = /^[\w:.-]+(?==)/.exec(rest))) {
-      push("attr", m[0]);
-    } else if ((m = /^"[^"]*"?/.exec(rest))) {
-      push("value", m[0]);
-    } else if ((m = /^(\/>|\?>|>)/.exec(rest))) {
-      push("punct", m[0]);
-      inTag = false;
-    } else {
-      m = /^./.exec(rest)!;
-      push("punct", m[0]);
-    }
-    i += m[0].length;
-  }
-  return tokens;
-}
+// The MEI file as the MEI view shows it (DESIGN.md §6, `engrave`): what doesn't need React. The places to go to
+// (pieces and measures, from the file's own `mdiv` and `measure @n`), the elements and their ids (to go between a
+// line and the engraving), and searching. The file is the builder's, one element per line, so lines are enough.
 
 const attr = (line: string, name: string): string | null => {
   const m = new RegExp(`\\s${name.replace(".", "\\.")}="([^"]*)"`).exec(line);
@@ -62,7 +18,6 @@ export type MeiIndex = {
   element: Int32Array; // per line: the line where the element it is part of starts (-1 for none)
   parent: Int32Array; // per line where an element starts: the line where its parent starts (-1 for the root)
   lineIds: (string | null)[]; // per line: the xml:id of the element starting there
-  segments: Map<string, { system: number; stretch: number; line: number }[]>; // a measure's parts, by its id's prefix
 };
 
 // Where things are, by line (from 0): the pieces and the measures, every element's id, and which element each line is
@@ -75,7 +30,6 @@ export function indexMei(lines: string[]): MeiIndex {
     element: new Int32Array(lines.length).fill(-1),
     parent: new Int32Array(lines.length).fill(-1),
     lineIds: lines.map(() => null),
-    segments: new Map(),
   };
   const open: number[] = [];
   let piece = 0;
@@ -99,12 +53,6 @@ export function indexMei(lines: string[]): MeiIndex {
     if (id) {
       index.ids.set(id, i);
       index.lineIds[i] = id;
-      const part = SEGMENT.exec(id);
-      if (part) {
-        const list = index.segments.get(part[1]) ?? [];
-        list.push({ system: Number(part[2]), stretch: Number(part[3]), line: i });
-        index.segments.set(part[1], list);
-      }
     }
     if (tag === "mdiv") {
       piece = Number(attr(line, "n") ?? index.pieces.length + 1);
@@ -116,24 +64,9 @@ export function indexMei(lines: string[]): MeiIndex {
   return index;
 }
 
-// A part of a measure divided at a bar line inside it, or at a system break: `<measure id>-s<system>t<stretch>`, the
-// stretch where it starts (DESIGN.md §6, `engrave`).
-const SEGMENT = /^(.+)-s(\d+)t(\d+)$/;
-
-// The line of an element of the engraving, by its id. The engraving with the original's breaks has a measure split by
-// a system break divided there, so a part the file doesn't have is the part of the file it falls in: the last one that
-// starts at or before it.
+// The line of an element of the engraving, by its id (Verovio keeps the file's).
 export function lineOfId(index: MeiIndex, id: string): number | null {
-  const exact = index.ids.get(id);
-  if (exact !== undefined) return exact;
-  const part = SEGMENT.exec(id);
-  if (!part) return null;
-  const [system, stretch] = [Number(part[2]), Number(part[3])];
-  let found: number | null = null;
-  for (const s of index.segments.get(part[1]) ?? []) {
-    if (s.system < system || (s.system === system && s.stretch <= stretch)) found = s.line;
-  }
-  return found;
+  return index.ids.get(id) ?? null;
 }
 
 // The elements a line is part of, from its own outwards: the lines where they start, with their ids (if any).
@@ -166,25 +99,4 @@ export function search(lines: string[], query: string): Match[] {
     for (let at = lower.indexOf(q); at >= 0; at = lower.indexOf(q, at + q.length)) matches.push({ line, start: at, end: at + q.length });
   }
   return matches;
-}
-
-// A line's tokens cut at the matches on it: each piece says whether it is in a match, and in the current one.
-export function marked(tokens: Token[], ranges: { start: number; end: number; current: boolean }[]): (Token & { mark: "" | "match" | "current" })[] {
-  const out: (Token & { mark: "" | "match" | "current" })[] = [];
-  let at = 0;
-  for (const token of tokens) {
-    const cuts = new Set([0, token.text.length]);
-    for (const r of ranges) {
-      if (r.start > at && r.start < at + token.text.length) cuts.add(r.start - at);
-      if (r.end > at && r.end < at + token.text.length) cuts.add(r.end - at);
-    }
-    const points = [...cuts].sort((a, b) => a - b);
-    for (let k = 0; k + 1 < points.length; k++) {
-      const from = at + points[k];
-      const range = ranges.find((r) => r.start <= from && from < r.end);
-      out.push({ kind: token.kind, text: token.text.slice(points[k], points[k + 1]), mark: range ? (range.current ? "current" : "match") : "" });
-    }
-    at += token.text.length;
-  }
-  return out;
 }

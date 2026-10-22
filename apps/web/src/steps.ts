@@ -9,7 +9,8 @@ import { analyzeOutputs, FIX_METADATA_VERSION } from "./fixMetadata.ts";
 import { FIX_OBSERVATIONS_VERSION } from "./fixObservations.ts";
 import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
-import { BREAKS, engraveConfigOf, engraveSources, PAGE_SIZES } from "./engrave.ts";
+import { engraveConfigOf, EXTRACTION_STEPS, PAGE_SIZES } from "./engrave.ts";
+import { finalTouchesStart } from "./finalTouches.ts";
 
 // One field of a step's config form.
 export type ConfigField = {
@@ -41,6 +42,7 @@ export type StepInfo = {
   kind: StageKind; // never changes for a step (steps.test.ts)
   optional: boolean; // added by the user, not part of the recipe: can be dropped
   fixes: string[]; // the manual steps that can be added after it, by id
+  addLabel?: string; // a manual step's item in the "⋮" of the stage it follows; else "<title> manually"
   config?: StepConfig; // none: nothing to set
   // The first is the main one. `earlier` are the stages before it in the pipeline, for its inputs.
   artifacts: (stage: ApiStage, earlier: ApiStage[]) => Artifact[];
@@ -332,7 +334,7 @@ STEPS.extract = {
   title: "Extract",
   kind: "llm",
   optional: false,
-  fixes: [],
+  fixes: ["final_touches"],
   // The Transcription: the systems with their music, issues and warnings (§6). The pages of the latest layout come along,
   // for the systems' crops, and the latest pieces, for the renderings.
   artifacts: (stage, earlier) => {
@@ -358,13 +360,6 @@ STEPS.engrave = {
   config: {
     fields: [
       {
-        key: "breaks",
-        label: "System and page breaks",
-        kind: "choice",
-        options: Object.entries(BREAKS).map(([value, label]) => ({ value, label })),
-        hint: "Only the engraving: the MEI file keeps the original's breaks either way.",
-      },
-      {
         key: "pageSize",
         label: "Page size",
         kind: "choice",
@@ -374,13 +369,12 @@ STEPS.engrave = {
     read: (stored) => engraveConfigOf(stored),
     check: () => null,
   },
-  // The MEI file (the main artifact: what the user takes and leaves with, §5.6) and its engraving as a PDF. The
-  // engraving is made from the same sources as the MEI, with the stage's config.
-  artifacts: (stage, earlier) => {
+  // The MEI file (the main artifact: what the user takes and leaves with, §5.6) and its engraving as a PDF, with the
+  // stage's config.
+  artifacts: (stage) => {
     const mei = stage.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
-    const sources = engraveSources(earlier);
-    if (!mei || "missing" in sources) return [];
-    const engraving = { meiSha256: mei.contentSha256!, sources, config: engraveConfigOf(stage.config) };
+    if (!mei) return [];
+    const engraving = { meiSha256: mei.contentSha256!, config: engraveConfigOf(stage.config) };
     return [
       { id: `${stage.id}.mei`, title: "MEI", kind: "mei", count: 1, engraving: { ...engraving, view: "mei" } },
       { id: `${stage.id}.pdf`, title: "PDF", kind: "pdf", count: 1, engraving: { ...engraving, view: "pdf" } },
@@ -388,8 +382,28 @@ STEPS.engrave = {
   },
 };
 
-// What a manual step needs to be added after a stage (DESIGN.md §5.8): its version, page count and inputs.
-export const FIX_STARTS: Record<string, (after: ApiStage) => { stepVersion: number; pageCount: number | null; inputIds: string[] }> = {
+STEPS.final_touches = {
+  title: "Final touches",
+  kind: "manual",
+  optional: true,
+  fixes: [],
+  addLabel: "Add final touches",
+  // The MEI, as the MEI view: the editor while WIP. Its texts are loaded by the view (finalTouches.ts).
+  artifacts: (stage, earlier) => {
+    const editor = stage.status === "wip" ? { stageId: stage.id, step: "final_touches" } : undefined;
+    return [{ id: `${stage.id}.mei`, title: "MEI", kind: "mei", count: 1, finalTouches: { stage, earlier }, editor }];
+  },
+};
+
+// Whether a manual step is offered after a stage, given the stages after it (`later`). `final_touches` only after the
+// latest stage that produces the extraction, which `engrave` reads (§6, `final_touches`).
+export function fixOffered(step: string, later: ApiStage[]): boolean {
+  return step !== "final_touches" || !later.some((s) => EXTRACTION_STEPS.includes(s.step));
+}
+
+// What a manual step needs to be added after a stage (DESIGN.md §5.8): its version, page count and inputs. `earlier`:
+// the stages up to and including that one.
+export const FIX_STARTS: Record<string, (after: ApiStage, earlier: ApiStage[]) => { stepVersion: number; pageCount: number | null; inputIds: string[] }> = {
   fix_skew: (after) => {
     const inputs = after.outputs.filter((o) => o.type === "skew");
     return { stepVersion: FIX_SKEW_VERSION, pageCount: inputs.length, inputIds: inputs.map((o) => o.id) };
@@ -406,6 +420,7 @@ export const FIX_STARTS: Record<string, (after: ApiStage) => { stepVersion: numb
     const inputs = after.outputs.filter((o) => o.item === "" && o.type === "observations");
     return { stepVersion: FIX_OBSERVATIONS_VERSION, pageCount: after.pageCount, inputIds: inputs.map((o) => o.id) };
   },
+  final_touches: (_after, earlier) => finalTouchesStart(earlier),
 };
 
 // A step this version of the app doesn't know (e.g. from a newer one) is shown by its id, without artifacts.

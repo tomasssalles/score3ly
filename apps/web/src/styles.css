@@ -2374,68 +2374,63 @@ textarea.field-input {
   color: var(--danger);
 }
 
-.mei-scroller {
-  flex: 1;
+/* The file, in CodeMirror (MeiCode.tsx, which has its own theme). */
+.mei-code {
+  min-width: 0;
   min-height: 0;
-  overflow: auto;
-  background: #0d0e10;
+  overflow: hidden;
 }
 
-/* Only the lines in view are drawn, each placed by its number. */
-.mei-lines {
-  position: relative;
-  min-width: 100%;
-  font: 13px/20px var(--mono);
+/* `final_touches`: Apply and whether the text is applied; the problems that kept it from being applied. */
+.final-touches-tools {
+  gap: 10px;
 }
 
-.mei-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 20px;
-  padding-left: 12px;
-  white-space: pre;
-  cursor: pointer;
+.final-touches-apply {
+  height: 36px;
+  padding: 0 14px;
 }
 
-.mei-line.selected {
-  background: rgba(224, 160, 48, 0.16);
+.final-touches-apply:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
-.mei-number {
-  display: inline-block;
-  margin-right: 2ch;
-  text-align: right;
-  color: #5c6068;
-  user-select: none;
-}
-
-/* The highlighting, after GitHub's dark theme. */
-.mei-tag {
-  color: #7ee787;
-}
-
-.mei-attr {
-  color: #79c0ff;
-}
-
-.mei-value {
-  color: #a5d6ff;
-}
-
-.mei-punct {
+.final-touches-state {
+  font-size: 13px;
   color: var(--muted);
 }
 
-.mei-text {
-  color: var(--fg);
+.final-touches-state.changed {
+  color: #e0a030;
 }
 
-.mei-match {
-  background: rgba(224, 160, 48, 0.35);
+.final-touches-problems {
+  max-height: 30vh;
+  overflow: auto;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--danger);
 }
 
-.mei-current {
-  background: #e0a030;
-  color: #000;
+.final-touches-problems p {
+  margin: 0;
+}
+
+.final-touches-problems ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.final-touches-problems button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 12px/1.5 var(--mono);
+  text-align: left;
+  text-decoration: underline dotted;
+  cursor: pointer;
 }

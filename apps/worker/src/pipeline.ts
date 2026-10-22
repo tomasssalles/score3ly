@@ -43,7 +43,7 @@ const INGEST_VERSION = 1;
 
 // The manual steps (DESIGN.md §5.4). A step's kind is declared in the web app; the Worker needs to know these to
 // add, edit and drop them, and to leave them out when the stages after a change are replaced (§5.8).
-export const MANUAL_STEPS = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations"] as const;
+export const MANUAL_STEPS = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "final_touches"] as const;
 
 function isManual(step: string): boolean {
   return (MANUAL_STEPS as readonly string[]).includes(step);

@@ -201,7 +201,7 @@ test("Fix skew is offered after a skew analysis, unless one already follows it; 
     outputs: [{ id: "r1", item: "p1", type: "page_image", contentSha256: null, recipeKey: SHA256, recipe: { page: 1 } }],
   });
   let p = toPipeline("auto", { stages: [ingest, rasterize, skew, stage("s4", "layout", { status: "planned" })] });
-  assert.deepEqual(p.stages[2].fixes, [{ step: "fix_skew", title: "Fix skew" }]);
+  assert.deepEqual(p.stages[2].fixes, [{ step: "fix_skew", title: "Fix skew", label: "Fix skew manually" }]);
 
   const own = "b".repeat(64);
   const fix = stage("s5", "fix_skew", {

@@ -1,17 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { elementsAt, findMeasure, highlight, indexMei, lineOfId, marked, search } from "./meiView.ts";
-
-test("a line's tokens: tags, attributes, values, text and punctuation, nothing lost", () => {
-  const line = '    <dynam startid="#a" staff="1 2">p &amp; "f"</dynam>';
-  const tokens = highlight(line);
-  assert.equal(tokens.map((t) => t.text).join(""), line);
-  assert.deepEqual(
-    tokens.filter((t) => t.kind !== "text").map((t) => `${t.kind}:${t.text}`),
-    ["punct:<", "tag:dynam", "attr:startid", "punct:=", 'value:"#a"', "attr:staff", "punct:=", 'value:"1 2"', "punct:>", "punct:</", "tag:dynam", "punct:>"],
-  );
-  assert.equal(highlight('<?xml version="1.0"?>')[1].text, "xml");
-});
+import { elementsAt, findMeasure, indexMei, lineOfId, search } from "./meiView.ts";
 
 const FILE = `<mei>
   <music>
@@ -70,24 +59,17 @@ test("each line's elements, from its own outwards: an accidental is its note's, 
   assert.deepEqual(ids(27).slice(0, 2), ["piece-2", "<2>"]);
 });
 
-test("an element of the engraving by its id, a measure's part the file doesn't have by the part it falls in", () => {
+test("an element of the engraving by its id", () => {
   const index = indexMei(FILE);
   assert.equal(lineOfId(index, "n1"), 9);
-  assert.equal(lineOfId(index, "p1m2-s1t2"), 17);
-  assert.equal(lineOfId(index, "p1m2-s2t1"), 17); // divided at the system break, in the engraving only
   assert.equal(lineOfId(index, "p1m2-s2t3"), 19);
-  assert.equal(lineOfId(index, "p1m2-s3t1"), 19);
-  assert.equal(lineOfId(index, "p1m2-s1t1"), null);
   assert.equal(lineOfId(index, "vzj2bfi"), null);
 });
 
-test("searching ignores case, and the matches cut a line's tokens", () => {
-  const matches = search(['<note pname="c"/>', "<Note/> note"], "note");
-  assert.deepEqual(matches, [
+test("searching ignores case", () => {
+  assert.deepEqual(search(['<note pname="c"/>', "<Note/> note"], "note"), [
     { line: 0, start: 1, end: 5 },
     { line: 1, start: 1, end: 5 },
     { line: 1, start: 8, end: 12 },
   ]);
-  const pieces = marked(highlight("<note/>"), [{ start: 2, end: 4, current: true }]);
-  assert.deepEqual(pieces.map((p) => [p.text, p.mark]), [["<", ""], ["n", ""], ["ot", "current"], ["e", ""], ["/>", ""]]);
 });

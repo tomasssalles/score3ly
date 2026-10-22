@@ -54,7 +54,7 @@ test("the report has every stage, its config and its model config without secret
     stepOf: (step) => ({ title: step, kind: step === "layout" ? "llm" : "computed" }),
     modelConfigs: new Map([["mc1", opus]]),
     meiSha256: "bb",
-    engraving: { breaks: "auto", pageSize: "a4", verovio: "6.3.0" },
+    engraving: { pageSize: "a4", verovio: "6.3.0" },
   });
   assert.deepEqual(report.original, { fileName: "Sonata.pdf", sha256: "aa" });
   assert.deepEqual(report.stages.map((s) => [s.position, s.step, s.seconds]), [[1, "ingest", 12.3], [2, "layout", 12.3], [3, "engrave", 12.3]]);

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { STEPS } from "./steps.ts";
+import { fixOffered, STEPS } from "./steps.ts";
+import type { ApiStage } from "./api.ts";
 
 // Every step's kind, as it was declared. A step's kind never changes (DESIGN.md §5.8): add new steps here, but
 // never edit an entry.
@@ -16,6 +17,7 @@ const KINDS: Record<string, string> = {
   fix_layout: "manual",
   fix_metadata: "manual",
   fix_observations: "manual",
+  final_touches: "manual",
 };
 
 test("no step's kind ever changes", () => {
@@ -32,4 +34,12 @@ test("rasterize's config is checked against the PDF's page count before it is sa
   // Unknown page count: only the config itself is checked.
   assert.equal(check({ pages: "5", dpi: 300 }, { pageCount: null }), null);
   assert.notEqual(check({ pages: "5", dpi: 10 }, { pageCount: null }), null);
+});
+
+test("final touches are offered only after the latest stage that produces the extraction", () => {
+  const stage = (step: string) => ({ step }) as ApiStage;
+  assert.ok(STEPS.extract.fixes.includes("final_touches"));
+  assert.equal(fixOffered("final_touches", [stage("engrave")]), true);
+  assert.equal(fixOffered("final_touches", [stage("extract"), stage("engrave")]), false);
+  assert.equal(fixOffered("fix_layout", [stage("extract")]), true);
 });
