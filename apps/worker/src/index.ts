@@ -174,7 +174,11 @@ app.post("/api/projects", async (c) => {
   let filename: string;
   if (pdf instanceof File) {
     // R2 checks the bytes against the hash and refuses the upload if they differ.
-    await c.env.PDFS.put(pdfKey(sha256), await pdf.arrayBuffer(), { sha256 });
+    try {
+      await c.env.PDFS.put(pdfKey(sha256), await pdf.arrayBuffer(), { sha256 });
+    } catch {
+      return c.json({ error: "the PDF doesn't match its SHA-256" }, 400);
+    }
     filename = pdf.name;
   } else {
     if (!(await c.env.PDFS.head(pdfKey(sha256)))) {

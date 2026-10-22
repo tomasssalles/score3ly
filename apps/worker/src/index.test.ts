@@ -197,13 +197,14 @@ test("a PDF that is already known gets another project", async () => {
   );
 });
 
-test("a hash that doesn't match the PDF creates nothing", async () => {
+test("a hash that doesn't match the PDF creates nothing, and says so", async () => {
   const pdf = pdfBytes("third pdf");
   const wrongSha256 = await sha256Hex(pdfBytes("something else"));
 
   const response = await postProject({ pdf, sha256: wrongSha256 });
 
-  assert.equal(response.ok, false);
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "the PDF doesn't match its SHA-256" });
   assert.deepEqual(await projectRows(), []);
   assert.equal(await env.PDFS.get(`pdfs/${wrongSha256}.pdf`), null);
 });
