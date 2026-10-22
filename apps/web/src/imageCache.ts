@@ -4,6 +4,10 @@
 // images are kept in memory for as long as the page is open. The renderings of the Transcription (§6) are kept the
 // same way, as SVG files.
 //
+// The browser is asked once per page load, at the first write, to keep the cache (`navigator.storage.persist()`,
+// §8.5): Chromium decides by itself, Firefox asks the user. Either way the cache can still disappear; what is missing
+// is made again.
+//
 // Not built yet: the size limit and LRU eviction (§8.5).
 
 const memory = new Map<string, Blob>();
@@ -27,7 +31,21 @@ async function cachedFile(name: string): Promise<Blob | null> {
   }
 }
 
+let persistAsked = false;
+
+function askToPersist() {
+  if (persistAsked) return;
+  persistAsked = true;
+  const storage = navigator.storage;
+  if (!storage?.persist || !storage.persisted) return;
+  storage
+    .persisted()
+    .then((already) => already || storage.persist())
+    .catch(() => {}); // not kept, then: nothing breaks
+}
+
 async function cacheFile(name: string, blob: Blob): Promise<void> {
+  askToPersist();
   const dir = await folder();
   if (!dir) {
     memory.set(name, blob);

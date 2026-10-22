@@ -1281,7 +1281,7 @@ Built, in `findSkew`, from the same line responses and strips, at the angle foun
 ### 8.5 Device constraints
 - **Memory:** a 300 dpi page held in canvas memory is about 35 MB, and mobile Safari strictly limits total canvas memory. Process one page at a time in a Web Worker, using typed arrays / `OffscreenCanvas`.
 - **Latency:** generate lazily, current page first.
-- **Eviction:** call `navigator.storage.persist()`, but assume the OPFS cache can disappear at any time. Missing derivatives are simply regenerated.
+- **Eviction:** call `navigator.storage.persist()`, but assume the OPFS cache can disappear at any time. Missing derivatives are simply regenerated. Built: asked once per page load, at the cache's first write (`imageCache.ts`), unless the storage is already persistent; Chromium grants or refuses it by itself, Firefox asks the user.
 - **Size:** the image cache is an LRU cache with a configurable size limit (§8.6), the least recently used images deleted first. Deletion is real deletion.
 - **Bundle size:** avoid OpenCV.js (about 10 MB). With LLMs doing the reading, preprocessing is light enough to write by hand.
 
@@ -1583,7 +1583,7 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Create the shared package** (`packages/core`, §3) and remove the duplicates: the `Project` type (`apps/web` and `apps/worker`), `sha256Hex` (`apps/web` and `apps/eval`), the pdf.js asset plugin and the PDF rendering (`apps/web` and `apps/eval`; the eval copy is dev-only and uses the modern pdf.js build).
 - **Build the test environments** (§12): the start script, the build script and a first environment.
 - **Try the page images in Firefox, Safari and on phones** (§8.1): they work in Chromium, in a Web Worker. Check that pdf.js loads in a worker there, that the pixels match Node's (scans exactly, vector pages "close"), that the PNG bytes match (they do in Chromium), and the memory needed for large scans on a phone (a 5400×7200 scan is about 155 MB as RGBA).
-- **The image cache's size limit and LRU eviction,** and `navigator.storage.persist()` (§8.5, §8.6).
+- **The image cache's size limit and LRU eviction** (§8.5, §8.6).
 - **Google Drive** (§3, §10): picking source PDFs with the Picker, and exporting to an app-created folder.
 - **Try regeneration on a second device** (§5.3): a project run on one device, continued on another whose image cache is empty.
 - **Try the editors with touch and on a real phone:** `fix_layout` hasn't been tried with touch at all, `fix_skew` only through Chromium's emulation of touch at phone size.
