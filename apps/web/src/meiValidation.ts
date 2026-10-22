@@ -1,27 +1,39 @@
-// Checking an MEI file in the browser (DESIGN.md §6, `final_touches`): xmllint (WebAssembly, in its own Web Worker)
-// with the vendored MEI 5.1 schema, both loaded on the first check.
+// Checking an MEI file in the browser (DESIGN.md §6, `final_touches`): in a Web Worker (meiCheckWorker.ts), which
+// compiles the MEI 5.1 schema once, as soon as it starts. The editor starts it when it opens, so the first Apply
+// doesn't wait for the schema. Nothing is sent before the worker says it listens.
 
-import schemaUrl from "../../../packages/notation/schemas/mei-all.rng?url";
-import { checkMei, xmllintProblems, type MeiProblem } from "./meiChecks";
+import type { MeiProblem } from "./meiChecks";
+import type { CheckRequest, CheckResponse } from "./meiCheckWorker";
 
-let schema: Promise<string> | null = null;
+let worker: Promise<Worker> | null = null;
+let nextId = 1;
+const pending = new Map<number, { resolve: (problems: MeiProblem[]) => void; reject: (error: Error) => void }>();
 
-async function validate(text: string): Promise<MeiProblem[]> {
-  schema ??= fetch(schemaUrl).then((r) => (r.ok ? r.text() : Promise.reject(new Error(`The MEI schema couldn't be loaded (${r.status}).`))));
-  const [{ validateXML }, rng] = await Promise.all([import("xmllint-wasm"), schema]).catch((err) => {
-    schema = null;
-    throw err;
+function getWorker(): Promise<Worker> {
+  worker ??= new Promise((listening) => {
+    const created = new Worker(new URL("./meiCheckWorker.ts", import.meta.url), { type: "module" });
+    created.addEventListener("message", (event: MessageEvent<CheckResponse>) => {
+      if ("listening" in event.data) return listening(created);
+      const waiting = pending.get(event.data.id);
+      if (!waiting) return;
+      pending.delete(event.data.id);
+      if ("error" in event.data) waiting.reject(new Error(event.data.error));
+      else waiting.resolve(event.data.problems);
+    });
   });
-  const result = await validateXML({
-    xml: [{ fileName: "score.mei", contents: text }],
-    schema: [{ fileName: "mei-all.rng", contents: rng }],
-    extension: "relaxng",
-    initialMemoryPages: 1024, // 64 MiB: the schema alone needs more than the default
-    maxMemoryPages: 16384, // 1 GiB
-  });
-  return xmllintProblems(result.errors);
+  return worker;
 }
 
-export function checkMeiText(text: string): Promise<MeiProblem[]> {
-  return checkMei(text, validate);
+export async function checkMeiText(text: string): Promise<MeiProblem[]> {
+  const ready = await getWorker();
+  const id = nextId++;
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    ready.postMessage({ id, text } satisfies CheckRequest);
+  });
+}
+
+// Starts the worker, which compiles the schema ahead of the first check.
+export function prepareMeiChecks(): void {
+  void getWorker();
 }

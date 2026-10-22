@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { validateXML } from "xmllint-wasm";
 import { buildScore, meiString } from "@score3ly/notation";
-import { changesNote, checkMei, idProblems, linesChanged, xmllintProblems } from "./meiChecks.ts";
+import { changesNote, checkMei, idProblems, linesChanged } from "./meiChecks.ts";
+import { meiValidator } from "./meiSchema.ts";
 
 test("ids: one used twice, and references to ids nothing has", () => {
   const text = [
@@ -32,11 +32,8 @@ test("lines changed: a changed line counts once, added and removed lines each", 
   assert.equal(changesNote(14), "14 lines changed");
 });
 
-const SCHEMA = readFileSync(new URL("../../../packages/notation/schemas/mei-all.rng", import.meta.url), "utf8");
-const validate = async (text: string) => {
-  const result = await validateXML({ xml: [{ fileName: "score.mei", contents: text }], schema: [{ fileName: "mei-all.rng", contents: SCHEMA }], extension: "relaxng" });
-  return xmllintProblems(result.errors);
-};
+const validator = meiValidator(readFileSync(new URL("../../../packages/notation/schemas/mei-all.rng", import.meta.url), "utf8"));
+const validate = async (text: string) => validator(text);
 
 const SYSTEM = {
   startRepeat: false,

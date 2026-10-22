@@ -18,7 +18,7 @@ export function ownOutput(stage: ApiStage, type: FinalTouchesType): string | nul
 // What adding the stage after the latest extraction records (`earlier`: the stages up to and including that one).
 export function finalTouchesStart(earlier: ApiStage[]): { stepVersion: number; pageCount: number | null; inputIds: string[] } {
   const sources = engraveSources(earlier);
-  if ("missing" in sources) throw new Error(`Final touches can't start: ${sources.missing}`);
+  if ("missing" in sources) throw new Error(`"Fix MEI" can't start: ${sources.missing}`);
   const rasterize = [...earlier].reverse().find((s) => s.step === "rasterize");
   return {
     stepVersion: FINAL_TOUCHES_VERSION,

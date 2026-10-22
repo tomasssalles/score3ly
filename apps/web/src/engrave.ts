@@ -78,7 +78,7 @@ export function engraveInput(earlier: ApiStage[]): EngraveInput | { missing: str
   const last = earlier.at(-1);
   if (last?.step === "final_touches") {
     const mei = last.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
-    if (last.status !== "done" || !mei) return { missing: "the final touches aren't finished yet." };
+    if (last.status !== "done" || !mei) return { missing: "\"Fix MEI\" isn't finished yet." };
     return { edited: { id: mei.id, sha256: mei.contentSha256! } };
   }
   const sources = engraveSources(earlier);

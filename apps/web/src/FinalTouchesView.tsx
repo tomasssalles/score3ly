@@ -103,6 +103,10 @@ function FinalTouchesEditor({
     [],
   );
   useEffect(() => () => saver.close(), []);
+  // The schema is compiled while the user reads and types, not on the first Apply.
+  useEffect(() => {
+    if (editable) import("./meiValidation").then((m) => m.prepareMeiChecks());
+  }, []);
 
   // The score, engraved from the applied text (Verovio's breaks; the page size of `engrave`'s default).
   useEffect(() => {
@@ -144,7 +148,7 @@ function FinalTouchesEditor({
   const changed = editable && text !== applied;
   const tools = editable && (
     <div className="editor-tools final-touches-tools">
-      <button type="button" className="button-primary final-touches-apply" disabled={applying} onClick={apply}>
+      <button type="button" className="button-primary final-touches-apply" disabled={applying || !changed} onClick={apply}>
         {applying ? "Checking…" : "Apply"}
       </button>
       <span className={changed ? "final-touches-state changed" : "final-touches-state"}>{changed ? "Not applied" : "Applied"}</span>

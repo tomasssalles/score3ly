@@ -26,6 +26,8 @@ export default defineConfig({
     __APP_COMMIT__: JSON.stringify(commit),
     __APP_DIRTY__: JSON.stringify(dirty),
   },
+  // The workers are module workers; libxml2-wasm (meiCheckWorker.ts) needs a top-level await, which IIFE can't hold.
+  worker: { format: "es" },
   server: {
     // Forward API calls to `wrangler dev` (see apps/worker).
     proxy: { "/api": "http://localhost:8787" },

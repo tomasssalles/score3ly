@@ -17,7 +17,7 @@ test("engrave takes the MEI of final touches right before it, once they are fini
     { id: "m", type: "mei", sha: "2".repeat(64) },
   ]);
   assert.deepEqual(engraveInput([stage("extract", "done"), touches]), { edited: { id: "m", sha256: "2".repeat(64) } });
-  assert.deepEqual(engraveInput([stage("extract", "done"), { ...touches, status: "wip" }]), { missing: "the final touches aren't finished yet." });
+  assert.deepEqual(engraveInput([stage("extract", "done"), { ...touches, status: "wip" }]), { missing: "\"Fix MEI\" isn't finished yet." });
   assert.ok("missing" in engraveInput([stage("extract", "failed")]));
 });
 

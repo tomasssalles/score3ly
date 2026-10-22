@@ -62,7 +62,7 @@ export type Stage = {
   progress: number; // from 0 to 1 while running; known only on the device that runs the stage
   artifacts: Artifact[]; // the first is the main one; shown once the stage is done (or while a manual one is worked on)
   config: Record<string, string>;
-  fixes: { step: string; title: string; label: string }[]; // the manual stages that can be added after it: "Fix skew", "Fix skew manually"
+  fixes: { step: string; title: string }[]; // the manual stages that can be added after it, e.g. "Fix skew"
   droppable: boolean; // not part of the recipe (DESIGN.md §5.5)
 };
 
@@ -133,7 +133,7 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
     ),
     fixes: info.fixes
       .filter((step) => !following.some((s) => s.step === step) && fixOffered(step, later))
-      .map((step) => ({ step, title: stepInfo(step).title, label: stepInfo(step).addLabel ?? `${stepInfo(step).title} manually` })),
+      .map((step) => ({ step, title: stepInfo(step).title })),
     droppable: info.kind === "manual" || info.optional,
   };
 }

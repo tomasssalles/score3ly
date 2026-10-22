@@ -1,5 +1,5 @@
 // The checks of an MEI file edited by hand, before `final_touches` applies it (DESIGN.md §6, `final_touches`): well
-// formed and valid against MEI 5.1 (the full schema, by xmllint, given as `validate`), every `xml:id` unique, every
+// formed and valid against MEI 5.1 (the full schema, given as `validate`: meiSchema.ts), every `xml:id` unique, every
 // `#id` reference pointing to an element that exists. And how many lines an edit changed, for the card.
 
 // line: counted from 1. syntax: the file isn't well formed (nothing after it is checked).
@@ -29,14 +29,6 @@ export function idProblems(text: string): MeiProblem[] {
     }
   }
   return problems.sort((a, b) => (a.line ?? 0) - (b.line ?? 0));
-}
-
-// xmllint's errors as problems: each with its line; the lines without one quote the line above and point into it.
-export function xmllintProblems(errors: readonly { message: string; loc: { lineNumber: number } | null }[]): MeiProblem[] {
-  const located = errors
-    .filter((e) => e.loc)
-    .map((e) => ({ line: e.loc!.lineNumber, message: e.message.replace(/^(parser |validity )?error : /, "").replace(/Relax-NG validity error : /, ""), ...(/^parser error/.test(e.message) ? { syntax: true as const } : {}) }));
-  return located.length > 0 ? located : errors.slice(0, 1).map((e) => ({ line: null, message: e.message }));
 }
 
 // Every check: the schema's first (a file that isn't well formed has nothing else worth checking), then the ids.

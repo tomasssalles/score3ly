@@ -42,7 +42,6 @@ export type StepInfo = {
   kind: StageKind; // never changes for a step (steps.test.ts)
   optional: boolean; // added by the user, not part of the recipe: can be dropped
   fixes: string[]; // the manual steps that can be added after it, by id
-  addLabel?: string; // a manual step's item in the "⋮" of the stage it follows; else "<title> manually"
   config?: StepConfig; // none: nothing to set
   // The first is the main one. `earlier` are the stages before it in the pipeline, for its inputs.
   artifacts: (stage: ApiStage, earlier: ApiStage[]) => Artifact[];
@@ -383,11 +382,10 @@ STEPS.engrave = {
 };
 
 STEPS.final_touches = {
-  title: "Final touches",
+  title: "Fix MEI",
   kind: "manual",
   optional: true,
   fixes: [],
-  addLabel: "Add final touches",
   // The MEI, as the MEI view: the editor while WIP. Its texts are loaded by the view (finalTouches.ts).
   artifacts: (stage, earlier) => {
     const editor = stage.status === "wip" ? { stageId: stage.id, step: "final_touches" } : undefined;
