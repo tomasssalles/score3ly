@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.3",
+    "@types/pdfkit": "^0.17.7",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
@@ -18,7 +19,10 @@
   },
   "dependencies": {
     "pdfjs-dist": "^6.3.289",
+    "pdfkit": "^0.20.2",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "svg-to-pdfkit": "^0.1.8",
+    "verovio": "^6.3.0"
   }
 }

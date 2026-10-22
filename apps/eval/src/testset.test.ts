@@ -18,7 +18,7 @@ test("parseCandidate rejects names outside the scheme", () => {
     "a.b.c.ly", // dot inside piece or method
     ".method.ly", // empty piece
     "piece..ly", // empty method
-    "piece.method.pdf", // not LilyPond or MusicXML
+    "piece.method.pdf", // not LilyPond, MusicXML or MEI
     "piece.orig.ly", // its PDF would be the input score
     "piece.orig.musicxml",
   ]) {
@@ -45,6 +45,12 @@ test("planEngraving skips candidates that already have a PDF", () => {
   );
   assert.deepEqual(plan.invalidNames, ["x.orig.ly"]);
   assert.deepEqual(plan.conflicts, []);
+});
+
+test("parseCandidate accepts MEI", () => {
+  assert.equal(parseCandidate("x.s3l-claude.mei")?.format, "mei");
+  assert.equal(parseCandidate("x.s3l-claude.mei")?.pdfName, "x.s3l-claude.pdf");
+  assert.equal(parseCandidate("x.orig.mei"), null);
 });
 
 test("parseCandidate accepts MusicXML", () => {

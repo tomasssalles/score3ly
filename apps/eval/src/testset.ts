@@ -6,11 +6,12 @@ export const TESTSET_DIR = new URL("../../../testset/", import.meta.url).pathnam
 export const ORIG = "orig";
 
 // How a candidate's source file is turned into a PDF.
-export type Format = "ly" | "musicxml";
+export type Format = "ly" | "musicxml" | "mei";
 
 // LilyPond candidates are compiled with LilyPond. MusicXML candidates (from OMR tools) are
 // rendered directly with MuseScore, so they're judged without a lossy musicxml2ly conversion.
-const FORMATS: Format[] = ["ly", "musicxml"];
+// MEI candidates (score3ly's output) are engraved with Verovio, as the app engraves them.
+const FORMATS: Format[] = ["ly", "musicxml", "mei"];
 
 export type Candidate = {
   piece: string;
@@ -42,7 +43,7 @@ function formatOf(fileName: string): Format | null {
 export type EngravePlan = {
   toEngrave: Candidate[];
   alreadyEngraved: Candidate[];
-  invalidNames: string[]; // .ly or .musicxml files that don't follow the naming scheme
+  invalidNames: string[]; // .ly, .musicxml or .mei files that don't follow the naming scheme
   conflicts: Candidate[]; // candidates sharing a piece and method (hence a PDF) with another one
 };
 
