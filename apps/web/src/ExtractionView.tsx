@@ -59,8 +59,8 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
   return loaded;
 }
 
-// The two toggles, remembered on this device (DESIGN.md §5.8, device settings).
-function useRemembered<T extends string>(key: string, initial: T, values: readonly T[]): [T, (value: T) => void] {
+// A toggle remembered on this device (DESIGN.md §5.8, device settings): the two here, and the MEI view's score.
+export function useRemembered<T extends string>(key: string, initial: T, values: readonly T[]): [T, (value: T) => void] {
   const [value, setValue] = useState<T>(() => {
     try {
       const stored = localStorage.getItem(key) as T | null;

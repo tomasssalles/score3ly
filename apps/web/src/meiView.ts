@@ -1,6 +1,7 @@
 // The MEI file as `engrave`'s artifact shows it (DESIGN.md §6, `engrave`): what doesn't need React. Each line's syntax
-// highlighting, the places to go to (pieces, pages, systems, measures, from the file's own `mdiv`, `measure @n` and
-// the facsimile's zones), and searching. The file is the builder's, one element per line, so lines are enough.
+// highlighting, the places to go to (pieces and measures, from the file's own `mdiv` and `measure @n`), the elements
+// and their ids (to go between a line and the engraving), and searching. The file is the builder's, one element per
+// line, so lines are enough.
 
 export type TokenKind = "tag" | "attr" | "value" | "text" | "punct";
 export type Token = { kind: TokenKind; text: string };
@@ -56,38 +57,90 @@ function unescape(text: string): string {
 
 export type MeiIndex = {
   pieces: { n: number; label: string | null; line: number }[];
-  pages: Map<number, number>; // page → the line of its first measure
-  systems: Map<number, number>; // system → the line of its first measure
   measures: { piece: number; n: string; line: number }[];
+  ids: Map<string, number>; // xml:id → the line of its element
+  element: Int32Array; // per line: the line where the element it is part of starts (-1 for none)
+  parent: Int32Array; // per line where an element starts: the line where its parent starts (-1 for the root)
+  lineIds: (string | null)[]; // per line: the xml:id of the element starting there
+  segments: Map<string, { system: number; stretch: number; line: number }[]>; // a measure's parts, by its id's prefix
 };
 
-// Where things are, by line (from 0): the pieces, and the page and system of each measure (the zones of its @facs,
-// whose ids name the system: z<system>t<stretches>, DESIGN.md §6, "facsimile").
+// Where things are, by line (from 0): the pieces and the measures, every element's id, and which element each line is
+// part of. The builder writes one element per line (its text on the same line), so the start and end tags are enough.
 export function indexMei(lines: string[]): MeiIndex {
-  const index: MeiIndex = { pieces: [], pages: new Map(), systems: new Map(), measures: [] };
-  const zonePage = new Map<string, number>();
-  let surface = 0;
+  const index: MeiIndex = {
+    pieces: [],
+    measures: [],
+    ids: new Map(),
+    element: new Int32Array(lines.length).fill(-1),
+    parent: new Int32Array(lines.length).fill(-1),
+    lineIds: lines.map(() => null),
+    segments: new Map(),
+  };
+  const open: number[] = [];
   let piece = 0;
   for (const [i, line] of lines.entries()) {
-    const tag = /^\s*<([\w:.-]+)/.exec(line)?.[1];
-    if (tag === "surface") surface = Number(attr(line, "n") ?? 0);
-    else if (tag === "zone") {
-      const id = attr(line, "xml:id");
-      if (id) zonePage.set(id, surface);
-    } else if (tag === "mdiv") {
+    const text = line.trim();
+    const top = open.length ? open[open.length - 1] : -1;
+    if (text.startsWith("</")) {
+      index.element[i] = top;
+      open.pop();
+      continue;
+    }
+    const tag = /^<([\w:.-]+)/.exec(text)?.[1];
+    if (!tag) {
+      index.element[i] = top;
+      continue;
+    }
+    index.element[i] = i;
+    index.parent[i] = top;
+    if (!text.endsWith("/>") && !text.endsWith(`</${tag}>`)) open.push(i);
+    const id = attr(line, "xml:id");
+    if (id) {
+      index.ids.set(id, i);
+      index.lineIds[i] = id;
+      const part = SEGMENT.exec(id);
+      if (part) {
+        const list = index.segments.get(part[1]) ?? [];
+        list.push({ system: Number(part[2]), stretch: Number(part[3]), line: i });
+        index.segments.set(part[1], list);
+      }
+    }
+    if (tag === "mdiv") {
       piece = Number(attr(line, "n") ?? index.pieces.length + 1);
       index.pieces.push({ n: piece, label: attr(line, "label"), line: i });
     } else if (tag === "measure") {
       index.measures.push({ piece, n: attr(line, "n") ?? "", line: i });
-      const zone = attr(line, "facs")?.split(/\s+/)[0]?.replace(/^#/, "");
-      if (!zone) continue;
-      const system = /^z(\d+)t/.exec(zone)?.[1];
-      if (system && !index.systems.has(Number(system))) index.systems.set(Number(system), i);
-      const page = zonePage.get(zone);
-      if (page && !index.pages.has(page)) index.pages.set(page, i);
     }
   }
   return index;
+}
+
+// A part of a measure divided at a bar line inside it, or at a system break: `<measure id>-s<system>t<stretch>`, the
+// stretch where it starts (DESIGN.md §6, `engrave`).
+const SEGMENT = /^(.+)-s(\d+)t(\d+)$/;
+
+// The line of an element of the engraving, by its id. The engraving with the original's breaks has a measure split by
+// a system break divided there, so a part the file doesn't have is the part of the file it falls in: the last one that
+// starts at or before it.
+export function lineOfId(index: MeiIndex, id: string): number | null {
+  const exact = index.ids.get(id);
+  if (exact !== undefined) return exact;
+  const part = SEGMENT.exec(id);
+  if (!part) return null;
+  const [system, stretch] = [Number(part[2]), Number(part[3])];
+  let found: number | null = null;
+  for (const s of index.segments.get(part[1]) ?? []) {
+    if (s.system < system || (s.system === system && s.stretch <= stretch)) found = s.line;
+  }
+  return found;
+}
+
+// The elements a line is part of, from its own outwards: the lines where they start, with their ids (if any).
+export function elementsAt(index: MeiIndex, line: number): { line: number; id: string | null }[] {
+  const out: { line: number; id: string | null }[] = [];
+  for (let l = index.element[line] ?? -1; l >= 0; l = index.parent[l]) out.push({ line: l, id: index.lineIds[l] });
+  return out;
 }
 
 // A measure by its number in a piece: the first MEI measure that has it (a measure divided by a bar line inside it has
@@ -99,13 +152,6 @@ export function findMeasure(index: MeiIndex, piece: number, n: number): number |
     if (from === n || (to !== undefined && from <= n && n <= to)) return m.line;
   }
   return null;
-}
-
-// The piece a line is in: the last one that starts at or before it.
-export function pieceAt(index: MeiIndex, line: number): number {
-  let piece = index.pieces[0]?.n ?? 1;
-  for (const p of index.pieces) if (p.line <= line) piece = p.n;
-  return piece;
 }
 
 export type Match = { line: number; start: number; end: number };

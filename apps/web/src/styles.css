@@ -2231,11 +2231,76 @@ textarea.field-input {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  container-type: inline-size;
+}
+
+/* The file and the score: the score below it, or on its right where there is room. */
+.mei-split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+}
+
+.mei-split.alone {
+  grid-template-rows: 1fr;
+}
+
+@container (min-width: 900px) {
+  .mei-split {
+    grid-template-rows: none;
+    grid-template-columns: 1fr 1fr;
+  }
+  .mei-split.alone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mei-score {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  background: #1a1b1e;
+  border-top: 1px solid var(--line);
+}
+
+@container (min-width: 900px) {
+  .mei-score {
+    border-top: none;
+    border-left: 1px solid var(--line);
+  }
+}
+
+.mei-pages {
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  gap: 12px;
+}
+
+.mei-pages .engraved-page g[id] {
+  cursor: pointer;
+}
+
+.mei-pages .engraved-page g.mei-selected {
+  fill: #e0a030;
+  color: #e0a030;
+}
+
+.mei-score-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.mei-end {
+  margin-left: auto;
+  gap: 8px;
 }
 
 .mei-query,
 .mei-number-input {
-  height: 34px;
+  height: 36px;
   box-sizing: border-box;
   padding: 0 10px;
   border: 1px solid var(--line);
@@ -2247,6 +2312,12 @@ textarea.field-input {
 
 .mei-query {
   width: 12em;
+}
+
+@container (max-width: 480px) {
+  .mei-query {
+    width: 7em;
+  }
 }
 
 .mei-number-input {
@@ -2266,12 +2337,25 @@ textarea.field-input {
   text-align: center;
 }
 
+.mei-search {
+  gap: 6px;
+}
+
 .mei-goto {
   gap: 6px;
 }
 
+.mei-measure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
 .mei-go {
-  padding: 6px 12px;
+  color: var(--fg);
+  font: 14px var(--sans);
 }
 
 .mei-go:disabled {
@@ -2311,10 +2395,11 @@ textarea.field-input {
   height: 20px;
   padding-left: 12px;
   white-space: pre;
+  cursor: pointer;
 }
 
-.mei-line.target {
-  background: rgba(255, 123, 114, 0.18);
+.mei-line.selected {
+  background: rgba(224, 160, 48, 0.16);
 }
 
 .mei-number {

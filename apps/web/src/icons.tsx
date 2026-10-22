@@ -240,6 +240,16 @@ export function LineIcon() {
   );
 }
 
+// A magnifying glass: search.
+export function SearchIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M15.5 15.5L20 20" />
+    </svg>
+  );
+}
+
 export function ZoomInIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">

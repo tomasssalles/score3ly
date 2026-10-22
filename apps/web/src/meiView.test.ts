@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findMeasure, highlight, indexMei, marked, pieceAt, search } from "./meiView.ts";
+import { elementsAt, findMeasure, highlight, indexMei, lineOfId, marked, search } from "./meiView.ts";
 
 test("a line's tokens: tags, attributes, values, text and punctuation, nothing lost", () => {
   const line = '    <dynam startid="#a" staff="1 2">p &amp; "f"</dynam>';
@@ -15,37 +15,70 @@ test("a line's tokens: tags, attributes, values, text and punctuation, nothing l
 
 const FILE = `<mei>
   <music>
-    <facsimile>
-      <surface xml:id="surface-1" n="1" ulx="0">
-        <zone xml:id="z1t1-1" ulx="1"/>
-        <zone xml:id="z1t2-2" ulx="1"/>
-      </surface>
-      <surface xml:id="surface-2" n="2" ulx="0">
-        <zone xml:id="z2t1-1" ulx="1"/>
-      </surface>
-    </facsimile>
     <body>
       <mdiv xml:id="piece-1" n="1" label="Von fremden L&quot;ndern">
-        <measure xml:id="p1m1" n="0" facs="#z1t1-1">
-        <measure xml:id="p1m2-s1t2" n="1" facs="#z1t2-2">
+        <score>
+          <section>
+            <measure xml:id="p1m1" n="0">
+              <staff n="1">
+                <layer n="1">
+                  <note xml:id="n1" pname="c" oct="4" dur="4">
+                    <accid accid="s"/>
+                  </note>
+                  <rest xml:id="r1" dur="4"/>
+                </layer>
+              </staff>
+              <dir staff="1" tstamp="1">dolce</dir>
+            </measure>
+            <measure xml:id="p1m2-s1t2" n="1">
+            </measure>
+            <measure xml:id="p1m2-s2t3" n="1">
+            </measure>
+          </section>
+        </score>
+      </mdiv>
       <mdiv xml:id="piece-2" n="2">
-        <measure xml:id="p2m1" n="1" facs="#z2t1-1">
-        <measure xml:id="p2m2" n="2–5">`.split("\n");
+        <measure xml:id="p2m1" n="1"/>
+        <measure xml:id="p2m2" n="2–5"/>
+      </mdiv>
+    </body>
+  </music>
+</mei>`.split("\n");
 
-test("the places to go to: pieces, pages, systems and measures, by line", () => {
+test("the places to go to: pieces and measures, by line", () => {
   const index = indexMei(FILE);
   assert.deepEqual(index.pieces, [
-    { n: 1, label: 'Von fremden L"ndern', line: 12 },
-    { n: 2, label: null, line: 15 },
+    { n: 1, label: 'Von fremden L"ndern', line: 3 },
+    { n: 2, label: null, line: 24 },
   ]);
-  assert.deepEqual([...index.pages], [[1, 13], [2, 16]]);
-  assert.deepEqual([...index.systems], [[1, 13], [2, 16]]);
-  assert.equal(findMeasure(index, 1, 1), 14);
-  assert.equal(findMeasure(index, 2, 1), 16);
-  assert.equal(findMeasure(index, 2, 4), 17);
+  assert.equal(findMeasure(index, 1, 0), 6);
+  assert.equal(findMeasure(index, 1, 1), 17);
+  assert.equal(findMeasure(index, 2, 1), 25);
+  assert.equal(findMeasure(index, 2, 4), 26);
   assert.equal(findMeasure(index, 2, 9), null);
-  assert.equal(pieceAt(index, 14), 1);
-  assert.equal(pieceAt(index, 17), 2);
+});
+
+test("each line's elements, from its own outwards: an accidental is its note's, a closing tag its element's", () => {
+  const index = indexMei(FILE);
+  const ids = (line: number) => elementsAt(index, line).map((e) => e.id ?? `<${e.line}>`);
+  assert.deepEqual(ids(10), ["<10>", "n1", "<8>", "<7>", "p1m1", "<5>", "<4>", "piece-1", "<2>", "<1>", "<0>"]);
+  assert.deepEqual(ids(11).slice(0, 2), ["n1", "<8>"]);
+  assert.deepEqual(ids(12).slice(0, 2), ["r1", "<8>"]);
+  assert.deepEqual(ids(15).slice(0, 2), ["<15>", "p1m1"]);
+  assert.deepEqual(ids(18).slice(0, 2), ["p1m2-s1t2", "<5>"]);
+  assert.deepEqual(ids(25).slice(0, 2), ["p2m1", "piece-2"]);
+  assert.deepEqual(ids(27).slice(0, 2), ["piece-2", "<2>"]);
+});
+
+test("an element of the engraving by its id, a measure's part the file doesn't have by the part it falls in", () => {
+  const index = indexMei(FILE);
+  assert.equal(lineOfId(index, "n1"), 9);
+  assert.equal(lineOfId(index, "p1m2-s1t2"), 17);
+  assert.equal(lineOfId(index, "p1m2-s2t1"), 17); // divided at the system break, in the engraving only
+  assert.equal(lineOfId(index, "p1m2-s2t3"), 19);
+  assert.equal(lineOfId(index, "p1m2-s3t1"), 19);
+  assert.equal(lineOfId(index, "p1m2-s1t1"), null);
+  assert.equal(lineOfId(index, "vzj2bfi"), null);
 });
 
 test("searching ignores case, and the matches cut a line's tokens", () => {
