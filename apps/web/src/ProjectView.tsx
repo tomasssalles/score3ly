@@ -33,6 +33,7 @@ import { ProgressRing } from "./ProgressRing";
 import { ConfigDialog } from "./ConfigDialog";
 import { RUNNERS } from "./runners";
 import { CannotStart } from "./stageRunner";
+import { useWakeLock } from "./wakeLock";
 import { FIX_STARTS, stepInfo, type ConfigContext } from "./steps";
 import { openPdfForImages } from "./pageImages";
 import { download } from "./downloads";
@@ -127,6 +128,8 @@ export function ProjectView({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [runningHere]);
+  // And the screen stays on meanwhile, so that a phone doesn't go to sleep and pause the run.
+  useWakeLock(runningHere);
 
   // An ID that doesn't exist (an old or edited URL, or a replaced stage) counts as no pick.
   const pickedArtifact = artifactId === null ? null : findArtifact(pipeline, artifactId);
