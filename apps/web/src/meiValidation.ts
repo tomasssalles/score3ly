@@ -1,4 +1,4 @@
-// Checking an MEI file in the browser (DESIGN.md §6, `final_touches`): in a Web Worker (meiCheckWorker.ts), which
+// Checking an MEI file in the browser (DESIGN.md §6, `fix_mei`): in a Web Worker (meiCheckWorker.ts), which
 // compiles the MEI 5.1 schema once, as soon as it starts. The editor starts it when it opens, so the first Apply
 // doesn't wait for the schema. Nothing is sent before the worker says it listens.
 

@@ -40,7 +40,7 @@ export type EngraveSources = {
   pieces: { id: string; sha256: string };
 };
 
-// The steps whose stages produce the extraction `engrave` reads; `final_touches` is offered after the latest (§6).
+// The steps whose stages produce the extraction `engrave` reads; `fix_mei` is offered after the latest (§6).
 export const EXTRACTION_STEPS = ["extract"]; // `apply_review` too, once it exists
 const LAYOUT_STEPS = ["layout", "fix_layout"];
 const METADATA_STEPS = ["fix_metadata", "analyze"];
@@ -70,13 +70,13 @@ export function engraveSources(earlier: ApiStage[]): EngraveSources | { missing:
   };
 }
 
-// What `engrave` reads: the sources it builds the MEI from, or, when `final_touches` comes right before it, that
+// What `engrave` reads: the sources it builds the MEI from, or, when `fix_mei` comes right before it, that
 // stage's MEI, taken as it is.
 export type EngraveInput = { built: EngraveSources } | { edited: { id: string; sha256: string } };
 
 export function engraveInput(earlier: ApiStage[]): EngraveInput | { missing: string } {
   const last = earlier.at(-1);
-  if (last?.step === "final_touches") {
+  if (last?.step === "fix_mei") {
     const mei = last.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
     if (last.status !== "done" || !mei) return { missing: "\"Fix MEI\" isn't finished yet." };
     return { edited: { id: mei.id, sha256: mei.contentSha256! } };
@@ -93,7 +93,7 @@ export const sourceIds = (sources: EngraveSources): string[] => [
 ];
 
 // The stage key (§5.2): the step, its version, the MEI builder's (the format's) version, the config, and the content of
-// what it reads (with `final_touches`'s MEI, that file).
+// what it reads (with `fix_mei`'s MEI, that file).
 export function engraveStageKey(config: EngraveConfig, input: EngraveInput, lensVersion: number): Promise<string> {
   if ("edited" in input) return keyOf({ step: "engrave", version: ENGRAVE_VERSION, config, mei: input.edited.sha256 });
   const sources = input.built;
@@ -159,7 +159,7 @@ export function engraveNote(score: Score): string {
   return [...(score.pieces.length > 1 ? [plural(score.pieces.length, "piece")] : []), plural(measures, "measure")].join(" · ");
 }
 
-// The same for an MEI file edited by hand (`final_touches`): its pieces (`mdiv`) and measures (`measure @n`, a
+// The same for an MEI file edited by hand (`fix_mei`): its pieces (`mdiv`) and measures (`measure @n`, a
 // multi-measure rest's range counting each, a measure divided by a bar line inside it once).
 export function meiNote(text: string): string {
   const index = indexMei(text.split("\n"));

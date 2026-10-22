@@ -17,7 +17,7 @@ const KINDS: Record<string, string> = {
   fix_layout: "manual",
   fix_metadata: "manual",
   fix_observations: "manual",
-  final_touches: "manual",
+  fix_mei: "manual",
 };
 
 test("no step's kind ever changes", () => {
@@ -36,10 +36,10 @@ test("rasterize's config is checked against the PDF's page count before it is sa
   assert.notEqual(check({ pages: "5", dpi: 10 }, { pageCount: null }), null);
 });
 
-test("final touches are offered only after the latest stage that produces the extraction", () => {
+test("Fix MEI is offered only after the latest stage that produces the extraction", () => {
   const stage = (step: string) => ({ step }) as ApiStage;
-  assert.ok(STEPS.extract.fixes.includes("final_touches"));
-  assert.equal(fixOffered("final_touches", [stage("engrave")]), true);
-  assert.equal(fixOffered("final_touches", [stage("extract"), stage("engrave")]), false);
+  assert.ok(STEPS.extract.fixes.includes("fix_mei"));
+  assert.equal(fixOffered("fix_mei", [stage("engrave")]), true);
+  assert.equal(fixOffered("fix_mei", [stage("extract"), stage("engrave")]), false);
   assert.equal(fixOffered("fix_layout", [stage("extract")]), true);
 });

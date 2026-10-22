@@ -1,4 +1,4 @@
-// `final_touches`'s artifact (DESIGN.md §6, `final_touches`): the MEI view, editable while the stage is WIP. The text
+// `fix_mei`'s artifact (DESIGN.md §6, `fix_mei`): the MEI view, editable while the stage is WIP. The text
 // is saved a moment after typing stops and when the editor closes; Apply checks it and, if it passes, makes it the
 // applied version, from which the score is engraved again. Once finished, the applied MEI, read-only.
 
@@ -7,7 +7,7 @@ import type { EditorView } from "@codemirror/view";
 import type { Project } from "./api";
 import { DEFAULT_ENGRAVE_CONFIG } from "./engrave";
 import { pageOptions } from "./engraving";
-import { loadFinalTouches, problemText, saveText, type FinalTouchesTexts } from "./finalTouches";
+import { loadFixMei, problemText, saveText, type FixMeiTexts } from "./fixMei";
 import type { MeiProblem } from "./meiChecks";
 import { MeiWorkspace, type Selection } from "./MeiWorkspace";
 import type { Artifact } from "./pipeline";
@@ -16,13 +16,13 @@ import { renderPages } from "./rendering";
 const SAVE_AFTER_MS = 2000;
 const PROBLEMS_SHOWN = 20;
 
-export function FinalTouchesView({ project, artifact, onEdited }: { project: Project; artifact: Artifact; onEdited?: () => void }) {
-  const { stage, earlier } = artifact.finalTouches!;
-  const [texts, setTexts] = useState<FinalTouchesTexts | "error" | null>(null);
+export function FixMeiView({ project, artifact, onEdited }: { project: Project; artifact: Artifact; onEdited?: () => void }) {
+  const { stage, earlier } = artifact.fixMei!;
+  const [texts, setTexts] = useState<FixMeiTexts | "error" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    loadFinalTouches(project, stage, earlier).then(
+    loadFixMei(project, stage, earlier).then(
       (t) => !cancelled && setTexts(t),
       (err) => {
         if (cancelled) return;
@@ -36,7 +36,7 @@ export function FinalTouchesView({ project, artifact, onEdited }: { project: Pro
   }, [stage.id]);
   if (texts === "error") return <div className="text-view"><p>The MEI couldn't be loaded. {loadError}</p></div>;
   if (!texts) return <div className="text-view"><p>Loading the MEI…</p></div>;
-  return <FinalTouchesEditor project={project} stageId={stage.id} texts={texts} editable={!!artifact.editor} onEdited={onEdited} />;
+  return <FixMeiEditor project={project} stageId={stage.id} texts={texts} editable={!!artifact.editor} onEdited={onEdited} />;
 }
 
 // Saves the text a moment after it last changed. Once closed (the editor went away), every change is saved at once.
@@ -66,7 +66,7 @@ function draftSaver(save: (text: string) => Promise<void>, onError: (err: unknow
   };
 }
 
-function FinalTouchesEditor({
+function FixMeiEditor({
   project,
   stageId,
   texts,
@@ -75,7 +75,7 @@ function FinalTouchesEditor({
 }: {
   project: Project;
   stageId: string;
-  texts: FinalTouchesTexts;
+  texts: FixMeiTexts;
   editable: boolean;
   onEdited?: () => void;
 }) {
@@ -147,18 +147,18 @@ function FinalTouchesEditor({
 
   const changed = editable && text !== applied;
   const tools = editable && (
-    <div className="editor-tools final-touches-tools">
-      <button type="button" className="button-primary final-touches-apply" disabled={applying || !changed} onClick={apply}>
+    <div className="editor-tools fix-mei-tools">
+      <button type="button" className="button-primary fix-mei-apply" disabled={applying || !changed} onClick={apply}>
         {applying ? "Checking…" : "Apply"}
       </button>
-      <span className={changed ? "final-touches-state changed" : "final-touches-state"}>{changed ? "Not applied" : "Applied"}</span>
+      <span className={changed ? "fix-mei-state changed" : "fix-mei-state"}>{changed ? "Not applied" : "Applied"}</span>
     </div>
   );
   const notice = (
     <>
       {saveError && <p className="editor-hint mei-problem">{saveError}</p>}
       {problems && problems.length > 0 && (
-        <div className="final-touches-problems" role="alert">
+        <div className="fix-mei-problems" role="alert">
           <p>
             Not applied: the MEI doesn't pass the checks ({problems.length} {problems.length === 1 ? "problem" : "problems"}).
           </p>

@@ -1,5 +1,5 @@
 // Validating MEI against its schema with libxml2 (WebAssembly): the RelaxNG schema is compiled once (about a second
-// for MEI 5.1's), then each check takes only what the file needs (DESIGN.md §6, `final_touches`). Verovio is no check:
+// for MEI 5.1's), then each check takes only what the file needs (DESIGN.md §6, `fix_mei`). Verovio is no check:
 // it loads what the schema refuses and leaves out what it doesn't know, silently.
 
 import { RelaxNGValidator, XmlDocument, XmlParseError, XmlValidateError } from "libxml2-wasm";

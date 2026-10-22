@@ -14,7 +14,7 @@ import { SkewEditor } from "./SkewEditor";
 import { AnalysisView } from "./AnalysisView";
 import { EngravingView } from "./EngravingView";
 import { ExtractionView } from "./ExtractionView";
-import { FinalTouchesView } from "./FinalTouchesView";
+import { FixMeiView } from "./FixMeiView";
 import { LayoutEditor } from "./LayoutEditor";
 import { firstNumbers } from "./fixLayout";
 
@@ -53,7 +53,7 @@ export function ArtifactContent({
   onEdited?: () => void; // an editor saved something
 }) {
   if (artifact.engraving) return <EngravingView key={artifact.id} artifact={artifact} />;
-  if (artifact.finalTouches) return <FinalTouchesView key={artifact.id} project={project} artifact={artifact} onEdited={onEdited} />;
+  if (artifact.fixMei) return <FixMeiView key={artifact.id} project={project} artifact={artifact} onEdited={onEdited} />;
   if (artifact.kind === "pdf") return <PdfView key={project.pdfSha256} url={pdfUrl(project.pdfSha256)} />;
   const pages = artifact.pages;
   if (artifact.analysis) return <AnalysisView key={artifact.id} project={project} artifact={artifact} onEdited={onEdited} />;

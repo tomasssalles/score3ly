@@ -2381,31 +2381,31 @@ textarea.field-input {
   overflow: hidden;
 }
 
-/* `final_touches`: Apply and whether the text is applied; the problems that kept it from being applied. */
-.final-touches-tools {
+/* `fix_mei`: Apply and whether the text is applied; the problems that kept it from being applied. */
+.fix-mei-tools {
   gap: 10px;
 }
 
-.final-touches-apply {
+.fix-mei-apply {
   height: 36px;
   padding: 0 14px;
 }
 
-.final-touches-apply:disabled {
+.fix-mei-apply:disabled {
   opacity: 0.6;
   cursor: default;
 }
 
-.final-touches-state {
+.fix-mei-state {
   font-size: 13px;
   color: var(--muted);
 }
 
-.final-touches-state.changed {
+.fix-mei-state.changed {
   color: #e0a030;
 }
 
-.final-touches-problems {
+.fix-mei-problems {
   max-height: 30vh;
   overflow: auto;
   padding: 8px 12px;
@@ -2415,16 +2415,16 @@ textarea.field-input {
   color: var(--danger);
 }
 
-.final-touches-problems p {
+.fix-mei-problems p {
   margin: 0;
 }
 
-.final-touches-problems ul {
+.fix-mei-problems ul {
   margin: 4px 0;
   padding-left: 18px;
 }
 
-.final-touches-problems button {
+.fix-mei-problems button {
   padding: 0;
   border: 0;
   background: none;

@@ -6,12 +6,12 @@ import { finishFixLayout } from "./finishFixLayout";
 import { finishFixMetadata } from "./finishFixMetadata";
 import { finishFixObservations } from "./finishFixObservations";
 import { finishFixSkew } from "./finishFixSkew";
-import { finishFinalTouches } from "./finalTouches";
+import { finishFixMei } from "./fixMei";
 
 export const FINISHERS: Record<string, (project: Project, stage: ApiStage, pipeline: ApiPipeline) => Promise<string>> = {
   fix_skew: finishFixSkew,
   fix_layout: finishFixLayout,
   fix_metadata: finishFixMetadata,
   fix_observations: finishFixObservations,
-  final_touches: finishFinalTouches,
+  fix_mei: finishFixMei,
 };

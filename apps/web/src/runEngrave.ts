@@ -1,5 +1,5 @@
 // Runs `engrave` (DESIGN.md §6): the full score's MEI, built from the latest extraction, its layout, the pieces and the
-// metadata, or taken as it is from `final_touches` right before it, stored as the stage's one output (item '', type
+// metadata, or taken as it is from `fix_mei` right before it, stored as the stage's one output (item '', type
 // `mei`). The engraving itself is made when it is shown or downloaded (EngravingView.tsx).
 
 import { LENS_VERSION } from "@score3ly/notation";

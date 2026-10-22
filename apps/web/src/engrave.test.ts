@@ -11,8 +11,8 @@ const stage = (step: string, status: ApiStage["status"], outputs: { id: string; 
     outputs: outputs.map((o) => ({ id: o.id, item: "", type: o.type, contentSha256: o.sha, recipeKey: null, recipe: null })),
   }) as ApiStage;
 
-test("engrave takes the MEI of final touches right before it, once they are finished", () => {
-  const touches = stage("final_touches", "done", [
+test("engrave takes the MEI of Fix MEI right before it, once they are finished", () => {
+  const touches = stage("fix_mei", "done", [
     { id: "b", type: "mei_base", sha: "1".repeat(64) },
     { id: "m", type: "mei", sha: "2".repeat(64) },
   ]);

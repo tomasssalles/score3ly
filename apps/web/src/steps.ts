@@ -10,7 +10,7 @@ import { FIX_OBSERVATIONS_VERSION } from "./fixObservations.ts";
 import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
 import { engraveConfigOf, EXTRACTION_STEPS, PAGE_SIZES } from "./engrave.ts";
-import { finalTouchesStart } from "./finalTouches.ts";
+import { fixMeiStart } from "./fixMei.ts";
 
 // One field of a step's config form.
 export type ConfigField = {
@@ -333,7 +333,7 @@ STEPS.extract = {
   title: "Extract",
   kind: "llm",
   optional: false,
-  fixes: ["final_touches"],
+  fixes: ["fix_mei"],
   // The Transcription: the systems with their music, issues and warnings (§6). The pages of the latest layout come along,
   // for the systems' crops, and the latest pieces, for the renderings.
   artifacts: (stage, earlier) => {
@@ -381,22 +381,22 @@ STEPS.engrave = {
   },
 };
 
-STEPS.final_touches = {
+STEPS.fix_mei = {
   title: "Fix MEI",
   kind: "manual",
   optional: true,
   fixes: [],
-  // The MEI, as the MEI view: the editor while WIP. Its texts are loaded by the view (finalTouches.ts).
+  // The MEI, as the MEI view: the editor while WIP. Its texts are loaded by the view (fixMei.ts).
   artifacts: (stage, earlier) => {
-    const editor = stage.status === "wip" ? { stageId: stage.id, step: "final_touches" } : undefined;
-    return [{ id: `${stage.id}.mei`, title: "MEI", kind: "mei", count: 1, finalTouches: { stage, earlier }, editor }];
+    const editor = stage.status === "wip" ? { stageId: stage.id, step: "fix_mei" } : undefined;
+    return [{ id: `${stage.id}.mei`, title: "MEI", kind: "mei", count: 1, fixMei: { stage, earlier }, editor }];
   },
 };
 
-// Whether a manual step is offered after a stage, given the stages after it (`later`). `final_touches` only after the
-// latest stage that produces the extraction, which `engrave` reads (§6, `final_touches`).
+// Whether a manual step is offered after a stage, given the stages after it (`later`). `fix_mei` only after the
+// latest stage that produces the extraction, which `engrave` reads (§6, `fix_mei`).
 export function fixOffered(step: string, later: ApiStage[]): boolean {
-  return step !== "final_touches" || !later.some((s) => EXTRACTION_STEPS.includes(s.step));
+  return step !== "fix_mei" || !later.some((s) => EXTRACTION_STEPS.includes(s.step));
 }
 
 // What a manual step needs to be added after a stage (DESIGN.md §5.8): its version, page count and inputs. `earlier`:
@@ -418,7 +418,7 @@ export const FIX_STARTS: Record<string, (after: ApiStage, earlier: ApiStage[]) =
     const inputs = after.outputs.filter((o) => o.item === "" && o.type === "observations");
     return { stepVersion: FIX_OBSERVATIONS_VERSION, pageCount: after.pageCount, inputIds: inputs.map((o) => o.id) };
   },
-  final_touches: (_after, earlier) => finalTouchesStart(earlier),
+  fix_mei: (_after, earlier) => fixMeiStart(earlier),
 };
 
 // A step this version of the app doesn't know (e.g. from a newer one) is shown by its id, without artifacts.

@@ -1,5 +1,5 @@
-// The MEI file as text, in CodeMirror (DESIGN.md §6, `final_touches`, "The editor"): read-only in `engrave`'s MEI
-// artifact, editable in `final_touches`. Only what is in view is drawn; highlighting, folding and undo are
+// The MEI file as text, in CodeMirror (DESIGN.md §6, `fix_mei`, "The editor"): read-only in `engrave`'s MEI
+// artifact, editable in `fix_mei`. Only what is in view is drawn; highlighting, folding and undo are
 // CodeMirror's. What the view around it needs comes in as props: the search's matches, the line selected (marked, and
 // brought to the middle of the view when asked); a line chosen here (a click, or the cursor moved) goes out.
 

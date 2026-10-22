@@ -42,9 +42,9 @@ export type Artifact = {
   // `engrave`'s MEI file, with the stage's config for its engraving; shown as the file or as the engraving. Both can be
   // downloaded.
   engraving?: { view: "mei" | "pdf"; meiSha256: string; config: EngraveConfig };
-  // `final_touches`'s MEI: the stage and the ones before it, as stored (its texts are its outputs, or built from
+  // `fix_mei`'s MEI: the stage and the ones before it, as stored (its texts are its outputs, or built from
   // theirs). Shown as the MEI view, editable while the stage is WIP (with `editor`).
-  finalTouches?: { stage: ApiStage; earlier: ApiStage[] };
+  fixMei?: { stage: ApiStage; earlier: ApiStage[] };
 };
 
 export type Stage = {
