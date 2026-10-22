@@ -6,7 +6,7 @@ import { ChevronDownIcon, CollapseIcon, MoreIcon, StopIcon } from "./icons";
 import { canRun, currentStage, MODE_LABELS, MODES, runningStage, type Pipeline, type Progress, type RunMode } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
 import { RunLabel, StageCard, type StageActions } from "./StageCard";
-import { ago, shortDate } from "./time";
+import { when } from "./time";
 
 export type PanelActions = StageActions & {
   setMode: (mode: RunMode) => void;
@@ -115,7 +115,7 @@ export function PipelinePanel({
       </div>
 
       <p className="project-dates">
-        Created {shortDate(project.createdAt)} · changed {ago(project.lastModifiedAt)}
+        Created {when(project.createdAt)} · changed {when(project.lastModifiedAt)}
       </p>
 
       <ol className="stage-list" ref={list}>

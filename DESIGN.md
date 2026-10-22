@@ -415,7 +415,7 @@ A dialog asks for confirmation before anything is replaced. The wording still ne
 - **Project and file names are never cut off at the end.** They wrap over up to three lines wherever there is room (the picker's list, the dialogs, the pipeline panel); a name with spaces breaks between words; a name without any (typically a file name) fills each line and breaks wherever it ends, since breaking early at a hyphen wastes most of a line. Only the picker's field in the header is a single line. A name that needs more lines than it may have is shortened **in the middle** ("villa-lobos_bach…prelude.orig (1)"), because names on the same PDF differ at the end, and hovering then shows all of it. This works the same with a mouse and on touch: the full name of the open project is one tap away, in the picker's list. The browser can only cut text at the end, so one component (`FittedText`) measures and shortens.
 - **Dates, times and numbers have one fixed English format everywhere.** They don't follow the browser's language or region: the interface text is English, and a browser's idea of the locale often differs from the user's.
   - **Dates:** day and the month's short name, "7 Oct", plus the year when it isn't the current one, "7 Oct 2025". Never all-numeric, which is ambiguous between day-first and month-first. The day is the device's local one.
-  - **How long ago:** compact, "20min ago", "5h ago", "2d ago".
+  - **How long ago:** compact, "20min ago", "5h ago", "2d ago", for times less than a week old; older ones as a date (built: `when` in `apps/web/src/time.ts`, in the project picker, the dialog for a known PDF, and the panel's "Created … · changed …").
   - **Money:** US dollars with two decimals, "$0.12" (§10).
 
 ### 5.8 The database
@@ -1613,7 +1613,6 @@ Possible improvements to accuracy or speed, deliberately left out of the first p
 - **Stages that would run as no-ops stay finished** (some day, after carrying manual stages through a re-run): after a change in the middle, a later stage whose inputs and config come out the same, so that it would be served entirely from what is stored, isn't shown as needing to run again (e.g. `fix_observations` after a new `fix_metadata`).
 - **Keep `fix_mei`'s edits through a re-run** (some day, §6): rough patching, not git. The unit is a measure, by its `xml:id`: after a new extraction, a measure still identical to what `fix_mei` started from gets its final text; the rest is dropped and reported. The parts outside the measures (the header, the `scoreDef`) need units of their own.
 - **Going back to an earlier applied version in `fix_mei`** (some day, perhaps): every applied version would have to be kept, and listed.
-- **Dates up to about a week old as "how long ago"** ("Created 2d ago"), older ones as a date (§5.7).
 
 ## 16. Roadmap
 

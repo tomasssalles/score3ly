@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Project } from "./api";
 import { FittedText } from "./FittedText";
-import { ago } from "./time";
+import { when } from "./time";
 
 // Shows the current project's name, if a project is open. Opening it turns the name into a filter field
 // over all projects, most recently opened first.
@@ -155,7 +155,7 @@ export function ProjectPicker({
               onClick={() => pick(project)}
             >
               <FittedText className="option-name" text={project.name} lines={3} highlight={query.trim()} />
-              <span className="option-time">{ago(project.lastOpenedAt)}</span>
+              <span className="option-time">{when(project.lastOpenedAt)}</span>
               <FittedText className="option-file" text={project.pdfFilename} lines={3} />
             </li>
           ))}

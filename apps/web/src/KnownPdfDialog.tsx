@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { Project } from "./api";
 import { FittedText } from "./FittedText";
-import { ago } from "./time";
+import { when } from "./time";
 
 // Shown when a picked PDF already has projects: open one of them, or create another.
 export function KnownPdfDialog({
@@ -51,7 +51,7 @@ export function KnownPdfDialog({
           <li key={project.id}>
             <button type="button" onClick={() => onOpen(project)}>
               <FittedText className="option-name" text={project.name} lines={3} />
-              <span className="option-time">{ago(project.lastOpenedAt)}</span>
+              <span className="option-time">{when(project.lastOpenedAt)}</span>
             </button>
           </li>
         ))}

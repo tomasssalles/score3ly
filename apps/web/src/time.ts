@@ -18,6 +18,12 @@ export function shortDate(iso: string, now: number = Date.now()): string {
   return date.getFullYear() === new Date(now).getFullYear() ? dayAndMonth : `${dayAndMonth} ${date.getFullYear()}`;
 }
 
+// A time as how long ago it was while that is less than a week ("2d ago"), else as a date ("7 Oct") (DESIGN.md
+// §5.7). Times in the future count as now.
+export function when(iso: string, now: number = Date.now()): string {
+  return now - Date.parse(iso) < 7 * 86400_000 ? ago(iso, now) : shortDate(iso, now);
+}
+
 // A run time, compactly: "8s", "3m 12s", "1h 5m".
 export function duration(seconds: number): string {
   const s = Math.round(seconds);
