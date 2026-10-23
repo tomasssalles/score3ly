@@ -3,6 +3,7 @@
 
 import { CLAUDE_IMAGE_LIMIT, type SizeLimit } from "@score3ly/imaging";
 import { callLlm, fetchModelConfig, fetchSettings, type LlmAnswer, type LlmRequest, type ModelConfig } from "./api";
+import { keyOf } from "./keys";
 import { CannotStart, type StageRun } from "./stageRunner";
 
 // The model config for an LLM stage: the one chosen for the stage (`modelConfigId` in its config), else the
@@ -75,7 +76,7 @@ export function requestSizeProblem(config: ModelConfig, request: LlmRequest): st
   for (const message of request.messages) {
     for (const part of message.content) {
       if (part.type === "image") {
-        const bytes = part.image.base64.length;
+        const bytes = part.image?.base64.length ?? 0;
         if (bytes > limits.maxImageBytes) {
           return `an image is ${(bytes / MB).toFixed(1)} MB, more than the ${limits.maxImageBytes / MB} MB the provider takes`;
         }
@@ -91,18 +92,65 @@ export function requestSizeProblem(config: ModelConfig, request: LlmRequest): st
     : null;
 }
 
-export async function pngContent(png: Blob): Promise<{ type: "image"; image: { mediaType: "image/png"; base64: string } }> {
+async function pngContent(png: Blob): Promise<{ mediaType: "image/png"; base64: string }> {
   const bytes = new Uint8Array(await png.arrayBuffer());
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return { type: "image", image: { mediaType: "image/png", base64: btoa(binary) } };
+  return { mediaType: "image/png", base64: btoa(binary) };
+}
+
+// A request as a stage builds it: each image by its recipe key, with how to make it (pageImages.ts). It is made only
+// if the call isn't cached (§5.2: a re-run on another device doesn't make images only to find the answers stored).
+export type RequestImage = { type: "image"; recipeKey: string; make: () => Promise<Blob> };
+export type RequestContent = { type: "text"; text: string } | RequestImage;
+export type PlannedRequest = Omit<LlmRequest, "messages"> & { messages: { role: "user" | "assistant"; content: RequestContent[] }[] };
+
+// An image for a request, from its recipe and the function that makes (or takes from the cache) the image of that
+// recipe: the image's key in the device's cache is the recipe's key too.
+export async function requestImage<R>(recipe: R, make: (recipe: R) => Promise<Blob>): Promise<RequestImage> {
+  return { type: "image", recipeKey: await keyOf(recipe), make: () => make(recipe) };
+}
+
+async function withImages(request: PlannedRequest, images: boolean): Promise<LlmRequest> {
+  const messages: LlmRequest["messages"] = [];
+  for (const m of request.messages) {
+    const content: LlmRequest["messages"][number]["content"] = [];
+    // One image at a time: a request can have many, and each is large.
+    for (const c of m.content) {
+      content.push(c.type === "image" ? { type: "image", recipeKey: c.recipeKey, ...(images ? { image: await pngContent(await c.make()) } : {}) } : c);
+    }
+    messages.push({ role: m.role, content });
+  }
+  return { ...request, messages };
 }
 
 // Asks the model, and returns its answer if it is usable. Anything else ends the stage with an error that says what
 // happened (a refused call, e.g. the spending cap, or an answer that was cut off, declined or not parseable): the
 // answers so far stay in the records, and a retry asks only what is missing (§6, `extract`).
-export async function ask(run: StageRun, request: LlmRequest, what: string): Promise<LlmAnswer> {
-  const answer = await callLlm(run.project, run.stage.id, request);
+// The request is first looked up by its images' recipe keys; only if it isn't cached are its images made, the request
+// checked for size, and sent with them. `beforeImages` runs then, before anything can be paid for (e.g. a check that
+// another request of the stage will fit).
+export async function ask(
+  run: StageRun,
+  request: PlannedRequest,
+  what: string,
+  options: { config: ModelConfig; beforeImages?: () => Promise<void> },
+): Promise<LlmAnswer> {
+  let answer = await callLlm(run.project, run.stage.id, await withImages(request, false));
+  if ("imagesNeeded" in answer) {
+    await options.beforeImages?.();
+    const full = await withImages(request, true);
+    const tooBig = requestSizeProblem(options.config, full);
+    if (tooBig) throw new Error(`${what}: ${tooBig}.`);
+    const made = await callLlm(run.project, run.stage.id, full);
+    if ("imagesNeeded" in made) throw new Error(`${what}: the request was sent without its images.`);
+    answer = made;
+  }
   if (answer.status !== "ok") throw new Error(`${what}: ${answer.error ?? answer.status}`);
   return answer;
+}
+
+// Whether a request would be too big, with its images made: for checks before a stage pays for anything.
+export async function plannedSizeProblem(config: ModelConfig, request: PlannedRequest): Promise<string | null> {
+  return requestSizeProblem(config, await withImages(request, true));
 }

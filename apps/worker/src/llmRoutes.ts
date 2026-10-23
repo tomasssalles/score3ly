@@ -127,10 +127,13 @@ function providerConfig(config: ModelConfig, env: Env): ProviderConfig | { missi
   return { provider: config.provider, ...config.params, ...values } as ProviderConfig;
 }
 
-// A request as the browser sends it: images inline, as base64.
+// A request as the browser sends it. Each image is named by its recipe key (§5.2, "Only recipes, never pixels, in
+// any key"), and comes inline, as base64, only once the Worker has said it isn't cached: the browser asks first with
+// the recipe keys alone, so that a cached call is found before its images are made.
+type RequestImage = { type: "image"; recipeKey: string; image?: { mediaType: "image/png" | "image/jpeg" | "image/webp"; base64: string } };
 type CallRequest = {
   system?: string;
-  messages: { role: "user" | "assistant"; content: LlmContent[] }[];
+  messages: { role: "user" | "assistant"; content: ({ type: "text"; text: string } | RequestImage)[] }[];
   maxOutputTokens?: number;
   jsonSchema?: Record<string, unknown>;
 };
@@ -145,8 +148,12 @@ function requestProblem(request: unknown): string | null {
     for (const c of m.content) {
       const ok =
         (c?.type === "text" && typeof c.text === "string") ||
-        (c?.type === "image" && typeof c.image?.base64 === "string" && ["image/png", "image/jpeg", "image/webp"].includes(c.image?.mediaType));
-      if (!ok) return "content must be text or an image (PNG, JPEG or WebP, base64)";
+        (c?.type === "image" &&
+          typeof c.recipeKey === "string" &&
+          /^[0-9a-f]{64}$/.test(c.recipeKey) &&
+          (c.image === undefined ||
+            (typeof c.image?.base64 === "string" && ["image/png", "image/jpeg", "image/webp"].includes(c.image?.mediaType))));
+      if (!ok) return "content must be text or an image named by its recipe key (PNG, JPEG or WebP, base64)";
     }
   }
   if (r.maxOutputTokens !== undefined && !Number.isInteger(r.maxOutputTokens)) return "'maxOutputTokens' must be a whole number";
@@ -161,9 +168,20 @@ function base64Bytes(base64: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-// The request with each image replaced by the hash of its bytes: what is recorded (images aren't stored, §2: they
-// are rebuilt from the stored outputs) and what the request key is made from.
-async function withoutImages(request: CallRequest): Promise<unknown> {
+// The request with each image as its recipe key alone: what the request key is made from.
+function keyedRequest(request: CallRequest): unknown {
+  return {
+    ...request,
+    messages: request.messages.map((m) => ({
+      role: m.role,
+      content: m.content.map((c) => (c.type === "image" ? { type: "image", recipeKey: c.recipeKey } : c)),
+    })),
+  };
+}
+
+// The request with each image as its recipe key and the hash of its bytes: what is recorded (images aren't stored,
+// §2: they are rebuilt from their recipes).
+async function recordedRequest(request: CallRequest): Promise<unknown> {
   return {
     ...request,
     messages: await Promise.all(
@@ -172,13 +190,21 @@ async function withoutImages(request: CallRequest): Promise<unknown> {
         content: await Promise.all(
           m.content.map(async (c) =>
             c.type === "image"
-              ? { type: "image", mediaType: c.image.mediaType, sha256: await sha256Hex(base64Bytes(c.image.base64)) }
+              ? { type: "image", recipeKey: c.recipeKey, mediaType: c.image!.mediaType, sha256: await sha256Hex(base64Bytes(c.image!.base64)) }
               : c,
           ),
         ),
       })),
     ),
   };
+}
+
+// The request as the providers take it: images inline, without their recipe keys.
+function providerMessages(request: CallRequest): { role: "user" | "assistant"; content: LlmContent[] }[] {
+  return request.messages.map((m) => ({
+    role: m.role,
+    content: m.content.map((c): LlmContent => (c.type === "image" ? { type: "image", image: c.image! } : c)),
+  }));
 }
 
 async function putJson(bucket: R2Bucket, value: unknown): Promise<string> {
@@ -316,14 +342,13 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (!row) return c.json({ error: "the stage's model config doesn't exist", code: "no_model_config" }, 409);
     const config = toModelConfig(row);
 
-    // The request key: the exact request, images by their hash, with the model's provider, model and effort. Not
-    // the config's id, parameters or secrets: they don't change the answer (§5.2).
-    const recorded = await withoutImages(request);
+    // The request key: the exact request, images by their recipe keys, with the model's provider, model and effort.
+    // Not the config's id, parameters or secrets: they don't change the answer (§5.2).
     const requestKey = await keyOf({
       provider: config.provider,
       model: config.model,
       effort: config.effort,
-      request: recorded,
+      request: keyedRequest(request),
     });
 
     // The cache first: an answer already paid for is served even when the spending cap is reached.
@@ -356,6 +381,11 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       }
     }
 
+    // Not cached: the browser makes the images and asks again with them.
+    if (request.messages.some((m) => m.content.some((c) => c.type === "image" && !c.image))) {
+      return c.json({ imagesNeeded: true });
+    }
+
     // Then what a paid call needs: a price, a spending cap, room under it, and the secrets.
     const price = priceOf(config.provider, config.model);
     if (!config.freeTier) {
@@ -386,7 +416,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
 
     const callId = crypto.randomUUID();
     const startedAt = new Date().toISOString();
-    const requestSha = await putJson(c.env.PDFS, recorded);
+    const requestSha = await putJson(c.env.PDFS, await recordedRequest(request));
     await db
       .prepare(
         "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, status, started_at) VALUES (?, ?, ?, ?, ?, 'running', ?)",
@@ -400,7 +430,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         model: config.model,
         effort: config.effort ?? undefined,
         system: request.system,
-        messages: request.messages,
+        messages: providerMessages(request),
         maxOutputTokens: request.maxOutputTokens,
         jsonSchema: request.jsonSchema,
       });

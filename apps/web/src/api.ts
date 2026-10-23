@@ -265,9 +265,11 @@ export async function fetchModelConfig(id: string): Promise<ModelConfig> {
   return (await checked(await fetch(`/api/model-configs/${id}`))).json();
 }
 
+// An image is named by its recipe key (DESIGN.md §5.2, "Only recipes, never pixels, in any key"), and comes with its
+// bytes only once the Worker has said the call isn't cached (llm.ts, `ask`).
 export type LlmContent =
   | { type: "text"; text: string }
-  | { type: "image"; image: { mediaType: "image/png" | "image/jpeg" | "image/webp"; base64: string } };
+  | { type: "image"; recipeKey: string; image?: { mediaType: "image/png" | "image/jpeg" | "image/webp"; base64: string } };
 
 export type LlmRequest = {
   system?: string;
@@ -297,8 +299,9 @@ export class LlmRefused extends Error {
   }
 }
 
-// One LLM request of a running stage. The Worker serves an identical earlier answer, or makes the call.
-export async function callLlm(project: Project, stageId: string, request: LlmRequest): Promise<LlmAnswer> {
+// One LLM request of a running stage. The Worker serves an identical earlier answer, or makes the call. A request
+// whose images come without their bytes is only looked up: if it isn't cached, the answer asks for the images.
+export async function callLlm(project: Project, stageId: string, request: LlmRequest): Promise<LlmAnswer | { imagesNeeded: true }> {
   const response = await fetch(stageUrl(project, stageId, "llm"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },

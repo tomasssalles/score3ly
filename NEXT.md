@@ -4,24 +4,6 @@ Written for the next session. Read DESIGN.md first, as usual. Work happens on th
 main only when the project owner asks. The project owner decides the order; these are the items they listed, with what
 is known about each.
 
-## 1. Request keys by recipe
-- **Decided, not built** (commit `503c449`, 2026-10-20; DESIGN.md §5.2 "Only recipes, never pixels, in any key", §7.2
-  `POST .../llm`, task in §15 "Request keys by recipe"). The owner noticed that stage keys use recipe keys but LLM request
-  keys use image hashes, so tiny pixel differences between devices make new (paid) requests. Decision: only recipes in
-  every key, from the PDF to the final image; fingerprints only warn (item 2).
-- **Today:** `apps/worker/src/llmRoutes.ts`, `withoutImages()` (~line 166) replaces each image by `sha256(bytes)`; the
-  request key (~line 322) and the stored request use that.
-- **To do:**
-  - The browser sends each image's recipe key with the image (the LLM request type in `apps/web/src/api.ts` /
-    the runners `runLayout.ts`, `runAnalyze.ts`, `runExtract.ts`; images come from `pageImages.ts`/crops, which know
-    their recipe keys). The Worker's request key uses the recipe key instead of the hash; the stored request keeps
-    both (recipe key and hash), as DESIGN.md says.
-  - A cache lookup the browser can make **before** making the images (e.g. the request with images given only by
-    recipe key; the Worker answers with the cached response or "not cached"). Only on a miss are the images made and
-    the request sent.
-  - Old `llm_calls` rows keyed by hash simply stop matching (fine: nothing is deployed).
-  - Tests in `apps/worker/src/llmRoutes.test.ts`; update DESIGN.md, delete the task.
-
 ## 2. Fingerprints: built, stored, checked, warnings
 - **Designed** in DESIGN.md §8.3 (and §5.2, §5.8 table `image_fingerprints`); task in §15 "Store the fingerprints".
   Commits `503c449` and `895e15e` (2026-10-20). The table exists (migration 0003), **nothing writes or reads it**.

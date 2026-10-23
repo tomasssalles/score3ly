@@ -9,7 +9,7 @@ import { CROP_VERSION, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@sc
 import { checkScore, checkSystem, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
 import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractImageLabels, extractText } from "@score3ly/prompts";
 import type { StoredObservations, StoredPieces } from "./analyze";
-import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers, type LlmContent, type LlmRequest } from "./api";
+import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers } from "./api";
 import {
   EXTRACT_VERSION,
   extractNote,
@@ -31,8 +31,8 @@ import { firstNumbers } from "./fixLayout";
 import { canonicalJson } from "./keys";
 import type { PageLayout } from "./layout";
 import { linkSpans, systemHints } from "./linking";
-import { ask, imageLimit, imageLimitFor, modelKey, pngContent, requestLimits, requestSizeProblem, stageModelConfig } from "./llm";
-import { cropImage, type StraightRecipe } from "./pageImages";
+import { ask, imageLimit, imageLimitFor, modelKey, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { cropImage, type CropRecipe, type StraightRecipe } from "./pageImages";
 import { pageOfItem, type PageRecipe } from "./rasterize";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 
@@ -170,14 +170,14 @@ export async function runExtract(run: StageRun): Promise<void> {
           const labels = labelsOf(s);
           const limit = imageLimitFor(config, labels.length);
           const crop = (system: (typeof systems)[number], box: ImageSource["box"]) =>
-            cropImage({ straight: straight(system.pageIndex), box, crop: CROP_VERSION, limit, scale: SCALE_VERSION });
+            requestImage<CropRecipe>({ straight: straight(system.pageIndex), box, crop: CROP_VERSION, limit, scale: SCALE_VERSION }, cropImage);
 
           // The images, each after its label, and where each was cut from (for the model's issue boxes).
           const sources = new Map<string, ImageSource>();
-          const content: LlmContent[] = [];
+          const content: RequestContent[] = [];
           const add = async (label: string, caption: string, system: (typeof systems)[number], box: ImageSource["box"]) => {
             sources.set(label, { page: system.page, box });
-            content.push({ type: "text", text: caption }, await pngContent(await crop(system, box)));
+            content.push({ type: "text", text: caption }, await crop(system, box));
           };
           await add("system", `System ${s.number}:`, s, systemCropBox(s.layout));
           for (const [i, box] of stretchCropBoxes(s.layout).entries()) await add(`stretch ${i + 1}`, `System ${s.number}, stretch ${i + 1}:`, s, box);
@@ -196,18 +196,18 @@ export async function runExtract(run: StageRun): Promise<void> {
             observations,
           });
           content.push({ type: "text", text: extractText(requestJson) });
-          const request: LlmRequest = {
+          const request: PlannedRequest = {
             system: EXTRACT_SYSTEM,
             messages: [{ role: "user", content }],
             maxOutputTokens: EXTRACT_MAX_OUTPUT_TOKENS,
             jsonSchema: EXTRACT_SCHEMA as unknown as Record<string, unknown>,
           };
-          const tooBig = requestSizeProblem(config, request);
-          if (tooBig) throw new Error(`System ${s.number}: ${tooBig}.`);
 
           const kept = s.number > 1 ? ` The answers for systems 1–${s.number - 1} are kept.` : "";
-          const answer = await ask(run, request, `System ${s.number}`);
-          const checked = checkSystem(answer.json, contextOf(s, first, labels), before);
+          const answer = await ask(run, request, `System ${s.number}`, { config });
+          // The answer as it reads back from storage (canonical JSON): what the next systems' requests are built from
+          // is then the same in this run and in a retry, and the cache finds them.
+          const checked = checkSystem(JSON.parse(canonicalJson(answer.json)), contextOf(s, first, labels), before);
           if ("problem" in checked) {
             await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
             throw new Error(`Couldn't use the answer for system ${s.number}: ${checked.problem}.${kept}`);

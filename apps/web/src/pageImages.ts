@@ -129,9 +129,12 @@ export async function cropImage(recipe: CropRecipe): Promise<Blob> {
   return cachedOr(recipe, async () => derive(await straightPage(recipe.straight), { crop: recipe.box, limit: recipe.limit }));
 }
 
-// The image sent to a model with a layout drawn on it, for it to check (not cached: each answer gives another).
-export async function drawnPage(recipe: ModelPageRecipe, systems: LayoutSystem[]): Promise<Blob> {
-  return new Blob([await derive(await modelPage(recipe), { draw: systems })], { type: "image/png" });
+// The image sent to a model with its layout drawn on it, for it to check (`layout`'s rounds). Cached under its recipe
+// like the others: the drawing is ours and deterministic. `draw` is the drawing code's version (DRAW_VERSION).
+export type DrawnPageRecipe = { page: ModelPageRecipe; systems: LayoutSystem[]; draw: number };
+
+export async function drawnPage(recipe: DrawnPageRecipe): Promise<Blob> {
+  return cachedOr(recipe, async () => derive(await modelPage(recipe.page), { draw: recipe.systems }));
 }
 
 // A page sent to a model with its layout drawn on it, labelled for `analyze` (systems numbered in the whole score from

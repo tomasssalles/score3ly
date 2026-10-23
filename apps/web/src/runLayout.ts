@@ -3,7 +3,7 @@
 // to check, at most LAYOUT_ROUNDS answers in all. The last answer is stored as the page's layout; if the model still
 // wasn't satisfied, the page is flagged for a person.
 
-import { deskewAngle, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION, type Skew } from "@score3ly/imaging";
+import { deskewAngle, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION, type Skew } from "@score3ly/imaging";
 import {
   checkLayoutAnswer,
   LAYOUT_FIRST,
@@ -15,10 +15,10 @@ import {
   layoutCheck,
   type LayoutAnswer,
 } from "@score3ly/prompts";
-import { fetchJsonContent, markUnusable, putContent, type LlmRequest } from "./api";
+import { fetchJsonContent, markUnusable, putContent } from "./api";
 import { canonicalJson } from "./keys";
 import { LAYOUT_VERSION, layoutNote, layoutStageKey, type PageLayout } from "./layout";
-import { ask, imageLimit, modelKey, pngContent, stageModelConfig } from "./llm";
+import { ask, imageLimit, modelKey, requestImage, stageModelConfig, type PlannedRequest } from "./llm";
 import { drawnPage, modelPage, pageImage, pngSize, type ModelPageRecipe } from "./pageImages";
 import { pageOfItem, type PageRecipe } from "./rasterize";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
@@ -40,7 +40,7 @@ export async function runLayout(run: StageRun): Promise<void> {
     .sort((a, b) => a.page - b.page);
 
   const config = await stageModelConfig(stage.config);
-  const imageRecipe = { limit: imageLimit(config), scale: SCALE_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
+  const imageRecipe = { limit: imageLimit(config), scale: SCALE_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION, draw: DRAW_VERSION };
   const stageKey = await layoutStageKey({
     promptVersion: LAYOUT_PROMPT_VERSION,
     model: modelKey(config),
@@ -64,17 +64,17 @@ export async function runLayout(run: StageRun): Promise<void> {
       make: async () => {
         // Straightened by the page's lines (§8.4); the decision needs the page's width in pixels.
         const skew = pageLines ? ((await fetchJsonContent(pageLines.contentSha256!)) as Skew) : null;
-        const { width } = await pngSize((await pageImage(recipe)).png);
-        const angle = skew ? deskewAngle(skew.lines, width) : null;
+        // The page image is made for its width only when there are lines to go by.
+        const angle = skew && skew.lines.length > 0 ? deskewAngle(skew.lines, (await pngSize((await pageImage(recipe)).png)).width) : null;
         const modelRecipe: ModelPageRecipe = {
           straight: { page: recipe, angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION },
           limit: imageRecipe.limit,
           scale: imageRecipe.scale,
         };
 
-        const request: LlmRequest = {
+        const request: PlannedRequest = {
           system: LAYOUT_SYSTEM,
-          messages: [{ role: "user", content: [await pngContent(await modelPage(modelRecipe)), { type: "text", text: LAYOUT_FIRST }] }],
+          messages: [{ role: "user", content: [await requestImage(modelRecipe, modelPage), { type: "text", text: LAYOUT_FIRST }] }],
           maxOutputTokens: LAYOUT_MAX_OUTPUT_TOKENS,
           jsonSchema: LAYOUT_SCHEMA as unknown as Record<string, unknown>,
         };
@@ -86,10 +86,13 @@ export async function runLayout(run: StageRun): Promise<void> {
           if (layout) {
             request.messages.push({
               role: "user",
-              content: [await pngContent(await drawnPage(modelRecipe, layout.systems)), { type: "text", text: layoutCheck(round) }],
+              content: [
+                await requestImage({ page: modelRecipe, systems: layout.systems, draw: imageRecipe.draw }, drawnPage),
+                { type: "text", text: layoutCheck(round) },
+              ],
             });
           }
-          const answer = await ask(run, request, `Page ${page}`);
+          const answer = await ask(run, request, `Page ${page}`, { config });
           callId = answer.callId;
           const checked = checkLayoutAnswer(answer.json);
           if ("problem" in checked) {

@@ -2,7 +2,8 @@
 // then the same page with the layout drawn on it, systems numbered in the whole score and bar lines numbered), then
 // one call for the whole score with every page's result and every page drawn, in gray. Where the pieces start is
 // derived from its metadata, as an output of its own (what `extract` reads). The whole-score request's
-// size is checked before anything is paid for: a score too long for one call stops before its first page.
+// size is checked before anything is paid for: a score too long for one call stops before its first paid call (a run
+// served entirely from the cache makes no images, so it doesn't check).
 
 import { DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import {
@@ -31,12 +32,22 @@ import {
   type PageAnalysis,
   type StoredObservations,
 } from "./analyze";
-import { fetchJsonContent, markUnusable, putContent, type LlmContent, type LlmRequest } from "./api";
+import { fetchJsonContent, markUnusable, putContent } from "./api";
 import { firstNumbers } from "./fixLayout";
 import { canonicalJson } from "./keys";
 import type { PageLayout } from "./layout";
-import { ask, imageLimit, imageLimitFor, modelKey, pngContent, requestSizeProblem, stageModelConfig } from "./llm";
-import { layoutPage, modelPage, type ModelPageRecipe } from "./pageImages";
+import {
+  ask,
+  imageLimit,
+  imageLimitFor,
+  modelKey,
+  plannedSizeProblem,
+  requestImage,
+  stageModelConfig,
+  type PlannedRequest,
+  type RequestContent,
+} from "./llm";
+import { layoutPage, modelPage, type LayoutPageRecipe, type ModelPageRecipe } from "./pageImages";
 import { pageOfItem, type PageRecipe } from "./rasterize";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 
@@ -84,17 +95,19 @@ export async function runAnalyze(run: StageRun): Promise<void> {
     scale: SCALE_VERSION,
   });
   const drawn = (i: number, limit: typeof pageLimit, gray: boolean) =>
-    layoutPage({ page: modelRecipe(i, limit), systems: layouts[i].systems, first: firsts[i], barLineNumbers: true, gray, draw: DRAW_VERSION });
+    requestImage<LayoutPageRecipe>(
+      { page: modelRecipe(i, limit), systems: layouts[i].systems, first: firsts[i], barLineNumbers: true, gray, draw: DRAW_VERSION },
+      layoutPage,
+    );
 
-  // The whole score's request, without the pages' results (they come at the end): its images are ready, and it can
-  // be checked for size before anything is paid for.
-  const scoreContent: LlmContent[] = [];
+  // The whole score's request, without the pages' results (they come at the end).
+  const scoreContent: RequestContent[] = [];
   for (const [i, p] of pages.entries()) {
     const systems = labels[i];
     const which = systems.length === 0 ? "no systems" : `systems ${systems[0]}–${systems[systems.length - 1]}`;
-    scoreContent.push({ type: "text", text: `Page ${p.page} (${which}):` }, await pngContent(await drawn(i, scoreLimit, true)));
+    scoreContent.push({ type: "text", text: `Page ${p.page} (${which}):` }, await drawn(i, scoreLimit, true));
   }
-  const scoreRequest = (results: PageAnalysis[]): LlmRequest => ({
+  const scoreRequest = (results: PageAnalysis[]): PlannedRequest => ({
     system: ANALYZE_SCORE_SYSTEM,
     messages: [
       {
@@ -105,12 +118,17 @@ export async function runAnalyze(run: StageRun): Promise<void> {
     maxOutputTokens: ANALYZE_SCORE_MAX_OUTPUT_TOKENS,
     jsonSchema: ANALYZE_SCORE_SCHEMA as unknown as Record<string, unknown>,
   });
-  const tooBig = requestSizeProblem(config, scoreRequest([]));
-  if (tooBig) {
-    throw new CannotStart(
-      `the score is too long to analyse as a whole in one call (${tooBig}). Split it into several projects, each with a part of the pages (Rasterize's page selection).`,
-    );
-  }
+  // Checked before the stage's first call that isn't served from the cache, with its images made.
+  let sizeChecked: Promise<void> | null = null;
+  const beforeImages = () =>
+    (sizeChecked ??= (async () => {
+      const tooBig = await plannedSizeProblem(config, scoreRequest([]));
+      if (tooBig) {
+        throw new Error(
+          `The score is too long to analyse as a whole in one call (${tooBig}). Split it into several projects, each with a part of the pages (Rasterize's page selection).`,
+        );
+      }
+    })());
 
   // Each page's result: made in this run, or recorded by an earlier one that failed.
   const results = new Map<string, PageAnalysis>();
@@ -128,7 +146,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
   const scoreAnswer = () =>
     (score ??= (async () => {
       const all = await Promise.all(pages.map((p) => resultOf(p.output.item)));
-      const answer = await ask(run, scoreRequest(all), "The whole score");
+      const answer = await ask(run, scoreRequest(all), "The whole score", { config, beforeImages });
       const checked = checkScoreAnswer(answer.json, { systems: allSystems, pages: pages.map((p) => p.page), items: pageItems(all) });
       if ("problem" in checked) {
         await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
@@ -162,14 +180,14 @@ export async function runAnalyze(run: StageRun): Promise<void> {
         item: output.item,
         type: "analysis",
         make: async () => {
-          const request: LlmRequest = {
+          const request: PlannedRequest = {
             system: ANALYZE_PAGE_SYSTEM,
             messages: [
               {
                 role: "user",
                 content: [
-                  await pngContent(await modelPage(modelRecipe(i))),
-                  await pngContent(await drawn(i, pageLimit, false)),
+                  await requestImage(modelRecipe(i), modelPage),
+                  await drawn(i, pageLimit, false),
                   { type: "text", text: analyzePageText(page, labels[i]) },
                 ],
               },
@@ -177,16 +195,16 @@ export async function runAnalyze(run: StageRun): Promise<void> {
             maxOutputTokens: ANALYZE_PAGE_MAX_OUTPUT_TOKENS,
             jsonSchema: ANALYZE_PAGE_SCHEMA as unknown as Record<string, unknown>,
           };
-          const tooBig = requestSizeProblem(config, request);
-          if (tooBig) throw new Error(`Page ${page}: ${tooBig}.`);
-          const answer = await ask(run, request, `Page ${page}`);
+          const answer = await ask(run, request, `Page ${page}`, { config, beforeImages });
           const onPage = new Map(labels[i].map((n) => [n, allSystems.get(n)!]));
           const checked = checkPageAnswer(answer.json, { systems: onPage });
           if ("problem" in checked) {
             await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
             throw new Error(`Page ${page}: the answer can't be used: ${checked.problem}.`);
           }
-          const result: PageAnalysis = { page, systems: labels[i], ...checked };
+          // As it reads back from storage (canonical JSON), so the whole score's request is the same whether a page's
+          // result was made in this run or an earlier one, and the cache finds it.
+          const result = JSON.parse(canonicalJson({ page, systems: labels[i], ...checked })) as PageAnalysis;
           results.set(output.item, result);
           const contentSha256 = await putContent(json(result), "application/json");
           return { contentSha256, inputIds: pageInputs(i), callId: answer.callId };

@@ -76,15 +76,20 @@ async function runningStage(modelConfigId: string | null): Promise<{ projectId: 
 }
 
 const PNG = btoa("not really a png");
+const RECIPE_KEY = "ab".repeat(32);
 
-function request(question = "How many systems?") {
+function request(question = "How many systems?", image: { recipeKey: string; base64?: string } = { recipeKey: RECIPE_KEY, base64: PNG }) {
   return {
     system: "You find systems.",
     messages: [
       {
         role: "user",
         content: [
-          { type: "image", image: { mediaType: "image/png", base64: PNG } },
+          {
+            type: "image",
+            recipeKey: image.recipeKey,
+            ...(image.base64 === undefined ? {} : { image: { mediaType: "image/png", base64: image.base64 } }),
+          },
           { type: "text", text: question },
         ],
       },
@@ -174,9 +179,9 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   assert.equal(rows[0].cost_usd, first.costUsd);
   assert.equal(rows[0].response_model, "fake-model");
   assert.deepEqual(JSON.parse(rows[0].price_json as string), { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25, asOf: "2026-10-06" });
-  // The request is recorded without the image, which is replaced by its hash.
+  // The request is recorded without the image, which is replaced by its recipe key and hash.
   const recorded = await (await app.request(`/api/content/${rows[0].request_sha256}`, {}, env)).text();
-  assert.ok(!recorded.includes(PNG) && recorded.includes('"sha256"'));
+  assert.ok(!recorded.includes(PNG) && recorded.includes('"sha256"') && recorded.includes(RECIPE_KEY));
 
   // The stage shows its model config and what its calls cost.
   const { stages } = await json<{ stages: Record<string, unknown>[] }>(
@@ -282,4 +287,37 @@ test("a call needs a running stage with a model config, a price, and the config'
   assert.match(missing.error as string, /NO_SUCH_SECRET/);
   assert.equal((await calls()).length, 0);
   assert.equal((await call(without, { messages: [] })).status, 400);
+});
+
+test("requests are keyed by the images' recipe keys: a cached call is found before the images are made", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const config = await modelConfig();
+  const stage = await runningStage(config.id);
+
+  // Not cached, and no images: the browser is asked for them, and nothing is recorded.
+  const lookup = await call(stage, request("How many systems?", { recipeKey: RECIPE_KEY }));
+  assert.equal(lookup.status, 200);
+  assert.deepEqual(await json(lookup), { imagesNeeded: true });
+  assert.equal((await calls()).length, 0);
+
+  const first = await json(await call(stage));
+  assert.equal(first.cached, false);
+
+  // The same recipe key without its image: served.
+  const served = await json(await call(stage, request("How many systems?", { recipeKey: RECIPE_KEY })));
+  assert.equal(served.cached, true);
+  assert.equal(served.callId, first.callId);
+
+  // Other pixels from the same recipe (another device): the same request, served.
+  const otherPixels = await json(await call(stage, request("How many systems?", { recipeKey: RECIPE_KEY, base64: btoa("other pixels") })));
+  assert.equal(otherPixels.cached, true);
+
+  // The same pixels from another recipe: another request.
+  const otherRecipe = await json(await call(stage, request("How many systems?", { recipeKey: "cd".repeat(32), base64: PNG })));
+  assert.equal(otherRecipe.cached, false);
+
+  // An image without a recipe key is refused.
+  const bad = request();
+  delete (bad.messages[0].content[0] as { recipeKey?: string }).recipeKey;
+  assert.equal((await call(stage, bad)).status, 400);
 });
