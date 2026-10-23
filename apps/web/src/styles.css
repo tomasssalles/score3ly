@@ -355,6 +355,17 @@ body {
   color: var(--muted);
 }
 
+/* The project to delete, by its full name. */
+.delete-name {
+  margin: 12px 0 0;
+  font: 600 15px var(--sans);
+  color: var(--fg);
+}
+
+.delete-field .dialog-text {
+  margin: 0;
+}
+
 .dialog-list {
   margin: 0;
   padding: 0;

@@ -77,12 +77,12 @@ export function openPdfForImages(sha256: string): Promise<{ pageCount: number; p
 // A page image as a PNG: from the cache, or computed now and cached. `computed` says which.
 export async function pageImage(recipe: PageRecipe): Promise<{ png: Blob; computed: boolean }> {
   const key = await keyOf(recipe);
-  const cached = await cachedImage(key);
+  const cached = await cachedImage(key, recipe.pdf);
   if (cached) return { png: cached, computed: false };
   await openPdfForImages(recipe.pdf);
   const answer = await ask({ type: "page", sha256: recipe.pdf, page: recipe.page, dpi: recipe.dpi });
   if (answer.type !== "page") throw new Error("Unexpected answer from the page image worker.");
-  await cacheImage(key, answer.png);
+  await cacheImage(key, answer.png, recipe.pdf);
   await made(key, recipe, answer.fingerprint);
   return { png: new Blob([answer.png], { type: "image/png" }), computed: true };
 }
@@ -115,10 +115,11 @@ async function derive(png: Blob, options: DeriveOptions): Promise<Derived> {
 
 async function cachedOr(recipe: unknown, make: () => Promise<Derived>): Promise<Blob> {
   const key = await keyOf(recipe);
-  const cached = await cachedImage(key);
+  const pdf = pdfOf(recipe);
+  const cached = await cachedImage(key, pdf);
   if (cached) return cached;
   const { png, fingerprint } = await make();
-  await cacheImage(key, png);
+  await cacheImage(key, png, pdf);
   await made(key, recipe, fingerprint);
   return new Blob([png], { type: "image/png" });
 }
@@ -139,6 +140,13 @@ function pageRecipeOf(recipe: unknown): PageRecipe | null {
   return null;
 }
 
+// The PDF an image is made from.
+function pdfOf(recipe: unknown): string {
+  const page = pageRecipeOf(recipe);
+  if (!page) throw new Error("An image recipe without its page.");
+  return page.pdf;
+}
+
 // The pages (by their page image's recipe key) with an image that differs on this device from the one a stored
 // result was computed from, and who wants to know.
 const differing = new Set<string>();
@@ -156,7 +164,7 @@ export function onImagesDiffer(listener: () => void): () => void {
 // An image was made from its recipe: its fingerprint is kept, and checked against the stored one. A check that can't
 // be made (offline) is skipped: it is a warning, never a stop.
 async function made(key: string, recipe: unknown, fingerprint: Fingerprint): Promise<void> {
-  await cacheJson(fingerprintName(key), fingerprint);
+  await cacheJson(fingerprintName(key), fingerprint, pdfOf(recipe));
   try {
     const stored = await fetchFingerprint(key);
     if (!stored || stored.version !== fingerprint.version || compareFingerprints(stored, fingerprint) !== "different") return;
@@ -170,13 +178,13 @@ async function made(key: string, recipe: unknown, fingerprint: Fingerprint): Pro
 }
 
 // The fingerprint of an image as this device has it: kept from when it was made, or computed from the PNG.
-async function fingerprintOf(key: string, png: Blob): Promise<Fingerprint> {
-  const kept = (await cachedJson(fingerprintName(key))) as Fingerprint | null;
+async function fingerprintOf(key: string, pdf: string, png: Blob): Promise<Fingerprint> {
+  const kept = (await cachedJson(fingerprintName(key), pdf)) as Fingerprint | null;
   if (kept) return kept;
   const bytes = await png.arrayBuffer();
   const answer = await ask({ type: "fingerprint", png: bytes }, [bytes]);
   if (answer.type !== "fingerprint") throw new Error("Unexpected answer from the page image worker.");
-  await cacheJson(fingerprintName(key), answer.fingerprint);
+  await cacheJson(fingerprintName(key), answer.fingerprint, pdf);
   return answer.fingerprint;
 }
 
@@ -187,9 +195,8 @@ export async function keepFingerprints(images: { recipe: unknown; png: Blob }[])
     const fingerprints = await Promise.all(
       images.map(async ({ recipe, png }) => {
         const recipeKey = await keyOf(recipe);
-        const pdfSha256 = pageRecipeOf(recipe)?.pdf;
-        if (!pdfSha256) throw new Error("an image recipe without its PDF");
-        return { ...(await fingerprintOf(recipeKey, png)), recipeKey, pdfSha256 };
+        const pdfSha256 = pdfOf(recipe);
+        return { ...(await fingerprintOf(recipeKey, pdfSha256, png)), recipeKey, pdfSha256 };
       }),
     );
     for (let i = 0; i < fingerprints.length; i += 100) await storeFingerprints(fingerprints.slice(i, i + 100));

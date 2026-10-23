@@ -57,16 +57,6 @@ is known about each.
   Agree the new wording with the owner.
 - Also related, in §15: "Decide on the report after a re-run" (which fixes were kept and which dropped).
 
-## 10. Delete project
-- Fully designed in DESIGN.md §4 "Deleting a project" and §5.8; task in §15 "Delete project". The menu item exists
-  (`PipelinePanel.tsx`, "Delete project" in red) and does nothing.
-- As if the project never existed, apart from costs and statistics: delete its outputs (rows and content), the full
-  requests/responses of its LLM calls, its PDF and its fingerprints, in D1, R2 and the device cache, unless a project
-  that isn't deleted still uses them (checked by query at deletion time); collect R2 orphans then; keep the project
-  row, stages and LLM calls marked `deleted_at`; every cache lookup ignores marked rows; listing projects and
-  numbering default names must filter deleted projects (they don't yet). A confirmation dialog (the owner wants this
-  soon).
-
 ## 11. Light theme, and a screenshot script
 - **Theme:** colours are CSS variables in `apps/web/src/styles.css` (`:root`), but about 36 literal colours remain
   (MEI highlighting, score backgrounds `#1a1b1e`, `#0d0e10`, …) and CodeMirror's theme (`MeiCode.tsx`) hard-codes

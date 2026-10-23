@@ -160,7 +160,7 @@ async function rewriteFrom(
 }
 
 // Whether a stage of the project's pipeline is running (an interrupted one doesn't count).
-async function anyRunning(db: D1Database, projectId: string, now: number): Promise<boolean> {
+export async function anyRunning(db: D1Database, projectId: string, now: number): Promise<boolean> {
   const { results } = await db
     .prepare(
       "SELECT s.* FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND s.status = 'running'",

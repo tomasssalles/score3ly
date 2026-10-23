@@ -104,6 +104,12 @@ export async function renameProject(project: Project, name: string): Promise<Pro
   return (await checked(response)).json();
 }
 
+// Deletes a project (DESIGN.md §4). Refused (409) while one of its stages runs. Says whether no project left uses
+// its PDF, so that this device can delete the PDF's images too.
+export async function deleteProject(project: Project): Promise<{ pdfUnused: boolean }> {
+  return (await checked(await fetch(`/api/projects/${project.id}`, { method: "DELETE" }))).json();
+}
+
 export async function setRunMode(project: Project, runMode: RunMode): Promise<Project> {
   const response = await fetch(`/api/projects/${project.id}`, {
     method: "PATCH",

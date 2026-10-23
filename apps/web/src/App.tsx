@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createProject, listProjects, lookUpPdf, markOpened, type PdfLookup, type Project } from "./api";
+import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { Header } from "./Header";
 import { KnownPdfDialog } from "./KnownPdfDialog";
 import { ProjectPicker } from "./ProjectPicker";
@@ -17,6 +18,9 @@ export function App() {
   // A picked PDF that already has projects, waiting for the user's choice.
   const [knownPdf, setKnownPdf] = useState<{ pdf: File; sha256: string; lookup: PdfLookup } | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  // The name of the project just deleted: said where the project was, until something else is opened.
+  const [deleted, setDeleted] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   // The open project, and the artifact the user picked, are the ones in the URL, if any.
   const hash = useHash();
@@ -40,6 +44,11 @@ export function App() {
   useEffect(() => {
     refresh();
   }, []);
+
+  // Opening anything else ends the message about a deleted project.
+  useEffect(() => {
+    if (route || page) setDeleted(null);
+  }, [hash]);
 
   // A picked PDF gets a new project, unless it already has projects: then the user chooses.
   async function pdfPicked(pdf: File) {
@@ -138,6 +147,19 @@ export function App() {
             onCancel={() => setRenaming(false)}
           />
         )}
+        {deleting && current && (
+          <DeleteProjectDialog
+            project={current}
+            onDeleted={() => {
+              setDeleting(false);
+              setDeleted(current.name);
+              // The project's URL leads nowhere now: replaced, so that going back doesn't land on it.
+              window.location.replace("#/");
+              refresh();
+            }}
+            onCancel={() => setDeleting(false)}
+          />
+        )}
         {knownPdf && (
           <KnownPdfDialog
             filename={knownPdf.pdf.name}
@@ -166,12 +188,15 @@ export function App() {
             onShowStage={showStage}
             onCloseArtifact={closeArtifact}
             onRename={() => setRenaming(true)}
+            onDelete={() => setDeleting(true)}
             onChanged={refresh}
           />
         ) : (
           projects !== null && (
             <div className="empty-state">
-              {route ? (
+              {deleted !== null ? (
+                <p>"{deleted}" was deleted from this device and from the remote storage.</p>
+              ) : route ? (
                 <p>This project doesn't exist (any more).</p>
               ) : (
                 <p>Pick a project above, or start one with "+ New project".</p>

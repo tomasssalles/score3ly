@@ -25,6 +25,7 @@ export function PipelinePanel({
   actions,
   onCollapse,
   onRename,
+  onDelete,
   error,
 }: {
   project: Project;
@@ -36,6 +37,7 @@ export function PipelinePanel({
   actions: PanelActions;
   onCollapse?: () => void; // wide mode only
   onRename: () => void;
+  onDelete: () => void;
   error: string | null; // loading or changing the pipeline failed
 }) {
   const list = useRef<HTMLOListElement>(null);
@@ -59,11 +61,10 @@ export function PipelinePanel({
             <FittedText text={project.name} lines={1} />
           </h2>
           <div className="panel-actions">
-            {/* Project actions. Deleting isn't built yet: picking it only closes the menu. */}
             <DropdownMenu
               icon={<MoreIcon />}
               label="Project actions"
-              groups={[[{ label: "Rename", onSelect: onRename }], [{ label: "Delete project", danger: true }]]}
+              groups={[[{ label: "Rename", onSelect: onRename }], [{ label: "Delete project", danger: true, onSelect: onDelete }]]}
             />
             {onCollapse && (
               <button type="button" className="icon-button" aria-label="Collapse the pipeline" onClick={onCollapse}>

@@ -61,6 +61,7 @@ export function ProjectView({
   onShowStage,
   onCloseArtifact,
   onRename,
+  onDelete,
   onChanged,
 }: {
   project: Project;
@@ -70,6 +71,7 @@ export function ProjectView({
   onShowStage: (stageId: string) => void;
   onCloseArtifact: () => void;
   onRename: () => void;
+  onDelete: () => void;
   onChanged: () => void; // the project itself changed (e.g. its run mode)
 }) {
   const wide = useWide();
@@ -439,6 +441,7 @@ export function ProjectView({
       actions={actions}
       onCollapse={onCollapse}
       onRename={onRename}
+      onDelete={onDelete}
       error={error}
     />
   );

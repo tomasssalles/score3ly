@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getPlatformProxy } from "wrangler";
 import app from "./index.ts";
+import { collectOrphans } from "./deletion.ts";
 import { defaultName, firstFreeName } from "./names.ts";
 
 // The tests run the API against Wrangler's local R2 and D1, kept in memory.
@@ -49,7 +50,7 @@ before(async () => {
 
 beforeEach(async () => {
   await env.DB.exec(
-    "DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects;",
+    "DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM llm_calls; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects; DELETE FROM image_fingerprints;",
   );
 });
 
@@ -894,4 +895,84 @@ test("migration 0014 adds the fake model config as the default, once, and keeps 
   await env.DB.exec(withoutComments(readFileSync(join(workerDir, "migrations", "0014_fake_model_config.sql"), "utf8")));
   assert.equal(await setting(), '"other"');
   assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM model_configs WHERE provider = 'fake'").first())?.n, 1);
+});
+
+// Deleting a project (DESIGN.md §4, §5.8).
+
+async function putContent(text: string): Promise<string> {
+  const bytes = pdfBytes(text);
+  const sha256 = await sha256Hex(bytes);
+  assert.equal((await app.request(`/api/content/${sha256}`, { method: "PUT", body: bytes }, env)).status, 204);
+  return sha256;
+}
+
+async function json<T = unknown>(response: Response): Promise<T> {
+  return (await response.json()) as T;
+}
+
+const deleteProject = (id: string) => app.request(`/api/projects/${id}`, { method: "DELETE" }, env);
+
+test("deleting a project: gone from every list, its name free, what only it used deleted, what another uses kept", async () => {
+  // Two projects on one PDF; the second reuses the first's rasterize stage (the same key).
+  const a = await createdProject("shared.pdf");
+  const { rasterize } = await startRasterize(a.id, RECIPE_KEY(4));
+  await call(a.id, rasterize.id, "outputs", { outputs: [{ item: "p1", type: "page_image", recipeKey: RECIPE_KEY(1) }] });
+  await call(a.id, rasterize.id, "finish", { status: "done" });
+  const skew = (await pipelineOf(a.id))[2];
+  await call(a.id, skew.id, "start", { stepVersion: 1, config: {}, stageKey: RECIPE_KEY(5), pageCount: 1, inputIds: [] });
+  const only = await putContent("skew of a only");
+  await call(a.id, skew.id, "outputs", { outputs: [{ item: "p1", type: "skew", contentSha256: only }] });
+  await call(a.id, skew.id, "finish", { status: "done" });
+  await env.DB.prepare(
+    "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at) SELECT 'call-a', ?, id, 'k', 'ok', '2026-10-01' FROM model_configs LIMIT 1",
+  )
+    .bind(skew.id)
+    .run();
+  const pdf = (await pipelineOf(a.id))[0].outputs[0].contentSha256 as string;
+  const b = await json<ProjectJson>(await postProject({ filename: "shared.pdf", sha256: pdf, filenameOnly: true }));
+  const bRasterize = (await pipelineOf(b.id))[1];
+  const reused = await call(b.id, bRasterize.id, "start", { stepVersion: 1, config: {}, stageKey: RECIPE_KEY(4), pageCount: 1, inputIds: [] });
+  assert.equal(((await reused.json()) as { reused: boolean }).reused, true);
+  await env.DB.prepare("INSERT INTO image_fingerprints (recipe_key, pdf_sha256, width, height, pixels_sha256, thumbnail) VALUES (?, ?, 1, 1, ?, '')")
+    .bind(RECIPE_KEY(1), pdf, RECIPE_KEY(2))
+    .run();
+
+  // A stage that runs can't be deleted from under it.
+  const layout = (await pipelineOf(a.id))[3];
+  await call(a.id, layout.id, "start", { stepVersion: 1, config: {}, stageKey: RECIPE_KEY(6), pageCount: 1, inputIds: [] });
+  assert.equal((await deleteProject(a.id)).status, 409);
+  await call(a.id, layout.id, "stop");
+
+  const response = await deleteProject(a.id);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { pdfUnused: false });
+  assert.equal((await deleteProject(a.id)).status, 404);
+  const listed = await json<ProjectJson[]>(await app.request("/api/projects", {}, env));
+  assert.deepEqual(listed.map((p) => p.id), [b.id]);
+  assert.equal((await app.request(`/api/projects/${a.id}/pipeline`, {}, env)).status, 404);
+
+  // The shared stage stays as it was; the stage only `a` had is marked, its call too, its outputs deleted.
+  const marked = async (id: string) => (await env.DB.prepare("SELECT deleted_at FROM stages WHERE id = ?").bind(id).first<{ deleted_at: string | null }>())?.deleted_at;
+  assert.equal(await marked(rasterize.id), null);
+  assert.ok(await marked(skew.id));
+  assert.ok((await env.DB.prepare("SELECT deleted_at FROM llm_calls WHERE id = 'call-a'").first<{ deleted_at: string | null }>())?.deleted_at);
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM outputs WHERE stage_id = ?").bind(skew.id).first<{ n: number }>())?.n, 0);
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM outputs WHERE stage_id = ?").bind(rasterize.id).first<{ n: number }>())?.n, 1);
+  // The PDF and its fingerprints stay: `b` uses them.
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM image_fingerprints WHERE pdf_sha256 = ?").bind(pdf).first<{ n: number }>())?.n, 1);
+
+  // Objects nothing refers to are collected once they are old enough: the content only `a` had, not the PDF.
+  assert.equal(await collectOrphans(env, new Date(0)), 0);
+  assert.ok((await collectOrphans(env, new Date(Date.now() + 60_000))) >= 1);
+  assert.equal(await env.PDFS.head(`content/${only}`), null);
+  assert.ok(await env.PDFS.head(`pdfs/${pdf}.pdf`));
+
+  // Deleting the last project on the PDF: its fingerprints go, and the PDF once collected.
+  assert.deepEqual(await json(await deleteProject(b.id)), { pdfUnused: true });
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM image_fingerprints WHERE pdf_sha256 = ?").bind(pdf).first<{ n: number }>())?.n, 0);
+  assert.ok(await marked(rasterize.id)); // no pipeline that isn't deleted has it now
+  await collectOrphans(env, new Date(Date.now() + 60_000));
+  assert.equal(await env.PDFS.head(`pdfs/${pdf}.pdf`), null);
+  // A new project with the same name is fine.
+  assert.equal((await createdProject("shared.pdf")).name, "shared");
 });

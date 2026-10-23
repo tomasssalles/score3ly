@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { deleteProject } from "./deletion.ts";
 import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 import { fingerprintRoutes } from "./fingerprints.ts";
 import { llmRoutes, readSettings } from "./llmRoutes.ts";
@@ -60,6 +61,14 @@ async function getProject(db: D1Database, id: string): Promise<Project | null> {
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
+
+// Deletes a project (DESIGN.md §4): refused while one of its stages runs, here or on another device.
+app.delete("/api/projects/:id", async (c) => {
+  const result = await deleteProject(c.env, c.req.param("id"));
+  if (result === "not_found") return c.json({ error: "no such project" }, 404);
+  if (result === "running") return c.json({ error: "a stage of the project is running" }, 409);
+  return c.json(result);
+});
 
 // All projects, most recently opened first.
 app.get("/api/projects", async (c) => {
