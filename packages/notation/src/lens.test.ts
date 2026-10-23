@@ -277,3 +277,20 @@ test("clef changes in the strings are carried to the next system", () => {
   s.stretches[0].voices[1].music = "c2 \\clef treble g'2";
   assert.equal(ok(s, context(1)).state.signatures.find((x) => x.staff === 2)?.clef, "treble");
 });
+
+test("tempo marks at the same moment on several staves must agree: a warning otherwise", () => {
+  const withTempos = (upper: string, lower: string) => {
+    const answer = system(1);
+    answer.stretches[0].voices[0].music = `${upper} c''4 d''4 e''4 f''4`;
+    answer.stretches[0].voices[1].music = `${lower} c2 g,2`;
+    return ok(answer, context(1)).warnings;
+  };
+  assert.deepEqual(withTempos('\\tempo "Allegro" 4 = 132', '\\tempo "Allegro" 4 = 132'), []);
+  assert.deepEqual(withTempos('\\tempo "Allegro" 4 = 132', ""), []);
+  const [warning] = withTempos('\\tempo "Allegro" 4 = 132', '\\tempo "Allegro"');
+  assert.equal(warning.message, 'Stretch 1: tempo marks at the same moment differ: \\tempo "Allegro" 4 = 132 on staff 1, \\tempo "Allegro" on staff 2.');
+  // At different moments, they may differ.
+  const answer = system(1);
+  answer.stretches[0].voices[0].music = `\\tempo "Allegro" c''4 d''4 \\tempo "Meno mosso" e''4 f''4`;
+  assert.deepEqual(ok(answer, context(1)).warnings, []);
+});

@@ -33,9 +33,14 @@ export async function engravedPdf(engraving: Engraving): Promise<Blob> {
 
 // Verovio's pages (SVG) as a PDF of that page size.
 export async function pdfOfPages(svgs: string[], pageSize: EngraveConfig["pageSize"]): Promise<Blob> {
-  const [{ jsPDF }, { svg2pdf }] = await Promise.all([import("jspdf"), import("svg2pdf.js")]);
+  const [{ jsPDF }, { svg2pdf }, { METRONOME_FONT }] = await Promise.all([import("jspdf"), import("svg2pdf.js"), import("./metronomeFont")]);
   const { width, height } = PAGE_SIZES[pageSize];
   const pdf = new jsPDF({ unit: "mm", format: [width, height], orientation: "portrait" });
+  // Verovio draws a tempo mark's note in its music font, which it embeds in the SVG where the PDF can't use it: the
+  // metronome glyphs are added under the same name (scripts/metronomeFont.ts).
+  // Under every style svg2pdf.js may ask for (a tempo mark's text is bold): the glyphs are the same.
+  pdf.addFileToVFS("Leipzig.ttf", METRONOME_FONT);
+  for (const style of ["normal", "bold", "italic", "bolditalic"]) pdf.addFont("Leipzig.ttf", "Leipzig", style);
   // svg2pdf reads computed styles, so each page is put in the document while it is converted, out of sight.
   const holder = document.createElement("div");
   holder.style.cssText = "position: fixed; left: -10000px; top: 0; width: 1000px; visibility: hidden";
@@ -44,6 +49,7 @@ export async function pdfOfPages(svgs: string[], pageSize: EngraveConfig["pageSi
     for (const [i, svg] of svgs.entries()) {
       if (i > 0) pdf.addPage([width, height], "portrait");
       holder.innerHTML = svg;
+      await pinTextAfterGlyphs(holder);
       const root = flattened(holder.querySelector("svg")!, width, height);
       await svg2pdf(root, pdf, { x: 0, y: 0, width, height });
     }
@@ -51,6 +57,24 @@ export async function pdfOfPages(svgs: string[], pageSize: EngraveConfig["pageSi
     holder.remove();
   }
   return pdf.output("blob");
+}
+
+// svg2pdf.js lays out the text after a music glyph in a line of text (a tempo mark's note) as if the glyph were in the
+// text's font, which leaves a gap: each piece of text after one is pinned where the browser draws it.
+async function pinTextAfterGlyphs(holder: HTMLElement) {
+  if (!holder.querySelector('tspan[font-family="Leipzig"]')) return;
+  // The browser measures with the music font only once it has loaded it (Verovio embeds it in the SVG).
+  await document.fonts.load("100px Leipzig", "\uE1D5").catch(() => {});
+  for (const text of holder.querySelectorAll("text")) {
+    const pieces = [...text.querySelectorAll("tspan")].filter((t) => t.childElementCount === 0 && t.textContent);
+    const first = pieces.findIndex((t) => t.getAttribute("font-family") === "Leipzig");
+    if (first < 0) continue;
+    for (const piece of pieces.slice(first + 1)) {
+      const at = piece.getStartPositionOfChar(0);
+      piece.setAttribute("x", String(at.x));
+      piece.setAttribute("y", String(at.y));
+    }
+  }
 }
 
 // Verovio draws a page in an SVG nested in the page's own (class "definition-scale", with its own view box), which

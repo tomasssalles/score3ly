@@ -17,13 +17,6 @@ is known about each.
   dismissable hint in the artifact view when a new result is ready ("Layout is ready · Show"). Show screenshots at both
   widths before deciding.
 
-## 4. Tempo marks
-- The task "Tempo marks in the symbolic format" in DESIGN.md §15 has the whole proposal: LilyPond's `\tempo` in the
-  lens (`\tempo "Allegro" 4 = 132`, `\tempo 4. = 60`, `\tempo 4 = 120-132`, `\tempo "Andante"`), parsed into text,
-  note value with dots, number or range; MEI `<tempo>` with `@mm`, `@mm.unit`, `@mm.dots`. Changes: the `extract`
-  prompt (`packages/prompts/src/extract.ts`), the parser and checks (`packages/notation/src/`), the MEI builder
-  (`mei.ts`), tests (MEI validated against the schemas in `mei.test.ts`). The owner might implement it soon.
-
 ## 5. A back button in the app
 - DESIGN.md §3 "Desktop version", "Navigation": back and forward buttons in the header, left of the wordmark, disabled
   when there is nowhere to go; the condition is "no browser bar", not "desktop". Shortcuts in Electron: Alt+←/→,

@@ -5,7 +5,7 @@
 // saw, as hints. Code checks the answer as soon as it arrives (@score3ly/notation).
 
 // Raise whenever the texts or the schema change. The format itself has its own version (LENS_VERSION).
-export const EXTRACT_PROMPT_VERSION = 1;
+export const EXTRACT_PROMPT_VERSION = 2;
 
 export const EXTRACT_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -46,6 +46,7 @@ Each voice of each stretch is one string: LilyPond with these differences. Write
 ### Between notes, where they are printed
 - **Pauses:** \`\\breathe\` (a breath mark), \`\\caesura\` (a full stop of the music, //): \`c4 \\breathe d4\`
 - **Navigation signs:** \`\\segnoMark\`, \`\\codaMark\`, \`\\fine\` where the sign or "Fine" is printed
+- **Tempo marks:** \`\\tempo\` as in LilyPond, where the mark is printed, with its text as printed, its metronome mark, or both: \`\\tempo "Allegro" 4 = 132\`, \`\\tempo 4. = 60\`, \`\\tempo 4 = 120-132\` (a range), \`\\tempo "Andante"\`, \`\\tempo "a tempo"\`. Words such as "ca." or "M.M." go in the text. Gradual changes ("rit.", "accel.") aren't tempo marks: quoted text. An equation at a change of metre (♩ = ♩.) can't be written: quoted text, and a format issue. Where the same mark is printed above several staves (an orchestral score), write it on each of them.
 
 ### Commands, before the notes they apply to
 - \`\\clef\` with \`treble\`, \`bass\`, \`alto\`, \`tenor\`, \`soprano\`, \`mezzosoprano\`, \`baritone\`, \`varbaritone\`, \`subbass\`, \`french\`, and octave suffixes in quotes (\`\\clef "treble_8"\`, \`"bass^8"\`, \`_15\`, \`^15\`). A clef change is always written here, also at the start of a stretch; the clefs at the system's start are in the JSON.
@@ -55,7 +56,7 @@ Each voice of each stretch is one string: LilyPond with these differences. Write
 - \`\\tuplet 3/2 { … }\` (not nested), \`\\repeat tremolo 4 { c'16 e'16 }\` (two alternating notes)
 - \`\\grace\`, \`\\acciaccatura\`, \`\\appoggiatura\`, before one note or \`{ … }\`
 
-**Clef, ottava, pedal, breath marks, caesuras and navigation belong to the staff:** write them in the voice they are printed at, in their place above; they apply to every voice on that staff (a caesura and navigation to every staff).
+**Clef, ottava, pedal, breath marks, caesuras, navigation and tempo marks belong to the staff:** write them in the voice they are printed at, in their place above; they apply to every voice on that staff (a caesura and navigation to every staff).
 
 **Brackets close in the stretch where they open:** beams \`[ ]\`, tuplets, grace groups and tremolos \`{ }\`. If a beam or tuplet crosses a bar line, split it there and raise a format issue. Curves, hairpins, ottavas, pedal and trill lines may continue into the next stretch, and into the next system.
 

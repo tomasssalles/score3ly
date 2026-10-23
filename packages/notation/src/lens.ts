@@ -7,7 +7,7 @@
 import { add, equal, less, show, ZERO, type Fraction } from "./fraction.ts";
 import { eventsDuration, durationValue, measureLength, parseKey, parseTime, type TimeSignature } from "./durations.ts";
 import { SpanTracker, type OpenMark } from "./spans.ts";
-import { normalizeClef, parseVoice, walk, type Event } from "./symbolic.ts";
+import { normalizeClef, parseVoice, walk, type Event, type Tempo } from "./symbolic.ts";
 
 export const STRETCH_CLASSES = ["none", "new", "continues"] as const;
 export const MEASURE_KINDS = ["normal", "incomplete", "unmeasured"] as const;
@@ -332,6 +332,9 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
         places: [here(s.stretch)],
       });
     }
+    // Tempo marks at the same moment (on several staves, as orchestral scores print them) must say the same.
+    const tempoWarning = tempoProblem(s.voices.map((v) => ({ staff: v.staff, events: voices.get(`${s.stretch}/${v.voice}`)! })));
+    if (tempoWarning) warnings.push({ message: `Stretch ${s.stretch}: ${tempoWarning}`, places: [here(s.stretch)] });
     if (s.class === "none") {
       if (!equal(length, ZERO)) warnings.push({ message: `Stretch ${s.stretch} is part of no measure, but has notes or rests (${show(length)} of a whole note).`, places: [here(s.stretch)] });
       continue;
@@ -441,6 +444,36 @@ function stretchAnswers(): LensAnswer[] {
 }
 
 // A measure's length against its kind and time: a normal one fills the time, an incomplete one is shorter.
+// Tempo marks that differ at the same moment of a stretch: what the warning says, or null. A mark is placed by the
+// time before it in its voice.
+export function tempoProblem(voices: { staff: number; events: Event[] }[]): string | null {
+  const at = new Map<string, { staff: number; text: string }[]>();
+  for (const v of voices) {
+    let time = ZERO;
+    for (const e of v.events) {
+      if (e.e === "tempo") {
+        const moment = show(time);
+        at.set(moment, [...(at.get(moment) ?? []), { staff: v.staff, text: tempoText(e.tempo) }]);
+      }
+      time = add(time, eventsDuration([e]));
+    }
+  }
+  for (const marks of at.values()) {
+    if (new Set(marks.map((m) => m.text)).size > 1) {
+      return `tempo marks at the same moment differ: ${marks.map((m) => `${m.text} on staff ${m.staff}`).join(", ")}.`;
+    }
+  }
+  return null;
+}
+
+// A tempo mark as the lens writes it.
+function tempoText(t: Tempo): string {
+  const parts = ["\\tempo"];
+  if (t.text !== null) parts.push(JSON.stringify(t.text));
+  if (t.unit && t.bpm !== null) parts.push(`${t.unit.base === 0.5 ? "\\breve" : t.unit.base}${".".repeat(t.unit.dots)} = ${t.bpm}${t.bpmMax === null ? "" : `-${t.bpmMax}`}`);
+  return parts.join(" ");
+}
+
 function measureWarning(measure: OpenMeasure, time: TimeSignature | null, warnings: Warning[]) {
   if (!time || measure.kind === "unmeasured" || measure.kind === null) return;
   const full = measureLength(time);

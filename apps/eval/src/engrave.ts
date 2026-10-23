@@ -16,6 +16,7 @@ import PDFDocument from "pdfkit";
 import SVGtoPDF from "svg-to-pdfkit";
 import createVerovioModule from "verovio/wasm";
 import { VerovioToolkit } from "verovio/esm";
+import { METRONOME_FONT } from "../../web/src/metronomeFont.ts";
 import { warningLines } from "./lilypond.ts";
 import { type Candidate, TESTSET_DIR, planEngraving } from "./testset.ts";
 
@@ -78,6 +79,9 @@ async function engraveMei(candidate: Candidate, workDir: string): Promise<string
   }
   const warnings = new Set(toolkit.getLog().split("\n").map((line) => line.trim()).filter(Boolean));
   const pdf = new PDFDocument({ size: "A4", margin: 0, autoFirstPage: false });
+  // A tempo mark's note is drawn in Verovio's music font, embedded in the SVG where pdfkit can't use it: its metronome
+  // glyphs under the same name (made for the app, apps/web/scripts/metronomeFont.ts).
+  pdf.registerFont("Leipzig", Buffer.from(METRONOME_FONT, "base64"));
   const written = new Promise<void>((resolve, reject) => {
     const out = createWriteStream(join(workDir, "output.pdf"));
     out.on("finish", resolve).on("error", reject);

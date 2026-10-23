@@ -152,3 +152,21 @@ test("durations: dots, breves, multi-measure rests", () => {
 test("errors say where", () => {
   assert.match(problem("c4 d4 h4"), /^at 7: "h"/);
 });
+
+test("tempo marks: LilyPond's \\tempo, with a text, a metronome mark or both", () => {
+  const tempo = (text: string) => {
+    const e = events(text).find((x) => x.e === "tempo");
+    return e && e.e === "tempo" ? e.tempo : null;
+  };
+  assert.deepEqual(tempo('\\tempo "Allegro" 4 = 132 c4'), { text: "Allegro", unit: { base: 4, dots: 0 }, bpm: 132, bpmMax: null });
+  assert.deepEqual(tempo("\\tempo 4. = 60 c4"), { text: null, unit: { base: 4, dots: 1 }, bpm: 60, bpmMax: null });
+  assert.deepEqual(tempo("\\tempo 4 = 120-132 c4"), { text: null, unit: { base: 4, dots: 0 }, bpm: 120, bpmMax: 132 });
+  assert.deepEqual(tempo("\\tempo 2 = 60 - 66 c4"), { text: null, unit: { base: 2, dots: 0 }, bpm: 60, bpmMax: 66 });
+  assert.deepEqual(tempo('\\tempo "Andante con moto" c4'), { text: "Andante con moto", unit: null, bpm: null, bpmMax: null });
+  assert.equal(length('\\tempo "Allegro" 4 = 132 c4 \\tempo "a tempo" d4'), "1/2"); // takes no time
+  assert.match(problem("\\tempo c4"), /needs a text, a metronome mark or both/);
+  assert.match(problem('\\tempo "Allegro" 4 c4'), /followed by "="/);
+  assert.match(problem("\\tempo 4 = 132-120 c4"), /isn't a tempo/);
+  assert.match(problem("\\tuplet 3/2 { c8 \\tempo 4 = 60 d8 e8 }"), /can't be inside/);
+  assert.match(problem('c4^\\tempo "Allegro"'), /placement prefix/);
+});

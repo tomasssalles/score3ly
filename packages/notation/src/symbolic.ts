@@ -5,7 +5,7 @@
 // spans.ts).
 
 // Raise whenever the format changes: what the prompt describes, what the parser accepts.
-export const LENS_VERSION = 2;
+export const LENS_VERSION = 3;
 
 export const ACCIDENTALS = ["flat", "sharp", "natural", "doubleflat", "doublesharp"] as const;
 export type Accidental = (typeof ACCIDENTALS)[number];
@@ -75,9 +75,15 @@ export type Event =
   | { e: "changeStaff"; staff: number }
   | { e: "stem"; direction: "up" | "down" | "neutral" }
   | { e: "event"; name: (typeof EVENT_COMMANDS)[number] }
+  | { e: "tempo"; tempo: Tempo }
   | { e: "tuplet"; n: number; m: number; body: Event[] } // \tuplet n/m: n notes in the time of m
   | { e: "grace"; kind: "grace" | "acciaccatura" | "appoggiatura"; body: Event[] }
   | { e: "tremolo"; count: number; body: Event[] }; // \repeat tremolo count { … }
+
+// A tempo mark (LilyPond's \tempo): its text as printed and/or a metronome mark, a note value equal to a number of
+// beats per minute or a range of them (`\tempo "Allegro" 4 = 132`, `\tempo 4. = 60`, `\tempo 4 = 120-132`,
+// `\tempo "Andante"`).
+export type Tempo = { text: string | null; unit: Duration | null; bpm: number | null; bpmMax: number | null };
 
 export type Parsed = { events: Event[] } | { problem: string };
 
@@ -98,6 +104,7 @@ type Token =
   | { t: "changeStaff"; staff: number }
   | { t: "stem"; direction: "up" | "down" | "neutral" }
   | { t: "event"; name: (typeof EVENT_COMMANDS)[number] }
+  | { t: "tempo"; tempo: Tempo }
   | { t: "tuplet"; n: number; m: number }
   | { t: "grace"; kind: "grace" | "acciaccatura" | "appoggiatura" }
   | { t: "tremolo"; count: number };
@@ -159,6 +166,7 @@ function clefName(raw: string, at: number): string {
 
 // A command's token, from the backslash at `i`: its arguments read too.
 function command(text: string, i: number, placement: Placement): { token: Token; length: number } {
+  const src = text;
   // \< \> \! (hairpins and their end)
   if ("<>!".includes(text[i + 1] ?? "")) {
     return { token: { t: "mark", mark: { kind: "command", name: text[i + 1] as "<" | ">" | "!", placement } }, length: 2 };
@@ -201,6 +209,32 @@ function command(text: string, i: number, placement: Placement): { token: Token;
       j += m[0].length;
     }
     return { token: { t: "clef", clef: clefName(raw, at) }, length: j - i };
+  }
+  if (name === "tempo") {
+    let text: string | null = null;
+    j = skipSpace(src, j);
+    if (src[j] === '"') {
+      const q = quoted(src, j);
+      text = q.value;
+      j += q.length;
+    }
+    let unit: Duration | null = null;
+    let bpm: number | null = null;
+    let bpmMax: number | null = null;
+    const k = skipSpace(src, j);
+    const d = duration(src, k);
+    if (d.duration) {
+      const m = /^\s*=\s*(\d+)(?:\s*[-–]\s*(\d+))?/.exec(src.slice(k + d.length));
+      if (!m) throw new LexError(`at ${at + 1}: "\\tempo": a note value is followed by "=" and a number, e.g. "\\tempo 4 = 120"`);
+      unit = d.duration;
+      bpm = Number(m[1]);
+      bpmMax = m[2] === undefined ? null : Number(m[2]);
+      if (bpm < 1 || (bpmMax !== null && bpmMax <= bpm)) throw new LexError(`at ${at + 1}: "\\tempo": ${bpm}${bpmMax === null ? "" : `-${bpmMax}`} isn't a tempo`);
+      j = k + d.length + m[0].length;
+    }
+    if (text === null && unit === null) throw new LexError(`at ${at + 1}: "\\tempo" needs a text, a metronome mark or both, e.g. \\tempo "Allegro" 4 = 132`);
+    if (text !== null && text.trim() === "") throw new LexError(`at ${at + 1}: "\\tempo": the text is empty`);
+    return { token: { t: "tempo", tempo: { text, unit, bpm, bpmMax } }, length: j - i };
   }
   if (name === "ottava") {
     const m = /^\s*#(-?\d+)/.exec(text.slice(j));
@@ -460,6 +494,11 @@ export function parseVoice(text: string): Parsed {
           break;
         case "event":
           events.push({ e: "event", name: t.name });
+          break;
+        case "tempo":
+          // A tempo mark is for the music from that point on: not inside a tuplet, grace group or tremolo.
+          if (inGroup) throw new ParseError(`${where(t)}: \\tempo can't be inside "{ }"`);
+          events.push({ e: "tempo", tempo: t.tempo });
           break;
         case "tuplet": {
           if (inTuplet) throw new ParseError(`${where(t)}: tuplets can't be nested`);

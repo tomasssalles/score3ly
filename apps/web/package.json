@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "node --test \"src/**/*.test.ts\"",
-    "icons": "node scripts/icons.ts"
+    "icons": "node scripts/icons.ts",
+    "metronome-font": "node scripts/metronomeFont.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

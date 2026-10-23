@@ -13,7 +13,7 @@ import { add, equal, fraction, less, mul, ZERO, type Fraction } from "./fraction
 import { durationValue, eventsDuration, parseKey, parseTime } from "./durations.ts";
 import type { Box, LensEnding, LensStretch, LensSystem } from "./lens.ts";
 import { stretchOffsets, tstamp, type Run, type Score, type ScoreMeasure, type ScorePiece } from "./score.ts";
-import { JUMPS, type Accidental, type Duration, type Event, type Head, type Mark, type Pitch } from "./symbolic.ts";
+import { JUMPS, type Accidental, type Duration, type Event, type Head, type Mark, type Pitch, type Tempo } from "./symbolic.ts";
 import { el, elements, serialize, type XmlElement, type XmlNode } from "./xml.ts";
 
 export const MEI_VERSION = "5.1";
@@ -282,6 +282,33 @@ const JUMP_FUNC: Record<(typeof JUMPS)[number], string> = {
 };
 
 const BAR_RENDITION: Partial<Record<LensStretch["rightBarLine"], string>> = { double: "dbl", final: "end", endRepeat: "rptend", bothRepeats: "rptboth", dashed: "dashed", none: "invis", startRepeat: "rptstart" };
+
+// SMuFL's metronome notes (stems up) and augmentation dot, by note value.
+const METRONOME_NOTES: Record<number, string> = {
+  0.5: "\uE1D0",
+  1: "\uE1D2",
+  2: "\uE1D3",
+  4: "\uE1D5",
+  8: "\uE1D7",
+  16: "\uE1D9",
+  32: "\uE1DB",
+  64: "\uE1DD",
+  128: "\uE1DF",
+};
+const METRONOME_DOT = "\uE1E7";
+
+// A tempo mark's content: its text as printed, and the metronome mark as LilyPond prints one after a text, in
+// parentheses: "Allegro (♩ = 120–132)". The note is SMuFL glyphs, which Verovio draws in its music font.
+export function tempoContent(tempo: Tempo): XmlNode[] {
+  const out: XmlNode[] = [];
+  if (tempo.text !== null) out.push(tempo.text);
+  if (tempo.unit && tempo.bpm !== null) {
+    const glyphs = METRONOME_NOTES[tempo.unit.base] + METRONOME_DOT.repeat(tempo.unit.dots);
+    const bpm = tempo.bpmMax === null ? `${tempo.bpm}` : `${tempo.bpm}–${tempo.bpmMax}`;
+    out.push(tempo.text !== null ? " (" : "", el("rend", { "glyph.auth": "smufl" }, [glyphs]), ` = ${bpm}${tempo.text !== null ? ")" : ""}`);
+  }
+  return out.filter((n) => n !== "");
+}
 
 function durAttrs(d: Duration): Record<string, string | number> {
   return { dur: d.base === 0.5 ? "breve" : d.base, ...(d.dots ? { dots: d.dots } : {}) };
@@ -706,6 +733,25 @@ class PieceWriter {
               ? el("caesura", { tstamp: "", staff: allStaves })
               : el("repeatMark", { func: event.name === "segnoMark" ? "segno" : event.name === "codaMark" ? "coda" : "fine", tstamp: "", staff: top }, event.name === "fine" ? ["Fine"] : []);
         // Its beat is counted from the start of its MEI measure, known when the measure is written.
+        this.controls.push({ el: e, system: place.systemNumber, stretch: place.stretch.stretch, onset });
+        return [];
+      }
+      case "tempo": {
+        // On the staff it is written on, by time; its printed text and metronome mark as its content (what Verovio
+        // draws), the beats per minute (a range's lower bound) and the note value as attributes (for playback).
+        const { tempo } = event;
+        const e = el(
+          "tempo",
+          {
+            tstamp: "",
+            staff: ctx.staff,
+            place: "above",
+            mm: tempo.bpm ?? undefined,
+            "mm.unit": tempo.unit ? durAttrs(tempo.unit).dur : undefined,
+            "mm.dots": tempo.unit?.dots || undefined,
+          },
+          tempoContent(tempo),
+        );
         this.controls.push({ el: e, system: place.systemNumber, stretch: place.stretch.stretch, onset });
         return [];
       }

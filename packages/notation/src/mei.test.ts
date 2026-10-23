@@ -48,7 +48,7 @@ const box = (top: number) => ({ left: 0.1, right: 0.9, top, bottom: top + 0.2 })
 // A score with most of the format: two pieces, accidentals, chords with their own curves, ties across a bar line and a
 // system break, a measure split across systems, an ottava, tuplets, grace notes, tremolos, cross-staff notes, beams,
 // dynamics between the staves, hairpins, pedal, texts, navigation, endings and repeats, a multi-measure rest, key and
-// time changes, a clef change, a third staff added for a passage.
+// time changes, a clef change, a third staff added for a passage, tempo marks.
 function richScore(): ScoreSystemInput[] {
   const s1 = system(
     [
@@ -74,7 +74,7 @@ function richScore(): ScoreSystemInput[] {
   // A third staff appears above, for a voice.
   const s3: LensSystem = {
     ...system([
-      stretch(1, [voice(3, 3, "R2.", "singer"), voice(1, 1, "\\grace { c''16 d''16 } e''2.\\arpeggio"), voice(2, 2, "<c e g>2.\\glissando")], { rightBarLine: "endRepeat" }),
+      stretch(1, [voice(3, 3, "\\tempo 4. = 60 R2.", "singer"), voice(1, 1, "\\grace { c''16 d''16 } e''2.\\arpeggio"), voice(2, 2, "<c e g>2.\\glissando")], { rightBarLine: "endRepeat" }),
       stretch(2, [voice(3, 3, "R2.*4"), voice(1, 1, "R2.*4"), voice(2, 2, "R2.*4")], { measureNumber: 8, printedNumber: "8–11", rightBarLine: "final" }),
     ]),
     startRepeat: true,
@@ -88,7 +88,7 @@ function richScore(): ScoreSystemInput[] {
   // A second piece, with a measure divided by a start repeat after its first half (stretches 2 and 3).
   const s4 = system(
     [
-      stretch(1, [voice(1, 1, "c''4\\mordent d''4\\prall e''4\\turn\\startTrillSpan f''4\\stopTrillSpan", "melody"), voice(2, 2, "c1\\unaCorda", "bass")]),
+      stretch(1, [voice(1, 1, "\\tempo \"Allegro\" 4 = 120-132 c''4\\mordent d''4\\prall e''4\\turn\\startTrillSpan f''4\\stopTrillSpan", "melody"), voice(2, 2, "c1\\unaCorda", "bass")]),
       stretch(2, [voice(1, 1, "g''2\\=1("), voice(2, 2, "c2\\treCorde")], { rightBarLine: "startRepeat" }),
       stretch(3, [voice(1, 1, "g''4\\=1) \\caesura a''4"), voice(2, 2, "c2")], { class: "continues", kind: null, rightBarLine: "final" }),
     ],
@@ -273,4 +273,17 @@ test("tremolos on chords: two chords alternating (fTrem), and a chord repeated (
   assert.equal(named(bTrem, "chord").length, 1);
   // 8 × (1/32 + 1/32) = 1/2 again: quarter-note chords.
   assert.deepEqual(named(root, "fTrem")[1].children.map((c) => (typeof c === "string" ? c : attrOf(c, "dur"))), ["4", "4"]);
+});
+
+const content = (e: XmlElement) => /<tempo[^>]*>([\s\S]*)<\/tempo>/.exec(serialize(e))![1];
+
+test("tempo marks: the printed text and the metronome mark as content, the lower bound and note value as attributes", () => {
+  const root = buildMei(buildScore(richScore(), [1, 4]));
+  const tempos = named(root, "tempo");
+  assert.equal(tempos.length, 2);
+  const [sixty, allegro] = tempos;
+  assert.deepEqual([attrOf(allegro, "mm"), attrOf(allegro, "mm.unit"), attrOf(allegro, "mm.dots"), attrOf(allegro, "tstamp"), attrOf(allegro, "staff")], ["120", "4", undefined, "1", "1"]);
+  assert.equal(content(allegro), 'Allegro (<rend glyph.auth="smufl">\uE1D5</rend> = 120–132)');
+  assert.deepEqual([attrOf(sixty, "mm"), attrOf(sixty, "mm.unit"), attrOf(sixty, "mm.dots"), attrOf(sixty, "tstamp"), attrOf(sixty, "staff")], ["60", "4", "1", "1", "3"]);
+  assert.equal(content(sixty), '<rend glyph.auth="smufl">\uE1D5\uE1E7</rend> = 60');
 });
