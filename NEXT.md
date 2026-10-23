@@ -50,15 +50,11 @@ is known about each.
 - The logo is `apps/web/public/icon.svg` (PNGs next to it, made by `npm run icons`). Put it at the top of the root
   `README.md` (the owner wants the README written properly later; for now just the logo).
 
-## 9. Carry manual stages through a re-run (all or nothing)
-- Task in DESIGN.md §15 "Carry manual stages through a re-run" (§5.5, §5.8). Today `rewriteFrom()` in
-  `apps/worker/src/pipeline.ts` drops every manual stage after a change at once (`if (isManual(row.step)) continue;`).
-- **Basic form:** keep them in the pipeline; when the run reaches one, compare what it reads now with what it read
-  (its `stage_inputs`, by content hash / recipe key): all identical → keep it as done; otherwise drop it (then the
-  stages after it as usual). A WIP manual stage: decide with the owner (probably the same rule).
-- **Update the confirmation dialogs** (`ProjectView.tsx`, `CONFIRM_TEXT`; DESIGN.md §5.5 "Confirmation before a
-  re-run"): today "Manual fixes for later stages will be dropped entirely"; afterwards they're dropped only if their
-  inputs change. Agree the new wording with the owner.
+## 9. The confirmation before a re-run, now that manual stages are carried
+- Carrying manual stages is built (DESIGN.md §5.8, "A manual stage after a change is carried"); the dialogs weren't
+  changed, on purpose. Task in §15 "Update the confirmation before a re-run": `CONFIRM_TEXT` in `ProjectView.tsx` still
+  says "Manual fixes for later stages will be dropped entirely"; they are now dropped only if their inputs change.
+  Agree the new wording with the owner.
 - Also related, in §15: "Decide on the report after a re-run" (which fixes were kept and which dropped).
 
 ## 10. Delete project

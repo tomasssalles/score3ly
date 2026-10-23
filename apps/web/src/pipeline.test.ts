@@ -12,6 +12,7 @@ import {
   runningStage,
   toPipeline,
 } from "./pipeline.ts";
+import { carriedInputs } from "./steps.ts";
 
 const SHA256 = "a".repeat(64);
 const T0 = "2026-10-12T10:00:00.000Z";
@@ -31,6 +32,7 @@ function stage(id: string, step: string, fields: Partial<ApiStage> = {}): ApiSta
     finishedAt: T0,
     modelConfig: null,
     costUsd: null,
+    carried: false,
     outputs: [],
     ...fields,
   };
@@ -243,4 +245,15 @@ test("the panel looks again when a stage running elsewhere would count as interr
   assert.equal(nextStaleAt(pipeline("2026-10-12T10:00:00.000Z"), null, now), null);
   assert.equal(nextStaleAt(pipeline("2026-10-12T10:09:00.000Z"), { stageId: "s2", progress: 0.5 }, now), null);
   assert.equal(nextStaleAt({ stages: [ingest] }, null, now), null);
+});
+
+test("a carried manual stage looks planned, never ready, without artifacts, and only Drop in its menu's changes", () => {
+  const skew = stage("s3", "skew_analysis", { outputs: [{ id: "o5", item: "p1", type: "skew", contentSha256: SHA256, recipeKey: null, recipe: null }] });
+  const fix = stage("s4", "fix_skew", { carried: true, outputs: [{ id: "o6", item: "p1", type: "lines", contentSha256: SHA256, recipeKey: null, recipe: null }] });
+  const p = toPipeline("manual", { stages: [ingest, stage("s2", "rasterize"), skew, fix, stage("s5", "layout", { status: "planned" })] });
+  const carried = p.stages[3];
+  assert.deepEqual([carried.status, carried.carried, carried.artifacts.length, carried.droppable], ["planned", true, 0, true]);
+  assert.equal(p.stages[4].status, "planned");
+  // What it would read now: the outputs of the stage it fixes, as when it was added.
+  assert.deepEqual(carriedInputs([ingest, stage("s2", "rasterize"), skew, fix], 3), ["o5"]);
 });

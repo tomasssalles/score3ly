@@ -32,6 +32,7 @@ export type ApiStage = {
   finishedAt: string | null;
   modelConfig: { name: string | null; model: string } | null; // LLM stages: the model config used
   costUsd: number | null; // what its LLM calls cost
+  carried: boolean; // a manual stage carried through a re-run, waiting for its turn to be kept or dropped (§5.5)
   outputs: ApiOutput[];
 };
 
@@ -208,6 +209,12 @@ export async function editStage(project: Project, stageId: string): Promise<{ st
 
 export async function dropStage(project: Project, stageId: string): Promise<ApiPipeline> {
   return (await send(stageUrl(project, stageId, "drop"))).json();
+}
+
+// A carried manual stage whose turn has come: kept if `inputIds` (what it would read now) hold what it read, else
+// dropped (DESIGN.md §5.5).
+export async function resolveStage(project: Project, stageId: string, inputIds: string[]): Promise<{ kept: boolean; pipeline: ApiPipeline }> {
+  return (await send(stageUrl(project, stageId, "resolve"), { inputIds })).json();
 }
 
 // Stored content (DESIGN.md §2): uploaded under the SHA-256 of its bytes, which is returned. Uploading the same

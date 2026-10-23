@@ -1,4 +1,3 @@
-import { onImagesDiffer } from "./pageImages";
 import { useEffect, useRef, useState } from "react";
 import {
   addFixStage,
@@ -6,6 +5,7 @@ import {
   editStage,
   fetchPipeline,
   finishStage,
+  resolveStage,
   setRunMode,
   setStageConfig,
   stopStage,
@@ -35,8 +35,8 @@ import { ConfigDialog } from "./ConfigDialog";
 import { RUNNERS } from "./runners";
 import { CannotStart } from "./stageRunner";
 import { useWakeLock } from "./wakeLock";
-import { FIX_STARTS, stepInfo, type ConfigContext } from "./steps";
-import { openPdfForImages } from "./pageImages";
+import { carriedInputs, FIX_STARTS, stepInfo, type ConfigContext } from "./steps";
+import { onImagesDiffer, openPdfForImages } from "./pageImages";
 import { download } from "./downloads";
 import { StageDetails } from "./StageDetails";
 import { useWide } from "./useWide";
@@ -245,9 +245,40 @@ export function ProjectView({
     }
   }
 
+  // A carried manual stage whose turn has come is kept or dropped at once, in both modes (DESIGN.md §5.5): kept if
+  // what it would read now is what it read. One at a time; whoever asks while it is on gets the same answer. Returns
+  // the new pipeline, or null if there was nothing to do (or it failed).
+  const resolving = useRef<Promise<ApiPipeline | null> | null>(null);
+  function resolveCarried(latest: ApiPipeline): Promise<ApiPipeline | null> {
+    if (resolving.current) return resolving.current;
+    // The first stage that isn't done (a carried one may be done, and still waits).
+    const index = latest.stages.findIndex((s) => s.carried || s.status !== "done");
+    const stage = latest.stages[index];
+    if (!stage?.carried) return Promise.resolve(null);
+    resolving.current = (async () => {
+      try {
+        const { pipeline } = await resolveStage(project, stage.id, carriedInputs(latest.stages, index));
+        setStored(pipeline);
+        onChanged();
+        return pipeline;
+      } catch (err) {
+        setError(`Checking "${stepInfo(stage.step).title}" failed: ${err}`);
+        return null;
+      } finally {
+        resolving.current = null;
+      }
+    })();
+    return resolving.current;
+  }
+  useEffect(() => {
+    if (stored && local === null) void resolveCarried(stored);
+  }, [stored, local === null]);
+
   // Runs the stage whose turn it is, and in Auto mode the ones after it, until one fails, the user stops, or a
-  // stage that can't run yet comes up.
+  // stage that can't run yet comes up. A carried manual stage on the way is kept or dropped first.
   async function run(latest: ApiPipeline) {
+    const resolved = await resolveCarried(latest);
+    if (resolved) return run(resolved);
     const current = currentStage(toPipeline(modeRef.current, latest));
     if (!current || (current.status !== "ready" && current.status !== "failed")) return;
     const stage = latest.stages.find((s) => s.id === current.id)!;

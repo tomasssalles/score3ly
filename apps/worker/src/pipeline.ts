@@ -23,6 +23,8 @@ export type Stage = {
   // LLM stages: the model config used, for the card (its name, else its model string), and what its calls cost.
   modelConfig: { name: string | null; model: string } | null;
   costUsd: number | null;
+  // A manual stage carried through a re-run, waiting for its turn to be kept or dropped (DESIGN.md §5.5).
+  carried: boolean;
   outputs: Output[];
 };
 
@@ -42,7 +44,7 @@ export const RECIPE = ["ingest", "rasterize", "skew_analysis", "layout", "analyz
 const INGEST_VERSION = 1;
 
 // The manual steps (DESIGN.md §5.4). A step's kind is declared in the web app; the Worker needs to know these to
-// add, edit and drop them, and to leave them out when the stages after a change are replaced (§5.8).
+// add, edit and drop them, and to carry them when the stages after a change are replaced (§5.5).
 export const MANUAL_STEPS = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "fix_mei"] as const;
 
 function isManual(step: string): boolean {
@@ -67,6 +69,7 @@ type StageRow = {
   mc_name?: string | null;
   mc_model?: string | null;
   cost_usd?: number | null;
+  carried?: number;
 };
 
 type OutputRow = {
@@ -123,7 +126,8 @@ function plannedStage(
 
 // The statements that rewrite a pipeline from `position` on: the entries before it stay, `head` (stage ids) comes
 // at `position`, and then the stages that were after `after`, replaced (DESIGN.md §5.5): a planned one keeps its
-// row, one that ran gets a planned copy with its config, and a manual one is dropped (for now, §5.8).
+// row, one that ran gets a planned copy with its config, and a manual one, WIP or done, is carried: it stays, waiting
+// for its turn, when it is kept if what it reads is the same as what it read (`resolve`).
 async function rewriteFrom(
   db: D1Database,
   projectId: string,
@@ -142,14 +146,14 @@ async function rewriteFrom(
     db.prepare("DELETE FROM pipeline_entries WHERE project_id = ? AND position >= ?").bind(projectId, position),
   ];
   let next = position;
-  const point = (stageId: string) =>
+  const point = (stageId: string, carried = false) =>
     db
-      .prepare("INSERT INTO pipeline_entries (project_id, position, stage_id) VALUES (?, ?, ?)")
-      .bind(projectId, next++, stageId);
+      .prepare("INSERT INTO pipeline_entries (project_id, position, stage_id, carried) VALUES (?, ?, ?, ?)")
+      .bind(projectId, next++, stageId, carried ? 1 : 0);
   for (const id of head) statements.push(point(id));
   for (const row of later) {
-    if (isManual(row.step)) continue;
-    if (row.status === "planned") statements.push(point(row.id));
+    if (isManual(row.step)) statements.push(point(row.id, true));
+    else if (row.status === "planned") statements.push(point(row.id));
     else statements.push(...plannedStage(db, projectId, next++, row.step, row.config_json, now));
   }
   return statements;
@@ -170,7 +174,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
   const [stages, outputs] = await db.batch([
     db
       .prepare(
-        "SELECT s.*, m.name AS mc_name, m.model AS mc_model, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
+        "SELECT s.*, e.carried, m.name AS mc_name, m.model AS mc_model, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
       )
       .bind(projectId),
     db
@@ -198,6 +202,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
       finishedAt: row.finished_at,
       modelConfig: row.mc_model ? { name: row.mc_name ?? null, model: row.mc_model } : null,
       costUsd: row.cost_usd ?? null,
+      carried: row.carried === 1,
       outputs: (byStage.get(row.id) ?? []).map((o) => ({
         id: o.id,
         item: o.item,
@@ -215,14 +220,14 @@ async function entry(
   db: D1Database,
   projectId: string,
   stageId: string,
-): Promise<{ position: number; stage: StageRow } | null> {
+): Promise<{ position: number; stage: StageRow; carried: boolean } | null> {
   const row = await db
     .prepare(
-      "SELECT e.position, s.* FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id JOIN projects p ON p.id = e.project_id WHERE e.project_id = ? AND e.stage_id = ? AND p.deleted_at IS NULL",
+      "SELECT e.position, e.carried, s.* FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id JOIN projects p ON p.id = e.project_id WHERE e.project_id = ? AND e.stage_id = ? AND p.deleted_at IS NULL",
     )
     .bind(projectId, stageId)
     .first<StageRow & { position: number }>();
-  return row && { position: row.position, stage: row };
+  return row && { position: row.position, stage: row, carried: row.carried === 1 };
 }
 
 function isStale(stage: StageRow, now: number): boolean {
@@ -375,6 +380,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const wip = found.stage.status === "wip";
     if (found.stage.status !== "running" && !wip) return c.json({ error: "the stage isn't running" }, 409);
+    if (found.carried) return c.json({ error: "the stage waits for its turn" }, 409);
     const now = new Date().toISOString();
     const ids = outputs.map(() => crypto.randomUUID());
     // A WIP stage's item saved again: the new content replaces the old, in the same row.
@@ -455,6 +461,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (stage.status !== "running" && !(stage.status === "wip" && status === "done")) {
       return c.json({ error: "the stage isn't running" }, 409);
     }
+    if (found.carried) return c.json({ error: "the stage waits for its turn" }, 409);
     const now = new Date().toISOString();
     await db.batch([
       db
@@ -549,6 +556,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (!isManual(stage.step) || stage.status !== "done") {
       return c.json({ error: "only a finished manual stage can be edited" }, 409);
     }
+    if (found.carried) return c.json({ error: "the stage waits for its turn" }, 409);
     const now = new Date();
     if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
     const iso = now.toISOString();
@@ -576,6 +584,52 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       touchProject(db, pid, iso),
     ]);
     return c.json({ stageId: id, pipeline: await readPipeline(db, pid) });
+  });
+
+  // A carried manual stage whose turn has come (every stage before it is done): the browser sends the outputs the
+  // stage would read now ({ inputIds }, as when it was added). If they hold the same content as what it read (the same
+  // items and types, each with the same content hash or recipe key), it is kept, as it is, WIP or done; otherwise it
+  // is dropped, and the stages after it move up (DESIGN.md §5.5). Returns whether it was kept, and the pipeline.
+  app.post("/api/projects/:pid/stages/:sid/resolve", async (c) => {
+    const db = c.env.DB;
+    const { pid, sid } = c.req.param();
+    const body = await c.req.json().catch(() => null);
+    if (!isStringArray(body?.inputIds)) return c.json({ error: "expected 'inputIds'" }, 400);
+    const found = await entry(db, pid, sid);
+    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found.carried) return c.json({ error: "the stage isn't waiting to be kept or dropped" }, 409);
+    const before = await db
+      .prepare("SELECT COUNT(*) AS n FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position < ? AND (s.status != 'done' OR e.carried = 1)")
+      .bind(pid, found.position)
+      .first<{ n: number }>();
+    if ((before?.n ?? 0) > 0) return c.json({ error: "the stages before it aren't all done" }, 409);
+    const contentOf = async (sql: string, binds: unknown[]) =>
+      (
+        await db
+          .prepare(sql)
+          .bind(...binds)
+          .all<{ item: string; type: string; k: string | null }>()
+      ).results
+        .map((r) => `${r.type}\u0000${r.item}\u0000${r.k}`)
+        .sort()
+        .join("\n");
+    const read = await contentOf(
+      "SELECT o.item, o.type, COALESCE(o.content_sha256, o.recipe_key) AS k FROM stage_inputs i JOIN outputs o ON o.id = i.output_id WHERE i.stage_id = ?",
+      [sid],
+    );
+    const ids = [...new Set(body.inputIds as string[])];
+    const now = await contentOf(
+      `SELECT item, type, COALESCE(content_sha256, recipe_key) AS k FROM outputs WHERE id IN (${ids.map(() => "?").join(", ") || "NULL"})`,
+      ids,
+    );
+    const kept = read === now;
+    const iso = new Date().toISOString();
+    await db.batch(
+      kept
+        ? [db.prepare("UPDATE pipeline_entries SET carried = 0 WHERE project_id = ? AND position = ?").bind(pid, found.position)]
+        : [...(await rewriteFrom(db, pid, found.position, [], found.position, iso)), touchProject(db, pid, iso)],
+    );
+    return c.json({ kept, pipeline: await readPipeline(db, pid) });
   });
 
   // Drops a manual stage, WIP or finished (DESIGN.md §5.5): its entry goes, and the stages after it move up and are

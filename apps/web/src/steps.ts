@@ -421,6 +421,16 @@ export const FIX_STARTS: Record<string, (after: ApiStage, earlier: ApiStage[]) =
   fix_mei: (_after, earlier) => fixMeiStart(earlier),
 };
 
+// What a carried manual stage would read now (DESIGN.md §5.5): the inputs it would get if it were added now after the
+// stage it fixes, the latest stage before it that isn't manual.
+export function carriedInputs(stages: ApiStage[], index: number): string[] {
+  let after = index - 1;
+  while (after >= 0 && stepInfo(stages[after].step).kind === "manual") after--;
+  const start = FIX_STARTS[stages[index].step];
+  if (after < 0 || !start) return [];
+  return start(stages[after], stages.slice(0, after + 1)).inputIds;
+}
+
 // A step this version of the app doesn't know (e.g. from a newer one) is shown by its id, without artifacts.
 export function stepInfo(step: string): StepInfo {
   return STEPS[step] ?? { title: step, kind: "computed", optional: false, fixes: [], artifacts: () => [] };

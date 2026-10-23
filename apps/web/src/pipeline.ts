@@ -64,6 +64,7 @@ export type Stage = {
   artifacts: Artifact[]; // the first is the main one; shown once the stage is done (or while a manual one is worked on)
   config: Record<string, string>;
   fixes: { step: string; title: string }[]; // the manual stages that can be added after it, e.g. "Fix skew"
+  carried: boolean; // a manual stage carried through a re-run: shown as planned until its turn comes (§5.5)
   droppable: boolean; // not part of the recipe (DESIGN.md §5.5)
 };
 
@@ -83,7 +84,7 @@ export const STALE_MS = 3 * 60 * 1000;
 export type LocalRun = { stageId: string; progress: number; imagesDiffer?: boolean };
 
 // The pipeline as the Worker stores it, made ready to show. The first planned stage after the finished ones is
-// the one whose turn it is: "ready". A stage running elsewhere shows no progress; one whose heartbeat stopped
+// the one whose turn it is: "ready" (but a carried manual stage, which is kept or dropped as soon as its turn comes). A stage running elsewhere shows no progress; one whose heartbeat stopped
 // counts as failed, and can run again.
 export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null, now = Date.now()): Pipeline {
   const stages = stored.stages.map((s, i) => {
@@ -97,7 +98,7 @@ export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun |
     return stage;
   });
   const next = stages.findIndex((stage) => stage.status !== "done");
-  if (next >= 0 && stages[next].status === "planned") stages[next] = { ...stages[next], status: "ready" };
+  if (next >= 0 && stages[next].status === "planned" && !stages[next].carried) stages[next] = { ...stages[next], status: "ready" };
   return { mode, stages };
 }
 
@@ -111,8 +112,9 @@ function fixesAfter(stages: ApiStage[], i: number): ApiStage[] {
 
 function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], later: ApiStage[]): Stage {
   const info = stepInfo(stored.step);
-  // Stopped stages aren't in a pipeline; if one shows up anyway, it can run again like a failed one.
-  const status: StageStatus = stored.status === "stopped" ? "failed" : stored.status;
+  // Stopped stages aren't in a pipeline; if one shows up anyway, it can run again like a failed one. A carried manual
+  // stage looks planned until it is kept.
+  const status: StageStatus = stored.carried ? "planned" : stored.status === "stopped" ? "failed" : stored.status;
   const seconds =
     info.kind !== "ingest" && stored.startedAt && stored.finishedAt
       ? (Date.parse(stored.finishedAt) - Date.parse(stored.startedAt)) / 1000
@@ -131,13 +133,14 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
     error: stored.error ?? undefined,
     progress: 0,
     imagesDiffer: false,
-    artifacts: info.artifacts(stored, earlier),
+    artifacts: stored.carried ? [] : info.artifacts(stored, earlier),
     config: Object.fromEntries(
       Object.entries(stored.config ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : JSON.stringify(value)]),
     ),
     fixes: info.fixes
       .filter((step) => !following.some((s) => s.step === step) && fixOffered(step, later))
       .map((step) => ({ step, title: stepInfo(step).title })),
+    carried: stored.carried,
     droppable: info.kind === "manual" || info.optional,
   };
 }
