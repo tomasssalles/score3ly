@@ -24,7 +24,8 @@ import {
   type PageNavigation,
   type Point,
 } from "./pageEditor";
-import { pageImage } from "./pageImages";
+import { ImagesDiffer } from "./ImagesDiffer";
+import { keepFingerprints, pageImage } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
 import { angleLabel } from "./skewAnalysis";
 
@@ -112,6 +113,8 @@ function PageEditor({
     await recordOutputs(project, stageId, [
       { item: page.item, type: "lines", contentSha256: sha256, parentOutputId: page.parentId, inputIds: [page.parentId] },
     ]);
+    // The lines are drawn on this image: its fingerprint is kept (§8.3).
+    await keepFingerprints([{ recipe: page.recipe, png: (await pageImage(page.recipe)).png }]);
   }, onEdited);
 
   const setLines = (next: SkewLine[]) => {
@@ -297,6 +300,7 @@ function PageEditor({
         className={mode}
         label={`Page ${page.page}: lines that should be horizontal`}
         error={imageError ?? loadError ?? saveError}
+        notice={<ImagesDiffer page={page.recipe} />}
       >
         {image && lines && (
           <>

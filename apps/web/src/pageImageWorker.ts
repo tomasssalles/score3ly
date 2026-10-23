@@ -4,17 +4,20 @@
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import {
+  asStored,
   crop,
   decodePng,
   deskew,
   drawLayout,
   encodePng,
   findSkew,
+  fingerprintOf,
   openPdf,
   pageImage,
   shrinkToFit,
   type Box,
   type DrawOptions,
+  type Fingerprint,
   type LayoutSystem,
   type PdfDocument,
   type SizeLimit,
@@ -27,6 +30,8 @@ export type PageImageRequest =
   | { id: number; type: "open"; sha256: string; pdf: ArrayBuffer }
   | { id: number; type: "page"; sha256: string; page: number; dpi: number }
   | { id: number; type: "skew"; png: ArrayBuffer; maxAngle: number }
+  // The fingerprint of an image (DESIGN.md §8.3), as decoded from its PNG.
+  | { id: number; type: "fingerprint"; png: ArrayBuffer }
   // An image made from another: straightened by `angle`, then cut to `crop` (a box, fractions of the straightened
   // image), then shrunk to `limit`, then with a layout drawn on it (labelled as `drawOptions` say), and stored as gray
   // if `gray`.
@@ -44,9 +49,10 @@ export type PageImageRequest =
 
 export type PageImageResponse =
   | { id: number; type: "opened"; pageCount: number; pdfjsVersion: string }
-  | { id: number; type: "page"; png: Uint8Array<ArrayBuffer>; width: number; height: number; source: string; dpi: number }
+  | { id: number; type: "page"; png: Uint8Array<ArrayBuffer>; width: number; height: number; source: string; dpi: number; fingerprint: Fingerprint }
   | { id: number; type: "skew"; skew: Skew }
-  | { id: number; type: "derived"; png: Uint8Array<ArrayBuffer>; width: number; height: number }
+  | { id: number; type: "fingerprint"; fingerprint: Fingerprint }
+  | { id: number; type: "derived"; png: Uint8Array<ArrayBuffer>; width: number; height: number; fingerprint: Fingerprint }
   | { id: number; type: "error"; message: string };
 
 const scope = self as unknown as {
@@ -121,6 +127,11 @@ async function handle(request: PageImageRequest): Promise<void> {
     scope.postMessage({ id: request.id, type: "skew", skew: findSkew(image, { maxAngle: request.maxAngle }) });
     return;
   }
+  if (request.type === "fingerprint") {
+    const image = await decodePng(new Uint8Array(request.png));
+    scope.postMessage({ id: request.id, type: "fingerprint", fingerprint: await fingerprintOf(image) });
+    return;
+  }
   if (request.type === "derive") {
     let image = await decodePng(new Uint8Array(request.png));
     if (request.angle !== undefined) image = deskew(image, request.angle);
@@ -128,7 +139,8 @@ async function handle(request: PageImageRequest): Promise<void> {
     if (request.limit) image = shrinkToFit(image, request.limit);
     if (request.draw) image = drawLayout(image, request.draw, request.drawOptions);
     const png = await encodePng(image, { gray: request.gray });
-    scope.postMessage({ id: request.id, type: "derived", png, width: image.width, height: image.height }, [png.buffer]);
+    const fingerprint = await fingerprintOf(asStored(image, request.gray ?? false));
+    scope.postMessage({ id: request.id, type: "derived", png, width: image.width, height: image.height, fingerprint }, [png.buffer]);
     return;
   }
   const doc = await docs.get(request.sha256);
@@ -147,6 +159,7 @@ async function handle(request: PageImageRequest): Promise<void> {
       height: page.image.height,
       source: page.source,
       dpi: page.dpi,
+      fingerprint: await fingerprintOf(page.image),
     },
     [png.buffer],
   );

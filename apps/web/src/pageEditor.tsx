@@ -244,6 +244,7 @@ export function PageCanvas({
   className,
   label,
   error,
+  notice,
   children,
 }: {
   viewport: Viewport;
@@ -251,6 +252,7 @@ export function PageCanvas({
   className: string;
   label: string;
   error: string | null;
+  notice?: ReactNode; // over the page, e.g. that the image differs (ImagesDiffer.tsx)
   children: ReactNode; // the drawing: SVG elements in image px; shown once there is an image
 }) {
   return (
@@ -272,6 +274,7 @@ export function PageCanvas({
         <div className="page-placeholder">{error ?? "Drawing the page…"}</div>
       )}
       {error && image && <p className="editor-error">{error}</p>}
+      {image && notice}
     </div>
   );
 }

@@ -39,7 +39,8 @@ import {
   type PageNavigation,
   type Point,
 } from "./pageEditor";
-import { straightPage } from "./pageImages";
+import { ImagesDiffer } from "./ImagesDiffer";
+import { keepFingerprints, straightPage } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
 
 export type LayoutEditorPage = { page: number; recipe: PageRecipe; layoutSha256: string; item: string; parentId: string };
@@ -115,6 +116,9 @@ export function LayoutEditor({
         await recordOutputs(project, stageId, [
           { item, type: "layout", contentSha256: sha256, parentOutputId: page.parentId, inputIds: [page.parentId] },
         ]);
+        // The boxes are drawn on this image: its fingerprint is kept (§8.3).
+        const straight = { page: page.recipe, angle: layout.angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
+        await keepFingerprints([{ recipe: straight, png: await straightPage(straight) }]);
         setError(null);
         onEdited?.();
       })
@@ -399,6 +403,7 @@ function PageEditor({
         className={mode}
         label={`Page ${page.page}: system boxes and bar lines`}
         error={imageError ?? error}
+        notice={<ImagesDiffer page={page.recipe} />}
       >
         {image && (
           <>

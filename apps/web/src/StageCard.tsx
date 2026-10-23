@@ -96,6 +96,9 @@ export function StageCard({
 
       {!planned && <Facts stage={stage} />}
       {stage.status === "running" && <ProgressBar value={stage.progress} label={`${stage.title}: progress`} />}
+      {stage.status === "running" && stage.imagesDiffer && (
+        <p className="stage-warning">Some images differ on this device from the ones stored results were made from; boxes or answers may not fit them.</p>
+      )}
       {stage.status === "failed" && <p className="stage-error">{stage.error}</p>}
       <StageButton stage={stage} mode={mode} actions={actions} />
       {stage.status === "done" && <Downloads stage={stage} actions={actions} />}

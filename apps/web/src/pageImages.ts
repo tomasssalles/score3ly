@@ -1,8 +1,16 @@
 // Page images for the pipeline and the artifact view (DESIGN.md §6, `rasterize`): taken from the device's cache, or
 // computed from their recipe by a Web Worker (pageImageWorker.ts) and cached. A page is computed only when
 // something needs it (§5.3).
+//
+// Fingerprints (§8.3): every image made here is fingerprinted, and the fingerprint kept next to it in the cache. An
+// image made because the cache didn't have it is checked against the fingerprint stored for its recipe, if any; one
+// that differs marks its page (the page image it was made from) as differing on this device, which the views and the
+// running stage's card show. Stages and editors store the fingerprints of the images their results are computed from
+// (`keepFingerprints`).
 
-import { cachedImage, cacheImage } from "./imageCache";
+import { compareFingerprints, type Fingerprint } from "@score3ly/imaging";
+import { fetchFingerprint, storeFingerprints } from "./api";
+import { cachedImage, cacheImage, cachedJson, cacheJson } from "./imageCache";
 import { keyOf } from "./keys";
 import { pdfUrl } from "./pdf";
 import type { PageImageRequest, PageImageResponse } from "./pageImageWorker";
@@ -75,6 +83,7 @@ export async function pageImage(recipe: PageRecipe): Promise<{ png: Blob; comput
   const answer = await ask({ type: "page", sha256: recipe.pdf, page: recipe.page, dpi: recipe.dpi });
   if (answer.type !== "page") throw new Error("Unexpected answer from the page image worker.");
   await cacheImage(key, answer.png);
+  await made(key, recipe, answer.fingerprint);
   return { png: new Blob([answer.png], { type: "image/png" }), computed: true };
 }
 
@@ -95,20 +104,98 @@ export type ModelPageRecipe = { straight: StraightRecipe; limit: SizeLimit; scal
 
 type DeriveOptions = { angle?: number; crop?: Box; limit?: SizeLimit; draw?: LayoutSystem[]; drawOptions?: DrawOptions; gray?: boolean };
 
-async function derive(png: Blob, options: DeriveOptions): Promise<Uint8Array<ArrayBuffer>> {
+type Derived = { png: Uint8Array<ArrayBuffer>; fingerprint: Fingerprint };
+
+async function derive(png: Blob, options: DeriveOptions): Promise<Derived> {
   const bytes = await png.arrayBuffer();
   const answer = await ask({ type: "derive", png: bytes, ...options }, [bytes]);
   if (answer.type !== "derived") throw new Error("Unexpected answer from the page image worker.");
-  return answer.png;
+  return answer;
 }
 
-async function cachedOr(recipe: unknown, make: () => Promise<Uint8Array<ArrayBuffer>>): Promise<Blob> {
+async function cachedOr(recipe: unknown, make: () => Promise<Derived>): Promise<Blob> {
   const key = await keyOf(recipe);
   const cached = await cachedImage(key);
   if (cached) return cached;
-  const png = await make();
+  const { png, fingerprint } = await make();
   await cacheImage(key, png);
+  await made(key, recipe, fingerprint);
   return new Blob([png], { type: "image/png" });
+}
+
+// Fingerprints.
+
+const fingerprintName = (key: string) => `${key}.fingerprint`;
+
+// The page image a recipe is made from: the recipe itself, or the one inside it (every recipe leads back to one).
+function pageRecipeOf(recipe: unknown): PageRecipe | null {
+  if (!recipe || typeof recipe !== "object") return null;
+  const r = recipe as Record<string, unknown>;
+  if (typeof r.pdf === "string" && typeof r.page === "number" && typeof r.dpi === "number") return recipe as PageRecipe;
+  for (const value of Object.values(r)) {
+    const found = pageRecipeOf(value);
+    if (found) return found;
+  }
+  return null;
+}
+
+// The pages (by their page image's recipe key) with an image that differs on this device from the one a stored
+// result was computed from, and who wants to know.
+const differing = new Set<string>();
+const listeners = new Set<() => void>();
+
+export function pageDiffers(pageKey: string): boolean {
+  return differing.has(pageKey);
+}
+
+export function onImagesDiffer(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+// An image was made from its recipe: its fingerprint is kept, and checked against the stored one. A check that can't
+// be made (offline) is skipped: it is a warning, never a stop.
+async function made(key: string, recipe: unknown, fingerprint: Fingerprint): Promise<void> {
+  await cacheJson(fingerprintName(key), fingerprint);
+  try {
+    const stored = await fetchFingerprint(key);
+    if (!stored || stored.version !== fingerprint.version || compareFingerprints(stored, fingerprint) !== "different") return;
+  } catch {
+    return;
+  }
+  const page = pageRecipeOf(recipe);
+  if (!page) return;
+  differing.add(await keyOf(page));
+  for (const listener of listeners) listener();
+}
+
+// The fingerprint of an image as this device has it: kept from when it was made, or computed from the PNG.
+async function fingerprintOf(key: string, png: Blob): Promise<Fingerprint> {
+  const kept = (await cachedJson(fingerprintName(key))) as Fingerprint | null;
+  if (kept) return kept;
+  const bytes = await png.arrayBuffer();
+  const answer = await ask({ type: "fingerprint", png: bytes }, [bytes]);
+  if (answer.type !== "fingerprint") throw new Error("Unexpected answer from the page image worker.");
+  await cacheJson(fingerprintName(key), answer.fingerprint);
+  return answer.fingerprint;
+}
+
+// Stores the fingerprints of images a stored result was computed from (one already stored for a recipe stays).
+// Best effort: a fingerprint that can't be stored only means one check less later.
+export async function keepFingerprints(images: { recipe: unknown; png: Blob }[]): Promise<void> {
+  try {
+    const fingerprints = await Promise.all(
+      images.map(async ({ recipe, png }) => {
+        const recipeKey = await keyOf(recipe);
+        const pdfSha256 = pageRecipeOf(recipe)?.pdf;
+        if (!pdfSha256) throw new Error("an image recipe without its PDF");
+        return { ...(await fingerprintOf(recipeKey, png)), recipeKey, pdfSha256 };
+      }),
+    );
+    for (let i = 0; i < fingerprints.length; i += 100) await storeFingerprints(fingerprints.slice(i, i + 100));
+  } catch (err) {
+    console.warn("Storing fingerprints failed:", err);
+  }
 }
 
 export async function straightPage(recipe: StraightRecipe): Promise<Blob> {

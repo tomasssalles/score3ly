@@ -73,6 +73,15 @@ export async function cachedSvg(key: string): Promise<string | null> {
 
 export const cacheSvg = (key: string, svg: string): Promise<void> => cacheFile(`${key}.svg`, new Blob([svg], { type: "image/svg+xml" }));
 
+// An image's fingerprint (DESIGN.md §8.3), next to it: what it was when this device made it.
+export async function cachedJson(name: string): Promise<unknown | null> {
+  const blob = await cachedFile(`${name}.json`);
+  return blob ? JSON.parse(await blob.text()) : null;
+}
+
+export const cacheJson = (name: string, value: unknown): Promise<void> =>
+  cacheFile(`${name}.json`, new Blob([JSON.stringify(value)], { type: "application/json" }));
+
 // Several renderings at once (an engraving's pages), as one JSON file.
 export async function cachedSvgs(key: string): Promise<string[] | null> {
   const blob = await cachedFile(`${key}.json`);

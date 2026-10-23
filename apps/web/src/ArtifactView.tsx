@@ -1,3 +1,4 @@
+import { ImagesDiffer } from "./ImagesDiffer";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { fetchJsonContent, type Project } from "./api";
 import { CloseIcon } from "./icons";
@@ -149,6 +150,7 @@ export function PageImageView({
           <img src={url} alt={`Page ${recipe.page}`} />
           {linesSha256 && <LinesOverlay sha256={linesSha256} />}
           {children}
+          <ImagesDiffer page={recipe} />
         </>
       ) : (
         <div className="page-placeholder">{error ?? "Drawing the page…"}</div>

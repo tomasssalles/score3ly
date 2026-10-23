@@ -10,6 +10,7 @@
   --wordmark: #ffffff;
   --accent: #ff7b72; /* coral, 8.4:1 on black */
   --danger: #ff5c5c; /* destructive actions, e.g. deleting */
+  --warning: #e0a030; /* amber: something to look at, not an error */
   --green: #3fb950;
   --progress: var(--green); /* progress bars and circles */
   --on-accent: #000000;
@@ -912,6 +913,36 @@ body {
 
 .page-image {
   position: relative;
+}
+
+/* An image that differs from the one stored results were computed from (DESIGN.md §8.3): a banner over its top. */
+.images-differ {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  z-index: 2;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--warning);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--warning);
+  font-size: 13px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.images-differ.below {
+  position: static;
+  margin-top: 6px;
+}
+
+.stage-warning {
+  margin: 6px 0 0;
+  color: var(--warning);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 /* The lines that should be horizontal (skew_analysis), in red over the page. */

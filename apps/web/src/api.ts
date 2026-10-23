@@ -1,3 +1,4 @@
+import type { Fingerprint } from "@score3ly/imaging";
 import { sha256Hex } from "./sha256.ts";
 
 // Mirrors the Worker's Project type (apps/worker/src/index.ts).
@@ -313,6 +314,18 @@ export async function callLlm(project: Project, stageId: string, request: LlmReq
     throw new ApiError(response.status);
   }
   return response.json();
+}
+
+// Fingerprints of the images from which stored results were computed (apps/worker/src/fingerprints.ts, DESIGN.md
+// §8.3), by the image's recipe key.
+export type StoredFingerprint = Fingerprint & { recipeKey: string; pdfSha256: string };
+
+export async function fetchFingerprint(recipeKey: string): Promise<StoredFingerprint | null> {
+  return ((await (await checked(await fetch(`/api/fingerprints/${recipeKey}`))).json()) as { fingerprint: StoredFingerprint | null }).fingerprint;
+}
+
+export async function storeFingerprints(fingerprints: StoredFingerprint[]): Promise<void> {
+  await send("/api/fingerprints", { fingerprints });
 }
 
 // When the LLM price table was collected (DESIGN.md §10).

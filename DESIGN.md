@@ -1245,7 +1245,17 @@ Built: `packages/imaging/src/pdfPages.ts` (`openPdf`, `pageImage`), tested on th
 2. **Close:** a downsampled grayscale thumbnail (64×64 to 128×128). Compare the regenerated image downsampled the same way:
    - mean absolute difference below about 1 gray level, and
    - no single tile above a few gray levels.
-3. **Mismatch:** flag the project and ask the human to re-check the affected boxes and angles.
+3. **Mismatch:** a warning (decided): nothing is flagged in storage, since it is this device's image that differs.
+   - **Over every image of the page concerned** (the page, straightened, its crops), wherever it is shown (artifact views, editors): "This image differs from the one the stored results were made from on another device; boxes or answers may not fit it." Below a system's crop instead of over it, where a banner would hide the music.
+   - **On the card of a stage running on this device** that makes such an image: "Some images differ on this device from the ones stored results were made from; boxes or answers may not fit them."
+   - **"Close" is silent.**
+
+**Built** (`packages/imaging/src/fingerprint.ts`; `apps/web/src/pageImages.ts`, `ImagesDiffer.tsx`; `apps/worker/src/fingerprints.ts`, migration 0016 adds the version, the thumbnail's size and the time):
+- **The fingerprint:** the size, the SHA-256 of the raw RGBA pixels as decoded (an image stored as gray as it reads back), and a grayscale thumbnail of at most 64×64 (area averaging, each pixel the average of a tile); "close" is a mean difference below 1 gray level and no thumbnail pixel more than 4 apart. A version (`FINGERPRINT_VERSION`): only fingerprints of the same version are compared.
+- **Made with every image,** in the page image worker, and kept next to it in the device's cache (an image cached without one gets it computed from its PNG when needed).
+- **Stored** (`POST /api/fingerprints`, one per recipe key, the first stays) by what computes a stored result from images: every image of an LLM request that was paid for (`ask`: `layout`'s, `analyze`'s and `extract`'s), `skew_analysis`'s page images, and the images `fix_skew` and `fix_layout` save a change on.
+- **Checked** (`GET /api/fingerprints/<recipe key>`) whenever an image is made because the cache doesn't have it; a mismatch marks the page (its page image's recipe key) for the rest of the page load. A check that can't be made (offline) is skipped.
+- Tried in Chromium at both widths, with a stored fingerprint altered by hand: the banners on the pages, the layout and the Transcription's crops, and the running stage's card.
 
 ### 8.4 Finding the skew
 Built: `findSkew` in `packages/imaging/src/skew.ts`. It returns the angle (degrees, positive when horizontal lines descend to the right; `deskew(image, angle)` straightens the page), a confidence from 0 to 1, whether the angle is at the limit of the search, and the staves found (below). `shouldDeskew` applies the rule below.
@@ -1300,7 +1310,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - **Numbers are written canonically** before hashing (angles and box coordinates rounded to fixed decimals, canonical JSON), so the same recipe always gives the same key.
 - **The code versions** are those of our image functions, plus pdf.js's for the page images (§11).
 - **Stored as PNG** (`cache/<key>.png`), encoded by our own code: a raw RGBA page is about 35 MB, a PNG of line art much smaller and lossless. Reading costs a decode.
-  - **Built:** the encoder and decoder (`packages/imaging/src/png.ts`: 8-bit RGBA, the "Up" row filter, compressed with the platform's `CompressionStream`, so the same in browsers and Node) and the cache (`apps/web/src/imageCache.ts`), keyed by the hash of the recipe as canonical JSON. Where OPFS isn't available (some private windows), images are kept in memory while the page is open. The artifact view shows the cached PNG directly (an `<img>`), with no decode. Not built: the size limit, LRU eviction and `navigator.storage.persist()` (§8.5).
+  - **Built:** the encoder and decoder (`packages/imaging/src/png.ts`: 8-bit RGBA, the "Up" row filter, compressed with the platform's `CompressionStream`, so the same in browsers and Node) and the cache (`apps/web/src/imageCache.ts`), keyed by the hash of the recipe as canonical JSON. Where OPFS isn't available (some private windows), images are kept in memory while the page is open. The artifact view shows the cached PNG directly (an `<img>`), with no decode. Not built: the size limit and LRU eviction (§8.5).
 - **The key isn't the fingerprint** (§8.3): the key says what an image should be, the fingerprint, stored in D1 for every image from which a stored result was computed, what it was. An image regenerated on another device is checked against it.
 
 ## 9. Rendering
@@ -1592,7 +1602,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Google Drive** (§3, §10): picking source PDFs with the Picker, and exporting to an app-created folder.
 - **Try regeneration on a second device** (§5.3): a project run on one device, continued on another whose image cache is empty.
 - **Try the editors with touch and on a real phone:** `fix_layout` hasn't been tried with touch at all, `fix_skew` only through Chromium's emulation of touch at phone size.
-- **Store the fingerprints** (§8.3) of the images from which a stored result was computed (`skew_analysis`, `layout`, `analyze`, the editors), in `image_fingerprints` (migration 0003; nothing writes to it), and check a regenerated image against them.
 - **Optimistic locking** (§4): `projects.version` exists, but no request checks it yet. Two devices running or changing the same pipeline at once aren't guarded against, except that a running stage can't be started again.
 - **Images for the LLMs,** what is left. They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk by our own code to Claude's limits (`packages/imaging/src/scale.ts`; 2576 px on the long edge, 4784 visual tokens):
   - **5 MB per image on Bedrock and Vertex AI** (10 MB on Anthropic's API, 32 MB per request): check with the first real calls whether a colour scan at 2576 px stays under it as PNG, and what to do if not (grayscale, or a smaller limit for that provider). `layout` doesn't check its requests' size yet (§6).

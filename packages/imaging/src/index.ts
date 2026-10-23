@@ -7,3 +7,4 @@ export * from "./regions.ts";
 export * from "./png.ts";
 export * from "./scale.ts";
 export * from "./draw.ts";
+export * from "./fingerprint.ts";

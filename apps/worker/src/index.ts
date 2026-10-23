@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
+import { fingerprintRoutes } from "./fingerprints.ts";
 import { llmRoutes, readSettings } from "./llmRoutes.ts";
 import { newPipeline, pipelineRoutes } from "./pipeline.ts";
 
@@ -293,5 +294,6 @@ app.post("/api/projects/:id/issue-numbers", async (c) => {
 
 pipelineRoutes(app);
 llmRoutes(app);
+fingerprintRoutes(app);
 
 export default app;

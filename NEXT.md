@@ -4,22 +4,6 @@ Written for the next session. Read DESIGN.md first, as usual. Work happens on th
 main only when the project owner asks. The project owner decides the order; these are the items they listed, with what
 is known about each.
 
-## 2. Fingerprints: built, stored, checked, warnings
-- **Designed** in DESIGN.md §8.3 (and §5.2, §5.8 table `image_fingerprints`); task in §15 "Store the fingerprints".
-  Commits `503c449` and `895e15e` (2026-10-20). The table exists (migration 0003), **nothing writes or reads it**.
-- **Which images:** every image from which a stored result was computed: page images (`skew_analysis`, `fix_skew`),
-  the straightened/scaled pages sent by `layout` and `analyze`, the straightened pages of `fix_layout`, the crops of
-  `extract` (later `review`, `apply_review`, `human_review`). Stored when first used, with its recipe key and PDF:
-  dimensions, hash of the raw pixels, a thumbnail.
-- **Checked** wherever an image is made from its recipe because the device's cache doesn't have it, in the one place
-  that does that (`apps/web/src/pageImages.ts`), whatever needed it (an artifact view, an editor, a stage). No image is
-  made only to be checked. Three tiers in §8.3 (identical / "close" / different).
-- **A warning, never a stop:** results are reused whatever the device (keys hold only recipes, item 1); a mismatch tells
-  the user the coordinates or answers may not fit the image on this device. How the warning is shown: to design with
-  the owner (it isn't specified yet).
-- Needs Worker endpoints to store and fetch fingerprints, and the check in `pageImages.ts`. Tests; DESIGN.md; delete
-  the task.
-
 ## 3. Showing that the pipeline is moving while the user looks at an artifact
 - **Decided:** the artifact view **stays** on what the user picked when a new stage finishes (it already follows the
   pipeline only while nothing is picked: `defaultArtifactId` in `pipeline.ts`, used in `ProjectView.tsx`). Close the

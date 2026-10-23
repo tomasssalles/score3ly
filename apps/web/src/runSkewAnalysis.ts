@@ -4,7 +4,7 @@
 
 import { putContent } from "./api";
 import { canonicalJson } from "./keys";
-import { measureSkew, pageImage } from "./pageImages";
+import { keepFingerprints, measureSkew, pageImage } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
 import { pageOfItem } from "./rasterize";
 import { SKEW_ANALYSIS_VERSION, skewConfigError, skewConfigOf, skewNote, skewStageKey } from "./skewAnalysis";
@@ -46,6 +46,7 @@ export async function runSkewAnalysis(run: StageRun): Promise<void> {
       make: async () => {
         const { png } = await pageImage(recipe);
         const skew = await measureSkew(png, config.maxAngle);
+        await keepFingerprints([{ recipe, png }]);
         if (skew.lines.length > 0) withLines++;
         const json = new TextEncoder().encode(canonicalJson(skew));
         const contentSha256 = await putContent(json, "application/json");

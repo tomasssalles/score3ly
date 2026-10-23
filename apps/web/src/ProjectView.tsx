@@ -1,3 +1,4 @@
+import { onImagesDiffer } from "./pageImages";
 import { useEffect, useRef, useState } from "react";
 import {
   addFixStage,
@@ -260,6 +261,8 @@ export function ProjectView({
     controller.current = abort;
     setLocal({ stageId: stage.id, progress: 0 });
     scroll();
+    // Images this run makes that differ from the stored ones' fingerprints show on its card (§8.3).
+    const unwatch = onImagesDiffer(() => setLocal((l) => l && { ...l, imagesDiffer: true }));
     try {
       await runner({
         project,
@@ -274,6 +277,7 @@ export function ProjectView({
         setError(err instanceof CannotStart ? `"${current.title}" can't run: ${message}` : message);
       }
     } finally {
+      unwatch();
       setLocal(null);
       controller.current = null;
     }

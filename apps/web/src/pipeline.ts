@@ -60,6 +60,7 @@ export type Stage = {
   note?: string; // one short fact about the result, e.g. "3 boxes moved"
   error?: string; // failed stages
   progress: number; // from 0 to 1 while running; known only on the device that runs the stage
+  imagesDiffer: boolean; // while running here: an image it made differs from the one a stored result was computed from (§8.3)
   artifacts: Artifact[]; // the first is the main one; shown once the stage is done (or while a manual one is worked on)
   config: Record<string, string>;
   fixes: { step: string; title: string }[]; // the manual stages that can be added after it, e.g. "Fix skew"
@@ -79,7 +80,7 @@ export type Progress = { stage: number | null; pipeline: number };
 export const STALE_MS = 3 * 60 * 1000;
 
 // The stage this device is running, and how far it is: only the device that runs a stage knows (§5.1).
-export type LocalRun = { stageId: string; progress: number };
+export type LocalRun = { stageId: string; progress: number; imagesDiffer?: boolean };
 
 // The pipeline as the Worker stores it, made ready to show. The first planned stage after the finished ones is
 // the one whose turn it is: "ready". A stage running elsewhere shows no progress; one whose heartbeat stopped
@@ -87,7 +88,9 @@ export type LocalRun = { stageId: string; progress: number };
 export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null, now = Date.now()): Pipeline {
   const stages = stored.stages.map((s, i) => {
     const stage = toStage(s, stored.stages.slice(0, i), fixesAfter(stored.stages, i), stored.stages.slice(i + 1));
-    if (local?.stageId === s.id) return { ...stage, status: "running" as const, progress: local.progress };
+    if (local?.stageId === s.id) {
+      return { ...stage, status: "running" as const, progress: local.progress, imagesDiffer: local.imagesDiffer ?? false };
+    }
     if (s.status === "running" && (s.heartbeatAt === null || now - Date.parse(s.heartbeatAt) > STALE_MS)) {
       return { ...stage, status: "failed" as const, error: "Interrupted: the app was closed while this stage ran." };
     }
@@ -127,6 +130,7 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
     note: stored.note ?? undefined,
     error: stored.error ?? undefined,
     progress: 0,
+    imagesDiffer: false,
     artifacts: info.artifacts(stored, earlier),
     config: Object.fromEntries(
       Object.entries(stored.config ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : JSON.stringify(value)]),

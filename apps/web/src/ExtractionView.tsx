@@ -4,6 +4,7 @@
 // on (numbered and solid for issues, dashed with "!" for warnings), and their text is below the system; tapping a box
 // brings its text into view. Both toggles are remembered on the device.
 
+import { ImagesDiffer } from "./ImagesDiffer";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CLAUDE_IMAGE_LIMIT, CROP_VERSION, DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { buildMei, serialize, type LensStretch, type Score } from "@score3ly/notation";
@@ -205,6 +206,7 @@ function CropView({ recipe, label, children }: { recipe: CropRecipe; label: stri
     <div ref={ref} className="page-image">
       {url ? <img src={url} alt={label} /> : <div className="page-placeholder crop-placeholder">{error ?? "Drawing the system…"}</div>}
       {url && children}
+      {url && <ImagesDiffer page={recipe.straight.page} below />}
     </div>
   );
 }
