@@ -344,10 +344,12 @@ A re-run follows **the pipeline as it was, not the standard recipe** of recipe s
 - **They stay connected to their project in D1,** although the pipeline no longer shows them, so that deleting the project (§4) finds and deletes them too. Until then, a project's storage only grows.
 
 #### Confirmation before a re-run
-A dialog asks for confirmation before anything is replaced. The wording still needs polishing, but it must say clearly:
-- The pipeline is **overwritten irreversibly**: there is no undo and no branching, so this is a hard rewrite.
-- Changing one stage can change, and is likely to change, the rest of the pipeline.
-- Wherever the input stays exactly the same, earlier results are reused: LLM calls already paid for are not paid for again, and manual fixes are kept. Everywhere else, calls are paid for again and manual work is dropped.
+A dialog asks for confirmation before anything is replaced (decided, built in `ProjectView.tsx`). It shows when a change replaces stages that have already run (done, failed, WIP or running): a new config for a stage that has run or is followed by one that has; a manual stage added, or a finished one edited, where a stage after it has run. Dropping a stage always asks.
+- **Simple and almost generic** (decided): it says that manual work after the change is lost, that automated stages after it may have to run again, and that it can't be undone, without working out which stages exactly.
+- **Title:** "Are you sure?"
+- **Text:** "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages will be dropped entirely. This action cannot be undone." For a new config, it starts with "This stage will have to run again with the new config." (In Manual mode it runs again only when the user runs it.)
+- **Buttons:** "Cancel", and one naming the change, in the accent colour like every confirmation: "Change config", "Add stage", "Edit stage", "Drop stage".
+- **No manual stage has a config.** If one ever has, the text for a new config must be adjusted.
 
 ### 5.6 How the app shows a project
 - **The pipeline is the main attraction; the artifact view is secondary.** The usual use is: new project, let it run, take the final MEI and leave. So the pipeline gets the comfortable place on every screen, and inspecting artifacts is what gets less comfortable on small screens.
@@ -1554,7 +1556,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
 - **Carry manual stages through a re-run** (§5.5, §5.8): today a change before a manual stage drops it. A re-run should reuse it when its inputs come out the same, and drop it otherwise. The confirmation dialogs before a re-run (§5.5) must be updated with it.
 - **Decide on the report after a re-run** (§5.5, proposed): which manual fixes were carried over and which were dropped.
-- **Polish the wording of the confirmation before a re-run** (§5.5).
 - **Decide whether the artifact view follows the pipeline while it runs** (§5.6).
 - **Decide how pieces are numbered** (§6, `engrave`, "The MEI view", and the metadata): pieces have numbers on the page, names, or both, and printed numbers aren't always a simple count (a book starting at étude 13, nested pieces with nested numbers, an alternative version of nocturne 5 labelled "5a"). Where nothing is printed, we may or may not want to show a number of our own, e.g. in the MEI view's picker. Until then the picker shows names only ("Untitled" without one).
 - **Decide how to show the original in `fix_mei`** (§6): the edits are made against the score engraved from the MEI, but the original is what they should match. E.g. the score pane switching between the score and the original, which shows the measure of the selected line (its `@facs` zone) on its page.

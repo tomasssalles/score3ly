@@ -6,14 +6,12 @@ export function ConfirmDialog({
   title,
   text,
   confirmLabel,
-  danger = false,
   onConfirm,
   onCancel,
 }: {
   title: string;
   text: string[];
   confirmLabel: string;
-  danger?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -50,7 +48,7 @@ export function ConfirmDialog({
         </button>
         <button
           type="button"
-          className={danger ? "button-danger" : "button-primary"}
+          className="button-primary"
           onClick={() => {
             confirmed.current = true;
             dialog.current?.close();

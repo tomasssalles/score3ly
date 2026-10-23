@@ -43,12 +43,12 @@ import { useWide } from "./useWide";
 const COLLAPSED_KEY = "pipelinePanelCollapsed";
 
 // What the user must know before stages that already ran are replaced (DESIGN.md §5.5).
-const OVERWRITE_TEXT = [
-  "Everything from here on is overwritten. There is no undo.",
-  "Changing one stage can change, and is likely to change, the rest of the pipeline. Wherever a stage's input stays exactly the same, its earlier result is reused: LLM calls already paid for are not paid for again, and manual fixes are kept. Everywhere else, calls are paid for again and manual work is dropped.",
-];
+// The confirmation before a change that replaces stages that have run (DESIGN.md §5.5): the same text for every
+// change, a sentence before it for a new config, the button naming the change.
+const CONFIRM_TEXT =
+  "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages will be dropped entirely. This action cannot be undone.";
 
-type Confirmation = { title: string; text: string[]; confirmLabel: string; danger?: boolean; action: () => void };
+type Confirmation = { title: string; text: string[]; confirmLabel: string; action: () => void };
 
 // Wide mode: the pipeline panel on the left (collapsible to a narrow strip), the artifact view on the right.
 // Narrow mode: only the pipeline; an output or a stage's details the user picks covers the whole app until closed.
@@ -156,15 +156,9 @@ export function ProjectView({
   }
 
   // Asks first if the change replaces stages that have already run (DESIGN.md §5.5).
-  function change(stageId: string, apply: () => void, ask: boolean) {
+  function change(apply: () => void, ask: boolean, confirmLabel: string, before = "") {
     if (!ask) return apply();
-    const stage = findStage(pipeline, stageId);
-    setConfirmation({
-      title: `Overwrite the pipeline from "${stage?.title}"?`,
-      text: OVERWRITE_TEXT,
-      confirmLabel: "Overwrite",
-      action: apply,
-    });
+    setConfirmation({ title: "Are you sure?", text: [`${before}${CONFIRM_TEXT}`], confirmLabel, action: apply });
   }
 
   // Whether a change at this stage replaces stages that have already run: the stage itself, or one after it.
@@ -342,9 +336,8 @@ export function ProjectView({
       }
       else setError(`"${stage?.title}" has nothing to set.`);
     },
-    addFix: (id, step) => change(id, () => void addFix(id, step), fixReplaces(id)),
-    edit: (id) => change(id, () => void edit(id), replacesLater(id)),
-    // Always asks: the stage's own work is lost, and perhaps the stages after it too.
+    addFix: (id, step) => change(() => void addFix(id, step), fixReplaces(id), "Add stage"),
+    edit: (id) => change(() => void edit(id), replacesLater(id), "Edit stage"),
     // `engrave`'s files (§6, `engrave`, "Downloads"), with the report on the pipeline up to the stage.
     download: async (stageId, kind) => {
       const engraving = findStage(pipeline, stageId)?.artifacts.find((a) => a.engraving)?.engraving;
@@ -356,17 +349,8 @@ export function ProjectView({
         setError(`The download failed: ${err instanceof Error ? err.message : err}`);
       }
     },
-    drop: (id) =>
-      setConfirmation({
-        title: `Drop "${findStage(pipeline, id)?.title}"?`,
-        text: [
-          "The stage is removed, and the work done in it is lost. There is no undo.",
-          ...(replacesLater(id) ? OVERWRITE_TEXT : []),
-        ],
-        confirmLabel: "Drop stage",
-        danger: true,
-        action: () => void drop(id),
-      }),
+    // Always asks: the stage's own work is lost.
+    drop: (id) => change(() => void drop(id), true, "Drop stage"),
     setMode: async (value) => {
       const previous = mode;
       setMode(value);
@@ -389,7 +373,8 @@ export function ProjectView({
       context={configuring.context}
       onSave={(values) => {
         const { stage } = configuring;
-        change(stage.id, () => saveConfig(stage, values), replacesWork(stage.id));
+        // No manual stage has a config: if one ever has, this text must change (§5.5).
+        change(() => saveConfig(stage, values), replacesWork(stage.id), "Change config", "This stage will have to run again with the new config. ");
       }}
       onCancel={() => setConfiguring(null)}
     />
@@ -400,7 +385,6 @@ export function ProjectView({
       title={confirmation.title}
       text={confirmation.text}
       confirmLabel={confirmation.confirmLabel}
-      danger={confirmation.danger}
       onConfirm={() => {
         setConfirmation(null);
         confirmation.action();
