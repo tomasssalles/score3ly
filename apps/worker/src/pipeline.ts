@@ -4,7 +4,11 @@
 
 import type { Hono } from "hono";
 
-export type Pipeline = { stages: Stage[] };
+export type Pipeline = { stages: Stage[]; dropped: Dropped[] };
+
+// A manual stage dropped at its turn because its inputs changed (DESIGN.md §5.5): a card where it was, after the
+// stage with `afterStageId`, until dismissed. Several after the same stage are in the order they were dropped.
+export type Dropped = { id: number; afterStageId: string; step: string };
 
 export type StageStatus = "planned" | "running" | "failed" | "done" | "wip" | "stopped";
 
@@ -143,6 +147,12 @@ async function rewriteFrom(
     .bind(projectId, after)
     .all<{ id: string; step: string; status: StageStatus; config_json: string | null }>();
   const statements = [
+    // The cards of dropped stages in the part rewritten go (DESIGN.md §5.5).
+    db
+      .prepare(
+        "DELETE FROM dropped_stages WHERE project_id = ? AND after_stage_id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ? AND position >= ?)",
+      )
+      .bind(projectId, projectId, position),
     db.prepare("DELETE FROM pipeline_entries WHERE project_id = ? AND position >= ?").bind(projectId, position),
   ];
   let next = position;
@@ -171,7 +181,7 @@ export async function anyRunning(db: D1Database, projectId: string, now: number)
 }
 
 async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline> {
-  const [stages, outputs] = await db.batch([
+  const [stages, outputs, dropped] = await db.batch([
     db
       .prepare(
         "SELECT s.*, e.carried, m.name AS mc_name, m.model AS mc_model, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
@@ -182,6 +192,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
         "SELECT o.* FROM pipeline_entries e JOIN outputs o ON o.stage_id = e.stage_id WHERE e.project_id = ? ORDER BY o.created_at, o.item",
       )
       .bind(projectId),
+    db.prepare("SELECT id, after_stage_id, step FROM dropped_stages WHERE project_id = ? ORDER BY id").bind(projectId),
   ]);
   const byStage = new Map<string, OutputRow[]>();
   for (const row of outputs.results as OutputRow[]) {
@@ -211,6 +222,11 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
         recipeKey: o.recipe_key,
         recipe: o.recipe_json === null ? null : JSON.parse(o.recipe_json),
       })),
+    })),
+    dropped: (dropped.results as { id: number; after_stage_id: string; step: string }[]).map((row) => ({
+      id: row.id,
+      afterStageId: row.after_stage_id,
+      step: row.step,
     })),
   };
 }
@@ -539,6 +555,12 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...inputIds.map((outputId: string) =>
         db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(id, outputId),
       ),
+      // A stage of the same step added again where one was dropped: its card goes (DESIGN.md §5.5).
+      db
+        .prepare(
+          "DELETE FROM dropped_stages WHERE project_id = ? AND step = ? AND after_stage_id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ? AND position BETWEEN ? AND ?)",
+        )
+        .bind(pid, step, pid, position, last),
       ...(await rewriteFrom(db, pid, last + 1, [id], last, iso)),
       touchProject(db, pid, iso),
     ]);
@@ -589,7 +611,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   // A carried manual stage whose turn has come (every stage before it is done): the browser sends the outputs the
   // stage would read now ({ inputIds }, as when it was added). If they hold the same content as what it read (the same
   // items and types, each with the same content hash or recipe key), it is kept, as it is, WIP or done; otherwise it
-  // is dropped, and the stages after it move up (DESIGN.md §5.5). Returns whether it was kept, and the pipeline.
+  // is dropped, and the stages after it move up, with a card where it was (DESIGN.md §5.5). Returns whether it was
+  // kept, and the pipeline.
   app.post("/api/projects/:pid/stages/:sid/resolve", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
@@ -627,7 +650,15 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     await db.batch(
       kept
         ? [db.prepare("UPDATE pipeline_entries SET carried = 0 WHERE project_id = ? AND position = ?").bind(pid, found.position)]
-        : [...(await rewriteFrom(db, pid, found.position, [], found.position, iso)), touchProject(db, pid, iso)],
+        : [
+            ...(await rewriteFrom(db, pid, found.position, [], found.position, iso)),
+            db
+              .prepare(
+                "INSERT INTO dropped_stages (project_id, after_stage_id, stage_id, step, dropped_at) SELECT ?, stage_id, ?, ?, ? FROM pipeline_entries WHERE project_id = ? AND position = ?",
+              )
+              .bind(pid, sid, found.stage.step, iso, pid, found.position - 1),
+            touchProject(db, pid, iso),
+          ],
     );
     return c.json({ kept, pipeline: await readPipeline(db, pid) });
   });
@@ -645,6 +676,18 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
     const iso = now.toISOString();
     await db.batch([...(await rewriteFrom(db, pid, position, [], position, iso)), touchProject(db, pid, iso)]);
+    return c.json(await readPipeline(db, pid));
+  });
+
+  // Dismisses the card of a dropped stage (DESIGN.md §5.5).
+  app.delete("/api/projects/:pid/dropped/:id", async (c) => {
+    const db = c.env.DB;
+    const { pid, id } = c.req.param();
+    const result = await db
+      .prepare("DELETE FROM dropped_stages WHERE id = ? AND project_id = ? AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)")
+      .bind(Number(id), pid)
+      .run();
+    if (!result.meta.changes) return c.json({ error: "no such card in this project" }, 404);
     return c.json(await readPipeline(db, pid));
   });
 }

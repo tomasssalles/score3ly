@@ -50,7 +50,7 @@ before(async () => {
 
 beforeEach(async () => {
   await env.DB.exec(
-    "DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM llm_calls; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects; DELETE FROM image_fingerprints;",
+    "DELETE FROM dropped_stages; DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM llm_calls; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects; DELETE FROM image_fingerprints;",
   );
 });
 
@@ -834,6 +834,53 @@ test("a carried manual stage is dropped when what it reads changed, and the stag
     .bind(project.id)
     .all<{ position: number }>();
   assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7]);
+});
+
+// A project whose finished fix_skew was dropped at its turn, its inputs having changed: the skew_analysis it came after.
+async function droppedProject(filename: string) {
+  const { project, fix, run } = await carriedProject(filename);
+  await run(1, "page_image", (n) => ({ recipeKey: RECIPE_KEY(n + 2) }));
+  await run(2, "skew", (n) => ({ contentSha256: LINES(n + 2) }));
+  const skew = (await pipelineOf(project.id))[2];
+  await call(project.id, fix, "resolve", { inputIds: skew.outputs.map((o) => o.id) });
+  return { project, fix, skew };
+}
+
+type DroppedJson = { id: number; afterStageId: string; step: string };
+
+async function droppedOf(projectId: string): Promise<DroppedJson[]> {
+  const response = await app.request(`/api/projects/${projectId}/pipeline`, {}, env);
+  return ((await response.json()) as { dropped: DroppedJson[] }).dropped;
+}
+
+function dismiss(projectId: string, id: number) {
+  return app.request(`/api/projects/${projectId}/dropped/${id}`, { method: "DELETE" }, env);
+}
+
+test("a stage dropped at its turn leaves a card after the stage it came after, until dismissed", async () => {
+  const { project, skew } = await droppedProject("card.pdf");
+  const dropped = await droppedOf(project.id);
+  assert.deepEqual(dropped.map((d) => [d.afterStageId, d.step]), [[skew.id, "fix_skew"]]);
+  // A change after it leaves it.
+  const layout = (await pipelineOf(project.id))[3];
+  assert.equal((await call(project.id, layout.id, "config", { config: { minGap: 3 } }, "PUT")).status, 200);
+  assert.equal((await droppedOf(project.id)).length, 1);
+  assert.equal((await dismiss(project.id, dropped[0].id)).status, 200);
+  assert.deepEqual(await droppedOf(project.id), []);
+  assert.equal((await dismiss(project.id, dropped[0].id)).status, 404);
+});
+
+test("a dropped stage's card goes with a change before it, or a stage of the same step added there", async () => {
+  const first = await droppedProject("card-change.pdf");
+  await call(first.project.id, (await pipelineOf(first.project.id))[1].id, "config", { config: { pages: "1", dpi: 300 } }, "PUT");
+  assert.deepEqual(await droppedOf(first.project.id), []);
+
+  const second = await droppedProject("card-again.pdf");
+  // Another fix there leaves it; the same fix again takes it.
+  assert.equal((await addFix(second.project.id, second.skew.id, "fix_layout")).status, 200);
+  assert.equal((await droppedOf(second.project.id)).length, 1);
+  assert.equal((await addFix(second.project.id, second.skew.id)).status, 200);
+  assert.deepEqual(await droppedOf(second.project.id), []);
 });
 
 test("editing a finished manual stage puts a WIP copy in its place; the old one stays", async () => {

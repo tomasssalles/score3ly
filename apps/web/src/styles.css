@@ -655,6 +655,15 @@ body {
   opacity: 0.45;
 }
 
+.stage-card.dropped {
+  padding-bottom: 10px;
+  opacity: 0.45;
+}
+
+.stage-card.dropped .icon-button {
+  margin: -6px -6px -6px 0;
+}
+
 .stage-card.running {
   border-color: color-mix(in srgb, var(--progress) 55%, var(--line));
 }

@@ -3,7 +3,7 @@
 //
 // It starts its own Worker and Vite on the test ports (8887 and 5273), with a database and storage of their own in a
 // temporary folder, so nothing of the usual local data is touched; seeds them through the app with the fake model
-// (a finished project, one with a manual stage in progress, one whose stage failed, and one whose page images differ
+// (a finished project, one with the card of a dropped stage, one with a manual stage in progress, one whose stage failed, and one whose page images differ
 // from their stored fingerprints); then, for every theme in apps/web/src/themes.ts and three layouts (wide with the
 // pipeline panel expanded, wide with it collapsed, narrow), takes a fixed list of shots: pages by their URLs, plus a
 // few scripted steps for dialogs and open menus. It writes `<theme>/<layout>/<shot>.png` and `index.html`, a contact
@@ -114,7 +114,7 @@ async function runToEnd(page: Page, id: string) {
   throw new Error(`project ${id} didn't finish`);
 }
 
-type Seed = { done: string; wip: string; wipEditor: string; failed: string; differs: string; differsLayout: string; artifacts: { title: string; hash: string }[]; stageIds: { title: string; id: string }[] };
+type Seed = { done: string; dropped: string; wip: string; wipEditor: string; failed: string; differs: string; differsLayout: string; artifacts: { title: string; hash: string }[]; stageIds: { title: string; id: string }[] };
 
 async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -135,6 +135,16 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
     artifacts.push({ title, hash: new URL(page.url()).hash });
   }
   const stageIds = (await pipelineOf(done)).map((s) => ({ title: s.step, id: s.id }));
+
+  // The card of a manual stage dropped because its inputs changed: written straight into the database (a fix_layout
+  // after the layout), as a re-run would leave it.
+  const dropped = await newProject(page, PDF);
+  await runToEnd(page, dropped);
+  const droppedAfter = (await pipelineOf(dropped)).find((s) => s.step === "layout")!.id;
+  wrangler([
+    "d1", "execute", "score3ly", "--local", "--persist-to", stateDir, "--command",
+    `INSERT INTO dropped_stages (project_id, after_stage_id, stage_id, step, dropped_at) VALUES ('${dropped}', '${droppedAfter}', '${droppedAfter}', 'fix_layout', '2026-10-24T00:00:00.000Z')`,
+  ]);
 
   // A manual stage in progress: the layout being fixed (on the same PDF: everything else is reused).
   const wip = await newProject(page, PDF);
@@ -166,7 +176,7 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   wrangler(["d1", "execute", "score3ly", "--local", "--persist-to", stateDir, "--command", `UPDATE image_fingerprints SET height = height + 1 WHERE pdf_sha256 = '${sha}'`]);
 
   await context.close();
-  return { done, wip, wipEditor, failed, differs, differsLayout, artifacts, stageIds };
+  return { done, dropped, wip, wipEditor, failed, differs, differsLayout, artifacts, stageIds };
 }
 
 function wrangler(args: string[]) {
@@ -213,6 +223,7 @@ function shots(seed: Seed): Shot[] {
     { name: "04-fix-layout-editor", take: (p) => open(p, seed.wipEditor) },
     { name: "05-failed-stage", take: (p) => open(p, project(seed.failed)) },
     { name: "06-images-differ", take: (p) => open(p, seed.differsLayout) },
+    { name: "06b-dropped-stage", layouts: ["wide", "narrow"], take: (p) => open(p, project(seed.dropped)).then(() => p.locator(".stage-card.dropped").evaluate((el) => el.scrollIntoView({ block: "center" }))) },
     { name: "07-settings", layouts: ["wide", "narrow"], take: (p) => open(p, "#/settings") },
     { name: "08-about", layouts: ["wide", "narrow"], take: (p) => open(p, "#/about") },
     { name: "09-statistics", layouts: ["wide", "narrow"], take: (p) => open(p, "#/stats") },

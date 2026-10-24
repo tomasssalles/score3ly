@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   addFixStage,
+  dismissDropped,
   dropStage,
   editStage,
   fetchPipeline,
@@ -47,7 +48,7 @@ const COLLAPSED_KEY = "pipelinePanelCollapsed";
 // The confirmation before a change that replaces stages that have run (DESIGN.md §5.5): the same text for every
 // change, a sentence before it for a new config, the button naming the change.
 const CONFIRM_TEXT =
-  "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages are kept if their inputs stay the same, and dropped otherwise. This action cannot be undone.";
+  "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages will be kept if their inputs stay the same, and dropped otherwise. This action cannot be undone.";
 
 type Confirmation = { title: string; text: string[]; confirmLabel: string; action: () => void };
 
@@ -88,7 +89,7 @@ export function ProjectView({
   modeRef.current = mode;
   // The stage whose config is being edited.
   const [configuring, setConfiguring] = useState<{ stage: Stage; context: ConfigContext } | null>(null);
-  const pipeline: Pipeline = stored ? toPipeline(mode, stored, local) : { mode, stages: [] };
+  const pipeline: Pipeline = stored ? toPipeline(mode, stored, local) : { mode, stages: [], dropped: [] };
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   // The panel scrolls to the current stage on opening the project, when an Auto run starts, and whenever
   // another stage becomes the current one (in both modes).
@@ -220,6 +221,14 @@ export function ProjectView({
       scroll();
     } catch (err) {
       setError(`Dropping the stage failed: ${err}`);
+    }
+  }
+
+  async function dismiss(id: number) {
+    try {
+      setStored(await dismissDropped(project, id));
+    } catch (err) {
+      setError(`Dismissing the card failed: ${err}`);
     }
   }
 
@@ -388,6 +397,7 @@ export function ProjectView({
     },
     // Always asks: the stage's own work is lost.
     drop: (id) => change(() => void drop(id), true, "Drop stage"),
+    dismissDropped: (id) => void dismiss(id),
     setMode: async (value) => {
       const previous = mode;
       setMode(value);

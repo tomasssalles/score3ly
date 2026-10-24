@@ -22,7 +22,7 @@ before(async () => {
 
 beforeEach(async () => {
   await env.DB.exec(
-    "DELETE FROM llm_calls; DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects; DELETE FROM settings; DELETE FROM model_configs;",
+    "DELETE FROM dropped_stages; DELETE FROM llm_calls; DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects; DELETE FROM settings; DELETE FROM model_configs;",
   );
 });
 

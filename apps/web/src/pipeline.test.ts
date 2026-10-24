@@ -41,7 +41,7 @@ function stage(id: string, step: string, fields: Partial<ApiStage> = {}): ApiSta
 const ingest = stage("s1", "ingest", { outputs: [{ id: "o1", item: "", type: "pdf", contentSha256: SHA256, recipeKey: null, recipe: null }] });
 
 test("a new project's pipeline is Ingest, done, with the original PDF as its artifact", () => {
-  const p = toPipeline("auto", { stages: [ingest] });
+  const p = toPipeline("auto", { dropped: [], stages: [ingest] });
   assert.equal(p.mode, "auto");
   const [s] = p.stages;
   assert.equal(s.title, "Ingest");
@@ -60,7 +60,7 @@ test("a new project's pipeline is Ingest, done, with the original PDF as its art
 });
 
 test("the first planned stage after the done ones is ready; the ones after it stay planned", () => {
-  const p = toPipeline("manual", {
+  const p = toPipeline("manual", { dropped: [],
     stages: [
       ingest,
       stage("s2", "rasterize", { status: "planned", stepVersion: null, config: null, startedAt: null, finishedAt: null }),
@@ -79,14 +79,14 @@ test("the first planned stage after the done ones is ready; the ones after it st
 });
 
 test("a failed stage can run again, and shows its error", () => {
-  const p = toPipeline("auto", { stages: [ingest, stage("s2", "rasterize", { status: "failed", error: "Out of memory" })] });
+  const p = toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "failed", error: "Out of memory" })] });
   assert.equal(currentStage(p)?.status, "failed");
   assert.equal(currentStage(p)?.error, "Out of memory");
   assert.ok(canRun(p));
 });
 
 test("a done stage's run time comes from its start and end; its config is shown as text", () => {
-  const p = toPipeline("auto", {
+  const p = toPipeline("auto", { dropped: [],
     stages: [
       ingest,
       stage("s2", "rasterize", { finishedAt: "2026-10-12T10:00:14.000Z", config: { dpi: 300, mode: "gray" } }),
@@ -98,7 +98,7 @@ test("a done stage's run time comes from its start and end; its config is shown 
 
 test("rasterize's page outputs are one artifact, its pages in order", () => {
   const recipe = (page: number) => ({ step: "rasterize", version: 1, pdf: SHA256, page, dpi: 300, pdfjs: "6" });
-  const p = toPipeline("auto", {
+  const p = toPipeline("auto", { dropped: [],
     stages: [
       ingest,
       stage("s2", "rasterize", {
@@ -128,7 +128,7 @@ test("rasterize's page outputs are one artifact, its pages in order", () => {
 test("the stage this device runs shows its progress; one running elsewhere none; one whose heartbeat stopped failed", () => {
   const now = Date.parse("2026-10-12T10:10:00.000Z");
   const running = (heartbeatAt: string | null) =>
-    toPipeline("auto", { stages: [ingest, stage("s2", "rasterize", { status: "running", heartbeatAt })] }, null, now);
+    toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "running", heartbeatAt })] }, null, now);
   assert.equal(running("2026-10-12T10:09:00.000Z").stages[1].status, "running");
   assert.equal(running("2026-10-12T10:09:00.000Z").stages[1].progress, 0);
   const stale = running("2026-10-12T10:00:00.000Z").stages[1];
@@ -138,7 +138,7 @@ test("the stage this device runs shows its progress; one running elsewhere none;
 
   const local = toPipeline(
     "auto",
-    { stages: [ingest, stage("s2", "rasterize", { status: "planned" })] },
+    { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "planned" })] },
     { stageId: "s2", progress: 0.25 },
     now,
   );
@@ -169,7 +169,7 @@ test("skew_analysis's artifact shows the page images of the rasterize before it,
       recipe: null,
     })),
   });
-  const p = toPipeline("auto", { stages: [ingest, rasterize, skew] });
+  const p = toPipeline("auto", { dropped: [], stages: [ingest, rasterize, skew] });
   const [artifact] = p.stages[2].artifacts;
   assert.equal(artifact.id, "s3.lines");
   assert.equal(artifact.title, "Staff lines");
@@ -184,12 +184,12 @@ test("skew_analysis's artifact shows the page images of the rasterize before it,
 });
 
 test("an LLM stage shows its model config's name, else its model string", () => {
-  const named = toPipeline("auto", {
+  const named = toPipeline("auto", { dropped: [],
     stages: [ingest, stage("s2", "layout", { modelConfig: { name: "Opus EU", model: "eu.anthropic.claude-opus-5-5" }, costUsd: 0.42 })],
   }).stages[1];
   assert.equal(named.model, "Opus EU");
   assert.equal(named.cost, 0.42);
-  const unnamed = toPipeline("auto", {
+  const unnamed = toPipeline("auto", { dropped: [],
     stages: [ingest, stage("s2", "layout", { modelConfig: { name: null, model: "eu.anthropic.claude-opus-5-5" } })],
   }).stages[1];
   assert.equal(unnamed.model, "eu.anthropic.claude-opus-5-5");
@@ -203,7 +203,7 @@ test("Fix skew is offered after a skew analysis, unless one already follows it; 
   const rasterize = stage("s2", "rasterize", {
     outputs: [{ id: "r1", item: "p1", type: "page_image", contentSha256: null, recipeKey: SHA256, recipe: { page: 1 } }],
   });
-  let p = toPipeline("auto", { stages: [ingest, rasterize, skew, stage("s4", "layout", { status: "planned" })] });
+  let p = toPipeline("auto", { dropped: [], stages: [ingest, rasterize, skew, stage("s4", "layout", { status: "planned" })] });
   assert.deepEqual(p.stages[2].fixes, [{ step: "fix_skew", title: "Fix skew" }]);
 
   const own = "b".repeat(64);
@@ -211,7 +211,7 @@ test("Fix skew is offered after a skew analysis, unless one already follows it; 
     status: "wip",
     outputs: [{ id: "f1", item: "p1", type: "lines", contentSha256: own, recipeKey: null, recipe: null }],
   });
-  p = toPipeline("auto", { stages: [ingest, rasterize, skew, fix, stage("s4", "layout", { status: "planned" })] });
+  p = toPipeline("auto", { dropped: [], stages: [ingest, rasterize, skew, fix, stage("s4", "layout", { status: "planned" })] });
   assert.deepEqual(p.stages[2].fixes, []);
   const [artifact] = p.stages[3].artifacts;
   assert.deepEqual(artifact.editor, { stageId: "s5", step: "fix_skew" });
@@ -225,17 +225,18 @@ test("Fix skew is offered after a skew analysis, unless one already follows it; 
 
 test("after analyze, both fixes are offered; one among the manual stages that follow it isn't offered again", () => {
   const analyze = stage("s5", "analyze");
-  let p = toPipeline("auto", { stages: [ingest, analyze] });
+  let p = toPipeline("auto", { dropped: [], stages: [ingest, analyze] });
   assert.deepEqual(p.stages[1].fixes.map((f) => f.step), ["fix_metadata", "fix_observations"]);
-  p = toPipeline("auto", { stages: [ingest, analyze, stage("s6", "fix_metadata", { status: "wip" })] });
+  p = toPipeline("auto", { dropped: [], stages: [ingest, analyze, stage("s6", "fix_metadata", { status: "wip" })] });
   assert.deepEqual(p.stages[1].fixes.map((f) => f.step), ["fix_observations"]);
-  p = toPipeline("auto", { stages: [ingest, analyze, stage("s6", "fix_metadata"), stage("s7", "fix_observations", { status: "wip" })] });
+  p = toPipeline("auto", { dropped: [], stages: [ingest, analyze, stage("s6", "fix_metadata"), stage("s7", "fix_observations", { status: "wip" })] });
   assert.deepEqual(p.stages[1].fixes, []);
 });
 
 test("the panel looks again when a stage running elsewhere would count as interrupted", () => {
   const now = Date.parse("2026-10-12T10:10:00.000Z");
   const pipeline = (...heartbeats: (string | null)[]) => ({
+    dropped: [],
     stages: [ingest, ...heartbeats.map((heartbeatAt, i) => stage(`s${i + 2}`, "rasterize", { status: "running", heartbeatAt }))],
   });
   // Three minutes after the heartbeat, and the earliest of several.
@@ -244,16 +245,21 @@ test("the panel looks again when a stage running elsewhere would count as interr
   // Already interrupted, or run by this device: nothing to wait for.
   assert.equal(nextStaleAt(pipeline("2026-10-12T10:00:00.000Z"), null, now), null);
   assert.equal(nextStaleAt(pipeline("2026-10-12T10:09:00.000Z"), { stageId: "s2", progress: 0.5 }, now), null);
-  assert.equal(nextStaleAt({ stages: [ingest] }, null, now), null);
+  assert.equal(nextStaleAt({ dropped: [], stages: [ingest] }, null, now), null);
 });
 
 test("a carried manual stage looks planned, never ready, without artifacts, and only Drop in its menu's changes", () => {
   const skew = stage("s3", "skew_analysis", { outputs: [{ id: "o5", item: "p1", type: "skew", contentSha256: SHA256, recipeKey: null, recipe: null }] });
   const fix = stage("s4", "fix_skew", { carried: true, outputs: [{ id: "o6", item: "p1", type: "lines", contentSha256: SHA256, recipeKey: null, recipe: null }] });
-  const p = toPipeline("manual", { stages: [ingest, stage("s2", "rasterize"), skew, fix, stage("s5", "layout", { status: "planned" })] });
+  const p = toPipeline("manual", { dropped: [], stages: [ingest, stage("s2", "rasterize"), skew, fix, stage("s5", "layout", { status: "planned" })] });
   const carried = p.stages[3];
   assert.deepEqual([carried.status, carried.carried, carried.artifacts.length, carried.droppable], ["planned", true, 0, true]);
   assert.equal(p.stages[4].status, "planned");
   // What it would read now: the outputs of the stage it fixes, as when it was added.
   assert.deepEqual(carriedInputs([ingest, stage("s2", "rasterize"), skew, fix], 3), ["o5"]);
+});
+
+test("a dropped stage's card has its step's title and kind, after the stage it came after", () => {
+  const p = toPipeline("auto", { stages: [ingest], dropped: [{ id: 7, afterStageId: "s1", step: "fix_skew" }] });
+  assert.deepEqual(p.dropped, [{ id: 7, afterStageId: "s1", stepId: "fix_skew", title: "Fix skew", kind: "manual" }]);
 });

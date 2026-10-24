@@ -68,7 +68,11 @@ export type Stage = {
   droppable: boolean; // not part of the recipe (DESIGN.md §5.5)
 };
 
-export type Pipeline = { mode: RunMode; stages: Stage[] };
+// The card of a manual stage dropped at its turn because its inputs changed (DESIGN.md §5.5): after the stage with
+// `afterStageId`, until dismissed.
+export type Dropped = { id: number; afterStageId: string; stepId: string; title: string; kind: StageKind };
+
+export type Pipeline = { mode: RunMode; stages: Stage[]; dropped: Dropped[] };
 
 export const MODES: RunMode[] = ["auto", "manual"];
 export const MODE_LABELS: Record<RunMode, string> = { auto: "Auto", manual: "Manual" };
@@ -99,7 +103,11 @@ export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun |
   });
   const next = stages.findIndex((stage) => stage.status !== "done");
   if (next >= 0 && stages[next].status === "planned" && !stages[next].carried) stages[next] = { ...stages[next], status: "ready" };
-  return { mode, stages };
+  const dropped = stored.dropped.map((d) => {
+    const info = stepInfo(d.step);
+    return { id: d.id, afterStageId: d.afterStageId, stepId: d.step, title: info.title, kind: info.kind };
+  });
+  return { mode, stages, dropped };
 }
 
 // The manual stages right after stage `i`: a fix of that stage goes after them (the Worker puts it there), and one

@@ -1,15 +1,16 @@
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import type { Project } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { ChevronDownIcon, CollapseIcon, MoreIcon, StopIcon } from "./icons";
 import { canRun, currentStage, MODE_LABELS, MODES, runningStage, type Pipeline, type Progress, type RunMode } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
-import { RunLabel, StageCard, type StageActions } from "./StageCard";
+import { DroppedCard, RunLabel, StageCard, type StageActions } from "./StageCard";
 import { when } from "./time";
 
 export type PanelActions = StageActions & {
   setMode: (mode: RunMode) => void;
+  dismissDropped: (id: number) => void;
 };
 
 
@@ -121,15 +122,21 @@ export function PipelinePanel({
 
       <ol className="stage-list" ref={list}>
         {pipeline.stages.map((stage) => (
-          <StageCard
-            key={stage.id}
-            stage={stage}
-            mode={pipeline.mode}
-            busy={busy}
-            selectedArtifactId={selectedArtifactId}
-            detailsShown={stage.id === detailsStageId}
-            actions={actions}
-          />
+          <Fragment key={stage.id}>
+            <StageCard
+              stage={stage}
+              mode={pipeline.mode}
+              busy={busy}
+              selectedArtifactId={selectedArtifactId}
+              detailsShown={stage.id === detailsStageId}
+              actions={actions}
+            />
+            {pipeline.dropped
+              .filter((dropped) => dropped.afterStageId === stage.id)
+              .map((dropped) => (
+                <DroppedCard key={`dropped-${dropped.id}`} dropped={dropped} onDismiss={() => actions.dismissDropped(dropped.id)} />
+              ))}
+          </Fragment>
         ))}
       </ol>
     </div>

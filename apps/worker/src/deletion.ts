@@ -30,6 +30,7 @@ export async function deleteProject(env: Env, projectId: string, now = new Date(
   const pdf = project.pdf_sha256;
   await db.batch([
     db.prepare("UPDATE projects SET deleted_at = ? WHERE id = ?").bind(iso, projectId),
+    db.prepare("DELETE FROM dropped_stages WHERE project_id = ?").bind(projectId),
     // A stage is marked if it was created in a deleted project and no project that isn't deleted has it in its
     // pipeline (a fork's stays until the fork is deleted).
     db

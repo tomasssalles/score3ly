@@ -16,7 +16,11 @@ export type Project = {
 export type RunMode = "auto" | "manual";
 
 // Mirrors the Worker's Pipeline, Stage and Output types: the stages as stored (DESIGN.md §5.8).
-export type ApiPipeline = { stages: ApiStage[] };
+export type ApiPipeline = { stages: ApiStage[]; dropped: ApiDropped[] };
+
+// A manual stage dropped at its turn because its inputs changed: a card where it was, after the stage with
+// `afterStageId`, until dismissed (DESIGN.md §5.5).
+export type ApiDropped = { id: number; afterStageId: string; step: string };
 
 export type ApiStage = {
   id: string;
@@ -215,6 +219,11 @@ export async function editStage(project: Project, stageId: string): Promise<{ st
 
 export async function dropStage(project: Project, stageId: string): Promise<ApiPipeline> {
   return (await send(stageUrl(project, stageId, "drop"))).json();
+}
+
+// Dismisses the card of a dropped stage.
+export async function dismissDropped(project: Project, id: number): Promise<ApiPipeline> {
+  return (await checked(await fetch(`/api/projects/${project.id}/dropped/${id}`, { method: "DELETE" }))).json();
 }
 
 // A carried manual stage whose turn has come: kept if `inputIds` (what it would read now) hold what it read, else

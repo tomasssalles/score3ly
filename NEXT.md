@@ -54,8 +54,3 @@ is known about each.
 ## 8. The logo in the README
 - The logo is `apps/web/public/icon.svg` (PNGs next to it, made by `npm run icons`). Put it at the top of the root
   `README.md` (the owner wants the README written properly later; for now just the logo).
-
-## 9. The report after a re-run
-- Carrying manual stages is built (DESIGN.md §5.8, "A manual stage after a change is carried"); the confirmation's
-  wording is updated. Left: the task in §15 "Decide on the report after a re-run" (which fixes were kept and which
-  dropped); being discussed with the owner.

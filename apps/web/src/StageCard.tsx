@@ -4,6 +4,7 @@ import { DOWNLOADS, type DownloadKind } from "./downloads";
 import { FittedText } from "./FittedText";
 import {
   AnalyzeIcon,
+  CloseIcon,
   ExtractIcon,
   EngraveIcon,
   ComputedIcon,
@@ -23,7 +24,7 @@ import {
   SkewIcon,
   StopIcon,
 } from "./icons";
-import { hasArtifacts, type Artifact, type RunMode, type Stage, type StageKind } from "./pipeline";
+import { hasArtifacts, type Artifact, type Dropped, type RunMode, type Stage, type StageKind } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
 import { KIND_LABELS } from "./StageDetails";
 import { duration } from "./time";
@@ -59,6 +60,28 @@ const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {
   llm: LlmIcon,
   manual: ManualIcon,
 };
+
+// The card of a manual stage dropped at its turn because its inputs changed (DESIGN.md §5.5): a heads-up where it
+// was, dimmed like a planned stage, its name struck through; only a button to dismiss it.
+export function DroppedCard({ dropped, onDismiss }: { dropped: Dropped; onDismiss: () => void }) {
+  const Icon = STEP_ICONS[dropped.stepId] ?? KIND_ICONS[dropped.kind];
+  return (
+    <li className="stage-card dropped">
+      <div className="stage-head">
+        <span className="stage-kind" title={KIND_LABELS[dropped.kind]}>
+          <Icon />
+        </span>
+        <h3 className="stage-title">
+          <s>{dropped.title}</s>
+        </h3>
+        <button type="button" className="icon-button" aria-label={`Dismiss: ${dropped.title} was dropped`} onClick={onDismiss}>
+          <CloseIcon />
+        </button>
+      </div>
+      <p className="stage-facts">⚠️ Dropped: inputs have changed</p>
+    </li>
+  );
+}
 
 // One stage of the pipeline: what it is, how it went, what it can do next, and its artifacts as tiles.
 // A planned stage (not its turn yet) is only a dimmed title.
