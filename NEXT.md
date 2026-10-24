@@ -43,6 +43,11 @@ is known about each.
   (`shell.openPath`), reread on change; `GET /api/info` says which host it is; back/forward buttons (item 5); no
   login. DESIGN.md says "When: after the first release": the owner now wants it built; update that.
 - Out of scope for now: code signing, builds for three platforms, auto-updates (say so in DESIGN.md).
+- **Telling it apart from the installed web app.** Someone can have both on one machine: the web app installed from
+  the browser (projects on the server) and this one (projects on the computer). Same name and icon in the dock or
+  taskbar means opening the wrong one and missing projects. Ideas: a different name (e.g. "score3ly (local)"), a
+  variant icon (e.g. a different tile colour or a small badge), different window or header colours; think about
+  others too and decide with the owner. Goes with the remote-storage wording task.
 - **Add a task:** test the desktop app locally (the owner runs it on their machine: start, create a project, run the
   pipeline with the fake model, the secrets file, back/forward, restart keeps everything).
 
