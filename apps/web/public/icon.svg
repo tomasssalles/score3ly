@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- The compact <score3ly> mark: angle brackets in the accent color around a quarter note. -->
+  <!-- The compact <score3ly> mark: coral angle brackets around a white quarter note, on a coal tile, the same in every
+       theme. The brackets' coral is halfway between the two themes' accents (checked by src/icon.test.ts). -->
   <style>
-    /* The app's accent color. Must match --accent in src/styles.css (checked by src/icon.test.ts). */
-    .accent { stroke: #ff7b72; }
+    .accent { stroke: #e45a51; }
   </style>
-  <rect width="64" height="64" rx="14" fill="#000000"/>
+  <rect width="64" height="64" rx="14" fill="#303237"/>
   <g class="accent" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M20 15 7 32 20 49"/>
     <path d="M44 15 57 32 44 49"/>
