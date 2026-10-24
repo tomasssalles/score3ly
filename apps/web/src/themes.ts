@@ -1,10 +1,13 @@
 // The themes (DESIGN.md §5.7): their colours are in themes.css, one block per theme. Which one is shown is a device
 // setting (§5.8): Auto (the default) follows the system's light or dark preference where there is a theme for it, or
-// a theme picked by name. Only the dark theme exists so far.
+// a theme picked by name.
 
 export type Theme = { id: string; label: string; dark: boolean };
 
-export const THEMES: Theme[] = [{ id: "dark", label: "Dark", dark: true }];
+export const THEMES: Theme[] = [
+  { id: "dark", label: "Dark", dark: true },
+  { id: "light", label: "Light", dark: false },
+];
 
 export type ThemeChoice = "auto" | string;
 

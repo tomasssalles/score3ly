@@ -51,3 +51,52 @@
   --syntax-value: #a5d6ff;
   --syntax-comment: #8b949e;
 }
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* The app's chrome and text */
+  --bg: #ffffff; /* header and other chrome */
+  --surface: #f4f5f7; /* page background */
+  --line: #d5d8de; /* hairlines */
+  --raised: #ffffff; /* fields, menus */
+  --hover: #eceef2; /* highlighted list item */
+  --fg: #16181d; /* running text */
+  --muted: #5a6170; /* secondary text */
+  --wordmark: #16181d;
+  --accent: #c93a30; /* coral, darkened: 5.3:1 on white */
+  --on-accent: #ffffff; /* text on the accent, and on the run, stop and danger buttons */
+  --danger: #c4161c; /* destructive actions, e.g. deleting; errors over a page */
+  --on-danger: #ffffff;
+  --warning: #9a5b00; /* amber, darkened for white */
+  --green: #1a7f37;
+  --progress: var(--green); /* progress bars and circles */
+
+  /* Depth */
+  --shadow: rgba(16, 24, 40, 0.16); /* menus */
+  --shadow-strong: rgba(16, 24, 40, 0.24); /* dialogs */
+  --shadow-soft: rgba(16, 24, 40, 0.14); /* pages */
+  --backdrop: rgba(16, 24, 40, 0.4); /* behind a dialog */
+  --badge: rgba(255, 255, 255, 0.9); /* a count over a tile */
+  --float: rgba(60, 60, 60, 0.55); /* buttons and counters floating over an artifact */
+  --float-hover: rgba(60, 60, 60, 0.8);
+  --on-float: #ffffff;
+
+  /* Around and on the paper: the same as in the dark theme, but the background around them */
+  --viewer: #e6e8ec; /* behind pages and tiles */
+  --paper: #ffffff;
+  --mark: #e3241b;
+  --on-mark: #ffffff;
+  --on-layout: #000000;
+  --highlight: #e0a030;
+  --on-highlight: #000000;
+
+  /* The MEI file (CodeMirror), after GitHub's light theme */
+  --code-bg: #fbfcfd;
+  --code-gutter: #8c959f;
+  --code-selection: rgba(84, 174, 255, 0.3);
+  --syntax-tag: #116329;
+  --syntax-attribute: #0550ae;
+  --syntax-value: #0a3069;
+  --syntax-comment: #6e7781;
+}

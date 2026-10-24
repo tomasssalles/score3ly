@@ -56,9 +56,3 @@ is known about each.
   says "Manual fixes for later stages will be dropped entirely"; they are now dropped only if their inputs change.
   Agree the new wording with the owner.
 - Also related, in §15: "Decide on the report after a re-run" (which fixes were kept and which dropped).
-
-## 11. The light theme
-- The scaffolding is built (DESIGN.md §5.7, "Themes" and "Screenshots"): every colour is a token in
-  `apps/web/src/themes.css`, tests keep it so, the device setting (Auto / a theme) exists, and `npm run screenshots`
-  shows every theme at both widths. Left: the light theme's block of tokens and its entry in `THEMES`
-  (`apps/web/src/themes.ts`), checked in the screenshots; perhaps a light version of the app icon.
