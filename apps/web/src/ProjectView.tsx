@@ -47,7 +47,7 @@ const COLLAPSED_KEY = "pipelinePanelCollapsed";
 // The confirmation before a change that replaces stages that have run (DESIGN.md §5.5): the same text for every
 // change, a sentence before it for a new config, the button naming the change.
 const CONFIRM_TEXT =
-  "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages will be dropped entirely. This action cannot be undone.";
+  "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages are kept if their inputs stay the same, and dropped otherwise. This action cannot be undone.";
 
 type Confirmation = { title: string; text: string[]; confirmLabel: string; action: () => void };
 

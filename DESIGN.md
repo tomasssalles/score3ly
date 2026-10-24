@@ -356,9 +356,9 @@ A re-run follows **the pipeline as it was, not the standard recipe** of recipe s
 
 #### Confirmation before a re-run
 A dialog asks for confirmation before anything is replaced (decided, built in `ProjectView.tsx`). It shows when a change replaces stages that have already run (done, failed, WIP or running): a new config for a stage that has run or is followed by one that has; a manual stage added, or a finished one edited, where a stage after it has run. Dropping a stage always asks.
-- **Simple and almost generic** (decided): it says that manual work after the change is lost, that automated stages after it may have to run again, and that it can't be undone, without working out which stages exactly.
+- **Simple and almost generic** (decided): it says that automated stages after the change may have to run again, that manual stages after it are kept only if their inputs stay the same (§5.8, carried), and that it can't be undone, without working out which stages exactly.
 - **Title:** "Are you sure?"
-- **Text:** "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages will be dropped entirely. This action cannot be undone." For a new config, it starts with "This stage will have to run again with the new config." (In Manual mode it runs again only when the user runs it.)
+- **Text** (decided)**:** "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages are kept if their inputs stay the same, and dropped otherwise. This action cannot be undone." For a new config, it starts with "This stage will have to run again with the new config." (In Manual mode it runs again only when the user runs it.)
 - **Buttons:** "Cancel", and one naming the change, in the accent colour like every confirmation: "Change config", "Add stage", "Edit stage", "Drop stage".
 - **No manual stage has a config.** If one ever has, the text for a new config must be adjusted.
 
@@ -1593,7 +1593,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Lyrics** (a later version): lines of their own above or below a staff, not in one, with text tokens, durations and invisible rests; the same quoted-text question as in the symbolic format.
 - **Decide between colour, grayscale and binarized** page images for the LLM steps, by ablation on the test set (§8.1). The outcome decides whether it becomes an option of `rasterize` or a fixed default (§6, `rasterize`).
 - **Design the validity check of stages** (§5.2): checking recorded input and output hashes against what is stored; when (on opening a project, before a run, ...), and what the app shows and does when a stage is no longer valid.
-- **Update the confirmation before a re-run** (§5.5): manual stages are now carried through a re-run (§5.8) and dropped only if their inputs change, but the dialog still says "Manual fixes for later stages will be dropped entirely". Agree the new wording with the project owner.
 - **Decide on the report after a re-run** (§5.5, proposed): which manual fixes were carried over and which were dropped.
 - **Decide whether the artifact view follows the pipeline while it runs** (§5.6).
 - **Decide how pieces are numbered** (§6, `engrave`, "The MEI view", and the metadata): pieces have numbers on the page, names, or both, and printed numbers aren't always a simple count (a book starting at étude 13, nested pieces with nested numbers, an alternative version of nocturne 5 labelled "5a"). Where nothing is printed, we may or may not want to show a number of our own, e.g. in the MEI view's picker. Until then the picker shows names only ("Untitled" without one).
