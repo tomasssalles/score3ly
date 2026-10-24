@@ -1,6 +1,6 @@
 // Screenshots of the app, to compare versions and themes at a glance without clicking through it (DESIGN.md §5.7,
 // "Screenshots"): `npm run screenshots` (optionally `-- --out <folder>`, default `screenshots/`, which git ignores, and
-// `--only <text>` for the shots whose names contain it).
+// `--only <text>` for the shots whose names contain it, `--desktop` for the desktop version's server).
 //
 // It starts its own Worker and Vite on the test ports (8887 and 5273), with a database and storage of their own in a
 // temporary folder, so nothing of the usual local data is touched; seeds them through the app with the fake model
@@ -16,6 +16,7 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
+import { DatabaseSync } from "node:sqlite";
 import { join, relative } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { THEMES } from "../apps/web/src/themes.ts";
@@ -33,6 +34,9 @@ const OUT = outArg > 0 ? process.argv[outArg + 1] : join(ROOT, "screenshots");
 // `--only <text>`: only the shots whose names contain it (the seeding still takes its time).
 const onlyArg = process.argv.indexOf("--only");
 const ONLY = onlyArg > 0 ? process.argv[onlyArg + 1] : null;
+// `--desktop`: the desktop version's server (apps/desktop, built first) instead of Wrangler: the same app on Node,
+// with SQLite and a folder of files; so the seeding also tests it end to end.
+const DESKTOP = process.argv.includes("--desktop");
 
 const LAYOUTS = [
   { id: "wide", viewport: { width: 1440, height: 900 }, collapsed: false },
@@ -145,10 +149,10 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   const dropped = await newProject(page, PDF);
   await runToEnd(page, dropped);
   const droppedAfter = (await pipelineOf(dropped)).find((s) => s.step === "layout")!.id;
-  wrangler([
-    "d1", "execute", "score3ly", "--local", "--persist-to", stateDir, "--command",
+  sql(
+    stateDir,
     `INSERT INTO dropped_stages (project_id, after_stage_id, stage_id, step, dropped_at) VALUES ('${dropped}', '${droppedAfter}', '${droppedAfter}', 'fix_layout', '2026-10-24T00:00:00.000Z')`,
-  ]);
+  );
 
   // A manual stage in progress: the layout being fixed (on the same PDF: everything else is reused).
   const wip = await newProject(page, PDF);
@@ -177,10 +181,21 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   await page.waitForURL(/\/artifacts\//);
   const differsLayout = new URL(page.url()).hash;
   const sha = (await api<{ id: string; pdfSha256: string }[]>("/projects")).find((p) => p.id === differs)!.pdfSha256;
-  wrangler(["d1", "execute", "score3ly", "--local", "--persist-to", stateDir, "--command", `UPDATE image_fingerprints SET height = height + 1 WHERE pdf_sha256 = '${sha}'`]);
+  sql(stateDir, `UPDATE image_fingerprints SET height = height + 1 WHERE pdf_sha256 = '${sha}'`);
 
   await context.close();
   return { done, dropped, wip, wipEditor, failed, differs, differsLayout, artifacts, stageIds };
+}
+
+// Runs SQL on the servers' database: Wrangler's local D1, or the desktop server's SQLite file.
+function sql(stateDir: string, command: string) {
+  if (DESKTOP) {
+    const db = new DatabaseSync(join(stateDir, "score3ly.sqlite"));
+    db.exec(command);
+    db.close();
+  } else {
+    wrangler(["d1", "execute", "score3ly", "--local", "--persist-to", stateDir, "--command", command]);
+  }
 }
 
 function wrangler(args: string[]) {
@@ -354,8 +369,12 @@ async function main() {
 
   console.log("Starting the Worker and Vite…");
   mkdirSync(join(ROOT, "apps/web/dist"), { recursive: true });
-  wrangler(["d1", "migrations", "apply", "score3ly", "--local", "--persist-to", stateDir]);
-  start("npx", ["wrangler", "dev", "--port", String(WORKER_PORT), "--persist-to", stateDir], join(ROOT, "apps/worker"));
+  if (DESKTOP) {
+    start("node", ["dist/server.js", "--data", stateDir, "--port", String(WORKER_PORT)], join(ROOT, "apps/desktop"));
+  } else {
+    wrangler(["d1", "migrations", "apply", "score3ly", "--local", "--persist-to", stateDir]);
+    start("npx", ["wrangler", "dev", "--port", String(WORKER_PORT), "--persist-to", stateDir], join(ROOT, "apps/worker"));
+  }
   start("npx", ["vite", "--host", "127.0.0.1", "--port", String(WEB_PORT), "--strictPort"], join(ROOT, "apps/web"), {
     SCORE3LY_API_URL: `http://127.0.0.1:${WORKER_PORT}`,
   });

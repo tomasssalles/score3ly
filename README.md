@@ -26,6 +26,17 @@ npx wrangler d1 execute score3ly --local --command "SELECT * FROM projects"
 
 Run the tests with `npm test`.
 
+### Desktop version
+
+The same app runs on one computer, with everything stored locally (a SQLite database, a folder of files and a secrets file in the app's data folder):
+
+```sh
+npm run desktop   # builds the web app and opens it in an Electron window
+npm run serve     # the same server without Electron, at http://127.0.0.1:8790 (data in ~/.score3ly)
+```
+
+The API keys go into the secrets file (Settings, "Open the secrets file"), one `NAME=value` per line.
+
 To look at page images and skew detection on a PDF (writes each page as extracted, and as the pipeline would use it: straightened if staves were found and the angle matters):
 
 ```sh

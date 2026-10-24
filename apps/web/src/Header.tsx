@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { BackIcon, ForwardIcon } from "./icons";
+import { useHost } from "./host";
 import { Menu } from "./Menu";
 import { useBackForward, useNoBrowserBar } from "./navigation";
 import type { Page } from "./route";
@@ -15,7 +16,10 @@ export function Header({
   page: Page | null; // the menu page that is open, if any
   onNewProject: () => void;
 }) {
-  const noBrowserBar = useNoBrowserBar();
+  const installed = useNoBrowserBar();
+  const host = useHost();
+  // The desktop app's window has no browser bar either.
+  const noBrowserBar = installed || host === "desktop";
   return (
     <header className={noBrowserBar ? "app-header with-history" : "app-header"}>
       <div className="brand">

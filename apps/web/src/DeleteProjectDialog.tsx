@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, deleteProject, type Project } from "./api";
 import { FittedText } from "./FittedText";
+import { useHost } from "./host";
 import { CloseIcon } from "./icons";
 import { deleteCachedPdf } from "./imageCache";
 
@@ -19,6 +20,8 @@ export function DeleteProjectDialog({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const done = useRef(false);
+  // The desktop app is the only device its data is on.
+  const desktop = useHost() === "desktop";
 
   useEffect(() => {
     dialog.current?.showModal();
@@ -40,7 +43,7 @@ export function DeleteProjectDialog({
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409
-          ? "A stage of this project is running, here or on another device. Stop it, or let it finish, then delete the project."
+          ? `A stage of this project is running${desktop ? "" : ", here or on another device"}. Stop it, or let it finish, then delete the project.`
           : `Deleting failed: ${err}`,
       );
       setDeleting(false);

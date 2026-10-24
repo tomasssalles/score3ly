@@ -1361,6 +1361,13 @@ body {
   font: 600 16px var(--sans);
 }
 
+.settings-text {
+  margin: 0 0 12px;
+  max-width: 60ch;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .model-configs {
   display: grid;
   gap: 10px;

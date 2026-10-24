@@ -1,10 +1,11 @@
 // The settings (DESIGN.md §5.1, §5.8, §7.2, §10): the user's, stored by the Worker. So far the run mode new projects
-// start with and the spending cap, and the model configs, read-only. A pick is saved at once, an amount when it is
+// start with and the spending cap, the model configs, read-only, and where their secrets are set. A pick is saved at once, an amount when it is
 // left or Enter is pressed. Then this device's own: the theme (§5.7), kept in the browser.
 
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { fetchModelConfigs, fetchSettings, putSetting, type ModelConfig, type Settings } from "./api";
+import { fetchModelConfigs, fetchSettings, openSecretsFile, putSetting, type ModelConfig, type Settings } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
+import { useHost } from "./host";
 import { ChevronDownIcon } from "./icons";
 import { MODE_LABELS, MODES } from "./pipeline";
 import { CHOICES, setThemeChoice, themeChoice } from "./themes";
@@ -68,6 +69,7 @@ export function SettingsPage() {
         </dl>
       )}
       {settings && configs && <ModelConfigs configs={configs} defaultId={settings.defaultModelConfigId} />}
+      <Secrets />
       <section className="settings-section">
         <h3>This device</h3>
         <dl className="settings-list">
@@ -104,6 +106,47 @@ export function SettingsPage() {
   );
 }
 
+// Where the secrets the model configs name are set (DESIGN.md §3, "Secrets"): in the desktop app, a file the server
+// opens in the system's editor; on a computer without it, the same file; on Cloudflare, the Worker's secrets.
+function Secrets() {
+  const host = useHost();
+  const [error, setError] = useState<string | null>(null);
+  if (!host) return null;
+  return (
+    <section className="settings-section">
+      <h3>Secrets</h3>
+      {host === "desktop" && (
+        <>
+          <p className="settings-text">
+            The API keys the model configs name are in a file in the app's data folder, one <code>NAME=value</code> per line.
+            Changes take effect at once.
+          </p>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => openSecretsFile().then(() => setError(null), (err) => setError(`Opening the file failed: ${err}`))}
+          >
+            Open the secrets file
+          </button>
+          {error && <p className="settings-error">{error}</p>}
+        </>
+      )}
+      {host === "local" && (
+        <p className="settings-text">
+          The API keys the model configs name are in <code>secrets.env</code> in the server's data folder, one{" "}
+          <code>NAME=value</code> per line. Changes take effect at once.
+        </p>
+      )}
+      {host === "cloudflare" && (
+        <p className="settings-text">
+          The API keys the model configs name are the Worker's secrets, set in the Cloudflare dashboard (the Worker's
+          settings, "Variables and Secrets") or with <code>wrangler secret put</code>.
+        </p>
+      )}
+    </section>
+  );
+}
+
 const PROVIDERS: Record<ModelConfig["provider"], string> = {
   anthropic: "Anthropic API",
   "anthropic-vertex": "Claude on Google Vertex AI",
@@ -126,6 +169,7 @@ const FIELD_LABELS: Record<string, string> = {
 // on a free tier, its provider, model and effort, its plain values (a region, a project) and its secrets by the name
 // of the Worker secret, never a value.
 function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultId: string | null }) {
+  const host = useHost();
   return (
     <section className="settings-section">
       <h3>Model configs</h3>
@@ -149,7 +193,7 @@ function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultI
                 <Fact key={`p-${key}`} label={key} value={value} />
               ))}
               {Object.entries(config.secrets).map(([field, secret]) => (
-                <Fact key={`s-${field}`} label={field} value={secret} hint="Worker secret" />
+                <Fact key={`s-${field}`} label={field} value={secret} hint={host === "cloudflare" ? "Worker secret" : "Secret"} />
               ))}
             </dl>
           </li>

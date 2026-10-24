@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createProject, listProjects, lookUpPdf, markOpened, type PdfLookup, type Project } from "./api";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { Header } from "./Header";
+import { useHost } from "./host";
 import { KnownPdfDialog } from "./KnownPdfDialog";
 import { ProjectPicker } from "./ProjectPicker";
 import { ProjectView } from "./ProjectView";
@@ -22,6 +23,8 @@ export function App() {
   // The name of the project just deleted: said where the project was, until something else is opened.
   const [deleted, setDeleted] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // In the desktop app everything is on this computer: there is no remote storage to speak of (DESIGN.md §3).
+  const desktop = useHost() === "desktop";
   // The open project, and the artifact the user picked, are the ones in the URL, if any.
   const hash = useHash();
   const route = parseRoute(hash);
@@ -195,7 +198,7 @@ export function App() {
           projects !== null && (
             <div className="empty-state">
               {deleted !== null ? (
-                <p>"{deleted}" was deleted from this device and from the remote storage.</p>
+                <p>{desktop ? `"${deleted}" was deleted.` : `"${deleted}" was deleted from this device and from the remote storage.`}</p>
               ) : route ? (
                 <p>This project doesn't exist (any more).</p>
               ) : (

@@ -19,7 +19,9 @@
     "test": "npm test --workspaces --if-present && node --test \"scripts/*.test.ts\"",
     "icons": "npm run icons -w apps/web",
     "notices": "node scripts/notices.ts",
-    "screenshots": "node scripts/screenshots.ts"
+    "screenshots": "node scripts/screenshots.ts",
+    "desktop": "npm run start -w apps/desktop",
+    "serve": "npm run serve -w apps/desktop"
   },
   "allowScripts": {
     "@google/genai": false,

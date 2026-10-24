@@ -62,6 +62,11 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
+// Which host serves the app (DESIGN.md §3, "What differs in the app"): here Cloudflare. The desktop version's server
+// answers this itself ("desktop" in Electron, "local" as a plain local server), so the web bundle stays the same and
+// the app asks rather than guessing.
+app.get("/api/info", (c) => c.json({ host: "cloudflare" }));
+
 // Deletes a project (DESIGN.md §4): refused while one of its stages runs, here or on another device.
 app.delete("/api/projects/:id", async (c) => {
   const result = await deleteProject(c.env, c.req.param("id"));

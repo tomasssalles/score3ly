@@ -66,6 +66,19 @@ async function checked(response: Response): Promise<Response> {
   return response;
 }
 
+// Which host serves the app (DESIGN.md §3, "What differs in the app"): Cloudflare, the desktop app (Electron) or the
+// same server run alone on a computer.
+export type Host = "cloudflare" | "desktop" | "local";
+
+export async function fetchHost(): Promise<Host> {
+  return ((await (await checked(await fetch("/api/info"))).json()) as { host: Host }).host;
+}
+
+// The desktop app: opens the secrets file in the system's text editor (the server does it; a page can't).
+export async function openSecretsFile(): Promise<void> {
+  await checked(await fetch("/api/secrets-file/open", { method: "POST" }));
+}
+
 // All projects, most recently opened first.
 export async function listProjects(): Promise<Project[]> {
   return (await checked(await fetch("/api/projects"))).json();

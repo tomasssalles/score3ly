@@ -1,0 +1,22 @@
+{
+  "name": "desktop",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "npm run build --prefix ../web && node build.ts",
+    "start": "npm run build && electron .",
+    "serve": "npm run build && node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "electron": "44.9.3",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,9 +1,9 @@
 // Makes THIRD_PARTY_NOTICES.md: the code and other material by others that score3ly's builds include (the web app,
-// the Worker and the packages they use), each with its license and copyright notices, as their licenses require
+// the Worker, the desktop app's server and the packages they use), each with its license and copyright notices, as their licenses require
 // (DESIGN.md §3, "License"). Run `npm run notices` after changing dependencies; a test fails while the file is out of
 // date (scripts/notices.test.ts).
 //
-// Packages: the production dependencies of apps/web, apps/worker and packages/*, and theirs, as installed. Optional
+// Packages: the production dependencies of apps/web, apps/worker, apps/desktop and packages/*, and theirs, as installed. Optional
 // dependencies are left out (platform-specific binaries, which differ between machines, and Node-only extras the builds
 // don't include). apps/eval is a local tool, not distributed. Material that isn't an npm package is listed in OTHER.
 
@@ -11,7 +11,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } fr
 import { dirname, join, relative } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
-const ROOTS = ["apps/web", "apps/worker", "packages/imaging", "packages/notation", "packages/prompts"];
+const ROOTS = ["apps/web", "apps/worker", "apps/desktop", "packages/imaging", "packages/notation", "packages/prompts"];
 export const NOTICES_FILE = join(ROOT, "THIRD_PARTY_NOTICES.md");
 
 // Material in the builds that isn't an npm package.
