@@ -50,7 +50,3 @@ is known about each.
   others too and decide with the owner. Goes with the remote-storage wording task.
 - **Add a task:** test the desktop app locally (the owner runs it on their machine: start, create a project, run the
   pipeline with the fake model, the secrets file, back/forward, restart keeps everything).
-
-## 8. The logo in the README
-- The logo is `apps/web/public/icon.svg` (PNGs next to it, made by `npm run icons`). Put it at the top of the root
-  `README.md` (the owner wants the README written properly later; for now just the logo).

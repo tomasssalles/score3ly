@@ -1,3 +1,5 @@
+<p align="center"><img src="apps/web/public/icon.svg" width="128" alt="The score3ly logo"></p>
+
 # score3ly
 Convert printed musical scores into lilypond format (upgrade of score2ly).
 
