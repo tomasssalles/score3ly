@@ -73,9 +73,3 @@ is known about each.
   page with all of them) to look at in one go. Playwright and Chromium are available in the cloud sessions
   (`/opt/pw-browsers`); locally the owner would install Playwright. Dialogs and menus that need a click: a few
   scripted steps, kept to a minimum.
-
-## 12. The license
-- Task in DESIGN.md §15 "Choose a license" (§5.6, the About page). Until then all rights are reserved. Verovio, bundled
-  in the web app, is LGPL-3.0 (§9); other bundled libraries: CodeMirror (MIT), libxml2-wasm (MIT, libxml2 itself
-  MIT), pdf.js (Apache-2.0), jsPDF (MIT), svg2pdf.js (MIT), fflate (MIT), React (MIT). Only a conversation for now:
-  options (MIT, Apache-2.0, GPL/AGPL, …) and what each means for this project.

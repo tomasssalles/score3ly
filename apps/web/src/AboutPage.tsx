@@ -53,8 +53,19 @@ export function AboutPage() {
         </dd>
         <dt>License</dt>
         <dd>
-          None yet, so all rights are reserved: the source code can be read on GitHub, but not copied, changed or
-          shared. © 2026 {AUTHOR}.
+          <a href={`${REPOSITORY_URL}/blob/main/LICENSE`} target="_blank" rel="noopener noreferrer">
+            GNU Affero General Public License, version 3
+          </a>
+          : anyone may use, change and share the code, but whoever shares it, or lets others use a changed version over
+          a network, must offer its source code under the same license. © 2026 {AUTHOR}.
+        </dd>
+        <dt>Third-party code</dt>
+        <dd>
+          Libraries, fonts and the MEI schema by others, under their own licenses:{" "}
+          <a href={`${REPOSITORY_URL}/blob/main/THIRD_PARTY_NOTICES.md`} target="_blank" rel="noopener noreferrer">
+            the notices
+          </a>
+          .
         </dd>
       </dl>
     </div>
