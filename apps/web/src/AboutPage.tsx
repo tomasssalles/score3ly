@@ -54,7 +54,7 @@ export function AboutPage() {
         <dt>License</dt>
         <dd>
           <a href={`${REPOSITORY_URL}/blob/main/LICENSE`} target="_blank" rel="noopener noreferrer">
-            GNU Affero General Public License, version 3
+            GNU Affero General Public License, version 3 or later
           </a>
           : anyone may use, change and share the code, but whoever shares it, or lets others use a changed version over
           a network, must offer its source code under the same license. © 2026 {AUTHOR}.

@@ -56,3 +56,25 @@ To deploy the app and API to Cloudflare as one Worker: `npm run deploy`.
 ## Evaluation
 
 The test set and its tooling are described in [testset/README.md](testset/README.md).
+
+## License
+
+score3ly is licensed under the GNU Affero General Public License, version 3 or (at your option) any later version: see [LICENSE](LICENSE). Code, fonts and other material by others that its builds include are listed, with their licenses, in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+```text
+score3ly: converts printed music scores into MEI, with vision LLMs.
+Copyright (C) 2026  Tomás Silveira Salles
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+```
