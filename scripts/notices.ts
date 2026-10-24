@@ -74,7 +74,10 @@ function urlOf(json: Record<string, unknown>): string | null {
   return url;
 }
 
-// A license's standard text, for a package that ships none: by its SPDX id, from scripts/licenses. The LGPL is a set
+// A license's standard text, for a package that ships none: by its SPDX id, from scripts/licenses, where every text
+// is copied from a real license file: MIT's from React's LICENSE (without its copyright line), Apache-2.0's from
+// @aws-sdk/core's, the LGPL's and GPL's from Verovio's repository (COPYING.LESSER, COPYING), ECL-2.0's from MEI's
+// repository (LICENSE), the OFL's from @fontsource-variable/inter's LICENSE (without Inter's copyright lines). The LGPL is a set
 // of permissions added to the GPL, so both go together. MIT's text needs the copyright holder: the package's author.
 function standardTexts(p: { name: string; license: string; author: string | null }): { name: string; text: string }[] {
   const read = (id: string) => readFileSync(join(import.meta.dirname, "licenses", `${id}.txt`), "utf8").replace(/\r\n/g, "\n").trimEnd();
