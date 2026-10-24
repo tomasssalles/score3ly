@@ -68,8 +68,9 @@ export function DeleteProjectDialog({
           <FittedText text={project.name} lines={3} />
         </p>
         <p className="dialog-text">
-          The project and its results are deleted from this device and from the remote storage, with everything only it
-          uses. Only its costs stay, in the statistics. This can't be undone.
+          The project and all its files will be deleted, along with any data cached on this device (with the exception of
+          files still in use by other projects). Only its costs will still be reported in the Statistics page. This action
+          cannot be undone.
         </p>
         <label className="field delete-field">
           <span className="dialog-text">Type the project's name to confirm:</span>

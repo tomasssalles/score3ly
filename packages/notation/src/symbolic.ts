@@ -87,6 +87,10 @@ export type Tempo = { text: string | null; unit: Duration | null; bpm: number | 
 
 export type Parsed = { events: Event[] } | { problem: string };
 
+// Note symbols a metronome mark is printed with: Unicode's (♩ ♪ ♫ ♬, and the musical symbols block's notes) and SMuFL's
+// metronome glyphs.
+const METRONOME_IN_TEXT = /[\u2669-\u266C\u{1D15D}-\u{1D164}\uE1D0-\uE1EF]/u;
+
 // --- Lexing -----------------------------------------------------------------------------------------------------
 
 type Token =
@@ -234,6 +238,10 @@ function command(text: string, i: number, placement: Placement): { token: Token;
     }
     if (text === null && unit === null) throw new LexError(`at ${at + 1}: "\\tempo" needs a text, a metronome mark or both, e.g. \\tempo "Allegro" 4 = 132`);
     if (text !== null && text.trim() === "") throw new LexError(`at ${at + 1}: "\\tempo": the text is empty`);
+    // The metronome mark goes after the text, as a note value and a number, never inside it: code needs its numbers.
+    if (text !== null && (METRONOME_IN_TEXT.test(text) || /=\s*\d/.test(text))) {
+      throw new LexError(`at ${at + 1}: "\\tempo": write the metronome mark after the text, not in it, e.g. \\tempo "Allegro" 4 = 132`);
+    }
     return { token: { t: "tempo", tempo: { text, unit, bpm, bpmMax } }, length: j - i };
   }
   if (name === "ottava") {

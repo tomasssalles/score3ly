@@ -168,5 +168,11 @@ test("tempo marks: LilyPond's \\tempo, with a text, a metronome mark or both", (
   assert.match(problem('\\tempo "Allegro" 4 c4'), /followed by "="/);
   assert.match(problem("\\tempo 4 = 132-120 c4"), /isn't a tempo/);
   assert.match(problem("\\tuplet 3/2 { c8 \\tempo 4 = 60 d8 e8 }"), /can't be inside/);
+  // The metronome mark inside the text: its numbers would be lost.
+  for (const text of ["Allegro ♩ = 132", "Allegro (♩. = 60)", "Lento 4 = 52", "\uE1D5 = 60"]) {
+    assert.match(problem(`\\tempo "${text}" c4`), /after the text, not in it/);
+  }
+  assert.ok(events('\\tempo "Tempo I" c4').length === 2);
+  assert.ok(events('\\tempo "ca. M.M." 4 = 60 c4').length === 2);
   assert.match(problem('c4^\\tempo "Allegro"'), /placement prefix/);
 });
