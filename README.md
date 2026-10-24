@@ -49,6 +49,8 @@ BEDROCK_API_KEY=... BEDROCK_REGION=eu-central-1 npm run llm:try -w apps/worker -
 
 For Claude on Bedrock, `BEDROCK_API_KEY` is a Bedrock API key; instead, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` can give an access key pair. `BEDROCK_REGION` is the region (`eu-central-1` if left out), and the model is Bedrock's own ID for it. For Claude on Vertex AI, `VERTEX_SERVICE_ACCOUNT` is the path of a service account's key file (JSON), `VERTEX_REGION` the region (`eu` if left out), and `VERTEX_PROJECT` the project (the key file's if left out).
 
+To see the app in every theme and at both widths without clicking through it, run `npm run screenshots`: it starts its own servers on a fresh database, runs a few projects with the fake model, and writes PNGs and a contact sheet (`index.html`) to `screenshots/`. It needs Playwright's Chromium: run `npx playwright install chromium` once.
+
 After changing the app icon (`apps/web/public/icon.svg`), make its PNG versions again with `npm run icons -- --force`.
 
 To deploy the app and API to Cloudflare as one Worker: `npm run deploy`.

@@ -11,6 +11,7 @@ import { foldGutter, foldKeymap, HighlightStyle, syntaxHighlighting } from "@cod
 import { xml } from "@codemirror/lang-xml";
 import { tags } from "@lezer/highlight";
 import type { Match } from "./meiView";
+import { currentTheme } from "./themes";
 
 // Lines are counted from 0, as in meiView.ts.
 type Marks = { matches: Match[]; current: number; selected: number | null };
@@ -53,34 +54,36 @@ const SELECTED_LINE = Decoration.line({ class: "cm-mei-selected" });
 const MATCH = Decoration.mark({ class: "cm-mei-match" });
 const CURRENT = Decoration.mark({ class: "cm-mei-current" });
 
-// After GitHub's dark theme, as the view had before.
+// The colours are the theme's (themes.css).
 const HIGHLIGHT = HighlightStyle.define([
-  { tag: tags.tagName, color: "#7ee787" },
-  { tag: tags.attributeName, color: "#79c0ff" },
-  { tag: tags.attributeValue, color: "#a5d6ff" },
+  { tag: tags.tagName, color: "var(--syntax-tag)" },
+  { tag: tags.attributeName, color: "var(--syntax-attribute)" },
+  { tag: tags.attributeValue, color: "var(--syntax-value)" },
   { tag: [tags.angleBracket, tags.punctuation, tags.definitionOperator, tags.processingInstruction, tags.documentMeta], color: "var(--muted)" },
-  { tag: tags.comment, color: "#8b949e", fontStyle: "italic" },
+  { tag: tags.comment, color: "var(--syntax-comment)", fontStyle: "italic" },
   { tag: tags.content, color: "var(--fg)" },
 ]);
 
-const THEME = EditorView.theme(
-  {
-    "&": { height: "100%", background: "#0d0e10", color: "var(--fg)", fontSize: "13px" },
-    ".cm-scroller": { fontFamily: "var(--mono)", lineHeight: "20px", overflow: "auto" },
-    ".cm-content": { caretColor: "var(--fg)", padding: "4px 0" },
-    ".cm-gutters": { background: "#0d0e10", color: "#5c6068", border: "none" },
-    ".cm-lineNumbers .cm-gutterElement": { padding: "0 4px 0 12px" },
-    ".cm-foldGutter .cm-gutterElement": { padding: "0 4px", cursor: "pointer" },
-    ".cm-activeLine": { background: "transparent" },
-    "&.cm-focused .cm-cursor": { borderLeftColor: "var(--fg)" },
-    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { background: "rgba(121, 192, 255, 0.25)" },
-    ".cm-mei-selected": { background: "rgba(224, 160, 48, 0.16)" },
-    ".cm-mei-match": { background: "rgba(224, 160, 48, 0.35)" },
-    ".cm-mei-current": { background: "#e0a030", color: "#000" },
-    ".cm-foldPlaceholder": { background: "var(--raised)", border: "1px solid var(--line)", color: "var(--muted)" },
-  },
-  { dark: true },
-);
+// Made for each editor: whether the theme is dark is decided when it opens.
+const editorTheme = () =>
+  EditorView.theme(
+    {
+      "&": { height: "100%", background: "var(--code-bg)", color: "var(--fg)", fontSize: "13px" },
+      ".cm-scroller": { fontFamily: "var(--mono)", lineHeight: "20px", overflow: "auto" },
+      ".cm-content": { caretColor: "var(--fg)", padding: "4px 0" },
+      ".cm-gutters": { background: "var(--code-bg)", color: "var(--code-gutter)", border: "none" },
+      ".cm-lineNumbers .cm-gutterElement": { padding: "0 4px 0 12px" },
+      ".cm-foldGutter .cm-gutterElement": { padding: "0 4px", cursor: "pointer" },
+      ".cm-activeLine": { background: "transparent" },
+      "&.cm-focused .cm-cursor": { borderLeftColor: "var(--fg)" },
+      "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { background: "var(--code-selection)" },
+      ".cm-mei-selected": { background: "color-mix(in srgb, var(--highlight) 16%, transparent)" },
+      ".cm-mei-match": { background: "color-mix(in srgb, var(--highlight) 35%, transparent)" },
+      ".cm-mei-current": { background: "var(--highlight)", color: "var(--on-highlight)" },
+      ".cm-foldPlaceholder": { background: "var(--raised)", border: "1px solid var(--line)", color: "var(--muted)" },
+    },
+    { dark: currentTheme().dark },
+  );
 
 export function MeiCode({
   initial,
@@ -118,7 +121,7 @@ export function MeiCode({
           foldGutter(),
           xml(),
           syntaxHighlighting(HIGHLIGHT),
-          THEME,
+          editorTheme(),
           marks,
           keymap.of([...defaultKeymap, ...historyKeymap, ...foldKeymap, ...(editable ? [indentWithTab] : [])]),
           ...(editable ? [history()] : [EditorState.readOnly.of(true), EditorView.editable.of(false)]),

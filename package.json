@@ -18,12 +18,16 @@
     "eval:view": "npm run view -w apps/eval",
     "test": "npm test --workspaces --if-present && node --test \"scripts/*.test.ts\"",
     "icons": "npm run icons -w apps/web",
-    "notices": "node scripts/notices.ts"
+    "notices": "node scripts/notices.ts",
+    "screenshots": "node scripts/screenshots.ts"
   },
   "allowScripts": {
     "@google/genai": false,
     "esbuild@0.28.2": true,
     "protobufjs": false,
     "workerd@1.20261006.1": true
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
   }
 }

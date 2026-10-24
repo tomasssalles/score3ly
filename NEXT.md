@@ -57,19 +57,8 @@ is known about each.
   Agree the new wording with the owner.
 - Also related, in §15: "Decide on the report after a re-run" (which fixes were kept and which dropped).
 
-## 11. Light theme, and a screenshot script
-- **Theme:** colours are CSS variables in `apps/web/src/styles.css` (`:root`), but about 36 literal colours remain
-  (MEI highlighting, score backgrounds `#1a1b1e`, `#0d0e10`, …) and CodeMirror's theme (`MeiCode.tsx`) hard-codes
-  colours. Follow the system via `prefers-color-scheme` (browsers pass the OS setting through and may override it),
-  plus an Auto / Light / Dark setting stored on the device (default Auto). Replace every literal colour by a token
-  and add a test that fails on colours outside the token blocks (like the existing test that keeps the icon's accent
-  equal to `--accent`), so later views get both themes for free. Engraved pages and scans stay as they are (paper).
-  Keep high contrast (§5.7).
-- **Screenshot script:** the owner wants to compare versions cheaply, without me clicking through the app (tokens).
-  Idea: a script (e.g. `npm run screenshots`) that starts the Worker and Vite with a **seeded local database and R2**
-  (a fixed fixture project with every stage done, fake model), then visits a fixed list of URLs (the app's routes
-  are hash URLs, so artifacts and stage details can be opened directly by URL, no clicking) at 1400 px and 390 px,
-  in both themes (`colorScheme` in Playwright), and writes PNGs to a folder; optionally a contact sheet (one HTML
-  page with all of them) to look at in one go. Playwright and Chromium are available in the cloud sessions
-  (`/opt/pw-browsers`); locally the owner would install Playwright. Dialogs and menus that need a click: a few
-  scripted steps, kept to a minimum.
+## 11. The light theme
+- The scaffolding is built (DESIGN.md §5.7, "Themes" and "Screenshots"): every colour is a token in
+  `apps/web/src/themes.css`, tests keep it so, the device setting (Auto / a theme) exists, and `npm run screenshots`
+  shows every theme at both widths. Left: the light theme's block of tokens and its entry in `THEMES`
+  (`apps/web/src/themes.ts`), checked in the screenshots; perhaps a light version of the app icon.

@@ -1,0 +1,53 @@
+/* The themes (DESIGN.md §5.7): every colour of the app is a token here, and only here; the rest of the CSS and the code
+   use the tokens (a test checks it). A theme is a block for `:root[data-theme="<id>"]`, with every token, and is
+   listed in themes.ts. The first block also applies before the app has picked a theme. */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* The app's chrome and text */
+  --bg: #000000; /* header and other chrome */
+  --surface: #0b0b0b; /* page background */
+  --line: #26272b; /* hairlines */
+  --raised: #151517; /* fields, menus */
+  --hover: #1d1e21; /* highlighted list item */
+  --fg: #f2f2f2; /* running text */
+  --muted: #a3a7ae; /* secondary text */
+  --wordmark: #ffffff;
+  --accent: #ff7b72; /* coral, 8.4:1 on black */
+  --on-accent: #000000; /* text on the accent, and on the run, stop and danger buttons */
+  --danger: #ff5c5c; /* destructive actions, e.g. deleting; errors over a page */
+  --on-danger: #000000;
+  --warning: #e0a030; /* amber: something to look at, not an error */
+  --green: #3fb950;
+  --progress: var(--green); /* progress bars and circles */
+
+  /* Depth */
+  --shadow: rgba(0, 0, 0, 0.6); /* menus */
+  --shadow-strong: rgba(0, 0, 0, 0.7); /* dialogs */
+  --shadow-soft: rgba(0, 0, 0, 0.5); /* pages */
+  --backdrop: rgba(0, 0, 0, 0.6); /* behind a dialog */
+  --badge: rgba(0, 0, 0, 0.75); /* a count over a tile */
+  --float: rgba(90, 90, 90, 0.6); /* buttons and counters floating over an artifact */
+  --float-hover: rgba(90, 90, 90, 0.85);
+  --on-float: #ffffff;
+
+  /* Around and on the paper: page images, renderings and engravings stay paper-coloured in every theme */
+  --viewer: #1a1b1e; /* behind pages and tiles */
+  --paper: #ffffff; /* behind Verovio's renderings, which are black on transparent */
+  --mark: #e3241b; /* the lines that should be horizontal, drawn over a page */
+  --on-mark: #ffffff;
+  --on-layout: #000000; /* text on the layout's box colours (packages/imaging, LAYOUT_COLORS) */
+  --highlight: #e0a030; /* what is selected in an engraving or the MEI file */
+  --on-highlight: #000000;
+
+  /* The MEI file (CodeMirror), after GitHub's dark theme */
+  --code-bg: #0d0e10;
+  --code-gutter: #5c6068;
+  --code-selection: rgba(121, 192, 255, 0.25);
+  --syntax-tag: #7ee787;
+  --syntax-attribute: #79c0ff;
+  --syntax-value: #a5d6ff;
+  --syntax-comment: #8b949e;
+}

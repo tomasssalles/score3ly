@@ -1,17 +1,19 @@
 // The settings (DESIGN.md §5.1, §5.8, §7.2, §10): the user's, stored by the Worker. So far the run mode new projects
 // start with and the spending cap, and the model configs, read-only. A pick is saved at once, an amount when it is
-// left or Enter is pressed.
+// left or Enter is pressed. Then this device's own: the theme (§5.7), kept in the browser.
 
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { fetchModelConfigs, fetchSettings, putSetting, type ModelConfig, type Settings } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
 import { ChevronDownIcon } from "./icons";
 import { MODE_LABELS, MODES } from "./pipeline";
+import { CHOICES, setThemeChoice, themeChoice } from "./themes";
 
 export function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [configs, setConfigs] = useState<ModelConfig[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [theme, setTheme] = useState(themeChoice);
 
   useEffect(() => {
     fetchSettings().then(setSettings, () => setError("The settings couldn't be loaded."));
@@ -66,6 +68,38 @@ export function SettingsPage() {
         </dl>
       )}
       {settings && configs && <ModelConfigs configs={configs} defaultId={settings.defaultModelConfigId} />}
+      <section className="settings-section">
+        <h3>This device</h3>
+        <dl className="settings-list">
+          <dt>
+            Theme
+            <span className="settings-hint">Auto follows the system's light or dark setting, where the app has a theme for it.</span>
+          </dt>
+          <dd>
+            <DropdownMenu
+              className="mode-picker"
+              buttonClassName="mode-button"
+              icon={
+                <>
+                  {CHOICES.find((c) => c.value === theme)?.label}
+                  <ChevronDownIcon />
+                </>
+              }
+              label="Theme"
+              groups={[
+                CHOICES.map((c) => ({
+                  label: c.label,
+                  current: c.value === theme,
+                  onSelect: () => {
+                    setThemeChoice(c.value);
+                    setTheme(c.value);
+                  },
+                })),
+              ]}
+            />
+          </dd>
+        </dl>
+      </section>
     </div>
   );
 }

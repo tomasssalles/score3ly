@@ -3,6 +3,9 @@ dist/
 .wrangler/
 .dev.vars
 
+# `npm run screenshots` writes here.
+/screenshots/
+
 # Test set: commit only the inputs, their highlighter strokes, the LilyPond, MusicXML and MEI candidates and the README.
 # Engravings and anything else produced in the folder stay local.
 /testset/*

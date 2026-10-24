@@ -1,22 +1,8 @@
-/* Dark theme only for now (light and high-contrast variants later). */
+/* Every colour is a token of the theme (themes.css, DESIGN.md §5.7); this file uses only the tokens. */
+
 :root {
-  --bg: #000000; /* header and other chrome */
-  --surface: #0b0b0b; /* page background */
-  --line: #26272b; /* hairlines */
-  --raised: #151517; /* fields, menus */
-  --hover: #1d1e21; /* highlighted list item */
-  --fg: #f2f2f2; /* running text */
-  --muted: #a3a7ae; /* secondary text */
-  --wordmark: #ffffff;
-  --accent: #ff7b72; /* coral, 8.4:1 on black */
-  --danger: #ff5c5c; /* destructive actions, e.g. deleting */
-  --warning: #e0a030; /* amber: something to look at, not an error */
-  --green: #3fb950;
-  --progress: var(--green); /* progress bars and circles */
-  --on-accent: #000000;
   --mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color-scheme: dark;
 }
 
 html,
@@ -223,7 +209,7 @@ body {
   border-radius: 0 0 10px 10px;
   max-height: min(60vh, 360px);
   overflow-y: auto;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 16px 40px var(--shadow);
 }
 
 .picker-list li {
@@ -302,11 +288,11 @@ body {
   border-radius: 12px;
   background: var(--raised);
   color: var(--fg);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 24px 60px var(--shadow-strong);
 }
 
 .app-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--backdrop);
 }
 
 .dialog-head {
@@ -746,7 +732,7 @@ body {
   align-items: center;
   gap: 6px;
   font: 600 14px var(--sans);
-  color: #000;
+  color: var(--on-accent);
   border: 0;
   border-radius: 8px;
   padding: 7px 14px 7px 10px;
@@ -823,7 +809,7 @@ body {
   display: grid;
   place-items: center;
   border-radius: 4px;
-  background: #1a1b1e;
+  background: var(--viewer);
   color: var(--muted);
   overflow: hidden;
 }
@@ -839,7 +825,7 @@ body {
   bottom: 3px;
   padding: 0 4px;
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--badge);
   color: var(--fg);
   font: 11px/1.5 var(--mono);
 }
@@ -883,13 +869,13 @@ body {
   padding: 0;
   border: 0;
   border-radius: 8px;
-  background: rgba(90, 90, 90, 0.6);
-  color: #fff;
+  background: var(--float);
+  color: var(--on-float);
   cursor: pointer;
 }
 
 .artifact-close:hover {
-  background: rgba(90, 90, 90, 0.85);
+  background: var(--float-hover);
 }
 
 .pdf-view {
@@ -897,7 +883,7 @@ body {
   min-height: 0;
   overflow-y: auto;
   padding: 16px;
-  background: #1a1b1e;
+  background: var(--viewer);
 }
 
 .pdf-pages {
@@ -911,7 +897,7 @@ body {
   display: block;
   width: 100%;
   border-radius: 2px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 16px var(--shadow-soft);
 }
 
 /* Texts, groups of items (a filmstrip) and a stage's details */
@@ -919,7 +905,7 @@ body {
   display: block;
   width: 100%;
   border-radius: 2px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 16px var(--shadow-soft);
 }
 
 .page-image {
@@ -972,7 +958,7 @@ body {
 
 /* Only the skew lines, directly in the overlay's drawing: a layout's bar lines take their box's colour. */
 .lines-overlay svg > line {
-  stroke: #e3241b;
+  stroke: var(--mark);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
@@ -982,8 +968,8 @@ body {
   transform: translate(0, -115%);
   padding: 1px 4px;
   border-radius: 3px;
-  background: #e3241b;
-  color: #fff;
+  background: var(--mark);
+  color: var(--on-mark);
   font: 600 11px var(--mono);
   white-space: nowrap;
 }
@@ -999,7 +985,7 @@ body {
   position: absolute;
   padding: 1px 5px;
   border-radius: 0 0 3px 0;
-  color: #000;
+  color: var(--on-layout);
   font: 600 12px var(--mono);
 }
 
@@ -1014,7 +1000,7 @@ body {
   padding: 2px 8px;
   border-radius: 4px;
   background: var(--danger);
-  color: #000;
+  color: var(--on-danger);
   font-size: 12px;
 }
 
@@ -1063,7 +1049,7 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
-  background: #1a1b1e;
+  background: var(--viewer);
 }
 
 .film-items {
@@ -1102,8 +1088,8 @@ body {
   bottom: 12px;
   padding: 3px 8px;
   border-radius: 6px;
-  background: rgba(90, 90, 90, 0.6);
-  color: #fff;
+  background: var(--float);
+  color: var(--on-float);
   font: 12px var(--mono);
   pointer-events: none;
 }
@@ -1210,7 +1196,7 @@ body {
   background: var(--raised);
   border: 1px solid var(--line);
   border-radius: 10px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 16px 40px var(--shadow);
 }
 
 .dropdown-group + .dropdown-group {
@@ -1602,7 +1588,7 @@ body {
   padding: 8px 12px;
   border-radius: 8px;
   background: var(--danger);
-  color: #000;
+  color: var(--on-danger);
   font-size: 13px;
 }
 
@@ -1703,7 +1689,7 @@ body {
 /* Widths in screen pixels (--px, set by the editor): as thick as skew_analysis's lines at any zoom. */
 .skew-line line,
 .skew-rubber {
-  stroke: #e3241b;
+  stroke: var(--mark);
   stroke-width: calc(2 * var(--px));
 }
 
@@ -1713,11 +1699,11 @@ body {
 }
 
 .skew-line text {
-  fill: #e3241b;
+  fill: var(--mark);
   font-family: var(--mono);
   font-weight: 600;
   paint-order: stroke;
-  stroke: #fff;
+  stroke: var(--on-mark);
   stroke-width: 0.3em;
 }
 
@@ -1726,12 +1712,12 @@ body {
 }
 
 .editor-handle {
-  fill: rgba(255, 123, 114, 0.35);
+  fill: color-mix(in srgb, var(--accent) 35%, transparent);
   stroke: var(--accent);
 }
 
 .editor-anchor {
-  fill: #e3241b;
+  fill: var(--mark);
 }
 
 
@@ -1763,7 +1749,7 @@ body {
 
 .layout-label-text {
   stroke: none;
-  fill: #000;
+  fill: var(--on-layout);
   font-family: var(--mono);
   font-weight: 600;
 }
@@ -2150,7 +2136,7 @@ textarea.field-input {
   padding: 1px 5px;
   border: none;
   border-radius: 0 0 3px 0;
-  color: #000;
+  color: var(--on-layout);
   font: 600 12px var(--mono);
   cursor: pointer;
 }
@@ -2163,7 +2149,7 @@ textarea.field-input {
 .rendering {
   padding: 4px;
   border-radius: 2px;
-  background: #fff;
+  background: var(--paper);
 }
 
 .rendering > svg {
@@ -2258,8 +2244,8 @@ textarea.field-input {
 
 .engraved-page {
   border-radius: 2px;
-  background: #fff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  background: var(--paper);
+  box-shadow: 0 4px 16px var(--shadow-soft);
 }
 
 .engraved-page > svg {
@@ -2303,7 +2289,7 @@ textarea.field-input {
   min-height: 0;
   overflow: auto;
   padding: 16px;
-  background: #1a1b1e;
+  background: var(--viewer);
   border-top: 1px solid var(--line);
 }
 
@@ -2326,8 +2312,8 @@ textarea.field-input {
 }
 
 .mei-pages .engraved-page g.mei-selected {
-  fill: #e0a030;
-  color: #e0a030;
+  fill: var(--highlight);
+  color: var(--highlight);
 }
 
 .mei-score-note {
@@ -2444,7 +2430,7 @@ textarea.field-input {
 }
 
 .fix-mei-state.changed {
-  color: #e0a030;
+  color: var(--warning);
 }
 
 .fix-mei-problems {

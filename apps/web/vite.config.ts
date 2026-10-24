@@ -29,7 +29,7 @@ export default defineConfig({
   // The workers are module workers; libxml2-wasm (meiCheckWorker.ts) needs a top-level await, which IIFE can't hold.
   worker: { format: "es" },
   server: {
-    // Forward API calls to `wrangler dev` (see apps/worker).
-    proxy: { "/api": "http://localhost:8787" },
+    // Forward API calls to `wrangler dev` (see apps/worker); the screenshot script runs its own on another port.
+    proxy: { "/api": process.env.SCORE3LY_API_URL ?? "http://localhost:8787" },
   },
 });
