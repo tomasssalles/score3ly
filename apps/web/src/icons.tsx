@@ -58,6 +58,23 @@ export function ChevronDownIcon() {
   );
 }
 
+// Back and forward in the app's history: arrows, so they aren't mistaken for the chevrons that collapse and expand.
+export function BackIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M19 12H5M11 6l-6 6 6 6" />
+    </svg>
+  );
+}
+
+export function ForwardIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
 export function ChevronUpIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">

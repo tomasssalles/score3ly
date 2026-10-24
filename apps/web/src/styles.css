@@ -45,11 +45,41 @@ body {
   column-gap: 16px;
 }
 
-.app-header .wordmark {
+.app-header .brand {
   grid-area: brand;
   height: 56px;
   display: flex;
   align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-header .wordmark {
+  display: flex;
+  align-items: center;
+}
+
+/* Back and forward, left of the wordmark (only without a browser bar). */
+.back-forward {
+  display: flex;
+  margin-left: -8px;
+}
+
+/* On a phone, the arrows take the room of the button's second word. */
+@media (max-width: 479px) {
+  .app-header.with-history .new-project-word {
+    display: none;
+  }
+  .app-header.with-history .brand {
+    gap: 6px;
+  }
+}
+
+.back-forward .icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: none;
+  color: var(--muted);
 }
 
 .app-header .actions {
@@ -69,8 +99,10 @@ body {
     grid-template-columns: 1fr minmax(0, 360px) 1fr;
     grid-template-areas: "brand picker actions";
   }
-  .app-header .wordmark {
+  .app-header .brand {
     height: auto;
+  }
+  .app-header .wordmark {
     font-size: 24px;
   }
   .app-header .picker {

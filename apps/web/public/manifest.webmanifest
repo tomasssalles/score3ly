@@ -1,6 +1,10 @@
 {
   "name": "score3ly",
   "short_name": "score3ly",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
   "background_color": "#303237",
   "theme_color": "#e45a51",
   "icons": [

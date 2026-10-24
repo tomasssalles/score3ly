@@ -1,5 +1,6 @@
 // Screenshots of the app, to compare versions and themes at a glance without clicking through it (DESIGN.md §5.7,
-// "Screenshots"): `npm run screenshots` (optionally `-- --out <folder>`, default `screenshots/`, which git ignores).
+// "Screenshots"): `npm run screenshots` (optionally `-- --out <folder>`, default `screenshots/`, which git ignores, and
+// `--only <text>` for the shots whose names contain it).
 //
 // It starts its own Worker and Vite on the test ports (8887 and 5273), with a database and storage of their own in a
 // temporary folder, so nothing of the usual local data is touched; seeds them through the app with the fake model
@@ -29,6 +30,9 @@ const VECTOR_PDF = join(ROOT, "testset/debussy_clair_de_lune_mutopia.orig.pdf");
 
 const outArg = process.argv.indexOf("--out");
 const OUT = outArg > 0 ? process.argv[outArg + 1] : join(ROOT, "screenshots");
+// `--only <text>`: only the shots whose names contain it (the seeding still takes its time).
+const onlyArg = process.argv.indexOf("--only");
+const ONLY = onlyArg > 0 ? process.argv[onlyArg + 1] : null;
 
 const LAYOUTS = [
   { id: "wide", viewport: { width: 1440, height: 900 }, collapsed: false },
@@ -186,7 +190,8 @@ function wrangler(args: string[]) {
 
 // --- The shots ----------------------------------------------------------------------------------------------------
 
-type Shot = { name: string; layouts?: Layout["id"][]; take: (page: Page) => Promise<void> };
+// `installed`: as an installed app, without a browser bar (the app shows its own back and forward buttons).
+type Shot = { name: string; layouts?: Layout["id"][]; installed?: boolean; take: (page: Page) => Promise<void> };
 
 // Waits for what loads after the page: images, renderings, the engraving, the MEI file.
 async function settled(page: Page) {
@@ -277,6 +282,16 @@ function shots(seed: Seed): Shot[] {
       },
     },
     {
+      // Back and forward in an installed app: the project opened from the start page, so back can go there.
+      name: "19-installed-app",
+      installed: true,
+      take: async (p) => {
+        await open(p, "#/");
+        await p.evaluate((hash) => (window.location.hash = hash), project(seed.done));
+        await settled(p);
+      },
+    },
+    {
       name: "18-dialog-known-pdf",
       layouts: ["wide", "narrow"],
       take: async (p) => {
@@ -290,7 +305,7 @@ function shots(seed: Seed): Shot[] {
   return all;
 }
 
-async function contextFor(browser: Browser, theme: (typeof THEMES)[number], layout: Layout): Promise<BrowserContext> {
+async function contextFor(browser: Browser, theme: (typeof THEMES)[number], layout: Layout, installed = false): Promise<BrowserContext> {
   const context = await browser.newContext({ viewport: layout.viewport, colorScheme: theme.dark ? "dark" : "light", deviceScaleFactor: 1 });
   await context.addInitScript(
     ({ theme, collapsed }) => {
@@ -299,6 +314,15 @@ async function contextFor(browser: Browser, theme: (typeof THEMES)[number], layo
     },
     { theme: theme.id, collapsed: layout.collapsed },
   );
+  // Chromium can't be told it is an installed app (the display mode isn't among the media features it emulates), so
+  // the app's question is answered here.
+  if (installed) {
+    await context.addInitScript(() => {
+      const matchMedia = window.matchMedia.bind(window);
+      window.matchMedia = (query: string) =>
+        query.includes("display-mode: standalone") ? ({ ...matchMedia(query), matches: true, media: query, addEventListener() {}, removeEventListener() {} } as MediaQueryList) : matchMedia(query);
+    });
+  }
   return context;
 }
 
@@ -342,7 +366,7 @@ async function main() {
   try {
     console.log("Seeding the projects (the fake model runs them)…");
     const seeded = await seed(browser, stateDir);
-    const list = shots(seeded);
+    const list = shots(seeded).filter((s) => !ONLY || s.name.includes(ONLY));
     rmSync(OUT, { recursive: true, force: true });
     const taken = new Set<string>();
     const columns: { theme: string; layout: string }[] = [];
@@ -352,7 +376,7 @@ async function main() {
         mkdirSync(join(OUT, theme.id, layout.id), { recursive: true });
         for (const shot of list.filter((s) => !s.layouts || s.layouts.includes(layout.id))) {
           // A fresh context for every shot: nothing cached, nothing left open by the shot before.
-          const context = await contextFor(browser, theme, layout);
+          const context = await contextFor(browser, theme, layout, shot.installed);
           const page = await context.newPage();
           const path = `${theme.id}/${layout.id}/${shot.name}.png`;
           try {
