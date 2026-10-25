@@ -112,7 +112,7 @@ export const STEPS: Record<string, StepInfo> = {
     },
   },
   skew_analysis: {
-    title: "Skew analysis",
+    title: "Skew detection",
     kind: "computed",
     optional: false,
     fixes: ["fix_skew"],

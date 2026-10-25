@@ -24,6 +24,8 @@ is known about each.
     on the narrow pipeline view. E.g. "Layout done. Starting Analyze", "Layout failed. Pipeline stopped". They
     disappear on their own and may cover the item counter in the corner.
   - `apply_review`'s title is **"Apply review"** (update DESIGN.md's table of steps, which says "Apply review results").
-  - **Undecided:** the stage's name over the pipeline bar in the expanded panel's head (it may read as that stage's
-    progress); `skew_analysis`'s title: "Skew detection" or "Skew" (instead of "Skew analysis").
+  - Expanded panel's head: the stage's name **below** the pipeline bar, in muted text with an ellipsis while it runs
+    ("Analyze…"); in red without one if it failed ("Layout failed"). The row's height doesn't change.
+  - `skew_analysis`'s title is **"Skew detection"** (fits the strip in two rows).
+  - **Still to go over:** the toasts' exact texts, and the states when nothing runs (pipeline done, and the others).
   - Mock-ups: `progress-mockups.patch` in the session's scratchpad (a `mock` key in localStorage), if still there.

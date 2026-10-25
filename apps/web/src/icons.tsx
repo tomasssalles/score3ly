@@ -142,7 +142,7 @@ export function ImageIcon() {
   );
 }
 
-// Skew analysis: a tilted line against a level one, and the angle between them.
+// Skew detection: a tilted line against a level one, and the angle between them.
 export function SkewIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
