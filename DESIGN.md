@@ -1291,8 +1291,8 @@ Built: `packages/imaging/src/pdfPages.ts` (`openPdf`, `pageImage`), tested on th
    - mean absolute difference below about 1 gray level, and
    - no single tile above a few gray levels.
 3. **Mismatch:** a warning (decided): nothing is flagged in storage, since it is this device's image that differs.
-   - **Over every image of the page concerned** (the page, straightened, its crops), wherever it is shown (artifact views, editors): "This image differs from the one the stored results were made from on another device; boxes or answers may not fit it." Below a system's crop instead of over it, where a banner would hide the music.
-   - **On the card of a stage running on this device** that makes such an image: "Some images differ on this device from the ones stored results were made from; boxes or answers may not fit them."
+   - **Over every image of the page concerned** (the page, straightened, its crops), wherever it is shown (artifact views, editors): "This image differs from the one the stored results were made from (probably on another device, or before a recent update); boxes or answers may not fit it." In the desktop app, the only device its data is on, the parenthesis is "(probably before a recent update)" (decided). Below a system's crop instead of over it, where a banner would hide the music.
+   - **On the card of a stage running on this device** that makes such an image: "Some images differ from the ones the stored results were made from (probably on another device, or before a recent update); boxes or answers may not fit them.", with the same parenthesis as above in the desktop app.
    - **"Close" is silent.**
 
 **Built** (`packages/imaging/src/fingerprint.ts`; `apps/web/src/pageImages.ts`, `ImagesDiffer.tsx`; `apps/worker/src/fingerprints.ts`, migration 0016 adds the version, the thumbnail's size and the time):
