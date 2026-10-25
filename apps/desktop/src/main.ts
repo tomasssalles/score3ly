@@ -56,6 +56,17 @@ function setWindowTheme(theme: WindowTheme) {
   }
 }
 
+// Reloading and the developer tools, which went with the menu (§3): Ctrl+R or F5 and Ctrl+Shift+I or F12 on Windows
+// and Linux; Cmd+R and Cmd+Alt+I on macOS.
+function toolKey(input: Input): "reload" | "devtools" | null {
+  if (input.type !== "keyDown") return null;
+  const mac = process.platform === "darwin";
+  const key = input.key.toLowerCase();
+  if (input.key === "F5" || (key === "r" && (mac ? input.meta : input.control) && !input.alt && !input.shift)) return "reload";
+  if (input.key === "F12" || (key === "i" && (mac ? input.meta && input.alt : input.control && input.shift))) return "devtools";
+  return null;
+}
+
 function go(direction: "back" | "forward") {
   const history = window?.webContents.navigationHistory;
   if (!history) return;
@@ -93,6 +104,12 @@ function createWindow(url: string) {
     if (direction) {
       event.preventDefault();
       go(direction);
+    }
+    const tool = toolKey(input);
+    if (tool) {
+      event.preventDefault();
+      if (tool === "reload") window?.webContents.reload();
+      else window?.webContents.toggleDevTools();
     }
   });
   // The mouse's side buttons (Windows, Linux) and a swipe between pages (macOS).
