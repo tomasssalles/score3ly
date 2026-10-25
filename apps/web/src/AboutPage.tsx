@@ -1,9 +1,12 @@
 import { Fragment, useEffect, useState } from "react";
 import { AUTHOR, pricesStale, REPOSITORY_URL, versionParts } from "./about";
 import { fetchPrices } from "./api";
+import { EDITION_TEXT, editionOf, useHost } from "./host";
 import { shortDate } from "./time";
 
 export function AboutPage() {
+  const host = useHost();
+  const edition = host && editionOf(host);
   const [pricesAsOf, setPricesAsOf] = useState<string | null>(null);
   useEffect(() => {
     fetchPrices().then((prices) => setPricesAsOf(prices.asOf), () => {});
@@ -19,10 +22,16 @@ export function AboutPage() {
       <p className="wordmark about-wordmark" aria-label="score3ly">
         <span className="bracket">&lt;</span>score3ly<span className="bracket">&gt;</span>
       </p>
+      {edition && <p className="about-edition">{edition}</p>}
       <p className="about-summary">
         A music transcription tool, driven by vision LLMs, that converts printed scores into MEI, an open, XML-based
         standard for encoding music notation.
       </p>
+      {edition && (
+        <p className="about-edition-text">
+          The <em>{edition}</em> app {EDITION_TEXT[edition]}
+        </p>
+      )}
       <dl className="about-facts">
         <dt>Version</dt>
         <dd className="mono">

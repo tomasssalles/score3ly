@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createProject, listProjects, lookUpPdf, markOpened, type PdfLookup, type Project } from "./api";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { Header } from "./Header";
-import { useHost } from "./host";
+import { useEditionTitle, useHost } from "./host";
 import { KnownPdfDialog } from "./KnownPdfDialog";
 import { ProjectPicker } from "./ProjectPicker";
 import { ProjectView } from "./ProjectView";
@@ -25,6 +25,7 @@ export function App() {
   const fileInput = useRef<HTMLInputElement>(null);
   // In the desktop app everything is on this computer: there is no remote storage to speak of (DESIGN.md §3).
   const desktop = useHost() === "desktop";
+  useEditionTitle();
   // The open project, and the artifact the user picked, are the ones in the URL, if any.
   const hash = useHash();
   const route = parseRoute(hash);

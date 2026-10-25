@@ -17,3 +17,25 @@ export function useHost(): Host | null {
   }, []);
   return host;
 }
+
+// The two editions of the app (DESIGN.md §3, "Editions"): *concerto* on Cloudflare, every device in sync; *cadenza*
+// on one computer (the desktop app, or its server run alone).
+export type Edition = "concerto" | "cadenza";
+
+export function editionOf(host: Host): Edition {
+  return host === "cloudflare" ? "concerto" : "cadenza";
+}
+
+export const EDITION_TEXT: Record<Edition, string> = {
+  concerto:
+    "uses cloud storage and remote servers. You can log into your account on different devices and your projects are kept in sync across them.",
+  cadenza: "runs and stores all files on your device. There's no account to log into. Installations on different devices share no data.",
+};
+
+// The window's title (a tab's, an installed app's title bar, the desktop app's window): "score3ly – concerto".
+export function useEditionTitle() {
+  const host = useHost();
+  useEffect(() => {
+    document.title = host ? `score3ly – ${editionOf(host)}` : "score3ly";
+  }, [host]);
+}

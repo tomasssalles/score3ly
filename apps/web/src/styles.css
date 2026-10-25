@@ -1528,8 +1528,21 @@ body {
   color: var(--wordmark);
 }
 
-.page-view .about-summary {
+/* The edition, under the wordmark like a work's subtitle (DESIGN.md §3, "Editions"). */
+.page-view .about-edition {
+  margin: -22px 0 20px;
+  text-align: center;
+  font: italic 400 22px Georgia, "Times New Roman", serif;
+  color: var(--muted);
+}
+
+.page-view .about-edition-text {
   margin-bottom: 28px;
+  color: var(--muted);
+}
+
+.page-view .about-summary {
+  margin-bottom: 12px;
   color: var(--fg);
 }
 
