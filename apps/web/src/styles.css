@@ -63,7 +63,7 @@ body {
 .header-edition {
   display: none;
   margin: 5px 0 0 -4px;
-  font: italic 400 19px Georgia, "Times New Roman", serif;
+  font: italic 400 23px Georgia, "Times New Roman", serif;
   color: var(--muted);
   white-space: nowrap;
 }
