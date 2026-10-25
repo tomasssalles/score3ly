@@ -16,3 +16,14 @@ is known about each.
   strip too, or the stage's icon there if names don't fit (icons per step: `STEP_ICONS` in `StageCard.tsx`); a small,
   dismissable hint in the artifact view when a new result is ready ("Layout is ready · Show"). Show screenshots at both
   widths before deciding.
+- **Decided so far (2026-10-25, from mock-ups):**
+  - Collapsed strip: the running stage's **name** replaces the label "Stage" under its ring (two rows at most, cut with
+    "…" beyond). A failed stage that stopped the pipeline: the ring is replaced by a **red** warning triangle
+    (`--danger`), the stage's name under it.
+  - **Toasts only in narrow mode while an artifact (or a stage's details) covers the pipeline**; none in wide mode, none
+    on the narrow pipeline view. E.g. "Layout done. Starting Analyze", "Layout failed. Pipeline stopped". They
+    disappear on their own and may cover the item counter in the corner.
+  - `apply_review`'s title is **"Apply review"** (update DESIGN.md's table of steps, which says "Apply review results").
+  - **Undecided:** the stage's name over the pipeline bar in the expanded panel's head (it may read as that stage's
+    progress); `skew_analysis`'s title: "Skew detection" or "Skew" (instead of "Skew analysis").
+  - Mock-ups: `progress-mockups.patch` in the session's scratchpad (a `mock` key in localStorage), if still there.

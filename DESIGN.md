@@ -527,7 +527,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
 | 9 | `fix_observations` | Fix observations **[manual]**, after `analyze` | manual | JSON: observations |
 | 10 | `extract` | Extraction | LLM, per system | The Transcription (see "The Transcription"): each system's crop with its rendering, the issues and the warnings on it. Stored per system: its answer in the lens, its issues and warnings |
 | 11 | `review` | Review | LLM, per system | The Transcription, with the issues as the review left them |
-| 12 | `apply_review` | Apply review results | LLM, per system | The Transcription, as the review's answers changed it, with the issues (what was applied) and the warnings |
+| 12 | `apply_review` | Apply review | LLM, per system | The Transcription, as the review's answers changed it, with the issues (what was applied) and the warnings |
 | 13 | `human_review` | Human review **[manual]**, after any `apply_review` | manual | The Transcription as a form: the issues answered and added by the user. An `apply_review` is added after it automatically |
 | 14 | `fix_mei` | Fix MEI **[manual]**, after the latest stage that produces the extraction, right before `engrave` | manual | The MEI, edited as text: the MEI view, editable while WIP |
 | 15 | `engrave` | Engrave | computed | The full score's MEI (with syntax highlighting and navigation) and its engraving as a PDF; the card has a download button for both. Always the last stage |
