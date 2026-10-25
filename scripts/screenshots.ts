@@ -31,7 +31,8 @@ const VECTOR_PDF = join(ROOT, "testset/debussy_clair_de_lune_mutopia.orig.pdf");
 
 const outArg = process.argv.indexOf("--out");
 const OUT = outArg > 0 ? process.argv[outArg + 1] : join(ROOT, "screenshots");
-// `--only <text>`: only the shots whose names contain it (the seeding still takes its time).
+// `--only <text>`: only the shots whose names contain it, or one of its parts separated by "|" (the seeding still
+// takes its time).
 const onlyArg = process.argv.indexOf("--only");
 const ONLY = onlyArg > 0 ? process.argv[onlyArg + 1] : null;
 // `--desktop`: the desktop version's server (apps/desktop, built first) instead of Wrangler: the same app on Node,
@@ -385,7 +386,7 @@ async function main() {
   try {
     console.log("Seeding the projects (the fake model runs them)…");
     const seeded = await seed(browser, stateDir);
-    const list = shots(seeded).filter((s) => !ONLY || s.name.includes(ONLY));
+    const list = shots(seeded).filter((s) => !ONLY || ONLY.split("|").some((part) => s.name.includes(part)));
     rmSync(OUT, { recursive: true, force: true });
     const taken = new Set<string>();
     const columns: { theme: string; layout: string }[] = [];
