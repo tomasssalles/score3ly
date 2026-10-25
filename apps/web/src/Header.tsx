@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { BackIcon, ForwardIcon } from "./icons";
-import { useHost } from "./host";
+import { editionOf, useHost } from "./host";
 import { Menu } from "./Menu";
 import { useBackForward, useNoBrowserBar } from "./navigation";
 import type { Page } from "./route";
@@ -27,6 +27,8 @@ export function Header({
         <h1 className="wordmark" aria-label="score3ly">
           <span className="bracket">&lt;</span>score3ly<span className="bracket">&gt;</span>
         </h1>
+        {/* The edition (DESIGN.md §3, "Editions"), in wide mode only: phones have no room for it. */}
+        {host && <span className="header-edition">{editionOf(host)}</span>}
       </div>
       <div className="actions">
         <button type="button" className="button-primary" onClick={onNewProject}>
