@@ -27,5 +27,18 @@ is known about each.
   - Expanded panel's head: the stage's name **below** the pipeline bar, in muted text with an ellipsis while it runs
     ("Analyze…"); in red without one if it failed ("Layout failed"). The row's height doesn't change.
   - `skew_analysis`'s title is **"Skew detection"** (fits the strip in two rows).
-  - **Still to go over:** the toasts' exact texts, and the states when nothing runs (pipeline done, and the others).
+  - **The states when nothing runs on this device** (decided 2026-10-25, from mock-ups):
+    - **Pipeline done:** head: "Done" under the full bar. Strip: no stage ring or label; a green check inside the
+      (full, green) pipeline ring.
+    - **Failed:** head: "Layout failed" in red, no ellipsis. Strip: the red triangle with the stage's name. **Interrupted**
+      (the app was closed while it ran) is a failure, worded "Layout interrupted".
+    - **Waiting for the user** (a stage not started yet in Manual mode, the first run in Auto mode, a stopped stage, a
+      WIP manual stage): head: "Layout (not started)" or "Fix layout (WIP)" in muted text, no ellipsis (a manual stage
+      is created WIP, so it is never "not started"). Strip: instead of the stage's ring, an empty ring with a **grey**
+      pause sign inside, the stage's name under it. No toasts.
+    - **Running on another device:** the same labels and toasts as running here; the strip shows a **spinner, its arc
+      grey** (it turns; this device doesn't know the stage's progress), instead of the stage's ring.
+    - A carried manual stage waiting for its turn: nothing to show (it is resolved by itself).
+    - The longest labels fit the head on one line ("Skew detection interrupted", "Skew detection (not started)").
+  - **Still to go over:** the toasts' exact texts.
   - Mock-ups: `progress-mockups.patch` in the session's scratchpad (a `mock` key in localStorage), if still there.
