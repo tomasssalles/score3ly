@@ -9,6 +9,8 @@ import { startServer, type RunningServer } from "./server.ts";
 // The data folder is named after the app, not the package ("desktop").
 app.setName("score3ly");
 
+const ICON = join(import.meta.dirname, "web", "icon-cadenza-512.png");
+
 let server: RunningServer | null = null;
 let window: BrowserWindow | null = null;
 
@@ -42,7 +44,8 @@ function createWindow(url: string) {
     title: "score3ly",
     // The icon's coal tile, until the page paints (DESIGN.md §5.7).
     backgroundColor: "#303237",
-    icon: join(import.meta.dirname, "web", "icon-512.png"),
+    // The cadenza edition's icon (DESIGN.md §3, "Editions"): the window's, and the taskbar's on Windows and Linux.
+    icon: ICON,
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
   const origin = new URL(url).origin;
@@ -91,6 +94,8 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(async () => {
+    // macOS takes the dock's icon from the app bundle; running from the repository there is none, so it is set here.
+    app.dock?.setIcon(ICON);
     const here = import.meta.dirname;
     server = await startServer({
       dataDir: app.getPath("userData"),

@@ -32,10 +32,13 @@ export const EDITION_TEXT: Record<Edition, string> = {
   cadenza: "runs and stores all files on your device. There's no account to log into. Installations on different devices share no data.",
 };
 
-// The window's title (a tab's, an installed app's title bar, the desktop app's window): "score3ly – concerto".
-export function useEditionTitle() {
+// The window's title (a tab's, an installed app's title bar, the desktop app's window), "score3ly – concerto", and
+// the tab's icon: cadenza's own (its plain server opens in a browser tab; Electron sets the window's icon itself).
+export function useEditionWindow() {
   const host = useHost();
   useEffect(() => {
     document.title = host ? `score3ly – ${editionOf(host)}` : "score3ly";
+    const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (icon && host) icon.href = editionOf(host) === "cadenza" ? "/icon-cadenza.svg" : "/icon.svg";
   }, [host]);
 }
