@@ -1,7 +1,7 @@
 // The desktop version's server (DESIGN.md §3, "Desktop version"): the Worker's Hono app on Node, listening on
 // 127.0.0.1 only, with D1 as a SQLite file, R2 as a folder of files and the secrets from a file, all in one data
 // folder; it also serves the built web app, as Cloudflare serves its assets. Electron's main process starts it
-// (main.ts); it also runs alone, as a plain local server (`node dist/server.js`).
+// (main.ts); it also runs alone, as a plain local server for development (`node dist/server.js`).
 
 import { serve, type ServerType } from "@hono/node-server";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
@@ -101,7 +101,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   };
 }
 
-// Run alone: `node dist/server.js [--data <folder>] [--port <port>]`, as a plain local server.
+// Run alone, for development: `node dist/server.js [--data <folder>] [--port <port>]`, as a plain local server.
 function argument(name: string): string | undefined {
   const i = process.argv.indexOf(name);
   return i > 0 ? process.argv[i + 1] : undefined;
