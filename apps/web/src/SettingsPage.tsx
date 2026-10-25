@@ -15,6 +15,7 @@ export function SettingsPage() {
   const [configs, setConfigs] = useState<ModelConfig[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState(themeChoice);
+  const host = useHost();
 
   useEffect(() => {
     fetchSettings().then(setSettings, () => setError("The settings couldn't be loaded."));
@@ -71,11 +72,12 @@ export function SettingsPage() {
       {settings && configs && <ModelConfigs configs={configs} defaultId={settings.defaultModelConfigId} />}
       <Secrets />
       <section className="settings-section">
-        <h3>This device</h3>
+        {/* The desktop app is the only device: its settings are all this computer's. */}
+        {host !== "desktop" && <h3>This device</h3>}
         <dl className="settings-list">
           <dt>
             Theme
-            <span className="settings-hint">Auto follows the system's light or dark setting, where the app has a theme for it.</span>
+            <span className="settings-hint">Auto follows the system's light or dark setting.</span>
           </dt>
           <dd>
             <DropdownMenu
