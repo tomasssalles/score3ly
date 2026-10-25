@@ -2,14 +2,18 @@
 // the data in the app's data folder, and shows it in a window. The web app is the same as on Cloudflare; what Electron
 // adds is what a browser would: back and forward by keyboard, mouse and swipe, links opening in the browser.
 
-import { app, BrowserWindow, shell, type Input } from "electron";
+import { app, BrowserWindow, nativeTheme, shell, type Input } from "electron";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { startServer, type RunningServer } from "./server.ts";
+import { startServer, type RunningServer, type WindowTheme } from "./server.ts";
 
 // The data folder is named after the app, not the package ("desktop").
 app.setName("score3ly");
 
 const ICON = join(import.meta.dirname, "web", "icon-cadenza-512.png");
+
+// Cadenza's splash: its icon's light grey tile, until the page paints (DESIGN.md §3, "Editions").
+const SPLASH = "#dfe1e5";
 
 let server: RunningServer | null = null;
 let window: BrowserWindow | null = null;
@@ -28,6 +32,30 @@ function historyKey(input: Input): "back" | "forward" | null {
   return null;
 }
 
+// The window's frame, drawn by the system, follows the app's theme rather than the system's setting (§3): the page
+// says which (POST /api/window/theme), and the last one is kept for the next start, so the frame is right at once.
+function themeFile(): string {
+  return join(app.getPath("userData"), "window-theme.json");
+}
+
+function restoreWindowTheme() {
+  try {
+    const { theme } = JSON.parse(readFileSync(themeFile(), "utf8")) as { theme?: unknown };
+    if (theme === "system" || theme === "dark" || theme === "light") nativeTheme.themeSource = theme;
+  } catch {
+    // First start: the system's setting, until the page says.
+  }
+}
+
+function setWindowTheme(theme: WindowTheme) {
+  nativeTheme.themeSource = theme;
+  try {
+    writeFileSync(themeFile(), JSON.stringify({ theme }));
+  } catch {
+    // Not kept: the next start shows the system's setting until the page says.
+  }
+}
+
 function go(direction: "back" | "forward") {
   const history = window?.webContents.navigationHistory;
   if (!history) return;
@@ -42,8 +70,7 @@ function createWindow(url: string) {
     minWidth: 360,
     minHeight: 480,
     title: "score3ly",
-    // The icon's coal tile, until the page paints (DESIGN.md §5.7).
-    backgroundColor: "#303237",
+    backgroundColor: SPLASH,
     // The cadenza edition's icon (DESIGN.md §3, "Editions"): the window's, and the taskbar's on Windows and Linux.
     icon: ICON,
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
@@ -96,6 +123,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     // macOS takes the dock's icon from the app bundle; running from the repository there is none, so it is set here.
     app.dock?.setIcon(ICON);
+    restoreWindowTheme();
     const here = import.meta.dirname;
     server = await startServer({
       dataDir: app.getPath("userData"),
@@ -103,6 +131,7 @@ if (!app.requestSingleInstanceLock()) {
       migrationsDir: join(here, "migrations"),
       host: "desktop",
       openSecretsFile: (path) => void shell.openPath(path),
+      setWindowTheme,
     });
     createWindow(server.url);
     // macOS: clicking the dock icon with no window open opens one.

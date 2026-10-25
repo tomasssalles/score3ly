@@ -14,6 +14,8 @@ import { SecretsFile } from "./secrets.ts";
 
 export type Host = "desktop" | "local";
 
+export type WindowTheme = "system" | "dark" | "light";
+
 export type ServerOptions = {
   dataDir: string; // the database, the stored files and the secrets file
   webDir: string; // the built web app (apps/web/dist)
@@ -21,6 +23,7 @@ export type ServerOptions = {
   host: Host;
   port?: number; // 0 (the default) picks a free one
   openSecretsFile?: (path: string) => void; // Electron: opens the file in the system's editor
+  setWindowTheme?: (theme: WindowTheme) => void; // Electron: the window's frame in the app's theme, or the system's
 };
 
 export type RunningServer = { url: string; secretsPath: string; close: () => Promise<void> };
@@ -69,6 +72,14 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       if (!options.openSecretsFile) return Response.json({ error: "this host can't open files" }, { status: 404 });
       options.openSecretsFile(secrets.path);
       return Response.json({ path: secrets.path });
+    }
+    if (url.pathname === "/api/window/theme" && request.method === "POST") {
+      const body = (await request.json().catch(() => null)) as { theme?: unknown } | null;
+      const theme = body?.theme;
+      if (theme !== "system" && theme !== "dark" && theme !== "light") return Response.json({ error: "expected 'theme'" }, { status: 400 });
+      if (!options.setWindowTheme) return Response.json({ error: "this host has no window" }, { status: 404 });
+      options.setWindowTheme(theme);
+      return Response.json({ theme });
     }
     if (!url.pathname.startsWith("/api/") && (request.method === "GET" || request.method === "HEAD")) {
       const file = webFile(options.webDir, url.pathname);

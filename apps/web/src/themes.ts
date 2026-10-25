@@ -35,9 +35,19 @@ export function currentTheme(): Theme {
   return resolveTheme(themeChoice(), darkQuery()?.matches ?? true);
 }
 
+// Called with the theme whenever it is applied (e.g. the desktop app's window frame follows it).
+const listeners: ((theme: Theme) => void)[] = [];
+
+export function onThemeApplied(listener: (theme: Theme) => void) {
+  listeners.push(listener);
+  listener(currentTheme());
+}
+
 // Shows the chosen theme: themes.css applies the block of `data-theme` on the document.
 export function applyTheme() {
-  document.documentElement.dataset.theme = currentTheme().id;
+  const theme = currentTheme();
+  document.documentElement.dataset.theme = theme.id;
+  for (const listener of listeners) listener(theme);
 }
 
 export function setThemeChoice(choice: ThemeChoice) {

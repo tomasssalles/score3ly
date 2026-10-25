@@ -1,16 +1,21 @@
 import { useEffect, useState } from "react";
-import { fetchHost, type Host } from "./api";
+import { fetchHost, setWindowTheme, type Host } from "./api";
+import { onThemeApplied, themeChoice } from "./themes";
 
 // Which host serves the app, asked once (DESIGN.md §3): the UI asks the server and decides nowhere else by host.
 // null until known, or if the server can't say.
 let asked: Promise<Host | null> | null = null;
 
+function askHost(): Promise<Host | null> {
+  asked ??= fetchHost().catch(() => null);
+  return asked;
+}
+
 export function useHost(): Host | null {
   const [host, setHost] = useState<Host | null>(null);
   useEffect(() => {
-    asked ??= fetchHost().catch(() => null);
     let cancelled = false;
-    asked.then((h) => !cancelled && setHost(h));
+    askHost().then((h) => !cancelled && setHost(h));
     return () => {
       cancelled = true;
     };
@@ -41,4 +46,14 @@ export function useEditionWindow() {
     const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (icon && host) icon.href = editionOf(host) === "cadenza" ? "/icon-cadenza.svg" : "/icon.svg";
   }, [host]);
+}
+
+// At startup: in the desktop app, the window's frame follows the app's theme, now and whenever it changes. Auto
+// leaves it to the system: in Electron, forcing the frame also forces the page's prefers-color-scheme, which Auto
+// follows, so Auto would stay on whatever it was forced to.
+export function startDesktopWindow() {
+  void askHost().then((host) => {
+    if (host !== "desktop") return;
+    onThemeApplied((theme) => void setWindowTheme(themeChoice() === "auto" ? "system" : theme.dark ? "dark" : "light").catch(() => {}));
+  });
 }

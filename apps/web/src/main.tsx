@@ -5,9 +5,11 @@ import "@fontsource-variable/jetbrains-mono";
 import "./themes.css";
 import "./styles.css";
 import { App } from "./App";
+import { startDesktopWindow } from "./host";
 import { startThemes } from "./themes";
 
 startThemes();
+startDesktopWindow();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

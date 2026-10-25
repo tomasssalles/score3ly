@@ -79,6 +79,14 @@ export async function openSecretsFile(): Promise<void> {
   await checked(await fetch("/api/secrets-file/open", { method: "POST" }));
 }
 
+// The desktop app: the window's frame, drawn by the system, in the app theme's light or dark, or the system's for
+// Auto (DESIGN.md §3).
+export type WindowTheme = "system" | "dark" | "light";
+
+export async function setWindowTheme(theme: WindowTheme): Promise<void> {
+  await checked(await fetch("/api/window/theme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ theme }) }));
+}
+
 // All projects, most recently opened first.
 export async function listProjects(): Promise<Project[]> {
   return (await checked(await fetch("/api/projects"))).json();
