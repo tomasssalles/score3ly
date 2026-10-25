@@ -2,7 +2,7 @@
 // the data in the app's data folder, and shows it in a window. The web app is the same as on Cloudflare; what Electron
 // adds is what a browser would: back and forward by keyboard, mouse and swipe, links opening in the browser.
 
-import { app, BrowserWindow, nativeTheme, shell, type Input } from "electron";
+import { app, BrowserWindow, Menu, nativeTheme, shell, type Input } from "electron";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { startServer, type RunningServer, type WindowTheme } from "./server.ts";
@@ -61,6 +61,17 @@ function go(direction: "back" | "forward") {
   if (!history) return;
   if (direction === "back" && history.canGoBack()) history.goBack();
   if (direction === "forward" && history.canGoForward()) history.goForward();
+}
+
+// No menu bar (DESIGN.md §3): the app has its own header and menu. macOS always has the global menu bar, so there
+// it keeps a minimal one: the app's menu (Quit), Edit, which gives text fields copy and paste by keyboard there, and
+// Window.
+function setMenu() {
+  if (process.platform === "darwin") {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: "appMenu" }, { role: "editMenu" }, { role: "windowMenu" }]));
+  } else {
+    Menu.setApplicationMenu(null);
+  }
 }
 
 function createWindow(url: string) {
@@ -124,6 +135,7 @@ if (!app.requestSingleInstanceLock()) {
     // macOS takes the dock's icon from the app bundle; running from the repository there is none, so it is set here.
     app.dock?.setIcon(ICON);
     restoreWindowTheme();
+    setMenu();
     const here = import.meta.dirname;
     server = await startServer({
       dataDir: app.getPath("userData"),
