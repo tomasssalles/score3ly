@@ -80,7 +80,7 @@ Ideas from the project owner: run times; how often the app and its stages are us
 ### Confirm the decisions made while building `extract`, the MEI builder and `engrave`
 `#owner`
 
-Each of them has a list "Decisions made while building it (to confirm)" in `docs/stages/music.md` (`extract`, built) and §6 ("MEI", built; `engrave`, built).
+Each of them has a list "Decisions made while building it (to confirm)" in `docs/stages/music.md` (`extract`, built) and §6 ("MEI", built) and `docs/stages/engrave.md` (`engrave`, built).
 
 ### The linking code, what is left
 `#next` `#next-release`
@@ -218,7 +218,7 @@ Keeping an old result means reusing what is stored (§5.5), so no old code has t
 ### Decide how pieces are numbered
 `#decision`
 
-§6, `engrave`, "The MEI view", and the metadata: pieces have numbers on the page, names, or both, and printed numbers aren't always a simple count (a book starting at étude 13, nested pieces with nested numbers, an alternative version of nocturne 5 labelled "5a"). Where nothing is printed, we may or may not want to show a number of our own, e.g. in the MEI view's picker. Until then the picker shows names only ("Untitled" without one).
+`docs/stages/engrave.md`, "The MEI view", and the metadata: pieces have numbers on the page, names, or both, and printed numbers aren't always a simple count (a book starting at étude 13, nested pieces with nested numbers, an alternative version of nocturne 5 labelled "5a"). Where nothing is printed, we may or may not want to show a number of our own, e.g. in the MEI view's picker. Until then the picker shows names only ("Untitled" without one).
 
 ### Decide how to show the original in `fix_mei`
 `#decision`
@@ -228,7 +228,7 @@ Keeping an old result means reusing what is stored (§5.5), so no old code has t
 ### Refine the MEI view by using it
 `#owner`
 
-§6, `engrave`, "The MEI view": the split, the toolbar, going between the file and the score, tried on real scores rather than judged on paper.
+`docs/stages/engrave.md`, "The MEI view": the split, the toolbar, going between the file and the score, tried on real scores rather than judged on paper.
 
 ### The format gap report
 §5.6, "The pipeline panel": the button in the settings' "Developer" section that downloads it, and the script that groups and counts its issues for analysis.
@@ -435,7 +435,7 @@ After a change in the middle, a later stage whose inputs and config come out the
 ### Keep `fix_mei`'s edits through a re-run
 `#optional`
 
-§6: rough patching, not git. The unit is a measure, by its `xml:id`: after a new extraction, a measure still identical to what `fix_mei` started from gets its final text; the rest is dropped and reported. The parts outside the measures (the header, the `scoreDef`) need units of their own.
+`docs/stages/engrave.md`: rough patching, not git. The unit is a measure, by its `xml:id`: after a new extraction, a measure still identical to what `fix_mei` started from gets its final text; the rest is dropped and reported. The parts outside the measures (the header, the `scoreDef`) need units of their own.
 
 ### Export a project before deleting it, and import it again
 `#optional` `#nice-to-have`

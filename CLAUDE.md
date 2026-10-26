@@ -10,3 +10,4 @@
   - `layout.md`: `layout` (its prompt, rounds and checks) and `fix_layout` (the editor of boxes and bar lines, and the page editors' shared parts).
   - `analyze.md`: `analyze` (its prompts, the observations, their checks), `fix_metadata` and `fix_observations` (the forms), and the metadata (its fields and the MEI's header).
   - `music.md`: `extract` (its request, checks and loose ends across systems), `review`, `apply_review`, `human_review` (its screen), and the Transcription.
+  - `engrave.md`: `engrave` (the MEI view, the PDF, the downloads and the run report) and `fix_mei` (the MEI editor and its checks).
