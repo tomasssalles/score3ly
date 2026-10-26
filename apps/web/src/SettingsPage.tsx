@@ -126,7 +126,7 @@ function ImageCacheSetting() {
         Image cache
         <span className="settings-hint">
           Page images, crops and renderings made on this device, kept to save time; they are made again when needed.
-          {usage !== null && ` Now ${formatSize(usage)}.`}
+          {usage !== null && ` (Current usage: ${formatSize(usage)})`}
         </span>
       </dt>
       <dd>
