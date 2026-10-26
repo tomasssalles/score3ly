@@ -40,16 +40,22 @@ is known about each.
       grey** (it turns; this device doesn't know the stage's progress), instead of the stage's ring.
     - A carried manual stage waiting for its turn: nothing to show (it is resolved by itself).
     - The longest labels fit the head on one line ("Skew detection interrupted", "Skew detection (not started)").
-  - **Toasts** (narrow mode, an artifact open; the same whichever device runs the stage), for events the user didn't
-    trigger at that moment (decided 2026-10-26; exact texts proposed, to confirm):
-    - A stage finished and the next started (Auto): "Layout done. Starting Analyze".
-    - A stage finished, the next waits for Run (Manual): "Layout done. Analyze is next".
-    - The pipeline reached a WIP manual stage and waits (e.g. one carried through a re-run, Auto): "Layout done. Fix
-      layout is waiting for you".
-    - Failed: "Layout failed. Pipeline stopped". Interrupted (mostly a stage on another device whose heartbeat stopped;
-      no toast on opening the app): "Layout interrupted. Pipeline stopped".
-    - A carried manual stage dropped at its turn: "Fix skew dropped: inputs have changed".
-    - The pipeline finished: "Pipeline done" (or "Pipeline done. The MEI is ready").
+  - **Toasts** (decided 2026-10-26): narrow mode only, while an artifact (or a stage's details) covers the pipeline; the
+    same whichever device runs the stage; only for events the user didn't trigger at that moment. **Stage names in bold**,
+    **no period at the end**. One toast at a time, never stacked; it disappears on its own and may cover the item counter.
+    - A stage finished and the next started (Auto): "**Layout** done. Starting **Analyze**".
+    - A stage finished and the next waits for Run (Manual), or is a WIP manual stage: "**Layout** done. **Analyze**
+      ready", "**Layout** done. **Fix layout** ready".
+    - Failed: "**Layout** failed. Pipeline stopped". Interrupted (mostly a stage on another device whose heartbeat
+      stopped; no toast on opening the app): "**Layout** interrupted. Pipeline stopped".
+    - The pipeline finished: "Pipeline done".
+    - **Carried manual stages are named in the same toast** as the stage before them: "**Skew detection** done. **Fix
+      skew** applied. Starting **Layout**" (kept, done), "**Skew detection** done. **Fix skew** dropped (inputs changed).
+      Starting **Layout**" (dropped); with "**Layout** ready" at the end instead when the next one waits. A kept stage that
+      is still WIP ends it: "**Skew detection** done. **Fix skew** ready". Several carried stages in a row are each named.
+    - **How:** a toast waits a moment (about half a second) before showing, and the events of that moment (the finish,
+      the carried stages kept or dropped, the next stage started or waiting) are joined into one text; an event while one
+      shows replaces it and restarts its timer.
     - Not toasted: the failure's reason (it is on the card), app errors, anything the user just did.
   - Manual stages can't be planned ahead (added only after a done stage) and that stays so (decided): Manual mode covers
     it, and manual fixes should be the rare extra effort, not routine.
