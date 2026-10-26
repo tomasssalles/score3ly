@@ -1485,6 +1485,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
   - Deterministic steps must reproduce identical output hashes. LLM and manual steps return their recordings.
   - This tests the plumbing, assembly and resume logic with no API cost.
 - **Stale recordings:** a changed prompt or model changes the request hash, so replay misses. The test reports exactly which recordings are stale, and they are re-recorded against the live API.
+- **CI** (decided and built, 2026-10-26, `.github/workflows/ci.yml`): GitHub Actions runs `npm ci`, the typecheck of every workspace (`npm run typecheck --workspaces`) and `npm test` on every push to **main only** (and by hand); the working branches aren't checked there, only what lands on main. Node 22, as in development; Electron's binary isn't downloaded (the tests don't run it). Tried as a fresh clone here before the first run on GitHub.
 - **Quality evaluation** is separate from tests (§13): live runs, with repeated runs to measure variance. A temperature of 0 doesn't guarantee identical answers.
 
 ### Test environments (planned)

@@ -1,0 +1,30 @@
+# Tests and typechecks on every push to main (DESIGN.md §12): the working branches aren't checked here, only what
+# lands on main. The README's "tests" badge shows the latest result.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # The tests don't run Electron: its binary isn't needed.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck every workspace
+        run: npm run typecheck --workspaces --if-present
+      - name: Test
+        run: npm test

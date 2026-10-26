@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
     "test": "node --test \"src/**/*.test.ts\"",
     "icons": "node scripts/icons.ts",
     "metronome-font": "node scripts/metronomeFont.ts"

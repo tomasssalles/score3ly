@@ -3,10 +3,6 @@
 Written for the next session. Read DESIGN.md first, as usual. Work happens on the branch given by the session; fast-forward
 main only when the project owner asks. The project owner set this order (2026-10-26).
 
-## 3. CI on GitHub Actions, on main only
-- Run `npm test` and the typechecks of every workspace on pushes to **main only** (not on the working branches).
-  Needed for the README's "tests passing" badge (task "Rewrite the README", §15).
-
 ## 4. `review`
 - DESIGN.md §6 (`review`, "The Transcription", the issues) and the first-release list (§16). Includes what is left of
   the linking code that `review` needs (§15, "The linking code, what is left").
