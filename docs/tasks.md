@@ -31,17 +31,17 @@ Everything that is still to do about score3ly is a task, and every task is in th
 ### `review`
 `#next`
 
-§6 (`review`, "The Transcription", the issues) and the first-release list (§16). Includes what is left of the linking code that `review` needs (the task "The linking code, what is left").
+`docs/stages/music.md` (`review`, "The Transcription"), §6 (the issues) and the first-release list (§16). Includes what is left of the linking code that `review` needs (the task "The linking code, what is left").
 
 ### `apply_review`
 `#next`
 
-§6 (`apply_review`; its title in the app is "Apply review"). Further reviews and their `apply_review` are carried and dropped like manual stages; an `apply_review` goes with its review; the recipe's review can't be dropped (§5.5).
+`docs/stages/music.md` (`apply_review`; its title in the app is "Apply review"). Further reviews and their `apply_review` are carried and dropped like manual stages; an `apply_review` goes with its review; the recipe's review can't be dropped (§5.5).
 
 ### `human_review`
 `#next`
 
-§6 (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5).
+`docs/stages/music.md` (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5).
 
 ### Other statistics: decide, then build
 `#next` `#decision`
@@ -80,7 +80,7 @@ Ideas from the project owner: run times; how often the app and its stages are us
 ### Confirm the decisions made while building `extract`, the MEI builder and `engrave`
 `#owner`
 
-Each of them has a list "Decisions made while building it (to confirm)" in §6 (`extract`, built; "MEI", built; `engrave`, built).
+Each of them has a list "Decisions made while building it (to confirm)" in `docs/stages/music.md` (`extract`, built) and §6 ("MEI", built; `engrave`, built).
 
 ### The linking code, what is left
 `#next` `#next-release`
@@ -90,7 +90,7 @@ Each of them has a list "Decisions made while building it (to confirm)" in §6 (
 ### Compare `review` with and without renderings as model input
 `#experiment`
 
-§6, "Renderings", on the test set, some day: run it both ways and compare what it finds, counting false findings as well as extra correct ones. If renderings help, they become the default, and a config option of `review` can turn them off.
+`docs/stages/music.md`, "Renderings for the models", on the test set, some day: run it both ways and compare what it finds, counting false findings as well as extra correct ones. If renderings help, they become the default, and a config option of `review` can turn them off.
 
 ### Zoom crops on request
 §6, "Zooming in" (decided, for a later version), for `extract`, `review` and probably `apply_review`.
@@ -99,7 +99,7 @@ Each of them has a list "Decisions made while building it (to confirm)" in §6 (
 ### A failed check goes back to the model
 `#optional`
 
-§6, `extract` ("Later, perhaps"): in the same call, with the place and the problem, as one more round of the conversation, with a configurable cap. Whether it pays off over `review` seeing the warnings is measured then.
+`docs/stages/music.md`, `extract` ("Later, perhaps"): in the same call, with the place and the problem, as one more round of the conversation, with a configurable cap. Whether it pays off over `review` seeing the warnings is measured then.
 
 ### Nested tuplets
 `#format`
