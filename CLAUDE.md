@@ -8,3 +8,4 @@
 - `docs/stages/`: the details of the stages, one file per group. Read the file of the stages a task touches before working on them:
   - `pages.md`: `rasterize`, `skew_analysis`, `fix_skew`, and how the skew is found (`findSkew`) and when a page is deskewed.
   - `layout.md`: `layout` (its prompt, rounds and checks) and `fix_layout` (the editor of boxes and bar lines, and the page editors' shared parts).
+  - `analyze.md`: `analyze` (its prompts, the observations, their checks), `fix_metadata` and `fix_observations` (the forms), and the metadata (its fields and the MEI's header).

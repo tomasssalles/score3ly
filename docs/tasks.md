@@ -189,12 +189,12 @@ Lines of their own above or below a staff, not in one, with text tokens, duratio
 Typesetting: an orchestral score prints the same tempo mark above several groups of staves, and the lens reports each (§6, "The symbolic format", "Tempo marks"), so the MEI has one `<tempo>` per staff it is printed on, and Verovio draws them all. Whether an engraving shows them all, or only the top one, is a typesetting decision still to make (e.g. an option of `engrave`).
 
 ### The MEI header after MEI 6
-§6, "Metadata": MEI 6 (in feature freeze since 2026) replaces `<composer>`, `<arranger>` and the like with `<creator role="…">` and MARC's roles; the header code follows once it is released.
+`docs/stages/analyze.md`, "The metadata": MEI 6 (in feature freeze since 2026) replaces `<composer>`, `<arranger>` and the like with `<creator role="…">` and MARC's roles; the header code follows once it is released.
 
 ### Check the edition's description against the MEI 5 guidelines
 `#research`
 
-§6, "Metadata": the details of the edition's description (`manifestationList/manifestation`), which changed in MEI 5.
+`docs/stages/analyze.md`, "The metadata": the details of the edition's description (`manifestationList/manifestation`), which changed in MEI 5.
 
 ### Decide between colour, grayscale and binarized
 `#experiment` `#decision`
@@ -415,7 +415,7 @@ Only if needed: if real scores show code linking repeats, endings or spanning ma
 ### More about the transcription in the MEI
 `#optional`
 
-Confidence, what was confirmed, the models used, through existing elements of the schema or as a report appended to the file (§6, "Metadata", "No `@cert`").
+Confidence, what was confirmed, the models used, through existing elements of the schema or as a report appended to the file (`docs/stages/analyze.md`, "The metadata", "No `@cert`").
 
 ### Undo and redo could bring the change into view
 `#optional` `#nice-to-have`
