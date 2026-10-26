@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# The desktop app's packages (`npm run package -w apps/desktop`).
+release/
 .wrangler/
 .dev.vars
 

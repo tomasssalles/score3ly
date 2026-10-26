@@ -3,12 +3,6 @@
 Written for the next session. Read DESIGN.md first, as usual. Work happens on the branch given by the session; fast-forward
 main only when the project owner asks. The project owner set this order (2026-10-26).
 
-## 2. Package the desktop app: users build it themselves
-- The task in DESIGN.md §15, "Package the desktop app: users build it themselves": electron-builder (or Electron
-  Forge) in `apps/desktop`, the product name and app ID, cadenza's icons per platform, the targets, the packaging
-  command, step-by-step instructions per platform; tried on Linux here; decide the app's name then (dock, taskbar, app
-  switcher; and the installed web app's manifest `name`); Electron's and Chromium's notices in the package.
-
 ## 3. CI on GitHub Actions, on main only
 - Run `npm test` and the typechecks of every workspace on pushes to **main only** (not on the working branches).
   Needed for the README's "tests passing" badge (task "Rewrite the README", §15).

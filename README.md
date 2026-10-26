@@ -35,7 +35,7 @@ npm run desktop   # builds the web app and opens it in an Electron window
 npm run serve     # development helper: the same server without Electron, at http://127.0.0.1:8790 (data in ~/.score3ly)
 ```
 
-The API keys go into the secrets file (Settings, "Open the secrets file"), one `NAME=value` per line.
+The API keys go into the secrets file (Settings, "Open the secrets file"), one `NAME=value` per line. To install it as an app (built on your own computer, for macOS, Windows or Linux), see [apps/desktop/README.md](apps/desktop/README.md); in short: `npm run package:desktop`.
 
 To look at page images and skew detection on a PDF (writes each page as extracted, and as the pipeline would use it: straightened if staves were found and the angle matters):
 

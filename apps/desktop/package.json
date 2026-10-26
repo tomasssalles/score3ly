@@ -1,5 +1,6 @@
 {
   "name": "desktop",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist/main.js",
@@ -8,7 +9,9 @@
     "start": "npm run build && electron .",
     "serve": "npm run build && node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"src/**/*.test.ts\""
+    "test": "node --test \"src/**/*.test.ts\"",
+    "package": "npm run build && electron-builder",
+    "package:rpm": "npm run build && electron-builder --linux rpm"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5"
@@ -16,7 +19,79 @@
   "devDependencies": {
     "@types/node": "^26.6.4",
     "electron": "44.9.3",
+    "electron-builder": "26.17.0",
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
+  },
+  "description": "score3ly cadenza: the desktop app, everything stored on this computer",
+  "author": "Tomás Silveira Salles",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/tomasssalles/score3ly",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tomasssalles/score3ly.git",
+    "directory": "apps/desktop"
+  },
+  "desktopName": "score3ly-cadenza.desktop",
+  "build": {
+    "appId": "io.github.tomasssalles.score3ly.cadenza",
+    "productName": "score3ly cadenza",
+    "copyright": "© 2026 Tomás Silveira Salles",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "!node_modules"
+    ],
+    "extraResources": [
+      {
+        "from": "../../LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "../../THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      }
+    ],
+    "npmRebuild": false,
+    "mac": {
+      "target": "dir",
+      "category": "public.app-category.music",
+      "icon": "dist/web/icon-cadenza-512.png",
+      "identity": "-",
+      "notarize": false
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "dist/web/icon-cadenza-512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": [
+        "deb"
+      ],
+      "category": "Audio",
+      "icon": "dist/web/icon-cadenza-512.png",
+      "maintainer": "Tomás Silveira Salles",
+      "synopsis": "Printed scores to MEI, with vision LLMs; everything stored on this computer",
+      "executableName": "score3ly-cadenza",
+      "syncDesktopName": true
+    },
+    "publish": null,
+    "artifactName": "score3ly-cadenza-${version}-${arch}.${ext}",
+    "deb": {
+      "packageName": "score3ly-cadenza"
+    },
+    "rpm": {
+      "packageName": "score3ly-cadenza"
+    }
   }
 }

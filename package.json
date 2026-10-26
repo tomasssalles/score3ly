@@ -21,7 +21,8 @@
     "notices": "node scripts/notices.ts",
     "screenshots": "node scripts/screenshots.ts",
     "desktop": "npm run start -w apps/desktop",
-    "serve": "npm run serve -w apps/desktop"
+    "serve": "npm run serve -w apps/desktop",
+    "package:desktop": "npm run package -w apps/desktop"
   },
   "allowScripts": {
     "@google/genai": false,
