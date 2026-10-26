@@ -31,22 +31,22 @@ Everything that is still to do about score3ly is a task, and every task is in th
 ### `review`
 `#next`
 
-§6 (`review`, "The Transcription", the issues) and the first-release list (§16). Includes what is left of the linking code that `review` needs (the task "The linking code, what is left"). In the project owner's order of the `#next` tasks (2026-10-26): `review`, `apply_review`, `human_review`, cost statistics, other statistics.
+§6 (`review`, "The Transcription", the issues) and the first-release list (§16). Includes what is left of the linking code that `review` needs (the task "The linking code, what is left").
 
 ### `apply_review`
 `#next`
 
-§6 (`apply_review`; its title in the app is "Apply review"). Further reviews and their `apply_review` are carried and dropped like manual stages; an `apply_review` goes with its review; the recipe's review can't be dropped (§5.5). In the project owner's order of the `#next` tasks (2026-10-26): `review`, `apply_review`, `human_review`, cost statistics, other statistics.
+§6 (`apply_review`; its title in the app is "Apply review"). Further reviews and their `apply_review` are carried and dropped like manual stages; an `apply_review` goes with its review; the recipe's review can't be dropped (§5.5).
 
 ### `human_review`
 `#next`
 
-§6 (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5). In the project owner's order of the `#next` tasks (2026-10-26): `review`, `apply_review`, `human_review`, cost statistics, other statistics.
+§6 (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5).
 
 ### Other statistics: decide, then build
 `#next` `#decision`
 
-Ideas from the project owner: run times; how often the app and its stages are used; errors; how often manual fixes are needed, and how much each one changes (e.g. the number of boxes, lines or answers changed within a fix). In the project owner's order of the `#next` tasks (2026-10-26): `review`, `apply_review`, `human_review`, cost statistics, other statistics.
+Ideas from the project owner: run times; how often the app and its stages are used; errors; how often manual fixes are needed, and how much each one changes (e.g. the number of boxes, lines or answers changed within a fix).
 
 ### Decide the model configs
 `#decision` `#research` `#next-release`
@@ -309,7 +309,7 @@ One by one, with the Worker endpoints each needs, added as they are needed rathe
 ### Statistics page
 `#next` `#next-release`
 
-The costs view and the statistics (§10; first-release list, §16). Now a placeholder text. The costs view comes first; the other statistics are decided in their own task ("Other statistics: decide, then build"). In the project owner's order of the `#next` tasks (2026-10-26): `review`, `apply_review`, `human_review`, cost statistics, other statistics.
+The costs view and the statistics (§10; first-release list, §16). Now a placeholder text. The costs view comes first; the other statistics are decided in their own task ("Other statistics: decide, then build").
 
 ### Create the remote R2 bucket and D1 database
 `#next-release`
