@@ -26,7 +26,7 @@ icon like any other app.
    - **macOS:** drag `score3ly cadenza.app` from `apps/desktop/release/mac-arm64/` (on an Intel Mac,
      `apps/desktop/release/mac/`) into *Applications*.
    - **Windows:** run `score3ly-cadenza-<version>-x64.exe` from `apps/desktop/release/`. It adds score3ly cadenza to
-     the Start menu and the desktop.
+     the Start menu (from there you can pin it to the taskbar or the desktop).
    - **Linux (Debian, Ubuntu and the like):**
      `sudo apt install ./apps/desktop/release/score3ly-cadenza-<version>-amd64.deb`. It adds score3ly cadenza to the
      applications menu.
