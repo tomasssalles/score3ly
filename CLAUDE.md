@@ -2,5 +2,6 @@
 
 ## Docs
 - The design document is `DESIGN.md` (repo root). Read it at the start of a session to get up to speed.
+- The style guide is `docs/style.md`: how the app looks, speaks and behaves. Follow it when building anything the user sees, and keep it up to date when a decision about style is made.
 - I did not write that document myself. I constantly have discussions with you in multiple sessions to make design decisions, and I ask you to update the design docs with our decisions and rationalle. That means the document itself is really written by you and mostly for you (you read it, we discuss, I usually already have everything in my memory or ask you about what you read). In particular, it can contain mistakes when you misunderstand my intentions. If something doesn't match what I'm saying in the chat, check with me and let's clarify the discrepancy.
 - Tasks are in `docs/tasks.md`, and only there: anything still to do (features, decisions to make, bugs, tests by hand, research, far-future ideas). Look there when looking for tasks, and write every new task there, never in `DESIGN.md`. The top of the file explains how the list works (no sections, numbers or checkboxes; tags; a done task is deleted, its decisions go into `DESIGN.md`).
