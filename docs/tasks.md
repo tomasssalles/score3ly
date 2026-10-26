@@ -28,16 +28,6 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 ## The tasks
 
-### The app's error banner is coral, not red
-`#style` `#bug`
-
-`apps/web/src/styles.css`, `.error-banner` (the app-wide error under the header, `App.tsx`) uses `--accent`. By `docs/style.md` ("Colour"), an error is red (`--danger`) and the accent never means an error.
-
-### Minutes are written two ways
-`#style` `#decision`
-
-"20min ago" (`ago` in `apps/web/src/time.ts`) but "1m 20s" (`duration`, same file). `docs/style.md` ("Words") asks for one fixed format; pick one and use it in both.
-
 ### `review`
 `#next`
 

@@ -24,10 +24,10 @@ export function when(iso: string, now: number = Date.now()): string {
   return now - Date.parse(iso) < 7 * 86400_000 ? ago(iso, now) : shortDate(iso, now);
 }
 
-// A run time, compactly: "8s", "3m 12s", "1h 5m".
+// A run time, compactly: "8s", "3min 12s", "1h 5min".
 export function duration(seconds: number): string {
   const s = Math.round(seconds);
   if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
-  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+  if (s < 3600) return `${Math.floor(s / 60)}min ${s % 60}s`;
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}min`;
 }

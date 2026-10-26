@@ -37,6 +37,6 @@ test("when is how long ago for less than a week, then a date", () => {
 
 test("duration is compact", () => {
   assert.equal(duration(8), "8s");
-  assert.equal(duration(192), "3m 12s");
-  assert.equal(duration(3900), "1h 5m");
+  assert.equal(duration(192), "3min 12s");
+  assert.equal(duration(3900), "1h 5min");
 });
