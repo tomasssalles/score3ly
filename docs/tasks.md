@@ -393,7 +393,7 @@ In the root `package.json`, once Miniflare (Wrangler's) depends on undici 7.30.1
 §5.6, "Stage states": for a model asking for human input; left out for now, easy to add.
 
 ### The toolbar colour follows the theme
-`#nice-to-have` `#style`
+`#optional` `#nice-to-have` `#style`
 
 `docs/style.md`, "Brand": the manifest's `theme_color` is the icon's coral in both themes; making it follow the theme would take a `<meta name="theme-color">` changed by script.
 
