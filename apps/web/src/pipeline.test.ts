@@ -8,8 +8,10 @@ import {
   findArtifact,
   findStage,
   nextStaleAt,
+  pipelineState,
   progressOf,
   runningStage,
+  stateLabel,
   toPipeline,
 } from "./pipeline.ts";
 import { carriedInputs } from "./steps.ts";
@@ -262,4 +264,22 @@ test("a carried manual stage looks planned, never ready, without artifacts, and 
 test("a dropped stage's card has its step's title and kind, after the stage it came after", () => {
   const p = toPipeline("auto", { stages: [ingest], dropped: [{ id: 7, afterStageId: "s1", step: "fix_skew" }] });
   assert.deepEqual(p.dropped, [{ id: 7, afterStageId: "s1", stepId: "fix_skew", title: "Fix skew", kind: "manual" }]);
+});
+
+test("the pipeline's state and its label: running here or elsewhere, failed, interrupted, waiting, done", () => {
+  const now = Date.parse("2026-10-12T10:10:00.000Z");
+  const at = (...rest: ApiStage[]) => toPipeline("auto", { dropped: [], stages: [ingest, ...rest] }, null, now);
+  const label = (p: ReturnType<typeof at>) => {
+    const state = pipelineState(p);
+    return state && [state.kind, stateLabel(state)];
+  };
+  assert.deepEqual(label(at(stage("s2", "rasterize"))), ["done", "Done"]);
+  assert.deepEqual(label(at(stage("s2", "rasterize", { status: "running", heartbeatAt: "2026-10-12T10:09:30.000Z" }))), ["running", "Rasterize…"]);
+  const here = toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "planned" })] }, { stageId: "s2", progress: 0.3 }, now);
+  assert.deepEqual(pipelineState(here), { kind: "running", stage: here.stages[1], here: true });
+  assert.deepEqual(label(at(stage("s2", "rasterize", { status: "failed", error: "no" }))), ["failed", "Rasterize failed"]);
+  assert.deepEqual(label(at(stage("s2", "rasterize", { status: "running", heartbeatAt: "2026-10-12T10:00:00.000Z" }))), ["failed", "Rasterize interrupted"]);
+  assert.deepEqual(label(at(stage("s2", "rasterize", { status: "planned" }))), ["waiting", "Rasterize (not started)"]);
+  assert.deepEqual(label(at(stage("s2", "rasterize"), stage("s3", "skew_analysis"), stage("s4", "fix_skew", { status: "wip" }))), ["waiting", "Fix skew (WIP)"]);
+  assert.equal(pipelineState(toPipeline("auto", { dropped: [], stages: [] })), null);
 });

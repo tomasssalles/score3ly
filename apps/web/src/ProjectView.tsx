@@ -16,17 +16,20 @@ import {
 import { FINISHERS } from "./finishers";
 import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { ExpandIcon } from "./icons";
+import { CheckIcon, ExpandIcon, PauseIcon, WarningIcon } from "./icons";
 import {
   currentStage,
   defaultArtifactId,
   findArtifact,
   findStage,
   nextStaleAt,
+  pipelineState,
   progressOf,
+  stateLabel,
   toPipeline,
   type LocalRun,
   type Pipeline,
+  type Progress,
   type RunMode,
   type Stage,
 } from "./pipeline";
@@ -40,6 +43,7 @@ import { carriedInputs, FIX_STARTS, stepInfo, type ConfigContext } from "./steps
 import { onImagesDiffer, openPdfForImages } from "./pageImages";
 import { download } from "./downloads";
 import { StageDetails } from "./StageDetails";
+import { eventsBetween, snapshotOf, toastText, type Segment, type Snapshot, type ToastEvent } from "./toasts";
 import { useWide } from "./useWide";
 
 const COLLAPSED_KEY = "pipelinePanelCollapsed";
@@ -51,6 +55,15 @@ const CONFIRM_TEXT =
   "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages will be kept if their inputs stay the same, and dropped otherwise. This action cannot be undone.";
 
 type Confirmation = { title: string; text: string[]; confirmLabel: string; action: () => void };
+
+// Toasts (DESIGN.md §5.6, "Progress"): the events of this moment make one toast; it shows this long; the user's own
+// changes make none for this long (what follows from them is what they asked for).
+const GATHER_MS = 500;
+const TOAST_MS = 4000;
+const QUIET_MS = 3000;
+
+// A stage running on another device: the pipeline is fetched this often, to show where it is.
+const POLL_MS = 5000;
 
 // Wide mode: the pipeline panel on the left (collapsible to a narrow strip), the artifact view on the right.
 // Narrow mode: only the pipeline; an output or a stage's details the user picks covers the whole app until closed.
@@ -84,6 +97,11 @@ export function ProjectView({
   // The stage this device is running, and how to stop it.
   const [local, setLocal] = useState<LocalRun | null>(null);
   const controller = useRef<AbortController | null>(null);
+  // Until when the user's own change makes no toasts.
+  const quietUntil = useRef(0);
+  const quiet = () => {
+    quietUntil.current = Date.now() + QUIET_MS;
+  };
   // The latest run mode, for a run that is already going when it changes.
   const modeRef = useRef(mode);
   modeRef.current = mode;
@@ -115,6 +133,14 @@ export function ProjectView({
     }, at - Date.now());
     return () => clearTimeout(timer);
   }, [stored, local?.stageId]);
+
+  // A stage running on another device: this one looks every few seconds, to show where the pipeline is.
+  const runningElsewhere = pipeline.stages.some((s) => s.status === "running" && !s.runningHere);
+  useEffect(() => {
+    if (!runningElsewhere) return;
+    const timer = setInterval(() => fetchPipeline(project).then(setStored, () => {}), POLL_MS);
+    return () => clearInterval(timer);
+  }, [runningElsewhere]);
 
   useEffect(() => {
     scroll();
@@ -148,6 +174,40 @@ export function ProjectView({
   });
   const pickedArtifactId = pickedArtifact?.artifact.id ?? null;
   const pickedStageId = pickedStage?.id ?? null;
+
+  // Toasts only in narrow mode, while an artifact or a stage's details covers the pipeline.
+  const covered = !wide && (pickedArtifact !== null || pickedStage !== null);
+  const coveredRef = useRef(covered);
+  coveredRef.current = covered;
+  const [toast, setToast] = useState<{ key: number; text: Segment[] } | null>(null);
+  const seen = useRef<Snapshot | null>(null);
+  const gathered = useRef<ToastEvent[]>([]);
+  const gathering = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapshot = stored ? snapshotOf(pipeline) : null;
+  const snapshotKey = JSON.stringify(snapshot);
+  useEffect(() => {
+    const before = seen.current;
+    seen.current = snapshot;
+    if (!before || !snapshot) return;
+    const events = eventsBetween(before, snapshot);
+    if (events.length === 0 || Date.now() < quietUntil.current) return;
+    gathered.current.push(...events);
+    if (gathering.current) clearTimeout(gathering.current);
+    gathering.current = setTimeout(() => {
+      const text = toastText(gathered.current);
+      gathered.current = [];
+      gathering.current = null;
+      if (text && coveredRef.current && Date.now() >= quietUntil.current) setToast({ key: Date.now(), text });
+    }, GATHER_MS);
+  }, [snapshotKey]);
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
+  useEffect(() => () => {
+    if (gathering.current) clearTimeout(gathering.current);
+  }, []);
   useEffect(() => {
     if (pickedArtifactId !== null || pickedStageId !== null) {
       setLastPicked({ artifactId: pickedArtifactId, stageId: pickedStageId });
@@ -196,6 +256,7 @@ export function ProjectView({
   }
 
   async function addFix(afterId: string, step: string) {
+    quiet();
     const index = stored?.stages.findIndex((s) => s.id === afterId) ?? -1;
     const start = FIX_STARTS[step];
     if (!stored || index < 0 || !start) return;
@@ -207,6 +268,7 @@ export function ProjectView({
   }
 
   async function edit(stageId: string) {
+    quiet();
     try {
       opened(await editStage(project, stageId));
     } catch (err) {
@@ -215,6 +277,7 @@ export function ProjectView({
   }
 
   async function drop(stageId: string) {
+    quiet();
     try {
       setStored(await dropStage(project, stageId));
       onChanged();
@@ -225,6 +288,7 @@ export function ProjectView({
   }
 
   async function dismiss(id: number) {
+    quiet();
     try {
       setStored(await dismissDropped(project, id));
     } catch (err) {
@@ -237,6 +301,7 @@ export function ProjectView({
   async function finish(stageId: string) {
     if (finishing.current) return;
     finishing.current = true;
+    quiet();
     setError(null);
     try {
       const latest = await fetchPipeline(project);
@@ -339,6 +404,7 @@ export function ProjectView({
   }
 
   async function stop() {
+    quiet();
     const running = pipeline.stages.find((s) => s.status === "running");
     if (!running) return;
     controller.current?.abort();
@@ -351,6 +417,7 @@ export function ProjectView({
   }
 
   async function saveConfig(stage: Stage, config: unknown) {
+    quiet();
     try {
       setStored(await setStageConfig(project, stage.id, config));
       onChanged();
@@ -368,7 +435,10 @@ export function ProjectView({
   const actions: PanelActions = {
     selectArtifact: onSelectArtifact,
     showDetails: onShowStage,
-    run: () => stored && run(stored),
+    run: () => {
+      quiet();
+      if (stored) void run(stored);
+    },
     stop,
     finish: (id) => void finish(id),
     changeConfig: (id) => {
@@ -399,6 +469,7 @@ export function ProjectView({
     drop: (id) => change(() => void drop(id), true, "Drop stage"),
     dismissDropped: (id) => void dismiss(id),
     setMode: async (value) => {
+      quiet();
       const previous = mode;
       setMode(value);
       try {
@@ -475,6 +546,11 @@ export function ProjectView({
         )}
         {dialog}
         {configDialog}
+        {toast && covered && (
+          <div key={toast.key} className="toast" role="status">
+            {toast.text.map((segment, i) => (segment.bold ? <strong key={i}>{segment.text}</strong> : segment.text))}
+          </div>
+        )}
       </div>
     );
   }
@@ -493,16 +569,7 @@ export function ProjectView({
             >
               <ExpandIcon />
             </button>
-            <div className="strip-progress">
-              <ProgressRing value={progress.pipeline} label="Pipeline" size={28} />
-              <span>Pipeline</span>
-            </div>
-            {progress.stage !== null && (
-              <div className="strip-progress">
-                <ProgressRing value={progress.stage} label="Stage" size={28} />
-                <span>Stage</span>
-              </div>
-            )}
+            <StripProgress pipeline={pipeline} progress={progress} />
           </div>
         ) : (
           panel(pickedStage ? null : (shownArtifact?.artifact.id ?? null), pickedStage?.id ?? null, () => collapse(true))
@@ -522,6 +589,51 @@ export function ProjectView({
       {dialog}
       {configDialog}
     </div>
+  );
+}
+
+// The collapsed panel's progress (DESIGN.md §5.6, "Progress"): the pipeline's circle, with a check once it is done,
+// and below it where the pipeline is: the running stage's circle (a grey spinner if it runs on another device, whose
+// progress isn't known here), a red triangle if it failed, an empty circle with a pause sign if it waits for the user;
+// each with the stage's name.
+function StripProgress({ pipeline, progress }: { pipeline: Pipeline; progress: Progress }) {
+  const state = pipelineState(pipeline);
+  if (!state) return null;
+  const done = state.kind === "done";
+  return (
+    <>
+      <div className="strip-progress">
+        <span className="ring-with-mark">
+          <ProgressRing value={done ? 1 : progress.pipeline} label="Pipeline" size={28} />
+          {done && (
+            <span className="ring-mark done">
+              <CheckIcon />
+            </span>
+          )}
+        </span>
+        <span>Pipeline</span>
+      </div>
+      {!done && (
+        <div className="strip-progress" title={stateLabel(state)}>
+          {state.kind === "running" && state.here && <ProgressRing value={state.stage.progress} label="Stage" size={28} />}
+          {state.kind === "running" && !state.here && <span className="spinner" role="progressbar" aria-label="Stage" />}
+          {state.kind === "failed" && (
+            <span className="strip-failed" aria-label={stateLabel(state)}>
+              <WarningIcon />
+            </span>
+          )}
+          {state.kind === "waiting" && (
+            <span className="ring-with-mark" aria-label={stateLabel(state)}>
+              <ProgressRing value={null} label="Stage" size={28} />
+              <span className="ring-mark">
+                <PauseIcon />
+              </span>
+            </span>
+          )}
+          <span className="strip-stage-name">{state.stage.title}</span>
+        </div>
+      )}
+    </>
   );
 }
 

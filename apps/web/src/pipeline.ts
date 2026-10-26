@@ -60,6 +60,8 @@ export type Stage = {
   note?: string; // one short fact about the result, e.g. "3 boxes moved"
   error?: string; // failed stages
   progress: number; // from 0 to 1 while running; known only on the device that runs the stage
+  runningHere: boolean; // running on this device (else its progress is unknown here)
+  interrupted: boolean; // failed because it stopped running unexpectedly (its heartbeat stopped)
   imagesDiffer: boolean; // while running here: an image it made differs from the one a stored result was computed from (§8.3)
   artifacts: Artifact[]; // the first is the main one; shown once the stage is done (or while a manual one is worked on)
   config: Record<string, string>;
@@ -94,10 +96,10 @@ export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun |
   const stages = stored.stages.map((s, i) => {
     const stage = toStage(s, stored.stages.slice(0, i), fixesAfter(stored.stages, i), stored.stages.slice(i + 1));
     if (local?.stageId === s.id) {
-      return { ...stage, status: "running" as const, progress: local.progress, imagesDiffer: local.imagesDiffer ?? false };
+      return { ...stage, status: "running" as const, progress: local.progress, runningHere: true, imagesDiffer: local.imagesDiffer ?? false };
     }
     if (s.status === "running" && (s.heartbeatAt === null || now - Date.parse(s.heartbeatAt) > STALE_MS)) {
-      return { ...stage, status: "failed" as const, error: "Interrupted: the app was closed while this stage ran." };
+      return { ...stage, status: "failed" as const, interrupted: true, error: "Interrupted: the app was closed while this stage ran." };
     }
     return stage;
   });
@@ -140,6 +142,8 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
     note: stored.note ?? undefined,
     error: stored.error ?? undefined,
     progress: 0,
+    runningHere: false,
+    interrupted: false,
     imagesDiffer: false,
     artifacts: stored.carried ? [] : info.artifacts(stored, earlier),
     config: Object.fromEntries(
@@ -174,6 +178,39 @@ export function runningStage(pipeline: Pipeline): Stage | null {
 // The stage where the pipeline is: the first one that isn't done, or else the last one. The panel scrolls to it.
 export function currentStage(pipeline: Pipeline): Stage | null {
   return pipeline.stages.find((stage) => stage.status !== "done") ?? pipeline.stages.at(-1) ?? null;
+}
+
+// Where the pipeline is, for the panel's head and the collapsed strip (DESIGN.md §5.6, "Progress"): all done; a stage
+// running, here (its progress known) or on another device; a stage that failed or was interrupted, which stopped the
+// pipeline; or a stage waiting for the user (not started, or a manual stage in progress). null without stages.
+export type PipelineState =
+  | { kind: "done" }
+  | { kind: "running"; stage: Stage; here: boolean }
+  | { kind: "failed"; stage: Stage; interrupted: boolean }
+  | { kind: "waiting"; stage: Stage };
+
+export function pipelineState(pipeline: Pipeline): PipelineState | null {
+  if (pipeline.stages.length === 0) return null;
+  const stage = pipeline.stages.find((s) => s.status !== "done");
+  if (!stage) return { kind: "done" };
+  if (stage.status === "running") return { kind: "running", stage, here: stage.runningHere };
+  if (stage.status === "failed") return { kind: "failed", stage, interrupted: stage.interrupted };
+  return { kind: "waiting", stage };
+}
+
+// The line under the pipeline's bar in the panel's head: "Analyze…" while it runs, "Layout failed" (or "interrupted"),
+// "Layout (not started)" or "Fix layout (WIP)" while it waits for the user, "Done".
+export function stateLabel(state: PipelineState): string {
+  switch (state.kind) {
+    case "done":
+      return "Done";
+    case "running":
+      return `${state.stage.title}…`;
+    case "failed":
+      return `${state.stage.title} ${state.interrupted ? "interrupted" : "failed"}`;
+    case "waiting":
+      return `${state.stage.title} (${state.stage.status === "wip" ? "WIP" : "not started"})`;
+  }
 }
 
 // Whether the pipeline can be started (or resumed) from where it is.

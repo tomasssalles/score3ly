@@ -26,6 +26,25 @@ export function PdfIcon() {
   );
 }
 
+// A warning triangle: a stage failed and stopped the pipeline (the collapsed strip, §5.6).
+export function WarningIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3.5 2.5 20h19z" />
+      <path d="M12 10v4.5M12 17.2v.3" />
+    </svg>
+  );
+}
+
+// A pause sign: the pipeline waits for the user (the collapsed strip, §5.6).
+export function PauseIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9.5 7v10M14.5 7v10" />
+    </svg>
+  );
+}
+
 export function CloseIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">

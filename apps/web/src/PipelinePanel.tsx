@@ -3,7 +3,7 @@ import type { Project } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { ChevronDownIcon, CollapseIcon, MoreIcon, StopIcon } from "./icons";
-import { canRun, currentStage, MODE_LABELS, MODES, runningStage, type Pipeline, type Progress, type RunMode } from "./pipeline";
+import { canRun, currentStage, MODE_LABELS, MODES, pipelineState, runningStage, stateLabel, type Pipeline, type Progress, type RunMode } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
 import { DroppedCard, RunLabel, StageCard, type StageActions } from "./StageCard";
 import { when } from "./time";
@@ -43,6 +43,7 @@ export function PipelinePanel({
 }) {
   const list = useRef<HTMLOListElement>(null);
   const busy = runningStage(pipeline) !== null;
+  const state = pipelineState(pipeline);
   const currentId = currentStage(pipeline)?.id;
   const firstScroll = useRef(true);
 
@@ -93,7 +94,11 @@ export function PipelinePanel({
               })),
             ]}
           />
-          <ProgressBar value={progress.pipeline} label="Pipeline" />
+          {/* The bar is the pipeline's; the line under it says where the pipeline is (DESIGN.md §5.6, "Progress"). */}
+          <div className="head-progress">
+            <ProgressBar value={progress.pipeline} label="Pipeline" />
+            {state && <span className={state.kind === "failed" ? "head-state failed" : "head-state"}>{stateLabel(state)}</span>}
+          </div>
           {pipeline.mode === "auto" &&
             (busy ? (
               <button type="button" className="button-stop small" onClick={actions.stop}>
