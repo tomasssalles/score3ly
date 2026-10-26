@@ -11,7 +11,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } fr
 import { dirname, join, relative } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
-const ROOTS = ["apps/web", "apps/worker", "apps/desktop", "packages/imaging", "packages/notation", "packages/prompts"];
+const ROOTS = ["apps/web", "apps/worker", "apps/desktop", "packages/core", "packages/imaging", "packages/notation", "packages/prompts"];
 export const NOTICES_FILE = join(ROOT, "THIRD_PARTY_NOTICES.md");
 
 // Material in the builds that isn't an npm package.

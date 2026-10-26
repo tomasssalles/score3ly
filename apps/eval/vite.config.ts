@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { pdfjsAssets } from "./src/pdfjsAssets.ts";
+import { pdfjsAssets } from "@score3ly/core/pdfjs-assets";
 import { testsetServer } from "./src/testsetServer.ts";
 
 export default defineConfig({

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sha256Hex } from "./sha256.ts";
+import { sha256Hex } from "./keys.ts";
 
 // Expected values are the standard SHA-256 test vectors (FIPS 180-4).
 test("sha256Hex hashes the empty input", async () => {

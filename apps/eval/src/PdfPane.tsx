@@ -7,19 +7,14 @@
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react";
 import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+// Shared with the web app: drawing a page, the URLs of pdf.js's data files, the SHA-256.
+import { sha256Hex } from "@score3ly/core";
+import { drawPage, PDFJS_DATA } from "@score3ly/core/pdf";
 import { STROKE_WIDTH, createDrawingLayer, paintLine, paintStrokes, pointOn } from "./highlighter.ts";
 import type { Point, Stroke } from "./marks.ts";
 import { type PageBox, type ScrollAnchor, anchorAt, scrollTopFor } from "./scrollAnchor.ts";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-
-// Folders served by the pdfjsAssets plugin.
-const PDFJS_DATA = {
-  wasmUrl: "/pdfjs/wasm/",
-  cMapUrl: "/pdfjs/cmaps/",
-  standardFontDataUrl: "/pdfjs/standard_fonts/",
-  iccUrl: "/pdfjs/iccs/",
-};
 
 const PAGE_GAP = 8; // pixels between pages
 const RESIZE_DELAY = 150; // ms to wait for resizing to settle before redrawing
@@ -186,17 +181,10 @@ async function drawPages(
 ): Promise<HTMLDivElement[]> {
   const pages: HTMLDivElement[] = [];
   for (let pageNumber = 1; pageNumber <= doc.numPages && !isCancelled(); pageNumber++) {
-    const page = await doc.getPage(pageNumber);
-    // Draw at the pane's width in device pixels, so pages stay sharp on high-DPI screens.
-    const scale = (width / page.getViewport({ scale: 1 }).width) * window.devicePixelRatio;
-    const viewport = page.getViewport({ scale });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.floor(viewport.width);
-    canvas.height = Math.floor(viewport.height);
+    const canvas = await drawPage(doc, pageNumber, width);
     // Until the next redraw, the browser scales the drawing to the pane's current width.
     canvas.style.width = "100%";
     canvas.style.display = "block";
-    await page.render({ canvas, viewport }).promise;
 
     const wrapper = document.createElement("div");
     wrapper.dataset.page = String(pageNumber);
@@ -210,11 +198,6 @@ async function drawPages(
 
 function drawingLayers(pages: HTMLElement): HTMLCanvasElement[] {
   return [...pages.querySelectorAll<HTMLCanvasElement>("canvas[data-drawing-layer]")];
-}
-
-async function sha256Hex(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  return [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function pageBoxes(pages: HTMLElement): PageBox[] {

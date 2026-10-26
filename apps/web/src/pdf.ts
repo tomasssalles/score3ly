@@ -5,16 +5,11 @@ import { useEffect, useState } from "react";
 // that many phones don't have yet.
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
+// The data files pdf.js loads at runtime, served by the pdfjsAssets plugin (packages/core).
+import { PDFJS_DATA } from "@score3ly/core/pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
-// Folders provided by the pdfjsAssets plugin (apps/web/pdfjsAssets.ts).
-const PDFJS_DATA = {
-  wasmUrl: "/pdfjs/wasm/",
-  cMapUrl: "/pdfjs/cmaps/",
-  standardFontDataUrl: "/pdfjs/standard_fonts/",
-  iccUrl: "/pdfjs/iccs/",
-};
 
 export type PdfDocument = pdfjs.PDFDocumentProxy;
 
@@ -54,15 +49,5 @@ export function usePdf(url: string): { doc?: PdfDocument; error?: string } {
   return { doc, error };
 }
 
-// Draws a page on a new canvas, `width` CSS pixels wide. It is drawn in device pixels, so it stays sharp on
-// high-DPI screens; the caller's CSS sets the size it is shown at.
-export async function drawPage(doc: PdfDocument, pageNumber: number, width: number): Promise<HTMLCanvasElement> {
-  const page = await doc.getPage(pageNumber);
-  const scale = (width / page.getViewport({ scale: 1 }).width) * window.devicePixelRatio;
-  const viewport = page.getViewport({ scale });
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.floor(viewport.width);
-  canvas.height = Math.floor(viewport.height);
-  await page.render({ canvas, viewport }).promise;
-  return canvas;
-}
+// Drawing a page is shared with the evaluation viewer (packages/core).
+export { drawPage } from "@score3ly/core/pdf";

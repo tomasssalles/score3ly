@@ -98,7 +98,7 @@ class NoFilterFactory {
   destroy() {}
 }
 
-// What openPdf needs in a worker: the folders pdf.js loads data from (apps/web/pdfjsAssets.ts), as absolute URLs
+// What openPdf needs in a worker: the folders pdf.js loads data from (the pdfjsAssets plugin, packages/core), as absolute URLs
 // fetched by pdf.js's own worker, and no DOM. Glyphs are drawn as paths rather than with the browser's fonts, as in
 // Node: the same everywhere (DESIGN.md §8.1).
 const options = {

@@ -4,7 +4,7 @@
 import { piecesOf } from "./analyze";
 import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import { analyzeOutputs, changedFields, confirmedFields, fixNote, normalizeMetadata, type ShownMetadata } from "./fixMetadata";
-import { canonicalJson } from "./keys";
+import { canonicalJson } from "@score3ly/core";
 
 export const jsonBytes = (value: unknown): Uint8Array<ArrayBuffer> => new TextEncoder().encode(canonicalJson(value));
 

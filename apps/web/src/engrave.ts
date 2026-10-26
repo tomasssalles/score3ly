@@ -8,7 +8,7 @@ import { REPOSITORY_URL } from "./about.ts";
 import type { ApiStage } from "./api";
 import type { StoredExtraction } from "./extract.ts";
 import { normalizeMetadata } from "./fixMetadata.ts";
-import { keyOf } from "./keys.ts";
+import { keyOf } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 import { indexMei } from "./meiView.ts";
 import { pageOfItem } from "./rasterize.ts";

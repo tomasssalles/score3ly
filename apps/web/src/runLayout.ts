@@ -16,7 +16,7 @@ import {
   type LayoutAnswer,
 } from "@score3ly/prompts";
 import { fetchJsonContent, markUnusable, putContent } from "./api";
-import { canonicalJson } from "./keys";
+import { canonicalJson } from "@score3ly/core";
 import { LAYOUT_VERSION, layoutNote, layoutStageKey, type PageLayout } from "./layout";
 import { ask, imageLimit, modelKey, requestImage, stageModelConfig, type PlannedRequest } from "./llm";
 import { drawnPage, modelPage, pageImage, pngSize, type ModelPageRecipe } from "./pageImages";

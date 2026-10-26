@@ -11,7 +11,7 @@
 import { compareFingerprints, type Fingerprint } from "@score3ly/imaging";
 import { fetchFingerprint, storeFingerprints } from "./api";
 import { cachedImage, cacheImage, cachedJson, cacheJson } from "./imageCache";
-import { keyOf } from "./keys";
+import { keyOf } from "@score3ly/core";
 import { pdfUrl } from "./pdf";
 import type { PageImageRequest, PageImageResponse } from "./pageImageWorker";
 import type { PageRecipe } from "./rasterize";

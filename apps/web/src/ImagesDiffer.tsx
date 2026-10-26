@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useHost } from "./host";
-import { keyOf } from "./keys";
+import { keyOf } from "@score3ly/core";
 import { onImagesDiffer, pageDiffers } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
 

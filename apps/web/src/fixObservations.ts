@@ -13,7 +13,7 @@ import {
   type Staff,
 } from "@score3ly/prompts";
 import { firstPlace, type ShownConfidence, type StoredObservations, type StoredPage, type StoredScore } from "./analyze.ts";
-import { canonicalJson } from "./keys.ts";
+import { canonicalJson } from "@score3ly/core";
 
 export const FIX_OBSERVATIONS_VERSION = 1;
 

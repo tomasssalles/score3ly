@@ -1,19 +1,9 @@
 import type { Fingerprint } from "@score3ly/imaging";
-import { sha256Hex } from "./sha256.ts";
+import { sha256Hex } from "@score3ly/core";
 
 // Mirrors the Worker's Project type (apps/worker/src/index.ts).
-export type Project = {
-  id: string;
-  name: string;
-  pdfSha256: string;
-  pdfFilename: string;
-  createdAt: string;
-  lastModifiedAt: string;
-  lastOpenedAt: string;
-  runMode: RunMode;
-};
-
-export type RunMode = "auto" | "manual";
+export type { Project, RunMode } from "@score3ly/core";
+import type { Project, RunMode } from "@score3ly/core";
 
 // Mirrors the Worker's Pipeline, Stage and Output types: the stages as stored (DESIGN.md §5.8).
 export type ApiPipeline = { stages: ApiStage[]; dropped: ApiDropped[] };

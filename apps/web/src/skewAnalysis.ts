@@ -3,7 +3,7 @@
 // (deskewAngle), computed by the stage that makes straightened pages. This module has what doesn't need the browser.
 
 import type { Skew } from "@score3ly/imaging";
-import { keyOf } from "./keys.ts";
+import { keyOf } from "@score3ly/core";
 
 export const SKEW_ANALYSIS_VERSION = 1;
 

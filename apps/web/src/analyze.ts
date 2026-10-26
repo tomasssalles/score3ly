@@ -12,7 +12,7 @@ import {
   type ScoreMetadata,
   type ScoreObservations,
 } from "@score3ly/prompts";
-import { keyOf } from "./keys.ts";
+import { keyOf } from "@score3ly/core";
 
 export const ANALYZE_VERSION = 3;
 

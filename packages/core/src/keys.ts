@@ -1,6 +1,13 @@
-// Keys from content (DESIGN.md §5.2): the SHA-256 of canonical JSON, so the same content always gives the same key.
-// The same as apps/web/src/keys.ts (to move into the shared package, §15).
+// Keys from content (DESIGN.md §5.2, §8.6): the SHA-256 of canonical JSON, so the same content always gives the same
+// key, whichever app computes it.
 
+// The SHA-256 of some bytes, in lowercase hex (WebCrypto: browsers, Workers, Node).
+export async function sha256Hex(bytes: BufferSource): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// JSON with the keys of every object sorted, and no spaces; undefined values left out.
 export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value !== null && typeof value === "object") {
@@ -10,11 +17,6 @@ export function canonicalJson(value: unknown): string {
     return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(",")}}`;
   }
   return JSON.stringify(value);
-}
-
-export async function sha256Hex(bytes: BufferSource): Promise<string> {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  return [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export function keyOf(value: unknown): Promise<string> {

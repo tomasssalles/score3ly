@@ -4,7 +4,7 @@
 // calls the provider, and records the call with its tokens and cost.
 
 import type { Hono } from "hono";
-import { canonicalJson, keyOf, sha256Hex } from "./keys.ts";
+import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
 import { createProvider, LlmError, type Effort, type LlmContent, type ProviderConfig, type ProviderId } from "./llm/index.ts";
 import { costOf, PRICES_AS_OF, priceOf } from "./llm/prices.ts";
 

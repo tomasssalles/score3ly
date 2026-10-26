@@ -140,8 +140,10 @@ flowchart LR
 
 ```
 packages/
-  core/      Pipeline engine, stage outputs and artifacts, step definitions, config schemas.
-             Pure TypeScript, no DOM and no Cloudflare APIs.
+  core/      What more than one app needs (built): content keys and SHA-256, the Project type; and as entry
+             points of their own, drawing a PDF page in a browser (`/pdf`) and the Vite plugin serving
+             pdf.js's data files (`/pdfjs-assets`). The main entry runs in browsers, Workers and Node.
+             (The step definitions and the pipeline's logic live in apps/web for now: only it runs them.)
   imaging/   Page images from PDFs, deterministic image operations (skew, rotation, scaling, crops, PNG),
              fingerprints. Pure TS/WASM.
   notation/  Lens parser and checks, measure building from stretches,
@@ -150,6 +152,7 @@ packages/
 apps/
   web/       React UI, Web Worker host, OPFS + Drive + local-file adapters.
   worker/    Hono API, D1 + R2 adapters, LLM provider adapters.
+  desktop/   The desktop version (§3): the Worker on Node, in an Electron window.
   eval/      Local evaluation tooling: engrave command, side-by-side viewer (§13).
 fixtures/    Recorded test projects (§12).
 testset/     Evaluation test set (§13): inputs, their strokes and .ly/.musicxml candidates committed, rest ignored.
@@ -1647,7 +1650,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 ### Infrastructure and cleanup
 - **Create the remote R2 bucket and D1 database** (EU jurisdiction, with a script in the repo, §14) and put the real database ID into `apps/worker/wrangler.jsonc`, which has a placeholder. Until then the app can't be deployed.
 - **Set up Cloudflare Access** in front of the deployed app (§3).
-- **Create the shared package** (`packages/core`, §3) and remove the duplicates: the `Project` type (`apps/web` and `apps/worker`), `sha256Hex` (`apps/web` and `apps/eval`), the pdf.js asset plugin and the PDF rendering (`apps/web` and `apps/eval`; the eval copy is dev-only and uses the modern pdf.js build).
 - **Build the test environments** (§12): the start script, the build script and a first environment.
 - **Try the page images in Firefox, Safari and on phones** (§8.1): they work in Chromium, in a Web Worker. Check that pdf.js loads in a worker there, that the pixels match Node's (scans exactly, vector pages "close"), that the PNG bytes match (they do in Chromium), and the memory needed for large scans on a phone (a 5400×7200 scan is about 155 MB as RGBA).
 - **The image cache's size limit and LRU eviction** (§8.5, §8.6).

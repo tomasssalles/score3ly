@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "^0.132.1",
     "@anthropic-ai/vertex-sdk": "^0.20.4",
     "@google/genai": "^2.28.0",
+    "@score3ly/core": "*",
     "hono": "^4.13.12"
   },
   "devDependencies": {

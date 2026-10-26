@@ -3,7 +3,7 @@
 // lines are what later stages and `fix_skew` build on, and must not move when measured again on another device.
 
 import { putContent } from "./api";
-import { canonicalJson } from "./keys";
+import { canonicalJson } from "@score3ly/core";
 import { keepFingerprints, measureSkew, pageImage } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
 import { pageOfItem } from "./rasterize";

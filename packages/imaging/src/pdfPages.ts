@@ -9,7 +9,7 @@ import type { Rgb, RgbaImage } from "./image.ts";
 export type PdfDocument = pdfjs.PDFDocumentProxy;
 
 // Opens a PDF for page images. `options` are the folders (or URLs) pdf.js needs to draw vector pages: fonts,
-// character maps, ... (apps/web/pdfjsAssets.ts provides them in the browser), and in a Web Worker, which has no
+// character maps, ... (the pdfjsAssets plugin in packages/core provides them in the browser), and in a Web Worker, which has no
 // DOM, what pdf.js would otherwise take from it (apps/web/src/pageImageWorker.ts).
 export type PdfOptions = {
   standardFontDataUrl?: string;

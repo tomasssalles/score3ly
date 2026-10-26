@@ -3,7 +3,7 @@
 // a view: made when it is needed, never stored.
 
 import { cachedSvg, cachedSvgs, cacheSvg, cacheSvgs } from "./imageCache.ts";
-import { keyOf } from "./keys.ts";
+import { keyOf } from "@score3ly/core";
 import type { RenderRequest, RenderResponse } from "./renderWorker.ts";
 
 // Verovio's version, in the cache key: a new version renders anew. A test keeps it equal to the installed one.

@@ -28,7 +28,7 @@ import {
   type StoredExtraction,
 } from "./extract";
 import { firstNumbers } from "./fixLayout";
-import { canonicalJson } from "./keys";
+import { canonicalJson } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 import { linkSpans, systemHints } from "./linking";
 import { ask, imageLimit, imageLimitFor, modelKey, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";

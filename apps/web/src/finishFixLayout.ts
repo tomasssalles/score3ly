@@ -4,7 +4,7 @@
 
 import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import { fixedLayout, fixLayoutNote, systemsChanged } from "./fixLayout";
-import { canonicalJson } from "./keys";
+import { canonicalJson } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 
 // The content a page's layout is stored as: its canonical JSON.

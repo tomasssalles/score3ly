@@ -9,7 +9,7 @@ import { ProjectView } from "./ProjectView";
 import { PageView } from "./PageView";
 import { RenameDialog } from "./RenameDialog";
 import { hashForArtifact, hashForProject, hashForStage, pageFromHash, parseRoute } from "./route";
-import { sha256Hex } from "./sha256";
+import { sha256Hex } from "@score3ly/core";
 import { useHash } from "./useHash";
 
 export function App() {

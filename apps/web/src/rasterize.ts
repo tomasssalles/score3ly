@@ -2,7 +2,7 @@
 // page's recipe is stored; the images are computed on the device and cached there (§5.3, §8.6). This module has
 // what doesn't need the browser: the config, its resolution, the recipes and the keys.
 
-import { keyOf } from "./keys.ts";
+import { keyOf } from "@score3ly/core";
 import { formatPages, parsePages, selectPages } from "./pageSelection.ts";
 
 export const RASTERIZE_VERSION = 1;

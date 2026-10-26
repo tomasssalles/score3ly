@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { keyOf } from "./keys.ts";
+import { keyOf } from "@score3ly/core";
 import { configError, configOf, pageOfItem, pageRecipe, resolveConfig, stageKey } from "./rasterize.ts";
 
 test("a stored config gets defaults for what it lacks", () => {

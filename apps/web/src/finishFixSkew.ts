@@ -3,8 +3,8 @@
 
 import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import { fixSkewNote, type PageLines } from "./fixSkew";
-import { canonicalJson } from "./keys";
-import { sha256Hex } from "./sha256";
+import { canonicalJson } from "@score3ly/core";
+import { sha256Hex } from "@score3ly/core";
 
 // The content a page's lines are stored as: their canonical JSON (so the same lines are the same content).
 export function linesBytes(lines: PageLines): Uint8Array<ArrayBuffer> {

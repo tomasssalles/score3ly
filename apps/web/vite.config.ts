@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { pdfjsAssets } from "./pdfjsAssets.ts";
+import { pdfjsAssets } from "@score3ly/core/pdfjs-assets";
 
 // The app's version (root package.json) and the commit it was built from, shown on the About page.
 // The commit is null where git isn't available; "dirty" means the build included uncommitted changes.

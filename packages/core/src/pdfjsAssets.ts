@@ -1,6 +1,7 @@
 // Vite plugin for the data files pdf.js loads at runtime, under /pdfjs/<folder>/<name>:
 // served by the dev server, and copied into the build. Without the wasm decoders, for example,
-// pages with JBIG2 or JPEG 2000 scans render blank. (apps/eval has a dev-only copy of this.)
+// pages with JBIG2 or JPEG 2000 scans render blank. Used by the web app and the evaluation viewer; the URLs are
+// PDFJS_DATA in ./pdf.ts.
 
 import { readdir, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";

@@ -34,7 +34,7 @@ import {
 } from "./analyze";
 import { fetchJsonContent, markUnusable, putContent } from "./api";
 import { firstNumbers } from "./fixLayout";
-import { canonicalJson } from "./keys";
+import { canonicalJson } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 import {
   ask,

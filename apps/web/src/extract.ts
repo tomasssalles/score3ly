@@ -3,7 +3,7 @@
 import type { Box, CheckedSystem, CodeIssue, LensIssue, LensSystem, StretchPlace, Warning } from "@score3ly/notation";
 import { describeMark, type ScoreState } from "@score3ly/notation";
 import type { LayoutSystem } from "@score3ly/prompts";
-import { keyOf } from "./keys.ts";
+import { keyOf } from "@score3ly/core";
 import type { SystemHints } from "./linking.ts";
 
 export const EXTRACT_VERSION = 2;
