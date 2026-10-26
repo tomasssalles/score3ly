@@ -3,10 +3,6 @@
 Written for the next session. Read DESIGN.md first, as usual. Work happens on the branch given by the session; fast-forward
 main only when the project owner asks. The project owner set this order (2026-10-26).
 
-## 1. The image cache's size limit and LRU eviction (in progress)
-- DESIGN.md §8.5 ("Size") and §8.6; task in §15. The cache is `apps/web/src/imageCache.ts` (OPFS,
-  `cache/pdf-<sha256>/<key>.png`, a folder per PDF; in memory where OPFS isn't available).
-
 ## 2. Package the desktop app: users build it themselves
 - The task in DESIGN.md §15, "Package the desktop app: users build it themselves": electron-builder (or Electron
   Forge) in `apps/desktop`, the product name and app ID, cadenza's icons per platform, the targets, the packaging

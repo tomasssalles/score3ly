@@ -1,11 +1,14 @@
 // The settings (DESIGN.md §5.1, §5.8, §7.2, §10): the user's, stored by the Worker. So far the run mode new projects
-// start with and the spending cap, the model configs, read-only, and where their secrets are set. A pick is saved at once, an amount when it is
-// left or Enter is pressed. Then this device's own: the theme (§5.7), kept in the browser.
+// start with and the spending cap, the model configs, read-only, and where their secrets are set. A pick is saved at
+// once, an amount when it is left or Enter is pressed. Then this device's own, kept in the browser: the theme (§5.7)
+// and the image cache's size limit (§8.5).
 
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { fetchModelConfigs, fetchSettings, openSecretsFile, putSetting, type ModelConfig, type Settings } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
+import { CACHE_LIMITS_MB, cacheLimitMb, formatSize, setCacheLimitMb } from "./cacheLru";
 import { useHost } from "./host";
+import { cacheUsage, pruneNow } from "./imageCache";
 import { ChevronDownIcon } from "./icons";
 import { MODE_LABELS, MODES } from "./pipeline";
 import { CHOICES, setThemeChoice, themeChoice } from "./themes";
@@ -102,9 +105,55 @@ export function SettingsPage() {
               ]}
             />
           </dd>
+          <ImageCacheSetting />
         </dl>
       </section>
     </div>
+  );
+}
+
+// The image cache's size limit (DESIGN.md §8.5), with what it takes now. Lowering it prunes the cache at once.
+function ImageCacheSetting() {
+  const [limit, setLimit] = useState(cacheLimitMb);
+  const [usage, setUsage] = useState<number | null>(null);
+  useEffect(() => {
+    cacheUsage().then(setUsage, () => {});
+  }, []);
+  const label = (mb: number) => formatSize(mb * 1024 * 1024);
+  return (
+    <>
+      <dt>
+        Image cache
+        <span className="settings-hint">
+          Page images, crops and renderings made on this device, kept to save time; they are made again when needed.
+          {usage !== null && ` Now ${formatSize(usage)}.`}
+        </span>
+      </dt>
+      <dd>
+        <DropdownMenu
+          className="mode-picker"
+          buttonClassName="mode-button"
+          icon={
+            <>
+              At most {label(limit)}
+              <ChevronDownIcon />
+            </>
+          }
+          label="Image cache size"
+          groups={[
+            CACHE_LIMITS_MB.map((mb) => ({
+              label: label(mb),
+              current: mb === limit,
+              onSelect: () => {
+                setCacheLimitMb(mb);
+                setLimit(mb);
+                pruneNow().then(() => cacheUsage().then(setUsage), () => {});
+              },
+            })),
+          ]}
+        />
+      </dd>
+    </>
   );
 }
 

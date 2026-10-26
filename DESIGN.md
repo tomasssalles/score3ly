@@ -1352,7 +1352,12 @@ Built, in `findSkew`, from the same line responses and strips, at the angle foun
 - **Memory:** a 300 dpi page held in canvas memory is about 35 MB, and mobile Safari strictly limits total canvas memory. Process one page at a time in a Web Worker, using typed arrays / `OffscreenCanvas`.
 - **Latency:** generate lazily, current page first.
 - **Eviction:** call `navigator.storage.persist()`, but assume the OPFS cache can disappear at any time. Missing derivatives are simply regenerated. Built: asked once per page load, at the cache's first write (`imageCache.ts`), unless the storage is already persistent; Chromium grants or refuses it by itself, Firefox asks the user.
-- **Size:** the image cache is an LRU cache with a configurable size limit (§8.6), the least recently used images deleted first. Deletion is real deletion.
+- **Size:** the image cache is an LRU cache with a configurable size limit (§8.6), the least recently used images deleted first. Deletion is real deletion. **Built** (2026-10-26; `cacheLru.ts`, `imageCache.ts`):
+  - **The limit** is a setting of this device (Settings, "This device", "Image cache": 250 MB, 500 MB, 1 GB, 2 GB, 5 GB; default 1 GB; kept in the browser), shown with what the cache takes now; never more than 80% of what the browser lets the site store (`navigator.storage.estimate`). Lowering it prunes at once.
+  - **Once a write takes the cache over the limit,** the least recently used files are deleted until it is under 90% of it, so it isn't pruned at every write; the file just written stays. Every file in the cache counts: page images, straightened pages, crops, fingerprints, renderings.
+  - **The last use of each file** (read or write) is kept in an index, `cache/lru.json`, saved a moment after changes; OPFS itself keeps only write times. Once per page load the index is merged with a scan of the cache's folder, which gives the sizes and catches what other tabs wrote; a lost index falls back on the write times.
+  - **The memory fallback** (no OPFS) keeps at most 200 MB, the least recently used going first.
+  - Tried in Chromium: the same views take 3.1 MB without a limit and 1.6 MB under a 2 MB one, with the images still shown.
 - **Bundle size:** avoid OpenCV.js (about 10 MB). With LLMs doing the reading, preprocessing is light enough to write by hand.
 
 ### 8.6 The image cache
@@ -1366,7 +1371,7 @@ Page images, straightened pages and crops are views computed from the PDF and th
 - **Numbers are written canonically** before hashing (angles and box coordinates rounded to fixed decimals, canonical JSON), so the same recipe always gives the same key.
 - **The code versions** are those of our image functions, plus pdf.js's for the page images (§11).
 - **Stored as PNG** (`cache/pdf-<sha256>/<key>.png`: a folder per PDF, so that deleting a project can delete its images), encoded by our own code: a raw RGBA page is about 35 MB, a PNG of line art much smaller and lossless. Reading costs a decode.
-  - **Built:** the encoder and decoder (`packages/imaging/src/png.ts`: 8-bit RGBA, the "Up" row filter, compressed with the platform's `CompressionStream`, so the same in browsers and Node) and the cache (`apps/web/src/imageCache.ts`), keyed by the hash of the recipe as canonical JSON. Where OPFS isn't available (some private windows), images are kept in memory while the page is open. The artifact view shows the cached PNG directly (an `<img>`), with no decode. Not built: the size limit and LRU eviction (§8.5).
+  - **Built:** the encoder and decoder (`packages/imaging/src/png.ts`: 8-bit RGBA, the "Up" row filter, compressed with the platform's `CompressionStream`, so the same in browsers and Node) and the cache (`apps/web/src/imageCache.ts`), keyed by the hash of the recipe as canonical JSON. Where OPFS isn't available (some private windows), images are kept in memory while the page is open. The artifact view shows the cached PNG directly (an `<img>`), with no decode. The size limit and LRU eviction are built (§8.5).
 - **The key isn't the fingerprint** (§8.3): the key says what an image should be, the fingerprint, stored in D1 for every image from which a stored result was computed, what it was. An image regenerated on another device is checked against it.
 
 ## 9. Rendering
@@ -1652,7 +1657,6 @@ Concrete pieces of work, like tickets. The roadmap (§16) is the high-level, lon
 - **Set up Cloudflare Access** in front of the deployed app (§3).
 - **Build the test environments** (§12): the start script, the build script and a first environment.
 - **Try the page images in Firefox, Safari and on phones** (§8.1): they work in Chromium, in a Web Worker. Check that pdf.js loads in a worker there, that the pixels match Node's (scans exactly, vector pages "close"), that the PNG bytes match (they do in Chromium), and the memory needed for large scans on a phone (a 5400×7200 scan is about 155 MB as RGBA).
-- **The image cache's size limit and LRU eviction** (§8.5, §8.6).
 - **Google Drive** (§3, §10): picking source PDFs with the Picker, and exporting to an app-created folder.
 - **Try regeneration on a second device** (§5.3): a project run on one device, continued on another whose image cache is empty.
 - **Try the editors with touch and on a real phone:** `fix_layout` hasn't been tried with touch at all, `fix_skew` only through Chromium's emulation of touch at phone size.
