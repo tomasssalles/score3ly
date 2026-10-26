@@ -5,8 +5,9 @@
 // PDF gets a new pane.
 
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react";
-import * as pdfjs from "pdfjs-dist";
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+// The legacy build, as everywhere else (the web app needs it for older phones): one rendering code for all.
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 // Shared with the web app: drawing a page, the URLs of pdf.js's data files, the SHA-256.
 import { sha256Hex } from "@score3ly/core";
 import { drawPage, PDFJS_DATA } from "@score3ly/core/pdf";
