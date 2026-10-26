@@ -169,54 +169,9 @@ Text from users and models (titles, names) must be escaped correctly when the XM
 
 **How the prompt describes the format** (decided): **what is in,** every token and rule, with references to LilyPond to keep it short, under one opening line, "LilyPond with these differences". Drafted both ways: "what is in" took about 520 words, "what is out" (standard LilyPond minus what we removed, restricted or changed) about 320, but its list of what is not allowed never ends (LilyPond is huge, and the draft still missed things a model could write, e.g. `\harmonic`, `\xNote`, `\slashedGrace`), and the parser accepts a closed list anyway: the model would find out what is allowed by having answers rejected, and a rejected answer stops the run. A list of what to use is also easier to keep in mind late in a long context than prohibitions, doubles as the checklist of what to look for on the page, and is the parser's own spec, so it can be generated from the code and never drift from the parser. Its length is mostly LilyPond names the model already knows.
 
-**The token list** (decided): the draft below, with breath marks and caesuras added, and nothing that is a task for a later version (lyrics, nested tuplets, alternatives, beams and tuplets across bar lines, brackets across stretches, percussion staves, chord symbols and figured bass, repeat signs, harp pedals). What is missing shows up in format issues and the format gap report. **Labelled slurs on single notes inside a chord** (`< c' \=1( e' \=2( >4`, one curve per chord note) are part of it: whether LilyPond itself compiles them doesn't matter, since we never build LilyPond; the lens only borrows its notation, and the form is close enough to LilyPond's to be natural for a model.
+**The token list** (decided): the one in `extract`'s prompt (below), with breath marks and caesuras added, and nothing that is a task for a later version (lyrics, nested tuplets, alternatives, beams and tuplets across bar lines, brackets across stretches, percussion staves, chord symbols and figured bass, repeat signs, harp pedals). What is missing shows up in format issues and the format gap report. **Labelled slurs on single notes inside a chord** (`< c' \=1( e' \=2( >4`, one curve per chord note) are part of it: whether LilyPond itself compiles them doesn't matter, since we never build LilyPond; the lens only borrows its notation, and the form is close enough to LilyPond's to be natural for a model.
 
-**The prompt's description, as drafted** (the wording is settled when `extract`'s prompt is written; the list is generated from the parser's code then):
-
-```markdown
-## The music of a voice
-
-Each voice of each stretch is one string: LilyPond with these differences. Write only what is listed here: the parser rejects anything else. Spaces are as in LilyPond (`<c' e'>4`, `c'4-.\=1(` and `c'4 -. \=1(` are all fine). Quoted text runs to its closing quote, spaces included; `\"` is a quote inside it.
-
-### Notes, rests, chords
-- **Note:** letter, octave, duration: `g'4.`. Octaves are absolute (LilyPond's absolute mode): `c'` is middle C, `c''` the C above, `c` the C below, `c,` the one below that. Name the note from its place on the staff and the current clef.
-- **Accidentals are printed symbols, never part of the name** (no `fis`, `bes`). Write each printed accidental as a token right before its note: `\sharp`, `\flat`, `\natural`, `\doublesharp`, `\doubleflat`. Write exactly the accidentals printed, courtesy ones included (without their parentheses), and none that aren't: a G that sounds G♭ because of the key signature or an earlier accidental is written `g`. Code works out the sounding pitch.
-- **Durations:** `1 2 4 8 16 32 64 128 \breve`, with dots. Every note and rest has its own; never leave one out.
-- **Rests:** `r4` printed, `s4` invisible (the voice has nothing there and no rest is printed). A whole-measure rest has the measure's duration (`R1` in 4/4, `R2.` in 3/4); a multi-measure rest adds the count (`R1*12`).
-- **Chords:** `<c' \flat e' g'>4`, the duration after `>`. Inside the brackets, after a note, only that note's own marks: its fingering and its curves (`<c'\=1( e'\=2(>4`).
-
-### Marks, after the note, rest or chord they belong to
-- **Curves:** every tie, slur and phrasing slur is a curve, `\=N(` where it starts and `\=N)` where it ends. A new curve takes any number not open at that moment; an open curve keeps its number until it ends, also across bar lines and systems (close the curves the request lists as open with their numbers). Never `~`, `(` or `\(`.
-- **Articulations:** `-.` `-!` `->` `-^` `--` `-_` `\fermata`
-- **Ornaments:** `\trill` `\mordent` `\prall` `\turn`; a trill line `\startTrillSpan` … `\stopTrillSpan`
-- **Other:** `\arpeggio` `\glissando` `\laissezVibrer` (a tie to nothing)
-- **Fingering:** `-1` to `-5`
-- **Dynamics:** `\ppp` … `\fff`, `\sf` `\sfz` `\fz` `\fp` `\sfp` `\rfz`; hairpins `\<` `\>`, ended by `\!` or the next dynamic. A dynamic or hairpin printed between the two staves of a braced instrument (piano, harp, organ): write it in a voice of the upper staff, below it with `_` (`c'4_\p`); it applies to both staves. Every other dynamic applies to its own staff.
-- **Beams:** `[` after the first note, `]` after the last
-- **Tremolo on one note:** on its duration, `c'4:32`
-- **Pedal:** `\sustainOn` `\sustainOff` `\unaCorda` `\treCorde`
-- **Navigation:** a jump instruction as quoted text, exactly one of `"D.C."`, `"D.C. al Fine"`, `"D.C. al Coda"`, `"D.S."`, `"D.S. al Fine"`, `"D.S. al Coda"`, `"To Coda"`. A printed instruction not on the list: the closest one, and a format issue naming the printed text
-- **Text:** `^"dolce"` above, `_"rit."` below, `-"…"` either
-
-### Between notes, where they are printed
-- **Pauses:** `\breathe` (a breath mark), `\caesura` (a full stop of the music, //): `c4 \breathe d4`
-- **Navigation signs:** `\segnoMark`, `\codaMark`, `\fine` where the sign or "Fine" is printed
-- **Tempo marks:** `\tempo` as in LilyPond, where the mark is printed, with its text as printed, its metronome mark, or both: `\tempo "Allegro" 4 = 132`, `\tempo 4. = 60`, `\tempo 4 = 120-132` (a range), `\tempo "Andante"`. Gradual changes ("rit.") are quoted text. Where the same mark is printed above several staves, write it on each of them.
-
-### Commands, before the notes they apply to
-- `\clef` with `treble`, `bass`, `alto`, `tenor`, `soprano`, `mezzosoprano`, `baritone`, `varbaritone`, `subbass`, `french`, and octave suffixes in quotes (`\clef "treble_8"`, `"bass^8"`, `_15`, `^15`). A clef change is always written here, also at the start of a stretch; the clefs at the system's start are in the JSON.
-- `\ottava #1` (8va), `#-1` (8vb), `#2` (15ma), `#-2` (15mb); `\ottava #0` ends it. Write the notes where they are printed under the line; code transposes them.
-- `\change Staff = "3"`: the following notes are on staff 3 (the staff's number in the score), until the next change.
-- `\stemUp` `\stemDown` `\stemNeutral`, only where the stem direction separates voices or hands.
-- `\tuplet 3/2 { … }` (not nested), `\repeat tremolo 4 { c'16 e'16 }` (two alternating notes)
-- `\grace`, `\acciaccatura`, `\appoggiatura`, before one note or `{ … }`
-
-**Clef, ottava, pedal, breath marks, caesuras, navigation and tempo marks belong to the staff:** write them in the voice they are printed at, in their place above; they apply to every voice on that staff (a caesura and navigation to every staff).
-
-**Brackets close in the stretch where they open:** beams `[ ]`, tuplets, grace groups and tremolos `{ }`. If a beam or tuplet crosses a bar line, split it there and raise a format issue. Curves, hairpins, ottavas, pedal and trill lines may continue into the next stretch.
-
-**If something printed can't be written with these tokens,** write your best workaround and raise a format issue.
-```
+**The prompt's description** is `MUSIC` in `packages/prompts/src/extract.ts`, the only copy of its wording. It is written by hand: generating the list from the parser's code, as planned when it was drafted, wasn't done.
 
 ## Musical content and typesetting
 **What is extracted is the music, never its appearance** (decided). In the manual run (§13), Claude attached the m7 crescendo to the pedal line instead of the notes, so that it would print lower and not clutter the music: a false musical fact encoded on purpose to make the engraving look better. That must never happen.
