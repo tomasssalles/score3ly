@@ -23,7 +23,7 @@ Everything that is still to do about score3ly is a task, and every task is in th
 - `#owner`: needs the project owner: their judgement, their accounts or their devices.
 - `#manual-test`: trying something by hand (a browser, a phone, a platform), not writing code.
 - `#experiment`: measuring something, usually on the test set with a real model, to decide on evidence.
-- `#format`: something the lens or the MEI can't express yet (§6, "Issues": format issues show what is missing).
+- `#format`: something the lens or the MEI can't express yet (`docs/notation.md`, "Issues": format issues show what is missing).
 - `#docs`: documentation for users or developers.
 
 ## The tasks
@@ -80,7 +80,7 @@ Ideas from the project owner: run times; how often the app and its stages are us
 ### Confirm the decisions made while building `extract`, the MEI builder and `engrave`
 `#owner`
 
-Each of them has a list "Decisions made while building it (to confirm)" in `docs/stages/music.md` (`extract`, built) and §6 ("MEI", built) and `docs/stages/engrave.md` (`engrave`, built).
+Each of them has a list "Decisions made while building it (to confirm)" in `docs/stages/music.md` (`extract`, built) and `docs/notation.md` ("MEI", built) and `docs/stages/engrave.md` (`engrave`, built).
 
 ### The linking code, what is left
 `#next` `#next-release`
@@ -109,7 +109,7 @@ A tuplet inside a tuplet, e.g. a triplet inside a quintuplet. Rare outside compl
 ### Beams across bar lines
 `#format`
 
-`beamSpan`: MEI's `<beam>` is a container inside a voice in one measure, so a beam reaching into the next measure needs `<beamSpan>`, written at the measure level and pointing to its first and last notes (`@startid`, `@endid`, the list of notes). Beam grouping is musical, beams across bar lines included (§6, "Musical content and typesetting"), but MEI Basic excludes `beamSpan`, so it would be a deliberate step beyond it (§6, "MEI"). Cross-staff beams need no span: the notes stay in their voice and point to the other staff (`@staff`). Until then such a beam is split at the bar line.
+`beamSpan`: MEI's `<beam>` is a container inside a voice in one measure, so a beam reaching into the next measure needs `<beamSpan>`, written at the measure level and pointing to its first and last notes (`@startid`, `@endid`, the list of notes). Beam grouping is musical, beams across bar lines included (`docs/notation.md`, "Musical content and typesetting"), but MEI Basic excludes `beamSpan`, so it would be a deliberate step beyond it (`docs/notation.md`, "MEI"). Cross-staff beams need no span: the notes stay in their voice and point to the other staff (`@staff`). Until then such a beam is split at the bar line.
 
 ### Tuplets across bar lines
 `#format`
@@ -119,12 +119,12 @@ A tuplet inside a tuplet, e.g. a triplet inside a quintuplet. Rare outside compl
 ### Brackets across stretches
 `#format`
 
-Beams, tuplets, grace groups and two-note tremolos must close in the stretch where they open (§6, "The symbolic format"), so a beam over a bar line, or across a mid-measure bar line or a system break inside a measure, is split, with a format issue. With beams and tuplets across bar lines (their tasks), the format gap report shows how often it matters.
+Beams, tuplets, grace groups and two-note tremolos must close in the stretch where they open (`docs/notation.md`, "The symbolic format"), so a beam over a bar line, or across a mid-measure bar line or a system break inside a measure, is split, with a format issue. With beams and tuplets across bar lines (their tasks), the format gap report shows how often it matters.
 
 ### Nested `mdiv`s
 `#format`
 
-§6, "MEI": a collection of works, each with movements of its own, as an `mdiv` per work with an `mdiv` per movement inside. The metadata's pieces would need a level for works. The main case is a small collection of short pieces, some with short movements; a large anthology is still best transcribed in several projects, by `rasterize`'s page selection.
+`docs/notation.md`, "MEI": a collection of works, each with movements of its own, as an `mdiv` per work with an `mdiv` per movement inside. The metadata's pieces would need a level for works. The main case is a small collection of short pieces, some with short movements; a large anthology is still best transcribed in several projects, by `rasterize`'s page selection.
 
 ### Chord symbols and figured bass
 `#format`
@@ -154,7 +154,7 @@ Quarter-tone and other microtonal signs. They follow the same rules of duration 
 ### Older accidental conventions
 `#format`
 
-The modern rules (§6, "The symbolic format") are the only ones at first. Several parts:
+The modern rules (`docs/notation.md`, "The symbolic format") are the only ones at first. Several parts:
 - **a model judges which conventions the original probably follows,** from the pages and the metadata (date, edition, style);
 - **the code that turns the printed symbols into sounding notes becomes configurable** by convention. It decides the `.ges` attributes of the MEI, and affects e.g. a conversion into LilyPond;
 - **optionally, or in addition, a modernized MEI:** generated with the configurable code, it doesn't match the original symbol by symbol but musically, under the modern rules: it has written accidentals the original hasn't, or leaves out some it has, so that it sounds the same as the original read with its old conventions.
@@ -175,7 +175,7 @@ As in some modern scores that show a staff only where it plays ("cutaway" scores
 Transcribing every alternative the page gives for a passage, e.g. an ossia (an easier version, one for a smaller keyboard, an editor's reading, usually on a small extra staff above a few measures, sometimes in small notes in the main staff; common in virtuoso piano music such as Liszt's), with the text that explains it where there is one, attached to it. **Transcribing and encoding every alternative is musical content; how one is shown is typesetting** (an extra staff, small notes, a footnote) and outside our scope. So:
 - **the lens's JSON schema, `extract` and `review`** get a way to write alternatives for a passage, with their texts;
 - **both stages get crops of the original showing the alternatives,** and `review` gets a rendering of each version on its own, never mixed;
-- **the MEI encodes them all, clearly,** e.g. with `app`, `lem` and `rdg` (MEI also has `<ossia>`, with `oStaff` and `oLayer`; neither is in MEI Basic, so this is a deliberate step beyond it, §6, "MEI"). The user can then do with them whatever they want: render one, render all with their texts as footnotes, render a second one as an ossia on an extra staff or in small notes. Code handles them with full control, instead of us producing an opinionated output the user has to live with.
+- **the MEI encodes them all, clearly,** e.g. with `app`, `lem` and `rdg` (MEI also has `<ossia>`, with `oStaff` and `oLayer`; neither is in MEI Basic, so this is a deliberate step beyond it, `docs/notation.md`, "MEI"). The user can then do with them whatever they want: render one, render all with their texts as footnotes, render a second one as an ossia on an extra staff or in small notes. Code handles them with full control, instead of us producing an opinionated output the user has to live with.
 - **Until then the lens has no alternatives at all:** the prompts of `extract` and `review` tell the models to transcribe the main text only and to ignore alternatives.
 
 ### Lyrics
@@ -186,7 +186,7 @@ Lines of their own above or below a staff, not in one, with text tokens, duratio
 ### Tempo marks repeated over several staves
 `#decision` `#style`
 
-Typesetting: an orchestral score prints the same tempo mark above several groups of staves, and the lens reports each (§6, "The symbolic format", "Tempo marks"), so the MEI has one `<tempo>` per staff it is printed on, and Verovio draws them all. Whether an engraving shows them all, or only the top one, is a typesetting decision still to make (e.g. an option of `engrave`).
+Typesetting: an orchestral score prints the same tempo mark above several groups of staves, and the lens reports each (`docs/notation.md`, "The symbolic format", "Tempo marks"), so the MEI has one `<tempo>` per staff it is printed on, and Verovio draws them all. Whether an engraving shows them all, or only the top one, is a typesetting decision still to make (e.g. an option of `engrave`).
 
 ### The MEI header after MEI 6
 `docs/stages/analyze.md`, "The metadata": MEI 6 (in feature freeze since 2026) replaces `<composer>`, `<arranger>` and the like with `<creator role="…">` and MARC's roles; the header code follows once it is released.
@@ -291,7 +291,7 @@ When the pipeline is finished: run it on most of the test set with a real model,
 ### Compare the symbolic format with plain LilyPond
 `#experiment`
 
-§6, "The symbolic format": the project owner transcribes the page of the manual run (§13) with the symbolic format and compares it with Claude's plain LilyPond from that run, which was good but had a few small mistakes; later, the test set. If the symbolic format does worse, and debugging shows the model struggling with the format, we pivot towards plain LilyPond.
+`docs/notation.md`, "The symbolic format": the project owner transcribes the page of the manual run (§13) with the symbolic format and compares it with Claude's plain LilyPond from that run, which was good but had a few small mistakes; later, the test set. If the symbolic format does worse, and debugging shows the model struggling with the format, we pivot towards plain LilyPond.
 
 ### Pitch guides
 `#experiment` `#optional`
