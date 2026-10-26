@@ -28,6 +28,26 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 ## The tasks
 
+### `review`
+`#next`
+
+§6 (`review`, "The Transcription", the issues) and the first-release list (§16). Includes what is left of the linking code that `review` needs (the task "The linking code, what is left"). In the project owner's order of the `#next` tasks (2026-10-26): `review`, `apply_review`, `human_review`, cost statistics, other statistics.
+
+### `apply_review`
+`#next`
+
+§6 (`apply_review`; its title in the app is "Apply review"). Further reviews and their `apply_review` are carried and dropped like manual stages; an `apply_review` goes with its review; the recipe's review can't be dropped (§5.5). In the project owner's order of the `#next` tasks (2026-10-26): `review`, `apply_review`, `human_review`, cost statistics, other statistics.
+
+### `human_review`
+`#next`
+
+§6 (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5). In the project owner's order of the `#next` tasks (2026-10-26): `review`, `apply_review`, `human_review`, cost statistics, other statistics.
+
+### Other statistics: decide, then build
+`#next` `#decision`
+
+Ideas from the project owner: run times; how often the app and its stages are used; errors; how often manual fixes are needed, and how much each one changes (e.g. the number of boxes, lines or answers changed within a fix). In the project owner's order of the `#next` tasks (2026-10-26): `review`, `apply_review`, `human_review`, cost statistics, other statistics.
+
 ### Decide the model configs
 `#decision` `#research` `#next-release`
 
@@ -63,7 +83,7 @@ Everything that is still to do about score3ly is a task, and every task is in th
 Each of them has a list "Decisions made while building it (to confirm)" in §6 (`extract`, built; "MEI", built; `engrave`, built).
 
 ### The linking code, what is left
-`#next-release`
+`#next` `#next-release`
 
 §6, `analyze`: it links the observations for `extract`'s requests (`apps/web/src/linking.ts`); left are linking from the current extraction, for `review`'s and `apply_review`'s requests, and the repeat structure in the checks of the whole score.
 
@@ -287,9 +307,9 @@ If extraction turns out painfully slow: faint labelled lines for the staff lines
 One by one, with the Worker endpoints each needs, added as they are needed rather than planned ahead (decided). A form for "Change config" comes with them. The details in §5.6 are provisional until the possible stages are defined, and are settled then: what exactly a card shows, the icons, the fields of the details view, and which manual stages can be added where.
 
 ### Statistics page
-`#next-release`
+`#next` `#next-release`
 
-The costs view and the statistics (§10). Now a placeholder text.
+The costs view and the statistics (§10; first-release list, §16). Now a placeholder text. The costs view comes first; the other statistics are decided in their own task ("Other statistics: decide, then build"). In the project owner's order of the `#next` tasks (2026-10-26): `review`, `apply_review`, `human_review`, cost statistics, other statistics.
 
 ### Create the remote R2 bucket and D1 database
 `#next-release`
