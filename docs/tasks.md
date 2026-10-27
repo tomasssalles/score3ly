@@ -28,6 +28,10 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 ## The tasks
 
+### Generate the prompt's token list from the parser
+
+`docs/notation.md`, "The symbolic format": the description of the symbolic format in `extract`'s prompt (`MUSIC` in `packages/prompts/src/extract.ts`) is written by hand, and the parser (`packages/notation`) accepts a closed list of tokens. The plan was to generate the prompt's list from the parser's code, so that the two can never drift apart: every token the parser accepts is described, and nothing it rejects is offered. A change of the generated text changes the prompt's version.
+
 ### `review`
 `#next`
 
@@ -231,7 +235,7 @@ Keeping an old result means reusing what is stored (§5.5), so no old code has t
 `docs/stages/engrave.md`, "The MEI view": the split, the toolbar, going between the file and the score, tried on real scores rather than judged on paper.
 
 ### The format gap report
-§5.6, "The pipeline panel": the button in the settings' "Developer" section that downloads it, and the script that groups and counts its issues for analysis.
+`docs/project-view.md`, "The menu and its pages": the button in the settings' "Developer" section that downloads it, and the script that groups and counts its issues for analysis.
 
 ### Test the installed app on a real Android phone and an iPhone
 `#manual-test` `#owner`
@@ -390,7 +394,7 @@ In the root `package.json`, once Miniflare (Wrangler's) depends on undici 7.30.1
 ### A "needs you" state for stages
 `#optional`
 
-§5.6, "Stage states": for a model asking for human input; left out for now, easy to add.
+`docs/project-view.md`, "The pipeline panel": for a model asking for human input; left out for now, easy to add.
 
 ### The toolbar colour follows the theme
 `#optional` `#nice-to-have` `#style`
