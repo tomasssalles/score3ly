@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// Every colour of the app is a token of the themes (themes.css, DESIGN.md §5.7), so that a new theme covers everything.
+// Every colour of the app is a token of the themes (themes.css, docs/style.md), so that a new theme covers everything.
 // Out of reach of this test: the app icon (public/icon.svg, with its own test), the manifest (public/), and the layout's
 // box colours, which are drawn on the pages for the models too (packages/imaging, LAYOUT_COLORS).
 

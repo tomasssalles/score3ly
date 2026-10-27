@@ -1,4 +1,4 @@
-// `engrave`'s downloads (DESIGN.md §6, `engrave`, "Downloads"): everything in one zip, or each file on its own: the MEI
+// `engrave`'s downloads (docs/stages/engrave.md, "Downloads"): everything in one zip, or each file on its own: the MEI
 // file as stored, the engraved score as a PDF made now, and the run report. Files are named after the project.
 
 import { fetchModelConfig, type ApiStage, type ModelConfig, type Project } from "./api";

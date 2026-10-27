@@ -1,4 +1,4 @@
-// Deleting a project (DESIGN.md §4, §5.8): apart from the costs and statistics, as if it had never existed. Its row,
+// Deleting a project (docs/database.md, "Deleting a project"): apart from the costs and statistics, as if it had never existed. Its row,
 // and the stages and LLM calls no project that isn't deleted uses, are kept for the costs, marked with a deletion
 // time that every cache lookup ignores; everything else of it that nothing else uses is deleted: the outputs (rows
 // and content), the full requests and responses of its calls, its PDF and the PDF's fingerprints. Content in R2 is

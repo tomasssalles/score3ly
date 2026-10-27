@@ -1,4 +1,4 @@
-// The Transcription (DESIGN.md §6, "The Transcription"): what its view needs that isn't React. The issues and warnings
+// The Transcription (docs/stages/music.md, "The Transcription"): what its view needs that isn't React. The issues and warnings
 // of `extract` (each system's and those of the checks of the whole score), with their boxes on the pages: each box is
 // drawn on every crop it falls on, and each note's text goes below one system, the first its boxes fall on.
 

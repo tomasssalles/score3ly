@@ -1,4 +1,4 @@
-// The device's image cache (DESIGN.md §8.6): computed images as PNG files in the origin private file system
+// The device's image cache (docs/images.md §8.6): computed images as PNG files in the origin private file system
 // (OPFS), `cache/pdf-<sha256>/<key>.png`, the key being the hash of the image's recipe, in a folder per PDF so that
 // deleting a project can delete its PDF's images (§4). Nothing is ever invalidated: an image
 // that is no longer wanted is simply never asked for again. Where OPFS isn't available (some private windows), the
@@ -222,7 +222,7 @@ export async function cachedSvg(key: string): Promise<string | null> {
 
 export const cacheSvg = (key: string, svg: string): Promise<void> => cacheFile(`${key}.svg`, new Blob([svg], { type: "image/svg+xml" }));
 
-// An image's fingerprint (DESIGN.md §8.3), next to it: what it was when this device made it.
+// An image's fingerprint (docs/images.md §8.3), next to it: what it was when this device made it.
 export async function cachedJson(name: string, pdf: string): Promise<unknown | null> {
   const blob = await cachedFile(`${name}.json`, pdf);
   return blob ? JSON.parse(await blob.text()) : null;

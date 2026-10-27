@@ -1,4 +1,4 @@
-// Undo and redo for a tool for manual work (DESIGN.md §5.4): the states something went through while the tool is
+// Undo and redo for a tool for manual work (docs/overview.md §5.4): the states something went through while the tool is
 // open. A new state after an undo drops what could have been redone.
 
 export type History<T> = { past: T[]; present: T; future: T[] };

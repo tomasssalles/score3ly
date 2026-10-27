@@ -1,4 +1,4 @@
--- The pipeline: stages, their outputs, LLM calls and model configs (DESIGN.md §5, "The database").
+-- The pipeline: stages, their outputs, LLM calls and model configs (docs/database.md).
 -- Nothing a deleted project leaves behind may be found by a cache lookup: such rows are marked with deleted_at,
 -- and every cache lookup ignores marked rows.
 

@@ -94,7 +94,7 @@ export function PipelinePanel({
               })),
             ]}
           />
-          {/* The bar is the pipeline's; the line under it says where the pipeline is (DESIGN.md §5.6, "Progress"). */}
+          {/* The bar is the pipeline's; the line under it says where the pipeline is (docs/project-view.md, "Progress"). */}
           <div className="head-progress">
             <ProgressBar value={progress.pipeline} label="Pipeline" />
             {state && <span className={state.kind === "failed" ? "head-state failed" : "head-state"}>{stateLabel(state)}</span>}

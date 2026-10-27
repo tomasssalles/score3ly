@@ -2,6 +2,36 @@
 
 > Status: draft. Progress is tracked in one place, the checklist of the first release (§16). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. Concrete **tasks**, including the decisions still to be made, are in `docs/tasks.md` (§15).
 
+
+## The docs
+
+This overview is the whole picture: what the app is, its architecture, the pipeline model, the stages in short, and the decisions with their reasons. Everything else is in the files below, each about one topic, with this overview keeping a short summary of each. Read a file before working on its topic.
+
+**General**
+- [tasks.md](tasks.md): everything still to do, and only there: features, decisions to make, bugs, tests by hand, research, far-future ideas. The top of the file explains how the list works.
+- [style.md](style.md): the style guide, how the app looks, speaks and behaves. Read it before building or changing anything the user sees.
+
+**The app**
+- [project-view.md](project-view.md): what the app shows around a project: the layouts, the artifact view, progress and toasts, the header, the pipeline panel and its stage cards, the pages of the menu. Read it before working on those screens.
+- [database.md](database.md): the D1 tables, the Worker's requests while a stage runs and for manual stages, carried manual stages, interrupted runs, deleting a project. Read it before working on the Worker's pipeline code, the migrations or deletion.
+- [llm.md](llm.md): how the Worker calls the LLM providers, call records and the cache, model configs and which one a stage uses, supported models and prices, costs, the costs view and the spending cap. Read it before working on providers, model configs, prices or costs.
+- [images.md](images.md): page images from PDFs, deterministic image operations, fingerprints, device constraints and the image cache (this overview's §8 subsections, by the same numbers). Read it before working on `packages/imaging` or the image cache.
+- [desktop.md](desktop.md): the desktop app, *cadenza* (Electron, the Node adapters, the secrets file, packaging). Read it before working on `apps/desktop` or on what differs between hosts. For users, how to build and install it: [apps/desktop/README.md](../apps/desktop/README.md).
+
+**The music**
+- [notation.md](notation.md): how the music is written down: the lens and its symbolic format (what models read and write), MEI (what users get), what is music and what is typesetting, stretches and measures, issues and warnings. Read it before working on the music stages, the prompts that write or read music, `packages/notation`, or the MEI.
+- [stages/](stages/): the details of the stages, one file per group. Read the file of the stages a task touches before working on them:
+  - [pages.md](stages/pages.md): `rasterize`, `skew_analysis`, `fix_skew`, and how the skew is found (`findSkew`) and when a page is deskewed.
+  - [layout.md](stages/layout.md): `layout` (its prompt, rounds and checks) and `fix_layout` (the editor of boxes and bar lines, and the page editors' shared parts).
+  - [analyze.md](stages/analyze.md): `analyze` (its prompts, the observations, their checks), `fix_metadata` and `fix_observations` (the forms), and the metadata (its fields and the MEI's header).
+  - [music.md](stages/music.md): `extract` (its request, checks and loose ends across systems), `review`, `apply_review`, `human_review` (its screen), the Transcription, and zoom crops on request.
+  - [engrave.md](stages/engrave.md): `engrave` (the MEI view, the PDF, the downloads and the run report) and `fix_mei` (the MEI editor and its checks).
+
+**Quality**
+- [evaluation.md](evaluation.md): the test set, the evaluation tooling (`apps/eval`), the baselines and the manual run. Read it before working on `testset/` or `apps/eval`, or judging results. The test set's own [README](../testset/README.md) lists its files, why each piece was picked, and how to use the tooling.
+
+**Where decisions go:** into the file that covers the topic, this overview or one of the files above. When a decision changes something this overview sums up, its summary is updated too.
+
 ## 1. What this app is
 
 A web app that converts PDFs of music scores into a formal, text-based encoding of the music: **MEI** (`docs/notation.md`, "MEI").
@@ -156,7 +186,7 @@ apps/
   eval/      Local evaluation tooling: engrave command, side-by-side viewer (§13).
 fixtures/    Recorded test projects (§12).
 testset/     Evaluation test set (§13): inputs, their strokes and .ly/.musicxml candidates committed, rest ignored.
-DESIGN.md
+docs/        The documentation: this overview, and the files it lists under "The docs".
 ```
 
 The Worker's entry module (`apps/worker/src/index.ts`) may only export handlers: the Workers runtime refuses to start otherwise, and the tests (which import the module directly) don't notice. Helpers live in their own modules (e.g. `names.ts`).

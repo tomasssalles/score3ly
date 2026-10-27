@@ -1,4 +1,4 @@
-// `layout` (DESIGN.md §6): per page, the system boxes and each system's bar lines, from the whole page, with a
+// `layout` (docs/stages/layout.md): per page, the system boxes and each system's bar lines, from the whole page, with a
 // draw-and-check loop: code draws the answer on the page, the model looks and corrects, at most LAYOUT_ROUNDS
 // answers in all. Boxes and positions are fractions of the image sent (left, right, top, bottom from 0 to 1).
 

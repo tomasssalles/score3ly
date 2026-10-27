@@ -1,4 +1,4 @@
-// The run report (DESIGN.md §6, `engrave`, "Downloads"): how the downloaded files were made, as JSON, so that programs
+// The run report (docs/stages/engrave.md, "Downloads"): how the downloaded files were made, as JSON, so that programs
 // can read it back. The app that made them, the original PDF, and every stage of the pipeline that led to them: its
 // step and version, its config, the model config of an LLM stage (never its secrets), its times, cost and result.
 

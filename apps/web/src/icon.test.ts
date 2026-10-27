@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// The icon is the same in every theme (DESIGN.md §5.7): its brackets' coral is halfway between the dark and the light
+// The icon is the same in every theme (docs/style.md): its brackets' coral is halfway between the dark and the light
 // theme's accents, so that it stands for both. It is a separate image, so it can't use the app's CSS variables.
-// Both editions' icons (DESIGN.md §3, "Editions"): they differ in the tile and the note, not the brackets.
+// Both editions' icons (docs/desktop.md, "Editions"): they differ in the tile and the note, not the brackets.
 for (const file of ["icon.svg", "icon-cadenza.svg"]) test(`${file}: the coral is halfway between the themes' accents`, () => {
   const icon = readFileSync(join(import.meta.dirname, "../public", file), "utf8");
   const themes = readFileSync(join(import.meta.dirname, "themes.css"), "utf8");

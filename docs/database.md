@@ -1,6 +1,6 @@
 # The database
 
-The D1 schema and how the Worker records a pipeline: the tables, the requests while a stage runs and for manual stages, carrying manual stages through a re-run, interrupted runs, what deleting a project deletes and keeps, page counts and settings. The schema itself is in `apps/worker/migrations`, with comments on the columns. § numbers here are `DESIGN.md`'s sections.
+The D1 schema and how the Worker records a pipeline: the tables, the requests while a stage runs and for manual stages, carrying manual stages through a re-run, interrupted runs, what deleting a project deletes and keeps, page counts and settings. The schema itself is in `apps/worker/migrations`, with comments on the columns. § numbers here are `docs/overview.md`'s sections.
 
 ## Tables and rules
 

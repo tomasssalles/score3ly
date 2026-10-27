@@ -1,4 +1,4 @@
-// Runs `engrave` (DESIGN.md §6): the full score's MEI, built from the latest extraction, its layout, the pieces and the
+// Runs `engrave` (docs/stages/engrave.md): the full score's MEI, built from the latest extraction, its layout, the pieces and the
 // metadata, or taken as it is from `fix_mei` right before it, stored as the stage's one output (item '', type
 // `mei`). The engraving itself is made when it is shown or downloaded (EngravingView.tsx).
 

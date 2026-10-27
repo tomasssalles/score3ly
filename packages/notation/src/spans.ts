@@ -1,4 +1,4 @@
-// Marks with two ends across stretches and systems (DESIGN.md §6, "Loose ends across systems"): code finds what is
+// Marks with two ends across stretches and systems (docs/stages/music.md, "Loose ends across systems"): code finds what is
 // still open at the end of a system, from the lens alone, and checks both sides: what was left open must be closed in
 // the next system, or still be open for marks that can run longer (8va, pedal, trill spans). A mismatch is an issue
 // raised by code, not a reason to reject the answer.

@@ -1,4 +1,4 @@
-// Finishing a `fix_observations` stage (DESIGN.md §6): the observations are recorded, from what the user saved, else
+// Finishing a `fix_observations` stage (docs/stages/analyze.md): the observations are recorded, from what the user saved, else
 // from `analyze`'s. Finishing confirms nothing: only what the user confirmed is.
 
 import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";

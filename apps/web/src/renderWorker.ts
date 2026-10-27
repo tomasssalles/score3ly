@@ -1,4 +1,4 @@
-// Renders MEI with Verovio (DESIGN.md §9), in a Web Worker: Verovio is a few MB of WASM, loaded here only when the
+// Renders MEI with Verovio (docs/overview.md §9), in a Web Worker: Verovio is a few MB of WASM, loaded here only when the
 // first rendering is asked for, and rendering a long system takes a moment the page shouldn't wait for.
 
 import createVerovioModule from "verovio/wasm";

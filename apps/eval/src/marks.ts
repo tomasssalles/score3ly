@@ -1,5 +1,5 @@
 // Highlighter strokes, stored per PDF in "<piece>.<source>.marks.jsonl", one stroke per line
-// (DESIGN.md §13).
+// (docs/evaluation.md).
 
 export type Point = [x: number, y: number]; // relative to the page: 0..1 left to right, top to bottom
 

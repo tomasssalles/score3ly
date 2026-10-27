@@ -1,4 +1,4 @@
-/* Every colour is a token of the theme (themes.css, DESIGN.md §5.7); this file uses only the tokens. */
+/* Every colour is a token of the theme (themes.css, docs/style.md); this file uses only the tokens. */
 
 :root {
   --mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
@@ -1095,7 +1095,7 @@ body {
   position: relative;
 }
 
-/* An image that differs from the one stored results were computed from (DESIGN.md §8.3): a banner over its top. */
+/* An image that differs from the one stored results were computed from (docs/images.md §8.3): a banner over its top. */
 .images-differ {
   position: absolute;
   top: 6px;
@@ -1670,7 +1670,7 @@ body {
   color: var(--wordmark);
 }
 
-/* The edition, under the wordmark like a work's subtitle (DESIGN.md §3, "Editions"). */
+/* The edition, under the wordmark like a work's subtitle (docs/desktop.md, "Editions"). */
 .page-view .about-edition {
   margin: -22px 0 20px;
   text-align: center;

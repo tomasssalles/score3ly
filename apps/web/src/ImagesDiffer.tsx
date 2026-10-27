@@ -1,4 +1,4 @@
-// The warning that an image on this device differs from the one a stored result was computed from (DESIGN.md §8.3):
+// The warning that an image on this device differs from the one a stored result was computed from (docs/images.md §8.3):
 // a warning, never a stop. Shown over every image of the page concerned (the page itself, straightened, its crops).
 
 import { useEffect, useState } from "react";

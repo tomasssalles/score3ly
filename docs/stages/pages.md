@@ -1,6 +1,6 @@
 # The page stages: `rasterize`, `skew_analysis`, `fix_skew`
 
-The first stages after Ingest: they turn the PDF into page images and find how each page is skewed. Their place in the pipeline and the rules all stages follow are in `DESIGN.md` (§5, §6); § numbers here are `DESIGN.md`'s sections.
+The first stages after Ingest: they turn the PDF into page images and find how each page is skewed. Their place in the pipeline and the rules all stages follow are in `docs/overview.md` (§5, §6); § numbers here are `docs/overview.md`'s sections.
 
 **What they read and write:**
 - `rasterize` reads the PDF (Ingest's output) and its config (pages, resolution); it writes one `page_image` output per selected page, a recipe only (images are regenerable, §5.3).

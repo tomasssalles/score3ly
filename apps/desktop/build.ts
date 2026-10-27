@@ -1,4 +1,4 @@
-// Builds the desktop app into dist/ (DESIGN.md §3, "Desktop version"): the main process and the server alone, each
+// Builds the desktop app into dist/ (docs/desktop.md): the main process and the server alone, each
 // one file with the Worker's code and its dependencies (Electron itself stays outside), the web app's build, and the
 // Worker's migration files, applied at startup. Run after the web app's build (`npm run build` does both).
 

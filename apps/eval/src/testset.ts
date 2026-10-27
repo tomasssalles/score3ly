@@ -1,4 +1,4 @@
-// File naming in the test set (DESIGN.md §13, testset/README.md).
+// File naming in the test set (docs/evaluation.md, testset/README.md).
 
 export const TESTSET_DIR = new URL("../../../testset/", import.meta.url).pathname;
 

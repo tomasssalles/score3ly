@@ -1,4 +1,4 @@
-// A project as the Worker's API sends it (DESIGN.md §4).
+// A project as the Worker's API sends it (docs/overview.md §4).
 export type Project = {
   id: string;
   name: string; // unique (case-insensitive), chosen by the user; defaults to the PDF's file name

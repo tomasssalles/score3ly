@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { fixOffered, STEPS } from "./steps.ts";
 import type { ApiStage } from "./api.ts";
 
-// Every step's kind, as it was declared. A step's kind never changes (DESIGN.md §5.8): add new steps here, but
+// Every step's kind, as it was declared. A step's kind never changes (docs/database.md): add new steps here, but
 // never edit an entry.
 const KINDS: Record<string, string> = {
   ingest: "ingest",

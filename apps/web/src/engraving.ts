@@ -1,4 +1,4 @@
-// `engrave`'s engraving (DESIGN.md §6, `engrave`): Verovio's pages of the stored MEI, with its own breaks, made when
+// `engrave`'s engraving (docs/stages/engrave.md): Verovio's pages of the stored MEI, with its own breaks, made when
 // they are shown or downloaded, never stored. The PDF is made from the pages in the browser (jsPDF and svg2pdf.js,
 // loaded only when a PDF is made).
 

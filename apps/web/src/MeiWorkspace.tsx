@@ -1,4 +1,4 @@
-// The MEI view (DESIGN.md §6, `engrave`, "The MEI view"): the file and, beside it or below it, the score engraved
+// The MEI view (docs/stages/engrave.md, "The MEI view"): the file and, beside it or below it, the score engraved
 // from it, a click on either showing the same element in both; search behind a magnifying glass, going to a measure of
 // a piece, back to the top, and hiding the score. `engrave`'s MEI artifact shows it read-only; `fix_mei` edits
 // the file in it, with its own tools in the toolbar.

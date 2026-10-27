@@ -1,4 +1,4 @@
-// The editor of a WIP `fix_layout` stage (DESIGN.md §6): one page at a time, straightened as `layout` straightened
+// The editor of a WIP `fix_layout` stage (docs/stages/layout.md): one page at a time, straightened as `layout` straightened
 // it, with its system boxes and bar lines over it. Three tools, by a toggle. Hand: dragging pans, tapping selects a
 // box (tapping again where boxes overlap goes through them; a label always selects its box) or one of the selected
 // box's bar lines; the selected box's handles resize it and its bar lines can be dragged sideways. Box: tap, tap at

@@ -52,12 +52,12 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
-// Which host serves the app (DESIGN.md §3, "What differs in the app"): here Cloudflare. The desktop version's server
+// Which host serves the app (docs/desktop.md, "What differs in the app"): here Cloudflare. The desktop version's server
 // answers this itself ("desktop" in Electron, "local" as a plain local server), so the web bundle stays the same and
 // the app asks rather than guessing.
 app.get("/api/info", (c) => c.json({ host: "cloudflare" }));
 
-// Deletes a project (DESIGN.md §4): refused while one of its stages runs, here or on another device.
+// Deletes a project (docs/database.md, "Deleting a project"): refused while one of its stages runs, here or on another device.
 app.delete("/api/projects/:id", async (c) => {
   const result = await deleteProject(c.env, c.req.param("id"));
   if (result === "not_found") return c.json({ error: "no such project" }, 404);
@@ -128,7 +128,7 @@ app.get("/api/pdfs/:sha256/file", async (c) => {
   });
 });
 
-// Stored outputs' content (DESIGN.md §2): any file, in R2 under the SHA-256 of its bytes, which R2 checks. Storing
+// Stored outputs' content (docs/overview.md §2): any file, in R2 under the SHA-256 of its bytes, which R2 checks. Storing
 // the same content again is harmless. Objects never change, so they can be cached for good.
 function contentKey(sha256: string): string {
   return `content/${sha256}`;
@@ -163,7 +163,7 @@ app.get("/api/content/:sha256", async (c) => {
   });
 });
 
-// Creates a project, with its pipeline: Ingest, done from the start, its output the PDF (DESIGN.md §5.1), and the
+// Creates a project, with its pipeline: Ingest, done from the start, its output the PDF (docs/overview.md §5.1), and the
 // recipe's other stages, planned.
 // The form has the PDF's 'sha256' and either the 'pdf' itself, which is stored in R2, or
 // only its 'filename' if R2 already has it.
@@ -281,7 +281,7 @@ app.post("/api/projects/:id/opened", async (c) => {
   return c.body(null, 204);
 });
 
-// Reserves `count` issue numbers (DESIGN.md §6, "Issue ids"): a short number per project, never reused, not even after
+// Reserves `count` issue numbers (docs/notation.md, "Issue ids"): a short number per project, never reused, not even after
 // a re-run drops the issue. Returns the first; the others follow it.
 app.post("/api/projects/:id/issue-numbers", async (c) => {
   const body = await c.req.json().catch(() => null);

@@ -1,6 +1,6 @@
 # The analysis stages: `analyze`, `fix_metadata`, `fix_observations`
 
-What the score is (the metadata) and a bird's-eye view of its music (the observations), read from the pages with the final layout drawn on them. Their place in the pipeline and the rules all stages follow are in `DESIGN.md` (§5, §6); § numbers here are `DESIGN.md`'s sections.
+What the score is (the metadata) and a bird's-eye view of its music (the observations), read from the pages with the final layout drawn on them. Their place in the pipeline and the rules all stages follow are in `docs/overview.md` (§5, §6); § numbers here are `docs/overview.md`'s sections.
 
 **What they read and write:**
 - `analyze` reads the latest `layout` or `fix_layout` (`docs/stages/layout.md`): the page images straightened by its angle, its systems and bar lines; and the model config. It writes one `analysis` output per page (intermediate, read by no later stage), and for the whole score `metadata`, `observations` and `pieces` (JSON, stored).

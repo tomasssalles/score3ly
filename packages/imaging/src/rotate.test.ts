@@ -53,7 +53,7 @@ test("the paper's color is the median color, ink ignored", () => {
   assert.deepEqual(paperColor(musicPage(600, 800, { paper: [240, 225, 190] })), [240, 225, 190]);
 });
 
-// Same input, same pixels, on every device (DESIGN.md §8.2). If this hash changes, rotation changed: that is a
+// Same input, same pixels, on every device (docs/images.md §8.2). If this hash changes, rotation changed: that is a
 // new step version, since stored work refers to rotated pixels.
 test("rotation gives exactly the same pixels as before", () => {
   const turned = rotate(musicPage(400, 500, { noise: 10 }), -1.234, [250, 247, 238]);

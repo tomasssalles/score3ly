@@ -1,6 +1,6 @@
 # The layout stages: `layout`, `fix_layout`
 
-Where the systems are on each page and where the bar lines are in each system: the structure every later stage is built on. Their place in the pipeline and the rules all stages follow are in `DESIGN.md` (§5, §6); § numbers here are `DESIGN.md`'s sections.
+Where the systems are on each page and where the bar lines are in each system: the structure every later stage is built on. Their place in the pipeline and the rules all stages follow are in `docs/overview.md` (§5, §6); § numbers here are `docs/overview.md`'s sections.
 
 **What they read and write:**
 - `layout` reads the page images (`rasterize`) and the lines of the latest `skew_analysis` or `fix_skew` before it (`docs/stages/pages.md`), and the model config; it writes one `layout` output per page (JSON, stored): the angle the page was straightened by, whether it is severely skewed, the systems (box and bar lines), the flag, the model's note, the number of rounds.

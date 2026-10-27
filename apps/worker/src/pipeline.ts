@@ -1,4 +1,4 @@
-// A project's pipeline and its stages (DESIGN.md §5.8): reading them, and the requests the browser makes while it
+// A project's pipeline and its stages (docs/database.md): reading them, and the requests the browser makes while it
 // runs a stage (start, outputs, heartbeat, finish, stop) or changes one's config. The browser does the work; the
 // Worker only records it.
 
@@ -6,7 +6,7 @@ import type { Hono } from "hono";
 
 export type Pipeline = { stages: Stage[]; dropped: Dropped[] };
 
-// A manual stage dropped at its turn because its inputs changed (DESIGN.md §5.5): a card where it was, after the
+// A manual stage dropped at its turn because its inputs changed (docs/overview.md §5.5): a card where it was, after the
 // stage with `afterStageId`, until dismissed. Several after the same stage are in the order they were dropped.
 export type Dropped = { id: number; afterStageId: string; step: string };
 
@@ -27,7 +27,7 @@ export type Stage = {
   // LLM stages: the model config used, for the card (its name, else its model string), and what its calls cost.
   modelConfig: { name: string | null; model: string } | null;
   costUsd: number | null;
-  // A manual stage carried through a re-run, waiting for its turn to be kept or dropped (DESIGN.md §5.5).
+  // A manual stage carried through a re-run, waiting for its turn to be kept or dropped (docs/overview.md §5.5).
   carried: boolean;
   outputs: Output[];
 };
@@ -41,13 +41,13 @@ export type Output = {
   recipe: unknown; // computed images: the recipe
 };
 
-// The planned stages, in order (DESIGN.md §6). New projects get all of them; Ingest is done from the start.
+// The planned stages, in order (docs/overview.md §6). New projects get all of them; Ingest is done from the start.
 export const RECIPE = ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "engrave"] as const;
 
 // The version of the Ingest step that new projects get.
 const INGEST_VERSION = 1;
 
-// The manual steps (DESIGN.md §5.4). A step's kind is declared in the web app; the Worker needs to know these to
+// The manual steps (docs/overview.md §5.4). A step's kind is declared in the web app; the Worker needs to know these to
 // add, edit and drop them, and to carry them when the stages after a change are replaced (§5.5).
 export const MANUAL_STEPS = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "fix_mei"] as const;
 
@@ -129,7 +129,7 @@ function plannedStage(
 }
 
 // The statements that rewrite a pipeline from `position` on: the entries before it stay, `head` (stage ids) comes
-// at `position`, and then the stages that were after `after`, replaced (DESIGN.md §5.5): a planned one keeps its
+// at `position`, and then the stages that were after `after`, replaced (docs/overview.md §5.5): a planned one keeps its
 // row, one that ran gets a planned copy with its config, and a manual one, WIP or done, is carried: it stays, waiting
 // for its turn, when it is kept if what it reads is the same as what it read (`resolve`).
 async function rewriteFrom(
@@ -147,7 +147,7 @@ async function rewriteFrom(
     .bind(projectId, after)
     .all<{ id: string; step: string; status: StageStatus; config_json: string | null }>();
   const statements = [
-    // The cards of dropped stages in the part rewritten go (DESIGN.md §5.5).
+    // The cards of dropped stages in the part rewritten go (docs/overview.md §5.5).
     db
       .prepare(
         "DELETE FROM dropped_stages WHERE project_id = ? AND after_stage_id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ? AND position >= ?)",
@@ -273,7 +273,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
 
   // Sets the config of a stage (null: the defaults). A planned stage simply gets it. A stage that has run is
   // replaced by a new planned one with that config, and every stage after it by a new planned copy of itself
-  // (DESIGN.md §5.5): the replaced stages stay, for the stage key to find them. Returns the pipeline.
+  // (docs/overview.md §5.5): the replaced stages stay, for the stage key to find them. Returns the pipeline.
   app.put("/api/projects/:pid/stages/:sid/config", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
@@ -370,7 +370,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json({ reused: false, stageId: sid });
   });
 
-  // Records outputs of a running stage, as soon as each is done (DESIGN.md §5.2), or of a WIP manual stage, as the
+  // Records outputs of a running stage, as soon as each is done (docs/overview.md §5.2), or of a WIP manual stage, as the
   // user works. A running stage's item already recorded is left as it is; a WIP stage's is overwritten. Returns the
   // outputs' ids, in the order sent.
   app.post("/api/projects/:pid/stages/:sid/outputs", async (c) => {
@@ -443,7 +443,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json({ ids: outputs.map((o: { item: string; type: string }) => byKey.get(`${o.type}\u0000${o.item}`)) });
   });
 
-  // Tells the Worker a running stage is still being worked on: once a minute, no more (DESIGN.md §5.8).
+  // Tells the Worker a running stage is still being worked on: once a minute, no more (docs/database.md).
   app.post("/api/projects/:pid/stages/:sid/heartbeat", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
@@ -489,7 +489,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Stops a running stage: it is marked stopped and leaves the pipeline, its outputs are thrown away, and a new
-  // planned stage with the same config takes its place (DESIGN.md §5.8). Its LLM calls would stay.
+  // planned stage with the same config takes its place (docs/database.md). Its LLM calls would stay.
   app.post("/api/projects/:pid/stages/:sid/stop", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
@@ -512,7 +512,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json(await readPipeline(db, pid));
   });
 
-  // Adds a manual stage, WIP, after a done stage (DESIGN.md §5.6): body { step, stepVersion, pageCount, inputIds }.
+  // Adds a manual stage, WIP, after a done stage (docs/project-view.md): body { step, stepVersion, pageCount, inputIds }.
   // It goes after the manual stages that already follow the stage (e.g. `fix_observations` after `fix_metadata`,
   // both after `analyze`, §6), WIP or finished, which stay; the stages after those are replaced. Returns the
   // pipeline and the new stage's id.
@@ -555,7 +555,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...inputIds.map((outputId: string) =>
         db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(id, outputId),
       ),
-      // A stage of the same step added again where one was dropped: its card goes (DESIGN.md §5.5).
+      // A stage of the same step added again where one was dropped: its card goes (docs/overview.md §5.5).
       db
         .prepare(
           "DELETE FROM dropped_stages WHERE project_id = ? AND step = ? AND after_stage_id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ? AND position BETWEEN ? AND ?)",
@@ -567,7 +567,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json({ stageId: id, pipeline: await readPipeline(db, pid) });
   });
 
-  // Edits a finished manual stage (DESIGN.md §5.4): a new WIP stage, with the same outputs and inputs, takes its
+  // Edits a finished manual stage (docs/overview.md §5.4): a new WIP stage, with the same outputs and inputs, takes its
   // place and records which one it replaces; the old one stays as it was. The stages after it are replaced.
   app.post("/api/projects/:pid/stages/:sid/edit", async (c) => {
     const db = c.env.DB;
@@ -611,7 +611,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   // A carried manual stage whose turn has come (every stage before it is done): the browser sends the outputs the
   // stage would read now ({ inputIds }, as when it was added). If they hold the same content as what it read (the same
   // items and types, each with the same content hash or recipe key), it is kept, as it is, WIP or done; otherwise it
-  // is dropped, and the stages after it move up, with a card where it was (DESIGN.md §5.5). Returns whether it was
+  // is dropped, and the stages after it move up, with a card where it was (docs/overview.md §5.5). Returns whether it was
   // kept, and the pipeline.
   app.post("/api/projects/:pid/stages/:sid/resolve", async (c) => {
     const db = c.env.DB;
@@ -663,7 +663,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json({ kept, pipeline: await readPipeline(db, pid) });
   });
 
-  // Drops a manual stage, WIP or finished (DESIGN.md §5.5): its entry goes, and the stages after it move up and are
+  // Drops a manual stage, WIP or finished (docs/overview.md §5.5): its entry goes, and the stages after it move up and are
   // replaced. The stage's row and outputs stay, like a replaced stage's.
   app.post("/api/projects/:pid/stages/:sid/drop", async (c) => {
     const db = c.env.DB;
@@ -679,7 +679,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json(await readPipeline(db, pid));
   });
 
-  // Dismisses the card of a dropped stage (DESIGN.md §5.5).
+  // Dismisses the card of a dropped stage (docs/overview.md §5.5).
   app.delete("/api/projects/:pid/dropped/:id", async (c) => {
     const db = c.env.DB;
     const { pid, id } = c.req.param();

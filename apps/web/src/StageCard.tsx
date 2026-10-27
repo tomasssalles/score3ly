@@ -44,7 +44,7 @@ export type StageActions = {
   download: (stageId: string, kind: DownloadKind) => Promise<void>; // the files the stage made (`engrave`'s)
 };
 
-// Each automated step has its own icon (DESIGN.md §5.6); manual stages all show their kind's, a wrench. A step
+// Each automated step has its own icon (docs/project-view.md); manual stages all show their kind's, a wrench. A step
 // without one shows its kind's.
 const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   ingest: IngestIcon,
@@ -63,7 +63,7 @@ const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {
   manual: ManualIcon,
 };
 
-// The card of a manual stage dropped at its turn because its inputs changed (DESIGN.md §5.5): a heads-up where it
+// The card of a manual stage dropped at its turn because its inputs changed (docs/overview.md §5.5): a heads-up where it
 // was, dimmed like a planned stage, its name struck through; only a button to dismiss it.
 export function DroppedCard({ dropped, onDismiss }: { dropped: Dropped; onDismiss: () => void }) {
   const Icon = STEP_ICONS[dropped.stepId] ?? KIND_ICONS[dropped.kind];
@@ -258,7 +258,7 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
   return groups;
 }
 
-// An artifact as a tile: an icon for its kind, never a thumbnail (DESIGN.md §5.6). A group says how many items it has.
+// An artifact as a tile: an icon for its kind, never a thumbnail (docs/project-view.md). A group says how many items it has.
 function ArtifactTile({
   artifact,
   selected,

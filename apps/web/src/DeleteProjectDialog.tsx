@@ -5,7 +5,7 @@ import { useHost } from "./host";
 import { CloseIcon } from "./icons";
 import { deleteCachedPdf } from "./imageCache";
 
-// Deletes a project (DESIGN.md §4), once its name is typed exactly (case included; pasting doesn't count).
+// Deletes a project (docs/database.md, "Deleting a project"), once its name is typed exactly (case included; pasting doesn't count).
 export function DeleteProjectDialog({
   project,
   onDeleted,

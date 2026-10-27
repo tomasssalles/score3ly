@@ -1,4 +1,4 @@
-// Running a stage in the browser (DESIGN.md §5.5, §5.8): the step's code says what the stage's items are and how
+// Running a stage in the browser (docs/overview.md §5.5, docs/database.md): the step's code says what the stage's items are and how
 // each is made; this does the rest. It starts the stage (or finds a finished one with the same key and stops
 // there), skips the items a failed run already recorded, records each output as soon as it is made, reports
 // progress, sends a heartbeat once a minute, and finishes the stage: done, or failed with the error.

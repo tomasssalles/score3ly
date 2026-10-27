@@ -1,4 +1,4 @@
-// The `layout` step (DESIGN.md §6): what doesn't need the browser or the model. Its runner is runLayout.ts.
+// The `layout` step (docs/stages/layout.md): what doesn't need the browser or the model. Its runner is runLayout.ts.
 
 import type { LayoutSystem } from "@score3ly/prompts";
 import { keyOf } from "@score3ly/core";

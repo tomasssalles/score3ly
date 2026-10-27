@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchHost, setWindowTheme, type Host } from "./api";
 import { onThemeApplied, themeChoice } from "./themes";
 
-// Which host serves the app, asked once (DESIGN.md §3): the UI asks the server and decides nowhere else by host.
+// Which host serves the app, asked once (docs/desktop.md): the UI asks the server and decides nowhere else by host.
 // null until known, or if the server can't say.
 let asked: Promise<Host | null> | null = null;
 
@@ -23,7 +23,7 @@ export function useHost(): Host | null {
   return host;
 }
 
-// The two editions of the app (DESIGN.md §3, "Editions"): *concerto* on Cloudflare, every device in sync; *cadenza*
+// The two editions of the app (docs/desktop.md, "Editions"): *concerto* on Cloudflare, every device in sync; *cadenza*
 // on one computer (the desktop app, or its server run alone).
 export type Edition = "concerto" | "cadenza";
 

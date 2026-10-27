@@ -1,4 +1,4 @@
-// Engraves every candidate in the test set that has no PDF yet (DESIGN.md §13):
+// Engraves every candidate in the test set that has no PDF yet (docs/evaluation.md):
 // <piece>.<method>.ly with LilyPond, <piece>.<method>.musicxml with MuseScore,
 // <piece>.<method>.mei with Verovio, as the app's `engrave` does.
 // Never overwrites an existing PDF.

@@ -59,7 +59,7 @@ export function ArtifactContent({
   const pages = artifact.pages;
   if (artifact.analysis) return <AnalysisView key={artifact.id} project={project} artifact={artifact} onEdited={onEdited} />;
   if (artifact.extraction) return <ExtractionView key={artifact.id} artifact={artifact} />;
-  // A WIP manual stage's artifact is its editor (DESIGN.md §5.6).
+  // A WIP manual stage's artifact is its editor (docs/project-view.md).
   if (artifact.editor?.step === "fix_skew" && pages) {
     const editable = pages.flatMap((p) =>
       p.linesSha256 && p.item && p.parentId ? [{ ...p, linesSha256: p.linesSha256, item: p.item, parentId: p.parentId }] : [],
@@ -97,7 +97,7 @@ export function ArtifactContent({
   );
 }
 
-// A page image, from the device's cache or drawn again from its recipe (DESIGN.md §5.3), once it scrolls near the
+// A page image, from the device's cache or drawn again from its recipe (docs/overview.md §5.3), once it scrolls near the
 // view: a filmstrip of large scans would otherwise draw every page at once. With `linesSha256`, the lines that should
 // be horizontal (skew_analysis) are drawn over it in red, each labelled with its angle (§6).
 export function PageImageView({

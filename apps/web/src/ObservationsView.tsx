@@ -1,4 +1,4 @@
-// The observations (DESIGN.md §6): `analyze`'s and a finished `fix_observations`'s, read-only, and a WIP
+// The observations (docs/stages/analyze.md): `analyze`'s and a finished `fix_observations`'s, read-only, and a WIP
 // `fix_observations`'s form. Both list the items of the whole score, then page by page, each with its places by name
 // ("system 17, stretch 3"), an eye and its confidence. The eye opens the pages with the layout's boxes, the item's
 // system in the middle, with only that item in a strip above them. In the form, every item has a "⋮" with Edit,

@@ -1,5 +1,5 @@
 // Images as plain pixel arrays, so every operation is our own code and gives the same pixels on every device
-// (DESIGN.md §8.2): no canvas transforms, no browser decoders.
+// (docs/images.md §8.2): no canvas transforms, no browser decoders.
 
 // RGBA, 8 bits per channel, rows top to bottom. The same layout as the canvas' ImageData, without needing a DOM.
 export type RgbaImage = {

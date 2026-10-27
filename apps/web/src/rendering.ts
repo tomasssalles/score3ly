@@ -1,4 +1,4 @@
-// Renderings of the music for people (DESIGN.md §6, "The Transcription"; §9): MEI rendered by Verovio in a Web Worker
+// Renderings of the music for people (docs/stages/music.md, "The Transcription"; §9): MEI rendered by Verovio in a Web Worker
 // (renderWorker.ts), cached on the device under the hash of the MEI, the options and Verovio's version. A rendering is
 // a view: made when it is needed, never stored.
 

@@ -1,4 +1,4 @@
-// The MEI builder (DESIGN.md §6, "MEI"): code builds the whole file from the lens (score.ts) and the metadata. Models
+// The MEI builder (docs/notation.md, "MEI"): code builds the whole file from the lens (score.ts) and the metadata. Models
 // never write MEI. Full MEI 5, close to MEI Basic: the music uses only what MEI Basic allows, apart from the few
 // constructs listed in BEYOND_BASIC, the single source of truth that the tests check against.
 //
@@ -19,7 +19,7 @@ import { el, elements, serialize, type XmlElement, type XmlNode } from "./xml.ts
 export const MEI_VERSION = "5.1";
 export const MEI_NS = "http://www.music-encoding.org/ns/mei";
 
-// What we use beyond MEI Basic, on purpose (DESIGN.md §6, "So we go beyond MEI Basic"): the header's work, pieces and
+// What we use beyond MEI Basic, on purpose (docs/notation.md, "So we go beyond MEI Basic"): the header's work, pieces and
 // edition, how the file was made, the user's comment, the facsimile with the measures' zones, the sounding accidental on
 // the note, and the link from a piece to its entry in the header.
 export const BEYOND_BASIC = {
@@ -176,7 +176,7 @@ function facsimile(score: Score): XmlElement | null {
   );
 }
 
-// A measure as MEI measures (DESIGN.md §6, "MEI"): an MEI measure runs from bar line to bar line, so a measure is
+// A measure as MEI measures (docs/notation.md, "MEI"): an MEI measure runs from bar line to bar line, so a measure is
 // divided at every bar line printed inside it (a repeat after a pickup), each part `@metcon="false"` with the
 // measure's number. A system break inside a measure is layout, not a bar line: the full score keeps such a measure
 // whole, with the break inside it; a system alone (`atSystems`) has only its own part.

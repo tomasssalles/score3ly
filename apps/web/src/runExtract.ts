@@ -1,4 +1,4 @@
-// Runs `extract` (DESIGN.md §6): one call per system, one after the other in the score's order, since each system
+// Runs `extract` (docs/stages/music.md): one call per system, one after the other in the score's order, since each system
 // starts from what the one before it left (the piece's staves and voices, the signatures, the marks left open, a
 // measure that continues). Each call gets the system's crop, a crop of each of its stretches, the previous and the next
 // system (not across a piece's boundary), and the request; each answer is checked as soon as it arrives. One that

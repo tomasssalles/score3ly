@@ -1,4 +1,4 @@
-// Runs `analyze` (DESIGN.md §6): every page on its own, one after the other (the page straightened as the layout says,
+// Runs `analyze` (docs/stages/analyze.md): every page on its own, one after the other (the page straightened as the layout says,
 // then the same page with the layout drawn on it, systems numbered in the whole score and bar lines numbered), then
 // one call for the whole score with every page's result and every page drawn, in gray. Where the pieces start is
 // derived from its metadata, as an output of its own (what `extract` reads). The whole-score request's

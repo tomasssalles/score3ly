@@ -1,6 +1,6 @@
 # The desktop app (*cadenza*)
 
-The same app and server as on Cloudflare, in an Electron window, with everything stored on the computer. How it relates to the web app (*concerto*) and why it exists; how it is built, packaged and installed. § numbers here are `DESIGN.md`'s sections.
+The same app and server as on Cloudflare, in an Electron window, with everything stored on the computer. How it relates to the web app (*concerto*) and why it exists; how it is built, packaged and installed. § numbers here are `docs/overview.md`'s sections.
 
 The app is built for the browser and Cloudflare, and that stays the focus. An optional **desktop version** wraps the same code, for people who prefer that trade-off:
 

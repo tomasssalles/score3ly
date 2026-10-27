@@ -1,4 +1,4 @@
-// The metadata (DESIGN.md §6): `analyze`'s and a finished `fix_metadata`'s, read-only, and a WIP `fix_metadata`'s
+// The metadata (docs/stages/analyze.md): `analyze`'s and a finished `fix_metadata`'s, read-only, and a WIP `fix_metadata`'s
 // form. Both list the fields by section, each with its page ("p. –" without one), an eye and its confidence. The eye
 // opens the pages at the field's page (at the first without one), with only that field in a thin strip above them.
 // In the form, every field has a "⋮" with Edit, Confirm (Unconfirm) and Remove, also in the strip, so it can be
@@ -175,7 +175,7 @@ function Field({
   );
 }
 
-// A field in edit mode, in two rows (DESIGN.md §6): its kind, its page (a piece: its system, which sets the page) and
+// A field in edit mode, in two rows (docs/stages/analyze.md): its kind, its page (a piece: its system, which sets the page) and
 // the ✓; then its text.
 function FieldEditor({
   editing,

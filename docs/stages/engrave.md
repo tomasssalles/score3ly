@@ -1,6 +1,6 @@
 # The last stages: `engrave`, `fix_mei`
 
-What the user takes away: the full score's MEI, its engraving as a PDF, and a report of the run; and the one place where the MEI can be edited by hand. Their place in the pipeline and the rules all stages follow are in `DESIGN.md` (§5, §6); the MEI itself (what the builder writes, and why) is in `DESIGN.md` `docs/notation.md`, "MEI"; § numbers here are `DESIGN.md`'s sections.
+What the user takes away: the full score's MEI, its engraving as a PDF, and a report of the run; and the one place where the MEI can be edited by hand. Their place in the pipeline and the rules all stages follow are in `docs/overview.md` (§5, §6); the MEI itself (what the builder writes, and why) is in `docs/overview.md` `docs/notation.md`, "MEI"; § numbers here are `docs/overview.md`'s sections.
 
 **What they read and write:**
 - `engrave` reads the latest extraction (`docs/stages/music.md`), the latest layout (`docs/stages/layout.md`), the latest metadata and `pieces` (`docs/stages/analyze.md`); or, when `fix_mei` comes right before it, that stage's MEI, as it is. It writes one `mei` output for the whole score.

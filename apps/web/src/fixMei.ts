@@ -1,4 +1,4 @@
-// The `fix_mei` step (DESIGN.md §6): the user edits the full score's MEI as text, right before `engrave`. Its
+// The `fix_mei` step (docs/stages/engrave.md): the user edits the full score's MEI as text, right before `engrave`. Its
 // outputs (item '', all overwritten while WIP): `mei_base`, the MEI `engrave` would have built, written when the editor
 // first opens (what "lines changed" counts against); `mei_draft`, the text as last saved; `mei`, the text last
 // applied (it passed the checks). The editor is FixMeiView.tsx; finishing, finishFixMei below.

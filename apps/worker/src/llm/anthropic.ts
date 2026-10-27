@@ -15,7 +15,7 @@ import { parseServiceAccount, tokenSource } from "./googleServiceAccount.ts";
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 64_000;
 
-// Claude through Anthropic's API, Google Cloud's Vertex AI or Amazon Bedrock (e.g. in the EU, DESIGN.md §10), with
+// Claude through Anthropic's API, Google Cloud's Vertex AI or Amazon Bedrock (e.g. in the EU, docs/overview.md §10), with
 // Anthropic's official clients: the same Messages API on all three, so one class serves them all. Requests are streamed, so long
 // answers don't hit HTTP timeouts; the caller gets the whole message at the end. The chosen model answers or the
 // call fails: no fallback to another model.

@@ -1,6 +1,6 @@
 # The project view
 
-What the app shows and how it behaves around a project: the two layouts, the artifact view, progress and toasts, the header, the pipeline panel with its stage cards, and the pages of the menu. How things look in general (colours, components, wording) is in `docs/style.md`; § numbers here are `DESIGN.md`'s sections.
+What the app shows and how it behaves around a project: the two layouts, the artifact view, progress and toasts, the header, the pipeline panel with its stage cards, and the pages of the menu. How things look in general (colours, components, wording) is in `docs/style.md`; § numbers here are `docs/overview.md`'s sections.
 
 ## The layout, the artifact view and progress
 

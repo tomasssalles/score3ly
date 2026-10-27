@@ -1,4 +1,4 @@
-// The `fix_skew` step (DESIGN.md §6): per page, the lines that should be horizontal, as a person left them. It starts
+// The `fix_skew` step (docs/stages/pages.md): per page, the lines that should be horizontal, as a person left them. It starts
 // with the lines `skew_analysis` found; the person deletes, draws and moves lines. Lines are the official requests for
 // deskewing: a page left without lines isn't straightened. This module has what doesn't need the browser.
 

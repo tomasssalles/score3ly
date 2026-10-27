@@ -1,4 +1,4 @@
--- The page count moves from the project to each stage (DESIGN.md §5.8): the selection of pages can change within a
+-- The page count moves from the project to each stage (docs/database.md): the selection of pages can change within a
 -- project, and replaced stages keep their statistics.
 ALTER TABLE projects DROP COLUMN page_count;
 

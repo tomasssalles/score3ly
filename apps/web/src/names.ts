@@ -1,4 +1,4 @@
-// Project names, as the Worker checks them (apps/worker/src/names.ts, DESIGN.md §4).
+// Project names, as the Worker checks them (apps/worker/src/names.ts, docs/overview.md §4).
 
 export const MAX_NAME_LENGTH = 200;
 

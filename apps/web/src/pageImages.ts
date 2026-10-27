@@ -1,4 +1,4 @@
-// Page images for the pipeline and the artifact view (DESIGN.md §6, `rasterize`): taken from the device's cache, or
+// Page images for the pipeline and the artifact view (docs/stages/pages.md): taken from the device's cache, or
 // computed from their recipe by a Web Worker (pageImageWorker.ts) and cached. A page is computed only when
 // something needs it (§5.3).
 //
@@ -87,7 +87,7 @@ export async function pageImage(recipe: PageRecipe): Promise<{ png: Blob; comput
   return { png: new Blob([answer.png], { type: "image/png" }), computed: true };
 }
 
-// The skew of a page image (DESIGN.md §8.4), measured in the worker.
+// The skew of a page image (docs/stages/pages.md, "Finding the skew"), measured in the worker.
 export async function measureSkew(png: Blob, maxAngle: number): Promise<Skew> {
   const bytes = await png.arrayBuffer();
   const answer = await ask({ type: "skew", png: bytes, maxAngle }, [bytes]);
@@ -95,7 +95,7 @@ export async function measureSkew(png: Blob, maxAngle: number): Promise<Skew> {
   return answer.skew;
 }
 
-// A page straightened by an angle (DESIGN.md §8.6): what `layout` and later stages see, and what the layout's
+// A page straightened by an angle (docs/images.md §8.6): what `layout` and later stages see, and what the layout's
 // artifact shows. Null angle: the page as it is.
 export type StraightRecipe = { page: PageRecipe; angle: number | null; deskew: number; rotate: number };
 
@@ -214,7 +214,7 @@ export async function modelPage(recipe: ModelPageRecipe): Promise<Blob> {
   return cachedOr(recipe, async () => derive(await straightPage(recipe.straight), { limit: recipe.limit }));
 }
 
-// A part of a straightened page shrunk to a model's limits (DESIGN.md §8.6): the system and stretch crops `extract`
+// A part of a straightened page shrunk to a model's limits (docs/images.md §8.6): the system and stretch crops `extract`
 // sends, and its artifact shows. The box is a fraction of the straightened page, margins included; `crop` is the crop
 // code's version (CROP_VERSION).
 export type CropRecipe = { straight: StraightRecipe; box: Box; crop: number; limit: SizeLimit; scale: number };
@@ -232,7 +232,7 @@ export async function drawnPage(recipe: DrawnPageRecipe): Promise<Blob> {
 }
 
 // A page sent to a model with its layout drawn on it, labelled for `analyze` (systems numbered in the whole score from
-// `first`, bar lines numbered), in colour or gray (DESIGN.md §6). Cached under its recipe: the drawing is ours and
+// `first`, bar lines numbered), in colour or gray (docs/stages/analyze.md). Cached under its recipe: the drawing is ours and
 // deterministic. `draw` is the drawing code's version (DRAW_VERSION).
 export type LayoutPageRecipe = {
   page: ModelPageRecipe;

@@ -1,6 +1,6 @@
 # Images
 
-How page images are made from the PDF, the deterministic operations on them (rotation, scaling, crops), fingerprints, the device's constraints and the image cache. The sections keep their numbers from `DESIGN.md` §8, so a reference to §8.1 to §8.6 means the section of this file; other § numbers are `DESIGN.md`'s.
+How page images are made from the PDF, the deterministic operations on them (rotation, scaling, crops), fingerprints, the device's constraints and the image cache. The sections keep their numbers from `docs/overview.md` §8, so a reference to §8.1 to §8.6 means the section of this file; other § numbers are `docs/overview.md`'s.
 
 ## 8.1 Getting page images
 Built: `packages/imaging/src/pdfPages.ts` (`openPdf`, `pageImage`), tested on the test set (§13). `npm run pages -w packages/imaging -- <file.pdf> <folder>` writes every page, as extracted and straightened, as PNGs.

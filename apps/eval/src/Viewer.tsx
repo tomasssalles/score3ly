@@ -1,4 +1,4 @@
-// Viewer for the test set (DESIGN.md §13): the original and two engravings of the same piece,
+// Viewer for the test set (docs/evaluation.md): the original and two engravings of the same piece,
 // chosen with dropdowns, either side by side or stacked vertically. Each pane can be hidden.
 // In highlighting mode, strokes can be drawn on any pane; one undo covers all panes.
 

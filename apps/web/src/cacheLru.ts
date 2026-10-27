@@ -1,4 +1,4 @@
-// The image cache's size limit (DESIGN.md §8.5, §8.6): which files go when the cache is over its limit, the least
+// The image cache's size limit (docs/images.md §8.5, §8.6): which files go when the cache is over its limit, the least
 // recently used first, and the limit itself, a setting of this device.
 
 export type CacheEntry = { path: string; size: number; used: number }; // used: ms since the epoch, last read or write

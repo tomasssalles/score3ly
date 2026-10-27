@@ -1,4 +1,4 @@
-// Drawing a page's layout over its image (DESIGN.md §6, `layout`): the system boxes, each in its own colour, its bar
+// Drawing a page's layout over its image (docs/stages/layout.md): the system boxes, each in its own colour, its bar
 // lines in the same colour, and its number in a small label at its top left corner. The model checks its answer on
 // this drawing, and the user sees the same colours in the artifact. Our own pixels (§8.2): no canvas, no fonts.
 //
@@ -30,7 +30,7 @@ export type LayoutSystem = { box: Box; barLines: number[] };
 
 // How the systems are labelled: from `first` (the number of the page's first system in the whole score, default 1),
 // and, with `barLineNumbers`, each bar line numbered within its system, in a small label just above the box's top
-// edge, so that it covers no notes (`analyze`, DESIGN.md §6).
+// edge, so that it covers no notes (`analyze`, docs/stages/analyze.md).
 export type DrawOptions = { first?: number; barLineNumbers?: boolean };
 
 export function drawLayout(image: RgbaImage, systems: LayoutSystem[], options: DrawOptions = {}): RgbaImage {

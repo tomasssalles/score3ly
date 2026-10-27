@@ -1,4 +1,4 @@
-// What the code declares about each step (DESIGN.md §5.1): its title, its kind, its config form, and how its
+// What the code declares about each step (docs/overview.md §5.1): its title, its kind, its config form, and how its
 // outputs are shown as artifacts. The database only stores a stage's step id.
 
 import type { ApiStage } from "./api";
@@ -399,7 +399,7 @@ export function fixOffered(step: string, later: ApiStage[]): boolean {
   return step !== "fix_mei" || !later.some((s) => EXTRACTION_STEPS.includes(s.step));
 }
 
-// What a manual step needs to be added after a stage (DESIGN.md §5.8): its version, page count and inputs. `earlier`:
+// What a manual step needs to be added after a stage (docs/database.md): its version, page count and inputs. `earlier`:
 // the stages up to and including that one.
 export const FIX_STARTS: Record<string, (after: ApiStage, earlier: ApiStage[]) => { stepVersion: number; pageCount: number | null; inputIds: string[] }> = {
   fix_skew: (after) => {
@@ -421,7 +421,7 @@ export const FIX_STARTS: Record<string, (after: ApiStage, earlier: ApiStage[]) =
   fix_mei: (_after, earlier) => fixMeiStart(earlier),
 };
 
-// What a carried manual stage would read now (DESIGN.md §5.5): the inputs it would get if it were added now after the
+// What a carried manual stage would read now (docs/overview.md §5.5): the inputs it would get if it were added now after the
 // stage it fixes, the latest stage before it that isn't manual.
 export function carriedInputs(stages: ApiStage[], index: number): string[] {
   let after = index - 1;

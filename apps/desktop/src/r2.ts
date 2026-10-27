@@ -1,4 +1,4 @@
-// R2 over a folder of plain files (DESIGN.md §3, "Desktop version"): the calls the Worker makes (`get`, `put`, `head`,
+// R2 over a folder of plain files (docs/desktop.md): the calls the Worker makes (`get`, `put`, `head`,
 // `delete`, `list`). An object's key is its path under the folder ("content/<sha256>", "pdfs/<sha256>.pdf"); its
 // content type, when it has one, is in a file next to it, "<key>.type". The upload time is the file's.
 

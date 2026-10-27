@@ -1,4 +1,4 @@
-// What the forms of `fix_metadata` and `fix_observations` share (DESIGN.md §6): a list of fields (rows) read from a
+// What the forms of `fix_metadata` and `fix_observations` share (docs/stages/analyze.md): a list of fields (rows) read from a
 // stored document, edited one at a time, each with a "⋮" (Edit, Confirm or Unconfirm, Remove) and an eye that opens
 // the pages with only that field in a strip above them. A field is saved when it leaves edit mode, when it is
 // confirmed, unconfirmed or removed, and when the form closes; saving an edit confirms the field, adding one too. An

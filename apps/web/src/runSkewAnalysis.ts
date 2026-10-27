@@ -1,4 +1,4 @@
-// Runs `skew_analysis` (DESIGN.md §6): per page of the latest `rasterize` before it, the page image (from the
+// Runs `skew_analysis` (docs/stages/analyze.md): per page of the latest `rasterize` before it, the page image (from the
 // device's cache, or drawn again) is measured in the Web Worker, and what was found is stored as JSON in R2: the
 // lines are what later stages and `fix_skew` build on, and must not move when measured again on another device.
 

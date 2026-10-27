@@ -16,7 +16,7 @@ export type Skew = {
   atLimit: boolean;
   // The staves found at that angle, top to bottom (see findStaves).
   staves: Staff[];
-  // The lines that should be horizontal (DESIGN.md §8.4): at most 5, the top lines of staves spread over the page,
+  // The lines that should be horizontal (docs/stages/pages.md, "Finding the skew"): at most 5, the top lines of staves spread over the page,
   // each measured on its own. None when no staves were found or the angle is at the limit of the search.
   lines: SkewLine[];
 };
@@ -46,7 +46,7 @@ export type Staff = { top: number; bottom: number };
 // Outliers such as hairpins or long slurs are lines at other angles, but much less ink than the staves, so they
 // only add a little to every candidate.
 //
-// Two passes (DESIGN.md §8.4): the strips treat a line as flat within each strip, which holds for small angles
+// Two passes (docs/stages/pages.md, "Finding the skew"): the strips treat a line as flat within each strip, which holds for small angles
 // only. So the first pass finds the page's angle over the whole range (with more strips the larger the range), and
 // if it is more than TWO_PASS_ABOVE, the working image is straightened by that angle and measured again near 0°,
 // where the staves and lines are found as on any page; they are then turned back onto the page.
@@ -90,7 +90,7 @@ export function findSkew(image: RgbaImage, options: SkewOptions = {}): Skew {
 const TWO_PASS_ABOVE = 2;
 
 // The working image turned by `degrees`, its uncovered corners filled with the paper's gray, by our own rotation
-// (DESIGN.md §8.2).
+// (docs/images.md §8.2).
 function rotateGray(gray: Gray, degrees: number): Gray {
   const rgba = new Uint8ClampedArray(gray.data.length * 4);
   for (let i = 0; i < gray.data.length; i++) {
@@ -159,11 +159,11 @@ function measure(work: Gray, maxAngle: number, margin: number): Skew {
   };
 }
 
-// The version of the deskew decision (deskewAngle). Part of the recipe of straightened pages (DESIGN.md §8.6):
+// The version of the deskew decision (deskewAngle). Part of the recipe of straightened pages (docs/images.md §8.6):
 // changing the rule changes them, and nothing before them.
 export const DESKEW_VERSION = 1;
 
-// Whether and by how much to straighten a page, from its lines (DESIGN.md §8.4): best effort, low risk. No lines,
+// Whether and by how much to straighten a page, from its lines (docs/stages/pages.md, "Finding the skew"): best effort, low risk. No lines,
 // no deskewing. Otherwise the angle that fits all lines best, longer lines counting more, unless it is too small to
 // matter: rotation blurs a little, so not if the lines drift by less than a pixel across the page. Null: leave the
 // page as it is.
@@ -380,7 +380,7 @@ const SPACING_TOLERANCE = 0.15; // how unevenly a staff's lines may be spaced, a
 const SPACING_AGREEMENT = 0.25; // how far a staff's spacing may be from the page's typical one, as a share
 
 // The staves on a page skewed by `angle`: five lines, evenly spaced, that start and end together, as rows where
-// they cross the page's center. Only used for the lines that decide whether to deskew the page (DESIGN.md §8.4),
+// they cross the page's center. Only used for the lines that decide whether to deskew the page (docs/stages/pages.md, "Finding the skew"),
 // never to read music or to tell what a page is.
 //
 // 1. Lines: rows (along the angle) that cross enough of the strips. A strip counts when the row's mean line

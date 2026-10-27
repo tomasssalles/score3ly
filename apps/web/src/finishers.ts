@@ -1,4 +1,4 @@
-// What finishing a manual stage records besides marking it done, by step (DESIGN.md §5.8): the outputs of the items
+// What finishing a manual stage records besides marking it done, by step (docs/database.md): the outputs of the items
 // the person didn't change. Returns the card's note.
 
 import type { ApiPipeline, ApiStage, Project } from "./api";

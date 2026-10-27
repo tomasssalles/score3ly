@@ -2,7 +2,7 @@
 //
 //   npm run pages -w packages/imaging -- testset/bendel_la_cascade_p4.orig.pdf /tmp/pages
 //
-// For each page: page-<n>.png (as extracted) and page-<n>.straight.png, deskewed if the rule of DESIGN.md §8.4 says
+// For each page: page-<n>.png (as extracted) and page-<n>.straight.png, deskewed if the rule of docs/stages/pages.md, "Finding the skew" says
 // so (lines found, at an angle large enough to matter), else the same as extracted.
 
 import { mkdirSync } from "node:fs";

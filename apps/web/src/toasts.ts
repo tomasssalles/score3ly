@@ -1,4 +1,4 @@
-// The toasts about the pipeline (DESIGN.md §5.6, "Progress"): one short line for something that just happened without
+// The toasts about the pipeline (docs/project-view.md, "Progress"): one short line for something that just happened without
 // the user doing it right then, "Layout done. Starting Analyze". What happened is found by comparing two snapshots of
 // the pipeline; the events of a short moment are joined into one text, which names the stages in bold.
 

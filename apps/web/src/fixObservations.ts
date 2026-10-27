@@ -1,4 +1,4 @@
-// `fix_observations` (DESIGN.md §6): the observations as a form. What doesn't need React: the rows the form edits
+// `fix_observations` (docs/stages/analyze.md): the observations as a form. What doesn't need React: the rows the form edits
 // and the stored document, the kinds of item, the places a picker offers, adding and removing staves, the checks and
 // the card's note. The form is in ObservationsView.tsx, finishing in finishFixObservations.ts.
 
@@ -204,7 +204,7 @@ export function sectionsOf(rows: ObsRow[]): { title: string; indices: number[] }
 }
 
 // The positions in a system, in order: start, stretch 1, bar line 1, stretch 2, …, stretch n + 1, end; for a bar
-// line's kind only the start, the bar lines and the end (DESIGN.md §6: places by pickers, never invalid).
+// line's kind only the start, the bar lines and the end (docs/stages/analyze.md: places by pickers, never invalid).
 export function positionsIn(system: number, barLines: number, barLinesOnly = false): Place[] {
   const places: Place[] = [{ system, at: "start", number: 0 }];
   for (let k = 1; k <= barLines + 1; k++) {
@@ -282,7 +282,7 @@ function newId(rows: ObsRow[]): string {
 
 // A new item of a kind, for the form's "+": at the start of the first system (an ottava from its first stretch,
 // open at its end; an ending from its first bar line), a note on the first page, the staves of the first system that
-// has none: one staff, more added with "Add a staff above/below" like on any system (DESIGN.md §6). The user's, so no confidence, and confirmed.
+// has none: one staff, more added with "Add a staff above/below" like on any system (docs/stages/analyze.md). The user's, so no confidence, and confirmed.
 export function newRow(k: ObsKind, rows: ObsRow[], systems: ScoreSystems, pages: number[]): ObsRow {
   const row = { ...blank(k.list, newId(rows), null), kind: k.kind };
   if (k.section === "Whole score") return row;
@@ -361,7 +361,7 @@ function naming(rows: ObsRow[], system: number, systems: ScoreSystems): number[]
 const described = (r: ObsRow) => `${obsKindOf(r).label}${r.text ? ` "${r.text}"` : ""}`;
 
 // A staff added above or below the staves of a system (the row at `index`, a `systems` item, which the user thereby
-// confirms), and the staves its items name renumbered (DESIGN.md §6): below, k/n becomes k/(n + 1); above,
+// confirms), and the staves its items name renumbered (docs/stages/analyze.md): below, k/n becomes k/(n + 1); above,
 // (k + 1)/(n + 1). The instruments get an empty entry. Not while an ottava that names a staff runs on to another system. Returns the rows, or why not.
 export function addStaff(rows: ObsRow[], index: number, where: "above" | "below", systems: ScoreSystems): ObsRow[] | string {
   const row = rows[index];

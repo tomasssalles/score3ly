@@ -1,4 +1,4 @@
-// PNG files of our images, encoded and decoded by our own code (DESIGN.md §8.6): the device's image cache stores
+// PNG files of our images, encoded and decoded by our own code (docs/images.md §8.6): the device's image cache stores
 // page images as PNG, lossless and much smaller than raw pixels for line art. Compression is the platform's
 // (CompressionStream "deflate" is the zlib format PNG wants), available in browsers, their Web Workers and Node.
 // The decoder reads what the encoder writes (8-bit RGBA or gray, not interlaced), with any of PNG's row filters.
@@ -8,7 +8,7 @@ import { luminance, type RgbaImage } from "./image.ts";
 const SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
 
 // With `gray`, the image is stored as 8-bit gray (its luminance): a quarter of the raw size, and much smaller for
-// colour scans (DESIGN.md §6, `analyze`'s whole-score call). Transparency is dropped.
+// colour scans (docs/stages/analyze.md, `analyze`'s whole-score call). Transparency is dropped.
 export async function encodePng(image: RgbaImage, options: { gray?: boolean } = {}): Promise<Uint8Array<ArrayBuffer>> {
   const { width, height } = image;
   const channels = options.gray ? 1 : 4;

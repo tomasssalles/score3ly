@@ -1,4 +1,4 @@
-// Finishing a `fix_metadata` stage (DESIGN.md §6): the metadata and where the pieces start are recorded, from what the
+// Finishing a `fix_metadata` stage (docs/stages/analyze.md): the metadata and where the pieces start are recorded, from what the
 // user saved, else from `analyze`'s. Finishing confirms nothing: only what the user confirmed is.
 
 import { piecesOf } from "./analyze";

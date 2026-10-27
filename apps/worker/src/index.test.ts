@@ -944,7 +944,7 @@ test("migration 0014 adds the fake model config as the default, once, and keeps 
   assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM model_configs WHERE provider = 'fake'").first())?.n, 1);
 });
 
-// Deleting a project (DESIGN.md §4, §5.8).
+// Deleting a project (docs/database.md, "Deleting a project").
 
 async function putContent(text: string): Promise<string> {
   const bytes = pdfBytes(text);

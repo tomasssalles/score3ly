@@ -1,4 +1,4 @@
-// Shrinking an image to fit a model's limits (DESIGN.md §14, "Images for the LLMs"): our own code, not the API's
+// Shrinking an image to fit a model's limits (docs/tasks.md, "Images for the LLMs"): our own code, not the API's
 // resizing, so the image a model sees is known, the same on every device, and part of the request's key. Area
 // averaging (each output pixel the mean of the input pixels it covers, partly covered ones by their share): it keeps
 // thin lines as gray rather than dropping them. Only + and × of floating point numbers, so the result is identical

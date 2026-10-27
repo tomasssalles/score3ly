@@ -1,5 +1,5 @@
 // Makes src/metronomeFont.ts: the metronome glyphs of Verovio's music font (Leipzig, SIL Open Font License 1.1), as a
-// small TrueType font, for the PDFs made from Verovio's SVG (DESIGN.md §6, "Tempo marks"). Verovio draws a tempo
+// small TrueType font, for the PDFs made from Verovio's SVG (docs/notation.md, "Tempo marks"). Verovio draws a tempo
 // mark's note in that font, which it embeds in the SVG as WOFF2; the PDF libraries can't read it from there.
 // Run `npm run metronome-font` when the test in src/metronomeFont.test.ts says so (Verovio's font changed, e.g. after
 // updating Verovio). Needs Python's fontTools: `pip install fonttools brotli`.

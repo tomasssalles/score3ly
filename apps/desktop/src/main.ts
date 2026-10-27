@@ -1,4 +1,4 @@
-// The desktop app's main process (DESIGN.md §3, "Desktop version"): starts the server (server.ts) on 127.0.0.1 with
+// The desktop app's main process (docs/desktop.md): starts the server (server.ts) on 127.0.0.1 with
 // the data in the app's data folder, and shows it in a window. The web app is the same as on Cloudflare; what Electron
 // adds is what a browser would: back and forward by keyboard, mouse and swipe, links opening in the browser.
 
@@ -12,7 +12,7 @@ app.setName("score3ly");
 
 const ICON = join(import.meta.dirname, "web", "icon-cadenza-512.png");
 
-// Cadenza's splash: its icon's light grey tile, until the page paints (DESIGN.md §3, "Editions").
+// Cadenza's splash: its icon's light grey tile, until the page paints (docs/desktop.md, "Editions").
 const SPLASH = "#dfe1e5";
 
 let server: RunningServer | null = null;
@@ -74,7 +74,7 @@ function go(direction: "back" | "forward") {
   if (direction === "forward" && history.canGoForward()) history.goForward();
 }
 
-// No menu bar (DESIGN.md §3): the app has its own header and menu. macOS always has the global menu bar, so there
+// No menu bar (docs/desktop.md): the app has its own header and menu. macOS always has the global menu bar, so there
 // it keeps a minimal one: the app's menu (Quit), Edit, which gives text fields copy and paste by keyboard there, and
 // Window.
 function setMenu() {
@@ -93,7 +93,7 @@ function createWindow(url: string) {
     minHeight: 480,
     title: "score3ly",
     backgroundColor: SPLASH,
-    // The cadenza edition's icon (DESIGN.md §3, "Editions"): the window's, and the taskbar's on Windows and Linux.
+    // The cadenza edition's icon (docs/desktop.md, "Editions"): the window's, and the taskbar's on Windows and Linux.
     icon: ICON,
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
   });

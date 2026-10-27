@@ -1,4 +1,4 @@
-// The symbolic format (DESIGN.md §6, "The symbolic format"): the music of one voice in one stretch, as a string in
+// The symbolic format (docs/notation.md, "The symbolic format"): the music of one voice in one stretch, as a string in
 // LilyPond's notation with our differences. The model reports the symbols printed; code works out what they mean.
 // This file lexes and parses a string into events, and rejects anything that isn't one of our tokens or breaks a
 // rule of the format. Durations, marks left open and the rest are worked out from the events (durations.ts,

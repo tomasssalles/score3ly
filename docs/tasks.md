@@ -4,10 +4,10 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 **How the list works:**
 - **Just tasks.** No sections, no subtasks, no numbers, no checkboxes. The order means nothing; tags say what matters when.
-- **A done task is deleted.** Whatever it decided goes into the docs file that covers its topic (`DESIGN.md` or one in `docs/`). Progress at the highest level is tracked in `DESIGN.md`'s checklist of the first release (§16), whose items stay when done.
+- **A done task is deleted.** Whatever it decided goes into the docs file that covers its topic (`docs/overview.md` or one in `docs/`). Progress at the highest level is tracked in `docs/overview.md`'s checklist of the first release (§16), whose items stay when done.
 - **A large task broken down** is replaced by the smaller ones, or loses the parts they take over. Some overlap between tasks is fine.
 - **A task collects its notes:** what was found out, discussed and decided about how to do it, so that it becomes easy to do. A decision that holds beyond the task also goes into the docs file that covers its topic.
-- **Tasks overlap with the rest of the docs,** which say what is intended; a task says what is left to do about it. § numbers in this file are `DESIGN.md`'s sections.
+- **Tasks overlap with the rest of the docs,** which say what is intended; a task says what is left to do about it. § numbers in this file are `docs/overview.md`'s sections.
 - **The form:** each task is a `###` heading with its short name, under the one `## The tasks` below. The first line is its tags (left out when it has none), then, after a blank line so that they render apart, its text. The text may use lists, quotes, code blocks and the like, but no headings: a list in a task is notes, not subtasks.
 
 **Tags** (written as `` `#optional` `` on a task's first line, so that `grep "#optional"` finds them; a task may have none or several):
@@ -328,7 +328,7 @@ In front of the deployed app (§3).
 ### Build the test environments
 §12: the start script, the build script and a first environment.
 
-The plan (decided), moved from `DESIGN.md` §12:
+The plan (decided), moved from `docs/overview.md` §12:
 
 For trying the app by hand on prepared data, locally only (no remote test database or bucket).
 

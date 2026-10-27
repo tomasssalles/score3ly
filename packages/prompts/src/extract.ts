@@ -1,4 +1,4 @@
-// `extract` (DESIGN.md §6): one call per system, which reads the music printed in it and writes it in the lens (JSON
+// `extract` (docs/stages/music.md): one call per system, which reads the music printed in it and writes it in the lens (JSON
 // with strings in the symbolic format). The model gets the system's crop, a crop of each stretch with generous
 // margins, the crops of the previous and the next system, and a request in the same field names as its answer: the
 // stretches to fill, the piece's staves and voices so far, what the previous system left open, and what `analyze`

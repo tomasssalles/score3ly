@@ -1,4 +1,4 @@
-// Finishing a `fix_skew` stage (DESIGN.md §6): every page gets an output (§5.8). The pages the person changed were
+// Finishing a `fix_skew` stage (docs/stages/pages.md): every page gets an output (§5.8). The pages the person changed were
 // saved as they worked; each of the others gets the lines `skew_analysis` found, as a person would have left them.
 
 import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";

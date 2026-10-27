@@ -1,6 +1,6 @@
 # The notation: the lens, MEI, issues and warnings
 
-How score3ly writes music down: the format models read and write (the lens, with the symbolic format inside it), the format users get (MEI), what counts as music and what as typesetting, how systems become stretches and measures, and the issues and warnings that say what is uncertain or doesn't add up. Used by `extract`, `review`, `apply_review`, `human_review` (`docs/stages/music.md`), `engrave` and `fix_mei` (`docs/stages/engrave.md`), and built in `packages/notation` and `packages/prompts`. § numbers here are `DESIGN.md`'s sections.
+How score3ly writes music down: the format models read and write (the lens, with the symbolic format inside it), the format users get (MEI), what counts as music and what as typesetting, how systems become stretches and measures, and the issues and warnings that say what is uncertain or doesn't add up. Used by `extract`, `review`, `apply_review`, `human_review` (`docs/stages/music.md`), `engrave` and `fix_mei` (`docs/stages/engrave.md`), and built in `packages/notation` and `packages/prompts`. § numbers here are `docs/overview.md`'s sections.
 
 ## MEI
 **The export format is full MEI 5, close to MEI Basic** (decided): as simple as possible, focused on the musical content. The music uses only what MEI Basic allows; a few features of full MEI are used where needed, each a deliberate decision, listed in one place in the code (below) and explained in our documentation.

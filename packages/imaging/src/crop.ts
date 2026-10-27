@@ -1,9 +1,9 @@
 import type { RgbaImage } from "./image.ts";
 
-// Raise whenever cropping changes what pixels a box gives (DESIGN.md §8.6: the crop code's version is in the key).
+// Raise whenever cropping changes what pixels a box gives (docs/images.md §8.6: the crop code's version is in the key).
 export const CROP_VERSION = 1;
 
-// A rectangle on an image, as fractions of its width and height from 0 to 1 (DESIGN.md §6): independent of the
+// A rectangle on an image, as fractions of its width and height from 0 to 1 (docs/overview.md §6): independent of the
 // image's resolution, so it stays valid when the image is made again at another one.
 export type Box = { left: number; right: number; top: number; bottom: number };
 

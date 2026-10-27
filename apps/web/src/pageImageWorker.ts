@@ -1,4 +1,4 @@
-// A Web Worker that turns PDF pages into images (DESIGN.md §8.1) and encodes them as PNG (§8.6), so the page
+// A Web Worker that turns PDF pages into images (docs/images.md §8.1) and encodes them as PNG (§8.6), so the page
 // stays responsive while large scans are decoded. Requests carry an id; each gets one answer with the same id.
 
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
@@ -30,7 +30,7 @@ export type PageImageRequest =
   | { id: number; type: "open"; sha256: string; pdf: ArrayBuffer }
   | { id: number; type: "page"; sha256: string; page: number; dpi: number }
   | { id: number; type: "skew"; png: ArrayBuffer; maxAngle: number }
-  // The fingerprint of an image (DESIGN.md §8.3), as decoded from its PNG.
+  // The fingerprint of an image (docs/images.md §8.3), as decoded from its PNG.
   | { id: number; type: "fingerprint"; png: ArrayBuffer }
   // An image made from another: straightened by `angle`, then cut to `crop` (a box, fractions of the straightened
   // image), then shrunk to `limit`, then with a layout drawn on it (labelled as `drawOptions` say), and stored as gray
@@ -100,7 +100,7 @@ class NoFilterFactory {
 
 // What openPdf needs in a worker: the folders pdf.js loads data from (the pdfjsAssets plugin, packages/core), as absolute URLs
 // fetched by pdf.js's own worker, and no DOM. Glyphs are drawn as paths rather than with the browser's fonts, as in
-// Node: the same everywhere (DESIGN.md §8.1).
+// Node: the same everywhere (docs/images.md §8.1).
 const options = {
   ...Object.fromEntries(
     Object.entries({ wasmUrl: "wasm", cMapUrl: "cmaps", standardFontDataUrl: "standard_fonts", iccUrl: "iccs" }).map(

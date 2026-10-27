@@ -1,4 +1,4 @@
-// The `analyze` step (DESIGN.md §6): what doesn't need the browser or the model. Its runner is runAnalyze.ts.
+// The `analyze` step (docs/stages/analyze.md): what doesn't need the browser or the model. Its runner is runAnalyze.ts.
 
 import {
   PAGE_LISTS,
@@ -23,7 +23,7 @@ export type PageAnalysis = { page: number; systems: number[]; metadata: PageMeta
 // `observations`): one document, the pages' items as the whole score's call corrected them, and the items of the
 // whole score; every item with an id (a page's "p7-3", an added one "a2", the whole score's "s1", one the user added
 // in `fix_observations` "u1"). `fix_observations` stores the same, every item also saying whether the user
-// confirmed it (`analyze`'s don't: nothing is), and the user's own items without a confidence (DESIGN.md §6).
+// confirmed it (`analyze`'s don't: nothing is), and the user's own items without a confidence (docs/stages/analyze.md).
 export type StoredMetadata = ScoreMetadata;
 type WithId = { id: string };
 export type Stored<T> = Omit<T, "confidence"> & { id: string; confidence: Confidence | null; confirmed?: boolean };

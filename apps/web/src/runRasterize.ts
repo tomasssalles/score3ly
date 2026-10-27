@@ -1,4 +1,4 @@
-// Runs `rasterize` (DESIGN.md §6): every selected page's image is made (or found in the device's cache) and its
+// Runs `rasterize` (docs/stages/pages.md): every selected page's image is made (or found in the device's cache) and its
 // recipe recorded. The images are made now, not only when needed, because they are needed right away: they are
 // the stage's artifact, shown when it finishes, and a page that can't be drawn should fail this stage, not a later
 // one.

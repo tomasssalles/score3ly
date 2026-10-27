@@ -1,4 +1,4 @@
-// Vision LLMs behind one interface (types.ts). A model config (DESIGN.md §7.6) names the provider and the secrets
+// Vision LLMs behind one interface (types.ts). A model config (docs/llm.md, "Model configs") names the provider and the secrets
 // and settings it needs; the Worker reads the secrets and creates the provider here.
 
 import { anthropicProvider, bedrockClaudeProvider, vertexClaudeProvider } from "./anthropic.ts";

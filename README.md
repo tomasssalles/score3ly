@@ -3,6 +3,10 @@
 # score3ly
 Convert printed musical scores into lilypond format (upgrade of score2ly).
 
+## Docs
+
+How score3ly works and why: [docs/overview.md](docs/overview.md), which lists the other docs.
+
 ## Development
 
 Requires Node.js. Install dependencies once with `npm install`.

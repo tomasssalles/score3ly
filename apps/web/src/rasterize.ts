@@ -1,4 +1,4 @@
-// The `rasterize` step (DESIGN.md §6): the selected pages of the PDF as images, one output per page. Only each
+// The `rasterize` step (docs/stages/pages.md): the selected pages of the PDF as images, one output per page. Only each
 // page's recipe is stored; the images are computed on the device and cached there (§5.3, §8.6). This module has
 // what doesn't need the browser: the config, its resolution, the recipes and the keys.
 

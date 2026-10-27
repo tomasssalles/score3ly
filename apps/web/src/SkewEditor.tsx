@@ -1,4 +1,4 @@
-// The editor of a WIP `fix_skew` stage (DESIGN.md §6): one page at a time, its lines in red over it. Two modes, by
+// The editor of a WIP `fix_skew` stage (docs/stages/pages.md): one page at a time, its lines in red over it. Two modes, by
 // a toggle. Hand: dragging pans, tapping a line selects it, its end handles can be dragged, and Delete deletes it.
 // Drawing: click, move, click with a mouse (the line follows the pointer); tap, tap on touch (the first tap leaves
 // a dot). Zooming and panning work as in every editor (pageEditor.tsx). Each change is saved at once. Undo and redo

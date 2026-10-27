@@ -1,4 +1,4 @@
-// Durations as exact fractions of a whole note (DESIGN.md §6, "The symbolic format"): a dotted quarter is 3/8, a
+// Durations as exact fractions of a whole note (docs/notation.md, "The symbolic format"): a dotted quarter is 3/8, a
 // triplet eighth 1/12. Numerators and denominators stay small, so plain numbers are enough.
 
 export type Fraction = { n: number; d: number };

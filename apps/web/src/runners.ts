@@ -1,4 +1,4 @@
-// The steps that can run in the browser, by step id (DESIGN.md §5.1). Ingest never runs.
+// The steps that can run in the browser, by step id (docs/overview.md §5.1). Ingest never runs.
 
 import { runAnalyze } from "./runAnalyze";
 import { runEngrave } from "./runEngrave";

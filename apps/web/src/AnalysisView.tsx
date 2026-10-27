@@ -1,4 +1,4 @@
-// `analyze`'s artifacts and the forms that correct them (DESIGN.md §6): the metadata is MetadataView's, the
+// `analyze`'s artifacts and the forms that correct them (docs/stages/analyze.md): the metadata is MetadataView's, the
 // observations ObservationsView's.
 
 import type { Project } from "./api";

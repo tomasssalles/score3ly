@@ -1,4 +1,4 @@
-// The whole score as code builds it from the lens (DESIGN.md §6, "Bar lines, stretches and measures"): the systems'
+// The whole score as code builds it from the lens (docs/notation.md, "Bar lines, stretches and measures"): the systems'
 // answers, in the score's order, grouped into pieces (the `pieces` output), each piece with its staves and voices and
 // its measures, built from the stretches' classification and numbered per piece (0 or 1 for a pickup, whichever
 // matches the printed numbers better). The MEI builder (mei.ts) and the checks of the whole score (scoreChecks.ts)

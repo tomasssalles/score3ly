@@ -1,4 +1,4 @@
-// The checks of the whole score (DESIGN.md §6, "No `assemble` stage"): on the lens, at the end of `extract` (and
+// The checks of the whole score (docs/overview.md §6, "No `assemble` stage"): on the lens, at the end of `extract` (and
 // later of `apply_review`), once every system is checked on its own (lens.ts). They look at what no single system
 // shows: what is left open where a piece ends, the repeat structure, and courtesy signatures against the system after
 // them. Like the checks per system, they give issues raised by code where the question is about the page, and

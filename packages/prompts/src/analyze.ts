@@ -1,4 +1,4 @@
-// `analyze` (DESIGN.md §6): what the pages say, as metadata and observations for the extraction. One call per page,
+// `analyze` (docs/stages/analyze.md): what the pages say, as metadata and observations for the extraction. One call per page,
 // each page on its own (the clean page, and the page with the layout drawn on it: systems numbered in the whole score,
 // bar lines numbered within their system), then one call for the whole score that merges the pages' results. Places
 // are named by the labels drawn on the pages: "system 17, bar line 4", "system 17, stretch 2", "system 17, end".
@@ -13,7 +13,7 @@ export const CONFIDENCES = ["low", "medium", "high"] as const;
 export type Confidence = (typeof CONFIDENCES)[number];
 
 export const TITLE_TYPES = ["main", "subtitle", "alternative", "translated"] as const;
-// MEI's header has an element for each but "translator" and "other" (DESIGN.md §6, "Metadata").
+// MEI's header has an element for each but "translator" and "other" (docs/stages/analyze.md, "The metadata").
 export const ROLES = ["composer", "arranger", "editor", "lyricist", "librettist", "translator", "other"] as const;
 export type Role = (typeof ROLES)[number];
 export const SPECIAL_BAR_LINES = ["double", "final", "startRepeat", "endRepeat", "startEndRepeat", "dashed"] as const;
@@ -43,7 +43,7 @@ export type Metadata<Extra = object> = {
 export type PageMetadata = Metadata;
 export type ScoreMetadata = Metadata<{ page: number }>;
 
-// A place in a system (DESIGN.md §6, `analyze`): its start or its end (the box's edges), one of its inner bar lines
+// A place in a system (docs/stages/analyze.md): its start or its end (the box's edges), one of its inner bar lines
 // (1 to n, as drawn), or a stretch between two of these (1 to n + 1). `number` is the bar line's or the stretch's, 0
 // at the start and the end.
 export const PLACE_KINDS = ["start", "barLine", "stretch", "end"] as const;
@@ -294,7 +294,7 @@ function observationsProblem(
   return null;
 }
 
-// Whether a page's staves agree (DESIGN.md §6, "staff k/n"): each system on the page reported at most once, with at
+// Whether a page's staves agree (docs/stages/analyze.md, "staff k/n"): each system on the page reported at most once, with at
 // least one staff, and every staff named on a system (k/n) with n its reported number of staves. An ottava is on the
 // systems of its start and its end, or on every system of the page when it runs through it.
 export type StavesOf = {

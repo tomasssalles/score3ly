@@ -1,4 +1,4 @@
-// The `skew_analysis` step (DESIGN.md §6, §8.4): per page, the lines that should be horizontal, measured on the
+// The `skew_analysis` step (docs/stages/analyze.md, docs/stages/pages.md, "Finding the skew"): per page, the lines that should be horizontal, measured on the
 // page images, not rotated. It measures and doesn't decide: whether to deskew is a function of the lines
 // (deskewAngle), computed by the stage that makes straightened pages. This module has what doesn't need the browser.
 

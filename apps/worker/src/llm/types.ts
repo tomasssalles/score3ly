@@ -1,4 +1,4 @@
-// Calling vision LLMs without caring which provider answers (DESIGN.md §3, the `LlmProvider` port). Requests and
+// Calling vision LLMs without caring which provider answers (docs/overview.md §3, the `LlmProvider` port). Requests and
 // responses are our own, small shapes; each provider's adapter translates them. The Worker makes the calls, so the
 // API keys never leave it (§10).
 

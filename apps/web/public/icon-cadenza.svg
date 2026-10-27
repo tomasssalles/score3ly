@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- The compact <score3ly> mark of the cadenza edition, the desktop app (DESIGN.md §3, "Editions"): icon.svg with a
+  <!-- The compact <score3ly> mark of the cadenza edition, the desktop app (docs/desktop.md, "Editions"): icon.svg with a
        light grey tile and a black note, the same coral brackets (checked by src/icon.test.ts). -->
   <style>
     .accent { stroke: #e45a51; }

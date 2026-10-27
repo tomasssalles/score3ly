@@ -1,4 +1,4 @@
-// Keys from content (DESIGN.md §5.2, §8.6): the SHA-256 of canonical JSON, so the same content always gives the same
+// Keys from content (docs/overview.md §5.2, docs/images.md §8.6): the SHA-256 of canonical JSON, so the same content always gives the same
 // key, whichever app computes it.
 
 // The SHA-256 of some bytes, in lowercase hex (WebCrypto: browsers, Workers, Node).

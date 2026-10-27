@@ -1,4 +1,4 @@
-// Project names (DESIGN.md §4). Kept out of index.ts: a Worker's entry module may only export handlers.
+// Project names (docs/overview.md §4). Kept out of index.ts: a Worker's entry module may only export handlers.
 
 export const MAX_NAME_LENGTH = 200;
 

@@ -5,11 +5,11 @@ import { sha256Hex } from "@score3ly/core";
 export type { Project, RunMode } from "@score3ly/core";
 import type { Project, RunMode } from "@score3ly/core";
 
-// Mirrors the Worker's Pipeline, Stage and Output types: the stages as stored (DESIGN.md §5.8).
+// Mirrors the Worker's Pipeline, Stage and Output types: the stages as stored (docs/database.md).
 export type ApiPipeline = { stages: ApiStage[]; dropped: ApiDropped[] };
 
 // A manual stage dropped at its turn because its inputs changed: a card where it was, after the stage with
-// `afterStageId`, until dismissed (DESIGN.md §5.5).
+// `afterStageId`, until dismissed (docs/overview.md §5.5).
 export type ApiDropped = { id: number; afterStageId: string; step: string };
 
 export type ApiStage = {
@@ -56,7 +56,7 @@ async function checked(response: Response): Promise<Response> {
   return response;
 }
 
-// Which host serves the app (DESIGN.md §3, "What differs in the app"): Cloudflare, the desktop app (Electron) or the
+// Which host serves the app (docs/desktop.md, "What differs in the app"): Cloudflare, the desktop app (Electron) or the
 // same server run alone on a computer.
 export type Host = "cloudflare" | "desktop" | "local";
 
@@ -70,7 +70,7 @@ export async function openSecretsFile(): Promise<void> {
 }
 
 // The desktop app: the window's frame, drawn by the system, in the app theme's light or dark, or the system's for
-// Auto (DESIGN.md §3).
+// Auto (docs/desktop.md).
 export type WindowTheme = "system" | "dark" | "light";
 
 export async function setWindowTheme(theme: WindowTheme): Promise<void> {
@@ -119,7 +119,7 @@ export async function renameProject(project: Project, name: string): Promise<Pro
   return (await checked(response)).json();
 }
 
-// Deletes a project (DESIGN.md §4). Refused (409) while one of its stages runs. Says whether no project left uses
+// Deletes a project (docs/database.md, "Deleting a project"). Refused (409) while one of its stages runs. Says whether no project left uses
 // its PDF, so that this device can delete the PDF's images too.
 export async function deleteProject(project: Project): Promise<{ pdfUnused: boolean }> {
   return (await checked(await fetch(`/api/projects/${project.id}`, { method: "DELETE" }))).json();
@@ -210,7 +210,7 @@ export async function stopStage(project: Project, stageId: string): Promise<ApiP
   return (await send(stageUrl(project, stageId, "stop"))).json();
 }
 
-// Manual stages (DESIGN.md §5.4, §5.6).
+// Manual stages (docs/overview.md §5.4, docs/project-view.md).
 
 export type FixStart = { step: string; stepVersion: number; pageCount: number | null; inputIds: string[] };
 
@@ -238,12 +238,12 @@ export async function dismissDropped(project: Project, id: number): Promise<ApiP
 }
 
 // A carried manual stage whose turn has come: kept if `inputIds` (what it would read now) hold what it read, else
-// dropped (DESIGN.md §5.5).
+// dropped (docs/overview.md §5.5).
 export async function resolveStage(project: Project, stageId: string, inputIds: string[]): Promise<{ kept: boolean; pipeline: ApiPipeline }> {
   return (await send(stageUrl(project, stageId, "resolve"), { inputIds })).json();
 }
 
-// Stored content (DESIGN.md §2): uploaded under the SHA-256 of its bytes, which is returned. Uploading the same
+// Stored content (docs/overview.md §2): uploaded under the SHA-256 of its bytes, which is returned. Uploading the same
 // content again is harmless.
 export async function putContent(bytes: Uint8Array<ArrayBuffer>, contentType: string): Promise<string> {
   const sha256 = await sha256Hex(bytes);
@@ -259,7 +259,7 @@ export async function fetchTextContent(sha256: string): Promise<string> {
   return (await checked(await fetch(`/api/content/${sha256}`))).text();
 }
 
-// LLM calls (apps/worker/src/llmRoutes.ts, DESIGN.md §7.2, §10).
+// LLM calls (apps/worker/src/llmRoutes.ts, docs/llm.md).
 
 export type ModelConfig = {
   id: string;
@@ -299,7 +299,7 @@ export async function fetchModelConfig(id: string): Promise<ModelConfig> {
   return (await checked(await fetch(`/api/model-configs/${id}`))).json();
 }
 
-// An image is named by its recipe key (DESIGN.md §5.2, "Only recipes, never pixels, in any key"), and comes with its
+// An image is named by its recipe key (docs/overview.md §5.2, "Only recipes, never pixels, in any key"), and comes with its
 // bytes only once the Worker has said the call isn't cached (llm.ts, `ask`).
 export type LlmContent =
   | { type: "text"; text: string }
@@ -349,8 +349,8 @@ export async function callLlm(project: Project, stageId: string, request: LlmReq
   return response.json();
 }
 
-// Fingerprints of the images from which stored results were computed (apps/worker/src/fingerprints.ts, DESIGN.md
-// §8.3), by the image's recipe key.
+// Fingerprints of the images from which stored results were computed (apps/worker/src/fingerprints.ts, 
+// docs/images.md §8.3), by the image's recipe key.
 export type StoredFingerprint = Fingerprint & { recipeKey: string; pdfSha256: string };
 
 export async function fetchFingerprint(recipeKey: string): Promise<StoredFingerprint | null> {
@@ -361,7 +361,7 @@ export async function storeFingerprints(fingerprints: StoredFingerprint[]): Prom
   await send("/api/fingerprints", { fingerprints });
 }
 
-// When the LLM price table was collected (DESIGN.md §10).
+// When the LLM price table was collected (docs/llm.md, "Costs").
 export async function fetchPrices(): Promise<{ asOf: string }> {
   return (await checked(await fetch("/api/prices"))).json();
 }
@@ -371,7 +371,7 @@ export async function markUnusable(project: Project, stageId: string, callId: st
   await send(stageUrl(project, stageId, `llm-calls/${callId}/unusable`), { reason });
 }
 
-// Reserves `count` issue numbers for the project (DESIGN.md §6, "Issue ids"): never reused. Returns the first.
+// Reserves `count` issue numbers for the project (docs/notation.md, "Issue ids"): never reused. Returns the first.
 export async function reserveIssueNumbers(project: Project, count: number): Promise<number> {
   return ((await (await send(`/api/projects/${project.id}/issue-numbers`, { count })).json()) as { first: number }).first;
 }

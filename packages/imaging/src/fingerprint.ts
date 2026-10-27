@@ -1,4 +1,4 @@
-// Fingerprints (DESIGN.md §8.3): what an image from which a stored result was computed looked like, so that the same
+// Fingerprints (docs/images.md §8.3): what an image from which a stored result was computed looked like, so that the same
 // recipe made again on another device can be checked against it. Three tiers: identical (the same size and raw
 // pixels), close (a small grayscale thumbnail differs only a little), or different.
 

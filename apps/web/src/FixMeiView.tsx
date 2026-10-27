@@ -1,4 +1,4 @@
-// `fix_mei`'s artifact (DESIGN.md §6, `fix_mei`): the MEI view, editable while the stage is WIP. The text
+// `fix_mei`'s artifact (docs/stages/engrave.md): the MEI view, editable while the stage is WIP. The text
 // is saved a moment after typing stops and when the editor closes; Apply checks it and, if it passes, makes it the
 // applied version, from which the score is engraved again. Once finished, the applied MEI, read-only.
 

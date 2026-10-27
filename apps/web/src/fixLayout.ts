@@ -1,4 +1,4 @@
-// The `fix_layout` step (DESIGN.md §6): the system boxes and bar lines of each page, as a person left them. It starts
+// The `fix_layout` step (docs/stages/layout.md): the system boxes and bar lines of each page, as a person left them. It starts
 // with `layout`'s and is stored in the same format. This module has what doesn't need the browser; the editor is
 // LayoutEditor.tsx. Everything is in fractions of the straightened page, as in `layout`.
 

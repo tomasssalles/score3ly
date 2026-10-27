@@ -1,4 +1,4 @@
-// LLM calls and what they need (DESIGN.md §7.2, §10): model configs, the user's settings, and the endpoint a running
+// LLM calls and what they need (docs/llm.md): model configs, the user's settings, and the endpoint a running
 // LLM stage calls once per request. The Worker resolves the stage's model config and its secrets, serves an
 // identical earlier answer from the call records (the item-level cache, §5.2), and otherwise checks the spending cap,
 // calls the provider, and records the call with its tokens and cost.

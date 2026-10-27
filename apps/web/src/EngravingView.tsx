@@ -1,4 +1,4 @@
-// `engrave`'s artifacts (DESIGN.md §6, `engrave`): the MEI file in the MEI view (MeiWorkspace.tsx), read-only, beside
+// `engrave`'s artifacts (docs/stages/engrave.md): the MEI file in the MEI view (MeiWorkspace.tsx), read-only, beside
 // the score engraved from it; and the engraving, Verovio's pages, made when they are shown.
 
 import { useEffect, useState } from "react";

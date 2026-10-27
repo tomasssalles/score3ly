@@ -1,14 +1,14 @@
 # Test set
 
 Input scores and their extractions (LilyPond, MusicXML or MEI), compared by eye in the evaluation viewer.
-See DESIGN.md §13 for the rationale.
+See docs/evaluation.md for the rationale.
 
 ## Files
 
 | File | What it is |
 |---|---|
 | `<piece>.orig.pdf` | The input score. |
-| `<piece>.<method>.ly` | LilyPond produced by one extraction method, e.g. `claude-chat` (the manual run, DESIGN.md §13). |
+| `<piece>.<method>.ly` | LilyPond produced by one extraction method, e.g. `claude-chat` (the manual run, docs/evaluation.md). |
 | `<piece>.<method>.musicxml` | MusicXML produced by an OMR tool, e.g. `newzik`. Rendered directly, not converted to LilyPond. |
 | `<piece>.<method>.mei` | MEI produced by score3ly (the file `engrave` stores, "MEI source (.mei)" in its downloads), e.g. `s3l-opus`: `s3l-` and the model or config that ran it. |
 | `<piece>.<method>.pdf` | Engraving of that `.ly`, `.musicxml` or `.mei`, produced by the engrave command. |

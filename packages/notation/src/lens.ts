@@ -1,4 +1,4 @@
-// The lens (DESIGN.md §6, "The lens"): what `extract` answers for one system, as JSON with strings in the symbolic
+// The lens (docs/notation.md, "The lens"): what `extract` answers for one system, as JSON with strings in the symbolic
 // format, and the checks code runs on it as soon as it arrives. Code also carries what one system leaves to the next
 // (the staves and voices so far, the signatures in effect, the marks left open, a measure that continues, an ending
 // that runs on), and finds what is a question about the page (issues raised by code) or a problem of the extraction

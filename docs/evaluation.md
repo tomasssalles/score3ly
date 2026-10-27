@@ -1,6 +1,6 @@
 # Evaluation
 
-How the quality of transcriptions is judged: by people, with tooling. The test set, the engrave command, the viewer and the highlighter, the baselines from existing tools, and the manual run that decided building the app. § numbers here are `DESIGN.md`'s sections.
+How the quality of transcriptions is judged: by people, with tooling. The test set, the engrave command, the viewer and the highlighter, the baselines from existing tools, and the manual run that decided building the app. § numbers here are `docs/overview.md`'s sections.
 
 **Human evaluation, supported by tooling.** There is no ground-truth encoding for interesting scores (only for PDFs engraved from a source that is published with them, such as Mutopia's LilyPond, a narrow and easy subdomain). Every format can also express the same music in many ways, so comparing source text is meaningless. And the errors music OCR still makes are big and obvious: improvements are visible from a glance at the rendered output. Precise automatic metrics would be the right tool for a production system tuned over years, not for this project.
 

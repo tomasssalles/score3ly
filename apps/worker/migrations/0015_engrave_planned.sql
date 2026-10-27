@@ -1,5 +1,5 @@
 -- Projects created before engrave existed get it at the end of their pipeline, planned with the defaults, as new
--- projects do: it is always the last stage (DESIGN.md §6). The ids are derived from the project's, since SQLite has no
+-- projects do: it is always the last stage (docs/stages/engrave.md). The ids are derived from the project's, since SQLite has no
 -- UUIDs.
 INSERT INTO stages (id, created_in, step, status, config_json, created_at)
 SELECT 'engrave-' || p.id, p.id, 'engrave', 'planned', NULL, p.created_at

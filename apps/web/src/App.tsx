@@ -23,7 +23,7 @@ export function App() {
   // The name of the project just deleted: said where the project was, until something else is opened.
   const [deleted, setDeleted] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  // In the desktop app everything is on this computer: there is no remote storage to speak of (DESIGN.md §3).
+  // In the desktop app everything is on this computer: there is no remote storage to speak of (docs/desktop.md).
   const desktop = useHost() === "desktop";
   useEditionWindow();
   // The open project, and the artifact the user picked, are the ones in the URL, if any.

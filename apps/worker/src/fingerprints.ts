@@ -1,4 +1,4 @@
-// Fingerprints of the images from which stored results were computed (DESIGN.md §8.3): stored once per recipe key,
+// Fingerprints of the images from which stored results were computed (docs/images.md §8.3): stored once per recipe key,
 // by the first device that computed a result from the image, and read by any device that makes the image again.
 
 import type { Hono } from "hono";

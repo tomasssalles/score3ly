@@ -48,15 +48,15 @@ import { useWide } from "./useWide";
 
 const COLLAPSED_KEY = "pipelinePanelCollapsed";
 
-// What the user must know before stages that already ran are replaced (DESIGN.md §5.5).
-// The confirmation before a change that replaces stages that have run (DESIGN.md §5.5): the same text for every
+// What the user must know before stages that already ran are replaced (docs/overview.md §5.5).
+// The confirmation before a change that replaces stages that have run (docs/overview.md §5.5): the same text for every
 // change, a sentence before it for a new config, the button naming the change.
 const CONFIRM_TEXT =
   "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages will be kept if their inputs stay the same, and dropped otherwise. This action cannot be undone.";
 
 type Confirmation = { title: string; text: string[]; confirmLabel: string; action: () => void };
 
-// Toasts (DESIGN.md §5.6, "Progress"): the events of this moment make one toast; it shows this long; the user's own
+// Toasts (docs/project-view.md, "Progress"): the events of this moment make one toast; it shows this long; the user's own
 // changes make none for this long (what follows from them is what they asked for).
 const GATHER_MS = 500;
 const TOAST_MS = 4000;
@@ -119,7 +119,7 @@ export function ProjectView({
   useEffect(() => {
     fetchPipeline(project).then(setStored, (err) => setError(`Loading the pipeline failed: ${err}`));
     // Leaving the project stops nothing on the server: a stage this device ran counts as interrupted once its
-    // heartbeat is old, and can run again (DESIGN.md §5.8).
+    // heartbeat is old, and can run again (docs/database.md).
     return () => controller.current?.abort();
   }, [project.id]);
 
@@ -219,7 +219,7 @@ export function ProjectView({
     writeFlag(COLLAPSED_KEY, value);
   }
 
-  // Asks first if the change replaces stages that have already run (DESIGN.md §5.5).
+  // Asks first if the change replaces stages that have already run (docs/overview.md §5.5).
   function change(apply: () => void, ask: boolean, confirmLabel: string, before = "") {
     if (!ask) return apply();
     setConfirmation({ title: "Are you sure?", text: [`${before}${CONFIRM_TEXT}`], confirmLabel, action: apply });
@@ -238,7 +238,7 @@ export function ProjectView({
   }
 
   // Whether adding a fix after this stage replaces stages that have already run: the fix goes after the manual
-  // stages that already follow it, which stay (DESIGN.md §6).
+  // stages that already follow it, which stay (docs/overview.md §6).
   function fixReplaces(stageId: string): boolean {
     let j = pipeline.stages.findIndex((stage) => stage.id === stageId) + 1;
     if (j <= 0) return false;
@@ -321,7 +321,7 @@ export function ProjectView({
     }
   }
 
-  // A carried manual stage whose turn has come is kept or dropped at once, in both modes (DESIGN.md §5.5): kept if
+  // A carried manual stage whose turn has come is kept or dropped at once, in both modes (docs/overview.md §5.5): kept if
   // what it would read now is what it read. One at a time; whoever asks while it is on gets the same answer. Returns
   // the new pipeline, or null if there was nothing to do (or it failed).
   const resolving = useRef<Promise<ApiPipeline | null> | null>(null);
@@ -592,7 +592,7 @@ export function ProjectView({
   );
 }
 
-// The collapsed panel's progress (DESIGN.md §5.6, "Progress"): the pipeline's circle, with a check once it is done,
+// The collapsed panel's progress (docs/project-view.md, "Progress"): the pipeline's circle, with a check once it is done,
 // and below it where the pipeline is: the running stage's circle (a grey spinner if it runs on another device, whose
 // progress isn't known here), a red triangle if it failed, an empty circle with a pause sign if it waits for the user;
 // each with the stage's name.

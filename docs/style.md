@@ -1,6 +1,6 @@
 # Style guide
 
-How score3ly looks, speaks and behaves, as rules to follow when something new is built. It generalizes from what exists: the examples are there to show a rule, not to be the rule. Where the app and this guide disagree, one of them is wrong: fix the app or the guide, but don't let them drift apart. § numbers are `DESIGN.md`'s sections, where the decisions behind most of this are recorded.
+How score3ly looks, speaks and behaves, as rules to follow when something new is built. It generalizes from what exists: the examples are there to show a rule, not to be the rule. Where the app and this guide disagree, one of them is wrong: fix the app or the guide, but don't let them drift apart. § numbers are `docs/overview.md`'s sections, where the decisions behind most of this are recorded.
 
 ## The character of the app
 
@@ -46,7 +46,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 **Themes.** A dark and a light theme, chosen per device: Auto (the default) follows the system's light or dark preference, at once when it changes, picking the first theme of that kind. A new theme is a block in `themes.css` with every token and an entry in `THEMES` (`themes.ts`); nothing else in the app should need to change. Tests: no colour literal anywhere in the web app's CSS, TS or TSX but `themes.css` (`colors.test.ts`), and every theme with the same tokens as the first (`themes.test.ts`). Out of their reach on purpose, being the same in every theme: the app icon, the manifest's colours and the layout's box colours (`LAYOUT_COLORS` in `packages/imaging`, which are drawn on the pages for the models too).
 - **The light theme:** white chrome and cards on a light grey page, near-black text, secondary text at about 6:1; the coral, the green and the amber darkened until they read on white (the coral #c93a30, about 5:1, with white text on it instead of black); the background around pages a mid-light grey; the paper and what is drawn on it as in the dark theme; the MEI file's colours after GitHub's light theme.
-- **Designing a theme:** draft it on a static copy of one screen (the DOM and CSS saved from the running app, re-rendered in seconds), then check every screen with the screenshot script (`npm run screenshots`, DESIGN.md §5.7).
+- **Designing a theme:** draft it on a static copy of one screen (the DOM and CSS saved from the running app, re-rendered in seconds), then check every screen with the screenshot script (`npm run screenshots`, docs/overview.md §5.7).
 
 ## Brand
 

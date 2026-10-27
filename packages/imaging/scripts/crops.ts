@@ -4,7 +4,7 @@
 //
 // The first argument is the page images' path, with {n} standing for the page number (from 1): in the pipeline,
 // the pages as extracted from the PDF and deskewed (`npm run pages` writes them so). regions.json maps names to
-// regions, with boxes as fractions of the page image (DESIGN.md §6), e.g.
+// regions, with boxes as fractions of the page image (docs/overview.md §6), e.g.
 //   { "system_1": { "page": 1, "bbox": { "left": 0.05, "right": 0.95, "top": 0.1, "bottom": 0.28 } } }
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";

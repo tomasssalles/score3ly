@@ -1,4 +1,4 @@
-# Tests and typechecks on every push to main (DESIGN.md §12): the working branches aren't checked here, only what
+# Tests and typechecks on every push to main (docs/overview.md §12): the working branches aren't checked here, only what
 # lands on main. The README's "tests" badge shows the latest result.
 name: CI
 

@@ -11,15 +11,15 @@ export function ago(iso: string, now: number = Date.now()): string {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // A date as "7 Oct", with the year ("7 Oct 2025") unless it is the current one. The day is the device's
-// local one. The format is fixed: it doesn't follow the browser's language (DESIGN.md §5.7).
+// local one. The format is fixed: it doesn't follow the browser's language (docs/style.md).
 export function shortDate(iso: string, now: number = Date.now()): string {
   const date = new Date(iso);
   const dayAndMonth = `${date.getDate()} ${MONTHS[date.getMonth()]}`;
   return date.getFullYear() === new Date(now).getFullYear() ? dayAndMonth : `${dayAndMonth} ${date.getFullYear()}`;
 }
 
-// A time as how long ago it was while that is less than a week ("2d ago"), else as a date ("7 Oct") (DESIGN.md
-// §5.7). Times in the future count as now.
+// A time as how long ago it was while that is less than a week ("2d ago"), else as a date ("7 Oct") (
+// docs/style.md). Times in the future count as now.
 export function when(iso: string, now: number = Date.now()): string {
   return now - Date.parse(iso) < 7 * 86400_000 ? ago(iso, now) : shortDate(iso, now);
 }

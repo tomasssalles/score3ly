@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-// Back and forward in the app's history, for windows without a browser bar (DESIGN.md §3, "Navigation"): an
+// Back and forward in the app's history, for windows without a browser bar (docs/desktop.md, "Navigation"): an
 // installed app, the desktop app. The app's navigation is the URL's hash (route.ts), so the browser's own history is
 // the app's: back closes an artifact or a stage's details, or leaves a menu page.
 

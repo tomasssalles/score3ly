@@ -1,4 +1,4 @@
-// The MEI file as the MEI view shows it (DESIGN.md §6, `engrave`): what doesn't need React. The places to go to
+// The MEI file as the MEI view shows it (docs/stages/engrave.md): what doesn't need React. The places to go to
 // (pieces and measures, from the file's own `mdiv` and `measure @n`), the elements and their ids (to go between a
 // line and the engraving), and searching. The file is the builder's, one element per line, so lines are enough.
 

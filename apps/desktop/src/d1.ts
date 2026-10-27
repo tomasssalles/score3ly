@@ -1,4 +1,4 @@
-// D1 on Node's built-in SQLite (DESIGN.md §3, "Desktop version"): the part of the D1 API the Worker uses (`prepare`,
+// D1 on Node's built-in SQLite (docs/desktop.md): the part of the D1 API the Worker uses (`prepare`,
 // `bind`, `first`, `all`, `run`, `batch`, `exec`), over one SQLite file. The Worker's code doesn't change.
 
 import { readdirSync, readFileSync } from "node:fs";

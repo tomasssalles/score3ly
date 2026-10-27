@@ -1,4 +1,4 @@
-// Screenshots of the app, to compare versions and themes at a glance without clicking through it (DESIGN.md §5.7,
+// Screenshots of the app, to compare versions and themes at a glance without clicking through it (docs/overview.md §5.7,
 // "Screenshots"): `npm run screenshots` (optionally `-- --out <folder>`, default `screenshots/`, which git ignores, and
 // `--only <text>` for the shots whose names contain it, `--desktop` for the desktop version's server).
 //

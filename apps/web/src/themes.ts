@@ -1,4 +1,4 @@
-// The themes (DESIGN.md §5.7): their colours are in themes.css, one block per theme. Which one is shown is a device
+// The themes (docs/style.md): their colours are in themes.css, one block per theme. Which one is shown is a device
 // setting (§5.8): Auto (the default) follows the system's light or dark preference where there is a theme for it, or
 // a theme picked by name.
 

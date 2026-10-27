@@ -24,7 +24,7 @@ export function versionText(build: BuildInfo): string {
 }
 
 // The LLM price table is stale once it is older than this: costs may be off, and a new version should update it
-// (DESIGN.md §10).
+// (docs/llm.md, "Costs").
 export const PRICES_STALE_DAYS = 90;
 
 export function pricesStale(asOf: string, now = Date.now()): boolean {

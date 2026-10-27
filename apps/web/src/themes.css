@@ -1,4 +1,4 @@
-/* The themes (DESIGN.md §5.7): every colour of the app is a token here, and only here; the rest of the CSS and the code
+/* The themes (docs/style.md): every colour of the app is a token here, and only here; the rest of the CSS and the code
    use the tokens (a test checks it). A theme is a block for `:root[data-theme="<id>"]`, with every token, and is
    listed in themes.ts. The first block also applies before the app has picked a theme. */
 

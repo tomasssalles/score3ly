@@ -1,4 +1,4 @@
-// What LLM steps share in the browser (DESIGN.md §7.2): the model config a stage uses, the part of the stage key that
+// What LLM steps share in the browser (docs/llm.md): the model config a stage uses, the part of the stage key that
 // depends on it, images for requests, and asking the model.
 
 import { CLAUDE_IMAGE_LIMIT, type SizeLimit } from "@score3ly/imaging";
@@ -37,7 +37,7 @@ export function imageLimit(config: ModelConfig): SizeLimit {
   }
 }
 
-// What a provider accepts in one request (DESIGN.md §6, `analyze`): images are sent inline, as base64. Claude's API:
+// What a provider accepts in one request (docs/stages/analyze.md): images are sent inline, as base64. Claude's API:
 // 32 MB per request, 10 MB per image, and with more than 20 images none may be larger than 2000 px either way
 // (the vision docs, 2026-10). Bedrock and Vertex AI: 5 MB per image, and less per request than the API (assumed 20 MB
 // until checked). Gemini, as Gemini said (to check against Google's documentation): 20 MB per request, 7 MB per image

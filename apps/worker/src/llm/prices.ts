@@ -1,4 +1,4 @@
-// What calls cost (DESIGN.md §10): the providers report tokens, not money, so the app computes the cost from a price
+// What calls cost (docs/llm.md, "Costs"): the providers report tokens, not money, so the app computes the cost from a price
 // table in the code. US dollars per million tokens. Estimates, not the invoice.
 //
 // Claude's prices are Anthropic's API list prices (2026-10). On Bedrock and Vertex AI the same models are priced by

@@ -1,4 +1,4 @@
-// Which pages of the PDF a project uses (DESIGN.md §6, `rasterize`), in the notation known from print dialogs:
+// Which pages of the PDF a project uses (docs/stages/pages.md), in the notation known from print dialogs:
 // "1, 41-47". Page numbers are the PDF's own, counted from 1, not the numbers printed on the pages. Empty means
 // all pages.
 

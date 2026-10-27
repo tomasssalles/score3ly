@@ -3,7 +3,7 @@ import { Picker } from "./fieldList";
 import { CloseIcon } from "./icons";
 import type { ConfigContext, ConfigValues, StepConfig } from "./steps";
 
-// A stage's config (DESIGN.md §5.6, "Change config"): the form its step declares (steps.ts).
+// A stage's config (docs/project-view.md, "Change config"): the form its step declares (steps.ts).
 export function ConfigDialog({
   title,
   config,

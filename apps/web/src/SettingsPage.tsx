@@ -1,4 +1,4 @@
-// The settings (DESIGN.md §5.1, §5.8, §7.2, §10): the user's, stored by the Worker. So far the run mode new projects
+// The settings (docs/overview.md §5.1, docs/database.md, docs/llm.md, "Costs"): the user's, stored by the Worker. So far the run mode new projects
 // start with and the spending cap, the model configs, read-only, and where their secrets are set. A pick is saved at
 // once, an amount when it is left or Enter is pressed. Then this device's own, kept in the browser: the theme (§5.7)
 // and the image cache's size limit (§8.5).
@@ -112,7 +112,7 @@ export function SettingsPage() {
   );
 }
 
-// The image cache's size limit (DESIGN.md §8.5), with what it takes now. Lowering it prunes the cache at once.
+// The image cache's size limit (docs/images.md §8.5), with what it takes now. Lowering it prunes the cache at once.
 function ImageCacheSetting() {
   const [limit, setLimit] = useState(cacheLimitMb);
   const [usage, setUsage] = useState<number | null>(null);
@@ -157,7 +157,7 @@ function ImageCacheSetting() {
   );
 }
 
-// Where the secrets the model configs name are set (DESIGN.md §3, "Secrets"): in the desktop app, a file the server
+// Where the secrets the model configs name are set (docs/desktop.md, "Secrets"): in the desktop app, a file the server
 // opens in the system's editor; on a computer without it, the same file; on Cloudflare, the Worker's secrets.
 function Secrets() {
   const host = useHost();
@@ -216,7 +216,7 @@ const FIELD_LABELS: Record<string, string> = {
   projectId: "Project",
 };
 
-// The model configs (DESIGN.md §7.2), as stored: each with its name (else its model), whether it is the default and
+// The model configs (docs/llm.md), as stored: each with its name (else its model), whether it is the default and
 // on a free tier, its provider, model and effort, its plain values (a region, a project) and its secrets by the name
 // of the Worker secret, never a value.
 function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultId: string | null }) {

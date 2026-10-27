@@ -1,4 +1,4 @@
-// The project's pipeline as the UI shows it (DESIGN.md §5.6): its stages, first to last, each with its artifacts.
+// The project's pipeline as the UI shows it (docs/project-view.md): its stages, first to last, each with its artifacts.
 // Built from what the Worker stores (api.ts) and what the code declares about each step (steps.ts).
 
 import type { ApiPipeline, ApiStage, RunMode } from "./api";
@@ -20,7 +20,7 @@ export type StageStatus =
 
 export type ArtifactKind = "pdf" | "images" | "json" | "music" | "mei";
 
-// One tile in a stage's card: what the user sees of the stage's outputs (DESIGN.md §5.2). A group of similar
+// One tile in a stage's card: what the user sees of the stage's outputs (docs/overview.md §5.2). A group of similar
 // items (e.g. all the system crops) is one artifact, which the artifact view shows one item after the other.
 export type Artifact = {
   id: string; // unique within the project, used in the URL
@@ -54,7 +54,7 @@ export type Stage = {
   title: string;
   kind: StageKind;
   status: StageStatus;
-  model?: string; // LLM stages: the model config's name, else its model string (DESIGN.md §7.2)
+  model?: string; // LLM stages: the model config's name, else its model string (docs/llm.md)
   seconds?: number; // run time, once done
   cost?: number; // US dollars, LLM stages once done
   note?: string; // one short fact about the result, e.g. "3 boxes moved"
@@ -67,10 +67,10 @@ export type Stage = {
   config: Record<string, string>;
   fixes: { step: string; title: string }[]; // the manual stages that can be added after it, e.g. "Fix skew"
   carried: boolean; // a manual stage carried through a re-run: shown as planned until its turn comes (§5.5)
-  droppable: boolean; // not part of the recipe (DESIGN.md §5.5)
+  droppable: boolean; // not part of the recipe (docs/overview.md §5.5)
 };
 
-// The card of a manual stage dropped at its turn because its inputs changed (DESIGN.md §5.5): after the stage with
+// The card of a manual stage dropped at its turn because its inputs changed (docs/overview.md §5.5): after the stage with
 // `afterStageId`, until dismissed.
 export type Dropped = { id: number; afterStageId: string; stepId: string; title: string; kind: StageKind };
 
@@ -83,7 +83,7 @@ export const MODE_LABELS: Record<RunMode, string> = { auto: "Auto", manual: "Man
 export type Progress = { stage: number | null; pipeline: number };
 
 // A running stage whose heartbeat is older than this was interrupted (the app was closed): it can run again
-// (DESIGN.md §5.8). The same limit as the Worker's.
+// (docs/database.md). The same limit as the Worker's.
 export const STALE_MS = 3 * 60 * 1000;
 
 // The stage this device is running, and how far it is: only the device that runs a stage knows (§5.1).
@@ -113,7 +113,7 @@ export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun |
 }
 
 // The manual stages right after stage `i`: a fix of that stage goes after them (the Worker puts it there), and one
-// already among them isn't offered again (DESIGN.md §6).
+// already among them isn't offered again (docs/overview.md §6).
 function fixesAfter(stages: ApiStage[], i: number): ApiStage[] {
   const after = stages.slice(i + 1);
   const end = after.findIndex((s) => stepInfo(s.step).kind !== "manual");
@@ -180,7 +180,7 @@ export function currentStage(pipeline: Pipeline): Stage | null {
   return pipeline.stages.find((stage) => stage.status !== "done") ?? pipeline.stages.at(-1) ?? null;
 }
 
-// Where the pipeline is, for the panel's head and the collapsed strip (DESIGN.md §5.6, "Progress"): all done; a stage
+// Where the pipeline is, for the panel's head and the collapsed strip (docs/project-view.md, "Progress"): all done; a stage
 // running, here (its progress known) or on another device; a stage that failed or was interrupted, which stopped the
 // pipeline; or a stage waiting for the user (not started, or a manual stage in progress). null without stages.
 export type PipelineState =
@@ -239,7 +239,7 @@ export function findStage(pipeline: Pipeline, stageId: string): Stage | null {
 }
 
 // The running stage counts with its own progress. The total is a best guess: manual stages and extra review
-// rounds add stages, so a change only moves the indicator a little (DESIGN.md §5.6).
+// rounds add stages, so a change only moves the indicator a little (docs/project-view.md).
 export function progressOf(pipeline: Pipeline): Progress {
   const { stages } = pipeline;
   if (stages.length === 0) return { stage: null, pipeline: 0 };

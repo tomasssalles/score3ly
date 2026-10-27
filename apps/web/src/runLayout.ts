@@ -1,4 +1,4 @@
-// Runs `layout` (DESIGN.md §6): per page, the straightened page (by the lines of the latest skew stage before it)
+// Runs `layout` (docs/stages/layout.md): per page, the straightened page (by the lines of the latest skew stage before it)
 // shrunk to the model's limits (by its provider) is sent with the prompt; the answer is drawn on the page and sent back for the model
 // to check, at most LAYOUT_ROUNDS answers in all. The last answer is stored as the page's layout; if the model still
 // wasn't satisfied, the page is flagged for a person.

@@ -1,4 +1,4 @@
-// The `extract` step (DESIGN.md §6): what doesn't need the browser or the model. Its runner is runExtract.ts.
+// The `extract` step (docs/stages/music.md): what doesn't need the browser or the model. Its runner is runExtract.ts.
 
 import type { Box, CheckedSystem, CodeIssue, LensIssue, LensSystem, StretchPlace, Warning } from "@score3ly/notation";
 import { describeMark, type ScoreState } from "@score3ly/notation";

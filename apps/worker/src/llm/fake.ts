@@ -1,5 +1,5 @@
-// A provider that answers without any network, for tests and for trying the pipeline without paying (DESIGN.md
-// §7.2). Its answer follows the request's JSON schema with the simplest values (empty arrays, zeros, the first
+// A provider that answers without any network, for tests and for trying the pipeline without paying (
+// docs/llm.md). Its answer follows the request's JSON schema with the simplest values (empty arrays, zeros, the first
 // option), and its "tokens" are estimated from the request's text and images. Some model names make it fail on purpose:
 // "fake-error" (a server error), "fake-refusal", "fake-cut-off", "fake-unparseable".
 // Two steps get more than that, so the pipeline runs end to end: `layout` (two systems on every page, each with three

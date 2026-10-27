@@ -1,4 +1,4 @@
-// The checks of an MEI file edited by hand, before `fix_mei` applies it (DESIGN.md §6, `fix_mei`): well
+// The checks of an MEI file edited by hand, before `fix_mei` applies it (docs/stages/engrave.md): well
 // formed and valid against MEI 5.1 (the full schema, given as `validate`: meiSchema.ts), every `xml:id` unique, every
 // `#id` reference pointing to an element that exists. And how many lines an edit changed, for the card.
 

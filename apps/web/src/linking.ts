@@ -1,4 +1,4 @@
-// Linking the observations (DESIGN.md §6, `analyze`, "Code links when the links are needed"): one piece of code for
+// Linking the observations (docs/stages/analyze.md, "Code links when the links are needed"): one piece of code for
 // items with a kind and a place. Spanning items open at a page's edge (ottavas, endings) are joined to their other part
 // on the next page, matched by kind and staff or numbers, so a request can say plainly what is in effect on a system
 // instead of leaving the model to find it in the whole document. What can't be linked unambiguously stays as it is:

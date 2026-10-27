@@ -1,4 +1,4 @@
-// The `engrave` step (DESIGN.md §6): the last stage, always. It builds the full score's MEI from the latest extraction
+// The `engrave` step (docs/stages/engrave.md): the last stage, always. It builds the full score's MEI from the latest extraction
 // (the systems' stored answers, their layout, where the pieces start) and the metadata, and stores it: the file a user
 // downloads. The engraving (Verovio's pages, the PDF) is made from the same sources and the config when it is needed,
 // never stored. What doesn't need the browser is here; the runner is runEngrave.ts, the views EngravingView.tsx.
@@ -15,7 +15,7 @@ import { pageOfItem } from "./rasterize.ts";
 
 export const ENGRAVE_VERSION = 1;
 
-// The page size. The engraving always has Verovio's own breaks (DESIGN.md §6, `engrave`).
+// The page size. The engraving always has Verovio's own breaks (docs/stages/engrave.md).
 export type EngraveConfig = { pageSize: "a4" | "letter" };
 
 export const DEFAULT_ENGRAVE_CONFIG: EngraveConfig = { pageSize: "a4" };

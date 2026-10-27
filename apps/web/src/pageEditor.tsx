@@ -1,4 +1,4 @@
-// What the editors of manual stages share (DESIGN.md §6, `fix_skew` and `fix_layout`): a page that is zoomed and
+// What the editors of manual stages share (docs/stages/layout.md): a page that is zoomed and
 // panned by hand, the gestures on it, the parts of the toolbar, and saving each change.
 //
 // Gestures: two fingers always pan and zoom; so do Ctrl + wheel and the buttons. One finger (or the mouse) either

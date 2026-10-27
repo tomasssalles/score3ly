@@ -1,4 +1,4 @@
-// The Transcription (DESIGN.md §6, "The Transcription"), `extract`'s artifact: a filmstrip of the systems, each with
+// The Transcription (docs/stages/music.md, "The Transcription"), `extract`'s artifact: a filmstrip of the systems, each with
 // its crop of the original and, below it, its music, rendered by Verovio from a small MEI of the system alone, or, for
 // debugging, the raw source as the lens has it. The boxes of the issues and warnings are drawn on every crop they fall
 // on (numbered and solid for issues, dashed with "!" for warnings), and their text is below the system; tapping a box
@@ -60,7 +60,7 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
   return loaded;
 }
 
-// A toggle remembered on this device (DESIGN.md §5.8, device settings): the two here, and the MEI view's score.
+// A toggle remembered on this device (docs/database.md, device settings): the two here, and the MEI view's score.
 export function useRemembered<T extends string>(key: string, initial: T, values: readonly T[]): [T, (value: T) => void] {
   const [value, setValue] = useState<T>(() => {
     try {
@@ -180,7 +180,7 @@ function useNear() {
   return { ref, near };
 }
 
-// A crop, from the device's cache or cut again from its page (DESIGN.md §5.3), with what is drawn over it.
+// A crop, from the device's cache or cut again from its page (docs/overview.md §5.3), with what is drawn over it.
 function CropView({ recipe, label, children }: { recipe: CropRecipe; label: string; children?: ReactNode }) {
   const { ref, near } = useNear();
   const [url, setUrl] = useState<string | null>(null);

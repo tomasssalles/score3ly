@@ -1,4 +1,4 @@
-// Page images from a PDF (DESIGN.md §8.1). A scanned page is its embedded image, taken as it is (not drawn
+// Page images from a PDF (docs/images.md §8.1). A scanned page is its embedded image, taken as it is (not drawn
 // again at some resolution): the scan's own pixels, decoded by pdf.js's JavaScript decoders, so identical on every
 // device. Any other page (vector music, or a scan split into several images) is drawn by pdf.js at a fixed
 // resolution. Colour is kept.
@@ -26,7 +26,7 @@ export async function openPdf(data: Uint8Array, assets: PdfOptions = {}): Promis
   return pdfjs.getDocument({
     data,
     ...(assets as Record<string, unknown>),
-    // pdf.js's own decoders, not the browser's: JPEG decoders differ between browsers (DESIGN.md §3).
+    // pdf.js's own decoders, not the browser's: JPEG decoders differ between browsers (docs/overview.md §3).
     isImageDecoderSupported: false,
     // Images as pixel arrays, not as bitmaps the browser holds (which can't be read back exactly).
     isOffscreenCanvasSupported: false,
@@ -65,7 +65,7 @@ export async function pageImage(
 }
 
 // Draws the page at `dpi`. The pixel size is computed explicitly, round(points × dpi / 72), so it is the same
-// everywhere (DESIGN.md §8.1).
+// everywhere (docs/images.md §8.1).
 export async function renderPage(
   page: pdfjs.PDFPageProxy,
   dpi: number,

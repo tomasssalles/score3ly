@@ -1,4 +1,4 @@
-// How long the events of a voice last (DESIGN.md §6, `extract`'s checks): every note and rest has its own duration,
+// How long the events of a voice last (docs/stages/music.md, `extract`'s checks): every note and rest has its own duration,
 // tuplets scale their notes, grace notes take no time, a two-note tremolo lasts its count times its notes.
 
 import { add, fraction, mul, ZERO, type Fraction } from "./fraction.ts";

@@ -1,6 +1,6 @@
 // Makes THIRD_PARTY_NOTICES.md: the code and other material by others that score3ly's builds include (the web app,
 // the Worker, the desktop app's server and the packages they use), each with its license and copyright notices, as their licenses require
-// (DESIGN.md §3, "License"). Run `npm run notices` after changing dependencies; a test fails while the file is out of
+// (docs/overview.md §3, "License"). Run `npm run notices` after changing dependencies; a test fails while the file is out of
 // date (scripts/notices.test.ts).
 //
 // Packages: the production dependencies of apps/web, apps/worker, apps/desktop and packages/*, and theirs, as installed. Optional

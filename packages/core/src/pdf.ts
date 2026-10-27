@@ -1,4 +1,4 @@
-// Drawing a PDF's page in a browser (DESIGN.md §5.6), for the web app's PDF view and the evaluation viewer. pdf.js
+// Drawing a PDF's page in a browser (docs/project-view.md), for the web app's PDF view and the evaluation viewer. pdf.js
 // itself stays with each app, which picks its build (the web app the legacy one, for older phones); this takes the
 // part of a loaded document it uses.
 

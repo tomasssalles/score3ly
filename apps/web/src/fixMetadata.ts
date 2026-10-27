@@ -1,4 +1,4 @@
-// `fix_metadata` (DESIGN.md §6): the metadata as a form. What doesn't need React: the kinds of field and their
+// `fix_metadata` (docs/stages/analyze.md): the metadata as a form. What doesn't need React: the kinds of field and their
 // sections, the stored format and the rows the form edits, the checks, and the card's note. The form is in
 // MetadataView.tsx, finishing in finishFixMetadata.ts.
 
@@ -13,7 +13,7 @@ type TitleType = (typeof TITLE_TYPES)[number];
 export type TextKind = TextField | "comments";
 
 // Every item: its page (none for what the user adds without one), the model's confidence (none for what the user
-// added) and whether the user confirmed it (DESIGN.md §6: stored beside the confidence, not instead of it).
+// added) and whether the user confirmed it (docs/stages/analyze.md: stored beside the confidence, not instead of it).
 type Common = { page: number | null; confidence: Confidence | null; confirmed: boolean };
 
 // The metadata as stored by `analyze` (pages always set, nothing confirmed) and by `fix_metadata`, and as shown.
@@ -133,7 +133,7 @@ export function fixNote(changed: number, confirmed: number): string {
 }
 
 // The kinds of field, in the form's order: the sections in their order, and each section's kinds in theirs
-// (DESIGN.md §6, "Metadata"). `label` names the field, `short` too where the edit mode's picker needs it shorter.
+// (docs/stages/analyze.md, "The metadata"). `label` names the field, `short` too where the edit mode's picker needs it shorter.
 export type FieldKind = { id: string; section: string; label: string; short?: string };
 
 const kind = (section: string, id: string, label: string, short?: string): FieldKind => ({ id, section, label, short });

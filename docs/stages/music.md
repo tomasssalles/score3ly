@@ -1,6 +1,6 @@
 # The music stages: `extract`, `review`, `apply_review`, `human_review`
 
-The stages that read and correct the music, system by system, and the artifact they share, the Transcription. Their place in the pipeline and the rules all stages follow are in `DESIGN.md` (§5, §6); the format they write and read (the lens, the symbolic format), the issues and the warnings are in `DESIGN.md` §6 too; § numbers here are `DESIGN.md`'s sections.
+The stages that read and correct the music, system by system, and the artifact they share, the Transcription. Their place in the pipeline and the rules all stages follow are in `docs/overview.md` (§5, §6); the format they write and read (the lens, the symbolic format), the issues and the warnings are in `docs/overview.md` §6 too; § numbers here are `docs/overview.md`'s sections.
 
 **What they read and write:**
 - `extract` reads the latest layout (`docs/stages/layout.md`), the latest observations and `pieces` (`docs/stages/analyze.md`) and the model config; it writes one `extraction` output per system (the answer in the lens, its issues and warnings) and one `score_checks` output for the whole score (what the checks of the whole score found).

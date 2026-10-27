@@ -1,6 +1,6 @@
 # LLM providers and model configs
 
-How the Worker calls the providers (Anthropic, Vertex AI, Bedrock, Google AI Studio, the fake one), how calls are recorded, cached and priced, what a model config is and which one a stage uses, and the discussion of supported models and prices. What each LLM stage asks is in `docs/stages/`; costs and the spending cap are below ("Costs"). § numbers here are `DESIGN.md`'s sections.
+How the Worker calls the providers (Anthropic, Vertex AI, Bedrock, Google AI Studio, the fake one), how calls are recorded, cached and priced, what a model config is and which one a stage uses, and the discussion of supported models and prices. What each LLM stage asks is in `docs/stages/`; costs and the spending cap are below ("Costs"). § numbers here are `docs/overview.md`'s sections.
 
 ## Calling the providers
 Built: `apps/worker/src/llm/`. One small request and response shape for every provider (`LlmProvider`, §3): a system prompt, messages of text and images, a maximum of output tokens, an effort, and optionally a JSON schema the answer must follow (the provider's schema-constrained output, §7.1; the answer is then parsed). The response says which model answered, the text (and parsed JSON), why it stopped (finished, cut off, refused) and the tokens. Errors are typed and say whether retrying can help.

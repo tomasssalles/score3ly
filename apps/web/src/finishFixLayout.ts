@@ -1,4 +1,4 @@
-// Finishing a `fix_layout` stage (DESIGN.md §6): every page gets an output (§5.8). The pages the person changed were
+// Finishing a `fix_layout` stage (docs/stages/layout.md): every page gets an output (§5.8). The pages the person changed were
 // saved as they worked; each of the others gets `layout`'s, with its systems sorted and its flag cleared, since
 // finishing means every page was checked.
 

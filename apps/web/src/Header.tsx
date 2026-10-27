@@ -6,7 +6,7 @@ import { useBackForward, useNoBrowserBar } from "./navigation";
 import type { Page } from "./route";
 
 // The app header: the <score3ly> wordmark, the project picker, the main action and the menu. Without a browser bar
-// (an installed app, the desktop app), back and forward buttons left of the wordmark (DESIGN.md §3, "Navigation").
+// (an installed app, the desktop app), back and forward buttons left of the wordmark (docs/desktop.md, "Navigation").
 export function Header({
   picker,
   page,
@@ -27,7 +27,7 @@ export function Header({
         <h1 className="wordmark" aria-label="score3ly">
           <span className="bracket">&lt;</span>score3ly<span className="bracket">&gt;</span>
         </h1>
-        {/* The edition (DESIGN.md §3, "Editions"), in wide mode only: phones have no room for it. */}
+        {/* The edition (docs/desktop.md, "Editions"), in wide mode only: phones have no room for it. */}
         {host && <span className="header-edition">{editionOf(host)}</span>}
       </div>
       <div className="actions">

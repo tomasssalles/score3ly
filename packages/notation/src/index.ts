@@ -1,4 +1,4 @@
-// The lens and the symbolic format (DESIGN.md §6): parsing, checks, what code works out from them, and the MEI built
+// The lens and the symbolic format (docs/notation.md): parsing, checks, what code works out from them, and the MEI built
 // from them.
 export * from "./fraction.ts";
 export * from "./symbolic.ts";

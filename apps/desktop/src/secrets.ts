@@ -1,4 +1,4 @@
-// The secrets of the desktop version (DESIGN.md §3): a file in the app's data folder, in the same `NAME=value` format
+// The secrets of the desktop version (docs/desktop.md): a file in the app's data folder, in the same `NAME=value` format
 // as `.dev.vars` (§10). Created on first start with a commented example, readable by the user only; read again
 // whenever it changes, so new keys work without a restart.
 
