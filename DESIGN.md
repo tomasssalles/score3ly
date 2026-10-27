@@ -166,7 +166,7 @@ The Worker's entry module (`apps/worker/src/index.ts`) may only export handlers:
 
 **What we use from others** sets conditions of its own, all met by passing on their notices: permissive licenses (MIT, Apache-2.0, BSD, 0BSD, the Unlicense) for the libraries; the SIL Open Font License for the fonts (Inter, JetBrains Mono, and Leipzig's metronome glyphs, §6, "Tempo marks"); the Educational Community License 2.0 for the MEI schema the web app loads (Fix MEI). **Verovio is LGPL-3.0:** the app may be under any license, as long as Verovio's license and source are offered and users can replace it with another build (it is a separate WebAssembly module), and changes to Verovio itself would have to be published under the LGPL.
 
-**Third-party notices** (built): `THIRD_PARTY_NOTICES.md` lists every package the builds include (the production dependencies of `apps/web`, `apps/worker` and `packages/*`, and theirs, as installed; optional dependencies left out, since they are platform-specific or Node-only; `apps/eval`, a local tool, left out), each with its version, license and repository, then their license and notice files verbatim (packages with the same texts share one section), and the material that isn't a package. A package without a license file gets its license's standard text, kept in `scripts/licenses` (with the LGPL goes the GPL it supplements). Made by `npm run notices` (`scripts/notices.ts`); a test fails, saying to run it, whenever the file differs from what the installed packages give, so a dependency change can't go unnoticed. The About page links to it.
+**Third-party notices** (built): `THIRD_PARTY_NOTICES.md`, made by `npm run notices` (`scripts/notices.ts`, whose header says what it includes); a test fails while it is out of date. The About page links to it.
 
 ### Ports and adapters
 
@@ -197,17 +197,7 @@ In `docs/desktop.md`. In short: an optional desktop app, *cadenza*, wraps the sa
   - Uniqueness is case-insensitive ("Sonata" and "sonata" clash) and enforced by the database (a unique index, `COLLATE NOCASE`), so two projects created at once can't get the same name. Names are trimmed, never empty, and at most 200 characters.
   - The user can rename a project at any time ("Rename" in the project actions, §5.6). Renaming to a name that is taken is refused with a message, not numbered: numbering only applies to the default. Changing only the case of the project's own name is allowed.
   - Deleting a project frees its name.
-- **Deleting a project** (built): apart from the costs and statistics, it must be **as if the project had never existed** (decided). In particular, a new project with the same PDF, name and config runs every stage from scratch and finds nothing of the deleted one in the cache.
-  - **Deleted:** the project's stage outputs (their rows and their content), the full requests and responses of its LLM calls, its PDF and the PDF's image fingerprints, in D1, R2 and the device cache, unless another project that isn't deleted still uses them. That is checked with a query at deletion time, not with stored reference counts, which can drift.
-  - **Orphans in R2 are collected then too:** objects that no row in D1 refers to any more, from any project. They are left behind when a manual stage in progress is saved again (the new content is a new object, §2) or when an upload isn't followed by its row in D1. Nothing else deletes them: a save doesn't delete the object it replaces. This lists the whole bucket and compares it with D1, which is acceptable because deleting a project is rare.
-  - **Kept, but marked with a deletion time (`deleted_at`):** the project's row, its stages and their LLM calls, for the costs and statistics (§10). Every cache lookup ignores marked rows (§5.8), so they are never reused. A stage that a fork which isn't deleted still uses is not marked (§5.8).
-  - A deleted project never appears in the UI again, except in the costs view. Picking its PDF again doesn't trigger the "already based on this file" dialog, unless other projects use that PDF.
-  - Uniqueness of names only counts projects that aren't deleted: a partial unique index (`... WHERE deleted_at IS NULL`). *Built* (migration 0003, which rebuilt the table: the earlier constraint sat on the column and couldn't be dropped).
-  - **Behind one dialog** (decided): it shows the project's full name, says what is deleted, and the user has to type the name, exactly (case included); pasting or dropping text into the field doesn't count. "Delete project" stays disabled until the name matches.
-  - **Refused while a stage of the project runs,** here or on another device (an interrupted one doesn't count), with a message saying so.
-  - **Its text** (the project owner's): "The project and all its files will be deleted, along with any data cached on this device (with the exception of files still in use by other projects). Only its costs will still be reported in the Statistics page. This action cannot be undone."
-  - **Afterwards** the app shows a screen like the one without a project, saying that "<name>" was deleted from this device and from the remote storage; the URL is `#/` (the project's URL is replaced, so going back doesn't land on it), and a reload shows the usual empty screen.
-  - **Built** (`apps/worker/src/deletion.ts`, `DELETE /api/projects/<id>`; `apps/web/src/DeleteProjectDialog.tsx`): marking as above; the outputs of marked stages are deleted unless a stage that isn't marked read them, or an output of one was made from them or corrects them (with the provenance rows of marked stages that point to them); the PDF's fingerprints when no project left uses the PDF. Content in R2 is deleted by collecting orphans: every object no row refers to (a stored output's content, the request or response of a call that isn't marked or that an output names, the PDF of a project that isn't deleted), **if it was uploaded more than an hour ago**: content is uploaded before the row that refers to it, e.g. by a stage running on another device, and must not be collected in between. On the device, the images made from the PDF are deleted when no project left uses it: they are cached in a folder per PDF (§8.6). Renderings of the Transcription and the engraving (SVG, keyed by the MEI's hash) stay until the cache's size limit is built. Tried in Chromium at both widths.
+- **Deleting a project** (built): apart from the costs and statistics, it is **as if the project had never existed** (decided): a new project with the same PDF, name and config runs every stage from scratch. What is deleted and what is kept (marked with `deleted_at`, for the costs), the dialog and orphan collection are in `docs/database.md`, "Deleting a project".
 - Each project also has three timestamps, all set by the Worker (ISO 8601, UTC) so a wrong device clock can't scramble the order:
   - **created**
   - **last modified:** any change to the project's own data (pipeline results, manual stages, a rename). Opening or viewing doesn't count.
@@ -350,55 +340,12 @@ The look of the app (colours and themes, type, components, the brand: wordmark, 
 - **Installed, the app opens as an app** (decided, built: the manifest's `"display": "standalone"`, with `id`, `start_url` and `scope` "/"): from a phone's home screen, or installed from a desktop browser, it gets its own window or the whole screen, without the browser's bar. It then shows its own back and forward buttons (`docs/desktop.md`, "Navigation"). Opened in a browser tab, nothing changes.
 
 ### 5.8 The database
-The D1 schema for the pipeline (decided; built in `apps/worker/migrations/0003_pipeline.sql`, which has the columns and their comments, and changed by the later migrations). Artifacts have no table: a step's code defines them as views over its outputs (§5.2), and an artifact that is stored for convenience (the MEI file) is an output for the whole score.
-
-| Table | One row per | Holds |
-|---|---|---|
-| `projects` | project | Besides §4: the run mode (§5.1), a version for optimistic locking (§4), the number the next issue gets (§6, "Issue ids"), `deleted_at`. |
-| `pipeline_entries` | stage in a pipeline | Project, position (1, 2, 3, ... without gaps) and the stage. Nothing else: the pipeline is a list of pointers. |
-| `stages` | stage, planned ones included | The project it was created in, the step and its version, the status (`planned`, `running`, `failed`, `done`, `wip`, `stopped`), the step's config, the model config (LLM stages), the stage key, its page count, error, a short result, the stage it replaces (an edited manual stage, §5.4), times, a heartbeat, `deleted_at`. |
-| `stage_inputs` | input of a stage | The outputs a stage read. |
-| `outputs` | item a stage produced | The stage, the item, the type (`pdf`, `layout`, `lens`, `mei`, ...), the content's hash (stored, in R2) or the recipe and its key (computed), the corrected output (manual), the call that produced it (LLM). One per stage, item and type. |
-| `output_inputs` | input of an output | The outputs an output was made from (§5.2). |
-| `llm_calls` | LLM call | The stage, the model config, the request key, the model the response names (`response_model`), the full request and response (in R2), the status (`running`, `ok`, `error`, `unparseable`, `refused`, `cut_off`), the error, tokens (output tokens include thinking: Gemini reports thinking apart, and its adapter adds it), the cost, times, `deleted_at`. |
-| `model_configs` | version of a model config | Optional name, provider, model, effort, plain parameters (region, project), secrets as `{field: secret name}` (Bedrock with a key pair needs two), the free-tier mark, the row it supersedes, `deleted_at`. Append-only (§7.2). |
-| `image_fingerprints` | image from which a stored result was computed (§8.3) | Its recipe key, its PDF, and the fingerprint (§8.3): dimensions, the hash of the raw pixels, the thumbnail. |
-| `settings` | user setting | A key and a JSON value. |
-
-- **Planned stages have a row** (status `planned`), so all there is to know about a stage lives in `stages`, and a pipeline entry is only a pointer. A planned stage is unfinished, so it may change: its config is NULL while it takes the settings' choice (§7.2), or what the user picked for it. When it starts, its config is the resolved one (what it actually used), and its version and stage key are set. "Ready" isn't stored: it is the first planned stage after the done ones.
-- **The kind isn't stored:** it follows from the step, declared in code (§5.1). A step's kind never changes, which a unit test guarantees (§15).
-- **Stages are shared, not owned by a pipeline.** A fork (§15) copies the pipeline entries up to its stage, and the issue counter, and no stages or outputs. `created_in` says which project a stage was created in.
-- **Item names:** `''` for the whole score, `p3` for page 3, `p3/s2` for the second system on page 3. A system's number in the whole score (system 17) is derived, not stored.
-- **A manual stage has an output for every item** of what it corrects, not only for the items changed: an unchanged one points to the same content (the same hash, so nothing is copied in R2). The next stage's inputs are then simply the outputs of the stages before it, with no falling back to an earlier stage per item.
-- **Running a stage:** resolve its config and inputs and compute the stage key. If a stage that is done and not deleted has that key, the entry points to it and nothing runs. Otherwise the stage runs, each item first looks in the cache (`llm_calls` for an LLM request, a successful call with the same request key that isn't deleted; the device's image cache for an image), and each output's row is written as soon as it is done.
-- **Retry** runs the failed stage again in the same row: the items already saved stay, the missing ones run.
-- **Stop** marks the stage `stopped` and takes it out of the pipeline. Its outputs are deleted; its calls stay, for the costs and the cache.
-- **A change in the middle** (§5.5) points the later entries to new planned stages, each with the config of the stage it replaces (a re-run follows the pipeline as it was). The replaced stages stay as they are, for the stage key to find; a dropped manual stage's entry is removed.
-- **An interrupted run** (a tab closed mid-stage) leaves a stage `running`. A running stage writes a heartbeat **once a minute**, no more: each one is a write to the remote database. A running stage whose heartbeat is older than about three minutes counts as interrupted, and is resumed like a failed one. **Losing an LLM answer that was paid for** when the tab is closed or a phone suspends the page mid-call is **accepted** (decided), even if its cost doesn't reach the records; while this device runs a stage, closing or reloading the tab asks first (built; browsers show their own wording, not ours).
-- **The requests while a stage runs** (built, `apps/worker/src/pipeline.ts`; the browser does the work, the Worker records it), all under `/api/projects/<id>/stages/<stage id>/`:
-  - `PUT config`: sets a stage's config. A planned stage gets it in place; a stage that has run is replaced by a new planned one, and every stage after it by a planned copy of itself.
-  - `POST start`: the browser sends what it resolved (the step's version, the resolved config, the stage key, the page count and the outputs it reads). If a finished stage that isn't deleted has the same key, the entry points to it, the planned stage's row is deleted (nothing ran in it), and nothing runs. A planned, failed or interrupted stage can start; a running one can't.
-  - `POST outputs`: records outputs as each is done; an item recorded already is left as it is (a retry skips them anyway).
-  - `POST heartbeat`, `POST finish` (done with a short result, or failed with the error), `POST stop`.
-- **Manual stages** (built, same file), under the same path:
-  - `POST fix` with the step (and its version, page count and inputs), on a done stage: adds a WIP stage right after it. Refused if the next stage is already that step, or if a stage is running.
-  - `POST outputs` while WIP: saves outputs as the user works; a WIP stage's item saved again is overwritten (a running stage's is left as it is). Outputs name their parent (the output they correct).
-  - `POST finish` on a WIP stage: done, with a short result.
-  - `POST edit` on a done manual stage: a new WIP stage takes its place, with the same outputs and inputs, and `replaces_stage_id` pointing to the old one, which stays as it was (§5.4).
-  - `POST drop` on a manual stage, WIP or done: its entry is removed and the later ones move up.
-  - Each of them, like a config change, replaces the stages after it: a planned one stays as it is, one that ran gets a planned copy.
-  - **A manual stage after a change is carried** (built, migration 0017: `pipeline_entries.carried`): it stays in the pipeline, WIP or done, as it is, and waits for its turn. Then it is kept if what it would read now holds what it read (the same items and types, each with the same content hash or recipe key: `stage_inputs`), and dropped otherwise, with the stages after it moving up (`POST resolve` with the outputs it would read now, as when it was added: `carriedInputs` in `steps.ts`, the outputs of the stage it fixes). A kept stage keeps its status: a WIP one stays WIP (decided). While it waits, it looks like a planned stage (dimmed, the wrench, no artifacts; decided), it can be dropped, and it can't be edited, saved or finished. Its turn comes when every stage before it is done: it is resolved at once, in Auto and Manual mode alike (decided), and an Auto run carries on. Tried in Chromium: a `fix_skew` kept after `rasterize` ran again on a scan at another resolution (the same lines), and dropped on a vector PDF (other lines).
-  - The Worker knows which steps are manual (`MANUAL_STEPS`): a step's kind is declared in the web app's code, but the Worker needs it for these rules.
-  - **The recipe's stages are listed in the Worker** (`RECIPE`), which creates them, planned, with every new project.
-- **A stage that seems to run, but not on this device** (another device, or this one before a reload) shows as running, without progress, and can be stopped. Once its heartbeat is about three minutes old it shows as failed ("Interrupted"), and can run again. The panel fetches the pipeline again at the moment its heartbeat would be too old (a heartbeat may have come meanwhile), so it turns "Interrupted" without a reload (built: `nextStaleAt` in `pipeline.ts`).
-- **Progress isn't stored:** only the device that runs a stage knows it (§5.1). Another device sees the stage running, without a bar.
-- **Deleting a project** (§4) marks rows instead of deleting them, for the costs and statistics, and every cache lookup ignores marked rows (partial indexes `... WHERE deleted_at IS NULL`). Marking in the rows, rather than filtering every lookup by the projects that aren't deleted, keeps the rule in one place. When project P is deleted:
-  - a stage is marked if no other project that isn't deleted has it in its pipeline, and it was created in P or in a project already deleted. A stage a fork still uses stays, and is marked when that fork is deleted; a stage created in a project that isn't deleted is never marked;
-  - the calls of a marked stage are marked with it;
-  - the outputs of marked stages, the content of stages and calls that nothing else uses, and the fingerprints of a PDF nothing else uses are deleted (§4).
-- **Each stage records its page count** (decided), when it starts, and it never changes: the number of pages its inputs cover. `rasterize`: the pages selected; `layout` and `analyze`: the same; per-system stages (`extract`, `review`, `apply_review`): the pages their systems are on; `engrave`: all selected pages, since it also builds the header from the metadata, which `analyze` read from every page, cover included. Pages without music aren't discounted: pages aren't classified (§6, `layout`). NULL for Ingest, which doesn't read the PDF.
-  - **Why on the stage, and not the project's:** the selection of pages can change within a project (`rasterize`'s config, then a re-run), and the replaced stages keep their statistics. A replaced `extract` is no longer in any pipeline, so "the `rasterize` stage in the same pipeline" can't give its count. Following its inputs back to its `rasterize` (`stage_inputs`, `output_inputs`) would, but for every statistics query; a column makes per-page averages one query over `stages` (§10).
-- **Two kinds of settings:** the user's, in the `settings` table (the default model config, the run mode for new projects, the spending cap, ...), and the device's, in the browser (`localStorage`), for what may differ between a phone and a laptop: screen size, touch or mouse, bandwidth. The collapsed pipeline panel (§5.6) is the first device setting.
+In `docs/database.md`: the tables of D1 and what each row holds, the Worker's requests while a stage runs and for manual stages, carried manual stages, interrupted runs, deleting a project, page counts. In short:
+- **The pipeline is a list of pointers** (`pipeline_entries`) to stages (`stages`), which are shared, not owned: a fork copies pointers, never stages or outputs. Planned stages have a row too.
+- **Every output has a row** (`outputs`), with its content's hash (stored in R2) or its recipe (computed), and the outputs it was made from; every LLM call has a row (`llm_calls`), with its request and response in R2, its tokens and cost.
+- **The browser does the work, the Worker records it:** a stage's start, its outputs as each is done, a heartbeat once a minute, its end.
+- **Deleting marks rows instead of deleting them,** for the costs, and every cache lookup ignores marked rows.
+- **Two kinds of settings:** the user's, in D1, and the device's, in the browser.
 
 ## 6. Pipeline stages
 
@@ -453,6 +400,7 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
   - **`human_review`:** the user answers the issues, and adds their own, on the original score. Every correction, the user's too, is applied by `apply_review`, an LLM call, never by code; nobody edits the source directly before `fix_mei`.
   - **The Transcription:** the artifact of all four, a filmstrip of the systems, each crop with its music rendered below it and the issues and warnings as boxes on the crops.
   - **Models don't get renderings,** at first: they compare the crops with the lens as text.
+  - **Zoom crops on request** (a later version): the model may ask once for closer crops, without tool calls (`docs/stages/music.md`, "Zooming in").
 - **The checks by code have no stage of their own:** validation happens inside `extract` and `apply_review`, on the lens, after each system and for the whole score at the stage's end. Problems that code finds without failing the stage are issues raised by code when they are a question about the page (a slur that never ends: "where does it end?"), and warnings otherwise (a measure whose durations don't add up; see `docs/notation.md`, "Warnings").
 - **No `assemble` stage** (decided; an earlier draft had one, to build the full MEI after `extract`). Building MEI is code, and nothing before `engrave` needs the full score's MEI:
   - **the checks of the whole score** (loose ends, the repeat structure, measures across systems, measure numbers) run on the lens at the end of `extract` and of `apply_review`, not on MEI, so their warnings come while reviews can still act on them;
@@ -471,15 +419,6 @@ In `docs/notation.md`: the lens, the symbolic format, MEI, what is music and wha
 - **Issues** are questions about what the printed page says at a place: boxes on the pages (at most 2 consecutive systems), answers keyed by letter, every stage's choice kept, and the answer the music reflects (`applied`). Two classes: `reading` (hard to tell what the page says) and `format` (clear, but the lens can't express it, which the format gap report collects). Ids are numbers per score, given by code, never reused.
 - **Warnings** are about the current extraction, not the page (durations that don't add up, a change in the offset of the measure numbers, changes beyond an issue's boxes): never answered, computed anew for each version, shown to the next review.
 - **The MEI is full MEI 5, close to MEI Basic,** going beyond it only where a list in the code says so (`BEYOND_BASIC`), and validated against both schemas in the tests, not at run time.
-
-#### Zooming in
-**Zoom crops on request, without tool calls** (decided, for a later version: the first version has none), for `extract`, `review` and probably `apply_review`:
-- **The first answer has one of two shapes,** in one schema: the stage's answer itself, when the model needs nothing more (a clean system), or a list of requests: zoom boxes on the crops it was sent (and, for `review`, other systems' crops), at most N, each with a short reason ("dot near the A♭: staccato or smudge?").
-- **The second request** repeats the first, adds the model's requests as its answer and the zoom crops, each labelled (§7.2), and asks for the stage's answer; this one can't ask for more. Its prefix is the first request, so prompt caching makes the repeated part cheap.
-- **So at most two rounds per call,** plus the follow-ups for failed checks, if those come too (`extract`). This is a tool loop with one round, built ourselves: the same on every provider (no tool-use APIs, no loop in the adapters), every call record a plain request and answer, and the cap enforced by the schema rather than by the model's judgement (the manual run's over-exploration, §13).
-- **Code cuts the zoom crops** from the deskewed page at the page image's resolution. A zoom gives the model real detail where its view of a large crop was shrunk (Claude sees at most 2576 px on the long edge); on a low-resolution scan it is only a closer look at the same pixels, which may still help it focus.
-- **The zoom boxes and their reasons are recorded** with the call (§5.2), and the issues that come from them can point at the same boxes: evidence for the reviewer and the user.
-- **Open, until `review` is built: accumulating zoom crops across stages** (§15, "Zoom crops on request").
 
 ## 7. LLM steps
 
@@ -555,35 +494,7 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
 - LLM calls: cents per call. Roughly per PDF: about 12 page analyses, about 50 system transcriptions, plus reviews and fixes. The recommended model is Opus 5.5 for every stage (§7.2).
 - **LLM requests are sequential and synchronous for now:** one at a time, no parallel calls, no overnight batch requests. Further optimizations are decided once we see how long an extraction takes.
 
-#### How costs are computed and kept
-- **The app computes the cost itself:** the providers' APIs report token counts per call, not money. Cost = tokens × a price table per model, kept in the code (to move into the database, under discussion: `docs/llm.md`, "Supported models, prices and the config form").
-- **Currency: US dollars** for everything, since that is how the providers publish their prices. The amounts are estimates, not the invoice: the bill may be in another currency, with tax or discounts. The app doesn't convert.
-- **The cost is stored with each call, when it is made,** so a later price change doesn't rewrite history.
-- **So are the prices it was computed with** (decided, built): each call records the price table's entry for its model and the date the table was collected (`price_json`, migration 0009). The table's date (`PRICES_AS_OF` in `apps/worker/src/llm/prices.ts`) is shown on the About page, marked once it is older than three months, so stale prices are noticed and a new version updates them. The costs view (planned) may show the prices behind a cost where it doesn't clutter.
-- **Costs and statistics come from the rows of the calls and the stages** (§5.8), with no ledger of their own: each call has its cost, each stage its start and end time and its page count (§5.8). Those rows survive everything that removes outputs:
-  - stages replaced by re-running from an earlier stage (§5.5), which are no longer visible in the pipeline;
-  - stopped stages (§5.6);
-  - deleted projects (§4): their project, stage and call rows are kept, marked as deleted.
-- **Statistics:** the runtime and cost of each stage and of whole pipelines, and averages per page, using each stage's own page count (§5.8); perhaps also the issues raised per page, by models and by the user.
-- **The spending cap** sums the costs of the calls started in the last 24 hours, deleted projects included.
-
-#### The costs view
-- **Totals** per stage, per project and per month. No cost per single call, and no estimate before a run.
-- **Format:** two decimals, "$0.12", "$3.40". A paid amount below one cent is "<$0.01"; "$0.00" is reserved for free-tier calls.
-- **Replaced stages** are included in their project's total.
-- **Deleted projects** are listed, clearly marked as deleted, with their creation and deletion dates next to the name, because a deleted project's name can be used again.
-- **Free-tier configs:** the user can mark an LLM config as free tier, behind a confirmation dialog, since the app can't check it: a response says nothing about whether the call was billed. Calls with such a config are shown as "$0.00".
-
-#### Spending cap
-- **Purpose: protection against bugs,** not against a user who transcribes too much. A bug in the app must not be able to burn a lot of money on a handful of scores.
-- **A setting: at most $X within any 24 hours** (a rolling window, not the calendar day, so a runaway just before midnight doesn't get two budgets). Once reached, the app refuses every further request that costs money.
-- **Always set** (decided): a new database has a cap of $1, and it can be changed but never removed, so there is no way to run without one. (Migration 0012 removes a cap stored as unset, so the $1 applies.)
-- **On the settings page** (built): an amount in US dollars ("$ 1.00"), saved when the field is left or Enter is pressed; anything but an amount above $0 isn't saved and says so. It can't be cleared: an empty field isn't saved, and Escape brings back the cap.
-- **Why a day and not a month:** with a monthly budget the user picks a large number ("about $30 a month"), and a bug can spend all of it in a day before anything stops. A daily budget makes them pick a small one ("$1 a day"), so a bug is stopped after a small sum.
-- **Why not per project:** scores differ a lot in length, and re-running stages adds cost legitimately.
-- **Enforced by the Worker,** which makes the LLM calls. A second tab or a stale page can't get around it.
-- **The cap can be overshot** by the cost of the calls in flight when it is reached, because a call's cost is only known when it returns. Sequentially that is one call, a few cents. **If requests ever run in parallel, revisit this:** the overshoot could be far too much.
-- **Free-tier configs stay usable** after the cap is reached, and don't count towards it. A config wrongly marked as free spends money the cap doesn't see; a spend limit set at the provider is the backstop.
+- **Costs are computed by the app** (tokens × prices), in US dollars, and stored with each call when it is made, with the prices used. A **spending cap** ($1 within any 24 hours for a new database, changeable, never removable) is enforced by the Worker, against bugs rather than heavy use. How costs are kept, the costs view and the cap: `docs/llm.md`, "Costs".
 
 ## 11. Versioning
 
@@ -617,26 +528,7 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
 - **Quality evaluation** is separate from tests (§13): live runs, with repeated runs to measure variance. A temperature of 0 doesn't guarantee identical answers.
 
 ### Test environments (planned)
-For trying the app by hand on prepared data, locally only (no remote test database or bucket).
-
-- **A test environment is a folder** in the repo, `testenvs/<name>/`, with:
-  - the local D1 and R2 state, which `wrangler dev` reads from any folder (`--persist-to`);
-  - a secrets file, loaded with `--env-file` instead of `.dev.vars`. It holds fake or test-only keys, and real keys are never committed.
-- **Environments are built by a script, not by hand:** it applies the migrations to an empty folder (`wrangler d1 migrations apply --local --persist-to`), then adds PDFs and projects through the API. Wrangler's local storage format is internal and can change between versions; with the script, an environment can be rebuilt after a migration or a Wrangler update.
-- **One command starts an environment,** e.g. `npm run dev:env -- <name>`:
-  1. refuses to start if the test ports are taken;
-  2. copies the environment to a scratch folder, so the prepared one stays as it was;
-  3. starts `wrangler dev` on the copy and Vite, on the **test ports** (e.g. 8887 and 5273), apart from the normal ones (8787 and 5173). There is one pair for all environments: only one runs at a time. Vite's proxy target, now fixed to `localhost:8787` in `apps/web/vite.config.ts`, comes from an environment variable. Vite listens on `127.0.0.1`, since WSL2 may not forward a server that only listens on IPv6;
-  4. waits until the app answers, then opens it in a browser with a **throwaway profile**;
-  5. when that browser is closed, stops the servers and deletes the copy and the profile.
-
-  Deleting on exit will fail now and then (a crash, a killed terminal, a file still locked on Windows). So the copy and the profile get folder names with a short random part (e.g. `score3ly-test-3f9a1c`): a leftover from an earlier run never gets in the way of the next one.
-- **Throwaway profiles, not private windows:** a fresh profile starts with empty storage (OPFS, `localStorage`, history), so environments never mix, and it behaves like a normal browser. Private windows keep storage in memory with a much smaller limit, which the image cache (§2) can exceed, and they join the running browser instead of starting a separate one.
-- **Firefox and Chrome** are supported, from Linux and from WSL2 (the browser then runs on Windows and reaches the servers in WSL through `localhost`):
-  - **Firefox:** `firefox -no-remote -profile <folder> <url>`. `-no-remote` starts a separate Firefox even while a normal one is open. A `user.js` in the profile turns off the welcome pages, the default-browser question and telemetry prompts.
-  - **Chrome:** `chrome --user-data-dir=<folder> --no-first-run --no-default-browser-check <url>`. A separate user data folder is a separate browser.
-  - **From WSL2,** the browser is the Windows program (e.g. `/mnt/c/Program Files/Mozilla Firefox/firefox.exe`), and the profile folder is on the Windows side, in `%TEMP%`: browsers keep their storage in SQLite files, which don't work well on the network file system through which Windows reaches WSL. The script finds `%TEMP%` with `cmd.exe /c echo %TEMP%` and converts paths with `wslpath`.
-  - **Which browser and where it is installed** is a local setting, in an uncommitted file, with the usual install paths as defaults.
+For trying the app by hand on prepared data, locally only: a folder per environment, started by one command on the test ports in a throwaway browser profile. The plan is in the task "Build the test environments" (§15).
 
 ## 13. Evaluation
 In `docs/evaluation.md`: the test set (`testset/`), the tooling (`apps/eval`: the engrave command, the side-by-side viewer, the highlighter), the baselines from existing tools, and the manual run. In short: **evaluation is by people, supported by tooling,** not by automatic metrics: there is no ground truth for interesting scores, the same music can be written many ways, and the errors are big and visible at a glance in the engraved output. Every existing tool tested was far from usable; Opus 5.5 in a chat did far better, which decided building the app (2026-10-06), and the manual run's lessons are in the design of the stages.
@@ -649,7 +541,7 @@ In `docs/evaluation.md`: the test set (`testset/`), the tooling (`apps/eval`: th
 | Losing LLM output or human input because it was treated like cache | §5.3: LLM and manual outputs are always persisted. Eviction only touches computed outputs. |
 | Plausible but wrong notes from LLMs | §7.3: issues for every doubt, checks by code, review against the crops, measured slip-through rate. |
 | Regenerated images drifting from what the human or LLM worked on | §8: deterministic decoding and operations, normalized coordinates, fingerprint checks. |
-| Downscaled system images losing detail (models shrink large images, and piano systems are wide) | Stretch crops sent along with the system crop, and zoom crops on request (§6, `extract`, "Zooming in"). |
+| Downscaled system images losing detail (models shrink large images, and piano systems are wide) | Stretch crops sent along with the system crop, and zoom crops on request (`docs/stages/music.md`: `extract`, "Zooming in"). |
 | Bugs in building the MEI or rendering it, misleading the user in `human_review` | Tests of the MEI builder, validated against the MEI schemas (`docs/notation.md`, "MEI"); `review` reads the lens, not the rendering. |
 | ML costs creeping up | Per-call cost logging, reuse of recorded requests, the spending cap (§10). |
 | Two devices editing the same project | Optimistic locking (§4). |

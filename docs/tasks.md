@@ -97,7 +97,7 @@ Each of them has a list "Decisions made while building it (to confirm)" in `docs
 `docs/stages/music.md`, "Renderings for the models", on the test set, some day: run it both ways and compare what it finds, counting false findings as well as extra correct ones. If renderings help, they become the default, and a config option of `review` can turn them off.
 
 ### Zoom crops on request
-§6, "Zooming in" (decided, for a later version), for `extract`, `review` and probably `apply_review`.
+`docs/stages/music.md`, "Zooming in" (decided, for a later version), for `extract`, `review` and probably `apply_review`.
 - **Open, until `review` is built: accumulating zoom crops across stages.** The places `extract` zoomed into are the parts of the page that are hard to read, so the first `review` call for a system could get them from the start, with their reasons, and still ask for more; every later `review` and `apply_review` would get all zooms asked for so far, the set growing stage by stage. The caps could then differ, e.g. 3 per system for `extract` and 1 per system after it.
 
 ### A failed check goes back to the model
@@ -327,7 +327,31 @@ In front of the deployed app (§3).
 
 ### Build the test environments
 §12: the start script, the build script and a first environment.
-- To check when building it: whether an existing `.dev.vars` makes Wrangler ignore the `--env-file`.
+
+The plan (decided), moved from `DESIGN.md` §12:
+
+For trying the app by hand on prepared data, locally only (no remote test database or bucket).
+
+- **A test environment is a folder** in the repo, `testenvs/<name>/`, with:
+  - the local D1 and R2 state, which `wrangler dev` reads from any folder (`--persist-to`);
+  - a secrets file, loaded with `--env-file` instead of `.dev.vars`. It holds fake or test-only keys, and real keys are never committed.
+- **Environments are built by a script, not by hand:** it applies the migrations to an empty folder (`wrangler d1 migrations apply --local --persist-to`), then adds PDFs and projects through the API. Wrangler's local storage format is internal and can change between versions; with the script, an environment can be rebuilt after a migration or a Wrangler update.
+- **One command starts an environment,** e.g. `npm run dev:env -- <name>`:
+  1. refuses to start if the test ports are taken;
+  2. copies the environment to a scratch folder, so the prepared one stays as it was;
+  3. starts `wrangler dev` on the copy and Vite, on the **test ports** (e.g. 8887 and 5273), apart from the normal ones (8787 and 5173). There is one pair for all environments: only one runs at a time. Vite's proxy target, now fixed to `localhost:8787` in `apps/web/vite.config.ts`, comes from an environment variable. Vite listens on `127.0.0.1`, since WSL2 may not forward a server that only listens on IPv6;
+  4. waits until the app answers, then opens it in a browser with a **throwaway profile**;
+  5. when that browser is closed, stops the servers and deletes the copy and the profile.
+
+  Deleting on exit will fail now and then (a crash, a killed terminal, a file still locked on Windows). So the copy and the profile get folder names with a short random part (e.g. `score3ly-test-3f9a1c`): a leftover from an earlier run never gets in the way of the next one.
+- **Throwaway profiles, not private windows:** a fresh profile starts with empty storage (OPFS, `localStorage`, history), so environments never mix, and it behaves like a normal browser. Private windows keep storage in memory with a much smaller limit, which the image cache (§2) can exceed, and they join the running browser instead of starting a separate one.
+- **Firefox and Chrome** are supported, from Linux and from WSL2 (the browser then runs on Windows and reaches the servers in WSL through `localhost`):
+  - **Firefox:** `firefox -no-remote -profile <folder> <url>`. `-no-remote` starts a separate Firefox even while a normal one is open. A `user.js` in the profile turns off the welcome pages, the default-browser question and telemetry prompts.
+  - **Chrome:** `chrome --user-data-dir=<folder> --no-first-run --no-default-browser-check <url>`. A separate user data folder is a separate browser.
+  - **From WSL2,** the browser is the Windows program (e.g. `/mnt/c/Program Files/Mozilla Firefox/firefox.exe`), and the profile folder is on the Windows side, in `%TEMP%`: browsers keep their storage in SQLite files, which don't work well on the network file system through which Windows reaches WSL. The script finds `%TEMP%` with `cmd.exe /c echo %TEMP%` and converts paths with `wslpath`.
+  - **Which browser and where it is installed** is a local setting, in an uncommitted file, with the usual install paths as defaults.
+
+To check when building it: whether an existing `.dev.vars` makes Wrangler ignore the `--env-file`.
 
 ### Try the page images in Firefox, Safari and on phones
 `#manual-test` `#next-release`

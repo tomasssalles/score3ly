@@ -1,6 +1,6 @@
 # LLM providers and model configs
 
-How the Worker calls the providers (Anthropic, Vertex AI, Bedrock, Google AI Studio, the fake one), how calls are recorded, cached and priced, what a model config is and which one a stage uses, and the discussion of supported models and prices. What each LLM stage asks is in `docs/stages/`; costs and the spending cap are in `DESIGN.md` §10. § numbers here are `DESIGN.md`'s sections.
+How the Worker calls the providers (Anthropic, Vertex AI, Bedrock, Google AI Studio, the fake one), how calls are recorded, cached and priced, what a model config is and which one a stage uses, and the discussion of supported models and prices. What each LLM stage asks is in `docs/stages/`; costs and the spending cap are below ("Costs"). § numbers here are `DESIGN.md`'s sections.
 
 ## Calling the providers
 Built: `apps/worker/src/llm/`. One small request and response shape for every provider (`LlmProvider`, §3): a system prompt, messages of text and images, a maximum of output tokens, an effort, and optionally a JSON schema the answer must follow (the provider's schema-constrained output, §7.1; the answer is then parsed). The response says which model answered, the text (and parsed JSON), why it stopped (finished, cut off, refused) and the tokens. Errors are typed and say whether retrying can help.
@@ -66,3 +66,35 @@ Three levels; the most specific wins:
   - **A "Test" button** on a config sends a minimal request through the Worker, to show that the model, region and key work before a long run. A hint says what it does and that it costs money (a fraction of a cent, counted towards the cap).
 - **Pre-installed:** a new database has the Fake model and a config for it named "Fake model" (on the cards, a plain "Fake" read unclearly), which is the default (decided; built, migration 0014: existing databases get it too, as their default only where none is set; free tier: it is for users to try the app, so it costs nothing and never meets the cap; trying costs and the cap needs a fake config that isn't free tier), and a spending cap of $1 (built, §10).
 - **What comes after the first round, and what is still to settle or research,** is in the task "Decide the model configs" (§15).
+
+## Costs
+
+### How costs are computed and kept
+- **The app computes the cost itself:** the providers' APIs report token counts per call, not money. Cost = tokens × a price table per model, kept in the code (to move into the database, under discussion: `docs/llm.md`, "Supported models, prices and the config form").
+- **Currency: US dollars** for everything, since that is how the providers publish their prices. The amounts are estimates, not the invoice: the bill may be in another currency, with tax or discounts. The app doesn't convert.
+- **The cost is stored with each call, when it is made,** so a later price change doesn't rewrite history.
+- **So are the prices it was computed with** (decided, built): each call records the price table's entry for its model and the date the table was collected (`price_json`, migration 0009). The table's date (`PRICES_AS_OF` in `apps/worker/src/llm/prices.ts`) is shown on the About page, marked once it is older than three months, so stale prices are noticed and a new version updates them. The costs view (planned) may show the prices behind a cost where it doesn't clutter.
+- **Costs and statistics come from the rows of the calls and the stages** (§5.8), with no ledger of their own: each call has its cost, each stage its start and end time and its page count (§5.8). Those rows survive everything that removes outputs:
+  - stages replaced by re-running from an earlier stage (§5.5), which are no longer visible in the pipeline;
+  - stopped stages (§5.6);
+  - deleted projects (§4): their project, stage and call rows are kept, marked as deleted.
+- **Statistics:** the runtime and cost of each stage and of whole pipelines, and averages per page, using each stage's own page count (§5.8); perhaps also the issues raised per page, by models and by the user.
+- **The spending cap** sums the costs of the calls started in the last 24 hours, deleted projects included.
+
+### The costs view
+- **Totals** per stage, per project and per month. No cost per single call, and no estimate before a run.
+- **Format:** two decimals, "$0.12", "$3.40". A paid amount below one cent is "<$0.01"; "$0.00" is reserved for free-tier calls.
+- **Replaced stages** are included in their project's total.
+- **Deleted projects** are listed, clearly marked as deleted, with their creation and deletion dates next to the name, because a deleted project's name can be used again.
+- **Free-tier configs:** the user can mark an LLM config as free tier, behind a confirmation dialog, since the app can't check it: a response says nothing about whether the call was billed. Calls with such a config are shown as "$0.00".
+
+### Spending cap
+- **Purpose: protection against bugs,** not against a user who transcribes too much. A bug in the app must not be able to burn a lot of money on a handful of scores.
+- **A setting: at most $X within any 24 hours** (a rolling window, not the calendar day, so a runaway just before midnight doesn't get two budgets). Once reached, the app refuses every further request that costs money.
+- **Always set** (decided): a new database has a cap of $1, and it can be changed but never removed, so there is no way to run without one. (Migration 0012 removes a cap stored as unset, so the $1 applies.)
+- **On the settings page** (built): an amount in US dollars ("$ 1.00"), saved when the field is left or Enter is pressed; anything but an amount above $0 isn't saved and says so. It can't be cleared: an empty field isn't saved, and Escape brings back the cap.
+- **Why a day and not a month:** with a monthly budget the user picks a large number ("about $30 a month"), and a bug can spend all of it in a day before anything stops. A daily budget makes them pick a small one ("$1 a day"), so a bug is stopped after a small sum.
+- **Why not per project:** scores differ a lot in length, and re-running stages adds cost legitimately.
+- **Enforced by the Worker,** which makes the LLM calls. A second tab or a stale page can't get around it.
+- **The cap can be overshot** by the cost of the calls in flight when it is reached, because a call's cost is only known when it returns. Sequentially that is one call, a few cents. **If requests ever run in parallel, revisit this:** the overshoot could be far too much.
+- **Free-tier configs stay usable** after the cap is reached, and don't count towards it. A config wrongly marked as free spends money the cap doesn't see; a spend limit set at the provider is the backstop.

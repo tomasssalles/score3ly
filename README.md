@@ -64,6 +64,8 @@ For Claude on Bedrock, `BEDROCK_API_KEY` is a Bedrock API key; instead, `AWS_ACC
 
 To see the app in every theme and at both widths without clicking through it, run `npm run screenshots`: it starts its own servers on a fresh database, runs a few projects with the fake model, and writes PNGs and a contact sheet (`index.html`) to `screenshots/`. It needs Playwright's Chromium: run `npx playwright install chromium` once.
 
+After changing dependencies, make `THIRD_PARTY_NOTICES.md` again with `npm run notices` (a test fails while it is out of date).
+
 After changing the app icon (`apps/web/public/icon.svg`), make its PNG versions again with `npm run icons -- --force`.
 
 To deploy the app and API to Cloudflare as one Worker: `npm run deploy`.
