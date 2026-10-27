@@ -213,7 +213,7 @@ function SpendingCap({ spent, cap }: { spent: number; cap: number }) {
       </div>
       <p className="settings-hint">
         {state === "reached"
-          ? "The spending cap is reached: paid LLM calls are refused until the last 24 hours cost less. It can be changed in the settings."
+          ? "The spending cap has been reached: paid LLM calls are refused until the last 24 hours cost less. It can be changed in the settings."
           : "The spending cap, set in the settings: paid LLM calls are refused once the last 24 hours reach it."}
       </p>
     </section>

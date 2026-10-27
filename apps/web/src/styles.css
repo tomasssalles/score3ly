@@ -2984,17 +2984,12 @@ textarea.field-input {
 .costs-table td {
   padding: 7px 6px;
   border-top: 1px solid var(--line);
-  vertical-align: top;
+  vertical-align: baseline;
 }
 
-/* The swatch centred on the first line of its row's text (13px text, 18px line). */
+/* The cells' first lines share a baseline, and the swatch, empty, stands on it. */
 .costs-swatch-cell {
   width: 12px;
-}
-
-.costs-swatch-cell .chart-swatch {
-  display: block;
-  margin-top: 4px;
 }
 
 .costs-group {

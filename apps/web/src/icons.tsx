@@ -455,14 +455,13 @@ export function FilterIcon() {
   );
 }
 
-// One bar on an axis, cut into stacked parts, larger towards the bottom: splitting a chart into groups (the costs
+// One bar standing on an axis, cut into stacked parts, larger towards the bottom: splitting a chart into groups (the costs
 // view).
 export function SplitIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3.5 20.5h17" />
-      <rect x="8" y="3.5" width="8" height="14.5" rx="0.5" />
-      <path d="M8 7h8M8 11.5h8" />
+      <path d="M3.5 20.5h17M8 20.5V4h8v16.5" />
+      <path d="M8 7.5h8M8 12h8" />
     </svg>
   );
 }

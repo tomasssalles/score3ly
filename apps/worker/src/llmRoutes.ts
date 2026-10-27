@@ -410,7 +410,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       const { spendingCapUsd } = await readSettings(db);
       if ((await spentInLastDay(db)) >= spendingCapUsd) {
         return c.json(
-          { error: `The spending cap is reached: $${spendingCapUsd.toFixed(2)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap" },
+          { error: `The spending cap has been reached: $${spendingCapUsd.toFixed(2)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap" },
           429,
         );
       }
