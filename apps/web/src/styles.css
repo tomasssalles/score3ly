@@ -3013,38 +3013,74 @@ textarea.field-input {
   font-size: 13px;
 }
 
-/* The average cost per page: the number, its presets, and the projects to pick from. */
-.costs-per-page {
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
+/* The average cost per page: one line, the number on the right; its filter opens the projects to pick from. */
+/* On a phone, the number and its button go to a line of their own, on the right. */
+.per-page-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
 }
 
-.per-page-head {
+.per-page-line h3 {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.per-page-right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  margin-left: auto;
 }
 
-.per-page-head h3 {
-  margin: 0;
+.per-page-info {
+  margin-left: -4px;
+}
+
+.per-page-value {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+}
+
+.per-page-amount {
+  font: 600 22px var(--mono);
+}
+
+.per-page-summary {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .page-view .per-page-about {
   max-width: 60ch;
-  margin: 4px 0 10px;
+  margin: 6px 0 0;
 }
 
-.per-page-presets {
-  margin-top: 12px;
+.per-page-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.per-page-tools .per-page-row {
+  border-bottom: 0;
+}
+
+.per-page-tools .dropdown-list {
+  left: auto;
+  right: 0;
+  width: 330px;
 }
 
 .per-page-list {
   max-height: 420px;
-  margin: 10px 0 0;
+  margin: 0;
   padding: 0;
   overflow-y: auto;
   list-style: none;
-  border-top: 1px solid var(--line);
 }
 
 .per-page-row {
@@ -3063,6 +3099,11 @@ textarea.field-input {
   cursor: pointer;
 }
 
+.per-page-row.per-page-all {
+  grid-template-columns: 18px minmax(0, 1fr);
+  font-weight: 500;
+}
+
 .per-page-row:hover {
   background: var(--hover);
 }
@@ -3071,7 +3112,7 @@ textarea.field-input {
   color: var(--muted);
 }
 
-/* A box, ticked with the check mark; its bottom on the text's baseline, like the table's swatches. */
+/* A box, ticked with the check mark, or with a bar when only some are picked. */
 .per-page-check {
   display: inline-grid;
   place-items: center;
@@ -3083,7 +3124,7 @@ textarea.field-input {
   color: var(--accent);
 }
 
-.per-page-row[aria-checked="true"] .per-page-check {
+.per-page-row:not([aria-checked="false"]) .per-page-check {
   border-color: var(--accent);
 }
 
@@ -3091,6 +3132,12 @@ textarea.field-input {
   width: 11px;
   height: 11px;
   stroke-width: 2.6;
+}
+
+.per-page-mixed {
+  width: 7px;
+  height: 2px;
+  background: var(--accent);
 }
 
 .per-page-name {
@@ -3104,7 +3151,7 @@ textarea.field-input {
   font-size: 12px;
 }
 
-.per-page-amount {
+.per-page-cost {
   text-align: right;
   white-space: nowrap;
   font-family: var(--mono);

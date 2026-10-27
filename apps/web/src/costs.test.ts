@@ -4,7 +4,7 @@ process.env.TZ = "Asia/Kathmandu";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { CostData } from "./api";
-import { averagePerPage, axisLabel, bucketsOf, bucketTitle, costView, defaultGranularity, granularitiesFor, groupsIn, grouper, OTHER, perPage, presetProjects, rangeOf } from "./costs.ts";
+import { averagePerPage, axisLabel, bucketsOf, bucketTitle, costView, createdBefore, defaultGranularity, granularitiesFor, groupsIn, grouper, OTHER, perPage, rangeOf, unfinished } from "./costs.ts";
 
 const local = (s: string) => new Date(s).getTime(); // "2026-10-27T10:00" is local time
 
@@ -81,7 +81,7 @@ test("costs fall into the device's days, and the totals before and after filters
   assert.deepEqual(view.series.map((s) => s.key), ["all"]);
   assert.deepEqual(view.values, [[1, 6, 0.5]]);
   assert.equal(view.total, 7.5);
-  const filtered = costView(data, range, "day", null, { "stage:fate": ["discarded"], "project:alive": ["deleted"] });
+  const filtered = costView(data, range, "day", null, { stage: { grouping: "fate", hidden: ["discarded"] }, project: { grouping: "alive", hidden: ["deleted"] } });
   assert.deepEqual(filtered.values, [[1, 4, 0]]);
   assert.equal(filtered.total, 7.5);
   assert.equal(filtered.filtered, 5);
@@ -131,18 +131,20 @@ test("the average per page: a PDF's projects are one score, its pages counted on
   const projects = [
     project("a1", "a", 10, [1, 2, 3, 4]), // two tries of the same score: $15 for 4 pages
     project("a2", "a", 5, [3, 4]),
+    project("a3", "a", 7, []), // never rasterized: left out, cost and all
     project("b", "b", 40, Array.from({ length: 100 }, (_, i) => i + 1)), // long and cheap per page: $0.40
-    project("c", "c", 0, []), // never rasterized: not a score
+    project("c", "c", 0, []),
   ];
-  const { average, scores } = averagePerPage(projects);
-  assert.equal(scores, 2);
-  assert.equal(average, (15 / 4 + 0.4) / 2);
+  assert.deepEqual(averagePerPage(projects), { average: (15 / 4 + 0.4) / 2, projects: 3 });
   assert.equal(perPage(projects[0]), 2.5);
-  assert.equal(perPage(projects[3]), null);
-  assert.deepEqual(averagePerPage([]), { average: null, scores: 0 });
+  assert.equal(perPage(projects[2]), null);
+  // Nothing to average: no projects, none picked, none with pages.
+  assert.deepEqual(averagePerPage([]), { average: null, projects: 0 });
+  assert.deepEqual(averagePerPage([projects[2], projects[4]]), { average: null, projects: 0 });
 
   const now = local("2026-10-27T10:00");
-  const older = [...projects, project("old", "d", 1, [1], "2026-06-01T00:00:00Z"), project("wip", "e", 1, [1], "2026-10-26T00:00:00Z", false)];
-  assert.deepEqual([...presetProjects(older, "30d", true, now)].sort(), ["a1", "a2", "b", "c"]);
-  assert.deepEqual([...presetProjects(older, "all", false, now)].length, 6);
+  const more = [...projects, project("old", "d", 1, [1], "2026-06-01T00:00:00Z"), project("wip", "e", 1, [1], "2026-10-26T00:00:00Z", false)];
+  assert.deepEqual(createdBefore(more, "30d", now), ["old"]);
+  assert.deepEqual(createdBefore(more, "12m", now), []);
+  assert.deepEqual(unfinished(more), ["wip"]);
 });

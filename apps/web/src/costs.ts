@@ -121,21 +121,24 @@ export const DIMENSIONS: { id: Dimension; label: string }[] = [
   { id: "config", label: "Model config" },
 ];
 
-// The ways of grouping each dimension, hand-picked; the first is the plain one.
-export const GROUPINGS: Record<Dimension, { id: string; label: string }[]> = {
+// The ways of grouping each dimension, hand-picked; the first is none: each step, project or config on its own,
+// shown as a dash on the picker's button (the dimension's name is next to it).
+const NONE = { label: "No grouping", short: "–" };
+
+export const GROUPINGS: Record<Dimension, { id: string; label: string; short?: string }[]> = {
   stage: [
-    { id: "step", label: "Step" },
+    { id: "step", ...NONE },
     { id: "work", label: "Kind of work" },
     { id: "origin", label: "Recipe or added" },
     { id: "fate", label: "Kept or discarded" },
   ],
   project: [
-    { id: "project", label: "Project" },
+    { id: "project", ...NONE },
     { id: "pdf", label: "PDF" },
     { id: "alive", label: "Current or deleted" },
   ],
   config: [
-    { id: "config", label: "Config" },
+    { id: "config", ...NONE },
     { id: "provider", label: "Provider" },
     { id: "family", label: "Model family" },
     { id: "effort", label: "Effort" },
@@ -210,13 +213,13 @@ export function grouper(data: CostData, dimension: Dimension, grouping: string, 
 
 // ---- Filters and the split ----
 
-// A filter hides groups of one grouping; filters of several groupings all apply.
-export type Filters = Record<string, string[]>; // `${dimension}:${grouping}` → the keys hidden
-
-export const filterId = (dimension: Dimension, grouping: string) => `${dimension}:${grouping}`;
+// One filter per dimension: a grouping, and the groups of it that are hidden (none at first). Another grouping starts
+// with nothing hidden, so all that is filtered is always in view. The filters of the dimensions all apply.
+export type Filter = { grouping: string; hidden: string[] };
+export type Filters = Partial<Record<Dimension, Filter>>;
 
 export function hiddenCount(filters: Filters): number {
-  return Object.values(filters).reduce((n, keys) => n + keys.length, 0);
+  return Object.values(filters).reduce((n, f) => n + (f?.hidden.length ?? 0), 0);
 }
 
 export type Split = { dimension: Dimension; grouping: string; byName: boolean } | null;
@@ -250,12 +253,11 @@ export type CostView = {
 
 export function costView(data: CostData, range: { start: number; end: number }, granularity: Granularity, split: Split, filters: Filters): CostView {
   const buckets = bucketsOf(range.start, range.end, granularity);
-  const tests = Object.entries(filters)
-    .filter(([, keys]) => keys.length > 0)
-    .map(([id, keys]) => {
-      const [dimension, grouping] = id.split(":") as [Dimension, string];
-      const group = grouper(data, dimension, grouping);
-      const hidden = new Set(keys);
+  const tests = (Object.entries(filters) as [Dimension, Filter][])
+    .filter(([, f]) => f.hidden.length > 0)
+    .map(([dimension, f]) => {
+      const group = grouper(data, dimension, f.grouping);
+      const hidden = new Set(f.hidden);
       return (stage: string, config: string) => !hidden.has(group(stage, config).key);
     });
   const group: Grouper = split ? grouper(data, split.dimension, split.grouping, split.byName) : () => ({ key: "all", label: "All" });
@@ -307,31 +309,31 @@ function bucketIndex(starts: number[], t: number): number {
 // What transcribing a score costs, everything included (mistakes, re-runs, trying configs), estimated from projects
 // the user picks as similar to the next one. The projects of a PDF are one score: their costs add up and each page
 // counts once (tries of the same score, or parts of a large PDF, alike). Each score weighs the same, however long: it
-// stands for a kind of score, not for its length. Free calls count, at $0.
+// stands for a kind of score, not for its length. Free calls count, at $0. Projects without pages (never rasterized)
+// are left out.
 
 export type CostProject = CostData["projects"][number];
-
-export const CREATED: { id: RangeId; label: string }[] = RANGES.filter((r) => r.id !== "7d");
-
-// The projects a preset picks: created within the range, and, if asked, with a pipeline that ran to its end.
-export function presetProjects(projects: CostProject[], created: RangeId, finishedOnly: boolean, now: number): Set<string> {
-  const { start } = rangeOf(created, now, null);
-  return new Set(
-    projects.filter((p) => (created === "all" || Date.parse(p.createdAt) >= start) && (!finishedOnly || p.finished)).map((p) => p.id),
-  );
-}
 
 // A project's own cost per page, or null without pages.
 export const perPage = (p: { costUsd: number; pages: number[] }) => (p.pages.length ? p.costUsd / p.pages.length : null);
 
-export function averagePerPage(projects: CostProject[]): { average: number | null; scores: number } {
+export function averagePerPage(projects: CostProject[]): { average: number | null; projects: number } {
+  const counted = projects.filter((p) => p.pages.length > 0);
   const scores = new Map<string, { usd: number; pages: Set<number> }>();
-  for (const p of projects) {
+  for (const p of counted) {
     const score = scores.get(p.pdfSha256) ?? { usd: 0, pages: new Set<number>() };
     score.usd += p.costUsd;
     for (const page of p.pages) score.pages.add(page);
     scores.set(p.pdfSha256, score);
   }
-  const values = [...scores.values()].filter((s) => s.pages.size > 0).map((s) => s.usd / s.pages.size);
-  return { average: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null, scores: values.length };
+  const values = [...scores.values()].map((s) => s.usd / s.pages.size);
+  return { average: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null, projects: counted.length };
 }
+
+// The actions of the project list's "⋮": the projects to take out of the selection.
+export function createdBefore(projects: CostProject[], range: RangeId, now: number): string[] {
+  const { start } = rangeOf(range, now, null);
+  return projects.filter((p) => Date.parse(p.createdAt) < start).map((p) => p.id);
+}
+
+export const unfinished = (projects: CostProject[]) => projects.filter((p) => !p.finished).map((p) => p.id);
