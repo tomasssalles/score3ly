@@ -1,0 +1,82 @@
+# Images
+
+How page images are made from the PDF, the deterministic operations on them (rotation, scaling, crops), fingerprints, the device's constraints and the image cache. The sections keep their numbers from `DESIGN.md` §8, so a reference to §8.1 to §8.6 means the section of this file; other § numbers are `DESIGN.md`'s.
+
+## 8.1 Getting page images
+Built: `packages/imaging/src/pdfPages.ts` (`openPdf`, `pageImage`), tested on the test set (§13). `npm run pages -w packages/imaging -- <file.pdf> <folder>` writes every page, as extracted and straightened, as PNGs.
+- **Scanned PDFs:** extract the embedded page image directly instead of rendering the page: the scan's own pixels, at its own resolution.
+  - **A page counts as a scan** when it has exactly one image and that image covers at least 85% of the page. Other content, such as an invisible OCR text layer, is ignored. Anything else (vector music, a scan cut into several images, an image at an angle that isn't a right angle) is rendered.
+  - **This is decided per page, and exactly, not guessed.** How a PDF was made can't be known for sure (score2ly could only guess whether a PDF was vector), but that doesn't matter: what a page draws is listed exactly in its content stream, and the rule is a decision about that. A PDF that mixes scans and vector pages is handled page by page. Where the rule doesn't take the pixels directly (a scan cut into strips, or with a vector stamp or page number added), the page is rendered, which is always correct, only at our resolution instead of the scan's. Tests that decide by whether a page has text are wrong whenever a scan has an OCR layer or vector music is drawn as paths.
+  - **On the test set** (2026-10, all 83 pages of 14 PDFs): 79 pages are scans; the 4 pages of the only vector PDF (Debussy, Mutopia) are rendered, and have no image at all (about 1,100 to 1,400 path and 500 to 1,100 text operations each). Scans range from 785×1228 px at 200 dpi to 5400×7200 px at 600 dpi, and Bendel's resolution changes within the PDF (293 dpi on page 1, about 640 on the rest). Kinderscenen reports 72 dpi for 2000×2578 px scans: its PDF pages are as large as the images (about 28 inches wide), so the dpi means nothing there; the pixels are taken as they are. The test set has no PDF that mixes scans and vector pages, and no scan cut into strips, so that fallback hasn't been tried on real files.
+  - **Decoding:** CCITT, JBIG2 and JPEG 2000 by pdf.js (JS and its WASM decoders, which need pdf.js's `wasm` folder), JPEG by pdf.js's own JS decoder: `isImageDecoderSupported: false` stops pdf.js from using the browser's. `isOffscreenCanvasSupported: false` makes pdf.js hand over images as pixel arrays rather than bitmaps.
+  - **What the test set showed,** all handled:
+    - 1-bit scans stored as a **stencil mask** (ink where a bit is 0, in the fill color);
+    - scans with **transparency** (black ink plus a soft mask that says where the ink is): laid on white;
+    - scans stored **rotated or mirrored**: turned the way the page shows them;
+    - images **larger than the page**: only the part on the page is kept;
+    - scans stored with **non-square pixels** (e.g. 300 dpi across and 150 down), which the PDF stretches back into shape. The page as the PDF shows it is the truth, so they are resampled to square pixels at the higher of the two resolutions, nearest neighbour (exact copies for a factor of 2, and 1-bit scans stay sharp).
+  - The reported resolution is the scan's (from its size on the page).
+- **Colour is kept** when the scan has it. On yellowed, stained paper, colour separates ink from stains and paper better than grayscale, and a global binarization threshold can fail entirely (SmartScore's mandatory threshold on Kinderscenen p3 found no usable setting). LLMs bill images by pixel dimensions, not channels, so colour costs nothing extra in LLM calls; only the device cache grows (§2). Grayscale or binarization may replace it after an ablation (§15).
+- **Vector PDFs:** render with pdf.js at a fixed DPI (300 by default), with pixel size computed explicitly as `round(pagePt × dpi / 72)`. Geometry is identical everywhere. Only anti-aliased edges differ slightly between canvas backends, and binarization removes most of that. The canvas is passed in: an `OffscreenCanvas` in the browser, `@napi-rs/canvas` in Node (tests).
+- **In the browser:** the same code runs in a Web Worker (`apps/web/src/pageImageWorker.ts`, used by `rasterize`). A worker has no DOM, so pdf.js is given what it would take from it: an `OffscreenCanvas` factory for its canvases, a filter factory that does nothing (pages with transfer functions are drawn without them, as in Node), and its data folders (fonts, character maps, wasm decoders) as absolute URLs fetched by pdf.js's own worker (`useWorkerFetch`). Glyphs are drawn as paths, not with the browser's fonts (`disableFontFace`), as in Node.
+  - **Compared with Node** (Chromium, 2026-10): a scan (Bendel p4) gives the same pixels, bit for bit. Vector pages (Debussy, 300 dpi) differ in about 0.5% of their pixels, on anti-aliased edges (at most about 70 gray levels on a pixel, 0.01 on average): "close" by §8.3, not identical. The PNG files our encoder writes from the same pixels are identical in Chromium and Node. Firefox, Safari and phones aren't tried yet (§15).
+- **Crops** (`packages/imaging/src/crop.ts`): a box (§6: `left`, `right`, `top`, `bottom` as fractions from 0 to 1) covers every pixel it touches, even partly, so nothing at the edge of a system or measure is cut off. Named regions come as JSON, `{"system_3": {"page": 2, "bbox": {...}}, ...}`, pages counted from 1; names become file names, so they are kept to letters, digits, `_`, `-` and `.`. As in the pipeline (pages extracted, deskewed, sent to an LLM for the boxes, then cropped), crops are cut from the deskewed page images: `npm run crops -w packages/imaging -- "<pages>/page-{n}.straight.png" <regions.json> <folder>` reads the page images (`{n}` is the page number; `npm run pages` writes them so) and writes `<name>.png` for each region.
+
+## 8.2 Deterministic operations
+- All image operations are implemented in our own TS/WASM code, never with canvas transforms or `drawImage` scaling.
+- `Math.sin`, `Math.cos`, `Math.exp` etc. are not guaranteed to give identical results across JS engines. Round them to a fixed precision (e.g. 12 decimals) or ship our own implementations.
+- Operation chains are ordered. Coordinates refer to the output of the previous step.
+- **Rotation** (`packages/imaging/src/rotate.ts`): about the image's center, positive angles clockwise as seen on screen, bilinear interpolation. **The output has the input's size:** corners that turn out are cut off, and areas that turn in are filled with the paper's color (the median color of the page, so yellowed paper stays yellowed). Deskewing angles are small, so little is lost, and coordinates stay simple. A test pins the exact pixels (a hash), so any change to rotation shows up as one, and is a new step version.
+- Human and LLM coordinates are stored in **normalized units**, so they survive regeneration at a different resolution.
+
+## 8.3 Fingerprints: verifying "close", not just "identical"
+**Which images** (decided): every image from which a stored result was computed, by code, a model or a person: the page images (`skew_analysis` measures its lines on them, `fix_skew` shows them), the straightened and scaled pages sent by `layout` and `analyze`, the straightened pages of `fix_layout`, and later the crops of `extract`, `review` and `apply_review` and the pages of `human_review`. Not the images that are only shown, or only lead to other images (the full-resolution straightened page before it is scaled for a request): a mismatch there shows in the images made from them. Stored when the result is first computed from the image, with its recipe key, one per recipe key (`image_fingerprints`, §5.8).
+
+**Why:** the stored results refer to those pixels: a model's boxes and answers, a person's lines and boxes. Keys hold only recipes (§5.2), so a result is reused whichever device makes the image again; that is right as long as the images are close, as they are expected to be. A fingerprint says when one isn't, so that the user knows the coordinates or answers may not fit the image on this device. **A warning, never a stop:** which device is right can't be told, and significant mismatches aren't expected.
+
+**Where:** no image is made only to be checked. Images are made from their recipes whenever a device needs one its cache doesn't have: an artifact or an editor shows it, or a stage sends it in a new request. **Every image that has a fingerprint is checked then** (decided), in the one place where images are made from their recipes (`apps/web/src/pageImages.ts`), whatever needed it. Checking only what may differ between devices (vector pages, functions such as `Math.sin`) would save a hash and a thumbnail, cheap next to making the image, at the price of a judgement that could be wrong. Checked in three tiers:
+
+1. **Exact:** pixel dimensions plus SHA-256 of the **raw decoded pixels**. This is not a hash of the PNG file, since PNG encoders differ.
+2. **Close:** a downsampled grayscale thumbnail (64×64 to 128×128). Compare the regenerated image downsampled the same way:
+   - mean absolute difference below about 1 gray level, and
+   - no single tile above a few gray levels.
+3. **Mismatch:** a warning (decided): nothing is flagged in storage, since it is this device's image that differs.
+   - **Over every image of the page concerned** (the page, straightened, its crops), wherever it is shown (artifact views, editors): "This image differs from the one the stored results were made from (probably on another device, or before a recent update); boxes or answers may not fit it." In the desktop app, the only device its data is on, the parenthesis is "(probably before a recent update)" (decided). Below a system's crop instead of over it, where a banner would hide the music.
+   - **On the card of a stage running on this device** that makes such an image: "Some images differ from the ones the stored results were made from (probably on another device, or before a recent update); boxes or answers may not fit them.", with the same parenthesis as above in the desktop app.
+   - **"Close" is silent.**
+
+**Built** (`packages/imaging/src/fingerprint.ts`; `apps/web/src/pageImages.ts`, `ImagesDiffer.tsx`; `apps/worker/src/fingerprints.ts`, migration 0016 adds the version, the thumbnail's size and the time):
+- **The fingerprint:** the size, the SHA-256 of the raw RGBA pixels as decoded (an image stored as gray as it reads back), and a grayscale thumbnail of at most 64×64 (area averaging, each pixel the average of a tile); "close" is a mean difference below 1 gray level and no thumbnail pixel more than 4 apart. A version (`FINGERPRINT_VERSION`): only fingerprints of the same version are compared.
+- **Made with every image,** in the page image worker, and kept next to it in the device's cache (an image cached without one gets it computed from its PNG when needed).
+- **Stored** (`POST /api/fingerprints`, one per recipe key, the first stays) by what computes a stored result from images: every image of an LLM request that was paid for (`ask`: `layout`'s, `analyze`'s and `extract`'s), `skew_analysis`'s page images, and the images `fix_skew` and `fix_layout` save a change on.
+- **Checked** (`GET /api/fingerprints/<recipe key>`) whenever an image is made because the cache doesn't have it; a mismatch marks the page (its page image's recipe key) for the rest of the page load. A check that can't be made (offline) is skipped.
+- Tried in Chromium at both widths, with a stored fingerprint altered by hand: the banners on the pages, the layout and the Transcription's crops, and the running stage's card.
+
+## 8.4 Finding the skew
+In `docs/stages/pages.md` ("Finding the skew"): how `findSkew` measures a page's angle and its lines, how staves are detected, and when a page is deskewed (no lines, no deskewing; the angle that fits the lines best; not for tiny angles).
+
+## 8.5 Device constraints
+- **Memory:** a 300 dpi page held in canvas memory is about 35 MB, and mobile Safari strictly limits total canvas memory. Process one page at a time in a Web Worker, using typed arrays / `OffscreenCanvas`.
+- **Latency:** generate lazily, current page first.
+- **Eviction:** call `navigator.storage.persist()`, but assume the OPFS cache can disappear at any time. Missing derivatives are simply regenerated. Built: asked once per page load, at the cache's first write (`imageCache.ts`), unless the storage is already persistent; Chromium grants or refuses it by itself, Firefox asks the user.
+- **Size:** the image cache is an LRU cache with a configurable size limit (§8.6), the least recently used images deleted first. Deletion is real deletion. **Built** (2026-10-26; `cacheLru.ts`, `imageCache.ts`):
+  - **The limit** is a setting of this device (Settings, "This device", "Image cache": 250 MB, 500 MB, 1 GB, 2 GB, 5 GB; default 1 GB; kept in the browser), shown with what the cache takes now; never more than 80% of what the browser lets the site store (`navigator.storage.estimate`). Lowering it prunes at once.
+  - **Once a write takes the cache over the limit,** the least recently used files are deleted until it is under 90% of it, so it isn't pruned at every write; the file just written stays. Every file in the cache counts: page images, straightened pages, crops, fingerprints, renderings.
+  - **The last use of each file** (read or write) is kept in an index, `cache/lru.json`, saved a moment after changes; OPFS itself keeps only write times. Once per page load the index is merged with a scan of the cache's folder, which gives the sizes and catches what other tabs wrote; a lost index falls back on the write times.
+  - **The memory fallback** (no OPFS) keeps at most 200 MB, the least recently used going first.
+  - Tried in Chromium: the same views take 3.1 MB without a limit and 1.6 MB under a 2 MB one, with the images still shown.
+- **Bundle size:** avoid OpenCV.js (about 10 MB). With LLMs doing the reading, preprocessing is light enough to write by hand.
+
+## 8.6 The image cache
+Page images, straightened pages and crops are views computed from the PDF and the stages' results (§6), and cached in OPFS, each step separately, so a crop doesn't mean rendering the PDF again.
+- **The key is the hash of the image's recipe, chained:**
+  - page image: hash of (the PDF's SHA-256, the page number, `rasterize`'s version and config);
+  - straightened page: hash of (the page image's key, the angle the decision gives for the page's lines, the decision's and the rotation code's versions);
+  - crop: hash of (the straightened page's key, the box, the crop code's version).
+
+  Each key contains the key of the image it was made from, so a change anywhere before it (another resolution, another angle, a new version of the code) changes every key after it. Nothing is ever invalidated: an old entry is simply never asked for again, and ages out of the LRU cache (§8.5).
+- **Numbers are written canonically** before hashing (angles and box coordinates rounded to fixed decimals, canonical JSON), so the same recipe always gives the same key.
+- **The code versions** are those of our image functions, plus pdf.js's for the page images (§11).
+- **Stored as PNG** (`cache/pdf-<sha256>/<key>.png`: a folder per PDF, so that deleting a project can delete its images), encoded by our own code: a raw RGBA page is about 35 MB, a PNG of line art much smaller and lossless. Reading costs a decode.
+  - **Built:** the encoder and decoder (`packages/imaging/src/png.ts`: 8-bit RGBA, the "Up" row filter, compressed with the platform's `CompressionStream`, so the same in browsers and Node) and the cache (`apps/web/src/imageCache.ts`), keyed by the hash of the recipe as canonical JSON. Where OPFS isn't available (some private windows), images are kept in memory while the page is open. The artifact view shows the cached PNG directly (an `<img>`), with no decode. The size limit and LRU eviction are built (§8.5).
+- **The key isn't the fingerprint** (§8.3): the key says what an image should be, the fingerprint, stored in D1 for every image from which a stored result was computed, what it was. An image regenerated on another device is checked against it.

@@ -55,7 +55,7 @@ Ideas from the project owner: run times; how often the app and its stages are us
 ### Decide the model configs
 `#decision` `#research` `#next-release`
 
-§7.2, "Supported models, prices and the config form" (under discussion): the supported models and their prices in the database, the config form with pickers. Then build the first round: the table and its shipped list, the form, adding a supported model, Fake pre-installed as the default, the price label on the cards, the Test button.
+`docs/llm.md`, "Supported models, prices and the config form" (under discussion): the supported models and their prices in the database, the config form with pickers. Then build the first round: the table and its shipped list, the form, adding a supported model, Fake pre-installed as the default, the price label on the cards, the Test button.
 - **Soon after the first round:** editing a config (copy on change, as now), removing a config, editing a supported model (e.g. its prices).
 - **Still to settle or research** (the AWS and Google documentation couldn't be reached from the cloud session where this was discussed):
   - **Global versus regional on Bedrock's Messages API endpoint:** a request goes to a regional URL (`bedrock-mantle.{region}.api.aws`); how it asks for global routing, and so what a config stores for "Global", isn't documented on Anthropic's page. Also how the geographic inference profiles (US, EU, JP, AU) are addressed there. AWS's documentation, or a test call.
@@ -250,12 +250,12 @@ Once the app is deployed (§10): back navigation with the app's buttons and the 
 ### Try the desktop app's package on macOS and Windows
 `#manual-test` `#owner`
 
-§3, "Packaging"; the project owner, or someone with those systems: `npm install`, `npm run package:desktop`, install it as `apps/desktop/README.md` says, start it from its icon; check the name in the dock or taskbar and the app switcher, that macOS opens the self-built app without a warning (it is signed ad hoc), and where the data goes.
+`docs/desktop.md`, "Packaging"; the project owner, or someone with those systems: `npm install`, `npm run package:desktop`, install it as `apps/desktop/README.md` says, start it from its icon; check the name in the dock or taskbar and the app switcher, that macOS opens the self-built app without a warning (it is signed ad hoc), and where the data goes.
 
 ### Unsigned desktop builds by GitHub Actions
 `#optional`
 
-§3, "Packaging": builds to download, with the systems' warnings to click past, so that users needn't build the app themselves.
+`docs/desktop.md`, "Packaging": builds to download, with the systems' warnings to click past, so that users needn't build the app themselves.
 
 ### Rewrite the README
 `#docs`
@@ -285,12 +285,12 @@ Two notes alternating fast, joined by beams, e.g. the left hand in the first mov
 ### Test the finished pipeline on the two editions of Für Elise
 `#experiment`
 
-Test set, for memorization (§13, "Baselines"): where the editions differ, does the extraction follow the page or the famous version?
+Test set, for memorization (`docs/evaluation.md`, "Baselines"): where the editions differ, does the extraction follow the page or the famous version?
 
 ### Measure the prompt lengths
 `#experiment`
 
-When the pipeline is finished: run it on most of the test set with a real model, and get statistics of the prompts' lengths per stage. They decide whether prices that change above a prompt length (Haiku 5.5 above 100,000 tokens, Gemini Pro above 200,000) must be modelled (§7.2, "Supported models, prices and the config form").
+When the pipeline is finished: run it on most of the test set with a real model, and get statistics of the prompts' lengths per stage. They decide whether prices that change above a prompt length (Haiku 5.5 above 100,000 tokens, Gemini Pro above 200,000) must be modelled (`docs/llm.md`, "Supported models, prices and the config form").
 
 ### Compare the symbolic format with plain LilyPond
 `#experiment`
@@ -361,10 +361,10 @@ The configs per kind of work (§7.2); checking Bedrock's and Vertex AI's prices 
 ### Set up Claude on Vertex AI
 `#owner`
 
-§7.2, "Calling the providers": a service account, enabling Claude for the project ("score3ly", with its €30 monthly cap and the Vertex AI API enabled), a key file, the first real call, and checking whether Opus 5.5 is offered on Vertex AI at all (not in Europe: checked 2026-10-09, §10).
+`docs/llm.md`, "Calling the providers": a service account, enabling Claude for the project ("score3ly", with its €30 monthly cap and the Vertex AI API enabled), a key file, the first real call, and checking whether Opus 5.5 is offered on Vertex AI at all (not in Europe: checked 2026-10-09, §10).
 
 ### Check Bedrock's model name on the first real call
-§7.2, "Calling the providers": whether the answer names the model with the same string that was asked (an inference profile may come back as the bare model ID). The sanity check compares the two as they are.
+`docs/llm.md`, "Calling the providers": whether the answer names the model with the same string that was asked (an inference profile may come back as the bare model ID). The sanity check compares the two as they are.
 
 ### Gemini on Vertex AI
 `#optional`
