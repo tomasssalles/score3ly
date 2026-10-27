@@ -189,7 +189,7 @@ function stageRow(p: Project, step: string, cfg: Config | null, start: number | 
     config_json: start === null ? null : "{}", model_config_id: cfg?.id ?? null, stage_key: start === null ? null : hex(64),
     error, note, created_at: iso(start ?? p.created), started_at: start === null ? null : iso(start),
     heartbeat_at: end === null ? null : iso(end), finished_at: end === null || status === "wip" ? null : iso(end),
-    page_count: step === "ingest" || start === null ? null : p.pages, deleted_at: p.deleted,
+    page_count: step === "ingest" || start === null ? null : p.pages, in_recipe: step.startsWith("fix_") ? 0 : 1, deleted_at: p.deleted,
   });
   if (inPipeline) p.entries.push(id);
   return id;

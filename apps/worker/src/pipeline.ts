@@ -74,6 +74,7 @@ type StageRow = {
   mc_model?: string | null;
   cost_usd?: number | null;
   carried?: number;
+  in_recipe: number;
 };
 
 type OutputRow = {
@@ -94,7 +95,7 @@ export function newPipeline(db: D1Database, projectId: string, pdfSha256: string
   const statements = [
     db
       .prepare(
-        "INSERT INTO stages (id, created_in, step, step_version, status, config_json, created_at, started_at, finished_at) VALUES (?, ?, 'ingest', ?, 'done', '{}', ?, ?, ?)",
+        "INSERT INTO stages (id, created_in, step, step_version, status, config_json, in_recipe, created_at, started_at, finished_at) VALUES (?, ?, 'ingest', ?, 'done', '{}', 1, ?, ?, ?)",
       )
       .bind(ingestId, projectId, INGEST_VERSION, now, now, now),
     db
@@ -104,24 +105,26 @@ export function newPipeline(db: D1Database, projectId: string, pdfSha256: string
       .prepare("INSERT INTO outputs (id, stage_id, item, type, content_sha256, created_at) VALUES (?, ?, '', 'pdf', ?, ?)")
       .bind(crypto.randomUUID(), ingestId, pdfSha256, now),
   ];
-  RECIPE.slice(1).forEach((step, i) => statements.push(...plannedStage(db, projectId, i + 2, step, null, now)));
+  RECIPE.slice(1).forEach((step, i) => statements.push(...plannedStage(db, projectId, i + 2, step, null, true, now)));
   return statements;
 }
 
-// A new planned stage at `position` of the project's pipeline (replacing what was there).
+// A new planned stage at `position` of the project's pipeline (replacing what was there). `inRecipe`: whether it is
+// the recipe's or one the user added (docs/database.md); a stage that replaces another takes its mark.
 function plannedStage(
   db: D1Database,
   projectId: string,
   position: number,
   step: string,
   configJson: string | null,
+  inRecipe: boolean,
   now: string,
 ): D1PreparedStatement[] {
   const id = crypto.randomUUID();
   return [
     db
-      .prepare("INSERT INTO stages (id, created_in, step, status, config_json, created_at) VALUES (?, ?, ?, 'planned', ?, ?)")
-      .bind(id, projectId, step, configJson, now),
+      .prepare("INSERT INTO stages (id, created_in, step, status, config_json, in_recipe, created_at) VALUES (?, ?, ?, 'planned', ?, ?, ?)")
+      .bind(id, projectId, step, configJson, inRecipe ? 1 : 0, now),
     db
       .prepare("INSERT OR REPLACE INTO pipeline_entries (project_id, position, stage_id) VALUES (?, ?, ?)")
       .bind(projectId, position, id),
@@ -142,10 +145,10 @@ async function rewriteFrom(
 ): Promise<D1PreparedStatement[]> {
   const { results: later } = await db
     .prepare(
-      "SELECT s.id, s.step, s.status, s.config_json FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position > ? ORDER BY e.position",
+      "SELECT s.id, s.step, s.status, s.config_json, s.in_recipe FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position > ? ORDER BY e.position",
     )
     .bind(projectId, after)
-    .all<{ id: string; step: string; status: StageStatus; config_json: string | null }>();
+    .all<{ id: string; step: string; status: StageStatus; config_json: string | null; in_recipe: number }>();
   const statements = [
     // The cards of dropped stages in the part rewritten go (docs/overview.md §5.5).
     db
@@ -164,7 +167,7 @@ async function rewriteFrom(
   for (const row of later) {
     if (isManual(row.step)) statements.push(point(row.id, true));
     else if (row.status === "planned") statements.push(point(row.id));
-    else statements.push(...plannedStage(db, projectId, next++, row.step, row.config_json, now));
+    else statements.push(...plannedStage(db, projectId, next++, row.step, row.config_json, row.in_recipe === 1, now));
   }
   return statements;
 }
@@ -299,9 +302,9 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       statements.push(
         db
           .prepare(
-            "INSERT INTO stages (id, created_in, step, status, config_json, created_at) VALUES (?, ?, ?, 'planned', ?, ?)",
+            "INSERT INTO stages (id, created_in, step, status, config_json, in_recipe, created_at) VALUES (?, ?, ?, 'planned', ?, ?, ?)",
           )
-          .bind(id, pid, stage.step, configJson, now),
+          .bind(id, pid, stage.step, configJson, stage.in_recipe, now),
         ...(await rewriteFrom(db, pid, position, [id], position, now)),
       );
     }
@@ -506,7 +509,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
         .prepare("DELETE FROM output_inputs WHERE output_id IN (SELECT id FROM outputs WHERE stage_id = ?)")
         .bind(sid),
       db.prepare("DELETE FROM outputs WHERE stage_id = ?").bind(sid),
-      ...plannedStage(db, pid, position, stage.step, stage.config_json, now),
+      ...plannedStage(db, pid, position, stage.step, stage.config_json, stage.in_recipe === 1, now),
       touchProject(db, pid, now),
     ]);
     return c.json(await readPipeline(db, pid));
@@ -549,7 +552,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     await db.batch([
       db
         .prepare(
-          "INSERT INTO stages (id, created_in, step, step_version, status, config_json, page_count, created_at, started_at) VALUES (?, ?, ?, ?, 'wip', '{}', ?, ?, ?)",
+          "INSERT INTO stages (id, created_in, step, step_version, status, config_json, page_count, in_recipe, created_at, started_at) VALUES (?, ?, ?, ?, 'wip', '{}', ?, 0, ?, ?)",
         )
         .bind(id, pid, step, stepVersion, pageCount, iso, iso),
       ...inputIds.map((outputId: string) =>
@@ -586,7 +589,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     await db.batch([
       db
         .prepare(
-          "INSERT INTO stages (id, created_in, step, step_version, status, config_json, page_count, replaces_stage_id, created_at, started_at) SELECT ?, ?, step, step_version, 'wip', config_json, page_count, id, ?, ? FROM stages WHERE id = ?",
+          "INSERT INTO stages (id, created_in, step, step_version, status, config_json, page_count, in_recipe, replaces_stage_id, created_at, started_at) SELECT ?, ?, step, step_version, 'wip', config_json, page_count, in_recipe, id, ?, ? FROM stages WHERE id = ?",
         )
         .bind(id, pid, iso, iso, sid),
       db

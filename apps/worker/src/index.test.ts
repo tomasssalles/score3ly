@@ -16,6 +16,8 @@ let migratedRows: Record<string, unknown>[];
 // The pipelines migrations 0004 and 0006 gave them.
 let migratedPipelines: Record<string, unknown>[];
 let migratedPlanned: Record<string, unknown>[];
+// The stages as migration 0019 marked them: the recipe's, or added by the user.
+let migratedInRecipe: Record<string, unknown>[];
 
 before(async () => {
   platform = await getPlatformProxy<Env>({ configPath: join(workerDir, "wrangler.jsonc"), persist: false });
@@ -33,8 +35,15 @@ before(async () => {
         `),
       );
     }
+    if (file.startsWith("0019_")) {
+      // A manual stage added before the mark existed.
+      await env.DB.exec(
+        "INSERT INTO stages (id, created_in, step, status, created_at) VALUES ('fix-p1', 'p1', 'fix_skew', 'wip', '2026-10-05T00:00:00.000Z');",
+      );
+    }
     await env.DB.exec(withoutComments(readFileSync(join(migrationsDir, file), "utf8")));
   }
+  migratedInRecipe = (await env.DB.prepare("SELECT step, in_recipe FROM stages WHERE created_in = 'p1' ORDER BY created_at, step").all()).results;
   migratedRows = (await env.DB.prepare("SELECT * FROM projects ORDER BY id").all()).results;
   migratedPipelines = (
     await env.DB.prepare(
@@ -918,6 +927,47 @@ test("dropping a manual stage takes it out and moves the later stages up; recipe
     .bind(project.id)
     .all<{ position: number }>();
   assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7]);
+});
+
+test("migration 0019 marks existing stages as the recipe's, unless their step is manual", () => {
+  assert.deepEqual(
+    migratedInRecipe.map((r) => [r.step, r.in_recipe]),
+    [["analyze", 1], ["engrave", 1], ["extract", 1], ["ingest", 1], ["layout", 1], ["rasterize", 1], ["skew_analysis", 1], ["fix_skew", 0]],
+  );
+});
+
+async function inRecipe(stageId: string): Promise<number | undefined> {
+  return (await env.DB.prepare("SELECT in_recipe FROM stages WHERE id = ?").bind(stageId).first<{ in_recipe: number }>())?.in_recipe;
+}
+
+test("the recipe's stages are marked as such, and so is every stage that replaces one; manual stages aren't", async () => {
+  const { project, skew } = await analyzedProject("recipe.pdf");
+  for (const stage of await pipelineOf(project.id)) assert.equal(await inRecipe(stage.id), 1, String(stage.step));
+
+  // A fix, and its edit, are the user's.
+  const { stageId: fix } = (await (await addFix(project.id, skew.id)).json()) as { stageId: string };
+  assert.equal(await inRecipe(fix), 0);
+  await call(project.id, fix, "finish", { status: "done" });
+  const { stageId: edited } = (await (await call(project.id, fix, "edit")).json()) as { stageId: string };
+  assert.equal(await inRecipe(edited), 0);
+  await call(project.id, edited, "finish", { status: "done" });
+
+  // A config change of a recipe stage that ran: the new planned one is the recipe's, and so are the planned copies
+  // after it; the carried fix stays the user's.
+  const before = await pipelineOf(project.id);
+  await call(project.id, before[2].id, "config", { config: { maxAngle: 3 } }, "PUT");
+  const after = await pipelineOf(project.id);
+  assert.notEqual(after[2].id, before[2].id);
+  assert.deepEqual(
+    await Promise.all(after.map(async (s) => [s.step, await inRecipe(s.id)])),
+    [["ingest", 1], ["rasterize", 1], ["skew_analysis", 1], ["fix_skew", 0], ["layout", 1], ["analyze", 1], ["extract", 1], ["engrave", 1]],
+  );
+
+  // A stopped recipe stage's planned replacement is the recipe's.
+  const skewNow = after[2];
+  await call(project.id, skewNow.id, "start", { stepVersion: 1, config: { maxAngle: 3 }, stageKey: RECIPE_KEY(6), pageCount: 2, inputIds: [] });
+  await call(project.id, skewNow.id, "stop");
+  assert.equal(await inRecipe((await pipelineOf(project.id))[2].id), 1);
 });
 
 test("issue numbers are reserved per project, never twice", async () => {
