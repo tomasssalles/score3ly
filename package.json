@@ -20,6 +20,7 @@
     "icons": "npm run icons -w apps/web",
     "notices": "node scripts/notices.ts",
     "screenshots": "node scripts/screenshots.ts",
+    "seed:costs": "node scripts/seedCosts.ts",
     "desktop": "npm run start -w apps/desktop",
     "serve": "npm run serve -w apps/desktop",
     "package:desktop": "npm run package -w apps/desktop"
