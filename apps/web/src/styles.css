@@ -2764,28 +2764,15 @@ textarea.field-input {
   width: 180px;
 }
 
-/* A dot or a count on a toggle whose panel holds a choice: a split picked, groups hidden. */
-.toggle-dot,
-.toggle-count {
+/* A dot on a toggle whose panel holds a choice: a split picked, groups hidden by filters. */
+.toggle-dot {
   position: absolute;
   top: 3px;
   right: 3px;
-  border-radius: 999px;
-  background: var(--accent);
-}
-
-.toggle-dot {
   width: 7px;
   height: 7px;
-}
-
-.toggle-count {
-  min-width: 14px;
-  padding: 0 3px;
-  box-sizing: border-box;
-  color: var(--on-accent);
-  font: 600 10px/14px var(--mono);
-  text-align: center;
+  border-radius: 999px;
+  background: var(--accent);
 }
 
 .costs-panel {
@@ -2977,6 +2964,11 @@ textarea.field-input {
   stroke-linejoin: round;
 }
 
+.chart-point {
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
 .chart-area {
   opacity: 0.14;
   stroke: none;
@@ -2995,9 +2987,14 @@ textarea.field-input {
   vertical-align: top;
 }
 
+/* The swatch centred on the first line of its row's text (13px text, 18px line). */
 .costs-swatch-cell {
   width: 12px;
-  padding-top: 10px !important;
+}
+
+.costs-swatch-cell .chart-swatch {
+  display: block;
+  margin-top: 4px;
 }
 
 .costs-group {

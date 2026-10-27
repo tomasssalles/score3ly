@@ -6,6 +6,7 @@
 // are drawn, so a long range at a fine granularity stays fast.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { ticks } from "./chart.ts";
 
 export type ChartSeries = { key: string; label: string; color: string }; // color: a CSS value, e.g. "var(--accent)"
 
@@ -15,17 +16,6 @@ const HEIGHT = 200; // the plot's height, px
 const TOP = 10; // room above the highest value
 const LABEL_WIDTH = 64; // px a label under the axis needs
 const AXIS_WIDTH = 56;
-
-// About four round steps up to `max`: 1, 2, 2.5 or 5 times a power of ten.
-export function ticks(max: number): number[] {
-  if (!(max > 0)) return [0];
-  const rough = max / 4;
-  const power = 10 ** Math.floor(Math.log10(rough));
-  const step = [1, 2, 2.5, 5, 10].map((f) => f * power).find((s) => s >= rough) ?? 10 * power;
-  const out: number[] = [];
-  for (let v = 0; v < max + step * 0.999; v += step) out.push(Math.round(v / power) * power);
-  return out;
-}
 
 export function TimeChart({
   labels,
@@ -185,6 +175,8 @@ export function TimeChart({
                     <g key={s.key}>
                       {series.length === 1 && <path className="chart-area" d={`${line} L${n * pitch},${y(0)} Z`} fill={s.color} />}
                       <path className="chart-line" d={line} stroke={s.color} />
+                      {/* The running total read out: at the end of the picked bucket. */}
+                      {selected !== null && <circle className="chart-point" cx={(selected + 1) * pitch} cy={y(shown[k][selected])} r={3.5} fill={s.color} />}
                     </g>
                   );
                 })}

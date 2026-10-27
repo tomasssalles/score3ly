@@ -308,7 +308,7 @@ One by one, with the Worker endpoints each needs, added as they are needed rathe
 ### Statistics page
 `#next` `#next-release`
 
-The costs view and the statistics (§10; first-release list, §16). The costs view's first draft is built (`docs/llm.md`, "The costs view"); left: the average cost per page (its own task), trying the draft with the project owner, a custom range if wanted, and the other statistics, decided in their own task ("Other statistics: decide, then build").
+The costs view and the statistics (§10; first-release list, §16). The costs view's first draft is built (`docs/llm.md`, "The costs view"); left: the average cost per page (its own task), trying the draft with the project owner, and the other statistics, decided in their own task ("Other statistics: decide, then build").
 
 ### The average cost per page
 `#next` `#decision`
@@ -318,6 +318,7 @@ A number in the costs view's range block (`docs/llm.md`, "The costs view") that 
 - projects only partly inside the range;
 - projects not finished, with no definition of finished (a review can be added the next day);
 - free tier: no arbitrary cut such as leaving out projects with only free calls; projects done well on the free tier should lower the expected cost.
+- where it goes: in the unfiltered range block, or in the filtered part, so that the estimate can rest on similar projects (an old scan of an early edition of a piano concerto, not the vector PDF of a pop song). Probably overkill, and it would only make sense with a filter on projects, not on arbitrary groupings.
 
 ### Create the remote R2 bucket and D1 database
 `#next-release`

@@ -146,7 +146,7 @@ function Costs({ data }: { data: CostData }) {
             onClick={() => setPanel(panel === "filters" ? null : "filters")}
           >
             <FilterIcon />
-            {hidden > 0 && <span className="toggle-count">{hidden}</span>}
+            {hidden > 0 && <span className="toggle-dot" />}
           </button>
         </div>
 
@@ -168,7 +168,7 @@ function Costs({ data }: { data: CostData }) {
           values={view.values}
           mode={mode}
           format={(v) => (v === 0 ? "nothing spent" : dollars(v))}
-          formatTick={(v) => (v === 0 ? "$0" : v >= 1 ? `$${Math.round(v * 100) / 100}` : `$${v.toFixed(2)}`)}
+          formatTick={(v) => (Number.isInteger(v) ? `$${v}` : `$${v.toFixed(2)}`)}
           label={mode === "bars" ? "Costs per period" : "Running total of the costs"}
           emptyHint={mode === "bars" ? "Tap a bar to see its amount." : "Tap the chart to see the running total there."}
         />
