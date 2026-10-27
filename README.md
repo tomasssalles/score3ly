@@ -7,6 +7,13 @@ Convert printed musical scores into lilypond format (upgrade of score2ly).
 
 How score3ly works and why: [docs/overview.md](docs/overview.md), which lists the other docs.
 
+## Versions and branches
+
+- **`main` is the released code:** every commit on it is a release, safe to use and an improvement on the one before. To update the desktop app, pull the latest `main` and build it again (see [apps/desktop/README.md](apps/desktop/README.md)).
+- **Tags** (`v0.2.0`, ...) mark the commits where a bigger chunk of work arrived and the version went up. Follow them for coarser steps.
+- The About page shows the version and the commit the app was built from, e.g. "0.1.0 @ 61c081d".
+- Daily work happens on `dev`, which may be unfinished: build from it only to try what is coming.
+
 ## Development
 
 Requires Node.js. Install dependencies once with `npm install`.

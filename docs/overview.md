@@ -531,6 +531,14 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
   - **Major** goes up for incompatible changes: ones after which old pipelines can no longer be re-run. This is also the way out if the number of step versions grows unmanageable. Even then we make an effort to keep old projects viewable in the UI, clearly marked as run with a pipeline that is no longer supported.
 - The build also records the git commit it was built from, and whether there were uncommitted changes. The About page shows all of it, e.g. "0.1.0 @ 61c081d" (plus "[+ uncommitted changes]" and "[dev server]" where they apply), so a deployed app can always be traced to its code.
 
+### Branches and releases
+(decided, 2026-10-27)
+- **`dev` is the branch for daily work.** Bigger chunks of work go from `dev` into `main` when they are ready.
+- **The claude.ai sessions work on their own branches,** assigned automatically. The fast-forwarding both ways that keeps them level with the daily work is between those branches and `dev`, not `main`. The project owner says explicitly when to fast-forward what where.
+- **Every commit on `main` is a release:** users can always pull the latest commit of `main` and build their desktop app (§3), and that is promised to be safe and an improvement. So the About page keeps the commit's short hash in the version (above): two builds of `main` with the same version number can differ.
+- **When a big chunk of work reaches `main`, the version goes up** (by the rules above) **and the commit gets a tag** (`v0.2.0`), for users who would rather follow coarser steps.
+- **No release cycle and no release branches** are planned, and no big releases.
+
 ## 12. Testing and reproducibility
 
 **Principle:** deterministic parts are tested directly. Non-deterministic parts (LLM calls, human input) are **recorded and replayed**.
