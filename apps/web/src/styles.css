@@ -3012,3 +3012,100 @@ textarea.field-input {
   margin-top: 12px;
   font-size: 13px;
 }
+
+/* The average cost per page: the number, its presets, and the projects to pick from. */
+.costs-per-page {
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.per-page-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.per-page-head h3 {
+  margin: 0;
+}
+
+.page-view .per-page-about {
+  max-width: 60ch;
+  margin: 4px 0 10px;
+}
+
+.per-page-presets {
+  margin-top: 12px;
+}
+
+.per-page-list {
+  max-height: 420px;
+  margin: 10px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.per-page-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto 84px;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 6px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font: 13px var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.per-page-row:hover {
+  background: var(--hover);
+}
+
+.per-page-row[aria-checked="false"] {
+  color: var(--muted);
+}
+
+/* A box, ticked with the check mark; its bottom on the text's baseline, like the table's swatches. */
+.per-page-check {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  box-sizing: border-box;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+.per-page-row[aria-checked="true"] .per-page-check {
+  border-color: var(--accent);
+}
+
+.per-page-check .icon {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.6;
+}
+
+.per-page-name {
+  overflow-wrap: anywhere;
+}
+
+.per-page-facts {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.per-page-amount {
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--mono);
+}

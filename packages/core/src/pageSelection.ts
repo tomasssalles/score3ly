@@ -1,6 +1,6 @@
-// Which pages of the PDF a project uses (docs/stages/pages.md), in the notation known from print dialogs:
-// "1, 41-47". Page numbers are the PDF's own, counted from 1, not the numbers printed on the pages. Empty means
-// all pages.
+// Which pages of the PDF a project uses (docs/stages/pages.md), in the notation known from print dialogs: "1, 41-47".
+// Page numbers are the PDF's own, counted from 1, not the numbers printed on the pages. Empty means all pages. Shared:
+// the web app selects pages with it, the Worker counts the pages of the costs view.
 
 // The pages written, in order and without repeats, or the reason the text isn't a selection.
 export function parsePages(text: string): { pages: number[] } | { error: string } {

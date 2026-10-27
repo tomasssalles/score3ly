@@ -301,3 +301,37 @@ function bucketIndex(starts: number[], t: number): number {
   }
   return lo;
 }
+
+// ---- The average cost per page ----
+
+// What transcribing a score costs, everything included (mistakes, re-runs, trying configs), estimated from projects
+// the user picks as similar to the next one. The projects of a PDF are one score: their costs add up and each page
+// counts once (tries of the same score, or parts of a large PDF, alike). Each score weighs the same, however long: it
+// stands for a kind of score, not for its length. Free calls count, at $0.
+
+export type CostProject = CostData["projects"][number];
+
+export const CREATED: { id: RangeId; label: string }[] = RANGES.filter((r) => r.id !== "7d");
+
+// The projects a preset picks: created within the range, and, if asked, with a pipeline that ran to its end.
+export function presetProjects(projects: CostProject[], created: RangeId, finishedOnly: boolean, now: number): Set<string> {
+  const { start } = rangeOf(created, now, null);
+  return new Set(
+    projects.filter((p) => (created === "all" || Date.parse(p.createdAt) >= start) && (!finishedOnly || p.finished)).map((p) => p.id),
+  );
+}
+
+// A project's own cost per page, or null without pages.
+export const perPage = (p: { costUsd: number; pages: number[] }) => (p.pages.length ? p.costUsd / p.pages.length : null);
+
+export function averagePerPage(projects: CostProject[]): { average: number | null; scores: number } {
+  const scores = new Map<string, { usd: number; pages: Set<number> }>();
+  for (const p of projects) {
+    const score = scores.get(p.pdfSha256) ?? { usd: 0, pages: new Set<number>() };
+    score.usd += p.costUsd;
+    for (const page of p.pages) score.pages.add(page);
+    scores.set(p.pdfSha256, score);
+  }
+  const values = [...scores.values()].filter((s) => s.pages.size > 0).map((s) => s.usd / s.pages.size);
+  return { average: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null, scores: values.length };
+}

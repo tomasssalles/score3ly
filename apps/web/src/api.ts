@@ -306,7 +306,19 @@ export type CostData = {
   spentLastDayUsd: number;
   points: [stageId: string, configId: string, t: number, usd: number][];
   stages: { id: string; step: string; projectId: string; inRecipe: boolean; kept: boolean }[];
-  projects: { id: string; name: string; pdfSha256: string; pdfFilename: string; createdAt: string; deletedAt: string | null }[];
+  // Every project, for the average per page too: whether its pipeline ran to its end, what it cost in all, the pages
+  // its `rasterize` stages selected.
+  projects: {
+    id: string;
+    name: string;
+    pdfSha256: string;
+    pdfFilename: string;
+    createdAt: string;
+    deletedAt: string | null;
+    finished: boolean;
+    costUsd: number;
+    pages: number[];
+  }[];
   configs: { id: string; name: string | null; provider: ModelConfig["provider"]; model: string; effort: ModelConfig["effort"]; createdAt: string; deletedAt: string | null }[];
 };
 

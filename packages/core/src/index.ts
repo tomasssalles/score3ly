@@ -4,3 +4,4 @@
 
 export { canonicalJson, keyOf, sha256Hex } from "./keys.ts";
 export type { Project, RunMode } from "./project.ts";
+export { formatPages, parsePages, selectPages } from "./pageSelection.ts";

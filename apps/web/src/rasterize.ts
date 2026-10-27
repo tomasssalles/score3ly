@@ -3,7 +3,7 @@
 // what doesn't need the browser: the config, its resolution, the recipes and the keys.
 
 import { keyOf } from "@score3ly/core";
-import { formatPages, parsePages, selectPages } from "./pageSelection.ts";
+import { formatPages, parsePages, selectPages } from "@score3ly/core";
 
 export const RASTERIZE_VERSION = 1;
 

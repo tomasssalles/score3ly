@@ -487,3 +487,13 @@ export function RunningTotalIcon() {
     </svg>
   );
 }
+
+// An "i" in a circle: more about something, on demand.
+export function InfoIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 11v5.5M12 7.8v.2" />
+    </svg>
+  );
+}

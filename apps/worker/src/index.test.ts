@@ -1076,6 +1076,8 @@ test("deleting a project: gone from every list, its name free, what only it used
 
 test("the costs: paid calls summed per stage, config and quarter of an hour, with what they refer to", async () => {
   const project = await createdProject("costs.pdf");
+  await startRasterize(project.id); // pages "1-2"
+  await createdProject("free.pdf"); // nothing spent: listed for the average per page all the same
   const layout = (await pipelineOf(project.id))[3];
   await env.DB.batch([
     env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
@@ -1106,7 +1108,7 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
     spentLastDayUsd: number;
     points: [string, string, number, number][];
     stages: { id: string; step: string; projectId: string; inRecipe: boolean; kept: boolean }[];
-    projects: { id: string; name: string }[];
+    projects: { id: string; name: string; finished: boolean; costUsd: number; pages: number[] }[];
     configs: { id: string }[];
   };
   const quarter = Math.floor(now / 900_000) * 900_000;
@@ -1118,7 +1120,10 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
     costs.stages.map((s) => [s.id, s.step, s.projectId, s.inRecipe, s.kept]).sort(),
     [[layout.id, "layout", project.id, true, true], ["old-layout", "layout", project.id, true, false]].sort(),
   );
-  assert.deepEqual(costs.projects.map((p) => p.name), ["costs"]);
+  assert.deepEqual(
+    costs.projects.map((p) => [p.name, p.finished, Math.round(p.costUsd * 100) / 100, p.pages]),
+    [["costs", false, 1.7, [1, 2]], ["free", false, 0, []]],
+  );
   assert.deepEqual(costs.configs.map((m) => m.id), ["paid"]);
   assert.equal(Math.round(costs.spentLastDayUsd * 100) / 100, 0.7);
   assert.equal(costs.capUsd, 1);

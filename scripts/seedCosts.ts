@@ -11,8 +11,8 @@
 // - model configs on every provider: Opus on Anthropic's API, Sonnet, Haiku on Vertex AI, Gemini marked free tier,
 //   Fable (deleted after a trial), Opus on Bedrock in the EU edited once (two rows, one superseding the other), and
 //   the fake model of migration 0014;
-// - 17 projects from June to today, with a quiet summer gap; two on the same PDF; three deleted, one of whose names
-//   is used again;
+// - 19 projects from June to today, with a quiet summer gap; two on the same PDF; three deleted, one of whose names
+//   is used again; a whole volume rasterized and left;
 // - stages kept in a pipeline, replaced by a re-run (another config, a fix before them), stopped, failed, and
 //   manual stages between them; calls that failed, were cut off or couldn't be parsed, and their retries.
 // Only rows: no outputs, no R2 content. Opening a seeded project shows its pipeline, not its artifacts.
@@ -186,7 +186,7 @@ function stageRow(p: Project, step: string, cfg: Config | null, start: number | 
   const id = uuid();
   insert("stages", {
     id, created_in: p.id, step, step_version: start === null ? null : 1, status,
-    config_json: start === null ? null : "{}", model_config_id: cfg?.id ?? null, stage_key: start === null ? null : hex(64),
+    config_json: start === null ? null : step === "rasterize" ? JSON.stringify({ pages: `1-${p.pages}`, dpi: 300 }) : "{}", model_config_id: cfg?.id ?? null, stage_key: start === null ? null : hex(64),
     error, note, created_at: iso(start ?? p.created), started_at: start === null ? null : iso(start),
     heartbeat_at: end === null ? null : iso(end), finished_at: end === null || status === "wip" ? null : iso(end),
     page_count: step === "ingest" || start === null ? null : p.pages, in_recipe: step.startsWith("fix_") ? 0 : 1, deleted_at: p.deleted,
@@ -405,6 +405,14 @@ const pdf = () => hex(64);
   const failed = llm(p, "extract", OPUS_EU_2, t, { failAt: 23 });
   planned(p, "engrave");
   pipeline(p, failed.end);
+}
+{
+  // A whole volume rasterized, then left: its pages, and no cost.
+  const p = project("Sonatas, complete", "Beethoven - 32 Sonatas (Henle).pdf", pdf(), at("2026-10-22T21:00:00"), 240, 2);
+  let t = computed(p, "rasterize", at("2026-10-22T21:01:00"));
+  t = computed(p, "skew_analysis", t);
+  planned(p, "layout", "analyze", "extract", "engrave");
+  pipeline(p, t);
 }
 {
   // Today: the boxes being fixed by hand.

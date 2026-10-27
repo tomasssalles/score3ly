@@ -6,7 +6,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchCosts, type CostData } from "./api";
 import {
+  averagePerPage,
   axisLabel,
+  CREATED,
   bucketTitle,
   costView,
   defaultGranularity,
@@ -19,17 +21,21 @@ import {
   groupsIn,
   hiddenCount,
   OTHER,
+  perPage,
+  presetProjects,
   RANGES,
   rangeOf,
   type Dimension,
   type Filters,
   type Granularity,
   type RangeId,
+  type CostProject,
   type Split,
 } from "./costs";
 import { DropdownMenu } from "./DropdownMenu";
-import { BarsIcon, ChevronDownIcon, FilterIcon, RunningTotalIcon, SplitIcon } from "./icons";
+import { BarsIcon, CheckIcon, ChevronDownIcon, FilterIcon, InfoIcon, RunningTotalIcon, SplitIcon } from "./icons";
 import { dollars } from "./money";
+import { shortDate } from "./time";
 import { TimeChart, type ChartSeries } from "./TimeChart";
 
 export function StatsPage() {
@@ -193,6 +199,8 @@ function Costs({ data }: { data: CostData }) {
         </table>
         {view.rows.length === 0 && <p className="costs-empty">{view.total > 0 ? "The filters hide everything spent in this range." : "Nothing was spent in this range."}</p>}
       </section>
+
+      <CostPerPage projects={data.projects} now={now} />
     </>
   );
 }
@@ -287,5 +295,83 @@ function FilterPanel({ data, range, filters, onChange }: { data: CostData; range
         </button>
       )}
     </div>
+  );
+}
+
+// The average cost per page (docs/llm.md, "The average cost per page"): from projects the user picks as similar to the
+// next score, by when they were created and whether their pipeline ran to its end, then one by one. The picks by hand
+// are forgotten when the preset changes or the page is left.
+function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }) {
+  const [created, setCreated] = useState<RangeId>("all");
+  const [finishedOnly, setFinishedOnly] = useState(true);
+  const [picked, setPicked] = useState<Map<string, boolean>>(new Map());
+  const [about, setAbout] = useState(false);
+  const preset = useMemo(() => presetProjects(projects, created, finishedOnly, now), [projects, created, finishedOnly, now]);
+  const isPicked = (id: string) => picked.get(id) ?? preset.has(id);
+  const chosen = projects.filter((p) => isPicked(p.id));
+  const { average, scores } = averagePerPage(chosen);
+  const newestFirst = [...projects].reverse();
+
+  function changePreset(update: () => void) {
+    update();
+    setPicked(new Map());
+  }
+
+  return (
+    <section className="stats-section costs-per-page">
+      <div className="per-page-head">
+        <h3>Cost per page</h3>
+        <button type="button" className="icon-button" aria-expanded={about} aria-label="About this estimate" title="About this estimate" onClick={() => setAbout(!about)}>
+          <InfoIcon />
+        </button>
+      </div>
+      {about && (
+        <p className="settings-hint per-page-about">
+          An estimate of what a new score will cost, everything included: re-runs, fixes, configs tried. It averages the
+          scores of the projects picked below, so pick those like the next one. The projects of one PDF count as one
+          score: their costs add up, and each page counts once. Every score weighs the same, however long. Projects can
+          reuse results that another project on the same PDF paid for, which then cost them nothing, so the estimate is
+          a guide, not a promise. Free-tier calls count, at $0.00.
+        </p>
+      )}
+      <div className="costs-total">
+        <span className="costs-total-amount">{average === null ? "–" : dollars(average)}</span>
+        <span className="costs-total-label">
+          {average === null
+            ? "Pick projects with pages to estimate from."
+            : `per page, the average of ${scores === 1 ? "1 score" : `${scores} scores`} (${chosen.length === 1 ? "1 project" : `${chosen.length} projects`})`}
+        </span>
+      </div>
+      <div className="costs-panel-row per-page-presets">
+        <span className="muted">Projects created</span>
+        <Picker label="Projects created" value={created} options={CREATED} onChange={(id) => changePreset(() => setCreated(id))} />
+        <button type="button" className="chip toggle" aria-pressed={finishedOnly} onClick={() => changePreset(() => setFinishedOnly(!finishedOnly))}>
+          Finished pipelines only
+        </button>
+      </div>
+      <ul className="per-page-list">
+        {newestFirst.map((p) => {
+          const on = isPicked(p.id);
+          const own = perPage(p);
+          return (
+            <li key={p.id}>
+              <button type="button" role="checkbox" aria-checked={on} className="per-page-row" onClick={() => setPicked(new Map(picked).set(p.id, !on))}>
+                <span className="per-page-check">{on && <CheckIcon />}</span>
+                <span className="per-page-name">
+                  {p.name}
+                  <span className="per-page-facts">
+                    {[shortDate(p.createdAt, now), `${p.pages.length} ${p.pages.length === 1 ? "page" : "pages"}`, p.finished ? null : "not finished", p.deletedAt ? "deleted" : null]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </span>
+                <span className="per-page-amount">{dollars(p.costUsd)}</span>
+                <span className="per-page-amount muted">{own === null ? "–" : `${dollars(own)}/page`}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

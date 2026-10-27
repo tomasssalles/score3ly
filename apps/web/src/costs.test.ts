@@ -4,7 +4,7 @@ process.env.TZ = "Asia/Kathmandu";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { CostData } from "./api";
-import { axisLabel, bucketsOf, bucketTitle, costView, defaultGranularity, granularitiesFor, groupsIn, grouper, OTHER, rangeOf } from "./costs.ts";
+import { averagePerPage, axisLabel, bucketsOf, bucketTitle, costView, defaultGranularity, granularitiesFor, groupsIn, grouper, OTHER, perPage, presetProjects, rangeOf } from "./costs.ts";
 
 const local = (s: string) => new Date(s).getTime(); // "2026-10-27T10:00" is local time
 
@@ -65,8 +65,8 @@ const data: CostData = {
     { id: "review-2", step: "review", projectId: "p2", inRecipe: false, kept: true },
   ],
   projects: [
-    { id: "p1", name: "Sonata", pdfSha256: "aa", pdfFilename: "Sonata.pdf", createdAt: "2026-10-01T00:00:00Z", deletedAt: null },
-    { id: "p2", name: "Sonata", pdfSha256: "aa", pdfFilename: "Sonata.pdf", createdAt: "2026-09-01T00:00:00Z", deletedAt: "2026-10-23T00:00:00Z" },
+    { id: "p1", name: "Sonata", pdfSha256: "aa", pdfFilename: "Sonata.pdf", createdAt: "2026-10-01T00:00:00Z", deletedAt: null, finished: true, costUsd: 0, pages: [] },
+    { id: "p2", name: "Sonata", pdfSha256: "aa", pdfFilename: "Sonata.pdf", createdAt: "2026-09-01T00:00:00Z", deletedAt: "2026-10-23T00:00:00Z", finished: true, costUsd: 0, pages: [] },
   ],
   configs: [
     { id: "opus-1", name: "Opus EU", provider: "anthropic-bedrock", model: "anthropic.claude-opus-5-5", effort: "high", createdAt: "", deletedAt: "2026-10-21T05:00:00Z" },
@@ -123,4 +123,26 @@ test("groupings: deleted projects marked with their dates, edited configs apart 
   assert.equal(grouper(data, "config", "family")("x", "sonnet").label, "Claude");
   assert.equal(grouper(data, "config", "effort")("x", "sonnet").label, "Model's default");
   assert.equal(grouper(data, "stage", "work")("review-2", "x").label, "Review");
+});
+
+test("the average per page: a PDF's projects are one score, its pages counted once; every score weighs the same", () => {
+  const project = (id: string, pdf: string, costUsd: number, pages: number[], createdAt = "2026-10-20T00:00:00Z", finished = true) =>
+    ({ id, name: id, pdfSha256: pdf, pdfFilename: `${pdf}.pdf`, createdAt, deletedAt: null, finished, costUsd, pages });
+  const projects = [
+    project("a1", "a", 10, [1, 2, 3, 4]), // two tries of the same score: $15 for 4 pages
+    project("a2", "a", 5, [3, 4]),
+    project("b", "b", 40, Array.from({ length: 100 }, (_, i) => i + 1)), // long and cheap per page: $0.40
+    project("c", "c", 0, []), // never rasterized: not a score
+  ];
+  const { average, scores } = averagePerPage(projects);
+  assert.equal(scores, 2);
+  assert.equal(average, (15 / 4 + 0.4) / 2);
+  assert.equal(perPage(projects[0]), 2.5);
+  assert.equal(perPage(projects[3]), null);
+  assert.deepEqual(averagePerPage([]), { average: null, scores: 0 });
+
+  const now = local("2026-10-27T10:00");
+  const older = [...projects, project("old", "d", 1, [1], "2026-06-01T00:00:00Z"), project("wip", "e", 1, [1], "2026-10-26T00:00:00Z", false)];
+  assert.deepEqual([...presetProjects(older, "30d", true, now)].sort(), ["a1", "a2", "b", "c"]);
+  assert.deepEqual([...presetProjects(older, "all", false, now)].length, 6);
 });
