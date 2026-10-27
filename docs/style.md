@@ -31,6 +31,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 | **Red** | `--danger`, `--on-danger` | **broken, or destroys something** | failures and errors, a failed stage's border, a value that isn't accepted, destructive actions (in menus and on buttons), something stale that will mislead |
 | **Amber** | `--warning` | **worth a look, not broken** | a result that may not be what it seems, a change not applied yet, a warning on a card or over an image |
 | Paper | `--paper`, `--viewer` | the score | white behind music, grey around it |
+| Charts | `--chart`, `--series-1` … `--series-6`, `--series-other` | data, not state | the statistics: one series in `--chart` (the accent); split, the groups in the series colours, the most expensive first, the rest in grey |
 | Marks on paper | `--mark`, `--highlight`, the layout colours | drawn by the app onto the music | lines that should be horizontal (red), what is selected in an engraving (amber), boxes and their labels |
 
 **Rules that follow:**
@@ -143,6 +144,10 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 **Tiles** stand for artifacts: a square with an icon for the kind of artifact (never a thumbnail: at that size nothing is recognizable), its name under it, and a count in a corner for a group ("×54"). A group of items is one tile, never one tile per item. The selected tile has a coral outline. Three per row.
 
 **Badges** are small, outlined, monospaced words after a name: "WIP", "Default", "Free tier". Coral for a state that matters ("WIP", "Default"), muted for a fact.
+
+**Chips** are small pills for picking among many short choices at once, wrapping over lines: a filter's groups, on (plain, bordered) or off (dashed, muted, struck through: hidden). A chip that is an on/off choice rather than a group is coral when on, like other toggles.
+
+**Charts** (`TimeChart`, for every statistic over time): stacked bars or a running total as lines, a fixed y axis with a few round steps, labels under the axis only where they fit, at least 4 px per bucket and sideways scrolling beyond that, starting at the newest end. The values of a bucket are read by tapping it, in a line above the plot, never from a floating tooltip; the arrow keys move between buckets. No smoothing, no log scales, no moving averages. One series looks best: the chart colour, a light fill under a line; many series put telling them apart first.
 
 **Progress:**
 - a thin green bar for a known fraction (the pipeline's, a stage's); a green circle where there is no room for a bar (the collapsed strip); never a percentage or a count;

@@ -299,6 +299,21 @@ export async function fetchModelConfig(id: string): Promise<ModelConfig> {
   return (await checked(await fetch(`/api/model-configs/${id}`))).json();
 }
 
+// The costs view's data (apps/worker/src/costs.ts): what was paid for, per stage, model config and quarter of an hour,
+// with the stages, projects and configs it refers to, and the spending cap's last 24 hours.
+export type CostData = {
+  capUsd: number;
+  spentLastDayUsd: number;
+  points: [stageId: string, configId: string, t: number, usd: number][];
+  stages: { id: string; step: string; projectId: string; inRecipe: boolean; kept: boolean }[];
+  projects: { id: string; name: string; pdfSha256: string; pdfFilename: string; createdAt: string; deletedAt: string | null }[];
+  configs: { id: string; name: string | null; provider: ModelConfig["provider"]; model: string; effort: ModelConfig["effort"]; createdAt: string; deletedAt: string | null }[];
+};
+
+export async function fetchCosts(): Promise<CostData> {
+  return (await checked(await fetch("/api/costs"))).json();
+}
+
 // An image is named by its recipe key (docs/overview.md §5.2, "Only recipes, never pixels, in any key"), and comes with its
 // bytes only once the Worker has said the call isn't cached (llm.ts, `ask`).
 export type LlmContent =

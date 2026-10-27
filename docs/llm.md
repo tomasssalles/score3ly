@@ -82,11 +82,29 @@ Three levels; the most specific wins:
 - **The spending cap** sums the costs of the calls started in the last 24 hours, deleted projects included.
 
 ### The costs view
-- **Totals** per stage, per project and per month. No cost per single call, and no estimate before a run.
-- **Format:** two decimals, "$0.12", "$3.40". A paid amount below one cent is "<$0.01"; "$0.00" is reserved for free-tier calls.
-- **Replaced stages** are included in their project's total.
-- **Deleted projects** are listed, clearly marked as deleted, with their creation and deletion dates next to the name, because a deleted project's name can be used again.
-- **Free-tier configs:** the user can mark an LLM config as free tier, behind a confirmation dialog, since the app can't check it: a response says nothing about whether the call was billed. Calls with such a config are shown as "$0.00".
+The Statistics page (menu, `#/stats`), for now only its costs (decided 2026-10-27; first draft built: `apps/web/src/StatsPage.tsx`, `costs.ts`, `TimeChart.tsx`; the Worker's `GET /api/costs`, `apps/worker/src/costs.ts`). Built for a quick glimpse first: it opens on the last 30 days, per day, as bars, nothing split or filtered.
+- **Three blocks, top to bottom:**
+  - **The spending cap:** "Last 24 hours $4.20", a bar, "(max. $15.00)" (not "of $15.00": the cap is a limit, not a budget). The bar is grey, amber from 80%, red once the cap is reached, with a line saying so.
+  - **The range and its total:** a picker (Last 7 days, Last 30 days, Last 3 months, Last 12 months, All time) and what the range cost in all, marked as unfiltered. The average cost per page goes here too (to decide, §15).
+  - **The chart part,** below a line: the chart, its toolbar and panels, and the table. Filters, the split and its grouping apply to the chart and the table, never to the numbers above.
+- **Time:** calendar days, weeks (Monday to Sunday) and months in the device's time zone, so September is September. A range is whole days ending today; the first and last week or month may be cut by it, and the readout says which days a bar covers ("28–30 Sep 2026"). No hours. A granularity is offered only if the range is longer than it (a week above 7 days, a month above 31); a new range picks its default (days up to 30 days, weeks for 3 months, months for 12; All time by its length), and the user may pick another.
+- **The chart** (one, with a toggle): bars per bucket, or the running total as a line per group, from the range's start, with one point per bucket and straight segments (no smoothing: a running total never goes down, and a smoothed curve can dip or bulge). **Any range with any offered granularity:** a bucket gets at least 4 px, the plot scrolls sideways when it doesn't fit, starts at its newest end, and the y axis stays. Tapping or clicking a bucket shows its dates and amounts above the plot; the arrow keys move between buckets. The unsplit chart is the one that has to look best: one colour (`--chart`, the accent), with a light fill under the line; split, readability comes first.
+- **Split** (the button with a bar cut into parts): by stage, project or model config, each with a few hand-picked groupings (decided: no groupings made by the user, no patterns):
+  - **stage:** step; kind of work (layout, analysis, extraction = `extract` and `apply_review`, review: the kinds the settings give configs of their own); recipe or added (`stages.in_recipe`, docs/database.md); kept or discarded (in a pipeline, its project's deleted or not, or replaced or stopped);
+  - **project:** project (a deleted one marked as such, with its creation and deletion dates, since names can repeat); PDF (projects on the same file together); current or deleted;
+  - **model config:** config (a deleted or edited row marked with the day it ended, "Opus EU (until 15 Sep 2026)"; a toggle puts configs with the same name together, e.g. an edited config's versions); provider; model family; effort.
+
+  The most expensive groups get their own colours (six, `--series-1` to `--series-6`), the rest one grey "Other (n)"; failures are not a group of their own (decided: confusing).
+- **Filters** (the funnel, with the number of groups hidden): the same groupings, as chips per dimension: a chip switched off hides its group from the chart and the table. Filters of several groupings all apply; filters and the split combine. While the panel is closed, a line says how many groups are hidden, with "Show all".
+- **The table:** one row per group of the split (every group, the most expensive first, with its share of the filtered total), or one row with the filtered total.
+- **No cost per single call, and no estimate before a run.**
+- **Free-tier calls are left out** of this view: it is about money. (Tokens instead of money, with "free or paid" as a grouping, belong to the other statistics, §15.)
+- **Not in the costs view** (decided): the cap as a line on the chart (the cap is unfiltered, may have changed over time, and is a rolling window, not a day); a count of free calls.
+- **The data:** the Worker sends every paid call summed per stage, model config and quarter of an hour (every time zone's midnight is on a quarter: Nepal is UTC+5:45), with the stages (step, project, `in_recipe`, kept), projects and configs they refer to; the browser does the rest, so a change of view needs no request. The dimensions hang off the stage and the config, so the points don't multiply: a few per LLM stage.
+- **Mock data** for trying it: `npm run seed:costs` (`scripts/seedCosts.ts`) writes five months of simulated use into a local database of its own; `npm run dev:worker -- --persist-to .wrangler/seed-costs` serves it.
+- **Format:** two decimals, "$0.12", "$3.40". A paid amount below one cent is "<$0.01"; "$0.00" is reserved for free-tier calls, so an empty bucket reads "nothing spent".
+- **Replaced stages** are included in their project's total. **Deleted projects** are included, marked.
+- **Free-tier configs:** the user can mark an LLM config as free tier, behind a confirmation dialog, since the app can't check it: a response says nothing about whether the call was billed. Calls with such a config are shown as "$0.00" (in a stage's details).
 
 ### Spending cap
 - **Purpose: protection against bugs,** not against a user who transcribes too much. A bug in the app must not be able to burn a lot of money on a handful of scores.

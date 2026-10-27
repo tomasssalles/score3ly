@@ -228,6 +228,18 @@ export type CallAnswer = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// What the spending cap counts (docs/llm.md, "Spending cap"): the costs of the calls started in the last 24 hours,
+// free-tier configs left out, deleted projects included.
+export async function spentInLastDay(db: D1Database, now = Date.now()): Promise<number> {
+  const row = await db
+    .prepare(
+      "SELECT COALESCE(SUM(c.cost_usd), 0) AS spent FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.free_tier = 0 AND c.started_at >= ?",
+    )
+    .bind(new Date(now - DAY_MS).toISOString())
+    .first<{ spent: number }>();
+  return row?.spent ?? 0;
+}
+
 export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   // When the price table was collected (llm/prices.ts), for the About page.
   app.get("/api/prices", (c) => c.json({ asOf: PRICES_AS_OF }));
@@ -396,13 +408,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         );
       }
       const { spendingCapUsd } = await readSettings(db);
-      const spent = await db
-        .prepare(
-          "SELECT COALESCE(SUM(c.cost_usd), 0) AS spent FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.free_tier = 0 AND c.started_at >= ?",
-        )
-        .bind(new Date(Date.now() - DAY_MS).toISOString())
-        .first<{ spent: number }>();
-      if ((spent?.spent ?? 0) >= spendingCapUsd) {
+      if ((await spentInLastDay(db)) >= spendingCapUsd) {
         return c.json(
           { error: `The spending cap is reached: $${spendingCapUsd.toFixed(2)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap" },
           429,

@@ -445,3 +445,44 @@ export function CheckIcon() {
     </svg>
   );
 }
+
+// A funnel: filters (the costs view).
+export function FilterIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3.5 5h17l-6.5 7.5V19l-4 1.5v-8z" />
+    </svg>
+  );
+}
+
+// One bar cut into stacked parts: splitting a chart into groups (the costs view).
+export function SplitIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="8" y="3.5" width="8" height="17" rx="1" />
+      <path d="M8 9.5h8M8 14.5h8" />
+    </svg>
+  );
+}
+
+// Bars: amounts per day, week or month (the costs view).
+export function BarsIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 20h16" />
+      <rect x="5.5" y="11" width="3" height="6" />
+      <rect x="10.5" y="6" width="3" height="11" />
+      <rect x="15.5" y="9" width="3" height="8" />
+    </svg>
+  );
+}
+
+// A rising line: a running total (the costs view).
+export function RunningTotalIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 20h16" />
+      <path d="M4.5 17l4-2.5 3.5 1 3-5.5 4.5-4" />
+    </svg>
+  );
+}

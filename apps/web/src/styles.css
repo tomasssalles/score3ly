@@ -2665,3 +2665,358 @@ textarea.field-input {
   text-decoration: underline dotted;
   cursor: pointer;
 }
+
+/* Statistics (StatsPage.tsx): the spending cap's last 24 hours, the range and its total, then the chart part, apart. */
+.page-view.stats {
+  max-width: 900px;
+}
+
+.stats-section {
+  margin-top: 24px;
+}
+
+.stats-section h3 {
+  margin: 0 0 12px;
+  font: 600 16px var(--sans);
+}
+
+.cap-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 14px;
+}
+
+.cap-amount {
+  font: 600 15px var(--mono);
+}
+
+.cap-bar {
+  flex: 1 1 60px;
+  min-width: 40px;
+  max-width: 280px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.cap-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+}
+
+.cap-bar.near > span {
+  background: var(--warning);
+}
+
+.cap-bar.reached > span {
+  background: var(--danger);
+}
+
+.cap-max {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.costs-range {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.costs-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.costs-total-amount {
+  font: 600 22px var(--mono);
+}
+
+.costs-total-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* The chart part, apart from the unfiltered numbers above it. */
+.costs-chart {
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.costs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.costs-toolbar-gap {
+  flex: 1;
+}
+
+.costs-toolbar .mode-picker .dropdown-list,
+.costs-panel .mode-picker .dropdown-list {
+  width: 180px;
+}
+
+/* A dot or a count on a toggle whose panel holds a choice: a split picked, groups hidden. */
+.toggle-dot,
+.toggle-count {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.toggle-dot {
+  width: 7px;
+  height: 7px;
+}
+
+.toggle-count {
+  min-width: 14px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  color: var(--on-accent);
+  font: 600 10px/14px var(--mono);
+  text-align: center;
+}
+
+.costs-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+}
+
+.costs-panel-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.costs-panel-label {
+  min-width: 96px;
+  font-weight: 500;
+}
+
+.costs-filter {
+  display: grid;
+  gap: 8px;
+}
+
+.costs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.costs-chips .settings-hint {
+  margin: 0;
+}
+
+.chip {
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--fg);
+  font: 12px var(--sans);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+/* A filter's group switched off: hidden from the chart and the table. */
+.chip[aria-pressed="false"] {
+  border-style: dashed;
+  background: none;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* A chip that is an on/off choice rather than a group: coral when on, like other toggles. */
+.chip.toggle[aria-pressed="false"] {
+  border-style: solid;
+  text-decoration: none;
+}
+
+.chip.toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.link-button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.page-view .costs-filtered {
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
+/* The chart (TimeChart.tsx): the readout of the picked bucket, the y axis, and the plot that scrolls sideways. */
+.time-chart {
+  margin-top: 14px;
+}
+
+.chart-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  min-height: 40px;
+  font-size: 13px;
+}
+
+.chart-readout-hint {
+  color: var(--muted);
+}
+
+.chart-readout-title {
+  color: var(--muted);
+}
+
+.chart-readout-total {
+  font: 600 14px var(--mono);
+}
+
+.chart-readout-series {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  width: 100%;
+  font-size: 12px;
+}
+
+.chart-readout-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.chart-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.chart-body {
+  display: flex;
+}
+
+.chart-axis {
+  flex: none;
+}
+
+.chart-axis text,
+.chart-label {
+  fill: var(--muted);
+  font: 11px var(--mono);
+}
+
+.chart-scroller {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.chart-plot {
+  display: block;
+  cursor: pointer;
+  touch-action: pan-x;
+}
+
+.chart-plot:focus {
+  outline: none;
+}
+
+.chart-plot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.chart-grid {
+  stroke: var(--line);
+  stroke-dasharray: 2 3;
+}
+
+.chart-baseline,
+.chart-tick {
+  stroke: var(--line);
+}
+
+.chart-selected {
+  fill: var(--hover);
+}
+
+.chart-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.chart-area {
+  opacity: 0.14;
+  stroke: none;
+}
+
+.costs-table {
+  width: 100%;
+  margin-top: 18px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.costs-table td {
+  padding: 7px 6px;
+  border-top: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.costs-swatch-cell {
+  width: 12px;
+  padding-top: 10px !important;
+}
+
+.costs-group {
+  overflow-wrap: anywhere;
+}
+
+.costs-amount,
+.costs-share {
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
+.costs-share {
+  width: 44px;
+  color: var(--muted);
+}
+
+.page-view .costs-empty {
+  margin-top: 12px;
+  font-size: 13px;
+}

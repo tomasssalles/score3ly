@@ -1073,3 +1073,53 @@ test("deleting a project: gone from every list, its name free, what only it used
   // A new project with the same name is fine.
   assert.equal((await createdProject("shared.pdf")).name, "shared");
 });
+
+test("the costs: paid calls summed per stage, config and quarter of an hour, with what they refer to", async () => {
+  const project = await createdProject("costs.pdf");
+  const layout = (await pipelineOf(project.id))[3];
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('free', NULL, 'google', 'gemini', 1, '2026-10-01')"),
+    // A replaced stage: no longer in any pipeline.
+    env.DB.prepare("INSERT INTO stages (id, created_in, step, status, in_recipe, created_at) VALUES ('old-layout', ?, 'layout', 'done', 1, '2026-10-01')").bind(project.id),
+  ]);
+  const now = Date.now();
+  const at = (minutesAgo: number) => new Date(Math.floor(now / 900_000) * 900_000 - minutesAgo * 60_000 + 60_000).toISOString();
+  const calls: [string, string, string, number | null][] = [
+    [layout.id, "paid", at(0), 0.1],
+    [layout.id, "paid", at(0), 0.2], // the same quarter of an hour
+    [layout.id, "paid", at(15), 0.4], // the one before
+    ["old-layout", "paid", at(60 * 30), 1], // more than a day ago
+    [layout.id, "free", at(0), 0], // free tier: left out
+    [layout.id, "paid", at(0), null], // failed without an answer: left out
+  ];
+  await env.DB.batch(
+    calls.map(([stage, config, startedAt, cost], i) =>
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, cost_usd, started_at) VALUES (?, ?, ?, 'k', 'ok', ?, ?)").bind(`cost-${i}`, stage, config, cost, startedAt),
+    ),
+  );
+
+  const response = await app.request("/api/costs", {}, env);
+  assert.equal(response.status, 200);
+  const costs = (await response.json()) as {
+    capUsd: number;
+    spentLastDayUsd: number;
+    points: [string, string, number, number][];
+    stages: { id: string; step: string; projectId: string; inRecipe: boolean; kept: boolean }[];
+    projects: { id: string; name: string }[];
+    configs: { id: string }[];
+  };
+  const quarter = Math.floor(now / 900_000) * 900_000;
+  assert.deepEqual(
+    costs.points.map(([stage, config, t, usd]) => [stage, config, (quarter - t) / 60_000, Math.round(usd * 100) / 100]),
+    [["old-layout", "paid", 60 * 30, 1], [layout.id, "paid", 15, 0.4], [layout.id, "paid", 0, 0.3]],
+  );
+  assert.deepEqual(
+    costs.stages.map((s) => [s.id, s.step, s.projectId, s.inRecipe, s.kept]).sort(),
+    [[layout.id, "layout", project.id, true, true], ["old-layout", "layout", project.id, true, false]].sort(),
+  );
+  assert.deepEqual(costs.projects.map((p) => p.name), ["costs"]);
+  assert.deepEqual(costs.configs.map((m) => m.id), ["paid"]);
+  assert.equal(Math.round(costs.spentLastDayUsd * 100) / 100, 0.7);
+  assert.equal(costs.capUsd, 1);
+});

@@ -42,6 +42,17 @@
   --highlight: #e0a030; /* what is selected in an engraving or the MEI file */
   --on-highlight: #000000;
 
+  /* Charts (the statistics): one series in the chart colour; split, the groups in these, the most expensive first,
+     told apart by colour-blind people too (after Okabe and Ito), and the rest together in grey */
+  --chart: var(--accent);
+  --series-1: #56b4e9;
+  --series-2: #e69f00;
+  --series-3: #2fb68a;
+  --series-4: #d687b6;
+  --series-5: #f0e442;
+  --series-6: #a59cf5;
+  --series-other: #6e737c;
+
   /* The MEI file (CodeMirror), after GitHub's dark theme */
   --code-bg: #0d0e10;
   --code-gutter: #5c6068;
@@ -90,6 +101,16 @@
   --on-layout: #000000;
   --highlight: #e0a030;
   --on-highlight: #000000;
+
+  /* Charts: as in the dark theme, darkened for white */
+  --chart: var(--accent);
+  --series-1: #0072b2;
+  --series-2: #c47a00;
+  --series-3: #009e73;
+  --series-4: #b85a91;
+  --series-5: #9c8900;
+  --series-6: #6f57d1;
+  --series-other: #a3a8b1;
 
   /* The MEI file (CodeMirror), after GitHub's light theme */
   --code-bg: #fbfcfd;
