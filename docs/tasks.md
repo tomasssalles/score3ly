@@ -35,7 +35,7 @@ Everything that is still to do about score3ly is a task, and every task is in th
 ### `review`
 `#next`
 
-`docs/stages/music.md` (`review`, "The Transcription"), §6 (the issues) and the first-release list (§16). Includes what is left of the linking code that `review` needs (the task "The linking code, what is left").
+`docs/stages/music.md` (`review`, "The Transcription"), §6 (the issues) and the first-release list (§16). Includes linking from the current extraction for `review`'s requests (§6, `analyze`, "Code links when the links are needed"): the observations' linking for `extract` is built (`apps/web/src/linking.ts`), and the same code is to pre-link the items of the extraction as it is at the start of the stage; `apply_review`'s requests use it too.
 
 ### `apply_review`
 `#next`
@@ -85,11 +85,6 @@ Ideas from the project owner: run times; how often the app and its stages are us
 `#owner`
 
 Each of them has a list "Decisions made while building it (to confirm)" in `docs/stages/music.md` (`extract`, built) and `docs/notation.md` ("MEI", built) and `docs/stages/engrave.md` (`engrave`, built).
-
-### The linking code, what is left
-`#next` `#next-release`
-
-§6, `analyze`: it links the observations for `extract`'s requests (`apps/web/src/linking.ts`); left are linking from the current extraction, for `review`'s and `apply_review`'s requests, and the repeat structure in the checks of the whole score.
 
 ### Compare `review` with and without renderings as model input
 `#experiment`
