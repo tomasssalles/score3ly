@@ -1,6 +1,6 @@
 # The project view
 
-What the app shows and how it behaves around a project: the two layouts, the artifact view, progress and toasts, the header, the pipeline panel with its stage cards, and the pages of the menu. How things look in general (colours, components, wording) is in `docs/style.md`; § numbers here are `docs/overview.md`'s sections.
+What the app shows and how it behaves around a project: the two layouts, the artifact view, progress and toasts, the header, the pipeline panel with its stage cards, the cards of dropped stages, the confirmation before a re-run, and the pages of the menu. How things look in general (colours, components, wording) is in `docs/style.md`; § numbers here are `docs/overview.md`'s sections.
 
 ## The layout, the artifact view and progress
 
@@ -64,3 +64,19 @@ What the app shows and how it behaves around a project: the two layouts, the art
   - **Rename** opens a dialog with the name selected. "Rename" stays disabled while the name is empty (after trimming) or unchanged; a name over 200 characters gets a message right away. A name another project has (ignoring case) is refused by the Worker (409) with "A project with that name already exists. Names must be unique (case-insensitive).", and the dialog stays open. The field has no visible label (the dialog's title says it all), only one for screen readers. Both menus share one component (`DropdownMenu`).
 - **The About page:** the wordmark (centered), what the app does ("A music transcription tool, driven by vision LLMs, that converts printed scores into MEI, an open, XML-based standard for encoding music notation."), its version (§11), the author (Tomás Silveira Salles), a link to the repository on GitHub, the license (§3, "License": its name, linking to `LICENSE` on GitHub, and what it means in one sentence), and a link to the third-party notices.
 - **Leaving a project loses nothing,** whether for a page from the menu, another project or a closed tab, because manual work is saved as it happens (§5.4). Once editing exists, changes not saved yet are saved or confirmed before the project view goes away.
+
+## Dropped stages
+
+A stage dropped by a re-run leaves a card where it was (decided, built; the rule is in `docs/overview.md` §5.5, "What a re-run follows"):
+- **What it shows:** the stage's icon and name, the name struck through, and a second line "⚠️ Dropped: inputs have changed" (the usual yellow triangle, the text not struck through and in no warning colour); the whole card dimmed like a planned stage. Its only button is an "x" to dismiss it: no "⋮", no artifacts, no progress. Its artifacts can't be opened: they are gone from the pipeline. The cards aren't stages and don't count in the pipeline's progress.
+- **Where:** after the stage it came after (`after_stage_id`); several there are in the order they were dropped.
+- **Until:** the user dismisses it; or a change rewrites the pipeline at or before the stage it came after (a new config, a stage added, edited or dropped there; a change after it leaves it); or a stage of the same step is added there again (e.g. `fix_metadata` dropped after `analyze` ran with a new config, then "Fix metadata manually" in `analyze`'s "⋮"). Stored with the project, so a drop during an Auto run is still there when the user comes back; deleting the project deletes its cards.
+
+## Confirmation before a re-run
+
+When it shows is in `docs/overview.md` §5.5, "Confirmation before a re-run". What it says:
+- **Simple and almost generic** (decided): it says that automated stages after the change may have to run again, that manual stages after it (and, once they exist, extra reviews) will be kept only if their inputs stay the same (§5.8, carried), and that it can't be undone, without working out which stages exactly.
+- **Title:** "Are you sure?"
+- **Text** (decided)**:** "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages will be kept if their inputs stay the same, and dropped otherwise. This action cannot be undone." When extra reviews exist (§6), the middle sentence becomes "Manual fixes for later stages, and extra reviews, will be kept if their inputs stay the same, and dropped otherwise." For a new config, it starts with "This stage will have to run again with the new config." (In Manual mode it runs again only when the user runs it.)
+- **Buttons:** "Cancel", and one naming the change, in the accent colour like every confirmation: "Change config", "Add stage", "Edit stage", "Drop stage".
+- **No manual stage has a config.** If one ever has, the text for a new config must be adjusted.
