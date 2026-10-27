@@ -1,11 +1,10 @@
-# Design Document — Score-to-MEI Pipeline (v2)
+# score3ly: overview
 
-> Status: draft. Progress is tracked in one place, the checklist of the first release (§16). This document records the architecture, the reasons behind it, and the known risks with proposed mitigations. Items marked **Proposed** are leading candidates, not final decisions. Concrete **tasks**, including the decisions still to be made, are in `docs/tasks.md` (§15).
-
+The whole picture of score3ly: what it is, its architecture, the pipeline model, the stages in short, and the decisions with their reasons. Progress is tracked in one place, the checklist of the first release (§16); everything still to do is in [tasks.md](tasks.md). Items marked **proposed** are leading candidates, not final decisions.
 
 ## The docs
 
-This overview is the whole picture: what the app is, its architecture, the pipeline model, the stages in short, and the decisions with their reasons. Everything else is in the files below, each about one topic, with this overview keeping a short summary of each. Read a file before working on its topic.
+Everything beyond the overview is in the files below, each about one topic; the overview keeps a short summary of each. Read a file before working on its topic.
 
 **General**
 - [tasks.md](tasks.md): everything still to do, and only there: features, decisions to make, bugs, tests by hand, research, far-future ideas. The top of the file explains how the list works.
@@ -88,7 +87,7 @@ v1 was Python-only, local-only and command-line-only.
 ### Goals
 - **Quality first:** the measure of success is how good the transcription is and how little human correction it needs. Infrastructure only exists to serve that.
 - **Cheap:** runs on free tiers. Paid LLM calls are the only expected running cost.
-- **Transparent:** open source, simple deployment, documented strategy (this file).
+- **Transparent:** open source, simple deployment, documented strategy (these docs).
 - **Runnable from anywhere:** start on the desktop, continue on the phone. Every pipeline stage should work on both.
 - **Reproducible and testable:** every stage output (§5.2) can be traced back to its inputs, code version, prompt version, model and configuration. Non-deterministic parts (LLM calls, human input) are recorded so they can be replayed (§12).
 
@@ -164,9 +163,9 @@ flowchart LR
 | Google Drive | Google Identity Services + Google Picker + `drive.file` scope, entirely in the browser | `drive.file` is non-sensitive: no app verification, and access only to files the user picks or the app creates. |
 | Local development | `wrangler dev` (local D1/R2 emulation) + Vite dev server, run as two processes. Vite proxies `/api` to Wrangler. No Cloudflare Vite plugin. | One code path from day 1. Keeps the app and the Worker as separate packages with a clear boundary. |
 | Deployment | One Worker with static assets: `apps/worker`'s Wrangler config serves `apps/web`'s build output. `wrangler deploy` uploads both. | One origin: no CORS, one Access policy, app and API always deployed at the same version. |
-| Tests | Vitest | Pure-TS core runs in Node for unit, golden-image and replay tests. |
+| Tests | Node's test runner (`node --test`) | Pure-TS core runs in Node for unit, golden-image and replay tests; no test framework to install. |
 
-### Repository layout (suggested)
+### Repository layout
 
 ```
 packages/
@@ -365,8 +364,7 @@ In `docs/project-view.md`: the two layouts, the artifact view, progress and toas
 - **Leaving a project loses nothing:** manual work is saved as it happens.
 
 ### 5.7 Look and feel
-The look of the app (colours and themes, type, components, the brand: wordmark, accent, fonts, icon) is in the style guide, `docs/style.md`. What is built around it:
-- **Screenshots** (built, `npm run screenshots`, `scripts/screenshots.ts`): to compare versions and themes at a glance, without clicking through the app. It starts its own Worker and Vite on the test ports (8887 and 5273, §12), with a database and storage in a temporary folder, seeds them through the app with the fake model (a finished project, one with the card of a dropped stage (§5.5), one with `fix_layout` in progress, one whose `layout` failed, one whose page images differ from their fingerprints, §8.3), and takes, for every theme and three layouts (wide with the pipeline panel expanded, wide collapsed, narrow at 390 px), each artifact, a stage's details, the editor, the failed card, the warning, the menu pages, and, by a few scripted clicks, the open menus (the project picker, the header's menu, the project's and a stage's "⋮") and dialogs (rename, delete, a config, the confirmation before a re-run, a PDF already known), and the project as an installed app, with its back and forward buttons (Chromium can't emulate the display mode, so the script answers the app's `matchMedia` question). `--only <text>` takes only the shots whose names contain it. `--desktop` runs them against the desktop version's server (§3) instead of Wrangler, which tests it end to end. `screenshots/<theme>/<layout>/<shot>.png` (ignored by git) and `index.html`, a contact sheet of all of them. Needs Playwright's Chromium (`npx playwright install chromium` once locally). About four minutes; 146 shots with both themes.
+The look of the app (colours and themes, type, components, the brand: wordmark, accent, fonts, icon) is in the style guide, `docs/style.md`; the screenshot script that shows every screen in every theme is in §12. Besides:
 - **Installed, the app opens as an app** (decided, built: the manifest's `"display": "standalone"`, with `id`, `start_url` and `scope` "/"): from a phone's home screen, or installed from a desktop browser, it gets its own window or the whole screen, without the browser's bar. It then shows its own back and forward buttons (`docs/desktop.md`, "Navigation"). Opened in a browser tab, nothing changes.
 
 ### 5.8 The database
@@ -381,7 +379,7 @@ In `docs/database.md`: the tables of D1 and what each row holds, the Worker's re
 
 ### The stages
 
-Stages marked **[manual]** are optional and added by the user (§5.4). The last column lists each stage's artifacts, what the user sees (§5.2); its outputs are finer, e.g. one per page or per system. Everything else is the recipe. Each stage has a short identifier, used throughout this document.
+Stages marked **[manual]** are optional and added by the user (§5.4). The last column lists each stage's artifacts, what the user sees (§5.2); its outputs are finer, e.g. one per page or per system. Everything else is the recipe. Each stage has a short identifier, used throughout the docs.
 
 | # | Id | Stage | Kind | Artifacts |
 |---|---|---|---|---|
@@ -405,12 +403,12 @@ Stages marked **[manual]** are optional and added by the user (§5.4). The last 
 - **The recipe has exactly one review** (`review`, followed by `apply_review`). **Further reviews** can be added by hand after it, as many as the user wants, with the same or another config. Adding a review, by hand or after a human review, always adds its `apply_review` after it. Further reviews are dropped with their `apply_review`, and carried through a re-run like manual stages, kept only if their inputs stay the same; the recipe's review can't be dropped (§5.5).
 - **Manual stages after an LLM stage** are added from its "⋮": `fix_layout` after `layout`; `fix_metadata` and `fix_observations` after `analyze`. "Fix X manually" is only in the "⋮" of the stage that creates X (decided), so both are in `analyze`'s. **The second of the two goes right after the first** (decided, built): nothing needs an order between them (they edit different outputs of `analyze`), and inserting it directly after `analyze` would carry the first (§5.8), for no reason. It can be added while the first is still WIP. Dropping the first carries the second, which is kept if its input comes out the same (§5.8).
 - **Two stages read the pages** (decided): `layout` finds where things are, `analyze` says what they are. `analyze` runs after `fix_layout`, so it sees the final layout: code draws the systems and bar lines on each page, numbered, and the observations refer to those labels. Each has its own model config (§7.2: finding layout boxes, extracting metadata), and a better prompt for one doesn't re-run the other. The price is that every page is sent twice, small next to one `extract` call per system.
-- **No skeleton stage** (decided; an earlier draft had one, an MEI file with a placeholder per measure). What it was for (a fixed structure, assembly as filling in, a check that the extraction returns exactly the measures asked for) needs no stored MEI: code builds the MEI frame from the structure whenever it is needed (see `docs/notation.md`, "MEI" below).
+- **No skeleton stage** (decided; an earlier draft had one, an MEI file with a placeholder per measure). What it was for (a fixed structure, assembly as filling in, a check that the extraction returns exactly the measures asked for) needs no stored MEI: code builds the MEI frame from the structure whenever it is needed (`docs/notation.md`, "MEI").
 - **A stage exists where there is a config or a decision** (decided). A pure function of other stages' results is a view, not a stage. So there is no skeleton stage (above), and no stages for the straightened pages or the crops: the angles and boxes are decisions of other stages, and rotating and cropping are fixed operations (§8.2). Those images are computed when something needs them (a view, an LLM request) and cached on the device (§8.6); stages wouldn't add anything but cards in the pipeline and a second copy of every page on the device. They are shown as views of other stages' outputs: `extract` shows each system's crop with its music below it (the filmstrip, §5.6). `rasterize` stays a stage: its config (the resolution for vector pages, perhaps colour or grayscale, §15) changes every image after it, and its pages are the natural first view.
 - **The structure is final before `extract`.** The structure is what decides which pixels the models see: the skew angles (`fix_skew`), where the systems are on each page and where the bar lines are on each system (`fix_layout`). `extract` is shown system crops and stretch crops, and if it is shown the wrong part of the page, no model can make up for it. So every fix of the structure comes before `extract`, and no later stage changes it; a mistake in it found later is fixed by going back to `fix_layout`, which replaces everything after it (§5.5). The pieces or movements (`fix_metadata`) are fixed before `extract` too: nothing carries over a piece's boundary (see `extract`), and the MEI's sections and the numbering restart there. `extract` reads only where the pieces start (the `pieces` output, see `analyze`), not the rest of the metadata.
   - **Everything else is content,** read by `extract` and open to correction by the stages after it: how the stretches between bar lines form measures, the kinds of measure and of bar line, and so which measures exist and how they are numbered; and the `scoreDef` (clefs, keys, time signatures, staff labels and groups). Those are hard for a model to get right from a whole page (the stretches need the note durations read), and easy to correct later, now that no MEI is built in advance. A user of an automated app shouldn't be asked to transcribe them by hand before anything is extracted.
 
-#### Details per stage
+#### The stages in short
 - **`rasterize`, `skew_analysis` and `fix_skew`:** in `docs/stages/pages.md`. In short: `rasterize` makes one image per selected page (a scan's own pixels, a vector page drawn at a chosen resolution); `skew_analysis` measures on each page up to 5 lines that should be horizontal and stores them, deciding nothing; `fix_skew` lets the user delete, move and draw those lines. Whether and by how much a page is straightened is a function of its lines, computed by the stage that first sends the page anywhere (`layout`).
 - **`layout` and `fix_layout`:** in `docs/stages/layout.md`. In short: `layout` asks a model, page by page, for a box around each system and the positions of the bar lines inside it (not those at its start and end), in up to 3 rounds where code draws the answer on the page and the model corrects it; a page it isn't satisfied with is flagged for a person. `fix_layout` is the editor where the user draws, resizes and deletes boxes and bar lines. Both write one `layout` output per page. Three things that hold beyond them:
   - **Every box in the app is in our format:** `{ left, right, top, bottom }`, fractions of the image's width and height from 0 to 1 (systems, issues, zooms, crops), not a provider's.
@@ -452,17 +450,16 @@ In `docs/notation.md`: the lens, the symbolic format, MEI, what is music and wha
 
 ## 7. LLM steps
 
-What each LLM stage is given and returns is in §6, with the stages (`layout`, `analyze`, `extract`, `review`, `apply_review`), the format models write music in ("The lens"), and what is checked (`extract`'s checks, issues and warnings). This section covers what all of them share.
+What each LLM stage (`layout`, `analyze`, `extract`, `review`, `apply_review`) is given and returns is in its file in `docs/stages/`; the format models write music in, the issues and the warnings are in `docs/notation.md`. This section covers what all of them share.
 
 ### 7.1 Structured output
 Every call returns JSON validated by a Zod schema, using the provider's schema-constrained output. Doubts are issues (§6), not prose.
 
 ### 7.2 Prompts and model configs
+In `docs/llm.md`: calling the providers, the call records and the cache, model configs, which config a stage uses, and supported models and prices (under discussion). What holds for every LLM stage:
 - Prompt templates are versioned in `packages/prompts` and are part of their step's version.
 - Every call is recorded (§5.2), and identical requests are served from the record instead of being paid for again.
 - **Provider, model and thinking budget or effort are the user's choice.** The app is meant to be flexible here and doesn't prescribe a model. The user guide will recommend Claude Opus 5.5 for everything: the only evidence so far is the project owner's manual runs with Gemini 3.1 Pro, a Gemini Flash and Opus 5.5, and even Gemini 3.1 Pro got far too much wrong. The prompts are tuned on Opus, so the app offers the choice but can't promise the same quality with another model.
-
-In `docs/llm.md`: calling the providers, the call records and the cache, model configs, which config a stage uses, and supported models and prices (under discussion). In short:
 - **One small request and response shape for every provider,** behind the `LlmProvider` port; Claude on Anthropic's API, Vertex AI and Bedrock share one adapter, Gemini on Google AI Studio has its own, and a fake provider answers without network. The chosen model answers, or the call fails: no fallback to another model.
 - **Every LLM request goes through the Worker** (`POST /api/projects/<id>/stages/<stage id>/llm`), which serves an identical earlier request from its record first, then checks the price, the spending cap and the secrets, and records the call. The browser asks first without the images and makes them only when the call isn't cached.
 - **A model config** is a stored, optionally named combination of provider, model, effort and the names of the Worker secrets to use, never their values; configs are append-only. A stage uses the config picked for it, else the one for its kind of work, else the default.
@@ -484,7 +481,7 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
 ## 9. Rendering
 
 **Verovio (WASM) renders the MEI in the browser** (decided; npm package `verovio`, LGPL-3.0, §3, "License"), to SVG: each system's rendering in the Transcription (and so the side-by-side view of `human_review`), and `engrave`'s PDF a user can download with the MEI. Every stage runs on any device, with no local helper and no paid compute. LilyPond is a native program that runs neither in the browser nor in a Worker, with no practical WASM build, so it would need a desktop helper (against "runnable from anywhere") or an always-on container (against "free tier only").
-- **Verovio's engraving differs from the original's,** but for comparing pitches, rhythms, voices and marks against the original, that doesn't matter (see `human_review` for how the two panels are linked anyway).
+- **Verovio's engraving differs from the original's,** but for comparing pitches, rhythms, voices and marks against the original, that doesn't matter (`docs/stages/music.md`, `human_review`, for how the two panels are linked anyway).
 - **Verovio adds a few MB to the download:** it is loaded lazily, only where something is rendered.
 - **No LilyPond export** (decided). score3ly's output is MEI. Whoever needs MusicXML or LilyPond can convert it with existing tools: MEI to MusicXML (e.g. music21, MuseScore 4's MEI import, the MEI community's XSLT), then MusicXML to LilyPond with `musicxml2ly`. Each step loses something (§1, "Why a text encoding").
 
@@ -523,7 +520,6 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
 - Storage and hosting: free tiers.
 - LLM calls: cents per call. Roughly per PDF: about 12 page analyses, about 50 system transcriptions, plus reviews and fixes. The recommended model is Opus 5.5 for every stage (§7.2).
 - **LLM requests are sequential and synchronous for now:** one at a time, no parallel calls, no overnight batch requests. Further optimizations are decided once we see how long an extraction takes.
-
 - **Costs are computed by the app** (tokens × prices), in US dollars, and stored with each call when it is made, with the prices used. A **spending cap** ($1 within any 24 hours for a new database, changeable, never removable) is enforced by the Worker, against bugs rather than heavy use. How costs are kept, the costs view and the cap: `docs/llm.md`, "Costs".
 
 ## 11. Versioning
@@ -555,6 +551,7 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
   - This tests the plumbing, assembly and resume logic with no API cost.
 - **Stale recordings:** a changed prompt or model changes the request hash, so replay misses. The test reports exactly which recordings are stale, and they are re-recorded against the live API.
 - **CI** (decided and built, 2026-10-26, `.github/workflows/ci.yml`): GitHub Actions runs `npm ci`, the typecheck of every workspace (`npm run typecheck --workspaces`) and `npm test` on every push to **main only** (and by hand); the working branches aren't checked there, only what lands on main. Node 22, as in development; Electron's binary isn't downloaded (the tests don't run it). Tried as a fresh clone here before the first run on GitHub.
+- **Screenshots** (built, `npm run screenshots`, `scripts/screenshots.ts`): to compare versions and themes at a glance, without clicking through the app. It starts its own Worker and Vite on the test ports (8887 and 5273, §12), with a database and storage in a temporary folder, seeds them through the app with the fake model (a finished project, one with the card of a dropped stage (§5.5), one with `fix_layout` in progress, one whose `layout` failed, one whose page images differ from their fingerprints, §8.3), and takes, for every theme and three layouts (wide with the pipeline panel expanded, wide collapsed, narrow at 390 px), each artifact, a stage's details, the editor, the failed card, the warning, the menu pages, and, by a few scripted clicks, the open menus (the project picker, the header's menu, the project's and a stage's "⋮") and dialogs (rename, delete, a config, the confirmation before a re-run, a PDF already known), and the project as an installed app, with its back and forward buttons (Chromium can't emulate the display mode, so the script answers the app's `matchMedia` question). `--only <text>` takes only the shots whose names contain it. `--desktop` runs them against the desktop version's server (§3) instead of Wrangler, which tests it end to end. `screenshots/<theme>/<layout>/<shot>.png` (ignored by git) and `index.html`, a contact sheet of all of them. Needs Playwright's Chromium (`npx playwright install chromium` once locally). About four minutes; 146 shots with both themes.
 - **Quality evaluation** is separate from tests (§13): live runs, with repeated runs to measure variance. A temperature of 0 doesn't guarantee identical answers.
 
 ### Test environments (planned)
@@ -579,7 +576,7 @@ In `docs/evaluation.md`: the test set (`testset/`), the tooling (`apps/eval`: th
 
 ## 15. Tasks
 
-Everything still to do is a task in `docs/tasks.md`, which explains how the list works. A reference to §15 elsewhere in this document points to a task there, by its name where it gives one.
+Everything still to do is a task in `docs/tasks.md`, which explains how the list works. A reference to §15 in the docs points to a task there, by its name where it gives one.
 
 ## 16. The first release
 The main parts of the first release, and the measure of progress: ticked items stay. Finer tasks are in §15.
