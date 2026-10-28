@@ -2766,6 +2766,12 @@ textarea.field-input {
 }
 
 /* The chart part, apart from the unfiltered numbers above it. */
+/* The detailed overview, apart from the numbers above it. */
+.stats-section.overview {
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
 .costs-chart {
   margin-top: 16px;
 }

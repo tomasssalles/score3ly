@@ -112,7 +112,7 @@ function Costs({ data }: { data: CostData }) {
       <SpendingCap spent={data.spentLastDayUsd} cap={data.capUsd} />
       <CostPerPage projects={data.projects} now={now} />
 
-      <section className="stats-section">
+      <section className="stats-section overview">
         <StatHead
           title="Detailed overview"
           about={<p>Estimates in US dollars, from the providers' list prices. Free-tier calls aren't counted.</p>}
