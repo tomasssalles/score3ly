@@ -50,7 +50,13 @@ Everything that is still to do about score3ly is a task, and every task is in th
 ### Other statistics: decide, then build
 `#next` `#decision` `#next-release`
 
-The Statistics page has its costs (done, `docs/llm.md`, "The costs view"; the page is to become the costs' own view). Ideas from the project owner: run times; how often the app and its stages are used; errors; how often manual fixes are needed, and how much each one changes (e.g. the number of boxes, lines or answers changed within a fix); tokens instead of money, with free or paid as a grouping (how much of the work is carried by free tiers). The chart (`TimeChart`) and the check lists are made to be reused.
+The Statistics page has its costs (done, `docs/llm.md`, "The costs view"). The chart (`TimeChart`) and the check lists are made to be reused. Decided so far (2026-10-28, under discussion):
+- **One page, four tabs,** each with its own URL (`#/stats/costs`, ...); one menu entry.
+- **Costs:** as built.
+- **Usage,** one tab in two parts: activity (when the app was in use, projects created, stages run, extra stages added, LLM calls and tokens, with free or paid as a grouping) and waste (retries, failed calls and stages, discarded stages).
+- **When the app was in use:** from the events already recorded (calls, stages starting and ending, projects created and finished), cut into time buckets, each active or idle; nothing new is recorded.
+- **Run times:** projects, stages, per-page averages; a manual stage's time is from its creation to its finish, breaks and all (decided: good enough), and per-page averages ignore breaks too. Not by model to pick a faster one: the best models are the slow ones.
+- **Effort** (the corrections): how often the automated pipeline wasn't good enough and the user stepped in: manual fixes, how often and how much each changes (boxes, lines, answers), extra reviews added, human reviews. Its explanation at the top: "This page is about how often the automated pipeline wasn't good enough and you had to swoop in and save the day."
 
 ### Decide the model configs
 `#decision` `#research` `#next-release`
