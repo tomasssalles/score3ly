@@ -49,13 +49,13 @@ function ActiveHours({ data }: { data: ActivityData }) {
   const allHours = useMemo(() => hoursView(activeHours(data, null), buckets, range), [data, buckets, range]);
   const view = useMemo(() => (projectId === ALL ? allHours : hoursView(activeHours(data, projectId), buckets, range)), [data, projectId, buckets, range, allHours]);
   // Newest first, deleted ones marked (their names can be used again).
-  const projects = [...data.projects].reverse().map((p) => ({ id: p.id, label: p.deletedAt ? `${p.name} (deleted)` : p.name }));
+  const projects = [...data.projects].reverse().map((p) => ({ id: p.id, label: p.name, note: p.deletedAt ? "(deleted)" : undefined }));
   const picked = projects.find((p) => p.id === projectId);
 
   return (
     <section className="stats-section">
       <StatHead
-        title="Active hours"
+        title="Activity"
         about={
           <p>
             An hour counts as active if anything happened in it: a model was being asked, a stage started or ended, a
@@ -67,8 +67,11 @@ function ActiveHours({ data }: { data: ActivityData }) {
           <>
             <Picker label="Time range" value={rangeId} options={RANGES} onChange={pickRange} />
             <span className="stat-value">
-              <span className="stat-amount">{allHours.total}</span>
-              <span className="stat-note">active hours on {allHours.days === 1 ? "1 day" : `${allHours.days} days`}, all projects</span>
+              <span className="stat-amount">
+                {allHours.total}
+                <span className="stat-unit"> {allHours.total === 1 ? "hour" : "hours"}</span>
+              </span>
+              <span className="stat-note">on {allHours.days === 1 ? "1 day" : `${allHours.days} days`}</span>
             </span>
           </>
         }
@@ -112,7 +115,10 @@ function ActiveHours({ data }: { data: ActivityData }) {
               <td className="costs-swatch-cell">
                 <span className="chart-swatch" style={{ background: "var(--chart)" }} />
               </td>
-              <td className="costs-group">{picked ? picked.label : "All projects"}</td>
+              <td className="costs-group">
+                {picked ? picked.label : "All projects"}
+                {picked?.note && <span className="menu-note"> {picked.note}</span>}
+              </td>
               <td className="costs-amount">{hoursText(view.total)}</td>
             </tr>
           </tbody>

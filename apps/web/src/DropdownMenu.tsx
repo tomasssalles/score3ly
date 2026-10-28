@@ -2,6 +2,8 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 
 export type MenuItem = {
   label: string;
+  note?: string; // after the label, muted and in italics, e.g. "(deleted)"
+  key?: string; // where labels can repeat (two projects' names, one of them deleted)
   href?: string; // a link, or else a button that calls onSelect
   onSelect?: () => void;
   current?: boolean; // the page that is open, or the choice that is set
@@ -87,7 +89,7 @@ export function DropdownMenu({
                 const className = item.danger ? "danger" : undefined;
                 return item.href ? (
                   <a
-                    key={item.label}
+                    key={item.key ?? item.label}
                     role="menuitem"
                     className={className}
                     href={item.href}
@@ -95,10 +97,11 @@ export function DropdownMenu({
                     onClick={() => setOpen(false)}
                   >
                     {item.label}
+                    {item.note && <span className="menu-note"> {item.note}</span>}
                   </a>
                 ) : (
                   <button
-                    key={item.label}
+                    key={item.key ?? item.label}
                     type="button"
                     role="menuitem"
                     className={className}
@@ -110,6 +113,7 @@ export function DropdownMenu({
                     }}
                   >
                     {item.label}
+                    {item.note && <span className="menu-note"> {item.note}</span>}
                   </button>
                 );
               })}

@@ -15,7 +15,7 @@ export function Picker<T extends string>({
 }: {
   label: string;
   value: T;
-  options: { id: T; label: string; short?: string }[];
+  options: { id: T; label: string; short?: string; note?: string }[];
   onChange: (id: T) => void;
   className?: string;
 }) {
@@ -27,11 +27,12 @@ export function Picker<T extends string>({
       icon={
         <>
           {current?.short ?? current?.label}
+          {current?.note && !current.short && <span className="menu-note">&nbsp;{current.note}</span>}
           <ChevronDownIcon />
         </>
       }
       label={label}
-      groups={[options.map((o) => ({ label: o.label, current: o.id === value, onSelect: () => onChange(o.id) }))]}
+      groups={[options.map((o) => ({ label: o.label, note: o.note, key: o.id, current: o.id === value, onSelect: () => onChange(o.id) }))]}
     />
   );
 }

@@ -3214,3 +3214,16 @@ textarea.field-input {
   max-height: min(60vh, 480px);
   overflow-y: auto;
 }
+
+/* A note after a name in a list or a picker, e.g. "(deleted)". */
+.menu-note {
+  color: var(--muted);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* The unit after a block's value: "57 hours". */
+.stat-unit {
+  font-size: 15px;
+  font-weight: 500;
+}
