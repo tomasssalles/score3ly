@@ -297,9 +297,9 @@ function SplitPanel({ split, onChange }: { split: Split; onChange: (split: Split
 }
 
 // For each dimension, a section that can be collapsed (expanded at first, a coral dot while collapsed with anything
-// hidden): a grouping (none at first: each step, project or config) and its groups to select, each with what it cost
-// in the time range. A group not selected is hidden from the chart and the table. Another grouping starts with
-// nothing hidden. The groups listed are those with costs in the time range, the most expensive first.
+// hidden): a grouping (none at first: each step, project or config) and its groups to select. A group not selected
+// is hidden from the chart and the table. Another grouping starts with nothing hidden. The groups listed are those
+// with costs in the time range, the most expensive first.
 function FilterPanel({ data, range, filters, onChange }: { data: CostData; range: { start: number; end: number }; filters: Filters; onChange: (filters: Filters) => void }) {
   const [collapsed, setCollapsed] = useState<Set<Dimension>>(new Set());
   return (
@@ -348,7 +348,7 @@ function FilterPanel({ data, range, filters, onChange }: { data: CostData; range
               ) : (
                 <CheckList
                   allLabel="All"
-                  items={groups.map((g) => ({ key: g.key, name: g.label, amounts: [dollars(g.usd)] }))}
+                  items={groups.map((g) => ({ key: g.key, name: g.label }))}
                   isOn={(key) => !filter.hidden.includes(key)}
                   setOn={setOn}
                 />
