@@ -111,12 +111,12 @@ test("the answer comes back with its text, parsed JSON and usage", async () => {
   assert.deepEqual(response.usage, { inputTokens: 1200, outputTokens: 42, cacheReadTokens: 0, cacheWriteTokens: 0 });
 });
 
-test("an answer that should be JSON and isn't is an error", async () => {
+test("an answer that should be JSON and isn't comes back with its usage, saying so", async () => {
   const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch(answer("six systems"), []) });
-  await assert.rejects(
-    provider.send(request),
-    (err: unknown) => err instanceof LlmError && err.kind === "invalid_output",
-  );
+  const response = await provider.send(request);
+  assert.equal(response.json, undefined);
+  assert.match(response.invalidJson ?? "", /isn't valid JSON: six systems/);
+  assert.deepEqual(response.usage, { inputTokens: 1200, outputTokens: 42, cacheReadTokens: 0, cacheWriteTokens: 0 });
 });
 
 test("HTTP errors become typed errors that say whether to retry", async () => {

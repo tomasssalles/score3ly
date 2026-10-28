@@ -5,7 +5,7 @@
 
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
-import { createProvider, LlmError, type Effort, type LlmContent, type ProviderConfig, type ProviderId } from "./llm/index.ts";
+import { createProvider, type Effort, type LlmContent, type ProviderConfig, type ProviderId } from "./llm/index.ts";
 import { costOf, PRICES_AS_OF, priceOf } from "./llm/prices.ts";
 
 const PROVIDERS: ProviderId[] = ["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "fake"];
@@ -440,11 +440,21 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         maxOutputTokens: request.maxOutputTokens,
         jsonSchema: request.jsonSchema,
       });
-      const status = response.stop === "end" ? "ok" : response.stop === "max_tokens" ? "cut_off" : response.stop === "refusal" ? "refused" : "error";
+      // An answer that isn't valid JSON comes back with its usage like any other, so its cost is counted.
+      const status =
+        response.invalidJson !== undefined ? "unparseable"
+        : response.stop === "end" ? "ok"
+        : response.stop === "max_tokens" ? "cut_off"
+        : response.stop === "refusal" ? "refused"
+        : "error";
       const costUsd = config.freeTier || !price ? 0 : costOf(response.usage, price);
       const responseSha = await putJson(c.env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, raw: response.raw });
       const error =
-        status === "ok" ? null : status === "cut_off" ? "The answer was cut off." : status === "refused" ? `The model declined${response.stopDetail ? ` (${response.stopDetail})` : ""}.` : "The answer ended unexpectedly.";
+        status === "ok" ? null
+        : status === "unparseable" ? response.invalidJson!
+        : status === "cut_off" ? "The answer was cut off."
+        : status === "refused" ? `The model declined${response.stopDetail ? ` (${response.stopDetail})` : ""}.`
+        : "The answer ended unexpectedly.";
       await db
         .prepare(
           "UPDATE llm_calls SET status = ?, error = ?, response_model = ?, response_sha256 = ?, input_tokens = ?, output_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, cost_usd = ?, price_json = ?, finished_at = ? WHERE id = ?",
@@ -466,14 +476,14 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         .run();
       answer = { callId, cached: false, status, text: response.text, json: response.json ?? null, error, usage: response.usage, costUsd };
     } catch (err) {
-      const status = err instanceof LlmError && err.kind === "invalid_output" ? "unparseable" : "error";
       const message = err instanceof Error ? err.message : String(err);
-      // A failed call may still have been billed (an unparseable answer was generated): its cost isn't known here.
+      // No usable response, so no token counts and no cost. A call may still have been billed: one whose response
+      // broke off or couldn't be read at all (docs/llm.md, "Calling the providers").
       await db
-        .prepare("UPDATE llm_calls SET status = ?, error = ?, finished_at = ? WHERE id = ?")
-        .bind(status, message, new Date().toISOString(), callId)
+        .prepare("UPDATE llm_calls SET status = 'error', error = ?, finished_at = ? WHERE id = ?")
+        .bind(message, new Date().toISOString(), callId)
         .run();
-      answer = { callId, cached: false, status, text: null, json: null, error: message, usage: null, costUsd: null };
+      answer = { callId, cached: false, status: "error", text: null, json: null, error: message, usage: null, costUsd: null };
     }
     return c.json(answer);
   });

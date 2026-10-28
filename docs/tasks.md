@@ -399,7 +399,7 @@ They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk b
 - **Gemini's limits:** what Gemini said about them is in §6 (`analyze`), to check against Google's documentation when we use it. `imageLimit` gives Gemini Claude's limits for now; each provider's adapter should declare its own.
 
 ### LLM calls, what is left
-The configs per kind of work (§7.2); checking Bedrock's and Vertex AI's prices against the list prices that stand in for them (`llm/prices.ts`); the cost of unparseable answers.
+The configs per kind of work (§7.2); checking Bedrock's and Vertex AI's prices against the list prices that stand in for them (`llm/prices.ts`).
 
 ### Set up Claude on Vertex AI
 `#owner`

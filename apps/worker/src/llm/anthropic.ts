@@ -9,7 +9,7 @@ import {
   type LlmProvider,
   type LlmRequest,
   type LlmResponse,
-  parseJson,
+  withJson,
 } from "./types.ts";
 import { parseServiceAccount, tokenSource } from "./googleServiceAccount.ts";
 
@@ -40,7 +40,7 @@ export class ClaudeProvider implements LlmProvider {
       throw new LlmError("unexpected_model", `Asked ${request.model}, but ${message.model} answered.`);
     }
     const response = { ...fromMessage(message), provider: this.id };
-    return request.jsonSchema ? { ...response, json: parseJson(response) } : response;
+    return request.jsonSchema ? withJson(response) : response;
   }
 }
 

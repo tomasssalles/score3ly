@@ -14,7 +14,7 @@ import {
   type LlmProvider,
   type LlmRequest,
   type LlmResponse,
-  parseJson,
+  withJson,
 } from "./types.ts";
 
 // Gemini's thinking levels are fewer than our efforts.
@@ -58,7 +58,7 @@ export class GoogleProvider implements LlmProvider {
       throw toLlmError(err);
     }
     const response = fromResult(result, request);
-    return request.jsonSchema ? { ...response, json: parseJson(response) } : response;
+    return request.jsonSchema ? withJson(response) : response;
   }
 }
 

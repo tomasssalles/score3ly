@@ -224,6 +224,9 @@ test("failed answers are recorded but never served from the record", async () =>
   const rows = await calls();
   assert.equal(rows.length, 8);
   assert.ok(rows.every((r) => r.status !== "ok"));
+  // An answer that isn't JSON was billed: its tokens and cost are recorded. An error has none.
+  assert.ok(rows.filter((r) => r.status === "unparseable").every((r) => (r.cost_usd as number) > 0 && (r.output_tokens as number) > 0));
+  assert.ok(rows.filter((r) => r.status === "error").every((r) => r.cost_usd === null));
 });
 
 test("an answer the stage can't use is marked so, and isn't served again", async () => {

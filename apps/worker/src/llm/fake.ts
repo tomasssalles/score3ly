@@ -14,15 +14,16 @@ export class FakeProvider implements LlmProvider {
 
   async send(request: LlmRequest): Promise<LlmResponse> {
     if (request.model === "fake-error") throw new LlmError("server", "The fake provider failed, as asked.", 500);
-    if (request.model === "fake-unparseable") throw new LlmError("invalid_output", "The fake answer isn't JSON.");
-    const answer = request.jsonSchema ? (fakeLayout(request) ?? fakeExtract(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
+    const unparseable = request.model === "fake-unparseable" && request.jsonSchema;
+    const answer = unparseable ? "Not JSON, as asked." : request.jsonSchema ? (fakeLayout(request) ?? fakeExtract(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
     const text = typeof answer === "string" ? answer : JSON.stringify(answer);
     const stop = request.model === "fake-refusal" ? "refusal" : request.model === "fake-cut-off" ? "max_tokens" : "end";
     return {
       provider: "fake",
       model: request.model,
       text,
-      json: request.jsonSchema && stop === "end" ? answer : undefined,
+      json: request.jsonSchema && stop === "end" && !unparseable ? answer : undefined,
+      invalidJson: unparseable ? "The fake answer isn't JSON, as asked." : undefined,
       stop,
       usage: { inputTokens: inputTokens(request), outputTokens: Math.ceil(text.length / 4), cacheReadTokens: 0, cacheWriteTokens: 0 },
       raw: { fake: true },

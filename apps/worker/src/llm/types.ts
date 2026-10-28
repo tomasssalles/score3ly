@@ -24,7 +24,8 @@ export type LlmRequest = {
   maxOutputTokens?: number;
   effort?: Effort; // left out: the provider's default
   // A JSON schema the answer must follow (the provider's schema-constrained output, §7.2). The answer is then
-  // parsed into `json`; checking it further (e.g. with Zod) is up to the caller.
+  // parsed into `json`, or `invalidJson` says why it couldn't be; checking it further (e.g. with Zod) is up to the
+  // caller.
   jsonSchema?: Record<string, unknown>;
 };
 
@@ -41,6 +42,9 @@ export type LlmResponse = {
   model: string; // the model that answered, as the provider names it
   text: string;
   json?: unknown; // when the request had a jsonSchema and the model finished
+  // When the request had a jsonSchema and the model finished, but its answer isn't valid JSON. The call was still
+  // billed, so the response comes back with its usage rather than as an error.
+  invalidJson?: string;
   // end: finished. max_tokens: cut off. refusal: the model (or its safety system) declined.
   stop: "end" | "max_tokens" | "refusal" | "other";
   stopDetail?: string; // the provider's reason, e.g. a refusal's category
@@ -55,7 +59,6 @@ export type LlmErrorKind =
   | "bad_request" // the request itself is wrong: retrying won't help
   | "server"
   | "network"
-  | "invalid_output" // the answer should have been JSON following the schema, and isn't
   | "unexpected_model"; // another model answered than the one asked
 
 export class LlmError extends Error {
@@ -91,12 +94,13 @@ export function kindForStatus(status: number): LlmErrorKind {
   return "bad_request";
 }
 
-// Parses a structured answer. Only a finished answer is expected to be complete JSON.
-export function parseJson(response: Omit<LlmResponse, "json">): unknown {
-  if (response.stop !== "end") return undefined;
+// Parses a structured answer into `json`, or says in `invalidJson` why it can't. Only a finished answer is expected to
+// be complete JSON.
+export function withJson(response: LlmResponse): LlmResponse {
+  if (response.stop !== "end") return response;
   try {
-    return JSON.parse(response.text);
+    return { ...response, json: JSON.parse(response.text) };
   } catch {
-    throw new LlmError("invalid_output", `The answer isn't valid JSON: ${response.text.slice(0, 200)}`);
+    return { ...response, invalidJson: `The answer isn't valid JSON: ${response.text.slice(0, 200)}` };
   }
 }
