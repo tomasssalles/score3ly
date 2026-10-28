@@ -3168,3 +3168,42 @@ textarea.field-input {
   display: grid;
   gap: 6px;
 }
+
+/* The Statistics page's tabs: the current one in the text colour, underlined in coral. */
+.stats-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.stats-tab {
+  flex: none;
+  margin-bottom: -1px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: 500 14px var(--sans);
+  cursor: pointer;
+}
+
+.stats-tab:hover {
+  color: var(--fg);
+}
+
+.stats-tab[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--fg);
+}
+
+.page-view .stats-intro {
+  margin: 16px 0 0;
+  max-width: 60ch;
+}
+
+.page-view.stats .placeholder-note {
+  margin-top: 16px;
+}

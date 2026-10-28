@@ -82,7 +82,7 @@ Three levels; the most specific wins:
 - **The spending cap** sums the costs of the calls started in the last 24 hours, deleted projects included.
 
 ### The costs view
-The Statistics page (menu, `#/stats`), for now only its costs (decided 2026-10-27; first draft built: `apps/web/src/StatsPage.tsx`, `costs.ts`, `TimeChart.tsx`; the Worker's `GET /api/costs`, `apps/worker/src/costs.ts`). Built for a quick glimpse first: it opens on the last 30 days, per day, as bars, nothing split or filtered.
+The Statistics page's Costs tab (menu, `#/stats/costs`; the page's other tabs are Usage, Run times and Effort, docs/tasks.md) (decided 2026-10-27; first draft built: `apps/web/src/StatsPage.tsx`, `costs.ts`, `TimeChart.tsx`; the Worker's `GET /api/costs`, `apps/worker/src/costs.ts`). Built for a quick glimpse first: it opens on the last 30 days, per day, as bars, nothing split or filtered.
 - **The blocks, top to bottom, each with the same head** (decided): its title and an "i" (which shows and hides what the block means) on the left, its value on the right in large mono, a short note under the value; on a phone the value goes to a line of its own, on the right.
   - **"Last 24 hours":** a bar and the amount, "max. $15.00" under them (not "of $15.00": the cap is a limit, not a budget). The bar is grey, amber from 80%, red once the cap is reached; then a red line says so, outside the "i" (urgent things don't hide).
   - **"Average per page,"** with a selection of its own ("The average cost per page", below).

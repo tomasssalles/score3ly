@@ -51,7 +51,7 @@ Everything that is still to do about score3ly is a task, and every task is in th
 `#next` `#decision` `#next-release`
 
 The Statistics page has its costs (done, `docs/llm.md`, "The costs view"). The chart (`TimeChart`) and the check lists are made to be reused. Decided so far (2026-10-28, under discussion):
-- **One page, four tabs,** each with its own URL (`#/stats/costs`, ...); one menu entry.
+- **One page, four tabs,** each with its own URL (`#/stats/costs`, ...); one menu entry. Built: the tabs (Costs, Usage, Run times, Effort), the new ones saying "Not built yet.", Effort with its explanation.
 - **Costs:** as built.
 - **Usage,** one tab in two parts: activity (when the app was in use, projects created, stages run, extra stages added, LLM calls and tokens, with free or paid as a grouping) and waste (retries, failed calls and stages, discarded stages).
 - **When the app was in use:** from the events already recorded (calls, stages starting and ending, projects created and finished), cut into time buckets, each active or idle; nothing new is recorded.

@@ -5,10 +5,13 @@ import {
   hashForPage,
   hashForProject,
   hashForStage,
+  hashForStatsTab,
   PAGES,
   pageFromHash,
   parseRoute,
   projectIdFromHash,
+  STATS_TABS,
+  statsTabFromHash,
 } from "./route.ts";
 
 test("a project's hash leads back to its ID", () => {
@@ -57,7 +60,15 @@ test("each menu page's hash leads back to it, and isn't a project", () => {
 });
 
 test("other hashes are no page", () => {
-  for (const hash of ["", "#", "#/", "#/projects", "#/projects/p1", "#/settings/x", "#/unknown", "#settings"]) {
+  for (const hash of ["", "#", "#/", "#/projects", "#/projects/p1", "#/settings/x", "#/stats/x", "#/unknown", "#settings"]) {
     assert.equal(pageFromHash(hash), null, hash);
   }
+});
+
+test("each tab of the Statistics page has its hash; the page's own opens the first", () => {
+  for (const tab of STATS_TABS) {
+    assert.equal(pageFromHash(hashForStatsTab(tab)), "stats");
+    assert.equal(statsTabFromHash(hashForStatsTab(tab)), tab);
+  }
+  assert.equal(statsTabFromHash("#/stats"), "costs");
 });

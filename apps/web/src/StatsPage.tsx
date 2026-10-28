@@ -1,7 +1,8 @@
-// The Statistics page (docs/llm.md, "The costs view"). For now its costs: the spending cap's last 24 hours and the
-// average cost per page at the top; then a range and what it cost in all, unfiltered; then, apart, the chart (bars per
-// day, week or month, or the running total), split into groups and filtered by them, and a table of the totals. It
-// opens on the plainest view: the last 30 days, per day, nothing split or filtered.
+// The Statistics page, in tabs: Costs, Usage, Run times and Effort (only Costs is built). The Costs tab (docs/llm.md,
+// "The costs view"): the spending cap's last 24 hours and the average cost per page at the top; then a range and what
+// it cost in all, unfiltered; then, apart, the chart (bars per day, week or month, or the running total), split into
+// groups and filtered by them, and a table of the totals. It opens on the plainest view: the last 30 days, per day,
+// nothing split or filtered.
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { fetchCosts, type CostData } from "./api";
@@ -32,13 +33,63 @@ import {
   unfinished,
 } from "./costs";
 import { DropdownMenu } from "./DropdownMenu";
+import { hashForStatsTab, statsTabFromHash, type StatsTab } from "./route";
+import { useHash } from "./useHash";
 import { CheckList } from "./CheckList";
 import { BarsIcon, ChevronDownIcon, ExpandIcon, FilterIcon, InfoIcon, MoreIcon, RunningTotalIcon, SplitIcon } from "./icons";
 import { dollars } from "./money";
 import { shortDate } from "./time";
 import { TimeChart, type ChartSeries } from "./TimeChart";
 
+// The page's tabs, each with its own URL ("#/stats/usage"). Switching tabs replaces the URL rather than adding to the
+// history, so back leaves the page, as from any other page of the menu.
+const TABS: { id: StatsTab; label: string }[] = [
+  { id: "costs", label: "Costs" },
+  { id: "usage", label: "Usage" },
+  { id: "times", label: "Run times" },
+  { id: "effort", label: "Effort" },
+];
+
 export function StatsPage() {
+  const tab = statsTabFromHash(useHash());
+  return (
+    <div className="page-view stats">
+      <h2>Statistics</h2>
+      <div className="stats-tabs" role="tablist" aria-label="Statistics">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={t.id === tab}
+            className="stats-tab"
+            onClick={() => window.location.replace(hashForStatsTab(t.id))}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" aria-label={TABS.find((t) => t.id === tab)?.label}>
+        {tab === "costs" && <CostsTab />}
+        {tab === "usage" && <NotBuilt />}
+        {tab === "times" && <NotBuilt />}
+        {tab === "effort" && (
+          <>
+            <p className="stats-intro">This page is about how often the automated pipeline wasn't good enough and you had to swoop in and save the day.</p>
+            <NotBuilt />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// The tabs whose statistics are still to be decided and built (docs/tasks.md, "Other statistics: decide, then build").
+function NotBuilt() {
+  return <p className="placeholder-note">Not built yet.</p>;
+}
+
+function CostsTab() {
   const [data, setData] = useState<CostData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,11 +98,10 @@ export function StatsPage() {
   }, []);
 
   return (
-    <div className="page-view stats">
-      <h2>Statistics</h2>
+    <>
       {error && <p className="settings-error">{error}</p>}
       {data && <Costs data={data} />}
-    </div>
+    </>
   );
 }
 
