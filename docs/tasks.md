@@ -64,6 +64,11 @@ Still to settle, then build:
 - **The rest of Usage:** projects created, stages run, extra stages added, LLM calls and tokens (free or paid as a grouping); and waste. Retries aren't marked as such: proposed, a failed call followed by another call for the same item in the same stage.
 - **How much a manual fix changes** isn't recorded: a fix stores its outputs whole, so the changes are only found by comparing each output with its parent (in R2). Proposed: count them once, when the fix is finished, and store the count on the stage; a rule per kind of fix (boxes and bar lines, lines, fields, answers) is to be decided.
 
+### Failed calls in the Costs tab
+`#next` `#decision`
+
+How much money was lost on failed calls (`docs/llm.md`, "The costs view"). Proposed, not decided: a note under the detailed overview's total ("unfiltered total, $0.85 on failed calls"), and a fourth dimension in the split and the filter, "Call", with the groupings outcome (succeeded, failed) and reason (cut off, refused, unusable answer, error), so that failed calls alone can be split by stage or config. It conflicts with "failures are not a group of their own (decided: confusing)", which is to be settled: that was about failures as a group of the stage split. Also, somewhere, the count of calls of unknown cost (`docs/llm.md`, "Calling the providers"), to say how far the costs may fall short. The Worker's points would carry the outcome as one more key.
+
 ### Decide the model configs
 `#decision` `#research` `#next-release`
 

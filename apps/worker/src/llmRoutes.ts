@@ -5,7 +5,7 @@
 
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
-import { createProvider, type Effort, type LlmContent, type ProviderConfig, type ProviderId } from "./llm/index.ts";
+import { createProvider, LlmError, type Effort, type LlmContent, type ProviderConfig, type ProviderId } from "./llm/index.ts";
 import { costOf, PRICES_AS_OF, priceOf } from "./llm/prices.ts";
 
 const PROVIDERS: ProviderId[] = ["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "fake"];
@@ -477,11 +477,13 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       answer = { callId, cached: false, status, text: response.text, json: response.json ?? null, error, usage: response.usage, costUsd };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      // No usable response, so no token counts and no cost. A call may still have been billed: one whose response
-      // broke off or couldn't be read at all (docs/llm.md, "Calling the providers").
+      // No usable response, so no token counts and no cost. With an HTTP status, the provider refused the call and
+      // didn't bill it; without one, it may have been billed (docs/llm.md, "Calling the providers").
+      const kind = err instanceof LlmError ? err.kind : "unknown";
+      const httpStatus = err instanceof LlmError ? (err.status ?? null) : null;
       await db
-        .prepare("UPDATE llm_calls SET status = 'error', error = ?, finished_at = ? WHERE id = ?")
-        .bind(message, new Date().toISOString(), callId)
+        .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = ?, http_status = ?, finished_at = ? WHERE id = ?")
+        .bind(message, kind, httpStatus, new Date().toISOString(), callId)
         .run();
       answer = { callId, cached: false, status: "error", text: null, json: null, error: message, usage: null, costUsd: null };
     }

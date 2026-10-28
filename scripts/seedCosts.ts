@@ -122,6 +122,7 @@ function call(stageId: string, cfg: Config, t: number, tokens: Tokens, deleted: 
   if (!cfg.free && spentInDayBefore(t) >= CAP_USD) throw new CapReached();
   const roll = random();
   const status = roll < 0.025 ? "error" : roll < 0.035 ? "cut_off" : roll < 0.045 ? "unparseable" : "ok";
+  const overloaded = status === "error" && chance(0.6);
   const effort = EFFORT_OUTPUT[cfg.effort ?? "high"] ?? 1;
   const output = status === "cut_off" ? 32_000 : Math.round(tokens.output * effort * between(0.8, 1.25));
   const seconds = status === "error" ? between(2, 40) : 4 + output / between(50, 90) + tokens.input / 4000;
@@ -140,10 +141,12 @@ function call(stageId: string, cfg: Config, t: number, tokens: Tokens, deleted: 
     response_sha256: deleted || !usage ? null : hex(64),
     status,
     error:
-      status === "error" ? (chance(0.6) ? "The provider is overloaded (529). Try again later." : "The request timed out after 600 s.")
+      status === "error" ? (overloaded ? "The provider is overloaded (529). Try again later." : "The request timed out after 600 s.")
       : status === "cut_off" ? "The answer was cut off."
-      : status === "unparseable" ? "The answer ended unexpectedly."
+      : status === "unparseable" ? "The answer isn't valid JSON."
       : null,
+    error_kind: status === "error" ? (overloaded ? "overloaded" : "timeout") : null,
+    http_status: overloaded ? 529 : null,
     input_tokens: usage?.input ?? null,
     output_tokens: usage?.output ?? null,
     cached_tokens: usage?.cacheRead ?? null,

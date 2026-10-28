@@ -136,6 +136,30 @@ test("HTTP errors become typed errors that say whether to retry", async () => {
   }
 });
 
+test("failures without an HTTP status say what went wrong", async () => {
+  const cases: [string, typeof fetch, string][] = [
+    ["no connection", (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch, "network"],
+    [
+      "broken JSON in the stream",
+      (async () => new Response("event: message_start\ndata: {broken\n\n", { status: 200, headers: { "content-type": "text/event-stream" } })) as unknown as typeof fetch,
+      "unreadable_response",
+    ],
+    [
+      "a stream that ends without a message",
+      (async () => new Response("", { status: 200, headers: { "content-type": "text/event-stream" } })) as unknown as typeof fetch,
+      "unreadable_response",
+    ],
+  ];
+  for (const [what, fetch, kind] of cases) {
+    const provider = anthropicProvider({ apiKey: "k", fetch, maxRetries: 0 });
+    await assert.rejects(provider.send(request), (err: unknown) => {
+      assert.ok(err instanceof LlmError, what);
+      assert.deepEqual([err.kind, err.status], [kind, undefined], what);
+      return true;
+    });
+  }
+});
+
 test("a refusal says so, with its category", () => {
   const message = {
     model: "claude-opus-5-5",

@@ -127,5 +127,8 @@ export function fromResult(result: GenerateContentResponse, request: LlmRequest)
 
 function toLlmError(err: unknown): LlmError {
   if (err instanceof ApiError) return new LlmError(kindForStatus(err.status), err.message, err.status);
-  return new LlmError("network", String(err));
+  if (err instanceof SyntaxError) return new LlmError("unreadable_response", String(err));
+  if (err instanceof DOMException && err.name === "AbortError") return new LlmError("aborted", "The request was aborted.");
+  if (err instanceof TypeError) return new LlmError("network", String(err)); // fetch's own failure
+  return new LlmError("unknown", String(err));
 }

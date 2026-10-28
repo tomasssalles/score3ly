@@ -99,3 +99,12 @@ test("HTTP errors become typed errors", async () => {
     await assert.rejects(provider.send(request), (err: unknown) => err instanceof LlmError && err.kind === kind);
   }
 });
+
+test("a response that isn't JSON is unreadable, a failed fetch is the network", async () => {
+  const broken = (async () => new Response("{broken", { status: 200, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
+  const offline = (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch;
+  for (const [fetch, kind] of [[broken, "unreadable_response"], [offline, "network"]] as const) {
+    const provider = new GoogleProvider({ apiKey: "k", fetch });
+    await assert.rejects(provider.send(request), (err: unknown) => err instanceof LlmError && err.kind === kind && err.status === undefined);
+  }
+});

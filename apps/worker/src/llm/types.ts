@@ -58,8 +58,12 @@ export type LlmErrorKind =
   | "overloaded"
   | "bad_request" // the request itself is wrong: retrying won't help
   | "server"
-  | "network"
-  | "unexpected_model"; // another model answered than the one asked
+  | "network" // no connection to the provider
+  | "timeout" // the connection timed out
+  | "aborted" // the request was aborted from our side
+  | "unreadable_response" // the provider answered, but its response couldn't be read (broken JSON, a stream cut short)
+  | "unexpected_model" // another model answered than the one asked
+  | "unknown"; // anything else the client library threw
 
 export class LlmError extends Error {
   readonly kind: LlmErrorKind;
@@ -74,7 +78,7 @@ export class LlmError extends Error {
 
   // Worth trying again later, unchanged.
   get retryable(): boolean {
-    return ["rate_limit", "overloaded", "server", "network"].includes(this.kind);
+    return ["rate_limit", "overloaded", "server", "network", "timeout"].includes(this.kind);
   }
 }
 

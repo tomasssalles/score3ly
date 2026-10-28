@@ -158,6 +158,7 @@ export function fromMessage(message: Message): Omit<LlmResponse, "json"> {
 function toLlmError(err: unknown): LlmError {
   // On Vertex AI, a failure to get a token (e.g. a refused service account) comes wrapped as a connection error.
   if (err instanceof Anthropic.APIConnectionError && err.cause instanceof LlmError) return err.cause;
+  if (err instanceof Anthropic.APIConnectionTimeoutError) return new LlmError("timeout", err.message);
   if (err instanceof Anthropic.APIConnectionError) return new LlmError("network", err.message);
   if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
     return new LlmError("auth", err.message, err.status);
@@ -166,6 +167,10 @@ function toLlmError(err: unknown): LlmError {
   if (err instanceof Anthropic.APIError && typeof err.status === "number") {
     return new LlmError(kindForStatus(err.status), err.message, err.status);
   }
-  if (err instanceof Anthropic.APIUserAbortError) return new LlmError("network", "The request was aborted.");
-  return new LlmError("network", String(err));
+  if (err instanceof Anthropic.APIUserAbortError) return new LlmError("aborted", "The request was aborted.");
+  // The stream's own errors (events out of order, a stream that ended without a message) and broken JSON in it.
+  if (err instanceof SyntaxError || (err instanceof Anthropic.AnthropicError && !(err instanceof Anthropic.APIError))) {
+    return new LlmError("unreadable_response", String(err));
+  }
+  return new LlmError("unknown", String(err));
 }
