@@ -69,10 +69,10 @@ Still to settle, then build:
 
 How much money was lost on failed calls (`docs/llm.md`, "The costs view"). The call status dimension is built. Proposed, not decided: a note under the detailed overview's total ("unfiltered total, $0.85 on failed calls").
 
-### The costs view: the effort grouping and the order of long lists
+### The costs view: the order of long lists
 `#decision`
 
-`docs/llm.md`, "The costs view". **Effort:** the providers offer different levels (Claude: low to max; Gemini: low, medium, high, with extra high and max sent as high), so "High" doesn't mean the same on both, and a Gemini config set to Max ran at High; under discussion. **The order of the lists that grow** (projects, PDFs, configs) in the filters: today the most expensive first, over all time; to decide (sorting and searching the statistics' project lists are tasks of their own).
+`docs/llm.md`, "The costs view". **The order of the lists that grow** (projects, PDFs, configs) in the filters: today the most expensive first, over all time; to decide (sorting and searching the statistics' project lists are tasks of their own).
 
 ### Decide the model configs
 `#decision` `#research` `#next-release`

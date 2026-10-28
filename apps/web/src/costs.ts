@@ -141,7 +141,6 @@ export const GROUPINGS: Record<Dimension, { id: string; label: string; short?: s
     { id: "config", ...NONE },
     { id: "provider", label: "Provider" },
     { id: "family", label: "Model family" },
-    { id: "effort", label: "Effort" },
   ],
   status: [
     { id: "status", ...NONE },
@@ -175,8 +174,6 @@ const PROVIDERS: Record<string, string> = {
 };
 const FAMILIES: Record<string, string> = { anthropic: "Claude", "anthropic-vertex": "Claude", "anthropic-bedrock": "Claude", google: "Gemini", "fake-dev": "Fake" };
 const FAMILY_ORDER = ["Claude", "Gemini", "Fake"];
-const EFFORTS: Record<string, string> = { low: "Low", medium: "Medium", high: "High", xhigh: "Extra high", max: "Max" };
-const EFFORT_ORDER = ["low", "medium", "high", "xhigh", "max", "default"];
 
 // A call's status as the costs view tells them apart (the Worker's `outcome`), in the order listed.
 const STATUSES: Record<string, string> = {
@@ -234,10 +231,6 @@ export function grouper(data: CostData, dimension: Dimension, grouping: string, 
     if (grouping === "family") {
       const family = FAMILIES[m.provider] ?? m.provider;
       return { key: family, label: family, rank: rankIn(FAMILY_ORDER, family) };
-    }
-    if (grouping === "effort") {
-      const effort = m.effort ?? "default";
-      return { key: effort, label: m.effort ? EFFORTS[m.effort] ?? m.effort : "Model's default", rank: rankIn(EFFORT_ORDER, effort) };
     }
     const name = m.name ?? m.model;
     if (byName) return { key: `name:${name}`, label: name };

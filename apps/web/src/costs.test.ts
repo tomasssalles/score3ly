@@ -121,7 +121,7 @@ test("more groups than colours: the rest are one series, the table still lists e
   assert.equal(view.rows.length, 9);
 });
 
-test("groupings: deleted projects marked with the day they were deleted, edited configs apart or by name, providers and efforts", () => {
+test("groupings: deleted projects marked with the day they were deleted, edited configs apart or by name, and providers", () => {
   const projects = grouper(data, "project", "project");
   assert.deepEqual(projects("review-2", "sonnet"), { key: "p2", label: "Sonata", note: "(deleted 23 Oct 2026)" });
   assert.deepEqual(projects("layout-1", "opus-1"), { key: "p1", label: "Sonata", note: undefined });
@@ -133,7 +133,6 @@ test("groupings: deleted projects marked with the day they were deleted, edited 
   assert.deepEqual(byName.rows.map((g) => [g.label, g.usd]), [["Opus EU", 7], ["claude-sonnet-5-5", 0.5]]);
   assert.equal(grouper(data, "config", "provider")("x", "opus-2").label, "AWS Bedrock");
   assert.equal(grouper(data, "config", "family")("x", "sonnet").label, "Claude");
-  assert.equal(grouper(data, "config", "effort")("x", "sonnet").label, "Model's default");
 });
 
 test("the filters list every group, whatever the range: known ones in their order, the others the most expensive first", () => {
