@@ -58,9 +58,9 @@ function ActiveHours({ data }: { data: ActivityData }) {
         title="Activity"
         about={
           <p>
-            An hour counts as active if anything happened in it: a model was being asked, a stage started or ended, a
-            result or a manual change was saved, or a project was created. Only looking at a project leaves no trace.
-            Hours are counted once, however much happened in them.
+            An hour counts as active if anything happened in it: a request was sent to an LLM, a stage started or ended,
+            a result or a manual change was saved, or a project was created. Just looking at a project isn't counted as
+            activity and we don't track project navigation.
           </p>
         }
         right={
