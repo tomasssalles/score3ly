@@ -170,7 +170,7 @@ function PagesTranscribed({ data }: { data: TranscribedData }) {
                 {view.total}
                 <span className="stat-unit"> {view.total === 1 ? "page" : "pages"}</span>
               </span>
-              <span className="stat-note">in {view.scores === 1 ? "1 score" : `${view.scores} scores`}</span>
+              <span className="stat-note">from {view.scores === 1 ? "1 score" : `${view.scores} scores`}</span>
             </span>
           </>
         }
