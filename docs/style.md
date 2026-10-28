@@ -221,7 +221,7 @@ From the most local to the most interrupting; always the most local one that the
 - **An ellipsis (…) means "in progress"** ("Analyze…", "Preparing…"); never used for decoration.
 - **The middle dot (·) joins facts** on one line: "2s · 54 systems · 3 issues".
 - **Numbers, dates and money have one fixed format,** independent of the browser's locale: "7 Oct", "7 Oct 2025" (never all-numeric); "20min ago", "5h ago", "2d ago" for less than a week; "$0.12", "<$0.01", "$0.00" only for free calls; durations "8s", "3min 12s", "1h 5min".
-- **A deleted project is marked "(deleted)"** after its name, in muted italics, wherever deleted projects are listed (the statistics).
+- **A deleted project is marked "(deleted 12 Sep 2026)"** after its name, in muted italics, the same wherever deleted projects are listed (the statistics: lists, pickers, filters, tables, a chart's readout). The date, always with its year, tells apart two projects of the same name, one of them deleted (decided).
 - **Names are never cut at the end:** they wrap over up to three lines, and only when even that isn't enough are they shortened in the middle ("villa-lobos_bach…prelude.orig (1)"), because names on the same PDF differ at the end. The full name is one hover or one tap away. The browser can only cut text at the end, so one component (`FittedText`) measures and shortens.
 - **Messages speak about the work, not about the user:** "The fake provider failed, as asked", "A project with that name already exists. Names must be unique (case-insensitive)." Never "You did…", never "Oops".
 - **Say what the app can't know as a possibility,** not as a fact: "boxes or answers may not fit it", "probably on another device".

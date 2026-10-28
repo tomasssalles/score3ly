@@ -109,10 +109,10 @@ test("more groups than colours: the rest are one series, the table still lists e
   assert.equal(view.rows.length, 9);
 });
 
-test("groupings: deleted projects marked with their dates, edited configs apart or by name, providers and efforts", () => {
+test("groupings: deleted projects marked with the day they were deleted, edited configs apart or by name, providers and efforts", () => {
   const projects = grouper(data, "project", "project");
-  assert.equal(projects("review-2", "sonnet").label, "Sonata (deleted; 1 Sep 2026 – 23 Oct 2026)");
-  assert.equal(projects("layout-1", "opus-1").label, "Sonata");
+  assert.deepEqual(projects("review-2", "sonnet"), { key: "p2", label: "Sonata", note: "(deleted 23 Oct 2026)" });
+  assert.deepEqual(projects("layout-1", "opus-1"), { key: "p1", label: "Sonata", note: undefined });
   assert.equal(grouper(data, "project", "pdf")("review-2", "sonnet").label, "Sonata.pdf");
   const configs = grouper(data, "config", "config");
   assert.equal(configs("x", "opus-1").label, "Opus EU (until 21 Oct 2026)");

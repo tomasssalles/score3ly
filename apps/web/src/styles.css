@@ -3215,7 +3215,7 @@ textarea.field-input {
   overflow-y: auto;
 }
 
-/* A note after a name in a list or a picker, e.g. "(deleted)". */
+/* A note after a name in a list or a picker, e.g. "(deleted 12 Sep 2026)". */
 .menu-note {
   color: var(--muted);
   font-style: italic;

@@ -8,7 +8,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { ticks } from "./chart.ts";
 
-export type ChartSeries = { key: string; label: string; color: string }; // color: a CSS value, e.g. "var(--accent)"
+export type ChartSeries = { key: string; label: string; note?: string; color: string }; // color: a CSS value, e.g. "var(--accent)"
 
 const MIN_PITCH = 4; // px per bucket, at least
 const MAX_BAR = 40; // px, the widest a bar gets
@@ -114,7 +114,8 @@ export function TimeChart({
               shown[k][selected] > 0 ? (
                 <span key={s.key} className="chart-readout-item">
                   <span className="chart-swatch" style={{ background: s.color }} />
-                  {s.label} {format(shown[k][selected])}
+                  {s.label}
+                  {s.note && <span className="menu-note"> {s.note}</span>} {format(shown[k][selected])}
                 </span>
               ) : null,
             )}

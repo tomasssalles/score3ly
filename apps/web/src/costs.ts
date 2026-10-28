@@ -145,7 +145,12 @@ export const GROUPINGS: Record<Dimension, { id: string; label: string; short?: s
   ],
 };
 
-export type Group = { key: string; label: string };
+export type Group = { key: string; label: string; note?: string }; // note: shown after the label, muted and in italics
+
+// A deleted project's mark (docs/style.md, "Words"): with its date, so two projects of the same name are told apart.
+export function deletedNote(deletedAt: string | null): string | undefined {
+  return deletedAt ? `(deleted ${dateOf(deletedAt)})` : undefined;
+}
 
 // The steps not built yet have no entry in steps.ts.
 const STEP_TITLES: Record<string, string> = { review: "Review", apply_review: "Apply review", human_review: "Human review" };
@@ -189,13 +194,13 @@ export function grouper(data: CostData, dimension: Dimension, grouping: string, 
     };
   }
   if (dimension === "project") {
-    // Names can repeat once a project is deleted: a deleted one is marked, with its dates.
+    // Names can repeat once a project is deleted: a deleted one is marked, with the day it was deleted.
     return (stageId) => {
       const p = projects.get(stages.get(stageId)?.projectId ?? "");
       if (!p) return unknown;
       if (grouping === "alive") return p.deletedAt ? { key: "deleted", label: "Deleted projects" } : { key: "current", label: "Current projects" };
       if (grouping === "pdf") return { key: p.pdfSha256, label: p.pdfFilename };
-      return { key: p.id, label: p.deletedAt ? `${p.name} (deleted; ${dateOf(p.createdAt)} – ${dateOf(p.deletedAt)})` : p.name };
+      return { key: p.id, label: p.name, note: deletedNote(p.deletedAt) };
     };
   }
   return (_stageId, configId) => {

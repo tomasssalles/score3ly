@@ -6,7 +6,7 @@
 import type { ReactNode } from "react";
 import { CheckIcon } from "./icons";
 
-export type CheckItem = { key: string; name: string; facts?: string; amounts?: string[] };
+export type CheckItem = { key: string; name: string; note?: string; facts?: string; amounts?: string[] };
 
 export function CheckList({
   allLabel,
@@ -48,6 +48,7 @@ export function CheckList({
                 <span className="check-box">{checked && <CheckIcon />}</span>
                 <span className="check-name">
                   {item.name}
+                  {item.note && <span className="menu-note"> {item.note}</span>}
                   {item.facts && <span className="check-facts">{item.facts}</span>}
                 </span>
                 {(item.amounts ?? []).map((amount, i) => (

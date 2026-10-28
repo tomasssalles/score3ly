@@ -12,6 +12,7 @@ import {
   bucketTitle,
   costView,
   createdBefore,
+  deletedNote,
   defaultGranularity,
   DIMENSIONS,
   GRANULARITIES,
@@ -228,7 +229,10 @@ function Costs({ data }: { data: CostData }) {
                   <td className="costs-swatch-cell">
                     <span className="chart-swatch" style={{ background: color }} />
                   </td>
-                  <td className="costs-group">{split ? row.label : "Total, as filtered"}</td>
+                  <td className="costs-group">
+                    {split ? row.label : "Total, as filtered"}
+                    {split && row.note && <span className="menu-note"> {row.note}</span>}
+                  </td>
                   <td className="costs-amount">{dollars(row.usd)}</td>
                   <td className="costs-share">{split && view.filtered > 0 ? `${Math.round((row.usd / view.filtered) * 100)}%` : ""}</td>
                 </tr>
@@ -352,7 +356,7 @@ function FilterPanel({ data, range, filters, onChange }: { data: CostData; range
               ) : (
                 <CheckList
                   allLabel="All"
-                  items={groups.map((g) => ({ key: g.key, name: g.label }))}
+                  items={groups.map((g) => ({ key: g.key, name: g.label, note: g.note }))}
                   isOn={(key) => !filter.hidden.includes(key)}
                   setOn={setOn}
                 />
@@ -439,8 +443,8 @@ function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }
                 allLabel="All projects"
                 items={[...projects].reverse().map((p) => {
                   const own = perPage(p);
-                  const facts = [shortDate(p.createdAt, now), `${p.pages.length} ${p.pages.length === 1 ? "page" : "pages"}`, p.finished ? null : "unfinished pipeline", p.deletedAt ? "deleted" : null];
-                  return { key: p.id, name: p.name, facts: facts.filter(Boolean).join(" · "), amounts: [dollars(p.costUsd), own === null ? "–" : `${dollars(own)}/page`] };
+                  const facts = [shortDate(p.createdAt, now), `${p.pages.length} ${p.pages.length === 1 ? "page" : "pages"}`, p.finished ? null : "unfinished pipeline"];
+                  return { key: p.id, name: p.name, note: deletedNote(p.deletedAt), facts: facts.filter(Boolean).join(" · "), amounts: [dollars(p.costUsd), own === null ? "–" : `${dollars(own)}/page`] };
                 })}
                 isOn={(id) => !out.has(id)}
                 setOn={(ids, on) => {

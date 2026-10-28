@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchActivity, type ActivityData } from "./api";
-import { axisLabel, bucketsOf, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./costs";
+import { axisLabel, bucketsOf, deletedNote, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./costs";
 import { BarsIcon, RunningTotalIcon } from "./icons";
 import { Picker, StatHead } from "./statsParts";
 import { TimeChart } from "./TimeChart";
@@ -49,7 +49,7 @@ function ActiveHours({ data }: { data: ActivityData }) {
   const allHours = useMemo(() => hoursView(activeHours(data, null), buckets, range), [data, buckets, range]);
   const view = useMemo(() => (projectId === ALL ? allHours : hoursView(activeHours(data, projectId), buckets, range)), [data, projectId, buckets, range, allHours]);
   // Newest first, deleted ones marked (their names can be used again).
-  const projects = [...data.projects].reverse().map((p) => ({ id: p.id, label: p.name, note: p.deletedAt ? "(deleted)" : undefined }));
+  const projects = [...data.projects].reverse().map((p) => ({ id: p.id, label: p.name, note: deletedNote(p.deletedAt) }));
   const picked = projects.find((p) => p.id === projectId);
 
   return (
