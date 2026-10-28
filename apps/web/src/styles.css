@@ -2767,7 +2767,8 @@ textarea.field-input {
 
 /* The chart part, apart from the unfiltered numbers above it. */
 /* The detailed overview, apart from the numbers above it. */
-.stats-section.overview {
+.stats-section.overview,
+.stats-section.ruled {
   padding-top: 20px;
   border-top: 1px solid var(--line);
 }

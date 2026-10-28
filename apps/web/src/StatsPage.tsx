@@ -34,12 +34,12 @@ import {
   unfinished,
 } from "./costs";
 import { DropdownMenu } from "./DropdownMenu";
-import { Picker, StatHead } from "./statsParts";
+import { ChartModes, Picker, StatHead, type ChartMode } from "./statsParts";
 import { UsageTab } from "./UsageTab";
 import { hashForStatsTab, statsTabFromHash, type StatsTab } from "./route";
 import { useHash } from "./useHash";
 import { CheckList } from "./CheckList";
-import { BarsIcon, ChevronDownIcon, ExpandIcon, FilterIcon, InfoIcon, MoreIcon, RunningTotalIcon, SplitIcon } from "./icons";
+import { ChevronDownIcon, ExpandIcon, FilterIcon, InfoIcon, MoreIcon, SplitIcon } from "./icons";
 import { dollars } from "./money";
 import { shortDate } from "./time";
 import { TimeChart, type ChartSeries } from "./TimeChart";
@@ -114,7 +114,7 @@ function Costs({ data }: { data: CostData }) {
   const firstCost = data.points.length ? data.points[0][2] : null;
   const range = useMemo(() => rangeOf(rangeId, now, firstCost), [rangeId, now, firstCost]);
   const [granularity, setGranularity] = useState<Granularity>("day");
-  const [mode, setMode] = useState<"bars" | "line">("bars");
+  const [mode, setMode] = useState<ChartMode>("bars");
   const [split, setSplit] = useState<Split>(null);
   const [filters, setFilters] = useState<Filters>({});
   const [panel, setPanel] = useState<"split" | "filters" | null>(null);
@@ -153,18 +153,7 @@ function Costs({ data }: { data: CostData }) {
 
       <section className="stats-section costs-chart">
         <div className="costs-toolbar">
-          <div className="editor-tools editor-modes" role="radiogroup" aria-label="Chart">
-            {(
-              [
-                ["bars", "Amounts", <BarsIcon key="b" />],
-                ["line", "Running total", <RunningTotalIcon key="l" />],
-              ] as const
-            ).map(([m, title, icon]) => (
-              <button key={m} type="button" role="radio" aria-checked={mode === m} className="editor-mode" aria-label={title} title={title} onClick={() => setMode(m)}>
-                {icon}
-              </button>
-            ))}
-          </div>
+          <ChartModes mode={mode} onChange={setMode} />
           <Picker
             label="Granularity"
             value={granularity}
