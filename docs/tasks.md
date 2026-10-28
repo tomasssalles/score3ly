@@ -321,6 +321,13 @@ In both project filters of the costs view (the average per page's list, and the 
 
 In both project filters of the costs view: a search field that keeps the projects whose name contains the text, ignoring case, as the project picker in the header does.
 
+### Keep a run going while another page of the app is open
+`#next-release`
+
+Today a run belongs to the project view: opening a menu page (Statistics, Settings, About) or another project unmounts it, and its cleanup aborts the run (`ProjectView.tsx`, the first `useEffect`), without a warning, unlike closing the tab. The outputs saved stay; an LLM answer on its way is lost, although it is paid for; the stage shows as running until its heartbeat is 3 minutes old, then as interrupted, and a retry asks only for what is missing (docs/database.md). The same in the web app and in cadenza. Switching to another window doesn't stop a run (a hidden window's timers are slowed, but the heartbeat stays within the 3 minutes).
+
+To do: move the runner (the abort controller, the heartbeat, the Auto loop and the wake lock) out of the project view to the app's top level, so a run goes on whatever the app shows, and the project view only shows it. Then: where the user sees a run going on while elsewhere (e.g. in the header or the project picker), and what a second project's Run does while one runs (one run at a time, as the calls are sequential, §10).
+
 ### Create the remote R2 bucket and D1 database
 `#next-release`
 
