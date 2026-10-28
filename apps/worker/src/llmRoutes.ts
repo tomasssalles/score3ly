@@ -477,8 +477,8 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       answer = { callId, cached: false, status, text: response.text, json: response.json ?? null, error, usage: response.usage, costUsd };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      // No usable response, so no token counts and no cost. With an HTTP status, the provider refused the call and
-      // didn't bill it; without one, it may have been billed (docs/llm.md, "Calling the providers").
+      // No usable response, so no token counts and no cost. With an HTTP error status, the provider refused the call
+      // and didn't bill it; otherwise it may have been billed (docs/llm.md, "Calling the providers").
       const kind = err instanceof LlmError ? err.kind : "unknown";
       const httpStatus = err instanceof LlmError ? (err.status ?? null) : null;
       await db
