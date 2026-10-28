@@ -1,5 +1,5 @@
 // The costs view's data (docs/llm.md, "The costs view"): everything that was paid for, as small sums per stage, model
-// config and quarter of an hour, with the stages, projects and configs they refer to. The browser filters, groups and
+// config, quarter of an hour and the calls' status (for the call status, a few: failed calls are rare), with the stages, projects and configs they refer to. The browser filters, groups and
 // sums them into the viewer's own days, weeks and months, so a change of view needs no request. Quarters of an hour,
 // because every time zone's midnight falls on one (Nepal is UTC+5:45). Free-tier calls are left out: the view is
 // about money. The spending cap's last 24 hours come along, for the top of the page.
@@ -37,10 +37,11 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
         .prepare(
           `SELECT c.stage_id AS stage, c.model_config_id AS config,
              (CAST(strftime('%s', c.started_at) AS INTEGER) / ${BUCKET_SECONDS}) * ${BUCKET_SECONDS} AS t,
-             SUM(c.cost_usd) AS usd
+             SUM(c.cost_usd) AS usd,
+             CASE WHEN c.error_kind = 'unexpected_model' THEN 'wrong_model' WHEN c.status = 'error' THEN 'unexpected_stop' ELSE c.status END AS outcome
            FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
            WHERE m.free_tier = 0 AND c.cost_usd > 0
-           GROUP BY c.stage_id, c.model_config_id, t
+           GROUP BY c.stage_id, c.model_config_id, t, outcome
            ORDER BY t`,
         ),
       db
@@ -86,7 +87,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
       pagesOf.set(row.project, pages);
     }
     const [{ spendingCapUsd }, spent] = await Promise.all([readSettings(db), spentInLastDay(db)]);
-    type Point = { stage: string; config: string; t: number; usd: number };
+    type Point = { stage: string; config: string; t: number; usd: number; outcome: string };
     type Unknown = { stage: string; config: string; t: number; n: number };
     type Stage = { id: string; step: string; project: string; in_recipe: number; kept: number };
     type ProjectRow = { id: string; name: string; pdf_sha256: string; pdf_filename: string; created_at: string; deleted_at: string | null; finished: number | null };
@@ -94,8 +95,9 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json({
       capUsd: spendingCapUsd,
       spentLastDayUsd: spent,
-      // [stage, config, start of the quarter of an hour in ms, US dollars]
-      points: (points.results as Point[]).map((p) => [p.stage, p.config, p.t * 1000, p.usd]),
+      // [stage, config, start of the quarter of an hour in ms, US dollars, the calls' status: their status, or for an
+      // error with a cost, "wrong_model" (another model answered) or "unexpected_stop"]
+      points: (points.results as Point[]).map((p) => [p.stage, p.config, p.t * 1000, p.usd, p.outcome]),
       // [stage, config, start of the quarter of an hour in ms, number of calls of unknown cost]
       unknown: (unknown.results as Unknown[]).map((u) => [u.stage, u.config, u.t * 1000, u.n]),
       stages: (stages.results as Stage[]).map((s) => ({ id: s.id, step: s.step, projectId: s.project, inRecipe: s.in_recipe === 1, kept: s.kept === 1 })),

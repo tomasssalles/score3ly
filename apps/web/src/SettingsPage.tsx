@@ -203,7 +203,8 @@ const PROVIDERS: Record<ModelConfig["provider"], string> = {
   "anthropic-vertex": "Claude on Google Vertex AI",
   "anthropic-bedrock": "Claude on AWS Bedrock",
   google: "Google Gemini API",
-  fake: "Fake (no network, for tests)",
+  fake: "Fake (no network, no costs, for trying the app)",
+  "fake-dev": "Fake with costs (for development)",
 };
 
 // The providers' fields by name (the Worker's FIELDS); one it doesn't know is shown as stored.

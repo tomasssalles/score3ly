@@ -19,7 +19,7 @@ import {
   granularitiesFor,
   grouper,
   GROUPINGS,
-  groupsIn,
+  allGroups,
   hiddenCount,
   OTHER,
   perPage,
@@ -197,7 +197,7 @@ function Costs({ data }: { data: CostData }) {
         </div>
 
         {panel === "split" && <SplitPanel split={split} onChange={setSplit} />}
-        {panel === "filters" && <FilterPanel data={data} range={range} filters={filters} onChange={setFilters} />}
+        {panel === "filters" && <FilterPanel data={data} filters={filters} onChange={setFilters} />}
         {panel !== "filters" && hidden > 0 && (
           <p className="costs-filtered">
             {hidden === 1 ? "1 group" : `${hidden} groups`} hidden by filters ·{" "}
@@ -320,7 +320,7 @@ function SplitPanel({ split, onChange }: { split: Split; onChange: (split: Split
       {split?.dimension === "config" && split.grouping === "config" && (
         <div className="costs-chips">
           <button type="button" className="chip" aria-pressed={split.byName} onClick={() => onChange({ ...split, byName: !split.byName })}>
-            Same name together
+            Merge by name
           </button>
           <span className="settings-hint">An edited config's versions, and configs that share a name, as one.</span>
         </div>
@@ -331,15 +331,15 @@ function SplitPanel({ split, onChange }: { split: Split; onChange: (split: Split
 
 // For each dimension, a section that can be collapsed (expanded at first, a coral dot while collapsed with anything
 // hidden): a grouping (none at first: each step, project or config) and its groups to select. A group not selected
-// is hidden from the chart and the table. Another grouping starts with nothing hidden. The groups listed are those
-// with costs in the time range, the most expensive first.
-function FilterPanel({ data, range, filters, onChange }: { data: CostData; range: { start: number; end: number }; filters: Filters; onChange: (filters: Filters) => void }) {
+// is hidden from the chart and the table. Another grouping starts with nothing hidden. Every group is listed, whatever
+// the time range (costs.ts, allGroups).
+function FilterPanel({ data, filters, onChange }: { data: CostData; filters: Filters; onChange: (filters: Filters) => void }) {
   const [collapsed, setCollapsed] = useState<Set<Dimension>>(new Set());
   return (
     <div className="costs-panel filter-panel">
       {DIMENSIONS.map(({ id: dimension, label }) => {
         const filter = filters[dimension] ?? { grouping: GROUPINGS[dimension][0].id, hidden: [] };
-        const groups = groupsIn(data, range, grouper(data, dimension, filter.grouping));
+        const groups = allGroups(data, dimension, grouper(data, dimension, filter.grouping));
         const isCollapsed = collapsed.has(dimension);
         const setOn = (keys: string[], on: boolean) => {
           const hidden = new Set(filter.hidden);
@@ -377,7 +377,7 @@ function FilterPanel({ data, range, filters, onChange }: { data: CostData; range
             </div>
             {!isCollapsed &&
               (groups.length === 0 ? (
-                <span className="muted">Nothing in this time range.</span>
+                <span className="muted">Nothing spent yet.</span>
               ) : (
                 <CheckList
                   allLabel="All"

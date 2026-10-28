@@ -67,7 +67,12 @@ Still to settle, then build:
 ### Failed calls in the Costs tab
 `#next` `#decision`
 
-How much money was lost on failed calls (`docs/llm.md`, "The costs view"). Proposed, not decided: a note under the detailed overview's total ("unfiltered total, $0.85 on failed calls"), and a fourth dimension in the split and the filter, "Call", with the groupings outcome (succeeded, failed) and reason (cut off, refused, unusable answer, error), so that failed calls alone can be split by stage or config. It conflicts with "failures are not a group of their own (decided: confusing)", which is to be settled: that was about failures as a group of the stage split. The Worker's points would carry the outcome as one more key.
+How much money was lost on failed calls (`docs/llm.md`, "The costs view"). The call status dimension is built. Proposed, not decided: a note under the detailed overview's total ("unfiltered total, $0.85 on failed calls").
+
+### The costs view: the effort grouping and the order of long lists
+`#decision`
+
+`docs/llm.md`, "The costs view". **Effort:** the providers offer different levels (Claude: low to max; Gemini: low, medium, high, with extra high and max sent as high), so "High" doesn't mean the same on both, and a Gemini config set to Max ran at High; under discussion. **The order of the lists that grow** (projects, PDFs, configs) in the filters: today the most expensive first, over all time; to decide (sorting and searching the statistics' project lists are tasks of their own).
 
 ### Decide the model configs
 `#decision` `#research` `#next-release`

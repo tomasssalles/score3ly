@@ -264,7 +264,7 @@ export async function fetchTextContent(sha256: string): Promise<string> {
 export type ModelConfig = {
   id: string;
   name: string | null;
-  provider: "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "fake";
+  provider: "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "fake" | "fake-dev";
   model: string;
   effort: "low" | "medium" | "high" | "xhigh" | "max" | null;
   params: Record<string, string>;
@@ -305,7 +305,8 @@ export async function fetchModelConfig(id: string): Promise<ModelConfig> {
 export type CostData = {
   capUsd: number;
   spentLastDayUsd: number;
-  points: [stageId: string, configId: string, t: number, usd: number][];
+  // outcome: the calls' status as the costs view tells them apart (costs.ts, STATUSES)
+  points: [stageId: string, configId: string, t: number, usd: number, outcome: string][];
   unknown: [stageId: string, configId: string, t: number, calls: number][];
   stages: { id: string; step: string; projectId: string; inRecipe: boolean; kept: boolean }[];
   // Every project, for the average per page too: whether its pipeline ran to its end, what it cost in all, the pages

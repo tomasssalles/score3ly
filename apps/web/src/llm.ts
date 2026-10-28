@@ -33,6 +33,7 @@ export function imageLimit(config: ModelConfig): SizeLimit {
     case "anthropic-bedrock":
     case "google":
     case "fake":
+    case "fake-dev":
       return CLAUDE_IMAGE_LIMIT;
   }
 }
@@ -55,6 +56,7 @@ export function requestLimits(config: ModelConfig): RequestLimits {
   switch (config.provider) {
     case "anthropic":
     case "fake":
+    case "fake-dev":
       return { maxRequestBytes: 32 * MB, maxImageBytes: 10 * MB, manyImages: many };
     case "anthropic-vertex":
     case "anthropic-bedrock":

@@ -11,7 +11,12 @@
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse } from "./types.ts";
 
 export class FakeProvider implements LlmProvider {
-  readonly id = "fake" as const;
+  readonly id: "fake" | "fake-dev";
+
+  // "fake-dev" answers the same, but has prices (prices.ts).
+  constructor(id: "fake" | "fake-dev" = "fake") {
+    this.id = id;
+  }
 
   async send(request: LlmRequest): Promise<LlmResponse> {
     if (request.model === "fake-error") throw new LlmError("server", "The fake provider failed, as asked.", 500);
@@ -20,7 +25,7 @@ export class FakeProvider implements LlmProvider {
     const text = typeof answer === "string" ? answer : JSON.stringify(answer);
     const stop = request.model === "fake-refusal" ? "refusal" : request.model === "fake-cut-off" ? "max_tokens" : "end";
     return {
-      provider: "fake",
+      provider: this.id,
       model: request.model,
       text,
       json: request.jsonSchema && stop === "end" && !unparseable ? answer : undefined,

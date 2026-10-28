@@ -4,7 +4,7 @@ process.env.TZ = "Asia/Kathmandu";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { CostData } from "./api";
-import { averagePerPage, axisLabel, bucketsOf, bucketTitle, costView, createdBefore, defaultGranularity, granularitiesFor, groupsIn, grouper, OTHER, perPage, rangeOf, unfinished } from "./costs.ts";
+import { averagePerPage, axisLabel, bucketsOf, bucketTitle, costView, createdBefore, defaultGranularity, granularitiesFor, allGroups, grouper, OTHER, perPage, rangeOf, unfinished } from "./costs.ts";
 
 const local = (s: string) => new Date(s).getTime(); // "2026-10-27T10:00" is local time
 
@@ -53,10 +53,11 @@ const data: CostData = {
   capUsd: 15,
   spentLastDayUsd: 2,
   points: [
-    ["layout-1", "opus-1", local("2026-10-20T23:45"), 1], // late on the 20th, local time
-    ["extract-1", "opus-1", local("2026-10-21T00:00"), 4],
-    ["extract-old", "opus-2", local("2026-10-21T09:00"), 2],
-    ["review-2", "sonnet", local("2026-10-22T12:00"), 0.5],
+    ["layout-1", "opus-1", local("2026-10-20T23:45"), 1, "ok"], // late on the 20th, local time
+    ["extract-1", "opus-1", local("2026-10-21T00:00"), 3, "ok"],
+    ["extract-1", "opus-1", local("2026-10-21T00:00"), 1, "cut_off"],
+    ["extract-old", "opus-2", local("2026-10-21T09:00"), 2, "unparseable"],
+    ["review-2", "sonnet", local("2026-10-22T12:00"), 0.5, "ok"],
   ],
   unknown: [
     ["extract-1", "opus-1", local("2026-10-21T00:00"), 2],
@@ -110,7 +111,7 @@ test("a split gives a series per group, the most expensive first; the table list
 test("more groups than colours: the rest are one series, the table still lists each", () => {
   const many: CostData = {
     ...data,
-    points: Array.from({ length: 9 }, (_, i) => [`s${i}`, "sonnet", local("2026-10-21T10:00"), 9 - i] as [string, string, number, number]),
+    points: Array.from({ length: 9 }, (_, i) => [`s${i}`, "sonnet", local("2026-10-21T10:00"), 9 - i, "ok"] as [string, string, number, number, string]),
     stages: Array.from({ length: 9 }, (_, i) => ({ id: `s${i}`, step: `step${i}`, projectId: "p1", inRecipe: true, kept: true })),
   };
   const view = costView(many, range, "day", { dimension: "stage", grouping: "step", byName: false }, {});
@@ -126,14 +127,39 @@ test("groupings: deleted projects marked with the day they were deleted, edited 
   assert.deepEqual(projects("layout-1", "opus-1"), { key: "p1", label: "Sonata", note: undefined });
   assert.equal(grouper(data, "project", "pdf")("review-2", "sonnet").label, "Sonata.pdf");
   const configs = grouper(data, "config", "config");
-  assert.equal(configs("x", "opus-1").label, "Opus EU (until 21 Oct 2026)");
+  assert.deepEqual([configs("x", "opus-1").label, configs("x", "opus-1").note], ["Opus EU", "(until 21 Oct 2026)"]);
   assert.equal(configs("x", "sonnet").label, "claude-sonnet-5-5");
-  const byName = groupsIn(data, range, grouper(data, "config", "config", true));
-  assert.deepEqual(byName.map((g) => [g.label, g.usd]), [["Opus EU", 7], ["claude-sonnet-5-5", 0.5]]);
+  const byName = costView(data, range, "day", { dimension: "config", grouping: "config", byName: true }, {});
+  assert.deepEqual(byName.rows.map((g) => [g.label, g.usd]), [["Opus EU", 7], ["claude-sonnet-5-5", 0.5]]);
   assert.equal(grouper(data, "config", "provider")("x", "opus-2").label, "AWS Bedrock");
   assert.equal(grouper(data, "config", "family")("x", "sonnet").label, "Claude");
   assert.equal(grouper(data, "config", "effort")("x", "sonnet").label, "Model's default");
-  assert.equal(grouper(data, "stage", "work")("review-2", "x").label, "Review");
+});
+
+test("the filters list every group, whatever the range: known ones in their order, the others the most expensive first", () => {
+  const labels = (dimension: "stage" | "project" | "config" | "status", grouping: string) =>
+    allGroups(data, dimension, grouper(data, dimension, grouping)).map((g) => g.label);
+  assert.deepEqual(labels("stage", "step"), ["Layout", "Extract", "Review"]); // the pipeline's order
+  assert.deepEqual(labels("stage", "fate"), ["Kept", "Replaced or stopped"]);
+  assert.deepEqual(labels("status", "status"), ["Succeeded", "Cut off", "Unusable answer"]);
+  assert.deepEqual(labels("status", "success"), ["Succeeded", "Failed"]);
+  assert.deepEqual(labels("config", "config"), ["Opus EU", "Opus EU", "claude-sonnet-5-5"]); // $4 + $1 + $2, then $0.50
+  // A project with only calls of unknown cost is listed too, so that it can be hidden.
+  const unknownOnly: CostData = {
+    ...data,
+    unknown: [["lost", "sonnet", local("2026-10-21T00:00"), 1]],
+    stages: [...data.stages, { id: "lost", step: "layout", projectId: "p3", inRecipe: true, kept: false }],
+    projects: [...data.projects, { ...data.projects[0], id: "p3", name: "Etude" }],
+  };
+  assert.ok(allGroups(unknownOnly, "project", grouper(unknownOnly, "project", "project")).some((g) => g.label === "Etude"));
+});
+
+test("the call status: split and filtered by status; calls of unknown cost have none and pass its filter", () => {
+  const view = costView(data, range, "day", { dimension: "status", grouping: "success", byName: false }, {});
+  assert.deepEqual(view.rows.map((r) => [r.label, r.usd]), [["Succeeded", 4.5], ["Failed", 3]]);
+  const failed = costView(data, range, "day", null, { status: { grouping: "success", hidden: ["ok"] } });
+  assert.equal(failed.filtered, 3);
+  assert.equal(failed.unknown, 3);
 });
 
 test("the average per page: a PDF's projects are one score, its pages counted once; every score weighs the same", () => {

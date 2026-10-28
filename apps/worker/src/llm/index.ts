@@ -14,7 +14,7 @@ export type ProviderConfig =
   | { provider: "anthropic-bedrock"; region: string; apiKey: string }
   | { provider: "anthropic-bedrock"; region: string; accessKeyId: string; secretAccessKey: string }
   | { provider: "google"; apiKey: string }
-  | { provider: "fake" };
+  | { provider: "fake" | "fake-dev" };
 
 export function createProvider(config: ProviderConfig, options: { fetch?: Fetch } = {}): LlmProvider {
   switch (config.provider) {
@@ -27,6 +27,7 @@ export function createProvider(config: ProviderConfig, options: { fetch?: Fetch 
     case "google":
       return new GoogleProvider({ apiKey: config.apiKey, fetch: options.fetch });
     case "fake":
-      return new FakeProvider();
+    case "fake-dev":
+      return new FakeProvider(config.provider);
   }
 }

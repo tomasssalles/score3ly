@@ -1107,15 +1107,15 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
   const costs = (await response.json()) as {
     capUsd: number;
     spentLastDayUsd: number;
-    points: [string, string, number, number][];
+    points: [string, string, number, number, string][];
     stages: { id: string; step: string; projectId: string; inRecipe: boolean; kept: boolean }[];
     projects: { id: string; name: string; finished: boolean; costUsd: number; pages: number[] }[];
     configs: { id: string }[];
   };
   const quarter = Math.floor(now / 900_000) * 900_000;
   assert.deepEqual(
-    costs.points.map(([stage, config, t, usd]) => [stage, config, (quarter - t) / 60_000, Math.round(usd * 100) / 100]),
-    [["old-layout", "paid", 60 * 30, 1], [layout.id, "paid", 15, 0.4], [layout.id, "paid", 0, 0.3]],
+    costs.points.map(([stage, config, t, usd, outcome]) => [stage, config, (quarter - t) / 60_000, Math.round(usd * 100) / 100, outcome]),
+    [["old-layout", "paid", 60 * 30, 1, "ok"], [layout.id, "paid", 15, 0.4, "ok"], [layout.id, "paid", 0, 0.3, "ok"]],
   );
   assert.deepEqual(
     costs.stages.map((s) => [s.id, s.step, s.projectId, s.inRecipe, s.kept]).sort(),
@@ -1129,6 +1129,31 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
   assert.equal(Math.round(costs.spentLastDayUsd * 100) / 100, 0.7);
   assert.equal(costs.capUsd, 1);
   assert.deepEqual((costs as unknown as { unknown: unknown[] }).unknown, []);
+});
+
+test("the costs: each point carries its calls' status, an error with a cost told apart by its kind", async () => {
+  const project = await createdProject("statuses.pdf");
+  const layout = (await pipelineOf(project.id))[3];
+  await env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')").run();
+  const at = new Date().toISOString();
+  const rows: [string, string, string | null][] = [
+    ["a", "ok", null],
+    ["b", "ok", null],
+    ["c", "cut_off", null],
+    ["d", "unparseable", null],
+    ["e", "error", "unexpected_model"],
+    ["f", "error", null],
+  ];
+  await env.DB.batch(
+    rows.map(([id, status, kind]) =>
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, error_kind, input_tokens, cost_usd, started_at) VALUES (?, ?, 'paid', 'k', ?, ?, 100, 0.1, ?)").bind(id, layout.id, status, kind, at),
+    ),
+  );
+  const costs = (await (await app.request("/api/costs", {}, env)).json()) as { points: [string, string, number, number, string][] };
+  assert.deepEqual(
+    costs.points.map(([, , , usd, outcome]) => [outcome, Math.round(usd * 100) / 100]).sort(),
+    [["cut_off", 0.1], ["ok", 0.2], ["unexpected_stop", 0.1], ["unparseable", 0.1], ["wrong_model", 0.1]],
+  );
 });
 
 test("the costs: paid calls of unknown cost counted per stage, config and quarter of an hour", async () => {

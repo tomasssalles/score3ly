@@ -8,7 +8,7 @@ import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
 import { createProvider, LlmError, type Effort, type LlmContent, type ProviderConfig, type ProviderId } from "./llm/index.ts";
 import { costOf, PRICES_AS_OF, priceOf } from "./llm/prices.ts";
 
-const PROVIDERS: ProviderId[] = ["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "fake"];
+const PROVIDERS: ProviderId[] = ["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "fake", "fake-dev"];
 const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
 
 // Each provider's fields: which are secrets (the name of a Worker secret is stored, never its value) and which are
@@ -19,6 +19,7 @@ const FIELDS: Record<ProviderId, { secrets: string[][]; params: string[]; option
   "anthropic-bedrock": { secrets: [["apiKey"], ["accessKeyId", "secretAccessKey"]], params: ["region"], optionalParams: [] },
   google: { secrets: [["apiKey"]], params: [], optionalParams: [] },
   fake: { secrets: [[]], params: [], optionalParams: [] },
+  "fake-dev": { secrets: [[]], params: [], optionalParams: [] },
 };
 
 export type ModelConfig = {

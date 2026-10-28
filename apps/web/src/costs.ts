@@ -113,22 +113,22 @@ export function bucketTitle(bucket: Bucket, granularity: Granularity): string {
 
 // ---- Groupings ----
 
-export type Dimension = "stage" | "project" | "config";
+export type Dimension = "stage" | "project" | "config" | "status";
 
 export const DIMENSIONS: { id: Dimension; label: string }[] = [
   { id: "stage", label: "Stage" },
   { id: "project", label: "Project" },
   { id: "config", label: "Model config" },
+  { id: "status", label: "Call status" },
 ];
 
-// The ways of grouping each dimension, hand-picked; the first is none: each step, project or config on its own,
-// shown as a dash on the picker's button (the dimension's name is next to it).
+// The ways of grouping each dimension, hand-picked; the first is none: each step, project, config or status on its
+// own, shown as a dash on the picker's button (the dimension's name is next to it).
 const NONE = { label: "No grouping", short: "–" };
 
 export const GROUPINGS: Record<Dimension, { id: string; label: string; short?: string }[]> = {
   stage: [
     { id: "step", ...NONE },
-    { id: "work", label: "Kind of work" },
     { id: "origin", label: "Recipe or added" },
     { id: "fate", label: "Kept or discarded" },
   ],
@@ -143,9 +143,16 @@ export const GROUPINGS: Record<Dimension, { id: string; label: string; short?: s
     { id: "family", label: "Model family" },
     { id: "effort", label: "Effort" },
   ],
+  status: [
+    { id: "status", ...NONE },
+    { id: "success", label: "Success/Failure" },
+  ],
 };
 
-export type Group = { key: string; label: string; note?: string }; // note: shown after the label, muted and in italics
+// note: shown after the label, muted and in italics. rank: the group's place in a list whose groups are known in
+// advance (the pipeline's order, Low to Max, ...); groups without one, a project, a PDF or a config, are listed the
+// most expensive first.
+export type Group = { key: string; label: string; note?: string; rank?: number };
 
 // A deleted project's mark (docs/style.md, "Words"): with its date, so two projects of the same name are told apart.
 export function deletedNote(deletedAt: string | null): string | undefined {
@@ -155,64 +162,87 @@ export function deletedNote(deletedAt: string | null): string | undefined {
 // The steps not built yet have no entry in steps.ts.
 const STEP_TITLES: Record<string, string> = { review: "Review", apply_review: "Apply review", human_review: "Human review" };
 const stepTitle = (step: string) => STEP_TITLES[step] ?? stepInfo(step).title;
+// The LLM steps in the pipeline's order.
+const STEPS = ["layout", "analyze", "extract", "review", "apply_review"];
 
-// The kinds of work that the settings give a model config of their own (docs/llm.md, "Which config a stage uses").
-const WORK: Record<string, string> = { layout: "Layout", analyze: "Analysis", extract: "Extraction", apply_review: "Extraction", review: "Review" };
-
+// The fake provider that ships with the app costs nothing, so it never shows here; the one for development does.
 const PROVIDERS: Record<string, string> = {
   anthropic: "Anthropic",
   "anthropic-vertex": "Vertex AI",
   "anthropic-bedrock": "AWS Bedrock",
   google: "Google AI Studio",
-  fake: "Fake",
+  "fake-dev": "Fake (dev)",
 };
-const FAMILIES: Record<string, string> = { anthropic: "Claude", "anthropic-vertex": "Claude", "anthropic-bedrock": "Claude", google: "Gemini", fake: "Fake" };
+const FAMILIES: Record<string, string> = { anthropic: "Claude", "anthropic-vertex": "Claude", "anthropic-bedrock": "Claude", google: "Gemini", "fake-dev": "Fake" };
+const FAMILY_ORDER = ["Claude", "Gemini", "Fake"];
 const EFFORTS: Record<string, string> = { low: "Low", medium: "Medium", high: "High", xhigh: "Extra high", max: "Max" };
+const EFFORT_ORDER = ["low", "medium", "high", "xhigh", "max", "default"];
+
+// A call's status as the costs view tells them apart (the Worker's `outcome`), in the order listed.
+const STATUSES: Record<string, string> = {
+  ok: "Succeeded",
+  cut_off: "Cut off",
+  refused: "Refused",
+  unparseable: "Unusable answer",
+  wrong_model: "Wrong model",
+  unexpected_stop: "Unexpected stop",
+};
+const rankIn = (order: string[], key: string) => (order.includes(key) ? order.indexOf(key) : order.length);
 
 function dateOf(iso: string): string {
   const d = new Date(iso);
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-// The group of a point (its stage and its config) in a grouping. `byName`: configs with the same name together, e.g.
-// the versions of an edited config.
-export type Grouper = (stageId: string, configId: string) => Group;
+// The group of a point (its stage, its config and its calls' status) in a grouping. `byName`: configs with the same
+// name together, e.g. the versions of an edited config. The calls of unknown cost have no status: every status
+// grouping lets them through (see costView).
+export type Grouper = (stageId: string, configId: string, status?: string) => Group;
 
 export function grouper(data: CostData, dimension: Dimension, grouping: string, byName = false): Grouper {
   const stages = new Map(data.stages.map((s) => [s.id, s]));
   const projects = new Map(data.projects.map((p) => [p.id, p]));
   const configs = new Map(data.configs.map((m) => [m.id, m]));
-  const unknown = { key: "?", label: "Unknown" };
+  // The Worker sends every stage, project and config its points refer to.
   if (dimension === "stage") {
     return (stageId) => {
-      const s = stages.get(stageId);
-      if (!s) return unknown;
-      if (grouping === "work") return { key: WORK[s.step] ?? s.step, label: WORK[s.step] ?? stepTitle(s.step) };
-      if (grouping === "origin") return s.inRecipe ? { key: "recipe", label: "Recipe stages" } : { key: "added", label: "Added stages" };
-      if (grouping === "fate") return s.kept ? { key: "kept", label: "Kept" } : { key: "discarded", label: "Replaced or stopped" };
-      return { key: s.step, label: stepTitle(s.step) };
+      const s = stages.get(stageId)!;
+      if (grouping === "origin") return s.inRecipe ? { key: "recipe", label: "Recipe stages", rank: 0 } : { key: "added", label: "Added stages", rank: 1 };
+      if (grouping === "fate") return s.kept ? { key: "kept", label: "Kept", rank: 0 } : { key: "discarded", label: "Replaced or stopped", rank: 1 };
+      return { key: s.step, label: stepTitle(s.step), rank: rankIn(STEPS, s.step) };
     };
   }
   if (dimension === "project") {
     // Names can repeat once a project is deleted: a deleted one is marked, with the day it was deleted.
     return (stageId) => {
-      const p = projects.get(stages.get(stageId)?.projectId ?? "");
-      if (!p) return unknown;
-      if (grouping === "alive") return p.deletedAt ? { key: "deleted", label: "Deleted projects" } : { key: "current", label: "Current projects" };
+      const p = projects.get(stages.get(stageId)!.projectId)!;
+      if (grouping === "alive") return p.deletedAt ? { key: "deleted", label: "Deleted projects", rank: 1 } : { key: "current", label: "Current projects", rank: 0 };
       if (grouping === "pdf") return { key: p.pdfSha256, label: p.pdfFilename };
       return { key: p.id, label: p.name, note: deletedNote(p.deletedAt) };
     };
   }
+  if (dimension === "status") {
+    return (_stageId, _configId, status = "") => {
+      if (grouping === "success") return status === "ok" ? { key: "ok", label: "Succeeded", rank: 0 } : { key: "failed", label: "Failed", rank: 1 };
+      return { key: status, label: STATUSES[status] ?? status, rank: rankIn(Object.keys(STATUSES), status) };
+    };
+  }
+  const providers = Object.keys(PROVIDERS);
   return (_stageId, configId) => {
-    const m = configs.get(configId);
-    if (!m) return unknown;
-    if (grouping === "provider") return { key: m.provider, label: PROVIDERS[m.provider] ?? m.provider };
-    if (grouping === "family") return { key: FAMILIES[m.provider] ?? m.provider, label: FAMILIES[m.provider] ?? m.provider };
-    if (grouping === "effort") return { key: m.effort ?? "default", label: m.effort ? EFFORTS[m.effort] ?? m.effort : "Model's default" };
+    const m = configs.get(configId)!;
+    if (grouping === "provider") return { key: m.provider, label: PROVIDERS[m.provider] ?? m.provider, rank: rankIn(providers, m.provider) };
+    if (grouping === "family") {
+      const family = FAMILIES[m.provider] ?? m.provider;
+      return { key: family, label: family, rank: rankIn(FAMILY_ORDER, family) };
+    }
+    if (grouping === "effort") {
+      const effort = m.effort ?? "default";
+      return { key: effort, label: m.effort ? EFFORTS[m.effort] ?? m.effort : "Model's default", rank: rankIn(EFFORT_ORDER, effort) };
+    }
     const name = m.name ?? m.model;
     if (byName) return { key: `name:${name}`, label: name };
     // An edited or deleted config's row ended then: the versions of an edited config are told apart by it.
-    return { key: m.id, label: m.deletedAt ? `${name} (until ${dateOf(m.deletedAt)})` : name };
+    return { key: m.id, label: name, note: m.deletedAt ? `(until ${dateOf(m.deletedAt)})` : undefined };
   };
 }
 
@@ -229,18 +259,20 @@ export function hiddenCount(filters: Filters): number {
 
 export type Split = { dimension: Dimension; grouping: string; byName: boolean } | null;
 
-// The groups of a grouping that have costs in the range, the most expensive first, with what they cost (before
-// filters: a hidden group stays listed, to be shown again).
-export function groupsIn(data: CostData, range: { start: number; end: number }, group: Grouper): (Group & { usd: number })[] {
+// Every group of a grouping, whatever the time range, so that a filter never depends on the range: a wider range
+// can't bring in a group the user never saw. Groups known in advance in their own order, the others the most
+// expensive first, over all time. Calls of unknown cost bring in their stages, projects and configs too (at $0), so
+// that the filters can hide them; they have no status.
+export function allGroups(data: CostData, dimension: Dimension, group: Grouper): Group[] {
   const totals = new Map<string, Group & { usd: number }>();
-  for (const [stage, config, t, usd] of data.points) {
-    if (t < range.start || t >= range.end) continue;
-    const g = group(stage, config);
+  const add = (g: Group, usd: number) => {
     const entry = totals.get(g.key) ?? { ...g, usd: 0 };
     entry.usd += usd;
     totals.set(g.key, entry);
-  }
-  return [...totals.values()].sort((a, b) => b.usd - a.usd || a.label.localeCompare(b.label));
+  };
+  for (const [stage, config, , usd, status] of data.points) add(group(stage, config, status), usd);
+  if (dimension !== "status") for (const [stage, config] of data.unknown) add(group(stage, config), 0);
+  return [...totals.values()].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || b.usd - a.usd || a.label.localeCompare(b.label));
 }
 
 // The chart shows the most expensive groups in their own colours and the rest together.
@@ -264,19 +296,20 @@ export function costView(data: CostData, range: { start: number; end: number }, 
     .map(([dimension, f]) => {
       const group = grouper(data, dimension, f.grouping);
       const hidden = new Set(f.hidden);
-      return (stage: string, config: string) => !hidden.has(group(stage, config).key);
+      // A call of unknown cost has no status: the call status filter lets it through.
+      return (stage: string, config: string, status?: string) => (dimension === "status" && status === undefined) || !hidden.has(group(stage, config, status).key);
     });
   const group: Grouper = split ? grouper(data, split.dimension, split.grouping, split.byName) : () => ({ key: "all", label: "All" });
   const starts = buckets.map((b) => b.start);
   const byGroup = new Map<string, { group: Group; usd: number; values: number[] }>();
   let total = 0;
   let filtered = 0;
-  for (const [stage, config, t, usd] of data.points) {
+  for (const [stage, config, t, usd, status] of data.points) {
     if (t < range.start || t >= range.end) continue;
     total += usd;
-    if (!tests.every((test) => test(stage, config))) continue;
+    if (!tests.every((test) => test(stage, config, status))) continue;
     filtered += usd;
-    const g = group(stage, config);
+    const g = group(stage, config, status);
     const entry = byGroup.get(g.key) ?? { group: g, usd: 0, values: buckets.map(() => 0) };
     entry.usd += usd;
     entry.values[bucketIndex(starts, t)] += usd;

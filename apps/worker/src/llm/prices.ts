@@ -27,8 +27,10 @@ const CLAUDE: Record<string, Price> = {
   "claude-haiku-5-5": claude(0.1, 0.5, 0.01),
 };
 
-// The fake provider (fake.ts): made-up prices, so that costs and the spending cap can be tried without paying.
-const FAKE: Price = { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 };
+// The fake providers (fake.ts): the one that ships with the app costs nothing, whether its config is marked free tier
+// or not; the one for development has made-up prices, so that costs and the spending cap can be tried without paying.
+const FREE: Price = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+const FAKE_DEV: Price = { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 };
 
 // The model's own name, without Bedrock's prefixes ("eu.anthropic.claude-opus-5-5" → "claude-opus-5-5") or a
 // Vertex version after "@".
@@ -37,7 +39,8 @@ function baseModel(model: string): string {
 }
 
 export function priceOf(provider: ProviderId, model: string): Price | null {
-  if (provider === "fake") return FAKE;
+  if (provider === "fake") return FREE;
+  if (provider === "fake-dev") return FAKE_DEV;
   if (provider === "google") return null;
   return CLAUDE[baseModel(model)] ?? null;
 }

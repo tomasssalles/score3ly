@@ -2,8 +2,9 @@
 // responses are our own, small shapes; each provider's adapter translates them. The Worker makes the calls, so the
 // API keys never leave it (§10).
 
-// "fake" answers without network, for tests and trying the pipeline (fake.ts).
-export type ProviderId = "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "fake";
+// "fake" answers without network, for trying the app without paying (fake.ts): it ships with the app and costs
+// nothing. "fake-dev" is the same with made-up prices, for developing and testing the costs and the spending cap.
+export type ProviderId = "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "fake" | "fake-dev";
 
 export type LlmImage = {
   mediaType: "image/png" | "image/jpeg" | "image/webp";

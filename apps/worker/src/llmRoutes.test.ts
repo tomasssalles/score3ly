@@ -46,8 +46,9 @@ async function json<T = Record<string, unknown>>(response: Response): Promise<T>
   return (await response.json()) as T;
 }
 
+// The fake provider for development by default: it has made-up prices, so costs and the cap can be tested.
 async function modelConfig(fields: Record<string, unknown> = {}): Promise<Record<string, string>> {
-  const response = await send("/api/model-configs", { provider: "fake", model: "fake-model", effort: "high", ...fields });
+  const response = await send("/api/model-configs", { provider: "fake-dev", model: "fake-model", effort: "high", ...fields });
   assert.equal(response.status, 201);
   return json(response);
 }
@@ -203,6 +204,17 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   // Another effort is another request.
   const effort = await runningStage((await modelConfig({ effort: "low" })).id);
   assert.equal((await json(await call(effort))).cached, false);
+});
+
+test("the fake provider that ships with the app costs nothing, free tier or not", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const stage = await runningStage((await modelConfig({ provider: "fake" })).id);
+  const answer = await json(await call(stage));
+  assert.equal(answer.status, "ok");
+  assert.equal(answer.costUsd, 0);
+  const [row] = await calls();
+  assert.ok((row.input_tokens as number) > 0);
+  assert.equal(row.cost_usd, 0);
 });
 
 test("failed answers are recorded but never served from the record", async () => {
