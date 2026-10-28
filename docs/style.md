@@ -146,7 +146,9 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 **Badges** are small, outlined, monospaced words after a name: "WIP", "Default", "Free tier". Coral for a state that matters ("WIP", "Default"), muted for a fact.
 
-**Chips** are small pills for picking among many short choices at once, wrapping over lines: a filter's groups, on (a heavy border, so it reads as selected) or off (a thin dashed border, muted, struck through: hidden). A chip that is an on/off choice rather than a group is coral when on, like other toggles.
+**Chips** are small pills for an on/off choice that sits among other controls (configs with the same name together): coral when on, like other toggles.
+
+**Check lists** (`CheckList`) are how items are selected from a list, in every filter: a box per item (ticked in coral, empty when not selected), a box above them for all or none (a dash in it while only some are selected), and beside it a "⋮" for actions on the selection where there are any ("Remove projects with unfinished pipelines"). Each item has its name, muted facts under it, and amounts on the right. A filter with several lists has a section per list that can be collapsed (expanded at first, a coral dot on its name while collapsed with anything filtered out). Lists never scroll by themselves: the panel that holds them scrolls, as one.
 
 **Charts** (`TimeChart`, for every statistic over time): stacked bars or a running total as lines, a fixed y axis with a few round steps, labels under the axis only where they fit, at least 4 px per bucket and sideways scrolling beyond that, starting at the newest end. The values of a bucket are read by tapping it, in a line above the plot, never from a floating tooltip; the arrow keys move between buckets. No smoothing, no log scales, no moving averages. One series looks best: the chart colour, a light fill under a line; many series put telling them apart first.
 

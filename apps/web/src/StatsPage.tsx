@@ -32,7 +32,8 @@ import {
   unfinished,
 } from "./costs";
 import { DropdownMenu } from "./DropdownMenu";
-import { BarsIcon, CheckIcon, ChevronDownIcon, FilterIcon, InfoIcon, MoreIcon, RunningTotalIcon, SplitIcon } from "./icons";
+import { CheckList } from "./CheckList";
+import { BarsIcon, ChevronDownIcon, ExpandIcon, FilterIcon, InfoIcon, MoreIcon, RunningTotalIcon, SplitIcon } from "./icons";
 import { dollars } from "./money";
 import { shortDate } from "./time";
 import { TimeChart, type ChartSeries } from "./TimeChart";
@@ -285,7 +286,7 @@ function SplitPanel({ split, onChange }: { split: Split; onChange: (split: Split
       </div>
       {split?.dimension === "config" && split.grouping === "config" && (
         <div className="costs-chips">
-          <button type="button" className="chip toggle" aria-pressed={split.byName} onClick={() => onChange({ ...split, byName: !split.byName })}>
+          <button type="button" className="chip" aria-pressed={split.byName} onClick={() => onChange({ ...split, byName: !split.byName })}>
             Same name together
           </button>
           <span className="settings-hint">An edited config's versions, and configs that share a name, as one.</span>
@@ -295,22 +296,44 @@ function SplitPanel({ split, onChange }: { split: Split; onChange: (split: Split
   );
 }
 
-// For each dimension, a grouping (none at first: each step, project or config) and its groups as toggles: a group
-// switched off is hidden from the chart and the table. Another grouping starts with nothing hidden. The groups listed
-// are those with costs in the range, the most expensive first.
+// For each dimension, a section that can be collapsed (expanded at first, a coral dot while collapsed with anything
+// hidden): a grouping (none at first: each step, project or config) and its groups to select, each with what it cost
+// in the time range. A group not selected is hidden from the chart and the table. Another grouping starts with
+// nothing hidden. The groups listed are those with costs in the time range, the most expensive first.
 function FilterPanel({ data, range, filters, onChange }: { data: CostData; range: { start: number; end: number }; filters: Filters; onChange: (filters: Filters) => void }) {
+  const [collapsed, setCollapsed] = useState<Set<Dimension>>(new Set());
   return (
-    <div className="costs-panel">
+    <div className="costs-panel filter-panel">
       {DIMENSIONS.map(({ id: dimension, label }) => {
         const filter = filters[dimension] ?? { grouping: GROUPINGS[dimension][0].id, hidden: [] };
-        const off = new Set(filter.hidden);
         const groups = groupsIn(data, range, grouper(data, dimension, filter.grouping));
-        const toggle = (key: string) =>
-          onChange({ ...filters, [dimension]: { ...filter, hidden: off.has(key) ? filter.hidden.filter((k) => k !== key) : [...filter.hidden, key] } });
+        const isCollapsed = collapsed.has(dimension);
+        const setOn = (keys: string[], on: boolean) => {
+          const hidden = new Set(filter.hidden);
+          for (const key of keys) {
+            if (on) hidden.delete(key);
+            else hidden.add(key);
+          }
+          onChange({ ...filters, [dimension]: { ...filter, hidden: [...hidden] } });
+        };
         return (
-          <div key={dimension} className="costs-filter">
+          <div key={dimension} className="filter-section">
             <div className="costs-panel-row">
-              <span className="costs-panel-label">{label}</span>
+              <button
+                type="button"
+                className="section-toggle"
+                aria-expanded={!isCollapsed}
+                onClick={() => {
+                  const next = new Set(collapsed);
+                  if (isCollapsed) next.delete(dimension);
+                  else next.add(dimension);
+                  setCollapsed(next);
+                }}
+              >
+                {isCollapsed ? <ExpandIcon /> : <ChevronDownIcon />}
+                {label}
+                {isCollapsed && filter.hidden.length > 0 && <span className="inline-dot" aria-label="some hidden" />}
+              </button>
               <span className="muted">grouped by</span>
               <Picker
                 label={`${label}: grouped by`}
@@ -319,14 +342,17 @@ function FilterPanel({ data, range, filters, onChange }: { data: CostData; range
                 onChange={(grouping) => onChange({ ...filters, [dimension]: { grouping, hidden: [] } })}
               />
             </div>
-            <div className="costs-chips">
-              {groups.map((g) => (
-                <button key={g.key} type="button" className="chip" aria-pressed={!off.has(g.key)} onClick={() => toggle(g.key)}>
-                  {g.label}
-                </button>
+            {!isCollapsed &&
+              (groups.length === 0 ? (
+                <span className="muted">Nothing in this time range.</span>
+              ) : (
+                <CheckList
+                  allLabel="All"
+                  items={groups.map((g) => ({ key: g.key, name: g.label, amounts: [dollars(g.usd)] }))}
+                  isOn={(key) => !filter.hidden.includes(key)}
+                  setOn={setOn}
+                />
               ))}
-              {groups.length === 0 && <span className="muted">Nothing in this time range.</span>}
-            </div>
           </div>
         );
       })}
@@ -381,10 +407,6 @@ function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }
         }
         right={
           <>
-            <span className="stat-value">
-              <span className="stat-amount">{average === null ? "–" : dollars(average)}</span>
-              <span className="stat-note">{summary}</span>
-            </span>
             <button
               type="button"
               className="editor-mode"
@@ -396,6 +418,10 @@ function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }
               <FilterIcon />
               {!all && <span className="toggle-dot" />}
             </button>
+            <span className="stat-value">
+              <span className="stat-amount">{average === null ? "–" : dollars(average)}</span>
+              <span className="stat-note">{summary}</span>
+            </span>
           </>
         }
       />
@@ -405,61 +431,37 @@ function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }
             <span className="muted">No projects yet.</span>
           ) : (
             <>
-              <div className="per-page-tools">
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={all ? true : none ? false : "mixed"}
-                  className="per-page-row per-page-all"
-                  onClick={() => setOut(all ? new Set(projects.map((p) => p.id)) : new Set())}
-                >
-                  <span className="per-page-check">{all ? <CheckIcon /> : none ? null : <span className="per-page-mixed" />}</span>
-                  <span className="per-page-name">All projects</span>
-                </button>
-                <DropdownMenu
-                  icon={<MoreIcon />}
-                  label="Take projects out"
-                  groups={[
-                    [{ label: "Remove projects with unfinished pipelines", onSelect: () => takeOut(unfinished(projects)) }],
-                    [
-                      { label: "Remove projects created more than 30 days ago", onSelect: () => takeOut(createdBefore(projects, "30d", now)) },
-                      { label: "Remove projects created more than 3 months ago", onSelect: () => takeOut(createdBefore(projects, "3m", now)) },
-                      { label: "Remove projects created more than 12 months ago", onSelect: () => takeOut(createdBefore(projects, "12m", now)) },
-                    ],
-                  ]}
-                />
-              </div>
-              <ul className="per-page-list">
-                {[...projects].reverse().map((p) => {
-                  const on = !out.has(p.id);
+              <CheckList
+                allLabel="All projects"
+                items={[...projects].reverse().map((p) => {
                   const own = perPage(p);
                   const facts = [shortDate(p.createdAt, now), `${p.pages.length} ${p.pages.length === 1 ? "page" : "pages"}`, p.finished ? null : "unfinished pipeline", p.deletedAt ? "deleted" : null];
-                  return (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        role="checkbox"
-                        aria-checked={on}
-                        className="per-page-row"
-                        onClick={() => {
-                          const next = new Set(out);
-                          if (on) next.add(p.id);
-                          else next.delete(p.id);
-                          setOut(next);
-                        }}
-                      >
-                        <span className="per-page-check">{on && <CheckIcon />}</span>
-                        <span className="per-page-name">
-                          {p.name}
-                          <span className="per-page-facts">{facts.filter(Boolean).join(" · ")}</span>
-                        </span>
-                        <span className="per-page-cost">{dollars(p.costUsd)}</span>
-                        <span className="per-page-cost muted">{own === null ? "–" : `${dollars(own)}/page`}</span>
-                      </button>
-                    </li>
-                  );
+                  return { key: p.id, name: p.name, facts: facts.filter(Boolean).join(" · "), amounts: [dollars(p.costUsd), own === null ? "–" : `${dollars(own)}/page`] };
                 })}
-              </ul>
+                isOn={(id) => !out.has(id)}
+                setOn={(ids, on) => {
+                  const next = new Set(out);
+                  for (const id of ids) {
+                    if (on) next.delete(id);
+                    else next.add(id);
+                  }
+                  setOut(next);
+                }}
+                menu={
+                  <DropdownMenu
+                    icon={<MoreIcon />}
+                    label="Remove projects"
+                    groups={[
+                      [{ label: "Remove projects with unfinished pipelines", onSelect: () => takeOut(unfinished(projects)) }],
+                      [
+                        { label: "Remove projects created more than 30 days ago", onSelect: () => takeOut(createdBefore(projects, "30d", now)) },
+                        { label: "Remove projects created more than 3 months ago", onSelect: () => takeOut(createdBefore(projects, "3m", now)) },
+                        { label: "Remove projects created more than 12 months ago", onSelect: () => takeOut(createdBefore(projects, "12m", now)) },
+                      ],
+                    ]}
+                  />
+                }
+              />
             </>
           )}
         </div>

@@ -2767,8 +2767,7 @@ textarea.field-input {
 
 /* The chart part, apart from the unfiltered numbers above it. */
 .costs-chart {
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
+  margin-top: 16px;
 }
 
 .costs-toolbar {
@@ -2820,11 +2819,6 @@ textarea.field-input {
   font-weight: 500;
 }
 
-.costs-filter {
-  display: grid;
-  gap: 8px;
-}
-
 .costs-chips {
   display: flex;
   flex-wrap: wrap;
@@ -2836,37 +2830,20 @@ textarea.field-input {
   margin: 0;
 }
 
-/* A chip: on, it has a heavy border, so it reads as selected; off (a filter's group hidden), a thin dashed one. */
+/* A chip: an on/off choice among few, e.g. configs with the same name together; coral when on, like other toggles. */
 .chip {
   max-width: 100%;
-  padding: 3px 9px;
-  border: 2px solid var(--muted);
+  padding: 4px 10px;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--surface);
-  color: var(--fg);
+  background: none;
+  color: var(--muted);
   font: 12px var(--sans);
   overflow-wrap: anywhere;
   cursor: pointer;
 }
 
-/* A filter's group switched off: hidden from the chart and the table. */
-.chip[aria-pressed="false"] {
-  padding: 4px 10px;
-  border-width: 1px;
-  border-color: var(--line);
-  border-style: dashed;
-  background: none;
-  color: var(--muted);
-  text-decoration: line-through;
-}
-
-/* A chip that is an on/off choice rather than a group: coral when on, like other toggles. */
-.chip.toggle[aria-pressed="false"] {
-  border-style: solid;
-  text-decoration: none;
-}
-
-.chip.toggle[aria-pressed="true"] {
+.chip[aria-pressed="true"] {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -3039,35 +3016,33 @@ textarea.field-input {
   font-size: 13px;
 }
 
-/* The average per page: its filter opens the projects to select from. */
-.per-page-tools {
+/* A check list (CheckList.tsx): the box for all or none and the menu, then the items, each with its box, name, facts
+   and amounts. */
+.check-tools {
   display: flex;
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--line);
 }
 
-.per-page-tools .per-page-row {
+.check-tools .check-row {
   border-bottom: 0;
 }
 
-.per-page-tools .dropdown-list {
+.check-tools .dropdown-list {
   left: auto;
   right: 0;
   width: 330px;
 }
 
-.per-page-list {
-  max-height: 420px;
+.check-list ul {
   margin: 0;
   padding: 0;
-  overflow-y: auto;
   list-style: none;
 }
 
-.per-page-row {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto 84px;
+.check-row {
+  display: flex;
   align-items: baseline;
   gap: 10px;
   width: 100%;
@@ -3081,21 +3056,21 @@ textarea.field-input {
   cursor: pointer;
 }
 
-.per-page-row.per-page-all {
-  grid-template-columns: 18px minmax(0, 1fr);
+.check-row.check-all {
   font-weight: 500;
 }
 
-.per-page-row:hover {
+.check-row:hover {
   background: var(--hover);
 }
 
-.per-page-row[aria-checked="false"] {
+.check-row[aria-checked="false"] {
   color: var(--muted);
 }
 
-/* A box, ticked with the check mark, or with a bar when only some are picked. */
-.per-page-check {
+/* A box, ticked with the check mark, or with a dash when only some are selected. */
+.check-box {
+  flex: none;
   display: inline-grid;
   place-items: center;
   width: 15px;
@@ -3106,35 +3081,84 @@ textarea.field-input {
   color: var(--accent);
 }
 
-.per-page-row:not([aria-checked="false"]) .per-page-check {
+.check-row:not([aria-checked="false"]) .check-box {
   border-color: var(--accent);
 }
 
-.per-page-check .icon {
+.check-box .icon {
   width: 11px;
   height: 11px;
   stroke-width: 2.6;
 }
 
-.per-page-mixed {
+.check-mixed {
   width: 7px;
   height: 2px;
   background: var(--accent);
 }
 
-.per-page-name {
+.check-name {
+  flex: 1;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.per-page-facts {
+.check-facts {
   display: block;
   margin-top: 2px;
   color: var(--muted);
   font-size: 12px;
 }
 
-.per-page-cost {
+.check-amount {
+  flex: none;
+  min-width: 64px;
   text-align: right;
   white-space: nowrap;
   font-family: var(--mono);
+}
+
+.check-amount + .check-amount {
+  min-width: 92px;
+}
+
+/* A filter panel scrolls as one, never a list inside it. */
+.costs-panel.filter-panel,
+.costs-panel.per-page-panel {
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+}
+
+/* A section of a filter that can be collapsed: its chevron and name, a coral dot while collapsed with anything
+   hidden. */
+.section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 110px;
+  padding: 2px 4px 2px 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 500 13px var(--sans);
+  cursor: pointer;
+}
+
+.section-toggle .icon {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+.inline-dot {
+  width: 7px;
+  height: 7px;
+  margin-left: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.filter-section {
+  display: grid;
+  gap: 6px;
 }
