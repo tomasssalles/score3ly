@@ -300,11 +300,13 @@ export async function fetchModelConfig(id: string): Promise<ModelConfig> {
 }
 
 // The costs view's data (apps/worker/src/costs.ts): what was paid for, per stage, model config and quarter of an hour,
-// with the stages, projects and configs it refers to, and the spending cap's last 24 hours.
+// with the stages, projects and configs it refers to, and the spending cap's last 24 hours. The paid calls of unknown
+// cost are counted the same way.
 export type CostData = {
   capUsd: number;
   spentLastDayUsd: number;
   points: [stageId: string, configId: string, t: number, usd: number][];
+  unknown: [stageId: string, configId: string, t: number, calls: number][];
   stages: { id: string; step: string; projectId: string; inRecipe: boolean; kept: boolean }[];
   // Every project, for the average per page too: whether its pipeline ran to its end, what it cost in all, the pages
   // its `rasterize` stages selected.

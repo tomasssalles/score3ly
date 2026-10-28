@@ -1093,13 +1093,14 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
     [layout.id, "paid", at(15), 0.4], // the one before
     ["old-layout", "paid", at(60 * 30), 1], // more than a day ago
     [layout.id, "free", at(0), 0], // free tier: left out
-    [layout.id, "paid", at(0), null], // failed without an answer: left out
   ];
-  await env.DB.batch(
-    calls.map(([stage, config, startedAt, cost], i) =>
-      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, cost_usd, started_at) VALUES (?, ?, ?, 'k', 'ok', ?, ?)").bind(`cost-${i}`, stage, config, cost, startedAt),
+  await env.DB.batch([
+    ...calls.map(([stage, config, startedAt, cost], i) =>
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, input_tokens, cost_usd, started_at) VALUES (?, ?, ?, 'k', 'ok', 100, ?, ?)").bind(`cost-${i}`, stage, config, cost, startedAt),
     ),
-  );
+    // Refused with an HTTP error: not billed, left out.
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, error_kind, http_status, started_at) VALUES ('refused', ?, 'paid', 'k', 'error', 'overloaded', 529, ?)").bind(layout.id, at(0)),
+  ]);
 
   const response = await app.request("/api/costs", {}, env);
   assert.equal(response.status, 200);
@@ -1127,6 +1128,49 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
   assert.deepEqual(costs.configs.map((m) => m.id), ["paid"]);
   assert.equal(Math.round(costs.spentLastDayUsd * 100) / 100, 0.7);
   assert.equal(costs.capUsd, 1);
+  assert.deepEqual((costs as unknown as { unknown: unknown[] }).unknown, []);
+});
+
+test("the costs: paid calls of unknown cost counted per stage, config and quarter of an hour", async () => {
+  const project = await createdProject("unknown.pdf");
+  const layout = (await pipelineOf(project.id))[3];
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('free', NULL, 'google', 'gemini', 1, '2026-10-01')"),
+    env.DB.prepare("INSERT INTO stages (id, created_in, step, status, in_recipe, created_at) VALUES ('lost-layout', ?, 'layout', 'failed', 1, '2026-10-01')").bind(project.id),
+  ]);
+  const quarter = Math.floor(Date.now() / 900_000) * 900_000;
+  const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+  const rows: [string, string, string, string, number | null, number | null, string][] = [
+    // id, stage, config, status, input tokens, HTTP status, started
+    ["no-connection", layout.id, "paid", "error", null, null, ago(60)],
+    ["unreadable", layout.id, "paid", "error", null, 200, ago(60)],
+    ["zombie", "lost-layout", "paid", "running", null, null, ago(20)],
+    ["waiting", layout.id, "paid", "running", null, null, ago(5)], // may still answer: left out
+    ["refused", layout.id, "paid", "error", null, 529, ago(60)], // an HTTP error isn't billed: left out
+    ["answered", layout.id, "paid", "ok", 100, null, ago(60)], // known cost: left out
+    ["free", layout.id, "free", "error", null, null, ago(60)], // free tier: left out
+  ];
+  await env.DB.batch(
+    rows.map(([id, stage, config, status, tokens, http, startedAt]) =>
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, input_tokens, http_status, started_at) VALUES (?, ?, ?, 'k', ?, ?, ?, ?)").bind(id, stage, config, status, tokens, http, startedAt),
+    ),
+  );
+  const costs = (await (await app.request("/api/costs", {}, env)).json()) as {
+    points: unknown[];
+    unknown: [string, string, number, number][];
+    stages: { id: string }[];
+    configs: { id: string }[];
+  };
+  const minutes = (t: number) => Math.round((quarter - t) / 900_000) * 15;
+  const counted = costs.unknown.map(([stage, config, t, n]) => [stage, config, minutes(t), n]);
+  const hourAgo = minutes(Math.floor((Date.now() - 3_600_000) / 900_000) * 900_000);
+  const twentyAgo = minutes(Math.floor((Date.now() - 1_200_000) / 900_000) * 900_000);
+  assert.deepEqual(counted, [[layout.id, "paid", hourAgo, 2], ["lost-layout", "paid", twentyAgo, 1]]);
+  // The stages and configs they refer to come along, although nothing was paid.
+  assert.deepEqual(costs.points, []);
+  assert.deepEqual(costs.stages.map((s) => s.id).sort(), [layout.id, "lost-layout"].sort());
+  assert.deepEqual(costs.configs.map((m) => m.id), ["paid"]);
 });
 
 test("activity: the quarters of an hour in which a call ran or anything was recorded, per project", async () => {

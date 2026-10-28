@@ -3017,6 +3017,31 @@ textarea.field-input {
   color: var(--muted);
 }
 
+/* The calls of unknown cost: below the table, apart from it, still inside the detailed overview. */
+.costs-unknown {
+  margin-top: 20px;
+  padding: 8px 6px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.costs-unknown-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.costs-unknown-line .stat-info {
+  margin-left: 0;
+}
+
+/* In line with the table's amounts, which the column of shares follows (44 px and its padding). */
+.costs-unknown-line .costs-amount {
+  margin: 0 56px 0 auto;
+  color: var(--fg);
+}
+
 .page-view .costs-empty {
   margin-top: 12px;
   font-size: 13px;

@@ -241,8 +241,33 @@ function Costs({ data }: { data: CostData }) {
           </tbody>
         </table>
         {view.rows.length === 0 && <p className="costs-empty">{view.total > 0 ? "The filters hide everything spent in this time range." : "Nothing was spent in this time range."}</p>}
+        <UnknownCosts calls={view.unknown} />
       </section>
     </>
+  );
+}
+
+// The paid calls of unknown cost in the time range, as filtered (docs/llm.md, "Calling the providers"): apart from the
+// table, below it, with an "i" that says what they are. Shown at 0 too: then the costs above are complete.
+function UnknownCosts({ calls }: { calls: number }) {
+  const [open, setOpen] = useState(false);
+  const title = "LLM calls with unknown cost";
+  return (
+    <div className="costs-unknown">
+      <div className="costs-unknown-line">
+        <span>{title}</span>
+        <button type="button" className="icon-button stat-info" aria-expanded={open} aria-label={`About: ${title}`} title={`About: ${title}`} onClick={() => setOpen(!open)}>
+          <InfoIcon />
+        </button>
+        <span className="costs-amount">{calls}</span>
+      </div>
+      {open && (
+        <p className="settings-hint stat-about">
+          These calls were made and may be charged, but their token counts are unknown. The reason could be a network error, a malformed response, or
+          the app having been closed while the call was waiting.
+        </p>
+      )}
+    </div>
   );
 }
 

@@ -58,6 +58,11 @@ const data: CostData = {
     ["extract-old", "opus-2", local("2026-10-21T09:00"), 2],
     ["review-2", "sonnet", local("2026-10-22T12:00"), 0.5],
   ],
+  unknown: [
+    ["extract-1", "opus-1", local("2026-10-21T00:00"), 2],
+    ["extract-old", "opus-2", local("2026-10-21T09:00"), 1],
+    ["layout-1", "opus-1", local("2026-10-23T08:00"), 5], // after the range
+  ],
   stages: [
     { id: "layout-1", step: "layout", projectId: "p1", inRecipe: true, kept: true },
     { id: "extract-1", step: "extract", projectId: "p1", inRecipe: true, kept: true },
@@ -86,6 +91,12 @@ test("costs fall into the device's days, and the totals before and after filters
   assert.equal(filtered.total, 7.5);
   assert.equal(filtered.filtered, 5);
   assert.deepEqual(filtered.rows.map((r) => [r.key, r.usd]), [["all", 5]]);
+});
+
+test("the calls of unknown cost follow the time range and the filters", () => {
+  assert.equal(costView(data, range, "day", null, {}).unknown, 3);
+  assert.equal(costView(data, range, "day", null, { stage: { grouping: "fate", hidden: ["discarded"] } }).unknown, 2);
+  assert.equal(costView(data, { start: range.start, end: local("2026-10-24T00:00") }, "day", null, {}).unknown, 8);
 });
 
 test("a split gives a series per group, the most expensive first; the table lists every group", () => {
