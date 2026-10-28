@@ -123,6 +123,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 - **Run** (green, with ▶) and **Stop** (red, with ■): starting and stopping the pipeline. **Retry** replaces Run after a failure, with a circular arrow, in the same place.
 - **Danger:** filled red, for an action that destroys ("Delete project").
 - **Icon buttons:** 36 px square, muted icon, no border; for tools, toggles and the "⋮". A tooltip names them. An icon button that is on (a toggle, the current tool) has a coral outline and a coral icon.
+- **Corners:** every button has all four corners rounded, unless it is joined with others into one control (a segmented group, such as the editors' tools or the chart's bars | running total): only there do the inner corners turn square, and only the group's outer corners are round. A button that merely stands next to others (the split and filter buttons, the per-page filter) is on its own and keeps its round corners. In the CSS, joining is opt-in: only `.editor-mode`s inside an `.editor-modes` group lose corners, never by position among unrelated siblings (`:first-child`, `:last-child`), which broke this twice.
 - **Disabled** is faded (about 45% opacity) and keeps its place; it is used when an action applies but can't be done yet ("Rename" until the name changed). An action that doesn't apply at all is hidden instead.
 - **A button names its action** with a verb ("Delete project", "Change config", "Apply"), never "OK" or "Yes".
 
@@ -145,7 +146,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 **Badges** are small, outlined, monospaced words after a name: "WIP", "Default", "Free tier". Coral for a state that matters ("WIP", "Default"), muted for a fact.
 
-**Chips** are small pills for picking among many short choices at once, wrapping over lines: a filter's groups, on (plain, bordered) or off (dashed, muted, struck through: hidden). A chip that is an on/off choice rather than a group is coral when on, like other toggles.
+**Chips** are small pills for picking among many short choices at once, wrapping over lines: a filter's groups, on (a heavy border, so it reads as selected) or off (a thin dashed border, muted, struck through: hidden). A chip that is an on/off choice rather than a group is coral when on, like other toggles.
 
 **Charts** (`TimeChart`, for every statistic over time): stacked bars or a running total as lines, a fixed y axis with a few round steps, labels under the axis only where they fit, at least 4 px per bucket and sideways scrolling beyond that, starting at the newest end. The values of a bucket are read by tapping it, in a line above the plot, never from a floating tooltip; the arrow keys move between buckets. No smoothing, no log scales, no moving averages. One series looks best: the chart colour, a light fill under a line; many series put telling them apart first.
 
@@ -209,6 +210,7 @@ From the most local to the most interrupting; always the most local one that the
 
 ## Words
 
+- **"Select", not "pick"** (decided), for choosing items in a list or filter: "no projects selected".
 - **English, plain and short,** in sentence case ("Change config", "Fix layout manually", "Run mode for new projects"). No jargon where a plain word exists; the user is a musician, not an engineer. Technical names (MEI, LilyPond, PDF) are fine where they are the thing itself.
 - **Names of things are consistent:** a step is called the same on its card, in its menu items, in toasts and in the docs. A manual stage is "Fix X", added with "Fix X manually".
 - **Labels and buttons have no period; sentences do.** Toasts and status lines are labels.

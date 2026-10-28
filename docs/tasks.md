@@ -310,6 +310,16 @@ One by one, with the Worker endpoints each needs, added as they are needed rathe
 
 The costs view and the statistics (§10; first-release list, §16). The costs view's first draft is built (`docs/llm.md`, "The costs view"); left: trying the draft with the project owner, and the other statistics, decided in their own task ("Other statistics: decide, then build").
 
+### Sort the costs view's project filters by name
+`#optional`
+
+In both project filters of the costs view (the average per page's list, and the detailed overview's Project section, `docs/llm.md`, "The costs view"): sort by name as well as by date.
+
+### Search the costs view's project filters
+`#optional`
+
+In both project filters of the costs view: a search field that keeps the projects whose name contains the text, ignoring case, as the project picker in the header does.
+
 ### Create the remote R2 bucket and D1 database
 `#next-release`
 

@@ -3,7 +3,7 @@
 // day, week or month, or the running total), split into groups and filtered by them, and a table of the totals. It
 // opens on the plainest view: the last 30 days, per day, nothing split or filtered.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { fetchCosts, type CostData } from "./api";
 import {
   averagePerPage,
@@ -112,15 +112,19 @@ function Costs({ data }: { data: CostData }) {
       <CostPerPage projects={data.projects} now={now} />
 
       <section className="stats-section">
-        <h3>Costs</h3>
-        <div className="costs-range">
-          <Picker label="Time range" value={rangeId} options={RANGES} onChange={pickRange} />
-          <div className="costs-total">
-            <span className="costs-total-amount">{dollars(view.total)}</span>
-            <span className="costs-total-label">in all, nothing filtered</span>
-          </div>
-        </div>
-        <p className="settings-hint">Estimates in US dollars, from the providers' list prices. Free-tier calls aren't counted.</p>
+        <StatHead
+          title="Detailed overview"
+          about={<p>Estimates in US dollars, from the providers' list prices. Free-tier calls aren't counted.</p>}
+          right={
+            <>
+              <Picker label="Time range" value={rangeId} options={RANGES} onChange={pickRange} />
+              <span className="stat-value">
+                <span className="stat-amount">{dollars(view.total)}</span>
+                <span className="stat-note">unfiltered total</span>
+              </span>
+            </>
+          }
+        />
       </section>
 
       <section className="stats-section costs-chart">
@@ -209,7 +213,7 @@ function Costs({ data }: { data: CostData }) {
             })}
           </tbody>
         </table>
-        {view.rows.length === 0 && <p className="costs-empty">{view.total > 0 ? "The filters hide everything spent in this range." : "Nothing was spent in this range."}</p>}
+        {view.rows.length === 0 && <p className="costs-empty">{view.total > 0 ? "The filters hide everything spent in this time range." : "Nothing was spent in this time range."}</p>}
       </section>
     </>
   );
@@ -221,20 +225,44 @@ function SpendingCap({ spent, cap }: { spent: number; cap: number }) {
   const state = spent >= cap ? "reached" : share >= 0.8 ? "near" : "";
   return (
     <section className="stats-section">
-      <div className="cap-row">
-        <span className="cap-label">Last 24 hours</span>
-        <span className="cap-amount">{dollars(spent)}</span>
-        <span className={`cap-bar ${state}`} role="meter" aria-valuemin={0} aria-valuemax={cap} aria-valuenow={spent} aria-label="Spent in the last 24 hours">
-          <span style={{ width: `${share * 100}%` }} />
-        </span>
-        <span className="cap-max">(max. {dollars(cap)})</span>
-      </div>
-      <p className="settings-hint">
-        {state === "reached"
-          ? "The spending cap has been reached: paid LLM calls are refused until the last 24 hours cost less. It can be changed in the settings."
-          : "The spending cap, set in the settings: paid LLM calls are refused once the last 24 hours reach it."}
-      </p>
+      <StatHead
+        title="Last 24 hours"
+        about={<p>The spending cap, set in the settings: paid LLM calls are refused once the costs of the last 24 hours reach it.</p>}
+        right={
+          <span className="stat-value">
+            <span className="cap-top">
+              <span className={`cap-bar ${state}`} role="meter" aria-valuemin={0} aria-valuemax={cap} aria-valuenow={spent} aria-label="Spent in the last 24 hours">
+                <span style={{ width: `${share * 100}%` }} />
+              </span>
+              <span className="stat-amount">{dollars(spent)}</span>
+            </span>
+            <span className="stat-note">max. {dollars(cap)}</span>
+          </span>
+        }
+      />
+      {/* Urgent: said where it is seen, not behind the "i". */}
+      {state === "reached" && (
+        <p className="cap-reached">The spending cap has been reached: paid LLM calls are refused until the last 24 hours cost less. It can be changed in the settings.</p>
+      )}
     </section>
+  );
+}
+
+// The head of a block of the page: its title and an "i" that shows or hides what the block means, on the left; its
+// value (and the controls that change it) on the right, on a line of their own on a phone.
+function StatHead({ title, about, right }: { title: string; about: ReactNode; right: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="stat-line">
+        <h3>{title}</h3>
+        <button type="button" className="icon-button stat-info" aria-expanded={open} aria-label={`About: ${title}`} title={`About: ${title}`} onClick={() => setOpen(!open)}>
+          <InfoIcon />
+        </button>
+        <span className="stat-right">{right}</span>
+      </div>
+      {open && <div className="settings-hint stat-about">{about}</div>}
+    </>
   );
 }
 
@@ -297,7 +325,7 @@ function FilterPanel({ data, range, filters, onChange }: { data: CostData; range
                   {g.label}
                 </button>
               ))}
-              {groups.length === 0 && <span className="muted">Nothing in this range.</span>}
+              {groups.length === 0 && <span className="muted">Nothing in this time range.</span>}
             </div>
           </div>
         );
@@ -313,12 +341,11 @@ function FilterPanel({ data, range, filters, onChange }: { data: CostData; range
 
 // The average cost per page (docs/llm.md, "The average cost per page"): one line, the number on the right, and a filter
 // button that opens the list of projects to take it over, all of them at first. The list's "⋮" takes out the
-// unfinished ones or the older ones; a box above the list picks all or none. The picks are forgotten when the page is
-// left.
+// unfinished ones or the older ones; a box above the list selects all or none. The selection is forgotten when the
+// page is left.
 function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }) {
   const [out, setOut] = useState<Set<string>>(new Set()); // the projects taken out
   const [open, setOpen] = useState(false);
-  const [about, setAbout] = useState(false);
   const chosen = projects.filter((p) => !out.has(p.id));
   const { average, projects: counted } = averagePerPage(chosen);
   const takeOut = (ids: string[]) => setOut(new Set([...out, ...ids]));
@@ -328,45 +355,50 @@ function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }
     projects.length === 0
       ? "no projects yet"
       : none
-        ? "no projects picked"
+        ? "no projects selected"
         : counted === 0
-          ? "no picked project has pages"
+          ? "no selected project has pages"
           : `taken over ${counted === 1 ? "1 project" : `${counted} projects`}`;
 
   return (
     <section className="stats-section per-page">
-      <div className="per-page-line">
-        <h3>Average cost per page</h3>
-        <button type="button" className="icon-button per-page-info" aria-expanded={about} aria-label="About this estimate" title="About this estimate" onClick={() => setAbout(!about)}>
-          <InfoIcon />
-        </button>
-        <span className="per-page-right">
-          <span className="per-page-value">
-            <span className="per-page-amount">{average === null ? "–" : dollars(average)}</span>
-            <span className="per-page-summary">{summary}</span>
-          </span>
-          <button
-            type="button"
-            className="editor-mode"
-            aria-pressed={open}
-            aria-label="Projects to take it over"
-            title="Projects to take it over"
-            onClick={() => setOpen(!open)}
-          >
-            <FilterIcon />
-            {!all && <span className="toggle-dot" />}
-          </button>
-        </span>
-      </div>
-      {about && (
-        <p className="settings-hint per-page-about">
-          An estimate of what a new score will cost, everything included: re-runs, fixes, configs tried. It averages the
-          scores of the projects picked with the filter, so pick those like the next one. The projects of one PDF count
-          as one score: their costs add up, and each page counts once. Every score weighs the same, however long.
-          Projects can reuse results that another project on the same PDF paid for, which then cost them nothing, so the
-          estimate is a guide, not a promise. Free-tier calls count, at $0.00. Projects without pages are left out.
-        </p>
-      )}
+      <StatHead
+        title="Average per page"
+        about={
+          <>
+            <p>
+              You can use this value to <em>very roughly</em> estimate the expected cost of a new project based on the number of pages you want to
+              transcribe. To get a better estimate, use the project filter on the right to select only projects similar to the one you have in mind
+              (e.g. similar scan quality, music genre, old vs. modern edition, instrumentation, musical density and complexity).
+            </p>
+            <p>
+              This calculation is complicated by the fact that multiple projects can use the same original PDF, that the app uses a hierarchical
+              caching mechanism to avoid unnecessary costs to you, and that only you can tell whether a project is truly finished (there's always the
+              possibility of adjusting the pipeline further to try and improve the transcription accuracy). So this is a best-effort estimate, with no
+              guarantees.
+            </p>
+          </>
+        }
+        right={
+          <>
+            <span className="stat-value">
+              <span className="stat-amount">{average === null ? "–" : dollars(average)}</span>
+              <span className="stat-note">{summary}</span>
+            </span>
+            <button
+              type="button"
+              className="editor-mode"
+              aria-pressed={open}
+              aria-label="Select the projects"
+              title="Select the projects"
+              onClick={() => setOpen(!open)}
+            >
+              <FilterIcon />
+              {!all && <span className="toggle-dot" />}
+            </button>
+          </>
+        }
+      />
       {open && (
         <div className="costs-panel per-page-panel">
           {projects.length === 0 ? (

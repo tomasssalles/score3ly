@@ -1809,26 +1809,26 @@ body {
   height: 36px;
   padding: 0;
   border: 1px solid var(--line);
+  border-radius: 8px;
   background: none;
   color: var(--muted);
   cursor: pointer;
 }
 
-.editor-mode + .editor-mode {
+/* Joined into one control only inside a group (.editor-modes): there the inner corners are square and the borders
+   overlap. A button on its own keeps all four corners round, wherever it stands (docs/style.md, "Buttons"). */
+.editor-modes > .editor-mode + .editor-mode {
   margin-left: -1px;
 }
 
-.editor-mode:first-child {
-  border-radius: 8px 0 0 8px;
+.editor-modes > .editor-mode:not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
-.editor-mode:last-child {
-  border-radius: 0 8px 8px 0;
-}
-
-/* A toggle on its own, e.g. the Transcription's boxes. */
-.editor-mode:only-child {
-  border-radius: 8px;
+.editor-modes > .editor-mode:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .editor-mode[aria-checked="true"] {
@@ -2666,7 +2666,8 @@ textarea.field-input {
   cursor: pointer;
 }
 
-/* Statistics (StatsPage.tsx): the spending cap's last 24 hours, the range and its total, then the chart part, apart. */
+/* Statistics (StatsPage.tsx): the spending cap's last 24 hours, the average per page, the range and its total, then
+   the chart part, apart. Each block's head: its title and "i" on the left, its value on the right. */
 .page-view.stats {
   max-width: 900px;
 }
@@ -2680,22 +2681,70 @@ textarea.field-input {
   font: 600 16px var(--sans);
 }
 
-.cap-row {
+/* On a phone, the value and its controls go to a line of their own, on the right. */
+.stat-line {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 6px 12px;
-  font-size: 14px;
+  align-items: center;
+  gap: 4px 8px;
 }
 
-.cap-amount {
-  font: 600 15px var(--mono);
+.stat-line h3 {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.stat-info {
+  margin-left: -4px;
+}
+
+.stat-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.stat-value {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+}
+
+.stat-amount {
+  font: 600 22px var(--mono);
+}
+
+.stat-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stat-about {
+  max-width: 60ch;
+  margin-top: 6px;
+}
+
+.stat-about p {
+  margin: 0 0 6px;
+  color: inherit;
+  font-size: inherit;
+}
+
+.cap-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-view .cap-reached {
+  margin: 6px 0 0;
+  color: var(--danger);
+  font-size: 13px;
 }
 
 .cap-bar {
-  flex: 1 1 60px;
-  min-width: 40px;
-  max-width: 280px;
+  width: 160px;
   height: 6px;
   border-radius: 3px;
   background: var(--line);
@@ -2714,33 +2763,6 @@ textarea.field-input {
 
 .cap-bar.reached > span {
   background: var(--danger);
-}
-
-.cap-max {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.costs-range {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-}
-
-.costs-total {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.costs-total-amount {
-  font: 600 22px var(--mono);
-}
-
-.costs-total-label {
-  color: var(--muted);
-  font-size: 13px;
 }
 
 /* The chart part, apart from the unfiltered numbers above it. */
@@ -2814,10 +2836,11 @@ textarea.field-input {
   margin: 0;
 }
 
+/* A chip: on, it has a heavy border, so it reads as selected; off (a filter's group hidden), a thin dashed one. */
 .chip {
   max-width: 100%;
-  padding: 4px 10px;
-  border: 1px solid var(--line);
+  padding: 3px 9px;
+  border: 2px solid var(--muted);
   border-radius: 999px;
   background: var(--surface);
   color: var(--fg);
@@ -2828,6 +2851,9 @@ textarea.field-input {
 
 /* A filter's group switched off: hidden from the chart and the table. */
 .chip[aria-pressed="false"] {
+  padding: 4px 10px;
+  border-width: 1px;
+  border-color: var(--line);
   border-style: dashed;
   background: none;
   color: var(--muted);
@@ -3013,51 +3039,7 @@ textarea.field-input {
   font-size: 13px;
 }
 
-/* The average cost per page: one line, the number on the right; its filter opens the projects to pick from. */
-/* On a phone, the number and its button go to a line of their own, on the right. */
-.per-page-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-}
-
-.per-page-line h3 {
-  margin: 0;
-  white-space: nowrap;
-}
-
-.per-page-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.per-page-info {
-  margin-left: -4px;
-}
-
-.per-page-value {
-  display: grid;
-  justify-items: end;
-  text-align: right;
-}
-
-.per-page-amount {
-  font: 600 22px var(--mono);
-}
-
-.per-page-summary {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.page-view .per-page-about {
-  max-width: 60ch;
-  margin: 6px 0 0;
-}
-
+/* The average per page: its filter opens the projects to select from. */
 .per-page-tools {
   display: flex;
   align-items: center;
