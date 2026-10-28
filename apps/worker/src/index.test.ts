@@ -1148,12 +1148,15 @@ test("the costs: paid calls of unknown cost counted per stage, config and quarte
     ["zombie", "lost-layout", "paid", "running", null, null, ago(20)],
     ["waiting", layout.id, "paid", "running", null, null, ago(5)], // may still answer: left out
     ["refused", layout.id, "paid", "error", null, 529, ago(60)], // an HTTP error isn't billed: left out
+    ["bad-key", layout.id, "paid", "error", null, null, ago(60)], // credentials failed before sending: left out
     ["answered", layout.id, "paid", "ok", 100, null, ago(60)], // known cost: left out
     ["free", layout.id, "free", "error", null, null, ago(60)], // free tier: left out
   ];
   await env.DB.batch(
     rows.map(([id, stage, config, status, tokens, http, startedAt]) =>
-      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, input_tokens, http_status, started_at) VALUES (?, ?, ?, 'k', ?, ?, ?, ?)").bind(id, stage, config, status, tokens, http, startedAt),
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, input_tokens, http_status, error_kind, started_at) VALUES (?, ?, ?, 'k', ?, ?, ?, ?, ?)").bind(
+        id, stage, config, status, tokens, http, id === "bad-key" ? "auth" : null, startedAt,
+      ),
     ),
   );
   const costs = (await (await app.request("/api/costs", {}, env)).json()) as {

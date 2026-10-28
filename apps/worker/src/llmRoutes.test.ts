@@ -212,6 +212,7 @@ test("failed answers are recorded but never served from the record", async () =>
     ["fake-refusal", "refused"],
     ["fake-cut-off", "cut_off"],
     ["fake-unparseable", "unparseable"],
+    ["fake-other-model", "error"],
   ]) {
     const stage = await runningStage((await modelConfig({ model })).id);
     const first = await json(await call(stage));
@@ -222,11 +223,15 @@ test("failed answers are recorded but never served from the record", async () =>
     assert.notEqual(again.callId, first.callId, model);
   }
   const rows = await calls();
-  assert.equal(rows.length, 8);
+  assert.equal(rows.length, 10);
   assert.ok(rows.every((r) => r.status !== "ok"));
-  // An answer that isn't JSON was billed: its tokens and cost are recorded. An error has none.
-  assert.ok(rows.filter((r) => r.status === "unparseable").every((r) => (r.cost_usd as number) > 0 && (r.output_tokens as number) > 0));
-  assert.ok(rows.filter((r) => r.status === "error").every((r) => r.cost_usd === null && r.error_kind === "server" && r.http_status === 500));
+  // An answer that isn't JSON, or from another model, was billed: its tokens and cost are recorded. A thrown error has
+  // none, but its kind and HTTP status.
+  const billed = rows.filter((r) => r.status === "unparseable" || r.error_kind === "unexpected_model");
+  assert.equal(billed.length, 4);
+  assert.ok(billed.every((r) => (r.cost_usd as number) > 0 && (r.output_tokens as number) > 0 && r.http_status === null));
+  const thrown = rows.filter((r) => r.status === "error" && r.error_kind !== "unexpected_model");
+  assert.ok(thrown.length === 2 && thrown.every((r) => r.cost_usd === null && r.error_kind === "server" && r.http_status === 500));
   assert.ok(rows.filter((r) => r.status !== "error").every((r) => r.error_kind === null && r.http_status === null));
 });
 

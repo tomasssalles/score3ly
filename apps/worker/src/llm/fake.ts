@@ -1,7 +1,8 @@
 // A provider that answers without any network, for tests and for trying the pipeline without paying (
 // docs/llm.md). Its answer follows the request's JSON schema with the simplest values (empty arrays, zeros, the first
 // option), and its "tokens" are estimated from the request's text and images. Some model names make it fail on purpose:
-// "fake-error" (a server error), "fake-refusal", "fake-cut-off", "fake-unparseable".
+// "fake-error" (a server error), "fake-refusal", "fake-cut-off", "fake-unparseable", "fake-other-model" (another model
+// answers).
 // Two steps get more than that, so the pipeline runs end to end: `layout` (two systems on every page, each with three
 // bar lines, so that the later stages have systems to work on) and `extract`, whose answer must cover exactly the
 // stretches asked for, with a voice on every staff (the fake reads the request's JSON and answers with whole-measure
@@ -24,6 +25,7 @@ export class FakeProvider implements LlmProvider {
       text,
       json: request.jsonSchema && stop === "end" && !unparseable ? answer : undefined,
       invalidJson: unparseable ? "The fake answer isn't JSON, as asked." : undefined,
+      unexpectedModel: request.model === "fake-other-model" ? "Asked fake-other-model, but fake answered." : undefined,
       stop,
       usage: { inputTokens: inputTokens(request), outputTokens: Math.ceil(text.length / 4), cacheReadTokens: 0, cacheWriteTokens: 0 },
       raw: { fake: true },

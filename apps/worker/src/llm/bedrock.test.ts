@@ -81,10 +81,7 @@ test("the model check compares the answer's model with the string as given", asy
     { provider: "anthropic-bedrock", region: "eu-central-1", apiKey: "k" },
     { fetch: fakeBedrock([], "anthropic.claude-opus-5-5") },
   );
-  await assert.rejects(
-    provider.send(request),
-    (err: unknown) => err instanceof LlmError && err.kind === "unexpected_model",
-  );
+  assert.match((await provider.send(request)).unexpectedModel ?? "", /but anthropic\.claude-opus-5-5 answered/);
 });
 
 test("Bedrock needs an API key or a whole key pair, not both nor neither", () => {

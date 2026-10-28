@@ -442,7 +442,8 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       });
       // An answer that isn't valid JSON comes back with its usage like any other, so its cost is counted.
       const status =
-        response.invalidJson !== undefined ? "unparseable"
+        response.unexpectedModel !== undefined ? "error"
+        : response.invalidJson !== undefined ? "unparseable"
         : response.stop === "end" ? "ok"
         : response.stop === "max_tokens" ? "cut_off"
         : response.stop === "refusal" ? "refused"
@@ -451,17 +452,19 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       const responseSha = await putJson(c.env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, raw: response.raw });
       const error =
         status === "ok" ? null
+        : response.unexpectedModel !== undefined ? response.unexpectedModel
         : status === "unparseable" ? response.invalidJson!
         : status === "cut_off" ? "The answer was cut off."
         : status === "refused" ? `The model declined${response.stopDetail ? ` (${response.stopDetail})` : ""}.`
         : "The answer ended unexpectedly.";
       await db
         .prepare(
-          "UPDATE llm_calls SET status = ?, error = ?, response_model = ?, response_sha256 = ?, input_tokens = ?, output_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, cost_usd = ?, price_json = ?, finished_at = ? WHERE id = ?",
+          "UPDATE llm_calls SET status = ?, error = ?, error_kind = ?, response_model = ?, response_sha256 = ?, input_tokens = ?, output_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, cost_usd = ?, price_json = ?, finished_at = ? WHERE id = ?",
         )
         .bind(
           status,
           error,
+          response.unexpectedModel !== undefined ? "unexpected_model" : null,
           response.model,
           responseSha,
           response.usage.inputTokens,
@@ -478,7 +481,8 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       // No usable response, so no token counts and no cost. With an HTTP error status, the provider refused the call
-      // and didn't bill it; otherwise it may have been billed (docs/llm.md, "Calling the providers").
+      // and didn't bill it, and `auth` without one failed before anything was sent; otherwise it may have been billed
+      // (docs/llm.md, "Calling the providers").
       const kind = err instanceof LlmError ? err.kind : "unknown";
       const httpStatus = err instanceof LlmError ? (err.status ?? null) : null;
       await db

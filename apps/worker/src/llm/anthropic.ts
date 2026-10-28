@@ -35,11 +35,9 @@ export class ClaudeProvider implements LlmProvider {
     } catch (err) {
       throw toLlmError(err);
     }
-    // A sanity check: the answer must come from the model that was asked.
-    if (message.model !== request.model) {
-      throw new LlmError("unexpected_model", `Asked ${request.model}, but ${message.model} answered.`);
-    }
     const response = { ...fromMessage(message), provider: this.id };
+    // A sanity check: the answer must come from the model that was asked. It was paid for all the same.
+    if (message.model !== request.model) return { ...response, unexpectedModel: `Asked ${request.model}, but ${message.model} answered.` };
     return request.jsonSchema ? withJson(response) : response;
   }
 }

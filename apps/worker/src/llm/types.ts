@@ -45,6 +45,9 @@ export type LlmResponse = {
   // When the request had a jsonSchema and the model finished, but its answer isn't valid JSON. The call was still
   // billed, so the response comes back with its usage rather than as an error.
   invalidJson?: string;
+  // When another model answered than the one asked (a sanity check). The call was still billed, so the response comes
+  // back with its usage rather than as an error; its answer isn't parsed.
+  unexpectedModel?: string;
   // end: finished. max_tokens: cut off. refusal: the model (or its safety system) declined.
   stop: "end" | "max_tokens" | "refusal" | "other";
   stopDetail?: string; // the provider's reason, e.g. a refusal's category
@@ -62,7 +65,7 @@ export type LlmErrorKind =
   | "timeout" // the connection timed out
   | "aborted" // the request was aborted from our side
   | "unreadable_response" // the provider answered, but its response couldn't be read (broken JSON, a stream cut short)
-  | "unexpected_model" // another model answered than the one asked
+  | "unexpected_model" // another model answered than the one asked: not thrown, the response says so (`unexpectedModel`)
   | "unknown"; // anything else the client library threw
 
 export class LlmError extends Error {

@@ -21,8 +21,10 @@ export const BUCKET_SECONDS = 15 * 60;
 // A call still running after this long will never answer: its cost is unknown. One that started later may still.
 const ZOMBIE_MS = 15 * 60 * 1000;
 
-// A call of unknown cost: no tokens, and no HTTP error status, the provider's refusal, which isn't billed.
-const UNKNOWN_COST = `c.input_tokens IS NULL AND (c.http_status IS NULL OR c.http_status < 400) AND (c.status <> 'running' OR c.started_at < ?)`;
+// A call of unknown cost: no tokens, and neither an HTTP error status (the provider's refusal, which isn't billed) nor an
+// `auth` error without a status (the credentials failed before anything was sent).
+const UNKNOWN_COST = `c.input_tokens IS NULL AND (c.http_status IS NULL OR c.http_status < 400) AND (c.error_kind IS NOT 'auth' OR c.http_status IS NOT NULL)
+  AND (c.status <> 'running' OR c.started_at < ?)`;
 
 export function costRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/costs", async (c) => {

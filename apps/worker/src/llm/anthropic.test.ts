@@ -90,15 +90,15 @@ test("the effort and the output format are only sent when asked for", async () =
   assert.equal(captured[0].body.output_config, undefined);
 });
 
-test("an answer from another model than the one asked is an error", async () => {
+test("an answer from another model than the one asked comes back with its usage, saying so, unparsed", async () => {
   const provider = anthropicProvider({
     apiKey: "k",
     fetch: fakeFetch(answer('{"systems":6}', "claude-opus-5"), []),
   });
-  await assert.rejects(
-    provider.send(request),
-    (err: unknown) => err instanceof LlmError && err.kind === "unexpected_model",
-  );
+  const response = await provider.send(request);
+  assert.equal(response.unexpectedModel, "Asked claude-opus-5-5, but claude-opus-5 answered.");
+  assert.equal(response.json, undefined);
+  assert.deepEqual(response.usage, { inputTokens: 1200, outputTokens: 42, cacheReadTokens: 0, cacheWriteTokens: 0 });
 });
 
 test("the answer comes back with its text, parsed JSON and usage", async () => {
