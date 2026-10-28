@@ -1128,3 +1128,24 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
   assert.equal(Math.round(costs.spentLastDayUsd * 100) / 100, 0.7);
   assert.equal(costs.capUsd, 1);
 });
+
+test("activity: the quarters of an hour in which a call ran or anything was recorded, per project", async () => {
+  const project = await createdProject("activity.pdf");
+  const layout = (await pipelineOf(project.id))[3];
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
+    env.DB.prepare("UPDATE projects SET created_at = '2026-10-20T08:01:00.000Z' WHERE id = ?").bind(project.id),
+    env.DB.prepare("UPDATE stages SET started_at = '2026-10-20T10:05:00.000Z', heartbeat_at = '2026-10-20T12:00:00.000Z' WHERE id = ?").bind(layout.id),
+    // A call over three quarters, and one that never ended: only where it started.
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at, finished_at) VALUES ('a1', ?, 'paid', 'k', 'ok', '2026-10-20T10:05:00.000Z', '2026-10-20T10:40:00.000Z')").bind(layout.id),
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at) VALUES ('a2', ?, 'paid', 'k', 'running', '2026-10-21T09:50:00.000Z')").bind(layout.id),
+  ]);
+  const response = await app.request("/api/activity", {}, env);
+  const { quarters, projects } = (await response.json()) as { quarters: [string, number][]; projects: { id: string }[] };
+  assert.deepEqual(projects.map((p) => p.id), [project.id]);
+  assert.deepEqual(
+    // (Ingest's start and end, when the test made the project, come later.)
+    quarters.filter(([p, t]) => p === project.id && t < Date.parse("2026-10-22")).map(([, t]) => new Date(t).toISOString().slice(0, 16)),
+    ["2026-10-20T08:00", "2026-10-20T10:00", "2026-10-20T10:15", "2026-10-20T10:30", "2026-10-20T12:00", "2026-10-21T09:45"],
+  );
+});

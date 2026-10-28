@@ -322,6 +322,16 @@ export type CostData = {
   configs: { id: string; name: string | null; provider: ModelConfig["provider"]; model: string; effort: ModelConfig["effort"]; createdAt: string; deletedAt: string | null }[];
 };
 
+// When the app was in use (apps/worker/src/activity.ts): the quarters of an hour with any activity, per project.
+export type ActivityData = {
+  quarters: [projectId: string, t: number][];
+  projects: { id: string; name: string; createdAt: string; deletedAt: string | null }[];
+};
+
+export async function fetchActivity(): Promise<ActivityData> {
+  return (await checked(await fetch("/api/activity"))).json();
+}
+
 export async function fetchCosts(): Promise<CostData> {
   return (await checked(await fetch("/api/costs"))).json();
 }

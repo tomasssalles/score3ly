@@ -3207,3 +3207,10 @@ textarea.field-input {
 .page-view.stats .placeholder-note {
   margin-top: 16px;
 }
+
+/* The project picker of the Usage tab: long names, many projects. */
+.project-select .dropdown-list {
+  width: min(320px, calc(100vw - 32px));
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+}

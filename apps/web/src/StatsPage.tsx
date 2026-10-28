@@ -33,6 +33,8 @@ import {
   unfinished,
 } from "./costs";
 import { DropdownMenu } from "./DropdownMenu";
+import { Picker, StatHead } from "./statsParts";
+import { UsageTab } from "./UsageTab";
 import { hashForStatsTab, statsTabFromHash, type StatsTab } from "./route";
 import { useHash } from "./useHash";
 import { CheckList } from "./CheckList";
@@ -71,7 +73,7 @@ export function StatsPage() {
       </div>
       <div role="tabpanel" aria-label={TABS.find((t) => t.id === tab)?.label}>
         {tab === "costs" && <CostsTab />}
-        {tab === "usage" && <NotBuilt />}
+        {tab === "usage" && <UsageTab />}
         {tab === "times" && <NotBuilt />}
         {tab === "effort" && (
           <>
@@ -102,36 +104,6 @@ function CostsTab() {
       {error && <p className="settings-error">{error}</p>}
       {data && <Costs data={data} />}
     </>
-  );
-}
-
-// A small picker: the current choice (its short form, if it has one) and a chevron, opening the list (like the run
-// mode).
-function Picker<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: T;
-  options: { id: T; label: string; short?: string }[];
-  onChange: (id: T) => void;
-}) {
-  const current = options.find((o) => o.id === value);
-  return (
-    <DropdownMenu
-      className="mode-picker"
-      buttonClassName="mode-button"
-      icon={
-        <>
-          {current?.short ?? current?.label}
-          <ChevronDownIcon />
-        </>
-      }
-      label={label}
-      groups={[options.map((o) => ({ label: o.label, current: o.id === value, onSelect: () => onChange(o.id) }))]}
-    />
   );
 }
 
@@ -296,24 +268,6 @@ function SpendingCap({ spent, cap }: { spent: number; cap: number }) {
         <p className="cap-reached">The spending cap has been reached: paid LLM calls are refused until the last 24 hours cost less. It can be changed in the settings.</p>
       )}
     </section>
-  );
-}
-
-// The head of a block of the page: its title and an "i" that shows or hides what the block means, on the left; its
-// value (and the controls that change it) on the right, on a line of their own on a phone.
-function StatHead({ title, about, right }: { title: string; about: ReactNode; right: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <div className="stat-line">
-        <h3>{title}</h3>
-        <button type="button" className="icon-button stat-info" aria-expanded={open} aria-label={`About: ${title}`} title={`About: ${title}`} onClick={() => setOpen(!open)}>
-          <InfoIcon />
-        </button>
-        <span className="stat-right">{right}</span>
-      </div>
-      {open && <div className="settings-hint stat-about">{about}</div>}
-    </>
   );
 }
 
