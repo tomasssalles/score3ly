@@ -596,7 +596,8 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [x] Settings page: run mode, spending cap, model configs read-only
 - [ ] Model configs: decide (§15), then supported models and prices in the database, and the config form (§7.2)
 - [x] Delete a project (§4)
-- [ ] Costs view and statistics (§10)
+- [x] Costs view (§10)
+- [ ] Other statistics (§15)
 
 **The stages**
 - [x] `rasterize` (§6)

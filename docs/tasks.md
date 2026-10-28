@@ -48,9 +48,9 @@ Everything that is still to do about score3ly is a task, and every task is in th
 `docs/stages/music.md` (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5).
 
 ### Other statistics: decide, then build
-`#next` `#decision`
+`#next` `#decision` `#next-release`
 
-Ideas from the project owner: run times; how often the app and its stages are used; errors; how often manual fixes are needed, and how much each one changes (e.g. the number of boxes, lines or answers changed within a fix).
+The Statistics page has its costs (done, `docs/llm.md`, "The costs view"; the page is to become the costs' own view). Ideas from the project owner: run times; how often the app and its stages are used; errors; how often manual fixes are needed, and how much each one changes (e.g. the number of boxes, lines or answers changed within a fix); tokens instead of money, with free or paid as a grouping (how much of the work is carried by free tiers). The chart (`TimeChart`) and the check lists are made to be reused.
 
 ### Decide the model configs
 `#decision` `#research` `#next-release`
@@ -304,11 +304,6 @@ If extraction turns out painfully slow: faint labelled lines for the staff lines
 
 ### Build the stages
 One by one, with the Worker endpoints each needs, added as they are needed rather than planned ahead (decided). A form for "Change config" comes with them. The details in §5.6 are provisional until the possible stages are defined, and are settled then: what exactly a card shows, the icons, the fields of the details view, and which manual stages can be added where.
-
-### Statistics page
-`#next` `#next-release`
-
-The costs view and the statistics (§10; first-release list, §16). The costs view's first draft is built (`docs/llm.md`, "The costs view"); left: trying the draft with the project owner, and the other statistics, decided in their own task ("Other statistics: decide, then build").
 
 ### Sort the costs view's project filters by name
 `#optional`
