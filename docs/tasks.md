@@ -311,15 +311,15 @@ If extraction turns out painfully slow: faint labelled lines for the staff lines
 ### Build the stages
 One by one, with the Worker endpoints each needs, added as they are needed rather than planned ahead (decided). A form for "Change config" comes with them. The details in §5.6 are provisional until the possible stages are defined, and are settled then: what exactly a card shows, the icons, the fields of the details view, and which manual stages can be added where.
 
-### Sort the costs view's project filters by name
+### Sort the statistics' project lists by name
 `#optional`
 
-In both project filters of the costs view (the average per page's list, and the detailed overview's Project section, `docs/llm.md`, "The costs view"): sort by name as well as by date.
+In every list of projects on the Statistics page (Costs: the average per page's list, and the detailed overview's Project section, `docs/llm.md`, "The costs view"; Usage: the project picker of the active hours): sort by name as well as by date. Everywhere or nowhere (decided).
 
-### Search the costs view's project filters
+### Search the statistics' project lists
 `#optional`
 
-In both project filters of the costs view: a search field that keeps the projects whose name contains the text, ignoring case, as the project picker in the header does.
+In every list of projects on the Statistics page (as above): a search field that keeps the projects whose name contains the text, ignoring case, as the project picker in the header does. Everywhere or nowhere (decided).
 
 ### Keep a run going while another page of the app is open
 `#next-release`
