@@ -152,6 +152,8 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 **Charts** (`TimeChart`, for every statistic over time): stacked bars or a running total as lines, a fixed y axis with a few round steps, labels under the axis only where they fit, at least 4 px per bucket and sideways scrolling beyond that, starting at the newest end. The values of a bucket are read by tapping it, in a line above the plot, never from a floating tooltip; the arrow keys move between buckets. No smoothing, no log scales, no moving averages. One series looks best: the chart colour, a light fill under a line; many series put telling them apart first.
 
+**Blocks of a statistics page** (`StatHead` in `statsParts.tsx`): a head with the title and an "i" on the left (it shows and hides what the block means, in plain words), and on the right the block's controls (a range picker, a filter button) and its value, large and monospaced, with a unit after it where it has one ("57 hours") and a short muted note under it ("on 23 days"); on a phone the right part goes to a line of its own. Values line up on the right edge across blocks. Something urgent (the cap reached) is said under the head, never only behind the "i".
+
 **Progress:**
 - a thin green bar for a known fraction (the pipeline's, a stage's); a green circle where there is no room for a bar (the collapsed strip); never a percentage or a count;
 - a grey spinner for something that happens where the progress isn't known (a stage running on another device): grey, so it doesn't read as progress;
@@ -219,6 +221,7 @@ From the most local to the most interrupting; always the most local one that the
 - **An ellipsis (…) means "in progress"** ("Analyze…", "Preparing…"); never used for decoration.
 - **The middle dot (·) joins facts** on one line: "2s · 54 systems · 3 issues".
 - **Numbers, dates and money have one fixed format,** independent of the browser's locale: "7 Oct", "7 Oct 2025" (never all-numeric); "20min ago", "5h ago", "2d ago" for less than a week; "$0.12", "<$0.01", "$0.00" only for free calls; durations "8s", "3min 12s", "1h 5min".
+- **A deleted project is marked "(deleted)"** after its name, in muted italics, wherever deleted projects are listed (the statistics).
 - **Names are never cut at the end:** they wrap over up to three lines, and only when even that isn't enough are they shortened in the middle ("villa-lobos_bach…prelude.orig (1)"), because names on the same PDF differ at the end. The full name is one hover or one tap away. The browser can only cut text at the end, so one component (`FittedText`) measures and shortens.
 - **Messages speak about the work, not about the user:** "The fake provider failed, as asked", "A project with that name already exists. Names must be unique (case-insensitive)." Never "You did…", never "Oops".
 - **Say what the app can't know as a possibility,** not as a fact: "boxes or answers may not fit it", "probably on another device".

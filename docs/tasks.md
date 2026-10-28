@@ -58,6 +58,12 @@ The Statistics page has its costs (done, `docs/llm.md`, "The costs view"). The c
 - **Run times:** projects, stages, per-page averages; a manual stage's time is from its creation to its finish, breaks and all (decided: good enough), and per-page averages ignore breaks too. Not by model to pick a faster one: the best models are the slow ones.
 - **Effort** (the corrections): how often the automated pipeline wasn't good enough and the user stepped in: manual fixes, how often and how much each changes (boxes, lines, answers), extra reviews added, human reviews. Its explanation at the top: "This page is about how often the automated pipeline wasn't good enough and you had to swoop in and save the day."
 
+Still to settle, then build:
+- **Each tab's blocks and head numbers,** as in Costs (a head with title, "i" and the value on the right). Proposed, not decided: Run times, the average time per page through the whole pipeline; Effort, the share of projects that needed any manual stage.
+- **Each tab's charts:** their splits, groupings and filters (e.g. Effort by kind of fix, Usage by step), with the same parts (`TimeChart`, check lists, the picker, `statsParts.tsx`); each tab's time range is its own.
+- **The rest of Usage:** projects created, stages run, extra stages added, LLM calls and tokens (free or paid as a grouping); and waste. Retries aren't marked as such: proposed, a failed call followed by another call for the same item in the same stage.
+- **How much a manual fix changes** isn't recorded: a fix stores its outputs whole, so the changes are only found by comparing each output with its parent (in R2). Proposed: count them once, when the fix is finished, and store the count on the stage; a rule per kind of fix (boxes and bar lines, lines, fields, answers) is to be decided.
+
 ### Decide the model configs
 `#decision` `#research` `#next-release`
 
