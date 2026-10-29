@@ -136,7 +136,7 @@ function Projects({ data }: { data: ProjectStats }) {
   );
 
   return (
-    <section className="stats-section ruled">
+    <section className="stats-section">
       <h3>Projects</h3>
       <StatHead row title="Current" right={count(data.projects.length - deleted)} />
       <StatHead row title="Deleted" right={count(deleted)} />
