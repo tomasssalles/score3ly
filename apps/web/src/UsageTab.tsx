@@ -31,7 +31,7 @@ export function UsageTab() {
   );
 }
 
-const hoursText = (n: number) => (n === 1 ? "1 hour" : `${n} hours`);
+const hoursText = (n: number) => (n === 1 ? "1 active hour" : `${n} active hours`);
 
 function ActiveHours({ data }: { data: ActivityData }) {
   const [now] = useState(() => Date.now());
@@ -72,7 +72,7 @@ function ActiveHours({ data }: { data: ActivityData }) {
             <span className="stat-value">
               <span className="stat-amount">
                 {allHours.total}
-                <span className="stat-unit"> {allHours.total === 1 ? "hour" : "hours"}</span>
+                <span className="stat-unit"> {allHours.total === 1 ? "active hour" : "active hours"}</span>
               </span>
               <span className="stat-note">on {allHours.days === 1 ? "1 day" : `${allHours.days} days`}</span>
             </span>
@@ -99,7 +99,7 @@ function ActiveHours({ data }: { data: ActivityData }) {
           format={(v) => (v === 0 ? "no activity" : hoursText(v))}
           formatTick={(v) => `${v} h`}
           label={mode === "bars" ? "Active hours per period" : "Running total of the active hours"}
-          emptyHint={mode === "bars" ? "Tap a bar to see its hours." : "Tap the chart to see the running total there."}
+          emptyHint={mode === "bars" ? "Tap a bar to see its active hours." : "Tap the chart to see the running total there."}
         />
         <table className="costs-table">
           <tbody>
