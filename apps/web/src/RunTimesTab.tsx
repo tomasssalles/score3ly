@@ -44,7 +44,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
   const selected = useMemo(() => new Set(data.projects.filter((p) => !out.has(p.id)).map((p) => p.id)), [data, out]);
   const project = useMemo(() => perProject(data, selected, activity), [data, selected, activity]);
   const rows = useMemo(() => stepTimes(data, selected, split === "config"), [data, selected, split]);
-  const estimate = estimatePerPage(rows);
+  const estimate = estimatePerPage(rows, data.recipe);
   const total = data.projects.length;
 
   if (total === 0) return <p className="costs-empty">No finished projects yet.</p>;
@@ -160,12 +160,14 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
           title="Estimated time per page for new scores"
           about={
             <p>
-              How long the pipeline would take per page for a score it has never seen: the recipe's stages run once each in Auto mode, with no
-              manual stages, extra reviews, re-runs or breaks. It is the sum of the automatic steps' work times above; add what you expect for the
-              rest, such as the manual steps.
+              This is a best-effort estimate of how long a full, standard pipeline would take per page of a new score. If you have a new project
+              in mind, multiplying this by the number of pages you want to transcribe should be close to the time it would take for the automated
+              pipeline to run through once, without any added manual stages or additional review stages. In the filter at the top of this tab, you
+              can restrict the reference data to projects similar to your new one (similar genre, instrumentation, complexity, scan quality, etc.),
+              which should make this estimate more accurate.
             </p>
           }
-          right={value(estimate === null ? "–" : duration(estimate))}
+          right={value(estimate === null ? "–" : duration(estimate), estimate === null && selected.size > 0 ? "insufficient data" : undefined)}
         />
       </section>
     </>

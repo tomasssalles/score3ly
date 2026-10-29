@@ -1312,11 +1312,13 @@ test("run times: finished projects only, their stages that started with items of
     output("", "score_checks", [16, 0, 0, 0, 0]),
   ]);
   const data = (await (await app.request("/api/run-times", {}, env)).json()) as {
+    recipe: string[];
     projects: { id: string; finishedAt: string; pages: number[] }[];
     stages: { id: string; step: string; projectId: string; done: boolean; pageCount: number; items: { whole: number; page: number; system: number } }[];
     items: [string, string, number, number, number, number, number][];
   };
   assert.deepEqual(data.projects.map((p) => [p.id, p.finishedAt, p.pages]), [[done.id, "2026-10-20T10:00:00.000Z", [1, 2]]]);
+  assert.deepEqual(data.recipe, ["rasterize", "skew_analysis", "layout", "analyze", "extract", "engrave"]);
   assert.ok(!data.stages.some((s) => s.projectId === open.id || s.step === "ingest"));
   assert.ok(!data.stages.some((s) => s.id === "never"));
   const fix = data.stages.find((s) => s.id === "fix") as unknown as { manual: boolean; createdAt: string; finishedAt: string };

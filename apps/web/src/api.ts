@@ -359,6 +359,7 @@ export async function fetchFailures(): Promise<FailureData> {
 // many items of each kind they have, the items of the automatic ones that were timed, and the model configs the stages
 // used.
 export type RunTimeData = {
+  recipe: string[]; // the recipe's steps but Ingest
   projects: { id: string; name: string; createdAt: string; deletedAt: string | null; finishedAt: string; pages: number[] }[];
   stages: {
     id: string;

@@ -113,11 +113,13 @@ export function stepTimes(data: RunTimeData, selected: Set<string>, byConfig: bo
   });
 }
 
-// The estimate for a new score, per page: the recipe's automatic stages run once each, added up (a step without data
-// adds nothing; manual steps are left out). Null when no step has data.
-export function estimatePerPage(rows: StepRow[]): number | null {
-  const known = rows.filter((r) => !r.manual && r.ms !== null);
-  return known.length ? known.reduce((sum, r) => sum + r.ms!, 0) : null;
+// The estimate for a new score, per page: the recipe's steps run once each, added up. Null when a step of the recipe
+// has no data: no project selected, or (rarely) one added to the recipe after the selected projects ran, or one whose
+// every item came from the cache. Steps outside the recipe (manual ones, ...) are left out.
+export function estimatePerPage(rows: StepRow[], recipe: string[]): number | null {
+  const steps = rows.filter((r) => recipe.includes(r.step));
+  if (steps.length < recipe.length || steps.some((r) => r.ms === null)) return null;
+  return steps.reduce((sum, r) => sum + r.ms!, 0);
 }
 
 // A length of time, short: "0.03 s", "0.4 s", "12 s", "1 min 40 s", "5 h 20 min", "3 d 4 h".

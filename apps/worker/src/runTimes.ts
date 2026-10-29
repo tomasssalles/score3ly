@@ -8,6 +8,7 @@
 
 import type { Hono } from "hono";
 import { parsePages } from "@score3ly/core";
+import { RECIPE } from "./pipeline.ts";
 
 const MANUAL = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"];
 
@@ -56,6 +57,8 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
     type ConfigRow = { id: string; name: string | null; model: string; created_at: string; deleted_at: string | null };
     const usedConfigs = new Set((stages.results as StageRow[]).map((s) => s.config));
     return c.json({
+      // The recipe's steps but Ingest: the estimate for a new score needs data for each.
+      recipe: RECIPE.filter((step) => step !== "ingest"),
       projects: (projects.results as ProjectRow[]).map((p) => ({
         id: p.id,
         name: p.name,

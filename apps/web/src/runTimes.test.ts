@@ -19,6 +19,7 @@ const stage = (id: string, step: string, projectId: string, configId: string | n
 });
 
 const data: RunTimeData = {
+  recipe: ["rasterize", "layout", "extract"],
   projects: [
     { id: "a", name: "A", createdAt: "2026-10-20T10:00:00.000Z", deletedAt: null, finishedAt: "2026-10-21T10:00:00.000Z", pages: [1, 2] },
     { id: "b", name: "B", createdAt: "2026-10-22T10:00:00.000Z", deletedAt: null, finishedAt: "2026-10-22T16:00:00.000Z", pages: [1] },
@@ -76,8 +77,11 @@ test("work time per page: from the items that really ran, times the items of eac
   assert.equal(rows.get("apply_review"), 8000 / 2); // one system with issues in two pages
   assert.equal(rows.get("review"), null); // no data
   assert.equal(rows.get("fix_layout"), 1_800_000); // half an hour per page, breaks and all
-  // The estimate leaves the manual steps out.
-  assert.equal(estimatePerPage(stepTimes(data, new Set(["a", "b"]), false)), 2000 + 4000 + rows.get("extract")! + 4000);
+  // The estimate adds up the recipe's steps, nothing else (no manual steps, no Apply review here).
+  assert.equal(estimatePerPage(stepTimes(data, new Set(["a", "b"]), false), data.recipe), 2000 + 4000 + rows.get("extract")!);
+  // A step of the recipe without data, or nothing selected: no estimate.
+  assert.equal(estimatePerPage(stepTimes(data, new Set(["a", "b"]), false), [...data.recipe, "review"]), null);
+  assert.equal(estimatePerPage(stepTimes(data, new Set(), false), data.recipe), null);
 });
 
 test("work time per page split by model config, for the LLM steps only", () => {
