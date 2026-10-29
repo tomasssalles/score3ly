@@ -47,8 +47,11 @@ export function Picker<T extends string>({
       buttonClassName="mode-button"
       icon={
         <>
-          {current?.short ?? current?.label}
-          {current?.note && !current.short && <span className="menu-note">&nbsp;{current.note}</span>}
+          {/* One piece of text, so that the name and its note wrap together. */}
+          <span>
+            {current?.short ?? current?.label}
+            {current?.note && !current.short && <span className="menu-note"> {current.note}</span>}
+          </span>
           <ChevronDownIcon />
         </>
       }
