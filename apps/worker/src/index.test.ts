@@ -1201,23 +1201,29 @@ test("the costs: paid calls of unknown cost counted per stage, config and quarte
   assert.deepEqual(costs.configs.map((m) => m.id), ["paid"]);
 });
 
-test("pages transcribed: every project with its PDF, when it was first finished and its pipeline's pages", async () => {
+test("project stats: every project, deleted or finished, and the distinct pages of done rasterize stages per PDF", async () => {
   const done = await createdProject("done.pdf");
-  const open = await createdProject("open.pdf");
-  // Every stage of the first project's pipeline done, its rasterize on pages 1-3, its engrave done twice (a re-run).
-  await env.DB.batch([
-    env.DB.prepare("UPDATE stages SET status = 'done', finished_at = '2026-10-20T10:00:00.000Z' WHERE id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ?)").bind(done.id),
-    env.DB.prepare("UPDATE stages SET config_json = '{\"pages\":\"1-3\",\"dpi\":300}' WHERE step = 'rasterize' AND created_in = ?").bind(done.id),
-    env.DB.prepare("INSERT INTO stages (id, created_in, step, status, in_recipe, created_at, finished_at) VALUES ('old-engrave', ?, 'engrave', 'done', 1, '2026-10-01', '2026-10-18T09:00:00.000Z')").bind(done.id),
-  ]);
-  const { projects } = (await (await app.request("/api/transcribed", {}, env)).json()) as {
-    projects: { id: string; pdfSha256: string; createdAt: string; finishedAt: string | null; pages: number[] }[];
+  const again = await createdProject("again.pdf", "done.pdf"); // the same PDF
+  const gone = await createdProject("gone.pdf");
+  const rasterize = (id: string) => env.DB.prepare("SELECT id FROM stages WHERE step = 'rasterize' AND created_in = ?").bind(id).first<{ id: string }>();
+  const setPages = async (id: string, pages: string, status = "done") =>
+    env.DB.prepare("UPDATE stages SET status = ?, config_json = ? WHERE id = ?").bind(status, JSON.stringify({ pages, dpi: 300 }), (await rasterize(id))!.id).run();
+  await env.DB.prepare("UPDATE stages SET status = 'done' WHERE id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ?)").bind(done.id).run();
+  await setPages(done.id, "1-3");
+  await setPages(again.id, "3-4"); // page 3 counts once
+  await setPages(gone.id, "1-2", "failed"); // not done: not counted
+  // A replaced rasterize of the first project, on other pages, counts too.
+  await env.DB.prepare("INSERT INTO stages (id, created_in, step, status, config_json, in_recipe, created_at) VALUES ('old-rasterize', ?, 'rasterize', 'done', '{\"pages\":\"7\"}', 1, '2026-10-01')").bind(done.id).run();
+  await env.DB.prepare("UPDATE projects SET deleted_at = '2026-10-28T00:00:00.000Z' WHERE id = ?").bind(gone.id).run();
+  const stats = (await (await app.request("/api/project-stats", {}, env)).json()) as {
+    projects: { id: string; createdAt: string; deleted: boolean; finished: boolean }[];
+    pagesProcessed: number;
   };
-  const byId = new Map(projects.map((p) => [p.id, p]));
-  assert.equal(byId.get(done.id)?.finishedAt, "2026-10-18T09:00:00.000Z"); // the first engrave done
-  assert.deepEqual(byId.get(done.id)?.pages, [1, 2, 3]);
-  assert.equal(byId.get(open.id)?.finishedAt, null);
-  assert.deepEqual(byId.get(open.id)?.pages, []);
+  assert.deepEqual(
+    stats.projects.map((p) => [p.id, p.deleted, p.finished]),
+    [[done.id, false, true], [again.id, false, false], [gone.id, true, false]],
+  );
+  assert.equal(stats.pagesProcessed, 5); // 1, 2, 3, 4 and 7 of one PDF
 });
 
 test("activity: the quarters of an hour in which a call ran or anything was recorded, per project", async () => {

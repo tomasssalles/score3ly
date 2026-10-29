@@ -2720,6 +2720,22 @@ textarea.field-input {
   font-size: 12px;
 }
 
+/* A row of a block (the Usage tab's projects): smaller, a line between rows. */
+.stat-row {
+  min-height: 44px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+
+.stat-row-title {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.stat-row .stat-amount {
+  font-size: 18px;
+}
+
 .stat-about {
   max-width: 60ch;
   margin-top: 6px;

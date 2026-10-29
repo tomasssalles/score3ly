@@ -59,19 +59,22 @@ export function Picker<T extends string>({
 }
 
 // The head of a block of the page: its title and an "i" that shows or hides what the block means, on the left; its
-// value (and the controls that change it) on the right, on a line of their own on a phone.
-export function StatHead({ title, about, right }: { title: string; about: ReactNode; right: ReactNode }) {
+// value (and the controls that change it) on the right, on a line of their own on a phone. A row of a block (`row`)
+// is the same, smaller, and may go without the "i".
+export function StatHead({ title, about, right, row = false }: { title: string; about?: ReactNode; right: ReactNode; row?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <div className="stat-line">
-        <h3>{title}</h3>
-        <button type="button" className="icon-button stat-info" aria-expanded={open} aria-label={`About: ${title}`} title={`About: ${title}`} onClick={() => setOpen(!open)}>
-          <InfoIcon />
-        </button>
+      <div className={row ? "stat-line stat-row" : "stat-line"}>
+        {row ? <span className="stat-row-title">{title}</span> : <h3>{title}</h3>}
+        {about && (
+          <button type="button" className="icon-button stat-info" aria-expanded={open} aria-label={`About: ${title}`} title={`About: ${title}`} onClick={() => setOpen(!open)}>
+            <InfoIcon />
+          </button>
+        )}
         <span className="stat-right">{right}</span>
       </div>
-      {open && <div className="settings-hint stat-about">{about}</div>}
+      {open && about && <div className="settings-hint stat-about">{about}</div>}
     </>
   );
 }

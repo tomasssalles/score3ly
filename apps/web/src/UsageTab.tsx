@@ -1,33 +1,32 @@
-// The Usage tab of the Statistics page (docs/tasks.md, "Other statistics"), in blocks, each with a time range of its
-// own, a chart of bars or the running total per day, week or month, and a small table:
-// - its active hours: an hour in which anything happened (usage.ts), for all projects or one picked without a label;
-// - its pages transcribed: each page of a PDF once, when the first project with it was finished, and the projects
-//   created, finished and unfinished.
+// The Usage tab of the Statistics page (docs/tasks.md, "Other statistics"), in blocks:
+// - its active hours: an hour in which anything happened (usage.ts), for all projects or one picked without a label,
+//   in a time range of its own, as bars or the running total per day, week or month, and a one-row table;
+// - its projects: current and deleted, the pages processed, and those created in a time range of their own.
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchActivity, fetchTranscribed, type ActivityData, type TranscribedData } from "./api";
+import { fetchActivity, fetchProjectStats, type ActivityData, type ProjectStats } from "./api";
 import { axisLabel, bucketsOf, deletedNote, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./costs";
 import { ChartModes, Picker, StatHead, type ChartMode } from "./statsParts";
 import { TimeChart } from "./TimeChart";
-import { activeHours, firstTranscribed, hoursView, pagesView } from "./usage";
+import { activeHours, createdIn, createdNote, hoursView } from "./usage";
 
 const ALL = "";
 
 export function UsageTab() {
   const [data, setData] = useState<ActivityData | null>(null);
-  const [transcribed, setTranscribed] = useState<TranscribedData | null>(null);
+  const [projects, setProjects] = useState<ProjectStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchActivity().then(setData, () => setError("The activity couldn't be loaded."));
-    fetchTranscribed().then(setTranscribed, () => setError("The pages transcribed couldn't be loaded."));
+    fetchProjectStats().then(setProjects, () => setError("The projects couldn't be loaded."));
   }, []);
 
   return (
     <>
       {error && <p className="settings-error">{error}</p>}
       {data && <ActiveHours data={data} />}
-      {transcribed && <PagesTranscribed data={transcribed} />}
+      {projects && <Projects data={projects} />}
     </>
   );
 }
@@ -122,91 +121,50 @@ function ActiveHours({ data }: { data: ActivityData }) {
   );
 }
 
-const pagesText = (n: number) => (n === 1 ? "1 page" : `${n} pages`);
-
-// What the app has produced: the pages of finished pipelines, each page of a PDF once (a PDF is a score), on the day
-// the first project with it was finished; and the projects created in the range, how many were finished, and how
-// many are still unfinished (deleted ones too: an abandoned try).
-function PagesTranscribed({ data }: { data: TranscribedData }) {
+// The projects: how many there are and how many were deleted, over all time; the pages processed (rasterized), each
+// page of a PDF once; and the projects created in a time range of its own, with what became of them.
+function Projects({ data }: { data: ProjectStats }) {
   const [now] = useState(() => Date.now());
   const [rangeId, setRangeId] = useState<RangeId>("30d");
-  const first = useMemo(() => {
-    const times = [...firstTranscribed(data).map((p) => p.t), ...data.projects.map((p) => Date.parse(p.createdAt))];
-    return times.length ? Math.min(...times) : null;
-  }, [data]);
-  const range = useMemo(() => rangeOf(rangeId, now, first), [rangeId, now, first]);
-  const [granularity, setGranularity] = useState<Granularity>("day");
-  const [mode, setMode] = useState<ChartMode>("bars");
-
-  function pickRange(id: RangeId) {
-    setRangeId(id);
-    const r = rangeOf(id, now, first);
-    setGranularity(defaultGranularity(id, r.start, r.end));
-  }
-
-  const buckets = useMemo(() => bucketsOf(range.start, range.end, granularity), [range, granularity]);
-  const view = useMemo(() => pagesView(data, buckets, range), [data, buckets, range]);
-  const rows: [string, number][] = [
-    ["Projects created", view.created],
-    ["Projects finished", view.finished],
-    ["Created and still unfinished", view.unfinished],
-  ];
+  const first = data.projects.length ? Date.parse(data.projects[0].createdAt) : null;
+  const created = createdIn(data, rangeOf(rangeId, now, first));
+  const deleted = data.projects.filter((p) => p.deleted).length;
+  const count = (n: number) => (
+    <span className="stat-value">
+      <span className="stat-amount">{n}</span>
+    </span>
+  );
 
   return (
     <section className="stats-section ruled">
+      <h3>Projects</h3>
+      <StatHead row title="Current" right={count(data.projects.length - deleted)} />
+      <StatHead row title="Deleted" right={count(deleted)} />
       <StatHead
-        title="Pages transcribed"
+        row
+        title="Pages processed"
         about={
           <p>
-            A page counts once a project with it has run its whole pipeline. Projects on the same PDF are one score:
-            each of its pages counts once, when the first project with it was finished.
+            This is the total number of pages that have gone through at least the Rasterize stage, even if their
+            pipelines didn't finish. Several projects can sometimes use the same original PDF, in which case the pages
+            are counted only once. Pages of deleted projects are included.
           </p>
         }
+        right={count(data.pagesProcessed)}
+      />
+      <StatHead
+        row
+        title="Created"
         right={
           <>
-            <Picker label="Time range" value={rangeId} options={RANGES} onChange={pickRange} />
+            <Picker label="Time range" value={rangeId} options={RANGES} onChange={setRangeId} />
             <span className="stat-value">
-              <span className="stat-amount">
-                {view.total}
-                <span className="stat-unit"> {view.total === 1 ? "page" : "pages"}</span>
-              </span>
-              <span className="stat-note">from {view.scores === 1 ? "1 score" : `${view.scores} scores`}</span>
+              <span className="stat-amount">{created.total}</span>
+              {created.total > 0 && <span className="stat-note">{createdNote(created)}</span>}
             </span>
           </>
         }
       />
-      <div className="costs-chart">
-        <div className="costs-toolbar">
-          <ChartModes mode={mode} onChange={setMode} />
-          <Picker
-            label="Granularity"
-            value={granularity}
-            options={GRANULARITIES.filter((g) => granularitiesFor(range.start, range.end).includes(g.id))}
-            onChange={setGranularity}
-          />
-        </div>
-        <TimeChart
-          labels={buckets.map((b, i) => axisLabel(b, granularity, i === 0))}
-          titles={buckets.map((b) => bucketTitle(b, granularity))}
-          series={[{ key: "pages", label: "Pages transcribed", color: "var(--chart)" }]}
-          values={[view.values]}
-          mode={mode}
-          format={(v) => (v === 0 ? "no pages" : pagesText(v))}
-          formatTick={(v) => `${v}`}
-          label={mode === "bars" ? "Pages transcribed per period" : "Running total of the pages transcribed"}
-          emptyHint={mode === "bars" ? "Tap a bar to see its pages." : "Tap the chart to see the running total there."}
-        />
-        <table className="costs-table">
-          <tbody>
-            {rows.map(([label, n]) => (
-              <tr key={label}>
-                <td className="costs-group">{label}</td>
-                <td className="costs-amount">{n}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </section>
   );
 }

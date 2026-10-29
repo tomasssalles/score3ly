@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { activityRoutes } from "./activity.ts";
 import { costRoutes } from "./costs.ts";
-import { transcribedRoutes } from "./transcribed.ts";
+import { projectStatsRoutes } from "./projectStats.ts";
 import { deleteProject } from "./deletion.ts";
 import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 import { fingerprintRoutes } from "./fingerprints.ts";
@@ -304,6 +304,6 @@ llmRoutes(app);
 fingerprintRoutes(app);
 costRoutes(app);
 activityRoutes(app);
-transcribedRoutes(app);
+projectStatsRoutes(app);
 
 export default app;

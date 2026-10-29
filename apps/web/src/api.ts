@@ -331,14 +331,15 @@ export type ActivityData = {
   projects: { id: string; name: string; createdAt: string; deletedAt: string | null }[];
 };
 
-// What the app has produced (apps/worker/src/transcribed.ts): every project with its PDF, when it was first finished
-// (null while its pipeline isn't), and its pipeline's pages (none while unfinished).
-export type TranscribedData = {
-  projects: { id: string; pdfSha256: string; createdAt: string; finishedAt: string | null; pages: number[] }[];
+// The Usage tab's projects (apps/worker/src/projectStats.ts): every project, whether it is deleted and whether its
+// pipeline is finished now, and the distinct pages processed (rasterized), each page of a PDF once.
+export type ProjectStats = {
+  projects: { id: string; createdAt: string; deleted: boolean; finished: boolean }[];
+  pagesProcessed: number;
 };
 
-export async function fetchTranscribed(): Promise<TranscribedData> {
-  return (await checked(await fetch("/api/transcribed"))).json();
+export async function fetchProjectStats(): Promise<ProjectStats> {
+  return (await checked(await fetch("/api/project-stats"))).json();
 }
 
 export async function fetchActivity(): Promise<ActivityData> {

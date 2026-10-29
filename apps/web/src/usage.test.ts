@@ -3,9 +3,9 @@ process.env.TZ = "Asia/Kathmandu";
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ActivityData, TranscribedData } from "./api";
+import type { ActivityData, ProjectStats } from "./api";
 import { bucketsOf } from "./costs.ts";
-import { activeHours, hoursView, pagesView } from "./usage.ts";
+import { activeHours, createdIn, createdNote, hoursView } from "./usage.ts";
 
 const local = (s: string) => new Date(s).getTime(); // "2026-10-27T10:00" is local time
 
@@ -31,20 +31,21 @@ test("active hours per day, in the range, and the days they fall on", () => {
   assert.deepEqual(view, { values: [2, 0, 1], total: 3, days: 2 });
 });
 
-test("pages transcribed: a PDF's pages counted once, on the day the first project with them was finished", () => {
-  const iso = (s: string) => new Date(local(s)).toISOString();
-  const transcribed: TranscribedData = {
+test("projects created in a range: done, unfinished and deleted add up; the note leaves out what is 0", () => {
+  const at = (s: string) => new Date(local(s)).toISOString();
+  const stats: ProjectStats = {
     projects: [
-      { id: "a", pdfSha256: "x", createdAt: iso("2026-10-19T09:00"), finishedAt: iso("2026-10-20T10:00"), pages: [1, 2, 3] },
-      // The same PDF again: page 3 was already done, page 4 is new.
-      { id: "b", pdfSha256: "x", createdAt: iso("2026-10-20T12:00"), finishedAt: iso("2026-10-21T10:00"), pages: [3, 4] },
-      { id: "c", pdfSha256: "y", createdAt: iso("2026-10-21T08:00"), finishedAt: iso("2026-10-22T23:30"), pages: [1, 2] },
-      { id: "d", pdfSha256: "z", createdAt: iso("2026-10-22T08:00"), finishedAt: null, pages: [] }, // unfinished
+      { id: "a", createdAt: at("2026-10-01T09:00"), deleted: false, finished: true }, // before the range
+      { id: "b", createdAt: at("2026-10-20T09:00"), deleted: false, finished: true },
+      { id: "c", createdAt: at("2026-10-21T09:00"), deleted: false, finished: false },
+      { id: "d", createdAt: at("2026-10-21T10:00"), deleted: false, finished: false },
+      { id: "e", createdAt: at("2026-10-22T09:00"), deleted: true, finished: true }, // deleted: not counted as done
     ],
+    pagesProcessed: 0,
   };
-  const range = { start: local("2026-10-20T00:00"), end: local("2026-10-23T00:00") };
-  const view = pagesView(transcribed, bucketsOf(range.start, range.end, "day"), range);
-  assert.deepEqual(view.values, [3, 1, 2]);
-  assert.deepEqual([view.total, view.scores], [6, 2]);
-  assert.deepEqual([view.created, view.finished, view.unfinished], [3, 3, 1]); // "a" was created before the range
+  const counts = createdIn(stats, { start: local("2026-10-20T00:00"), end: local("2026-10-23T00:00") });
+  assert.deepEqual(counts, { total: 4, done: 1, unfinished: 2, deleted: 1 });
+  assert.equal(createdNote(counts), "1 done, 2 unfinished, 1 deleted");
+  assert.equal(createdNote({ done: 5, unfinished: 0, deleted: 1 }), "5 done, 1 deleted");
+  assert.equal(createdNote({ done: 0, unfinished: 0, deleted: 0 }), "");
 });
