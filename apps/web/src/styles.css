@@ -2749,6 +2749,23 @@ textarea.field-input {
   font-size: 18px;
 }
 
+/* The run times' project filter, for the whole tab: on the right, the number selected under it. */
+.run-times-filter {
+  margin-top: 24px;
+}
+
+.run-times-filter-line {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+
+.run-times-selected {
+  margin: 4px 0 0;
+  text-align: right;
+}
+
 /* Under a row, a smaller one per group (the run times split by model config). */
 .stat-subrow {
   display: flex;

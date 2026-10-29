@@ -1,7 +1,10 @@
 // The Run times tab (docs/tasks.md, "Other statistics"), over the finished projects the user selects: how long a
 // project took (from its creation to its last finish, and its active hours), each step's work time per page, and from
-// those an estimate for a new score. Pure functions over the Worker's data (apps/worker/src/runTimes.ts); the tab is
-// RunTimesTab.tsx.
+// the automatic steps an estimate for a new score. Pure functions over the Worker's data (apps/worker/src/runTimes.ts);
+// the tab is RunTimesTab.tsx.
+//
+// A manual step's time per page is its finished stages' time from creation to finish, breaks included (nothing else
+// can be measured), over their pages.
 //
 // A step's work time per page comes from the items that really ran (migration 0021): an LLM step's items whose answers
 // were all asked anew, `rasterize`'s items whose image was made, every item of the other steps. Items are of three
@@ -13,8 +16,24 @@ import type { ActivityData, RunTimeData } from "./api";
 import { endedNote, stepTitle } from "./costs.ts";
 import { activeHours } from "./usage.ts";
 
-// The recipe's automatic steps, in the pipeline's order: an estimate for a new score adds them up.
-export const STEPS = ["rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "engrave"];
+// Every step but `ingest`, in the pipeline's order. The manual ones aren't part of the estimate for a new score.
+export const STEPS = [
+  "rasterize",
+  "skew_analysis",
+  "fix_skew",
+  "layout",
+  "fix_layout",
+  "analyze",
+  "fix_metadata",
+  "fix_observations",
+  "extract",
+  "review",
+  "apply_review",
+  "human_review",
+  "fix_mei",
+  "engrave",
+];
+const MANUAL = new Set(["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"]);
 const LLM = new Set(["layout", "analyze", "extract", "review", "apply_review"]);
 
 type Kind = "whole" | "page" | "system";
@@ -43,6 +62,7 @@ export function perProject(data: RunTimeData, selected: Set<string>, activity: A
 // A step's work time per page over some of its stages, or null without enough data: no finished stage with pages, or a
 // kind of item it has with no item that really ran.
 function perPage(data: RunTimeData, stages: RunTimeData["stages"]): number | null {
+  if (stages.some((s) => s.manual)) return manualPerPage(stages);
   const byId = new Map(stages.map((s) => [s.id, s]));
   const durations: Record<Kind, number[]> = { whole: [], page: [], system: [] };
   for (const [stage, item, ms, calls, callsCached, images, imagesCached] of data.items) {
@@ -63,7 +83,15 @@ function perPage(data: RunTimeData, stages: RunTimeData["stages"]): number | nul
   return total;
 }
 
-export type StepRow = { step: string; label: string; ms: number | null; configs: { id: string; label: string; note?: string; ms: number | null }[] };
+// A manual step's time per page: its finished stages' time from creation to finish, over their pages.
+function manualPerPage(stages: RunTimeData["stages"]): number | null {
+  const done = stages.filter((s) => s.done && s.finishedAt && s.pageCount > 0);
+  const pages = done.reduce((n, s) => n + s.pageCount, 0);
+  if (pages === 0) return null;
+  return done.reduce((ms, s) => ms + (Date.parse(s.finishedAt!) - Date.parse(s.createdAt)), 0) / pages;
+}
+
+export type StepRow = { step: string; label: string; manual: boolean; ms: number | null; configs: { id: string; label: string; note?: string; ms: number | null }[] };
 
 // Each step's work time per page over the selected projects' stages, in the pipeline's order; with `byConfig`, also per
 // model config for the LLM steps (the other steps have no config).
@@ -75,6 +103,7 @@ export function stepTimes(data: RunTimeData, selected: Set<string>, byConfig: bo
     return {
       step,
       label: stepTitle(step),
+      manual: MANUAL.has(step),
       ms: perPage(data, stages),
       configs: ids.map((id) => {
         const m = configs.get(id);
@@ -84,10 +113,10 @@ export function stepTimes(data: RunTimeData, selected: Set<string>, byConfig: bo
   });
 }
 
-// The estimate for a new score, per page: the recipe's steps run once each, added up (a step without data adds
-// nothing). Null when no step has data.
+// The estimate for a new score, per page: the recipe's automatic stages run once each, added up (a step without data
+// adds nothing; manual steps are left out). Null when no step has data.
 export function estimatePerPage(rows: StepRow[]): number | null {
-  const known = rows.filter((r) => r.ms !== null);
+  const known = rows.filter((r) => !r.manual && r.ms !== null);
   return known.length ? known.reduce((sum, r) => sum + r.ms!, 0) : null;
 }
 

@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchActivity, fetchRunTimes, type ActivityData, type RunTimeData } from "./api";
 import { createdBefore, deletedNote } from "./costs";
-import { FilterIcon } from "./icons";
+import { FilterIcon, InfoIcon } from "./icons";
 import { duration, estimatePerPage, perProject, stepTimes } from "./runTimes";
 import { Picker, ProjectChecks, StatHead } from "./statsParts";
 import { shortDate } from "./time";
@@ -39,6 +39,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
   const [now] = useState(() => Date.now());
   const [out, setOut] = useState<Set<string>>(new Set()); // the projects taken out
   const [open, setOpen] = useState(false);
+  const [about, setAbout] = useState(false);
   const [split, setSplit] = useState<"none" | "config">("none");
   const selected = useMemo(() => new Set(data.projects.filter((p) => !out.has(p.id)).map((p) => p.id)), [data, out]);
   const project = useMemo(() => perProject(data, selected, activity), [data, selected, activity]);
@@ -50,32 +51,33 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
 
   return (
     <>
-      <section className="stats-section">
-        <StatHead
-          title="Projects"
-          about={
+      {/* The filter applies to the whole tab: no title of its own, so it doesn't read as a block. */}
+      <section className="run-times-filter">
+        <div className="run-times-filter-line">
+          <button type="button" className="icon-button stat-info" aria-expanded={about} aria-label="About: the projects" title="About: the projects" onClick={() => setAbout(!about)}>
+            <InfoIcon />
+          </button>
+          <button
+            type="button"
+            className="editor-mode"
+            aria-pressed={open}
+            aria-label="Select the projects"
+            title="Select the projects"
+            onClick={() => setOpen(!open)}
+          >
+            <FilterIcon />
+            {out.size > 0 && <span className="toggle-dot" />}
+          </button>
+        </div>
+        <p className="stat-note run-times-selected">{selected.size === 1 ? "1 project selected" : `${selected.size} projects selected`}</p>
+        {about && (
+          <div className="settings-hint stat-about">
             <p>
               Only projects whose pipeline is finished are listed: an unfinished project's times would look shorter than they will be. For a
               closer estimate, select the projects most similar to the one you have in mind (number of pages, scan quality, kind of music).
             </p>
-          }
-          right={
-            <>
-              <button
-                type="button"
-                className="editor-mode"
-                aria-pressed={open}
-                aria-label="Select the projects"
-                title="Select the projects"
-                onClick={() => setOpen(!open)}
-              >
-                <FilterIcon />
-                {out.size > 0 && <span className="toggle-dot" />}
-              </button>
-              {value(`${selected.size}`, out.size > 0 ? `of ${total} finished` : total === 1 ? "finished project" : "finished projects")}
-            </>
-          }
-        />
+          </div>
+        )}
         {open && (
           <div className="costs-panel per-page-panel">
             <ProjectChecks
@@ -101,7 +103,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
 
       <section className="stats-section">
         <StatHead
-          title="Time per project"
+          title="Average total time per project"
           about={
             <p>
               The average time from a project's creation to the last time its pipeline finished, with everything that happened in between:
@@ -118,17 +120,18 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
 
       <section className="stats-section">
         <StatHead
-          title="Work time per page"
+          title="Average work time per page"
           about={
             <p>
               How long each step works on one page, on average, without breaks, measured on the work that really ran in the selected projects:
               answers and page images taken from the cache don't count. Steps that work system by system take the number of systems per page of
-              those projects into account. A step that hasn't run in them shows a dash.
+              those projects into account. Manual steps are timed from when they were added to when they were finished, breaks included. A step
+              that hasn't run in these projects shows a dash.
             </p>
           }
           right={
             <>
-              <span className="muted">Split by</span>
+              <span className="muted">split by</span>
               <Picker
                 label="Split by"
                 value={split}
@@ -159,14 +162,15 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
 
       <section className="stats-section">
         <StatHead
-          title="Estimate for a new score"
+          title="Estimated time per page for new scores"
           about={
             <p>
               How long the pipeline would take per page for a score it has never seen: the recipe's stages run once each in Auto mode, with no
-              manual stages, extra reviews, re-runs or breaks. It is the sum of the steps' work times above; add what you expect for the rest.
+              manual stages, extra reviews, re-runs or breaks. It is the sum of the automatic steps' work times above; add what you expect for the
+              rest, such as the manual steps.
             </p>
           }
-          right={value(estimate === null ? "–" : duration(estimate), estimate === null ? undefined : "per page")}
+          right={value(estimate === null ? "–" : duration(estimate))}
         />
       </section>
     </>

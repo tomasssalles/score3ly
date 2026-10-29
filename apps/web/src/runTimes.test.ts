@@ -11,6 +11,9 @@ const stage = (id: string, step: string, projectId: string, configId: string | n
   projectId,
   configId,
   done,
+  manual: false,
+  createdAt: "2026-10-20T10:00:00.000Z",
+  finishedAt: "2026-10-20T11:00:00.000Z" as string | null,
   pageCount,
   items: { whole: 0, page: 0, system: 0, ...items },
 });
@@ -26,6 +29,9 @@ const data: RunTimeData = {
     stage("ea", "extract", "a", "opus", 2, { system: 6, whole: 1 }), // 3 systems per page
     stage("eb", "extract", "b", "sonnet", 1, { system: 2, whole: 1 }),
     stage("xa", "apply_review", "a", "opus", 2, { system: 1 }), // one system with issues in two pages
+    // A manual stage: 1 hour from its creation to its finish, over 2 pages; one still being worked on, left out.
+    { ...stage("fa", "fix_layout", "a", null, 2, {}), manual: true },
+    { ...stage("fb", "fix_layout", "b", null, 1, {}, false), manual: true, finishedAt: null },
   ],
   items: [
     ["ra", "p1", 2000, 0, 0, 1, 0], // made
@@ -69,6 +75,8 @@ test("work time per page: from the items that really ran, times the items of eac
   assert.equal(Math.round(rows.get("extract")!), Math.round((15000 * 8) / 3 + (20 * 2) / 3));
   assert.equal(rows.get("apply_review"), 8000 / 2); // one system with issues in two pages
   assert.equal(rows.get("review"), null); // no data
+  assert.equal(rows.get("fix_layout"), 1_800_000); // half an hour per page, breaks and all
+  // The estimate leaves the manual steps out.
   assert.equal(estimatePerPage(stepTimes(data, new Set(["a", "b"]), false)), 2000 + 4000 + rows.get("extract")! + 4000);
 });
 

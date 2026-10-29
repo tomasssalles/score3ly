@@ -1285,11 +1285,18 @@ test("failures: every call per config, quarter of an hour and reason; the shippe
   assert.deepEqual(failures.configs.map((m) => m.id), ["paid"]);
 });
 
-test("run times: finished projects only, their automatic stages with items of each kind, and the timed items", async () => {
+test("run times: finished projects only, their stages that started with items of each kind, and the timed items", async () => {
   const done = await createdProject("timed.pdf");
   const open = await createdProject("open.pdf");
   await env.DB.batch([
-    env.DB.prepare("UPDATE stages SET status = 'done', finished_at = '2026-10-20T10:00:00.000Z' WHERE id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ?)").bind(done.id),
+    env.DB.prepare(
+      "UPDATE stages SET status = 'done', started_at = '2026-10-20T09:00:00.000Z', finished_at = '2026-10-20T10:00:00.000Z' WHERE id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ?)",
+    ).bind(done.id),
+    // A manual stage, timed from its creation to its finish; a planned one that never started, left out.
+    env.DB.prepare(
+      "INSERT INTO stages (id, created_in, step, status, page_count, in_recipe, created_at, started_at, finished_at) VALUES ('fix', ?, 'fix_layout', 'done', 2, 0, '2026-10-20T09:10:00.000Z', '2026-10-20T09:10:00.000Z', '2026-10-20T09:40:00.000Z')",
+    ).bind(done.id),
+    env.DB.prepare("INSERT INTO stages (id, created_in, step, status, in_recipe, created_at) VALUES ('never', ?, 'review', 'planned', 0, '2026-10-20')").bind(done.id),
     env.DB.prepare("UPDATE stages SET config_json = '{\"pages\":\"1-2\"}', page_count = 2 WHERE step = 'rasterize' AND created_in = ?").bind(done.id),
   ]);
   const extract = (await pipelineOf(done.id)).find((s) => s.step === "extract")!;
@@ -1311,6 +1318,9 @@ test("run times: finished projects only, their automatic stages with items of ea
   };
   assert.deepEqual(data.projects.map((p) => [p.id, p.finishedAt, p.pages]), [[done.id, "2026-10-20T10:00:00.000Z", [1, 2]]]);
   assert.ok(!data.stages.some((s) => s.projectId === open.id || s.step === "ingest"));
+  assert.ok(!data.stages.some((s) => s.id === "never"));
+  const fix = data.stages.find((s) => s.id === "fix") as unknown as { manual: boolean; createdAt: string; finishedAt: string };
+  assert.deepEqual([fix.manual, fix.createdAt, fix.finishedAt], [true, "2026-10-20T09:10:00.000Z", "2026-10-20T09:40:00.000Z"]);
   const stage = data.stages.find((s) => s.id === extract.id)!;
   assert.deepEqual([stage.done, stage.pageCount, stage.items], [true, 2, { whole: 1, page: 0, system: 3 }]);
   assert.deepEqual(data.items.filter((i) => i[0] === extract.id).map((i) => i.slice(1)).sort(), [
