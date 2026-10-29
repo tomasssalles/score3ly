@@ -1,8 +1,9 @@
-// The Statistics page's Run times (docs/tasks.md, "Other statistics"): the finished projects (their pipeline's last
+// The Statistics page's Run times and Effort (docs/tasks.md, "Other statistics"): the finished projects (their pipeline's last
 // stage, always engrave, done), deleted ones included, with their creation, their last finish and their pages; the
 // stages created in them that started (manual ones too, with their creation and finish: they are timed from one to the
-// other), with their step, model config, page count and how many items of each kind they have (for the items per
-// page: a page, a system, the whole score); and every item of an automatic stage that was timed (migration 0021), with
+// other), with their step, model config, page count, whether they are the recipe's and still in a pipeline (not replaced
+// or stopped: for Effort), and how many items of each kind they have (for the items per page: a page, a system, the
+// whole score); and every item of an automatic stage that was timed (migration 0021), with
 // what it found in the caches. Unfinished projects are left out: their times would look shorter than they will
 // be. The browser filters by project and averages, so a change of selection needs no request.
 
@@ -26,7 +27,8 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
          FROM projects p WHERE p.id IN (${finished}) ORDER BY p.created_at`,
       ),
       db.prepare(
-        `SELECT s.id, s.step, s.created_in AS project, s.model_config_id AS config, s.status, s.page_count, s.created_at, s.finished_at,
+        `SELECT s.id, s.step, s.created_in AS project, s.model_config_id AS config, s.status, s.page_count, s.created_at, s.finished_at, s.in_recipe,
+           EXISTS (SELECT 1 FROM pipeline_entries e WHERE e.stage_id = s.id) AS kept,
            (SELECT COUNT(*) FROM outputs o WHERE o.stage_id = s.id AND o.item = '') AS whole,
            (SELECT COUNT(*) FROM outputs o WHERE o.stage_id = s.id AND o.item <> '' AND o.item NOT LIKE '%/%') AS pages,
            (SELECT COUNT(*) FROM outputs o WHERE o.stage_id = s.id AND o.item LIKE '%/%') AS systems
@@ -49,6 +51,8 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
       page_count: number | null;
       created_at: string;
       finished_at: string | null;
+      in_recipe: number;
+      kept: number;
       whole: number;
       pages: number;
       systems: number;
@@ -74,6 +78,8 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
         configId: s.config,
         done: s.status === "done",
         manual: MANUAL.includes(s.step),
+        inRecipe: s.in_recipe === 1,
+        kept: s.kept === 1,
         createdAt: s.created_at,
         finishedAt: s.finished_at,
         pageCount: s.page_count ?? 0,

@@ -368,6 +368,8 @@ export type RunTimeData = {
     configId: string | null;
     done: boolean;
     manual: boolean; // timed from its creation to its finish
+    inRecipe: boolean; // the recipe's, or added by the user
+    kept: boolean; // in a pipeline: not replaced or stopped
     createdAt: string;
     finishedAt: string | null;
     pageCount: number;

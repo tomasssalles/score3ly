@@ -1321,8 +1321,12 @@ test("run times: finished projects only, their stages that started with items of
   assert.deepEqual(data.recipe, ["rasterize", "skew_analysis", "layout", "analyze", "extract", "engrave"]);
   assert.ok(!data.stages.some((s) => s.projectId === open.id || s.step === "ingest"));
   assert.ok(!data.stages.some((s) => s.id === "never"));
-  const fix = data.stages.find((s) => s.id === "fix") as unknown as { manual: boolean; createdAt: string; finishedAt: string };
+  const fix = data.stages.find((s) => s.id === "fix") as unknown as { manual: boolean; createdAt: string; finishedAt: string; inRecipe: boolean; kept: boolean };
   assert.deepEqual([fix.manual, fix.createdAt, fix.finishedAt], [true, "2026-10-20T09:10:00.000Z", "2026-10-20T09:40:00.000Z"]);
+  // Not in the recipe, and in no pipeline (inserted here without an entry): like a replaced stage.
+  assert.deepEqual([fix.inRecipe, fix.kept], [false, false]);
+  const kept = data.stages.find((s) => s.id === extract.id) as unknown as { inRecipe: boolean; kept: boolean };
+  assert.deepEqual([kept.inRecipe, kept.kept], [true, true]);
   const stage = data.stages.find((s) => s.id === extract.id)!;
   assert.deepEqual([stage.done, stage.pageCount, stage.items], [true, 2, { whole: 1, page: 0, system: 3 }]);
   assert.deepEqual(data.items.filter((i) => i[0] === extract.id).map((i) => i.slice(1)).sort(), [

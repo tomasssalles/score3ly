@@ -4,11 +4,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchActivity, fetchRunTimes, type ActivityData, type RunTimeData } from "./api";
-import { createdBefore, deletedNote } from "./costs";
-import { FilterIcon, InfoIcon } from "./icons";
+import { FinishedProjectsFilter } from "./ProjectFilter";
 import { duration, estimatePerPage, perProject, stepTimes } from "./runTimes";
-import { Picker, ProjectChecks, StatHead } from "./statsParts";
-import { shortDate } from "./time";
+import { Picker, StatHead } from "./statsParts";
 
 export function RunTimesTab() {
   const [data, setData] = useState<RunTimeData | null>(null);
@@ -36,10 +34,7 @@ const value = (text: string, note?: string) => (
 );
 
 function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityData }) {
-  const [now] = useState(() => Date.now());
   const [out, setOut] = useState<Set<string>>(new Set()); // the projects taken out
-  const [open, setOpen] = useState(false);
-  const [about, setAbout] = useState(false);
   const [split, setSplit] = useState<"none" | "config">("none");
   const selected = useMemo(() => new Set(data.projects.filter((p) => !out.has(p.id)).map((p) => p.id)), [data, out]);
   const project = useMemo(() => perProject(data, selected, activity), [data, selected, activity]);
@@ -51,52 +46,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
 
   return (
     <>
-      {/* The filter applies to the whole tab: no title of its own, so it doesn't read as a block. */}
-      <section className="run-times-filter">
-        <div className="run-times-filter-line">
-          <button type="button" className="icon-button stat-info" aria-expanded={about} aria-label="About: the projects" title="About: the projects" onClick={() => setAbout(!about)}>
-            <InfoIcon />
-          </button>
-          <button
-            type="button"
-            className="editor-mode"
-            aria-pressed={open}
-            aria-label="Select the projects"
-            title="Select the projects"
-            onClick={() => setOpen(!open)}
-          >
-            <FilterIcon />
-            {out.size > 0 && <span className="toggle-dot" />}
-          </button>
-        </div>
-        <p className="stat-note run-times-selected">{selected.size === 1 ? "1 project selected" : `${selected.size} projects selected`}</p>
-        {about && (
-          <div className="settings-hint stat-about">
-            <p>Only projects whose pipeline is finished are listed.</p>
-          </div>
-        )}
-        {open && (
-          <div className="costs-panel per-page-panel">
-            <ProjectChecks
-              items={[...data.projects].reverse().map((p) => ({
-                key: p.id,
-                name: p.name,
-                note: deletedNote(p.deletedAt),
-                facts: `${shortDate(p.createdAt, now)} · ${p.pages.length} ${p.pages.length === 1 ? "page" : "pages"}`,
-              }))}
-              out={out}
-              onChange={setOut}
-              actions={[
-                [
-                  { label: "Remove projects created more than 30 days ago", ids: createdBefore(data.projects, "30d", now) },
-                  { label: "Remove projects created more than 3 months ago", ids: createdBefore(data.projects, "3m", now) },
-                  { label: "Remove projects created more than 12 months ago", ids: createdBefore(data.projects, "12m", now) },
-                ],
-              ]}
-            />
-          </div>
-        )}
-      </section>
+      <FinishedProjectsFilter projects={data.projects} out={out} onChange={setOut} />
 
       <section className="stats-section">
         <StatHead

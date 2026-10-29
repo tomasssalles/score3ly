@@ -12,6 +12,8 @@ const stage = (id: string, step: string, projectId: string, configId: string | n
   configId,
   done,
   manual: false,
+  inRecipe: true,
+  kept: true,
   createdAt: "2026-10-20T10:00:00.000Z",
   finishedAt: "2026-10-20T11:00:00.000Z" as string | null,
   pageCount,

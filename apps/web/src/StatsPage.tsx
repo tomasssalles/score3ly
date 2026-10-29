@@ -1,4 +1,4 @@
-// The Statistics page, in tabs: Costs, Usage (UsageTab.tsx), Run times (RunTimesTab.tsx) and Effort (not built yet).
+// The Statistics page, in tabs: Costs, Usage (UsageTab.tsx), Run times (RunTimesTab.tsx) and Effort (EffortTab.tsx).
 // The Costs tab (docs/llm.md, "The costs view"): the spending cap's last 24 hours and the average cost per page at the top; then a range and what
 // it cost in all, unfiltered; then, apart, the chart (bars per day, week or month, or the running total), split into
 // groups and filtered by them, and a table of the totals. It opens on the plainest view: the last 30 days, per day,
@@ -34,6 +34,7 @@ import {
   unfinished,
 } from "./costs";
 import { ChartModes, Picker, ProjectChecks, StatHead, type ChartMode } from "./statsParts";
+import { EffortTab } from "./EffortTab";
 import { RunTimesTab } from "./RunTimesTab";
 import { UsageTab } from "./UsageTab";
 import { hashForStatsTab, statsTabFromHash, type StatsTab } from "./route";
@@ -76,20 +77,10 @@ export function StatsPage() {
         {tab === "costs" && <CostsTab />}
         {tab === "usage" && <UsageTab />}
         {tab === "times" && <RunTimesTab />}
-        {tab === "effort" && (
-          <>
-            <p className="stats-intro">This page is about how often the automated pipeline wasn't good enough and you had to swoop in and save the day.</p>
-            <NotBuilt />
-          </>
-        )}
+        {tab === "effort" && <EffortTab />}
       </div>
     </div>
   );
-}
-
-// The tabs whose statistics are still to be decided and built (docs/tasks.md, "Other statistics: decide, then build").
-function NotBuilt() {
-  return <p className="placeholder-note">Not built yet.</p>;
 }
 
 function CostsTab() {
