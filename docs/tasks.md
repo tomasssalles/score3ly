@@ -81,13 +81,15 @@ How much money was lost on failed calls (`docs/llm.md`, "The costs view"). The c
 
 `docs/llm.md`, "The costs view". **The order of the lists that grow** (projects, PDFs, configs) in the filters: today the most expensive first, over all time; to decide (sorting and searching the statistics' project lists are tasks of their own).
 
-### Tags and a "done" mark for projects
-`#decision`
+### Tags for projects
+`#optional` `#decision`
 
-Proposed by the project owner (2026-10-29), not decided. Both are optional for the user: a project needs neither.
-- **Tags:** arbitrary tags on projects, added by the user ("baroque", "stained paper", "choir"). For organizing and finding projects in the app (the project picker, a filter by tags), and for the statistics: every tab's project filters could select by tags (e.g. projects tagged "baroque" and "stained paper"), so the averages and estimates come from projects similar to the next one, as the "i" texts already suggest.
-- **A "done" mark:** a toggle on each project, set by the user when satisfied with the result. A much clearer signal than the finished pipeline the statistics use today (Run times, the average cost per page's "unfinished pipeline"), which says nothing about whether the result still needs work. Users could also do this with a tag of their own ("done", "happy"); the official toggle would let the app rely on it.
-- To decide: whether the statistics then use the "done" mark instead of the finished pipeline, or both (e.g. the mark where it is set); where tags are added and shown (the project's actions, the header); whether tags are suggested from the ones used before.
+Proposed by the project owner (2026-10-29). Arbitrary tags on projects, added by the user ("baroque", "stained paper", "choir"). For organizing and finding projects in the app (the project picker, a filter by tags), and for the statistics: every tab's project filters could select by tags (e.g. projects tagged "baroque" and "stained paper"), so the averages and estimates come from projects similar to the next one, as the "i" texts already suggest. A user could also mark the projects they consider finished with a tag of their own ("done", "happy"). To decide: where tags are added and shown (the project's actions, the header); whether tags are suggested from the ones used before.
+
+### A "done" mark for projects
+`#optional` `#decision`
+
+Proposed by the project owner (2026-10-29). A toggle on each project, set by the user when satisfied with the result: a much clearer signal than the finished pipeline the statistics use today (Run times, the average cost per page's "unfinished pipeline"), which says nothing about whether the result still needs work. To decide: whether the statistics then use the mark instead of the finished pipeline, or both (e.g. the mark where it is set).
 
 ### Decide the model configs
 `#decision` `#research` `#next-release`
