@@ -2700,9 +2700,23 @@ textarea.field-input {
 
 .stat-right {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
-  gap: 12px;
+  gap: 6px 12px;
   margin-left: auto;
+}
+
+/* A picker in a head shrinks to the line, its name wrapping rather than overflowing (names are never cut). */
+.stat-right .mode-picker {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.stat-right .mode-button {
+  max-width: 100%;
+  text-align: left;
 }
 
 .stat-value {
@@ -3266,9 +3280,4 @@ textarea.field-input {
 .stat-unit {
   font-size: 15px;
   font-weight: 500;
-}
-
-/* A block's own controls under its head (the Usage tab's failed calls: the model config). */
-.stat-toolbar {
-  margin: 4px 0 6px;
 }

@@ -175,7 +175,7 @@ function Projects({ data }: { data: ProjectStats }) {
 }
 
 // The failed calls: how many of the calls in a time range failed, and why, the most frequent reason first; for all
-// model configs or one, picked apart from the range (neither resets the other).
+// model configs or one. Both pickers are in the head, side by side, and neither resets the other.
 function Failures({ data }: { data: FailureData }) {
   const [now] = useState(() => Date.now());
   const [rangeId, setRangeId] = useState<RangeId>("30d");
@@ -193,6 +193,7 @@ function Failures({ data }: { data: FailureData }) {
         right={
           <>
             <Picker label="Time range" value={rangeId} options={RANGES} onChange={setRangeId} />
+            <Picker label="Model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...configs]} onChange={setConfigId} className="project-select" />
             <span className="stat-value">
               <span className="stat-amount">{view.failed}</span>
               <span className="stat-note">{view.calls ? `of ${view.calls === 1 ? "1 call" : `${view.calls} calls`} (${share}%)` : "no calls"}</span>
@@ -200,9 +201,6 @@ function Failures({ data }: { data: FailureData }) {
           </>
         }
       />
-      <div className="costs-toolbar stat-toolbar">
-        <Picker label="Model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...configs]} onChange={setConfigId} className="project-select" />
-      </div>
       {view.reasons.map((r) => (
         <StatHead key={r.key} row title={r.label} right={<span className="stat-value"><span className="stat-amount">{r.calls}</span></span>} />
       ))}
