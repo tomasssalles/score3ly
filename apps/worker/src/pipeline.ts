@@ -392,7 +392,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
           (o.contentSha256 !== undefined || o.recipeKey !== undefined) &&
           (o.inputIds === undefined || isStringArray(o.inputIds)) &&
           (o.callId === undefined || typeof o.callId === "string") &&
-          (o.parentOutputId === undefined || typeof o.parentOutputId === "string"),
+          (o.parentOutputId === undefined || typeof o.parentOutputId === "string") &&
+          (o.timing === undefined || isTiming(o.timing)),
       );
     if (!valid) return c.json({ error: "expected 'outputs' with an item, a type, and a content hash or a recipe key" }, 400);
     const found = await entry(db, pid, sid);
@@ -403,9 +404,11 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const now = new Date().toISOString();
     const ids = outputs.map(() => crypto.randomUUID());
     // A WIP stage's item saved again: the new content replaces the old, in the same row.
+    const columns = "id, stage_id, item, type, content_sha256, recipe_key, recipe_json, call_id, parent_output_id, created_at, duration_ms, calls, calls_cached, images, images_cached";
+    const values = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
     const insert = wip
-      ? "INSERT INTO outputs (id, stage_id, item, type, content_sha256, recipe_key, recipe_json, call_id, parent_output_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (stage_id, item, type) DO UPDATE SET content_sha256 = excluded.content_sha256, recipe_key = excluded.recipe_key, recipe_json = excluded.recipe_json, parent_output_id = excluded.parent_output_id"
-      : "INSERT OR IGNORE INTO outputs (id, stage_id, item, type, content_sha256, recipe_key, recipe_json, call_id, parent_output_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      ? `INSERT INTO outputs (${columns}) VALUES (${values}) ON CONFLICT (stage_id, item, type) DO UPDATE SET content_sha256 = excluded.content_sha256, recipe_key = excluded.recipe_key, recipe_json = excluded.recipe_json, parent_output_id = excluded.parent_output_id`
+      : `INSERT OR IGNORE INTO outputs (${columns}) VALUES (${values})`;
     const statements: D1PreparedStatement[] = [];
     outputs.forEach((o: Record<string, unknown>, i: number) => {
       statements.push(
@@ -422,6 +425,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
             o.callId ?? null,
             o.parentOutputId ?? null,
             now,
+            ...timingValues(o.timing as Timing | undefined),
           ),
         ...((o.inputIds as string[] | undefined) ?? []).map((inputId) =>
           db
@@ -693,4 +697,27 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (!result.meta.changes) return c.json({ error: "no such card in this project" }, 404);
     return c.json(await readPipeline(db, pid));
   });
+}
+
+// How long an item took and what it found in the caches (migration 0021), as the browser measures it.
+type Timing = { durationMs: number; calls: number; callsCached: number; images: number; imagesCached: number };
+
+function isTiming(t: unknown): t is Timing {
+  const x = t as Record<string, unknown> | null;
+  const count = (v: unknown) => Number.isInteger(v) && (v as number) >= 0;
+  return (
+    !!x &&
+    typeof x === "object" &&
+    count(x.durationMs) &&
+    count(x.calls) &&
+    count(x.callsCached) &&
+    count(x.images) &&
+    count(x.imagesCached) &&
+    (x.callsCached as number) <= (x.calls as number) &&
+    (x.imagesCached as number) <= (x.images as number)
+  );
+}
+
+function timingValues(t: Timing | undefined): (number | null)[] {
+  return t ? [t.durationMs, t.calls, t.callsCached, t.images, t.imagesCached] : [null, null, null, null, null];
 }

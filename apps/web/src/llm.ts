@@ -4,6 +4,7 @@
 import { CLAUDE_IMAGE_LIMIT, type SizeLimit } from "@score3ly/imaging";
 import { callLlm, fetchModelConfig, fetchSettings, type LlmAnswer, type LlmRequest, type ModelConfig } from "./api";
 import { keyOf } from "@score3ly/core";
+import { noteAnswer } from "./itemTiming";
 import { keepFingerprints } from "./pageImages";
 import { CannotStart, type StageRun } from "./stageRunner";
 
@@ -160,6 +161,7 @@ export async function ask(
     if (answer.status === "ok") await keepFingerprints(images);
   }
   if (answer.status !== "ok") throw new Error(`${what}: ${answer.error ?? answer.status}`);
+  noteAnswer(answer.cached);
   return answer;
 }
 

@@ -1,7 +1,8 @@
 // Running a stage in the browser (docs/overview.md §5.5, docs/database.md): the step's code says what the stage's items are and how
 // each is made; this does the rest. It starts the stage (or finds a finished one with the same key and stops
-// there), skips the items a failed run already recorded, records each output as soon as it is made, reports
-// progress, sends a heartbeat once a minute, and finishes the stage: done, or failed with the error.
+// there), skips the items a failed run already recorded, records each output as soon as it is made, with how long the
+// item took and what it found in the caches (itemTiming.ts), reports progress, sends a heartbeat once a minute, and
+// finishes the stage: done, or failed with the error.
 
 import {
   finishStage,
@@ -14,6 +15,7 @@ import {
   type Project,
   type StageStart,
 } from "./api";
+import { timed } from "./itemTiming";
 
 export type StageRun = {
   project: Project;
@@ -29,7 +31,7 @@ export class CannotStart extends Error {}
 export type StageItem = {
   item: string;
   type: string;
-  make: () => Promise<Omit<NewOutput, "item" | "type">>;
+  make: () => Promise<Omit<NewOutput, "item" | "type" | "timing">>;
 };
 
 // The note is the card's short result, e.g. "12 pages": text, or computed once the items are done.
@@ -49,9 +51,9 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
     for (const [i, item] of items.entries()) {
       if (signal.aborted) return;
       if (!recorded.has(`${item.type}\u0000${item.item}`)) {
-        const output = await item.make();
+        const { value: output, timing } = await timed(item.make);
         if (signal.aborted) return;
-        await recordOutputs(project, stage.id, [{ ...output, item: item.item, type: item.type }]);
+        await recordOutputs(project, stage.id, [{ ...output, item: item.item, type: item.type, timing }]);
       }
       run.progress((i + 1) / items.length);
     }

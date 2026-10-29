@@ -557,6 +557,24 @@ async function startRasterize(projectId: string, stageKey = KEY) {
   return { response, ingest, rasterize };
 }
 
+test("an item's timing is kept with its output: its duration, its answers and images, and how many came from the caches", async () => {
+  const project = await createdProject("timing.pdf");
+  const { rasterize } = await startRasterize(project.id);
+  const timing = { durationMs: 1234, calls: 0, callsCached: 0, images: 2, imagesCached: 1 };
+  assert.equal((await call(project.id, rasterize.id, "outputs", { outputs: [{ item: "p1", type: "page_image", recipeKey: RECIPE_KEY(1), timing }] })).status, 200);
+  assert.equal((await call(project.id, rasterize.id, "outputs", { outputs: [{ item: "p2", type: "page_image", recipeKey: RECIPE_KEY(2) }] })).status, 200);
+  for (const bad of [{ ...timing, durationMs: -1 }, { ...timing, imagesCached: 3 }, { ...timing, calls: 1.5 }, { durationMs: 5 }]) {
+    assert.equal((await call(project.id, rasterize.id, "outputs", { outputs: [{ item: "p3", type: "page_image", recipeKey: RECIPE_KEY(3), timing: bad }] })).status, 400);
+  }
+  const { results } = await env.DB.prepare("SELECT item, duration_ms, calls, calls_cached, images, images_cached FROM outputs WHERE stage_id = ? ORDER BY item")
+    .bind(rasterize.id)
+    .all();
+  assert.deepEqual(results, [
+    { item: "p1", duration_ms: 1234, calls: 0, calls_cached: 0, images: 2, images_cached: 1 },
+    { item: "p2", duration_ms: null, calls: null, calls_cached: null, images: null, images_cached: null },
+  ]);
+});
+
 test("a stage runs: started, outputs recorded as they are done, finished", async () => {
   const project = await createdProject("sonata.pdf");
   const { response, ingest, rasterize } = await startRasterize(project.id);

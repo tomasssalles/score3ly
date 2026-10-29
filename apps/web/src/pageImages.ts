@@ -11,6 +11,7 @@
 import { compareFingerprints, type Fingerprint } from "@score3ly/imaging";
 import { fetchFingerprint, storeFingerprints } from "./api";
 import { cachedImage, cacheImage, cachedJson, cacheJson } from "./imageCache";
+import { noteImage } from "./itemTiming";
 import { keyOf } from "@score3ly/core";
 import { pdfUrl } from "./pdf";
 import type { PageImageRequest, PageImageResponse } from "./pageImageWorker";
@@ -78,6 +79,7 @@ export function openPdfForImages(sha256: string): Promise<{ pageCount: number; p
 export async function pageImage(recipe: PageRecipe): Promise<{ png: Blob; computed: boolean }> {
   const key = await keyOf(recipe);
   const cached = await cachedImage(key, recipe.pdf);
+  noteImage(cached !== null);
   if (cached) return { png: cached, computed: false };
   await openPdfForImages(recipe.pdf);
   const answer = await ask({ type: "page", sha256: recipe.pdf, page: recipe.page, dpi: recipe.dpi });
@@ -117,6 +119,7 @@ async function cachedOr(recipe: unknown, make: () => Promise<Derived>): Promise<
   const key = await keyOf(recipe);
   const pdf = pdfOf(recipe);
   const cached = await cachedImage(key, pdf);
+  noteImage(cached !== null);
   if (cached) return cached;
   const { png, fingerprint } = await make();
   await cacheImage(key, png, pdf);

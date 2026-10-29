@@ -1,4 +1,5 @@
 import type { Fingerprint } from "@score3ly/imaging";
+import type { Timing } from "./itemTiming";
 import { sha256Hex } from "@score3ly/core";
 
 // Mirrors the Worker's Project type (apps/worker/src/index.ts).
@@ -187,6 +188,7 @@ export type NewOutput = {
   inputIds?: string[];
   callId?: string; // LLM outputs: the call whose answer it is
   parentOutputId?: string; // manual outputs: the output they correct
+  timing?: Timing; // a running stage's items: how long it took, what it found in the caches (itemTiming.ts)
 };
 
 export async function recordOutputs(project: Project, stageId: string, outputs: NewOutput[]): Promise<string[]> {
