@@ -72,10 +72,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
         <p className="stat-note run-times-selected">{selected.size === 1 ? "1 project selected" : `${selected.size} projects selected`}</p>
         {about && (
           <div className="settings-hint stat-about">
-            <p>
-              Only projects whose pipeline is finished are listed: an unfinished project's times would look shorter than they will be. For a
-              closer estimate, select the projects most similar to the one you have in mind (number of pages, scan quality, kind of music).
-            </p>
+            <p>Only projects whose pipeline is finished are listed.</p>
           </div>
         )}
         {open && (
@@ -107,8 +104,8 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
           about={
             <p>
               The average time from a project's creation to the last time its pipeline finished, with everything that happened in between:
-              re-runs, fixes by hand, and breaks of any length. Under it, the average number of active hours: the hours in which anything happened
-              in the project (as in Usage).
+              re-runs, fixes by hand, and periods of inactivity. Under it, the average number of active hours per project (the hours in which work
+              was actually done).
             </p>
           }
           right={value(
@@ -123,10 +120,8 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
           title="Average work time per page"
           about={
             <p>
-              How long each step works on one page, on average, without breaks, measured on the work that really ran in the selected projects:
-              answers and page images taken from the cache don't count. Steps that work system by system take the number of systems per page of
-              those projects into account. Manual steps are timed from when they were added to when they were finished, breaks included. A step
-              that hasn't run in these projects shows a dash.
+              How long each step works on one page, on average. Real work only: cached results do not count. Manual steps are timed from when
+              they were added to when they were finished, including inactive periods.
             </p>
           }
           right={
