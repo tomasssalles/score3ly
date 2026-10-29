@@ -1,5 +1,5 @@
-// The Statistics page, in tabs: Costs, Usage, Run times and Effort (only Costs is built). The Costs tab (docs/llm.md,
-// "The costs view"): the spending cap's last 24 hours and the average cost per page at the top; then a range and what
+// The Statistics page, in tabs: Costs, Usage (UsageTab.tsx), Run times (RunTimesTab.tsx) and Effort (not built yet).
+// The Costs tab (docs/llm.md, "The costs view"): the spending cap's last 24 hours and the average cost per page at the top; then a range and what
 // it cost in all, unfiltered; then, apart, the chart (bars per day, week or month, or the running total), split into
 // groups and filtered by them, and a table of the totals. It opens on the plainest view: the last 30 days, per day,
 // nothing split or filtered.
@@ -33,13 +33,13 @@ import {
   type Split,
   unfinished,
 } from "./costs";
-import { DropdownMenu } from "./DropdownMenu";
-import { ChartModes, Picker, StatHead, type ChartMode } from "./statsParts";
+import { ChartModes, Picker, ProjectChecks, StatHead, type ChartMode } from "./statsParts";
+import { RunTimesTab } from "./RunTimesTab";
 import { UsageTab } from "./UsageTab";
 import { hashForStatsTab, statsTabFromHash, type StatsTab } from "./route";
 import { useHash } from "./useHash";
 import { CheckList } from "./CheckList";
-import { ChevronDownIcon, ExpandIcon, FilterIcon, InfoIcon, MoreIcon, SplitIcon } from "./icons";
+import { ChevronDownIcon, ExpandIcon, FilterIcon, InfoIcon, SplitIcon } from "./icons";
 import { dollars } from "./money";
 import { shortDate } from "./time";
 import { TimeChart, type ChartSeries } from "./TimeChart";
@@ -75,7 +75,7 @@ export function StatsPage() {
       <div role="tabpanel" aria-label={TABS.find((t) => t.id === tab)?.label}>
         {tab === "costs" && <CostsTab />}
         {tab === "usage" && <UsageTab />}
-        {tab === "times" && <NotBuilt />}
+        {tab === "times" && <RunTimesTab />}
         {tab === "effort" && (
           <>
             <p className="stats-intro">This page is about how often the automated pipeline wasn't good enough and you had to swoop in and save the day.</p>
@@ -396,7 +396,6 @@ function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }
   const [open, setOpen] = useState(false);
   const chosen = projects.filter((p) => !out.has(p.id));
   const { average, projects: counted } = averagePerPage(chosen);
-  const takeOut = (ids: string[]) => setOut(new Set([...out, ...ids]));
   const all = out.size === 0;
   const none = projects.length > 0 && chosen.length === 0;
   const summary =
@@ -453,36 +452,22 @@ function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }
             <span className="muted">No projects yet.</span>
           ) : (
             <>
-              <CheckList
-                allLabel="All projects"
+              <ProjectChecks
                 items={[...projects].reverse().map((p) => {
                   const own = perPage(p);
                   const facts = [shortDate(p.createdAt, now), `${p.pages.length} ${p.pages.length === 1 ? "page" : "pages"}`, p.finished ? null : "unfinished pipeline"];
                   return { key: p.id, name: p.name, note: deletedNote(p.deletedAt), facts: facts.filter(Boolean).join(" · "), amounts: [dollars(p.costUsd), own === null ? "–" : `${dollars(own)}/page`] };
                 })}
-                isOn={(id) => !out.has(id)}
-                setOn={(ids, on) => {
-                  const next = new Set(out);
-                  for (const id of ids) {
-                    if (on) next.delete(id);
-                    else next.add(id);
-                  }
-                  setOut(next);
-                }}
-                menu={
-                  <DropdownMenu
-                    icon={<MoreIcon />}
-                    label="Remove projects"
-                    groups={[
-                      [{ label: "Remove projects with unfinished pipelines", onSelect: () => takeOut(unfinished(projects)) }],
-                      [
-                        { label: "Remove projects created more than 30 days ago", onSelect: () => takeOut(createdBefore(projects, "30d", now)) },
-                        { label: "Remove projects created more than 3 months ago", onSelect: () => takeOut(createdBefore(projects, "3m", now)) },
-                        { label: "Remove projects created more than 12 months ago", onSelect: () => takeOut(createdBefore(projects, "12m", now)) },
-                      ],
-                    ]}
-                  />
-                }
+                out={out}
+                onChange={setOut}
+                actions={[
+                  [{ label: "Remove projects with unfinished pipelines", ids: unfinished(projects) }],
+                  [
+                    { label: "Remove projects created more than 30 days ago", ids: createdBefore(projects, "30d", now) },
+                    { label: "Remove projects created more than 3 months ago", ids: createdBefore(projects, "3m", now) },
+                    { label: "Remove projects created more than 12 months ago", ids: createdBefore(projects, "12m", now) },
+                  ],
+                ]}
               />
             </>
           )}

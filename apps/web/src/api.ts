@@ -355,6 +355,19 @@ export async function fetchFailures(): Promise<FailureData> {
   return (await checked(await fetch("/api/failures"))).json();
 }
 
+// The Run times (apps/worker/src/runTimes.ts): the finished projects, the automatic stages created in them with how many
+// items of each kind they have, the items that were timed, and the model configs the stages used.
+export type RunTimeData = {
+  projects: { id: string; name: string; createdAt: string; deletedAt: string | null; finishedAt: string; pages: number[] }[];
+  stages: { id: string; step: string; projectId: string; configId: string | null; done: boolean; pageCount: number; items: { whole: number; page: number; system: number } }[];
+  items: [stageId: string, item: string, durationMs: number, calls: number, callsCached: number, images: number, imagesCached: number][];
+  configs: { id: string; name: string | null; model: string; createdAt: string; deletedAt: string | null }[];
+};
+
+export async function fetchRunTimes(): Promise<RunTimeData> {
+  return (await checked(await fetch("/api/run-times"))).json();
+}
+
 export async function fetchActivity(): Promise<ActivityData> {
   return (await checked(await fetch("/api/activity"))).json();
 }

@@ -3,6 +3,7 @@ import { activityRoutes } from "./activity.ts";
 import { costRoutes } from "./costs.ts";
 import { projectStatsRoutes } from "./projectStats.ts";
 import { failureRoutes } from "./failures.ts";
+import { runTimeRoutes } from "./runTimes.ts";
 import { deleteProject } from "./deletion.ts";
 import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 import { fingerprintRoutes } from "./fingerprints.ts";
@@ -307,5 +308,6 @@ costRoutes(app);
 activityRoutes(app);
 projectStatsRoutes(app);
 failureRoutes(app);
+runTimeRoutes(app);
 
 export default app;

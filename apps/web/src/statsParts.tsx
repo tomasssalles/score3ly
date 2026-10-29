@@ -2,8 +2,9 @@
 // toggle between a chart's bars and its running total.
 
 import { useState, type ReactNode } from "react";
+import { CheckList, type CheckItem } from "./CheckList";
 import { DropdownMenu } from "./DropdownMenu";
-import { BarsIcon, ChevronDownIcon, InfoIcon, RunningTotalIcon } from "./icons";
+import { BarsIcon, ChevronDownIcon, InfoIcon, MoreIcon, RunningTotalIcon } from "./icons";
 
 export type ChartMode = "bars" | "line";
 
@@ -79,5 +80,43 @@ export function StatHead({ title, about, right, row = false }: { title: string; 
       </div>
       {open && about && <div className="settings-hint stat-about">{about}</div>}
     </>
+  );
+}
+
+// A list of projects to select (the average cost per page, the run times): all selected at first, a box above them for
+// all or none, and a menu of actions that take projects out of the selection (not settings that stay selected: once
+// projects are picked by hand, a setting would stop meaning anything). `out` holds the projects taken out.
+export function ProjectChecks({
+  items,
+  out,
+  onChange,
+  actions,
+}: {
+  items: CheckItem[];
+  out: Set<string>;
+  onChange: (out: Set<string>) => void;
+  actions: { label: string; ids: string[] }[][];
+}) {
+  return (
+    <CheckList
+      allLabel="All projects"
+      items={items}
+      isOn={(id) => !out.has(id)}
+      setOn={(ids, on) => {
+        const next = new Set(out);
+        for (const id of ids) {
+          if (on) next.delete(id);
+          else next.add(id);
+        }
+        onChange(next);
+      }}
+      menu={
+        <DropdownMenu
+          icon={<MoreIcon />}
+          label="Remove projects"
+          groups={actions.map((group) => group.map((a) => ({ label: a.label, onSelect: () => onChange(new Set([...out, ...a.ids])) })))}
+        />
+      }
+    />
   );
 }

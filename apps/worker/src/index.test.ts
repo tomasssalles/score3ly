@@ -1285,6 +1285,41 @@ test("failures: every call per config, quarter of an hour and reason; the shippe
   assert.deepEqual(failures.configs.map((m) => m.id), ["paid"]);
 });
 
+test("run times: finished projects only, their automatic stages with items of each kind, and the timed items", async () => {
+  const done = await createdProject("timed.pdf");
+  const open = await createdProject("open.pdf");
+  await env.DB.batch([
+    env.DB.prepare("UPDATE stages SET status = 'done', finished_at = '2026-10-20T10:00:00.000Z' WHERE id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ?)").bind(done.id),
+    env.DB.prepare("UPDATE stages SET config_json = '{\"pages\":\"1-2\"}', page_count = 2 WHERE step = 'rasterize' AND created_in = ?").bind(done.id),
+  ]);
+  const extract = (await pipelineOf(done.id)).find((s) => s.step === "extract")!;
+  await env.DB.prepare("UPDATE stages SET page_count = 2 WHERE id = ?").bind(extract.id).run();
+  const output = (item: string, type: string, timing: number[] | null) =>
+    env.DB.prepare(
+      "INSERT INTO outputs (id, stage_id, item, type, content_sha256, created_at, duration_ms, calls, calls_cached, images, images_cached) VALUES (?, ?, ?, ?, 'x', '2026-10-20', ?, ?, ?, ?, ?)",
+    ).bind(crypto.randomUUID(), extract.id, item, type, ...(timing ?? [null, null, null, null, null]));
+  await env.DB.batch([
+    output("p1/s1", "extraction", [3000, 1, 0, 12, 6]),
+    output("p1/s2", "extraction", [10, 1, 1, 0, 0]), // served from the record
+    output("p2/s1", "extraction", null), // recorded before timings
+    output("", "score_checks", [16, 0, 0, 0, 0]),
+  ]);
+  const data = (await (await app.request("/api/run-times", {}, env)).json()) as {
+    projects: { id: string; finishedAt: string; pages: number[] }[];
+    stages: { id: string; step: string; projectId: string; done: boolean; pageCount: number; items: { whole: number; page: number; system: number } }[];
+    items: [string, string, number, number, number, number, number][];
+  };
+  assert.deepEqual(data.projects.map((p) => [p.id, p.finishedAt, p.pages]), [[done.id, "2026-10-20T10:00:00.000Z", [1, 2]]]);
+  assert.ok(!data.stages.some((s) => s.projectId === open.id || s.step === "ingest"));
+  const stage = data.stages.find((s) => s.id === extract.id)!;
+  assert.deepEqual([stage.done, stage.pageCount, stage.items], [true, 2, { whole: 1, page: 0, system: 3 }]);
+  assert.deepEqual(data.items.filter((i) => i[0] === extract.id).map((i) => i.slice(1)).sort(), [
+    ["", 16, 0, 0, 0, 0],
+    ["p1/s1", 3000, 1, 0, 12, 6],
+    ["p1/s2", 10, 1, 1, 0, 0],
+  ]);
+});
+
 test("activity: the quarters of an hour in which a call ran or anything was recorded, per project", async () => {
   const project = await createdProject("activity.pdf");
   const layout = (await pipelineOf(project.id))[3];

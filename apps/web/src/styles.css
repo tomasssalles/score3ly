@@ -2749,6 +2749,26 @@ textarea.field-input {
   font-size: 18px;
 }
 
+/* Under a row, a smaller one per group (the run times split by model config). */
+.stat-subrow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0 6px 16px;
+  color: var(--muted);
+}
+
+.stat-subrow .stat-row-title {
+  font-size: 13px;
+  white-space: normal;
+}
+
+.stat-subrow-value {
+  margin-left: auto;
+  font: 500 14px var(--mono);
+  white-space: nowrap;
+}
+
 .stat-about {
   max-width: 60ch;
   margin-top: 6px;

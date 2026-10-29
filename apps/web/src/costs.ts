@@ -165,7 +165,7 @@ export function endedNote(deletedAt: string | null): string | undefined {
 
 // The steps not built yet have no entry in steps.ts.
 const STEP_TITLES: Record<string, string> = { review: "Review", apply_review: "Apply review", human_review: "Human review" };
-const stepTitle = (step: string) => STEP_TITLES[step] ?? stepInfo(step).title;
+export const stepTitle = (step: string) => STEP_TITLES[step] ?? stepInfo(step).title;
 // The LLM steps in the pipeline's order.
 const STEPS = ["layout", "analyze", "extract", "review", "apply_review"];
 
@@ -372,7 +372,7 @@ export function averagePerPage(projects: CostProject[]): { average: number | nul
 }
 
 // The actions of the project list's "⋮": the projects to take out of the selection.
-export function createdBefore(projects: CostProject[], range: RangeId, now: number): string[] {
+export function createdBefore(projects: { id: string; createdAt: string }[], range: RangeId, now: number): string[] {
   const { start } = rangeOf(range, now, null);
   return projects.filter((p) => Date.parse(p.createdAt) < start).map((p) => p.id);
 }
