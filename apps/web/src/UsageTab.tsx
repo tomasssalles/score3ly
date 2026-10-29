@@ -1,25 +1,29 @@
 // The Usage tab of the Statistics page (docs/tasks.md, "Other statistics"), in blocks:
 // - its active hours: an hour in which anything happened (usage.ts), for all projects or one picked without a label,
 //   in a time range of its own, as bars or the running total per day, week or month, and a one-row table;
-// - its projects: current and deleted, the pages processed, and those created in a time range of their own.
+// - its projects: current and deleted, the pages processed, and those created in a time range of their own;
+// - its failed calls: how many of the calls failed, and why, in a time range of their own, for all model configs or
+//   one, picked independently of the range.
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchActivity, fetchProjectStats, type ActivityData, type ProjectStats } from "./api";
-import { axisLabel, bucketsOf, deletedNote, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./costs";
+import { fetchActivity, fetchFailures, fetchProjectStats, type ActivityData, type FailureData, type ProjectStats } from "./api";
+import { axisLabel, bucketsOf, deletedNote, endedNote, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./costs";
 import { ChartModes, Picker, StatHead, type ChartMode } from "./statsParts";
 import { TimeChart } from "./TimeChart";
-import { activeHours, createdIn, createdNote, hoursView } from "./usage";
+import { activeHours, createdIn, createdNote, failuresIn, hoursView } from "./usage";
 
 const ALL = "";
 
 export function UsageTab() {
   const [data, setData] = useState<ActivityData | null>(null);
   const [projects, setProjects] = useState<ProjectStats | null>(null);
+  const [failures, setFailures] = useState<FailureData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchActivity().then(setData, () => setError("The activity couldn't be loaded."));
     fetchProjectStats().then(setProjects, () => setError("The projects couldn't be loaded."));
+    fetchFailures().then(setFailures, () => setError("The failed calls couldn't be loaded."));
   }, []);
 
   return (
@@ -27,6 +31,7 @@ export function UsageTab() {
       {error && <p className="settings-error">{error}</p>}
       {data && <ActiveHours data={data} />}
       {projects && <Projects data={projects} />}
+      {failures && <Failures data={failures} />}
     </>
   );
 }
@@ -165,6 +170,42 @@ function Projects({ data }: { data: ProjectStats }) {
           </>
         }
       />
+    </section>
+  );
+}
+
+// The failed calls: how many of the calls in a time range failed, and why, the most frequent reason first; for all
+// model configs or one, picked apart from the range (neither resets the other).
+function Failures({ data }: { data: FailureData }) {
+  const [now] = useState(() => Date.now());
+  const [rangeId, setRangeId] = useState<RangeId>("30d");
+  const [configId, setConfigId] = useState(ALL);
+  const first = data.points.length ? data.points[0][1] : null;
+  const view = failuresIn(data, rangeOf(rangeId, now, first), configId === ALL ? null : configId);
+  const share = view.calls ? Math.round((view.failed / view.calls) * 100) : 0;
+  // Newest first; a deleted or edited config marked with the day it ended, as in the costs.
+  const configs = [...data.configs].reverse().map((m) => ({ id: m.id, label: m.name ?? m.model, note: endedNote(m.deletedAt) }));
+
+  return (
+    <section className="stats-section">
+      <StatHead
+        title="Failed calls"
+        right={
+          <>
+            <Picker label="Time range" value={rangeId} options={RANGES} onChange={setRangeId} />
+            <span className="stat-value">
+              <span className="stat-amount">{view.failed}</span>
+              <span className="stat-note">{view.calls ? `of ${view.calls === 1 ? "1 call" : `${view.calls} calls`} (${share}%)` : "no calls"}</span>
+            </span>
+          </>
+        }
+      />
+      <div className="costs-toolbar stat-toolbar">
+        <Picker label="Model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...configs]} onChange={setConfigId} className="project-select" />
+      </div>
+      {view.reasons.map((r) => (
+        <StatHead key={r.key} row title={r.label} right={<span className="stat-value"><span className="stat-amount">{r.calls}</span></span>} />
+      ))}
     </section>
   );
 }

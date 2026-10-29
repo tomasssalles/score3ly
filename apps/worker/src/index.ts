@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { activityRoutes } from "./activity.ts";
 import { costRoutes } from "./costs.ts";
 import { projectStatsRoutes } from "./projectStats.ts";
+import { failureRoutes } from "./failures.ts";
 import { deleteProject } from "./deletion.ts";
 import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 import { fingerprintRoutes } from "./fingerprints.ts";
@@ -305,5 +306,6 @@ fingerprintRoutes(app);
 costRoutes(app);
 activityRoutes(app);
 projectStatsRoutes(app);
+failureRoutes(app);
 
 export default app;

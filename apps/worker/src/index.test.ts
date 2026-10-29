@@ -1226,6 +1226,47 @@ test("project stats: every project, deleted or finished, and the distinct pages 
   assert.equal(stats.pagesProcessed, 5); // 1, 2, 3, 4 and 7 of one PDF
 });
 
+test("failures: every call per config, quarter of an hour and reason; the shipped fake and fresh running calls left out", async () => {
+  const project = await createdProject("failures.pdf");
+  const layout = (await pipelineOf(project.id))[3];
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('try', 'Try', 'fake', 'fake-error', 1, '2026-10-01')"),
+  ]);
+  const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+  const quarter = (minutes: number) => Math.floor((Date.now() - minutes * 60_000) / 900_000) * 900_000;
+  const rows: [string, string, string, string | null, string][] = [
+    ["a", "paid", "ok", null, ago(60)],
+    ["b", "paid", "ok", null, ago(60)],
+    ["c", "paid", "error", "overloaded", ago(60)],
+    ["d", "paid", "error", null, ago(60)], // an unexpected stop
+    ["e", "paid", "cut_off", null, ago(60)],
+    ["f", "paid", "running", null, ago(30)], // interrupted
+    ["g", "paid", "running", null, ago(5)], // may still answer: left out
+    ["h", "try", "error", "server", ago(60)], // the shipped fake: left out
+  ];
+  await env.DB.batch(
+    rows.map(([id, config, status, kind, at]) =>
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, error_kind, started_at) VALUES (?, ?, ?, 'k', ?, ?, ?)").bind(id, layout.id, config, status, kind, at),
+    ),
+  );
+  const failures = (await (await app.request("/api/failures", {}, env)).json()) as {
+    points: [string, number, string, number][];
+    configs: { id: string; name: string | null }[];
+  };
+  assert.deepEqual(
+    failures.points.map(([config, t, reason, n]) => [config, t, reason, n]).sort(),
+    [
+      ["paid", quarter(30), "interrupted", 1],
+      ["paid", quarter(60), "cut_off", 1],
+      ["paid", quarter(60), "ok", 2],
+      ["paid", quarter(60), "overloaded", 1],
+      ["paid", quarter(60), "unexpected_stop", 1],
+    ].sort(),
+  );
+  assert.deepEqual(failures.configs.map((m) => m.id), ["paid"]);
+});
+
 test("activity: the quarters of an hour in which a call ran or anything was recorded, per project", async () => {
   const project = await createdProject("activity.pdf");
   const layout = (await pipelineOf(project.id))[3];

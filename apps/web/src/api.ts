@@ -342,6 +342,17 @@ export async function fetchProjectStats(): Promise<ProjectStats> {
   return (await checked(await fetch("/api/project-stats"))).json();
 }
 
+// The Usage tab's failed calls (apps/worker/src/failures.ts): every call, per model config, quarter of an hour and
+// reason ("ok" for one that succeeded), and the configs they were made with.
+export type FailureData = {
+  points: [configId: string, t: number, reason: string, calls: number][];
+  configs: { id: string; name: string | null; model: string; createdAt: string; deletedAt: string | null }[];
+};
+
+export async function fetchFailures(): Promise<FailureData> {
+  return (await checked(await fetch("/api/failures"))).json();
+}
+
 export async function fetchActivity(): Promise<ActivityData> {
   return (await checked(await fetch("/api/activity"))).json();
 }

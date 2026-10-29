@@ -158,6 +158,11 @@ export function deletedNote(deletedAt: string | null): string | undefined {
   return deletedAt ? `(deleted ${dateOf(deletedAt)})` : undefined;
 }
 
+// A deleted or edited model config's mark, the same way: the day its row ended.
+export function endedNote(deletedAt: string | null): string | undefined {
+  return deletedAt ? `(until ${dateOf(deletedAt)})` : undefined;
+}
+
 // The steps not built yet have no entry in steps.ts.
 const STEP_TITLES: Record<string, string> = { review: "Review", apply_review: "Apply review", human_review: "Human review" };
 const stepTitle = (step: string) => STEP_TITLES[step] ?? stepInfo(step).title;
@@ -235,7 +240,7 @@ export function grouper(data: CostData, dimension: Dimension, grouping: string, 
     const name = m.name ?? m.model;
     if (byName) return { key: `name:${name}`, label: name };
     // An edited or deleted config's row ended then: the versions of an edited config are told apart by it.
-    return { key: m.id, label: name, note: m.deletedAt ? `(until ${dateOf(m.deletedAt)})` : undefined };
+    return { key: m.id, label: name, note: endedNote(m.deletedAt) };
   };
 }
 

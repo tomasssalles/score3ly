@@ -3267,3 +3267,8 @@ textarea.field-input {
   font-size: 15px;
   font-weight: 500;
 }
+
+/* A block's own controls under its head (the Usage tab's failed calls: the model config). */
+.stat-toolbar {
+  margin: 4px 0 6px;
+}

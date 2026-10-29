@@ -3,9 +3,9 @@ process.env.TZ = "Asia/Kathmandu";
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ActivityData, ProjectStats } from "./api";
+import type { ActivityData, FailureData, ProjectStats } from "./api";
 import { bucketsOf } from "./costs.ts";
-import { activeHours, createdIn, createdNote, hoursView } from "./usage.ts";
+import { activeHours, createdIn, createdNote, failuresIn, hoursView } from "./usage.ts";
 
 const local = (s: string) => new Date(s).getTime(); // "2026-10-27T10:00" is local time
 
@@ -48,4 +48,24 @@ test("projects created in a range: done, unfinished and deleted add up; the note
   assert.equal(createdNote(counts), "1 done, 2 unfinished, 1 deleted");
   assert.equal(createdNote({ done: 5, unfinished: 0, deleted: 1 }), "5 done, 1 deleted");
   assert.equal(createdNote({ done: 0, unfinished: 0, deleted: 0 }), "");
+});
+
+test("failed calls: counted in the range, for all configs or one, the reasons the most frequent first", () => {
+  const failures: FailureData = {
+    points: [
+      ["opus", local("2026-10-19T10:00"), "overloaded", 5], // before the range
+      ["opus", local("2026-10-20T10:00"), "ok", 10],
+      ["opus", local("2026-10-20T10:00"), "cut_off", 1],
+      ["opus", local("2026-10-21T10:00"), "overloaded", 2],
+      ["gemini", local("2026-10-21T10:00"), "ok", 4],
+      ["gemini", local("2026-10-22T10:00"), "rate_limit", 3],
+    ],
+    configs: [],
+  };
+  const range = { start: local("2026-10-20T00:00"), end: local("2026-10-23T00:00") };
+  const all = failuresIn(failures, range, null);
+  assert.deepEqual([all.calls, all.failed], [20, 6]);
+  assert.deepEqual(all.reasons.map((r) => [r.label, r.calls]), [["Rate limited", 3], ["Overloaded", 2], ["Cut off", 1]]);
+  const opus = failuresIn(failures, range, "opus");
+  assert.deepEqual([opus.calls, opus.failed], [13, 3]);
 });
