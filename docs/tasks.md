@@ -47,11 +47,6 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 `docs/stages/music.md` (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5).
 
-### Failed calls in the Costs tab
-`#next` `#decision`
-
-How much money was lost on failed calls (`docs/statistics.md`, "The costs view"). The call status dimension is built. Proposed, not decided: a note under the detailed overview's total ("unfiltered total, $0.85 on failed calls").
-
 ### The costs view: the order of long lists
 `#decision`
 

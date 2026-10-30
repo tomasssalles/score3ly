@@ -50,6 +50,7 @@ The Statistics page's Costs tab (`#/stats/costs`) (decided 2026-10-27; first dra
 - **Mock data** for trying it, and every other tab of the Statistics page: `npm run seed:stats` (`scripts/seedStats.ts`) writes five months of simulated use (calls, timed items, manual work) into a local database of its own; `npm run dev:worker -- --persist-to .wrangler/seed-stats` serves it.
 - **Format:** two decimals, "$0.12", "$3.40". A paid amount below one cent is "<$0.01"; "$0.00" is reserved for free-tier calls, so an empty bucket reads "nothing spent".
 - **Replaced stages** are included in their project's total. **Deleted projects** are included, marked.
+- **No note on failed calls under the detailed overview's total** (decided 2026-10-30: "unfiltered total, $0.85 on failed calls" was proposed and dropped): what failed calls cost is seen through the call status, in the split and the filters.
 
 ### The average cost per page
 A number to estimate what transcribing a new score will cost, everything included: mistakes, fixes, re-runs, configs tried, until the result is final (decided 2026-10-27, built: `CostPerPage` in `StatsPage.tsx`, `averagePerPage` in `costs.ts`).
