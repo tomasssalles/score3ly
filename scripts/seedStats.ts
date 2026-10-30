@@ -1,8 +1,9 @@
-// Mock usage for building the costs view (docs/llm.md, "The costs view"): five months of one user's projects, stages
-// and LLM calls, written into a local database of its own, never the one `npm run dev:worker` uses.
+// Mock usage for the Statistics page, every tab (docs/llm.md, "The costs view"; docs/tasks.md, "Other statistics"):
+// five months of one user's projects, stages, LLM calls, timed items and manual work, written into a local database of
+// its own, never the one `npm run dev:worker` uses.
 //
-//   npm run seed:costs                      builds apps/worker/.wrangler/seed-costs (deleting what was there)
-//   npm run dev:worker -- --persist-to .wrangler/seed-costs
+//   npm run seed:stats                      builds apps/worker/.wrangler/seed-stats (deleting what was there)
+//   npm run dev:worker -- --persist-to .wrangler/seed-stats
 //
 // A simulation, not hand-written rows: each stage makes its calls one after the other, with tokens and durations
 // from the step and the model config's effort, costs computed as the Worker computes them (llm/prices.ts), and the
@@ -14,8 +15,16 @@
 // - 19 projects from June to today, with a quiet summer gap; two on the same PDF; three deleted, one of whose names
 //   is used again; a whole volume rasterized and left;
 // - stages kept in a pipeline, replaced by a re-run (another config, a fix before them), stopped, failed, and
-//   manual stages between them; calls that failed, were cut off or couldn't be parsed, and their retries.
-// Only rows: no outputs, no R2 content. Opening a seeded project shows its pipeline, not its artifacts.
+//   manual stages between them, one of them edited once (two rows, the second replacing the first), and a Fix MEI
+//   worked on over several evenings; calls that failed (with their kind and HTTP status), were cut off or couldn't be
+//   parsed, and their retries;
+// - an output for every item of an automatic stage, with its timing (migration 0021): how long it took, from its
+//   calls and some work around them, and what it found in the caches (a re-run's pages that didn't change answered
+//   from the record, the page images of a PDF already rasterized found on the device); none for deleted projects,
+//   whose outputs deletion removes;
+// - every manual stage's saves, counted per quarter of an hour (migration 0022), in sessions with short pauses.
+// Rows only, no R2 content: the outputs' content keys are made up. Opening a seeded project shows its pipeline, not
+// its artifacts.
 
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -25,7 +34,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER = join(ROOT, "apps/worker");
-const STATE = process.argv[2] ?? ".wrangler/seed-costs"; // relative to apps/worker, like --persist-to there
+const STATE = process.argv[2] ?? ".wrangler/seed-stats"; // relative to apps/worker, like --persist-to there
 const TODAY = Date.parse("2026-10-27T16:00:00Z");
 const CAP_USD = 15;
 
@@ -49,16 +58,31 @@ const DAY = 24 * HOUR;
 const iso = (t: number) => new Date(t).toISOString();
 const at = (date: string) => Date.parse(`${date}Z`);
 
-// A stage's row is written once it ends, after its calls: the calls go last, for their foreign key.
+// A stage's row is written once it ends, after its calls: the calls go last, for their foreign key, and the outputs and
+// manual saves after the stages, for theirs.
 const statements: string[] = [];
 const callStatements: string[] = [];
+const laterStatements: string[] = [];
 function sql(value: unknown): string {
   if (value === null || value === undefined) return "NULL";
   if (typeof value === "number") return String(value);
   return `'${String(value).replace(/'/g, "''")}'`;
 }
 function insert(table: string, row: Record<string, unknown>) {
-  (table === "llm_calls" ? callStatements : statements).push(`INSERT INTO ${table} (${Object.keys(row).join(", ")}) VALUES (${Object.values(row).map(sql).join(", ")});`);
+  const list = table === "llm_calls" ? callStatements : table === "outputs" || table === "manual_saves" ? laterStatements : statements;
+  list.push(`INSERT INTO ${table} (${Object.keys(row).join(", ")}) VALUES (${Object.values(row).map(sql).join(", ")});`);
+}
+
+// An item's output, with its timing (migration 0021). Deleted projects have none: deletion removes them.
+type Timing = { ms: number; calls?: number; callsCached?: number; images?: number; imagesCached?: number };
+function output(p: { deleted: string | null }, stageId: string, item: string, type: string, end: number, timing: Timing | null) {
+  if (p.deleted) return;
+  insert("outputs", {
+    id: uuid(), stage_id: stageId, item, type, ...(type === "page_image" ? { recipe_key: hex(64), recipe_json: "{}" } : { content_sha256: hex(64) }),
+    created_at: iso(end), duration_ms: timing ? Math.round(timing.ms) : null,
+    calls: timing ? (timing.calls ?? 0) : null, calls_cached: timing ? (timing.callsCached ?? 0) : null,
+    images: timing ? (timing.images ?? 0) : null, images_cached: timing ? (timing.imagesCached ?? 0) : null,
+  });
 }
 
 // ---- Model configs and prices (as llm/prices.ts has them; US dollars per million tokens) ----
@@ -185,38 +209,70 @@ function project(name: string, file: string, pdf: string, created: number, pages
   return p;
 }
 
-function stageRow(p: Project, step: string, cfg: Config | null, start: number | null, end: number | null, status: StageEnd | "planned", note: string | null, inPipeline: boolean, error: string | null = null): string {
-  const id = uuid();
+function stageRow(p: Project, step: string, cfg: Config | null, start: number | null, end: number | null, status: StageEnd | "planned", note: string | null, inPipeline: boolean, error: string | null = null, replaces: string | null = null): string {
+  return stageRowWithId(uuid(), p, step, cfg, start, end, status, note, inPipeline, error, replaces);
+}
+
+function stageRowWithId(id: string, p: Project, step: string, cfg: Config | null, start: number | null, end: number | null, status: StageEnd | "planned", note: string | null, inPipeline: boolean, error: string | null = null, replaces: string | null = null): string {
   insert("stages", {
     id, created_in: p.id, step, step_version: start === null ? null : 1, status,
     config_json: start === null ? null : step === "rasterize" ? JSON.stringify({ pages: `1-${p.pages}`, dpi: 300 }) : "{}", model_config_id: cfg?.id ?? null, stage_key: start === null ? null : hex(64),
     error, note, created_at: iso(start ?? p.created), started_at: start === null ? null : iso(start),
     heartbeat_at: end === null ? null : iso(end), finished_at: end === null || status === "wip" ? null : iso(end),
     page_count: step === "ingest" || start === null ? null : p.pages, in_recipe: step.startsWith("fix_") ? 0 : 1, deleted_at: p.deleted,
+    replaces_stage_id: replaces,
   });
   if (inPipeline) p.entries.push(id);
   return id;
 }
 
-// An LLM stage, its calls one after the other from `start`. At the spending cap the stage fails and is retried the
-// next evening (a retry continues in the same row). `stopAfter` stops it after that many items.
-function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, start: number, opts: { inPipeline?: boolean; stopAfter?: number; failAt?: number } = {}): Stage {
+// An LLM stage, its calls one after the other from `start`, each item's output written when it is done, with its
+// timing. At the spending cap the stage fails and is retried the next evening (a retry continues in the same row).
+// `stopAfter` stops it after that many items; `cached` is the share of items answered from the record (a re-run whose
+// inputs changed only in part): no call, a moment's work.
+function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, start: number, opts: { inPipeline?: boolean; stopAfter?: number; failAt?: number; cached?: number } = {}): Stage {
   const id = uuid();
-  const items: (() => Tokens[])[] = [];
-  if (step === "layout") for (let i = 0; i < p.pages; i++) items.push(() => { const rounds = random() < 0.55 ? 1 : random() < 0.8 ? 2 : 3; return Array.from({ length: rounds }, (_, r) => LAYOUT_ROUND(r + 1)); });
-  if (step === "analyze") { for (let i = 0; i < p.pages; i++) items.push(() => [ANALYZE_PAGE()]); items.push(() => [ANALYZE_SCORE(p.pages)]); }
-  if (step === "extract") for (const n of p.systems) for (let s = 0; s < n; s++) items.push(() => [EXTRACT_SYSTEM(p.staves)]);
+  type Item = { item: string; type: string; images: number; requests: () => Tokens[] };
+  const items: Item[] = [];
+  const pages = Array.from({ length: p.pages }, (_, i) => `p${i + 1}`);
+  if (step === "layout") {
+    for (const item of pages) {
+      const rounds = random() < 0.55 ? 1 : random() < 0.8 ? 2 : 3;
+      items.push({ item, type: "layout", images: 2 * rounds, requests: () => Array.from({ length: rounds }, (_, r) => LAYOUT_ROUND(r + 1)) });
+    }
+  }
+  if (step === "analyze") {
+    for (const item of pages) items.push({ item, type: "analysis", images: 3, requests: () => [ANALYZE_PAGE()] });
+    items.push({ item: "", type: "metadata", images: p.pages, requests: () => [ANALYZE_SCORE(p.pages)] });
+  }
+  if (step === "extract") {
+    p.systems.forEach((n, page) => {
+      for (let s = 0; s < n; s++) items.push({ item: `p${page + 1}/s${s + 1}`, type: "extraction", images: 12, requests: () => [EXTRACT_SYSTEM(p.staves)] });
+    });
+  }
   let t = start;
   let status: StageEnd = "done";
   let error: string | null = null;
   const limit = opts.stopAfter ?? opts.failAt ?? items.length;
+  const done: { item: Item; end: number; timing: Timing }[] = [];
   for (let i = 0; i < Math.min(limit, items.length); i++) {
-    for (const tokens of items[i]()) {
+    const item = items[i];
+    const itemStart = t;
+    if (chance(opts.cached ?? 0)) {
+      // Answered from the record: no images made, no call.
+      t += between(0.05, 0.4) * 1000;
+      done.push({ item, end: t, timing: { ms: t - itemStart, calls: 1, callsCached: 1 } });
+      continue;
+    }
+    t += between(0.3, 2.5) * 1000; // the images, made on the device
+    const requests = item.requests();
+    for (const tokens of requests) {
       try {
         t = call(id, cfg, t, tokens, p.deleted) + between(0.3, 2) * 1000;
       } catch (e) {
         if (!(e instanceof CapReached)) throw e;
-        // The cap stops the stage; the user retries an evening later, once the last 24 hours allow it.
+        // The cap stops the stage; the user retries an evening later, once the last 24 hours allow it. The item's
+        // timing starts again with the retry: a failed attempt leaves no output.
         let retry = t;
         do {
           const next = new Date(retry + DAY);
@@ -226,6 +282,8 @@ function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, st
         t = call(id, cfg, retry, tokens, p.deleted);
       }
     }
+    const ms = Math.min(t - itemStart, 10 * MINUTE);
+    done.push({ item, end: t, timing: { ms, calls: requests.length, images: item.images, imagesCached: int(0, Math.floor(item.images / 2)) } });
   }
   if (opts.stopAfter !== undefined) status = "stopped";
   if (opts.failAt !== undefined) { status = "failed"; error = "System 23: the answer can't be used (a voice of stretch 2 has no music)."; }
@@ -235,22 +293,66 @@ function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, st
     id, created_in: p.id, step, step_version: 1, status, config_json: "{}", model_config_id: cfg.id, stage_key: hex(64),
     error, note, created_at: iso(start), started_at: iso(start), heartbeat_at: iso(t), finished_at: iso(t), page_count: p.pages, deleted_at: p.deleted,
   });
+  for (const d of done) output(p, id, d.item.item, d.item.type, d.end, d.timing);
+  // What is computed from the answers once they are all in: the observations and pieces from the whole score's
+  // answer, the checks of the whole score.
+  if (status === "done" && step === "analyze") for (const type of ["observations", "pieces"]) output(p, id, "", type, t, { ms: between(5, 30) });
+  if (status === "done" && step === "extract") output(p, id, "", "score_checks", t, { ms: between(10, 60) });
   if (opts.inPipeline ?? true) p.entries.push(id);
   return { id, end: t };
 }
 
-// A computed stage: seconds, no calls.
-function computed(p: Project, step: string, start: number, inPipeline = true): number {
-  const end = start + between(4, 40) * 1000 * (step === "rasterize" ? p.pages / 6 : 1);
-  stageRow(p, step, null, start, end, "done", step === "rasterize" ? `${p.pages} pages` : step === "engrave" ? `${p.systems.reduce((a, b) => a + b, 0) * 4} measures` : null, inPipeline);
-  return end;
+// A computed stage: seconds per item, no calls. Rasterize's page images may be found on the device (`found`: a PDF
+// another project rasterized on it before).
+function computed(p: Project, step: string, start: number, inPipeline = true, found = false): number {
+  const stageId = uuid();
+  const outputs: { item: string; type: string; end: number; timing: Timing }[] = [];
+  let t = start;
+  const pages = Array.from({ length: p.pages }, (_, i) => `p${i + 1}`);
+  if (step === "rasterize") {
+    for (const item of pages) {
+      const ms = found ? between(0.04, 0.2) * 1000 : between(0.4, 2.8) * 1000;
+      t += ms;
+      outputs.push({ item, type: "page_image", end: t, timing: { ms, images: 1, imagesCached: found ? 1 : 0 } });
+    }
+  } else if (step === "skew_analysis") {
+    for (const item of pages) {
+      const ms = between(0.5, 1.3) * 1000;
+      t += ms;
+      outputs.push({ item, type: "skew", end: t, timing: { ms, images: 1, imagesCached: 1 } });
+    }
+  } else if (step === "engrave") {
+    const ms = between(0.2, 0.6) * 1000 * p.pages;
+    t += ms;
+    outputs.push({ item: "", type: "mei", end: t, timing: { ms, images: 0 } });
+  }
+  stageRowWithId(stageId, p, step, null, start, t, "done", step === "rasterize" ? `${p.pages} pages` : step === "engrave" ? `${p.systems.reduce((a, b) => a + b, 0) * 4} measures` : null, inPipeline);
+  for (const o of outputs) output(p, stageId, o.item, o.type, o.end, o.timing);
+  return t;
 }
 
-// A manual stage: the user works on it for a while.
-function manual(p: Project, step: string, start: number, minutes: [number, number], status: "done" | "wip" = "done", inPipeline = true): number {
-  const end = start + between(...minutes) * MINUTE;
-  stageRow(p, step, null, start, end, status, status === "done" ? "Changed" : null, inPipeline);
-  return end;
+// A manual stage: the user works on it in sessions (`sessions`, each [start, minutes]), saving as they go: each
+// quarter of an hour of a session has saves, except now and then one, where they read or think (it counts as work
+// all the same, between two quarters with saves). It is finished at the end of its last session, or left WIP.
+// `replaces`: the stage it replaced by being edited.
+function manual(p: Project, step: string, start: number, minutes: [number, number], status: "done" | "wip" = "done", inPipeline = true, more: { sessions?: [number, number][]; replaces?: string } = {}): number {
+  return manualStage(p, step, start, minutes, status, inPipeline, more).end;
+}
+
+function manualStage(p: Project, step: string, start: number, minutes: [number, number], status: "done" | "wip" = "done", inPipeline = true, more: { sessions?: [number, number][]; replaces?: string } = {}): Stage {
+  const sessions = more.sessions ?? [[start, between(...minutes)]];
+  const end = sessions.reduce((last, [from, length]) => Math.max(last, from + length * MINUTE), start);
+  const id = stageRow(p, step, null, start, end, status, status === "done" ? "Changed" : null, inPipeline, null, more.replaces ?? null);
+  const QUARTER = 15 * MINUTE;
+  for (const [from, length] of sessions) {
+    const first = Math.floor(from / QUARTER) * QUARTER;
+    const last = Math.floor((from + length * MINUTE) / QUARTER) * QUARTER;
+    for (let q = first; q <= last; q += QUARTER) {
+      if (q !== first && q !== last && chance(0.15)) continue; // a quarter spent reading, without a save
+      insert("manual_saves", { stage_id: id, quarter: q, saves: int(1, step === "fix_layout" || step === "fix_skew" ? 40 : 12) });
+    }
+  }
+  return { id, end };
 }
 
 function planned(p: Project, ...steps: string[]) {
@@ -265,14 +367,16 @@ function pipeline(p: Project, last: number) {
 const gap = (min: number, max: number) => between(min, max) * MINUTE;
 
 // The recipe up to `analyze`, from `t`: returns when `analyze` ended.
-function front(p: Project, cfg: Config, t: number, fixes: { skew?: boolean; layout?: boolean; metadata?: boolean } = {}): number {
-  t = computed(p, "rasterize", t + gap(0, 1));
+// `found`: the PDF's page images are on the device already (another project rasterized it).
+function front(p: Project, cfg: Config, t: number, fixes: { skew?: boolean; layout?: boolean; metadata?: boolean; observations?: boolean; found?: boolean } = {}): number {
+  t = computed(p, "rasterize", t + gap(0, 1), true, fixes.found);
   t = computed(p, "skew_analysis", t);
   if (fixes.skew) t = manual(p, "fix_skew", t + gap(1, 5), [3, 15]);
   t = llm(p, "layout", cfg, t).end;
   if (fixes.layout) t = manual(p, "fix_layout", t + gap(2, 30), [5, 40]);
   t = llm(p, "analyze", cfg, t + gap(0, 2)).end;
   if (fixes.metadata) t = manual(p, "fix_metadata", t + gap(1, 10), [2, 8]);
+  if (fixes.observations) t = manual(p, "fix_observations", t + gap(1, 10), [5, 20]);
   return t;
 }
 
@@ -316,7 +420,7 @@ const pdf = () => hex(64);
 }
 {
   const p = project("Album for the Young", "Tchaikovsky - Album for the Young Op. 39.pdf", pdf(), at("2026-07-04T09:30:00"), 36, 2);
-  let t = front(p, OPUS, at("2026-07-04T09:31:00"), { skew: true, layout: true });
+  let t = front(p, OPUS, at("2026-07-04T09:31:00"), { skew: true, layout: true, observations: true });
   t = llm(p, "extract", OPUS, t + gap(2, 10)).end;
   pipeline(p, computed(p, "engrave", t));
 }
@@ -335,7 +439,7 @@ const pdf = () => hex(64);
   t = llm(a, "extract", OPUS, t).end;
   pipeline(a, computed(a, "engrave", t));
   const b = project("Nocturnes Op. 9, Gemini", "Chopin - Nocturnes Op. 9.pdf", nocturnes, at("2026-08-13T19:40:00"), 16, 2);
-  let u = front(b, GEMINI, at("2026-08-13T19:41:00"));
+  let u = front(b, GEMINI, at("2026-08-13T19:41:00"), { found: true });
   u = llm(b, "extract", GEMINI, u).end;
   pipeline(b, computed(b, "engrave", u));
 }
@@ -347,8 +451,11 @@ const pdf = () => hex(64);
 }
 // September: everything in the EU, on Bedrock. A long score meets the spending cap.
 {
+  // The metadata fixed, then edited once more before going on: the edit replaces the first fix and builds on it.
   const p = project("Impromptus D. 899", "Schubert - 4 Impromptus D. 899.pdf", pdf(), at("2026-09-03T19:30:00"), 42, 2);
-  let t = front(p, OPUS_EU_1, at("2026-09-03T19:31:00"), { layout: true, metadata: true });
+  let t = front(p, OPUS_EU_1, at("2026-09-03T19:31:00"), { layout: true });
+  const first = manualStage(p, "fix_metadata", t + gap(1, 10), [5, 12], "done", false);
+  t = manual(p, "fix_metadata", first.end + gap(5, 20), [3, 8], "done", true, { replaces: first.id });
   t = llm(p, "extract", OPUS_EU_1, t + gap(3, 15)).end;
   pipeline(p, computed(p, "engrave", t));
 }
@@ -390,7 +497,8 @@ const pdf = () => hex(64);
   t = llm(p, "layout", OPUS_EU_2, t + gap(2, 5)).end;
   t = llm(p, "analyze", OPUS_EU_2, t, { inPipeline: false }).end;
   t = manual(p, "fix_layout", at("2026-10-04T16:00:00"), [10, 25]);
-  t = llm(p, "analyze", OPUS_EU_2, t).end;
+  // Only the pages whose boxes changed are asked again: the rest come from the record.
+  t = llm(p, "analyze", OPUS_EU_2, t, { cached: 0.75 }).end;
   t = llm(p, "extract", OPUS_EU_2, t).end;
   pipeline(p, computed(p, "engrave", t));
 }
@@ -399,6 +507,11 @@ const pdf = () => hex(64);
   const p = project("Dichterliebe", "Schumann - Dichterliebe Op. 48.pdf", pdf(), at("2026-10-11T19:00:00"), 34, 3);
   let t = front(p, OPUS_EU_2, at("2026-10-11T19:01:00"), { layout: true, metadata: true });
   t = llm(p, "extract", OPUS_EU_2, t).end;
+  // The MEI corrected by hand over three evenings.
+  const evening = (date: string): [number, number] => [at(date), between(50, 110)];
+  t = manual(p, "fix_mei", at("2026-10-13T19:30:00"), [0, 0], "done", true, {
+    sessions: [evening("2026-10-13T19:30:00"), evening("2026-10-14T20:10:00"), evening("2026-10-16T19:45:00")],
+  });
   pipeline(p, computed(p, "engrave", t));
 }
 {
@@ -445,10 +558,10 @@ function wrangler(args: string[]) {
 }
 wrangler(["d1", "migrations", "apply", "score3ly", "--local", "--persist-to", STATE]);
 const file = join(mkdtempSync(join(tmpdir(), "score3ly-seed-")), "seed.sql");
-writeFileSync(file, [...statements, ...callStatements].join("\n"));
+writeFileSync(file, [...statements, ...callStatements, ...laterStatements].join("\n"));
 wrangler(["d1", "execute", "score3ly", "--local", "--persist-to", STATE, "--file", file]);
 rmSync(dirname(file), { recursive: true, force: true });
 
 const total = paid.reduce((sum, c) => sum + c.cost, 0);
-console.log(`Seeded ${STATE}: ${callStatements.length} calls, $${total.toFixed(2)} in all.`);
+console.log(`Seeded ${STATE}: ${callStatements.length} calls, $${total.toFixed(2)} in all, ${laterStatements.length} outputs and manual save counts.`);
 console.log(`Start it with: npm run dev:worker -- --persist-to ${STATE}`);

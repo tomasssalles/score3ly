@@ -2681,11 +2681,12 @@ textarea.field-input {
   font: 600 16px var(--sans);
 }
 
-/* On a phone, the value and its controls go to a line of their own, on the right. */
+/* On a phone, the value and its controls go to a line of their own, on the right. The title, the controls and the
+   value's first line share a baseline; the note under the value hangs below them. */
 .stat-line {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: 4px 8px;
 }
 
@@ -2698,11 +2699,25 @@ textarea.field-input {
   margin-left: -4px;
 }
 
+/* An icon has no line of text to share the head's baseline: an invisible one, beside the icon and centred with it,
+   gives the button one, so the icon sits on the title's line. */
+.stat-line .stat-info::after,
+.stat-line .editor-mode::after {
+  content: "\200b";
+}
+
+/* Centred on that invisible line, the icon would sit a little above the title's letters (measured: 4 px). */
+.stat-line .stat-info svg,
+.stat-line .editor-mode svg {
+  position: relative;
+  top: 4px;
+}
+
 .stat-right {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  align-items: center;
+  align-items: baseline;
   gap: 6px 12px;
   margin-left: auto;
 }

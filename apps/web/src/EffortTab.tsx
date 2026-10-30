@@ -46,7 +46,7 @@ function Effort({ data }: { data: RunTimeData }) {
       <FinishedProjectsFilter projects={data.projects} out={out} onChange={setOut} />
       <section className="stats-section">
         <StatHead
-          title="Manual work per page"
+          title="Average manual work per page"
           about={
             <p>
               The time you spent in manual stages, per page of the selected projects: every quarter of an hour in which you saved changes in a
