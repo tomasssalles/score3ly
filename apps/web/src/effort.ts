@@ -1,4 +1,4 @@
-// The Effort tab (docs/tasks.md, "Other statistics"): how much the user had to step in, over the finished projects the
+// The Effort tab (docs/statistics.md, "Effort"): how much the user had to step in, over the finished projects the
 // user selects (the same data as Run times, apps/worker/src/runTimes.ts). Only the final pipeline counts (decided: the
 // work that was necessary; what was discarded could have been avoided with the right configs from the start): its
 // manual stages, with the stages each replaced by being edited (their work is what it builds on), and its extra

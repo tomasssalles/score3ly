@@ -13,6 +13,7 @@ Everything beyond the overview is in the files below, each about one topic; the 
 **The app**
 - [project-view.md](project-view.md): what the app shows around a project: the layouts, the artifact view, progress and toasts, the header, the pipeline panel and its stage cards, the cards of dropped stages, the confirmation before a re-run, the pages of the menu. Read it before working on those screens.
 - [database.md](database.md): the D1 tables, the Worker's requests while a stage runs and for manual stages, carried manual stages, interrupted runs, deleting a project. Read it before working on the Worker's pipeline code, the migrations or deletion.
+- [statistics.md](statistics.md): the Statistics page beyond its costs: why its tabs differ, Usage, Run times, Effort, how active time is counted, the mock data. Read it before working on the statistics (the costs are in llm.md).
 - [llm.md](llm.md): how the Worker calls the LLM providers, call records and the cache, model configs and which one a stage uses, supported models and prices, costs, the costs view and the spending cap. Read it before working on providers, model configs, prices or costs.
 - [images.md](images.md): page images from PDFs, deterministic image operations, fingerprints, device constraints and the image cache (this overview's §8 subsections, by the same numbers). Read it before working on `packages/imaging` or the image cache.
 - [desktop.md](desktop.md): the desktop app, *cadenza* (Electron, the Node adapters, the secrets file, packaging). Read it before working on `apps/desktop` or on what differs between hosts. For users, how to build and install it: [apps/desktop/README.md](../apps/desktop/README.md).
@@ -596,7 +597,7 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [x] Settings page: run mode, spending cap, model configs read-only
 - [ ] Model configs: decide (§15), then supported models and prices in the database, and the config form (§7.2)
 - [x] Delete a project (§4)
-- [ ] Statistics page (§10)
+- [x] Statistics page (§10; docs/statistics.md)
 
 **The stages**
 - [x] `rasterize` (§6)

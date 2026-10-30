@@ -1,4 +1,4 @@
-// The Usage tab's projects (docs/tasks.md, "Other statistics"): every project, deleted ones included, with when it was
+// The Usage tab's projects (docs/statistics.md, "Projects"): every project, deleted ones included, with when it was
 // created, whether it is deleted, and whether its pipeline is finished now (its last stage, always engrave, done); and
 // the pages processed: the distinct pages of every `rasterize` stage that is done, replaced ones and those of deleted
 // projects included, each page of a PDF once, however many projects are on it. The browser counts the projects

@@ -1,4 +1,4 @@
-// The Usage tab's failed calls (docs/tasks.md, "Other statistics"): every LLM call the Worker made, counted per model
+// The Usage tab's failed calls (docs/statistics.md, "Failed calls"): every LLM call the Worker made, counted per model
 // config, quarter of an hour and reason ("ok" for one that succeeded), so the browser can count them in any time range
 // and for any config without another request. Answers served from the record aren't calls. The fake provider that
 // ships with the app is left out: some of its model names fail on purpose. A call still running is counted only once

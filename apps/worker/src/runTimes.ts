@@ -1,4 +1,4 @@
-// The Statistics page's Run times and Effort (docs/tasks.md, "Other statistics"): the finished projects (their pipeline's last
+// The Statistics page's Run times and Effort (docs/statistics.md): the finished projects (their pipeline's last
 // stage, always engrave, done), deleted ones included, with their creation, their last finish, their pages and their
 // final pipeline (for Effort, which counts only its stages); the stages created in them that started (manual ones too,
 // with their active quarters, activeTime.ts, and the stage each replaced by being edited), with their step, model

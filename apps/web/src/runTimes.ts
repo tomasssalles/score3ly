@@ -1,4 +1,4 @@
-// The Run times tab (docs/tasks.md, "Other statistics"), over the finished projects the user selects: how long a
+// The Run times tab (docs/statistics.md, "Run times"), over the finished projects the user selects: how long a
 // project took (from its creation to its last finish, and its active hours), each step's work time per page, and from
 // the automatic steps an estimate for a new score. Pure functions over the Worker's data (apps/worker/src/runTimes.ts);
 // the tab is RunTimesTab.tsx.

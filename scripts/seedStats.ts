@@ -1,4 +1,4 @@
-// Mock usage for the Statistics page, every tab (docs/llm.md, "The costs view"; docs/tasks.md, "Other statistics"):
+// Mock usage for the Statistics page, every tab (docs/statistics.md):
 // five months of one user's projects, stages, LLM calls, timed items and manual work, written into a local database of
 // its own, never the one `npm run dev:worker` uses.
 //

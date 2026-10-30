@@ -1,4 +1,4 @@
-// The Effort tab of the Statistics page (docs/tasks.md, "Other statistics"): how much the user had to step in, over the
+// The Effort tab of the Statistics page (docs/statistics.md, "Effort"): how much the user had to step in, over the
 // finished projects the user selects: the manual work per page, per manual step with how many projects used it, and the
 // extra reviews per project. The computations are in effort.ts.
 

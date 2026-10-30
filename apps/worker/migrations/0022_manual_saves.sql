@@ -1,4 +1,4 @@
--- How many times a manual stage was saved in each quarter of an hour (docs/tasks.md, "Other statistics", Effort): the
+-- How many times a manual stage was saved in each quarter of an hour (docs/statistics.md, "Active time"): the
 -- active time of manual work, for the statistics. A quarter with a save is active, and so is a quarter without one
 -- between two active ones of the same stage (a gap of 15 minutes is work, longer is a break). Quarters, as everywhere
 -- else in the statistics: they fit every time zone, and single saves would fill the database for little gain.

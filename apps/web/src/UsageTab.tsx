@@ -1,4 +1,4 @@
-// The Usage tab of the Statistics page (docs/tasks.md, "Other statistics"), in blocks:
+// The Usage tab of the Statistics page (docs/statistics.md, "Usage"), in blocks:
 // - its active hours: an hour in which anything happened (usage.ts), for all projects or one picked without a label,
 //   in a time range of its own, as bars or the running total per day, week or month, and a one-row table;
 // - its projects: current and deleted, the pages processed, and those created in a time range of their own;

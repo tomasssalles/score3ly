@@ -1,4 +1,4 @@
-// When the app was in use (docs/tasks.md, "Other statistics": the Usage tab): the quarters of an hour in which something
+// When the app was in use (docs/statistics.md, "Activity"): the quarters of an hour in which something
 // happened, per project, from what is recorded anyway. Something happened when an LLM call was running (from its start
 // to its end), or a stage started, ended or sent its last heartbeat, or an output was saved, or a project was created,
 // or a manual stage was saved (and between two of its saves a quarter apart: activeTime.ts). A stage's start and end

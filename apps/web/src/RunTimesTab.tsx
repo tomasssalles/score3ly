@@ -1,4 +1,4 @@
-// The Run times tab of the Statistics page (docs/tasks.md, "Other statistics"), over the finished projects the user
+// The Run times tab of the Statistics page (docs/statistics.md, "Run times"), over the finished projects the user
 // selects (all at first; no time range): how long a project took, each step's work time per page (split by model
 // config if wanted), and an estimate per page for a new score. The computations are in runTimes.ts.
 

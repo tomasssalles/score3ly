@@ -1,4 +1,4 @@
-// The Usage tab (docs/tasks.md, "Other statistics"). Its active hours: the quarters of an hour with any activity, from
+// The Usage tab (docs/statistics.md, "Usage"). Its active hours: the quarters of an hour with any activity, from
 // the Worker (apps/worker/src/activity.ts), become the viewer's own hours, active if any of their quarters is, and are
 // counted per day, week or month of a time range. Its projects: those created in a time range, by what became of them
 // (apps/worker/src/projectStats.ts). Its failed calls: by reason, in a time range, for all configs or one
