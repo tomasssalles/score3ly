@@ -59,7 +59,7 @@ before(async () => {
 
 beforeEach(async () => {
   await env.DB.exec(
-    "DELETE FROM dropped_stages; DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM llm_calls; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects; DELETE FROM image_fingerprints;",
+    "DELETE FROM manual_saves; DELETE FROM dropped_stages; DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM llm_calls; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects; DELETE FROM image_fingerprints;",
   );
 });
 
@@ -827,6 +827,20 @@ async function carriedProject(filename: string) {
   return { project, fix, skew, run };
 }
 
+test("a manual stage's saves are counted per quarter of an hour; a running stage's outputs aren't", async () => {
+  const { project, skew } = await analyzedProject("saves.pdf");
+  const added = await call(project.id, skew.id, "fix", { step: "fix_skew", stepVersion: 1, pageCount: 2, inputIds: skew.outputs.map((o) => o.id) });
+  const { stageId: fix } = (await added.json()) as { stageId: string };
+  for (const n of [4, 5, 6]) {
+    const saved = await call(project.id, fix, "outputs", { outputs: [{ item: "p1", type: "lines", contentSha256: LINES(n), parentOutputId: skew.outputs[0].id }] });
+    assert.equal(saved.status, 200);
+  }
+  const { results } = await env.DB.prepare("SELECT stage_id, quarter, saves FROM manual_saves").all<{ stage_id: string; quarter: number; saves: number }>();
+  assert.equal(results.length >= 1 && results.length <= 2, true); // the saves may straddle a quarter's end
+  assert.ok(results.every((r) => r.stage_id === fix && r.quarter % (15 * 60 * 1000) === 0));
+  assert.equal(results.reduce((n, r) => n + r.saves, 0), 3);
+});
+
 test("a carried manual stage is kept when what it reads is the same, as it was, and can't be edited before", async () => {
   const { project, fix, skew, run } = await carriedProject("keep.pdf");
   // Not its turn yet: it can't be resolved, edited or saved.
@@ -1297,6 +1311,8 @@ test("run times: finished projects only, their stages that started with items of
       "INSERT INTO stages (id, created_in, step, status, page_count, in_recipe, created_at, started_at, finished_at) VALUES ('fix', ?, 'fix_layout', 'done', 2, 0, '2026-10-20T09:10:00.000Z', '2026-10-20T09:10:00.000Z', '2026-10-20T09:40:00.000Z')",
     ).bind(done.id),
     env.DB.prepare("INSERT INTO stages (id, created_in, step, status, in_recipe, created_at) VALUES ('never', ?, 'review', 'planned', 0, '2026-10-20')").bind(done.id),
+    // Saved in two quarters with one empty quarter between them: three active quarters.
+    env.DB.prepare("INSERT INTO manual_saves (stage_id, quarter, saves) VALUES ('fix', 0, 4), ('fix', 1800000, 1)"),
     env.DB.prepare("UPDATE stages SET config_json = '{\"pages\":\"1-2\"}', page_count = 2 WHERE step = 'rasterize' AND created_in = ?").bind(done.id),
   ]);
   const extract = (await pipelineOf(done.id)).find((s) => s.step === "extract")!;
@@ -1313,7 +1329,7 @@ test("run times: finished projects only, their stages that started with items of
   ]);
   const data = (await (await app.request("/api/run-times", {}, env)).json()) as {
     recipe: string[];
-    projects: { id: string; finishedAt: string; pages: number[] }[];
+    projects: { id: string; finishedAt: string; pages: number[]; pipeline: string[] }[];
     stages: { id: string; step: string; projectId: string; done: boolean; pageCount: number; items: { whole: number; page: number; system: number } }[];
     items: [string, string, number, number, number, number, number][];
   };
@@ -1321,7 +1337,17 @@ test("run times: finished projects only, their stages that started with items of
   assert.deepEqual(data.recipe, ["rasterize", "skew_analysis", "layout", "analyze", "extract", "engrave"]);
   assert.ok(!data.stages.some((s) => s.projectId === open.id || s.step === "ingest"));
   assert.ok(!data.stages.some((s) => s.id === "never"));
-  const fix = data.stages.find((s) => s.id === "fix") as unknown as { manual: boolean; createdAt: string; finishedAt: string; inRecipe: boolean; kept: boolean };
+  assert.ok(data.projects[0].pipeline.includes(extract.id) && !data.projects[0].pipeline.includes("fix"));
+  const fix = data.stages.find((s) => s.id === "fix") as unknown as {
+    manual: boolean;
+    createdAt: string;
+    finishedAt: string;
+    inRecipe: boolean;
+    kept: boolean;
+    activeQuarters: number;
+    replacesStageId: string | null;
+  };
+  assert.deepEqual([fix.activeQuarters, fix.replacesStageId], [3, null]);
   assert.deepEqual([fix.manual, fix.createdAt, fix.finishedAt], [true, "2026-10-20T09:10:00.000Z", "2026-10-20T09:40:00.000Z"]);
   // Not in the recipe, and in no pipeline (inserted here without an entry): like a replaced stage.
   assert.deepEqual([fix.inRecipe, fix.kept], [false, false]);

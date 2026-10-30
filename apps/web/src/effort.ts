@@ -1,39 +1,52 @@
-// The Effort tab (docs/tasks.md, "Other statistics"): how often the automated pipeline wasn't good enough and the user
-// stepped in, over the finished projects the user selects (the same data as Run times, apps/worker/src/runTimes.ts).
-// A project needed a hand if it has a finished manual stage, a review beyond the recipe's, or a stage run again after a
-// change (one no longer in any pipeline: replaced, e.g. by another config or a dropped stage, or stopped). For now,
-// how often only: how much each fix changed isn't recorded. Pure functions; the tab is EffortTab.tsx.
+// The Effort tab (docs/tasks.md, "Other statistics"): how much the user had to step in, over the finished projects the
+// user selects (the same data as Run times, apps/worker/src/runTimes.ts). Only the final pipeline counts (decided: the
+// work that was necessary; what was discarded could have been avoided with the right configs from the start): its
+// manual stages, with the stages each replaced by being edited (their work is what it builds on), and its extra
+// reviews. A manual stage's work is its active time: a quarter of an hour for each quarter in which it was saved, and
+// for a single quarter between two of those. Pure functions; the tab is EffortTab.tsx.
 
 import type { RunTimeData } from "./api";
 import { stepTitle } from "./costs.ts";
+import { QUARTER_MS } from "./runTimes.ts";
 
-// The kinds of help, in the pipeline's order, each with whether a stage is one.
-const KINDS: { key: string; label: string; is: (s: RunTimeData["stages"][number]) => boolean }[] = [
-  ...["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"].map((step) => ({
-    key: step,
-    label: stepTitle(step),
-    is: (s: RunTimeData["stages"][number]) => s.step === step && s.done,
-  })),
-  { key: "extra_review", label: "Extra reviews", is: (s) => s.step === "review" && !s.inRecipe },
-  { key: "rerun", label: "Re-runs", is: (s) => !s.kept },
-];
+const MANUAL = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"];
+
+type Stage = RunTimeData["stages"][number];
 
 export type EffortView = {
+  perPageMs: number | null; // all manual work, per page of the selected projects; null without pages
+  rows: { step: string; label: string; perPageMs: number | null; usedIn: number }[]; // each manual step's share of it
   projects: number; // selected
-  helped: number; // of them, those that needed a hand
-  rows: { key: string; label: string; projects: number | null }[]; // null: nothing to count yet (no reviews at all)
+  extraReviews: number | null; // per project, on average; null while no project has any review
 };
 
 export function effortView(data: RunTimeData, selected: Set<string>): EffortView {
-  const stages = data.stages.filter((s) => selected.has(s.projectId));
-  const helpedBy = (is: (s: RunTimeData["stages"][number]) => boolean) => new Set(stages.filter(is).map((s) => s.projectId));
-  const all = helpedBy((s) => KINDS.some((k) => k.is(s)));
-  // Reviews don't exist until the step is built: a dash, not "0%", while no project has any.
-  const reviews = data.stages.some((s) => s.step === "review");
+  const stages = new Map(data.stages.map((s) => [s.id, s]));
+  const chosen = data.projects.filter((p) => selected.has(p.id));
+  const pages = chosen.reduce((n, p) => n + p.pages.length, 0);
+  // Each project's manual stages in its final pipeline, with those they replaced by being edited.
+  const manual = new Map<string, Stage[]>();
+  let extra = 0;
+  for (const p of chosen) {
+    const final = p.pipeline.map((id) => stages.get(id)).filter((s): s is Stage => s !== undefined);
+    const work: Stage[] = [];
+    for (const s of final.filter((s) => MANUAL.includes(s.step))) {
+      for (let at: Stage | undefined = s; at; at = at.replacesStageId ? stages.get(at.replacesStageId) : undefined) work.push(at);
+    }
+    manual.set(p.id, work);
+    extra += final.filter((s) => s.step === "review" && !s.inRecipe).length;
+  }
+  const ms = (list: Stage[]) => list.reduce((n, s) => n + (s.activeQuarters ?? 0) * QUARTER_MS, 0);
+  const rows = MANUAL.map((step) => {
+    const of = [...manual.values()].map((list) => list.filter((s) => s.step === step));
+    return { step, label: stepTitle(step), perPageMs: pages ? ms(of.flat()) / pages : null, usedIn: of.filter((list) => list.length > 0).length };
+  });
   return {
-    projects: selected.size,
-    helped: all.size,
-    rows: KINDS.map((k) => ({ key: k.key, label: k.label, projects: k.key === "extra_review" && !reviews ? null : helpedBy(k.is).size })),
+    perPageMs: pages ? rows.reduce((n, r) => n + r.perPageMs!, 0) : null,
+    rows,
+    projects: chosen.length,
+    // Reviews don't exist until the step is built: a dash, not "0", while no project has any.
+    extraReviews: data.stages.some((s) => s.step === "review") && chosen.length ? extra / chosen.length : null,
   };
 }
 

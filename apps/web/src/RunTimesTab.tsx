@@ -7,6 +7,7 @@ import { fetchActivity, fetchRunTimes, type ActivityData, type RunTimeData } fro
 import { FinishedProjectsFilter } from "./ProjectFilter";
 import { duration, estimatePerPage, perProject, stepTimes } from "./runTimes";
 import { Picker, StatHead } from "./statsParts";
+import { activeHoursText } from "./usage";
 
 export function RunTimesTab() {
   const [data, setData] = useState<RunTimeData | null>(null);
@@ -60,7 +61,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
           }
           right={value(
             project.spanMs === null ? "–" : duration(project.spanMs),
-            project.activeHours === null ? undefined : `${formatHours(project.activeHours)} active ${project.activeHours === 1 ? "hour" : "hours"}`,
+            project.activeHours === null ? undefined : activeHoursText(project.activeHours),
           )}
         />
       </section>
@@ -70,8 +71,8 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
           title="Average work time per page"
           about={
             <p>
-              How long each step works on one page, on average. Real work only: cached results do not count. Manual steps are timed from when
-              they were added to when they were finished, including inactive periods.
+              How long each step works on one page, on average. Real work only: cached results do not count. Manual steps are timed by their
+              active time: every quarter of an hour in which you saved changes, and a quarter between two of those.
             </p>
           }
           right={
@@ -123,6 +124,3 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
     </>
   );
 }
-
-// Hours with at most one decimal: "6", "6.5".
-const formatHours = (h: number) => (Number.isInteger(Math.round(h * 10) / 10) ? `${Math.round(h)}` : (Math.round(h * 10) / 10).toFixed(1));

@@ -14,6 +14,8 @@ const stage = (id: string, step: string, projectId: string, configId: string | n
   manual: false,
   inRecipe: true,
   kept: true,
+  replacesStageId: null as string | null,
+  activeQuarters: null as number | null,
   createdAt: "2026-10-20T10:00:00.000Z",
   finishedAt: "2026-10-20T11:00:00.000Z" as string | null,
   pageCount,
@@ -23,8 +25,8 @@ const stage = (id: string, step: string, projectId: string, configId: string | n
 const data: RunTimeData = {
   recipe: ["rasterize", "layout", "extract"],
   projects: [
-    { id: "a", name: "A", createdAt: "2026-10-20T10:00:00.000Z", deletedAt: null, finishedAt: "2026-10-21T10:00:00.000Z", pages: [1, 2] },
-    { id: "b", name: "B", createdAt: "2026-10-22T10:00:00.000Z", deletedAt: null, finishedAt: "2026-10-22T16:00:00.000Z", pages: [1] },
+    { id: "a", name: "A", createdAt: "2026-10-20T10:00:00.000Z", deletedAt: null, finishedAt: "2026-10-21T10:00:00.000Z", pages: [1, 2], pipeline: [] },
+    { id: "b", name: "B", createdAt: "2026-10-22T10:00:00.000Z", deletedAt: null, finishedAt: "2026-10-22T16:00:00.000Z", pages: [1], pipeline: [] },
   ],
   stages: [
     stage("ra", "rasterize", "a", null, 2, { page: 2 }),
@@ -32,9 +34,9 @@ const data: RunTimeData = {
     stage("ea", "extract", "a", "opus", 2, { system: 6, whole: 1 }), // 3 systems per page
     stage("eb", "extract", "b", "sonnet", 1, { system: 2, whole: 1 }),
     stage("xa", "apply_review", "a", "opus", 2, { system: 1 }), // one system with issues in two pages
-    // A manual stage: 1 hour from its creation to its finish, over 2 pages; one still being worked on, left out.
-    { ...stage("fa", "fix_layout", "a", null, 2, {}), manual: true },
-    { ...stage("fb", "fix_layout", "b", null, 1, {}, false), manual: true, finishedAt: null },
+    // A manual stage: 4 active quarters, over 2 pages; one still being worked on, left out.
+    { ...stage("fa", "fix_layout", "a", null, 2, {}), manual: true, activeQuarters: 4 },
+    { ...stage("fb", "fix_layout", "b", null, 1, {}, false), manual: true, finishedAt: null, activeQuarters: 2 },
   ],
   items: [
     ["ra", "p1", 2000, 0, 0, 1, 0], // made
@@ -57,7 +59,7 @@ const data: RunTimeData = {
 const activity: ActivityData = {
   quarters: [
     ["a", Date.parse("2026-10-20T10:00:00.000Z")],
-    ["a", Date.parse("2026-10-20T10:15:00.000Z")], // the same hour
+    ["a", Date.parse("2026-10-20T10:15:00.000Z")],
     ["a", Date.parse("2026-10-21T09:45:00.000Z")],
     ["b", Date.parse("2026-10-22T10:00:00.000Z")],
   ],
@@ -66,7 +68,7 @@ const activity: ActivityData = {
 
 test("per project: the average time from creation to the last finish, and the average active hours", () => {
   const both = perProject(data, new Set(["a", "b"]), activity);
-  assert.deepEqual(both, { projects: 2, spanMs: 15 * 3_600_000, activeHours: 1.5 });
+  assert.deepEqual(both, { projects: 2, spanMs: 15 * 3_600_000, activeHours: (0.75 + 0.25) / 2 }); // 3 and 1 quarters
   assert.deepEqual(perProject(data, new Set(), activity), { projects: 0, spanMs: null, activeHours: null });
 });
 
@@ -78,7 +80,7 @@ test("work time per page: from the items that really ran, times the items of eac
   assert.equal(Math.round(rows.get("extract")!), Math.round((15000 * 8) / 3 + (20 * 2) / 3));
   assert.equal(rows.get("apply_review"), 8000 / 2); // one system with issues in two pages
   assert.equal(rows.get("review"), null); // no data
-  assert.equal(rows.get("fix_layout"), 1_800_000); // half an hour per page, breaks and all
+  assert.equal(rows.get("fix_layout"), 1_800_000); // an hour of active time over 2 pages
   // The estimate adds up the recipe's steps, nothing else (no manual steps, no Apply review here).
   assert.equal(estimatePerPage(stepTimes(data, new Set(["a", "b"]), false), data.recipe), 2000 + 4000 + rows.get("extract")!);
   // A step of the recipe without data, or nothing selected: no estimate.

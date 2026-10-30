@@ -3,8 +3,8 @@
 // the automatic steps an estimate for a new score. Pure functions over the Worker's data (apps/worker/src/runTimes.ts);
 // the tab is RunTimesTab.tsx.
 //
-// A manual step's time per page is its finished stages' time from creation to finish, breaks included (nothing else
-// can be measured), over their pages.
+// A manual step's time per page is its finished stages' active time (a quarter of an hour for each quarter in which it
+// was saved, and for a single quarter between two of those: apps/worker/src/activeTime.ts), over their pages.
 //
 // A step's work time per page comes from the items that really ran (migration 0021): an LLM step's items whose answers
 // were all asked anew, `rasterize`'s items whose image was made, every item of the other steps. Items are of three
@@ -14,7 +14,7 @@
 
 import type { ActivityData, RunTimeData } from "./api";
 import { endedNote, stepTitle } from "./costs.ts";
-import { activeHours } from "./usage.ts";
+import { activeQuarters } from "./usage.ts";
 
 // Every step but `ingest`, in the pipeline's order. The manual ones aren't part of the estimate for a new score.
 export const STEPS = [
@@ -47,7 +47,7 @@ function ranAnew(step: string, calls: number, callsCached: number, images: numbe
 }
 
 // How long a project took, on average over the selected ones: from its creation to its last finish, breaks and re-runs
-// included, and its active hours (as in Usage: the hours of the viewer's day in which anything happened).
+// included, and its active hours (as in Usage: a quarter of an hour for each quarter in which anything happened).
 export function perProject(data: RunTimeData, selected: Set<string>, activity: ActivityData): { projects: number; spanMs: number | null; activeHours: number | null } {
   const chosen = data.projects.filter((p) => selected.has(p.id));
   if (chosen.length === 0) return { projects: 0, spanMs: null, activeHours: null };
@@ -55,7 +55,7 @@ export function perProject(data: RunTimeData, selected: Set<string>, activity: A
   return {
     projects: chosen.length,
     spanMs: mean(chosen.map((p) => Date.parse(p.finishedAt) - Date.parse(p.createdAt))),
-    activeHours: mean(chosen.map((p) => activeHours(activity, p.id).length)),
+    activeHours: mean(chosen.map((p) => activeQuarters(activity, p.id).length / 4)),
   };
 }
 
@@ -83,12 +83,14 @@ function perPage(data: RunTimeData, stages: RunTimeData["stages"]): number | nul
   return total;
 }
 
-// A manual step's time per page: its finished stages' time from creation to finish, over their pages.
+export const QUARTER_MS = 15 * 60 * 1000;
+
+// A manual step's time per page: its finished stages' active time, over their pages.
 function manualPerPage(stages: RunTimeData["stages"]): number | null {
-  const done = stages.filter((s) => s.done && s.finishedAt && s.pageCount > 0);
+  const done = stages.filter((s) => s.done && s.pageCount > 0);
   const pages = done.reduce((n, s) => n + s.pageCount, 0);
   if (pages === 0) return null;
-  return done.reduce((ms, s) => ms + (Date.parse(s.finishedAt!) - Date.parse(s.createdAt)), 0) / pages;
+  return (done.reduce((n, s) => n + (s.activeQuarters ?? 0), 0) * QUARTER_MS) / pages;
 }
 
 export type StepRow = { step: string; label: string; manual: boolean; ms: number | null; configs: { id: string; label: string; note?: string; ms: number | null }[] };

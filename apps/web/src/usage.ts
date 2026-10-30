@@ -7,25 +7,30 @@
 import type { ActivityData, FailureData, ProjectStats } from "./api";
 import type { Bucket } from "./costs";
 
-// The local hours (their start, in ms) with any activity of the project, or of any project.
-export function activeHours(data: ActivityData, projectId: string | null): number[] {
-  const hours = new Set<number>();
-  for (const [project, t] of data.quarters) {
-    if (projectId !== null && project !== projectId) continue;
-    const hour = new Date(t);
-    hour.setMinutes(0, 0, 0);
-    hours.add(hour.getTime());
-  }
-  return [...hours].sort((a, b) => a - b);
+// The quarters of an hour (their start, in ms) with any activity of the project, or of any project. Every time zone's
+// hours start on a quarter, so they fall into the viewer's days as they are.
+export function activeQuarters(data: ActivityData, projectId: string | null): number[] {
+  const quarters = new Set<number>();
+  for (const [project, t] of data.quarters) if (projectId === null || project === projectId) quarters.add(t);
+  return [...quarters].sort((a, b) => a - b);
 }
 
-// The active hours in each bucket (the part of it inside the range), and in the whole range on how many days.
-export function hoursView(hours: number[], buckets: Bucket[], range: { start: number; end: number }): { values: number[]; total: number; days: number } {
-  const values = buckets.map((b) => hours.filter((h) => h >= b.from && h < b.to).length);
-  const inRange = hours.filter((h) => h >= range.start && h < range.end);
-  const days = new Set(inRange.map((h) => new Date(h).toDateString())).size;
-  return { values, total: inRange.length, days };
+// The active hours (a quarter each active quarter) in each bucket (the part of it inside the range), and in the whole
+// range on how many days.
+export function hoursView(quarters: number[], buckets: Bucket[], range: { start: number; end: number }): { values: number[]; total: number; days: number } {
+  const values = buckets.map((b) => quarters.filter((q) => q >= b.from && q < b.to).length / 4);
+  const inRange = quarters.filter((q) => q >= range.start && q < range.end);
+  const days = new Set(inRange.map((q) => new Date(q).toDateString())).size;
+  return { values, total: inRange.length / 4, days };
 }
+
+// Hours with at most two decimals, as quarters give them: "21", "2.5", "0.75"; an average may need rounding.
+export function hoursNumber(h: number): string {
+  return String(Math.round(h * 100) / 100);
+}
+
+// "1 active hour", "2.5 active hours".
+export const activeHoursText = (h: number) => `${hoursNumber(h)} active ${h === 1 ? "hour" : "hours"}`;
 
 // The projects created in a time range: done (finished now, not deleted), unfinished (not deleted) and deleted, which
 // add up to the total.

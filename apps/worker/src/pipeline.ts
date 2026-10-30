@@ -3,6 +3,7 @@
 // Worker only records it.
 
 import type { Hono } from "hono";
+import { QUARTER_MS } from "./activeTime.ts";
 
 export type Pipeline = { stages: Stage[]; dropped: Dropped[] };
 
@@ -441,6 +442,15 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
         ? touchProject(db, pid, now)
         : db.prepare("UPDATE stages SET heartbeat_at = ? WHERE id = ?").bind(now, sid),
     );
+    // A manual stage's save, counted in its quarter of an hour: its active time, for the statistics (migration 0022).
+    if (wip) {
+      const quarter = Math.floor(Date.parse(now) / QUARTER_MS) * QUARTER_MS;
+      statements.push(
+        db
+          .prepare("INSERT INTO manual_saves (stage_id, quarter, saves) VALUES (?, ?, 1) ON CONFLICT (stage_id, quarter) DO UPDATE SET saves = saves + 1")
+          .bind(sid, quarter),
+      );
+    }
     await db.batch(statements);
     const { results } = await db
       .prepare("SELECT id, item, type FROM outputs WHERE stage_id = ?")

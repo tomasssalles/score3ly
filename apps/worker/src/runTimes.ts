@@ -1,14 +1,15 @@
 // The Statistics page's Run times and Effort (docs/tasks.md, "Other statistics"): the finished projects (their pipeline's last
-// stage, always engrave, done), deleted ones included, with their creation, their last finish and their pages; the
-// stages created in them that started (manual ones too, with their creation and finish: they are timed from one to the
-// other), with their step, model config, page count, whether they are the recipe's and still in a pipeline (not replaced
-// or stopped: for Effort), and how many items of each kind they have (for the items per page: a page, a system, the
-// whole score); and every item of an automatic stage that was timed (migration 0021), with
+// stage, always engrave, done), deleted ones included, with their creation, their last finish, their pages and their
+// final pipeline (for Effort, which counts only its stages); the stages created in them that started (manual ones too,
+// with their active quarters, activeTime.ts, and the stage each replaced by being edited), with their step, model
+// config, page count, whether they are the recipe's and still in a pipeline (not replaced or stopped), and how many
+// items of each kind they have (for the items per page: a page, a system, the whole score); and every item of an automatic stage that was timed (migration 0021), with
 // what it found in the caches. Unfinished projects are left out: their times would look shorter than they will
 // be. The browser filters by project and averages, so a change of selection needs no request.
 
 import type { Hono } from "hono";
 import { parsePages } from "@score3ly/core";
+import { manualQuarters } from "./activeTime.ts";
 import { RECIPE } from "./pipeline.ts";
 
 const MANUAL = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"];
@@ -20,14 +21,14 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
       `(SELECT s.${column} FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = p.id ORDER BY e.position DESC LIMIT 1)`;
     const finished = `SELECT p.id FROM projects p WHERE ${last("status")} = 'done'`;
     const manual = ["ingest", ...MANUAL].map((s) => `'${s}'`).join(", ");
-    const [projects, stages, items, configs] = await db.batch([
+    const [projects, stages, items, configs, entries, saves] = await db.batch([
       db.prepare(
         `SELECT p.id, p.name, p.created_at, p.deleted_at, ${last("finished_at")} AS finished_at,
            (SELECT s.config_json FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = p.id AND s.step = 'rasterize') AS rasterize_config
          FROM projects p WHERE p.id IN (${finished}) ORDER BY p.created_at`,
       ),
       db.prepare(
-        `SELECT s.id, s.step, s.created_in AS project, s.model_config_id AS config, s.status, s.page_count, s.created_at, s.finished_at, s.in_recipe,
+        `SELECT s.id, s.step, s.created_in AS project, s.model_config_id AS config, s.status, s.page_count, s.created_at, s.finished_at, s.in_recipe, s.replaces_stage_id,
            EXISTS (SELECT 1 FROM pipeline_entries e WHERE e.stage_id = s.id) AS kept,
            (SELECT COUNT(*) FROM outputs o WHERE o.stage_id = s.id AND o.item = '') AS whole,
            (SELECT COUNT(*) FROM outputs o WHERE o.stage_id = s.id AND o.item <> '' AND o.item NOT LIKE '%/%') AS pages,
@@ -40,7 +41,12 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
          WHERE o.duration_ms IS NOT NULL AND s.created_in IN (${finished}) AND s.step NOT IN (${manual})`,
       ),
       db.prepare("SELECT id, name, model, created_at, deleted_at FROM model_configs ORDER BY created_at"),
+      db.prepare(`SELECT project_id, stage_id FROM pipeline_entries WHERE project_id IN (${finished}) ORDER BY project_id, position`),
+      db.prepare(`SELECT m.stage_id, m.quarter FROM manual_saves m JOIN stages s ON s.id = m.stage_id WHERE s.created_in IN (${finished})`),
     ]);
+    const pipelines = new Map<string, string[]>();
+    for (const e of entries.results as { project_id: string; stage_id: string }[]) pipelines.set(e.project_id, [...(pipelines.get(e.project_id) ?? []), e.stage_id]);
+    const active = manualQuarters(saves.results as { stage_id: string; quarter: number }[]);
     type ProjectRow = { id: string; name: string; created_at: string; deleted_at: string | null; finished_at: string; rasterize_config: string | null };
     type StageRow = {
       id: string;
@@ -52,6 +58,7 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
       created_at: string;
       finished_at: string | null;
       in_recipe: number;
+      replaces_stage_id: string | null;
       kept: number;
       whole: number;
       pages: number;
@@ -70,6 +77,7 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
         deletedAt: p.deleted_at,
         finishedAt: p.finished_at,
         pages: pagesOf(p.rasterize_config),
+        pipeline: pipelines.get(p.id) ?? [],
       })),
       stages: (stages.results as StageRow[]).map((s) => ({
         id: s.id,
@@ -80,6 +88,8 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
         manual: MANUAL.includes(s.step),
         inRecipe: s.in_recipe === 1,
         kept: s.kept === 1,
+        replacesStageId: s.replaces_stage_id,
+        activeQuarters: MANUAL.includes(s.step) ? (active.get(s.id)?.length ?? 0) : null,
         createdAt: s.created_at,
         finishedAt: s.finished_at,
         pageCount: s.page_count ?? 0,

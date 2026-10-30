@@ -360,7 +360,8 @@ export async function fetchFailures(): Promise<FailureData> {
 // used.
 export type RunTimeData = {
   recipe: string[]; // the recipe's steps but Ingest
-  projects: { id: string; name: string; createdAt: string; deletedAt: string | null; finishedAt: string; pages: number[] }[];
+  // pipeline: the stages of the project's final pipeline, in order
+  projects: { id: string; name: string; createdAt: string; deletedAt: string | null; finishedAt: string; pages: number[]; pipeline: string[] }[];
   stages: {
     id: string;
     step: string;
@@ -370,6 +371,8 @@ export type RunTimeData = {
     manual: boolean; // timed from its creation to its finish
     inRecipe: boolean; // the recipe's, or added by the user
     kept: boolean; // in a pipeline: not replaced or stopped
+    replacesStageId: string | null; // a manual stage: the one it replaced by being edited
+    activeQuarters: number | null; // a manual stage: its active quarters of an hour (saves, and single gaps between them)
     createdAt: string;
     finishedAt: string | null;
     pageCount: number;

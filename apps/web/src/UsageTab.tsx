@@ -10,7 +10,7 @@ import { fetchActivity, fetchFailures, fetchProjectStats, type ActivityData, typ
 import { axisLabel, bucketsOf, deletedNote, endedNote, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./costs";
 import { ChartModes, Picker, StatHead, type ChartMode } from "./statsParts";
 import { TimeChart } from "./TimeChart";
-import { activeHours, createdIn, createdNote, failuresIn, hoursView } from "./usage";
+import { activeHoursText, activeQuarters, createdIn, createdNote, failuresIn, hoursNumber, hoursView } from "./usage";
 
 const ALL = "";
 
@@ -36,7 +36,6 @@ export function UsageTab() {
   );
 }
 
-const hoursText = (n: number) => (n === 1 ? "1 active hour" : `${n} active hours`);
 
 function ActiveHours({ data }: { data: ActivityData }) {
   const [now] = useState(() => Date.now());
@@ -54,8 +53,8 @@ function ActiveHours({ data }: { data: ActivityData }) {
   }
 
   const buckets = useMemo(() => bucketsOf(range.start, range.end, granularity), [range, granularity]);
-  const allHours = useMemo(() => hoursView(activeHours(data, null), buckets, range), [data, buckets, range]);
-  const view = useMemo(() => (projectId === ALL ? allHours : hoursView(activeHours(data, projectId), buckets, range)), [data, projectId, buckets, range, allHours]);
+  const allHours = useMemo(() => hoursView(activeQuarters(data, null), buckets, range), [data, buckets, range]);
+  const view = useMemo(() => (projectId === ALL ? allHours : hoursView(activeQuarters(data, projectId), buckets, range)), [data, projectId, buckets, range, allHours]);
   // Newest first, deleted ones marked (their names can be used again).
   const projects = [...data.projects].reverse().map((p) => ({ id: p.id, label: p.name, note: deletedNote(p.deletedAt) }));
   const picked = projects.find((p) => p.id === projectId);
@@ -66,9 +65,9 @@ function ActiveHours({ data }: { data: ActivityData }) {
         title="Activity"
         about={
           <p>
-            An hour counts as active if anything happened in it: a request was sent to an LLM, a stage started or ended,
-            a result or a manual change was saved, or a project was created. Just looking at a project isn't counted as
-            activity and we don't track project navigation.
+            A quarter of an hour counts as active if anything happened in it: a request was sent to an LLM, a stage started or ended,
+            a result or a manual change was saved, or a project was created. In a manual stage, a quarter between two quarters with
+            changes counts too. Just looking at a project isn't counted as activity and we don't track project navigation.
           </p>
         }
         right={
@@ -76,7 +75,7 @@ function ActiveHours({ data }: { data: ActivityData }) {
             <Picker label="Time range" value={rangeId} options={RANGES} onChange={pickRange} />
             <span className="stat-value">
               <span className="stat-amount">
-                {allHours.total}
+                {hoursNumber(allHours.total)}
                 <span className="stat-unit"> {allHours.total === 1 ? "active hour" : "active hours"}</span>
               </span>
               <span className="stat-note">on {allHours.days === 1 ? "1 day" : `${allHours.days} days`}</span>
@@ -101,7 +100,7 @@ function ActiveHours({ data }: { data: ActivityData }) {
           series={[{ key: "hours", label: "Active hours", color: "var(--chart)" }]}
           values={[view.values]}
           mode={mode}
-          format={(v) => (v === 0 ? "no activity" : hoursText(v))}
+          format={(v) => (v === 0 ? "no activity" : activeHoursText(v))}
           formatTick={(v) => `${v} h`}
           label={mode === "bars" ? "Active hours per period" : "Running total of the active hours"}
           emptyHint={mode === "bars" ? "Tap a bar to see its active hours." : "Tap the chart to see the running total there."}
@@ -116,7 +115,7 @@ function ActiveHours({ data }: { data: ActivityData }) {
                 {picked ? picked.label : "All projects"}
                 {picked?.note && <span className="menu-note"> {picked.note}</span>}
               </td>
-              <td className="costs-amount">{hoursText(view.total)}</td>
+              <td className="costs-amount">{activeHoursText(view.total)}</td>
             </tr>
           </tbody>
         </table>

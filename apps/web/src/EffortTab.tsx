@@ -1,10 +1,12 @@
-// The Effort tab of the Statistics page (docs/tasks.md, "Other statistics"): how often the automated pipeline wasn't
-// good enough and the user stepped in, over the finished projects the user selects. The computations are in effort.ts.
+// The Effort tab of the Statistics page (docs/tasks.md, "Other statistics"): how much the user had to step in, over the
+// finished projects the user selects: the manual work per page, per manual step with how many projects used it, and the
+// extra reviews per project. The computations are in effort.ts.
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchRunTimes, type RunTimeData } from "./api";
 import { effortView, share } from "./effort";
 import { FinishedProjectsFilter } from "./ProjectFilter";
+import { duration } from "./runTimes";
 import { StatHead } from "./statsParts";
 
 export function EffortTab() {
@@ -35,6 +37,7 @@ function Effort({ data }: { data: RunTimeData }) {
   const [out, setOut] = useState<Set<string>>(new Set()); // the projects taken out
   const selected = useMemo(() => new Set(data.projects.filter((p) => !out.has(p.id)).map((p) => p.id)), [data, out]);
   const view = useMemo(() => effortView(data, selected), [data, selected]);
+  const time = (ms: number | null) => (ms === null ? "–" : duration(ms));
 
   if (data.projects.length === 0) return <p className="costs-empty">No finished projects yet.</p>;
 
@@ -43,19 +46,27 @@ function Effort({ data }: { data: RunTimeData }) {
       <FinishedProjectsFilter projects={data.projects} out={out} onChange={setOut} />
       <section className="stats-section">
         <StatHead
-          title="Projects that needed a hand"
+          title="Manual work per page"
           about={
             <p>
-              The share of the selected projects in which you stepped in at least once: a manual stage you finished, a review added beyond the
-              standard one, or a stage run again after a change (another model config, a dropped stage, a stop). Below, how often each of them
-              happened, as a share of the selected projects.
+              The time you spent in manual stages, per page of the selected projects: every quarter of an hour in which you saved changes in a
+              manual stage, and a quarter between two of those. Only the manual stages in the final version of each pipeline count, together
+              with the earlier versions they were edited from; manual stages that were later discarded don't. Below, the same for each manual
+              step, and how many of the projects used it.
             </p>
           }
-          right={value(share(view.helped, view.projects), view.projects ? `${view.helped} of ${view.projects === 1 ? "1 project" : `${view.projects} projects`}` : undefined)}
+          right={value(time(view.perPageMs))}
         />
         {view.rows.map((r) => (
-          <StatHead key={r.key} row title={r.label} right={value(r.projects === null ? "–" : share(r.projects, view.projects))} />
+          <StatHead key={r.step} row title={r.label} right={value(time(r.perPageMs), view.projects ? `used in ${share(r.usedIn, view.projects)} of projects` : undefined)} />
         ))}
+      </section>
+      <section className="stats-section">
+        <StatHead
+          title="Extra reviews per project"
+          about={<p>How many reviews were added beyond the standard one, on average per project, counting only those in the final version of each pipeline.</p>}
+          right={value(view.extraReviews === null ? "–" : String(Math.round(view.extraReviews * 10) / 10))}
+        />
       </section>
     </>
   );
