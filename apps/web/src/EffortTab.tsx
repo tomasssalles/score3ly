@@ -49,10 +49,9 @@ function Effort({ data }: { data: RunTimeData }) {
           title="Average manual work per page"
           about={
             <p>
-              The time you spent in manual stages, per page of the selected projects: every quarter of an hour in which you saved changes in a
-              manual stage, and a quarter between two of those. Only the manual stages in the final version of each pipeline count, together
-              with the earlier versions they were edited from; manual stages that were later discarded don't. Below, the same for each manual
-              step, and how many of the projects used it.
+              An approximation of the time you spent working on manual stages, divided by the number of pages in the project. We don't track
+              reading time or navigation, so we approximate your active work into buckets of 15 minutes where you actually submitted changes.
+              Only the manual stages in the final version of each pipeline count, not the ones that were dropped or replaced.
             </p>
           }
           right={value(time(view.perPageMs))}

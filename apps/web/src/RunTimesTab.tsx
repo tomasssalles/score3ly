@@ -72,7 +72,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
           about={
             <p>
               How long each step works on one page, on average. Real work only: cached results do not count. Manual steps are timed by their
-              active time: every quarter of an hour in which you saved changes, and a quarter between two of those.
+              active time: essentially every quarter of an hour in which you actually made changes.
             </p>
           }
           right={
