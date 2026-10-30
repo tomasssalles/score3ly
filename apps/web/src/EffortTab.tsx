@@ -64,7 +64,12 @@ function Effort({ data }: { data: RunTimeData }) {
       <section className="stats-section">
         <StatHead
           title="Extra reviews per project"
-          about={<p>How many reviews were added beyond the standard one, on average per project, counting only those in the final version of each pipeline.</p>}
+          about={
+            <p>
+              How many reviews (by LLMs) you added beyond the standard one, on average per project, counting only those kept in the final
+              version of each pipeline.
+            </p>
+          }
           right={value(view.extraReviews === null ? "–" : String(Math.round(view.extraReviews * 10) / 10))}
         />
       </section>
