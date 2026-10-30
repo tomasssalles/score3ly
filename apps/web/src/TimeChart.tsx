@@ -1,4 +1,4 @@
-// A chart over time, for the statistics (docs/llm.md, "The costs view"): stacked bars per bucket, or a line per
+// A chart over time, for the statistics (docs/statistics.md, "The costs view"): stacked bars per bucket, or a line per
 // series for the running total. It knows nothing about money: the caller gives the buckets' labels, the series, their
 // values and how to write a value. Wider than the view when there are many buckets: every bucket gets at least
 // MIN_PITCH pixels, the plot scrolls sideways (starting at its newest end) and the y axis stays. Tapping or clicking a

@@ -1,4 +1,4 @@
-// The costs view's data (docs/llm.md, "The costs view"): everything that was paid for, as small sums per stage, model
+// The costs view's data (docs/statistics.md, "The costs view"): everything that was paid for, as small sums per stage, model
 // config, quarter of an hour and the calls' status (for the call status, a few: failed calls are rare), with the stages, projects and configs they refer to. The browser filters, groups and
 // sums them into the viewer's own days, weeks and months, so a change of view needs no request. Quarters of an hour,
 // because every time zone's midnight falls on one (Nepal is UTC+5:45). Free-tier calls are left out: the view is

@@ -50,12 +50,12 @@ Everything that is still to do about score3ly is a task, and every task is in th
 ### Failed calls in the Costs tab
 `#next` `#decision`
 
-How much money was lost on failed calls (`docs/llm.md`, "The costs view"). The call status dimension is built. Proposed, not decided: a note under the detailed overview's total ("unfiltered total, $0.85 on failed calls").
+How much money was lost on failed calls (`docs/statistics.md`, "The costs view"). The call status dimension is built. Proposed, not decided: a note under the detailed overview's total ("unfiltered total, $0.85 on failed calls").
 
 ### The costs view: the order of long lists
 `#decision`
 
-`docs/llm.md`, "The costs view". **The order of the lists that grow** (projects, PDFs, configs) in the filters: today the most expensive first, over all time; to decide (sorting and searching the statistics' project lists are tasks of their own).
+`docs/statistics.md`, "The costs view". **The order of the lists that grow** (projects, PDFs, configs) in the filters: today the most expensive first, over all time; to decide (sorting and searching the statistics' project lists are tasks of their own).
 
 ### Heartbeats of manual stages being edited
 `#optional` `#decision`
@@ -335,7 +335,7 @@ One by one, with the Worker endpoints each needs, added as they are needed rathe
 ### Sort the statistics' project lists by name
 `#optional`
 
-In every list of projects on the Statistics page (Costs: the average per page's list, and the detailed overview's Project section, `docs/llm.md`, "The costs view"; Usage: the project picker of the active hours): sort by name as well as by date. Everywhere or nowhere (decided).
+In every list of projects on the Statistics page (Costs: the average per page's list, and the detailed overview's Project section, `docs/statistics.md`, "The costs view"; Usage: the project picker of the active hours): sort by name as well as by date. Everywhere or nowhere (decided).
 
 ### Search the statistics' project lists
 `#optional`

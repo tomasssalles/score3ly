@@ -1,5 +1,5 @@
 // The Statistics page, in tabs: Costs, Usage (UsageTab.tsx), Run times (RunTimesTab.tsx) and Effort (EffortTab.tsx).
-// The Costs tab (docs/llm.md, "The costs view"): the spending cap's last 24 hours and the average cost per page at the top; then a range and what
+// The Costs tab (docs/statistics.md, "The costs view"): the spending cap's last 24 hours and the average cost per page at the top; then a range and what
 // it cost in all, unfiltered; then, apart, the chart (bars per day, week or month, or the running total), split into
 // groups and filtered by them, and a table of the totals. It opens on the plainest view: the last 30 days, per day,
 // nothing split or filtered.
@@ -378,7 +378,7 @@ function FilterPanel({ data, filters, onChange }: { data: CostData; filters: Fil
   );
 }
 
-// The average cost per page (docs/llm.md, "The average cost per page"): one line, the number on the right, and a filter
+// The average cost per page (docs/statistics.md, "The average cost per page"): one line, the number on the right, and a filter
 // button that opens the list of projects to take it over, all of them at first. The list's "⋮" takes out the
 // unfinished ones or the older ones; a box above the list selects all or none. The selection is forgotten when the
 // page is left.

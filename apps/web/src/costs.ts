@@ -1,4 +1,4 @@
-// The costs view (docs/llm.md, "The costs view"): what was paid for, by time range, cut into the viewer's calendar
+// The costs view (docs/statistics.md, "The costs view"): what was paid for, by time range, cut into the viewer's calendar
 // days, weeks or months, split into groups and filtered by the same groupings. Pure functions over the Worker's data
 // (apps/worker/src/costs.ts); the page is StatsPage.tsx, the chart TimeChart.tsx.
 
