@@ -3,7 +3,13 @@
 // work that was necessary; what was discarded could have been avoided with the right configs from the start): its
 // manual stages, with the stages each replaced by being edited (their work is what it builds on), and its extra
 // reviews. A manual stage's work is its active time: a quarter of an hour for each quarter in which it was saved, and
-// for a single quarter between two of those. Pure functions; the tab is EffortTab.tsx.
+// for a single quarter between two of those.
+//
+// Per page: each project's manual work over its own pages, every page counted (decided: there is no cache of manual
+// work between projects, only within a project's re-runs), then the mean over the projects, each weighing the same.
+// The rows are the same for each manual step, so they add up to the head. If projects are forked some day and share
+// a manual stage, each still counts the stage's whole work and its own pages: what a new score needs is what matters.
+// Pure functions; the tab is EffortTab.tsx.
 
 import type { RunTimeData } from "./api";
 import { stepTitle } from "./costs.ts";
@@ -14,7 +20,7 @@ const MANUAL = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "h
 type Stage = RunTimeData["stages"][number];
 
 export type EffortView = {
-  perPageMs: number | null; // all manual work, per page of the selected projects; null without pages
+  perPageMs: number | null; // all manual work per page, averaged over the selected projects with pages; null without
   rows: { step: string; label: string; perPageMs: number | null; usedIn: number }[]; // each manual step's share of it
   projects: number; // selected
   extraReviews: number | null; // per project, on average; null while no project has any review
@@ -23,7 +29,6 @@ export type EffortView = {
 export function effortView(data: RunTimeData, selected: Set<string>): EffortView {
   const stages = new Map(data.stages.map((s) => [s.id, s]));
   const chosen = data.projects.filter((p) => selected.has(p.id));
-  const pages = chosen.reduce((n, p) => n + p.pages.length, 0);
   // Each project's manual stages in its final pipeline, with those they replaced by being edited.
   const manual = new Map<string, Stage[]>();
   let extra = 0;
@@ -37,12 +42,18 @@ export function effortView(data: RunTimeData, selected: Set<string>): EffortView
     extra += final.filter((s) => s.step === "review" && !s.inRecipe).length;
   }
   const ms = (list: Stage[]) => list.reduce((n, s) => n + (s.activeQuarters ?? 0) * QUARTER_MS, 0);
-  const rows = MANUAL.map((step) => {
-    const of = [...manual.values()].map((list) => list.filter((s) => s.step === step));
-    return { step, label: stepTitle(step), perPageMs: pages ? ms(of.flat()) / pages : null, usedIn: of.filter((list) => list.length > 0).length };
-  });
+  const withPages = chosen.filter((p) => p.pages.length > 0);
+  // The mean over the projects with pages of their own work per page.
+  const mean = (work: (list: Stage[]) => Stage[]) =>
+    withPages.length ? withPages.reduce((n, p) => n + ms(work(manual.get(p.id)!)) / p.pages.length, 0) / withPages.length : null;
+  const rows = MANUAL.map((step) => ({
+    step,
+    label: stepTitle(step),
+    perPageMs: mean((list) => list.filter((s) => s.step === step)),
+    usedIn: chosen.filter((p) => manual.get(p.id)!.some((s) => s.step === step)).length,
+  }));
   return {
-    perPageMs: pages ? rows.reduce((n, r) => n + r.perPageMs!, 0) : null,
+    perPageMs: mean((list) => list),
     rows,
     projects: chosen.length,
     // Reviews don't exist until the step is built: a dash, not "0", while no project has any.

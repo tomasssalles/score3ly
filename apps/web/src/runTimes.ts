@@ -10,7 +10,11 @@
 // were all asked anew, `rasterize`'s items whose image was made, every item of the other steps. Items are of three
 // kinds: a page, a system, the whole score. Per page, a step takes for each kind the average time of an item times the
 // items of that kind per page, counted in its finished stages (so a step that works system by system is scaled by the
-// systems per page of those projects, and `apply_review`, which works only where there are issues, by its own share).
+// systems per page of the project, and `apply_review`, which works only where there are issues, by its own share).
+// This is worked out for each project on its own, then averaged over the projects with data for the step, each
+// weighing the same (decided): a project whose items all came from the cache has no time for the step and is left
+// out, not counted as nothing. Projects on the same PDF needn't be merged, as the costs per page merge them: the cache
+// is already left out item by item.
 
 import type { ActivityData, RunTimeData } from "./api";
 import { endedNote, stepTitle } from "./costs.ts";
@@ -93,6 +97,14 @@ function manualPerPage(stages: RunTimeData["stages"]): number | null {
   return (done.reduce((n, s) => n + (s.activeQuarters ?? 0), 0) * QUARTER_MS) / pages;
 }
 
+// A step's time per page over some stages: per project, then the mean over the projects that have one.
+function perPageOverProjects(data: RunTimeData, stages: RunTimeData["stages"]): number | null {
+  const byProject = new Map<string, RunTimeData["stages"]>();
+  for (const s of stages) byProject.set(s.projectId, [...(byProject.get(s.projectId) ?? []), s]);
+  const values = [...byProject.values()].map((list) => perPage(data, list)).filter((v): v is number => v !== null);
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+}
+
 export type StepRow = { step: string; label: string; manual: boolean; ms: number | null; configs: { id: string; label: string; note?: string; ms: number | null }[] };
 
 // Each step's work time per page over the selected projects' stages, in the pipeline's order; with `byConfig`, also per
@@ -106,10 +118,10 @@ export function stepTimes(data: RunTimeData, selected: Set<string>, byConfig: bo
       step,
       label: stepTitle(step),
       manual: MANUAL.has(step),
-      ms: perPage(data, stages),
+      ms: perPageOverProjects(data, stages),
       configs: ids.map((id) => {
         const m = configs.get(id);
-        return { id, label: m ? (m.name ?? m.model) : id, note: endedNote(m?.deletedAt ?? null), ms: perPage(data, stages.filter((s) => s.configId === id)) };
+        return { id, label: m ? (m.name ?? m.model) : id, note: endedNote(m?.deletedAt ?? null), ms: perPageOverProjects(data, stages.filter((s) => s.configId === id)) };
       }),
     };
   });

@@ -35,7 +35,7 @@ const project = (id: string, pages: number, pipeline: string[]): RunTimeData["pr
 
 const data: RunTimeData = {
   recipe: [],
-  projects: [project("a", 2, ["a1", "a3"]), project("b", 2, ["b1", "b3"])],
+  projects: [project("a", 2, ["a1", "a3"]), project("b", 1, ["b1", "b3"])],
   stages: [
     stage("a1", "layout", "a"),
     manual("a2", "fix_layout", "a", 2, { kept: false }), // edited: a3 builds on it, so it counts
@@ -48,14 +48,14 @@ const data: RunTimeData = {
   configs: [],
 };
 
-test("effort: the manual work of the final pipelines, per page, and how many projects used each step", () => {
+test("effort: the manual work of the final pipelines, per page of each project, averaged; how many projects used each step", () => {
   const view = effortView(data, new Set(["a", "b"]));
   const quarter = 15 * 60 * 1000;
   const rows = Object.fromEntries(view.rows.map((r) => [r.step, [r.perPageMs, r.usedIn]]));
-  assert.deepEqual(rows.fix_layout, [(3 * quarter) / 4, 1]); // a2 and a3 over the 4 pages
-  assert.deepEqual(rows.fix_mei, [(4 * quarter) / 4, 1]); // only b3: a4 was discarded
+  assert.deepEqual(rows.fix_layout, [((3 * quarter) / 2 + 0) / 2, 1]); // a: a2 and a3 over its 2 pages; b: none
+  assert.deepEqual(rows.fix_mei, [(0 + (4 * quarter) / 1) / 2, 1]); // b: b3 over its 1 page; a's a4 was discarded
   assert.deepEqual(rows.fix_skew, [0, 0]);
-  assert.equal(view.perPageMs, (7 * quarter) / 4);
+  assert.equal(view.perPageMs, rows.fix_layout[0]! + rows.fix_mei[0]!); // the rows add up to the head
   assert.equal(view.extraReviews, null); // no reviews anywhere yet
   assert.deepEqual(effortView(data, new Set()).perPageMs, null);
   assert.deepEqual([share(1, 4), share(0, 0)], ["25%", "–"]);

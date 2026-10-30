@@ -72,15 +72,16 @@ test("per project: the average time from creation to the last finish, and the av
   assert.deepEqual(perProject(data, new Set(), activity), { projects: 0, spanMs: null, activeHours: null });
 });
 
-test("work time per page: from the items that really ran, times the items of each kind per page", () => {
+test("work time per page: from the items that really ran, times the items of each kind per page, per project, then averaged", () => {
   const rows = new Map(stepTimes(data, new Set(["a", "b"]), false).map((r) => [r.step, r.ms]));
   assert.equal(rows.get("rasterize"), 2000); // only the image made; one item per page
   assert.equal(rows.get("layout"), 4000);
-  // Systems: (30000 + 10000 + 5000) / 3 = 15000 per system, 8 systems in 3 pages; the whole score: 20 ms, 2 in 3 pages.
-  assert.equal(Math.round(rows.get("extract")!), Math.round((15000 * 8) / 3 + (20 * 2) / 3));
+  // a: 20000 per system, 6 systems in 2 pages, the whole score 20 ms in 2 pages; b: 5000 per system, 2 in 1 page, 20 ms.
+  // Each project weighs the same.
+  assert.equal(rows.get("extract"), ((20000 * 6) / 2 + 20 / 2 + (5000 * 2 + 20)) / 2);
   assert.equal(rows.get("apply_review"), 8000 / 2); // one system with issues in two pages
   assert.equal(rows.get("review"), null); // no data
-  assert.equal(rows.get("fix_layout"), 1_800_000); // an hour of active time over 2 pages
+  assert.equal(rows.get("fix_layout"), 1_800_000); // an hour of active time over 2 pages; b's isn't finished: left out
   // The estimate adds up the recipe's steps, nothing else (no manual steps, no Apply review here).
   assert.equal(estimatePerPage(stepTimes(data, new Set(["a", "b"]), false), data.recipe), 2000 + 4000 + rows.get("extract")!);
   // A step of the recipe without data, or nothing selected: no estimate.
