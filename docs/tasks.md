@@ -420,9 +420,24 @@ The configs per kind of work (§7.2); checking Bedrock's and Vertex AI's prices 
 `docs/llm.md`, "Calling the providers": whether the answer names the model with the same string that was asked (an inference profile may come back as the bare model ID). The sanity check compares the two as they are.
 
 ### Gemini on Vertex AI
-`#optional`
+`#next`
 
-§7.2: not built; only Claude runs on Vertex AI.
+§7.2: not built; only Claude runs on Vertex AI, and Gemini only on Google AI Studio. Needed for the task "Try the app with Gemini 3.1 Pro on Vertex AI". Gemini 3.1 Pro may be offered on Vertex AI's global endpoint only, not in the EU (to check; §10, "Data residency").
+
+### Make the first real request on Bedrock
+`#next` `#owner`
+
+The project owner's AWS account for Bedrock exists already; it has to make a real request. The steps (`docs/llm.md`, "Calling the providers"): access to Claude Opus 5.5 enabled for the account in an EU region (e.g. `eu-central-1`); credentials, either a Bedrock API key or an access key pair; a Worker secret holding them (`apps/worker/.dev.vars` locally); then one call, e.g. `npm run llm:try -w apps/worker -- anthropic-bedrock <model> <image> "<question>"`, and a model config for the app. Settles on the way: the task "Check Bedrock's model name on the first real call", and from "Decide the model configs" how a request asks for an EU-only (geographic) or global routing on Bedrock's Messages API endpoint.
+
+### Try the app with Opus 5.5 in Europe on Bedrock
+`#next` `#owner` `#manual-test`
+
+After "Make the first real request on Bedrock": run the whole pipeline with Claude Opus 5.5 on Bedrock, processed in the EU only (§10, "Data residency"), on a few scores of the test set (`docs/evaluation.md`), in the web app or the desktop app. Look at the results, the stages' failures and their messages, the statistics (costs against the list prices the app uses, `llm/prices.ts`, with Bedrock's regional premium; run times; failed calls), and anything that gets in the way. Feeds the tasks checking the prompts of `layout`, `analyze` and `extract`, and the first release's "Run the pipeline with a real LLM" (§16).
+
+### Try the app with Gemini 3.1 Pro on Vertex AI
+`#next` `#owner` `#manual-test`
+
+After "Gemini on Vertex AI" is built: run the whole pipeline with Gemini 3.1 Pro on Vertex AI, on the same scores as the Opus run, to compare the two (the prompts are tuned on Opus, §7.2). Perhaps only on the global endpoint, which processes data outside the EU (§10, "Data residency"); then the projects tried should be ones where that is acceptable. Needs a Google Cloud project with the Vertex AI API enabled and a service account (as for "Set up Claude on Vertex AI"), and Gemini's prices on Vertex AI (from "Decide the model configs").
 
 ### Try a run on a real phone that goes to sleep or to another app
 `#manual-test`
