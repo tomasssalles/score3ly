@@ -50,7 +50,11 @@ Everything that is still to do about score3ly is a task, and every task is in th
 ### Other statistics: decide, then build
 `#next` `#decision` `#next-release`
 
-The Statistics page has its costs (done, `docs/llm.md`, "The costs view"). The chart (`TimeChart`) and the check lists are made to be reused. Decided so far (2026-10-28, under discussion):
+The Statistics page has its costs (done, `docs/llm.md`, "The costs view"). The chart (`TimeChart`) and the check lists are made to be reused.
+
+**Why the tabs differ** (the project owner, 2026-10-30): the statistics are messy. The hierarchical cache, several projects sharing a PDF, the arbitrary page selections in `rasterize`, re-runs and discarded stages, manual stages, extra reviews, no clear signal of when a project is finished, periods of inactivity, deleted projects: all of it makes a clear and consistent target hard to find. So the tabs use different approaches and answer different questions (e.g. the costs per page merge the projects of a PDF and count each page once; the run times leave the cache out item by item and average per project; the manual work counts every page of each project), each useful for its own purpose. Rethinking the whole page as one clean concept would be nice, but the statistics aren't a scientific experiment, and they aren't worth much more energy now: what is built is probably good enough for a while (the task "Rethink the Statistics page as one concept", optional).
+
+Decided so far (2026-10-28, under discussion):
 - **One page, four tabs,** each with its own URL (`#/stats/costs`, ...); one menu entry. Built: all four.
 - **Costs:** as built.
 - **Usage:** Activity, Projects and Failed calls (all built).
@@ -93,6 +97,11 @@ How much money was lost on failed calls (`docs/llm.md`, "The costs view"). The c
 Proposed 2026-10-30. While a manual stage's editor is open, the browser sends a heartbeat once a minute (as a running stage does, docs/database.md), saying whether anything was changed since the last one, and perhaps whether the editor was touched at all (scrolling, clicking, typing). Uses:
 - **Statistics:** reading and comparing without changing anything is work too, and saves alone miss it (the Effort tab's active time in manual stages counts the minutes with a save). Even if this is built, counting that time as active manual work in the statistics is undecided.
 - **Two devices:** another device could show that a manual stage is open in edit mode elsewhere, and either sync the edits automatically or just warn, to avoid conflicting edits (today only optimistic locking guards against them, §4).
+
+### Rethink the Statistics page as one concept
+`#optional` `#decision`
+
+The tabs measure different targets in different ways, because the data offers no single clean one (the reasons, from the project owner: the task "Other statistics", "Why the tabs differ"). Some day, perhaps: one concept for the whole page, with consistent definitions of a project, a page, work and time across the tabs. Not now (decided 2026-10-30): the statistics aren't a scientific experiment, and what is built is probably good enough for a while. Two optional tasks would help it: "Tags for projects" and "A "done" mark for projects".
 
 ### Tags for projects
 `#optional` `#decision`
