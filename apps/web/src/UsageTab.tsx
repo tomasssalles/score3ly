@@ -66,8 +66,8 @@ function ActiveHours({ data }: { data: ActivityData }) {
         about={
           <p>
             A quarter of an hour counts as active if anything happened in it: a request was sent to an LLM, a stage started or ended,
-            a result or a manual change was saved, or a project was created. In a manual stage, a quarter between two quarters with
-            changes counts too. Just looking at a project isn't counted as activity and we don't track project navigation.
+            a result or a manual change was saved, or a project was created. Just looking at a project isn't counted as
+            activity and we don't track project navigation.
           </p>
         }
         right={
