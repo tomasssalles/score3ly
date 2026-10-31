@@ -92,6 +92,14 @@ One call per system, with the same input as `extract`, plus the extraction (in t
 
   Parts 1 to 3 of a call are the start of the next call's prompt, so with a cache breakpoint at the end of part 3 each call pays the full price only for the entries added by the call before it, and the rest is read from the cache. Without the append-only log, every change to the issues would break the cache, and the cost would grow with the score's length times the number of issues, which is itself roughly proportional to the length. The calls run one after another (§10), so the cache stays warm between them.
 
+- **Decided while preparing it** (2026-10-31):
+  - **Choices only on the issues of its own system:** a call doesn't choose on issues of other systems, although it sees the whole score. Issues raised by code are issues like any other: a review chooses on them too.
+  - **At most one new answer per existing issue,** and only as its new choice.
+  - **Its crops have the issues' boxes drawn on them;** no clean copies for now (an optional task, §15, "`review`'s crops without boxes too").
+  - **Its only config is the model config.** Further reviews are added from an `apply_review`'s "⋮" (the details are settled with `apply_review`, §15).
+  - **Built before `apply_review`:** added to the recipe alone first, so for now it has no effect on the MEI.
+  - **The card's result:** the number of proposed changes, new issues plus new choices on existing ones ("15 proposed changes").
+
 ## Renderings for the models
 
 (decided): code renders each system's MEI for people (see "The Transcription"), for the side-by-side view in `human_review`. Models don't get renderings, at first: `review` compares the crops with the extraction as text (the lens), as in the manual run (§13), and `apply_review` changes text. Whether a rendering of the system next to its crop helps `review` is measured later on the test set (§15); if it does, it becomes the default and can be turned off in `review`'s config. A rendering can mislead in its own way: differences of engraving (spacing, stem directions, Verovio's own choices) look like errors to a model comparing pictures.

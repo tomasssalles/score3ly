@@ -41,6 +41,11 @@ Everything that is still to do about score3ly is a task, and every task is in th
 `#next`
 
 `docs/stages/music.md` (`apply_review`; its title in the app is "Apply review"). Further reviews and their `apply_review` are carried and dropped like manual stages; an `apply_review` goes with its review; the recipe's review can't be dropped (§5.5).
+- **`review` is built first, without `apply_review`** (decided, 2026-10-31), so for now a review has no effect on the MEI. What ties the two together is left to this task:
+  - adding an `apply_review` automatically after every review;
+  - dropping and reusing an `apply_review` always together with its review;
+  - an `apply_review` can't be dropped by itself, not even an extra one, but its config can be changed, which replaces it like any change in the middle (§5.5).
+- **Where further reviews are added** (decided: only from an `apply_review`'s "⋮"; the only config of a review is its model config). To settle here: whether only from the last `apply_review` or from any of them, and if from any, whether the new review goes after the last `apply_review` or after the one it was added from.
 
 ### `human_review`
 `#next`
@@ -107,6 +112,11 @@ Proposed by the project owner (2026-10-29). A toggle on each project, set by the
 `#owner`
 
 Each of them has a list "Decisions made while building it (to confirm)" in `docs/stages/music.md` (`extract`, built) and `docs/notation.md` ("MEI", built) and `docs/stages/engrave.md` (`engrave`, built).
+
+### `review`'s crops without boxes too
+`#optional` `#experiment`
+
+`review` sends its crops with the issues' boxes drawn on them (decided, 2026-10-31). `docs/notation.md` ("Issues") proposed a clean copy of each crop as well, since lines over the music may get in the way of reviewing everything else. Add it only if experiments on the test set show that it helps.
 
 ### Compare `review` with and without renderings as model input
 `#experiment`

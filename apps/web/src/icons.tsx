@@ -397,6 +397,60 @@ export function EngraveIcon() {
   );
 }
 
+// Candidates for `review` and `apply_review` (to pick one pair). In the style of `extract`'s and `engrave`'s: a quarter
+// note turning into a question mark (`review` turns the music into questions), and back (`apply_review` turns the
+// answered questions into music).
+export function ReviewIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <ellipse className="filled-shape" cx="5.4" cy="9.6" rx="2.4" ry="1.8" transform="rotate(-20 5.4 9.6)" />
+      <path d="M7.6 9V2.5" />
+      <path d="M10.5 10.5l3.5 3.5M14 10.8V14h-3.2" />
+      <path d="M16.3 16.9c0-1.3 1-2.1 2.3-2.1s2.3.8 2.3 2c0 1.8-2.3 1.8-2.3 3.6" />
+      <circle className="filled-shape" cx="18.6" cy="21.7" r="0.95" />
+    </svg>
+  );
+}
+
+export function ApplyReviewIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3.7 4.1c0-1.3 1-2.1 2.3-2.1s2.3.8 2.3 2c0 1.8-2.3 1.8-2.3 3.6" />
+      <circle className="filled-shape" cx="6" cy="8.9" r="0.95" />
+      <path d="M11.3 11.3l3.5 3.5M14.8 11.6v3.2h-3.2" />
+      <ellipse className="filled-shape" cx="17.4" cy="20" rx="2.4" ry="1.8" transform="rotate(-20 17.4 20)" />
+      <path d="M19.6 19.4v-6.5" />
+    </svg>
+  );
+}
+
+// The other candidates: "a?", an answer in question (`review`), and "a?" turning into "b", the answer changed
+// (`apply_review`).
+export function ReviewLettersIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3.3 10.05c.9-.6 2.1-.9 3.6-.9 2.55 0 3.9 1.05 3.9 3.45v6.3" />
+      <path d="M10.8 13.65H6.9C4.5 13.65 3 14.7 3 16.35c0 1.5 1.2 2.55 2.85 2.55 2.1 0 3.9-1.05 4.95-2.7" />
+      <path d="M13.5 8.4c0-2.1 1.65-3.3 3.75-3.3S21 6.3 21 8.4c0 3-3.75 3.15-3.75 6.45" />
+      <circle className="filled-shape" cx="17.25" cy="17.9" r="1" />
+    </svg>
+  );
+}
+
+export function ApplyReviewLettersIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M2.16 4.64c.48-.32 1.12-.48 1.92-.48 1.36 0 2.08.56 2.08 1.84v3.36" />
+      <path d="M6.16 6.56H4.08C2.8 6.56 2 7.12 2 8c0 .8.64 1.36 1.52 1.36 1.12 0 2.08-.56 2.64-1.44" />
+      <path d="M8.1 3.76C8.1 2.64 8.98 2 10.1 2s2 .64 2 1.76c0 1.6-2 1.68-2 3.44" />
+      <circle className="filled-shape" cx="10.1" cy="9.1" r="0.8" />
+      <path d="M12.2 12.2l2.4 2.4M14.6 12.4v2.2h-2.2" />
+      <path d="M17.2 14v7.7" />
+      <path d="M17.2 19.2c0-1.5 1-2.5 2.2-2.5s2.2 1 2.2 2.5-1 2.5-2.2 2.5-2.2-1-2.2-2.5" />
+    </svg>
+  );
+}
+
 // A staff with two boxes on it: shows or hides the boxes of issues and warnings on the score. The staff is lighter, so
 // the boxes stand out at the icon's size.
 export function BoxesIcon() {
