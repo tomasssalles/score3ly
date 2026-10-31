@@ -460,6 +460,101 @@ export function ReviewNoteIcon() {
   );
 }
 
+// Candidates of `review`'s as a decisive corrector: what is wrong crossed out, struck through or circled by hand. The
+// pen strokes are filled outlines of varying width (made by a script: pressure at the start, a taper at the end), so
+// that a cross doesn't read as the letter x.
+const CROSS = ["M4.09 4.93 4.57 5.57 5.07 6.19 5.59 6.8 6.12 7.42 6.67 8.03 7.23 8.65 7.81 9.27 8.4 9.89 9.01 10.51 9.63 11.13 10.26 11.76 10.91 12.38 11.57 13 12.25 13.62 12.94 14.24 13.65 14.85 14.37 15.47 15.1 16.08 15.84 16.69 16.6 17.29 17.36 17.9 18.14 18.49 18.93 19.09 19.73 19.68 19.87 19.52 19.18 18.81 18.51 18.09 17.84 17.37 17.19 16.66 16.55 15.94 15.92 15.23 15.3 14.52 14.68 13.81 14.06 13.12 13.45 12.43 12.85 11.74 12.24 11.07 11.63 10.41 11.03 9.76 10.42 9.13 9.81 8.51 9.19 7.91 8.57 7.32 7.95 6.75 7.32 6.2 6.68 5.67 6.04 5.17 5.39 4.69 4.71 4.27 4.5 4.16 4.27 4.17 4.07 4.29 3.96 4.5 3.97 4.73Z", "M18.72 3.72 18.08 4.15 17.47 4.63 16.86 5.14 16.25 5.68 15.64 6.23 15.04 6.81 14.43 7.41 13.83 8.03 13.23 8.67 12.62 9.32 12.03 9.99 11.43 10.68 10.83 11.37 10.24 12.08 9.64 12.8 9.05 13.53 8.46 14.26 7.87 15.01 7.28 15.76 6.69 16.51 6.1 17.26 5.51 18.02 4.92 18.78 4.33 19.53 4.47 19.67 5.18 19.02 5.89 18.37 6.6 17.73 7.3 17.08 8 16.42 8.7 15.77 9.39 15.12 10.08 14.47 10.75 13.82 11.42 13.17 12.08 12.52 12.72 11.87 13.36 11.23 13.98 10.58 14.59 9.94 15.18 9.3 15.76 8.66 16.32 8.03 16.86 7.4 17.39 6.77 17.9 6.15 18.39 5.53 18.86 4.92 19.28 4.28 19.39 4.1 19.39 3.9 19.28 3.72 19.1 3.61 18.9 3.61Z"];
+
+// A glyph drawn larger than its own coordinates, with strokes of the usual width.
+function Scaled({ x, y, scale, children }: { x: number; y: number; scale: number; children: React.ReactNode }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${scale})`} style={{ strokeWidth: 1.7 / scale }}>
+      {children}
+    </g>
+  );
+}
+
+// "a", 5.2 × 6.5 units from the origin.
+function GlyphA() {
+  return (
+    <>
+      <path d="M.2.6c.6-.4 1.4-.6 2.4-.6 1.7 0 2.6.7 2.6 2.3v4.2" />
+      <path d="M5.2 3H2.6C1 3 0 3.7 0 4.8c0 1 .8 1.7 1.9 1.7 1.4 0 2.6-.7 3.3-1.8" />
+    </>
+  );
+}
+
+// "b", 4.4 × 7.7 units from the origin.
+function GlyphB() {
+  return (
+    <>
+      <path d="M0 0v7.7" />
+      <path d="M0 5.2c0-1.5 1-2.5 2.2-2.5s2.2 1 2.2 2.5-1 2.5-2.2 2.5S0 6.7 0 5.2" />
+    </>
+  );
+}
+
+// A quarter note, as in `extract`'s icon: about 4.8 × 8.9 units from the origin.
+function GlyphNote() {
+  return (
+    <>
+      <ellipse className="filled-shape" cx="2.4" cy="7.1" rx="2.4" ry="1.8" transform="rotate(-20 2.4 7.1)" />
+      <path d="M4.6 6.5V0" />
+    </>
+  );
+}
+
+export function ReviewCrossIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <Scaled x={8.1} y={7.1} scale={1.5}>
+        <GlyphA />
+      </Scaled>
+      <path className="brush" d={CROSS[0]} />
+      <path className="brush" d={CROSS[1]} />
+    </svg>
+  );
+}
+
+export function ReviewCrossNoteIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <Scaled x={8.6} y={5.8} scale={1.4}>
+        <GlyphNote />
+      </Scaled>
+      <path className="brush" d={CROSS[0]} />
+      <path className="brush" d={CROSS[1]} />
+    </svg>
+  );
+}
+
+// "a" struck through, "b" written above it: a proofreader's correction.
+export function ReviewStrikeIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <Scaled x={3.2} y={11} scale={1.25}>
+        <GlyphA />
+      </Scaled>
+      <path className="brush" d="M2.69 20.67 3.12 20.41 3.52 20.11 3.9 19.79 4.28 19.46 4.66 19.11 5.03 18.74 5.39 18.37 5.75 17.98 6.11 17.58 6.46 17.16 6.81 16.73 7.15 16.3 7.5 15.85 7.85 15.39 8.19 14.91 8.54 14.43 8.89 13.94 9.24 13.44 9.6 12.93 9.96 12.41 10.33 11.89 10.7 11.35 11.08 10.81 11.47 10.27 11.33 10.13 10.82 10.58 10.33 11.02 9.84 11.46 9.37 11.89 8.9 12.31 8.44 12.73 7.99 13.15 7.55 13.57 7.12 13.98 6.7 14.39 6.29 14.8 5.9 15.2 5.51 15.61 5.14 16.01 4.78 16.42 4.43 16.82 4.09 17.23 3.77 17.63 3.45 18.04 3.15 18.44 2.87 18.85 2.59 19.27 2.33 19.69 2.11 20.13 2.01 20.31 2.02 20.52 2.13 20.69 2.31 20.79 2.52 20.78Z" />
+      <Scaled x={15.6} y={3} scale={1}>
+        <GlyphB />
+      </Scaled>
+    </svg>
+  );
+}
+
+// A quarter note circled, as a teacher marks a mistake (a circled "a" reads as "@").
+export function ReviewCircleIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <Scaled x={8.6} y={6.2} scale={1.3}>
+        <GlyphNote />
+      </Scaled>
+      <path className="brush" d="M13.25 3.37 14.18 3.7 15.04 4.12 15.85 4.63 16.61 5.23 17.3 5.91 17.92 6.68 18.45 7.5 18.9 8.39 19.25 9.31 19.5 10.27 19.65 11.25 19.7 12.23 19.65 13.21 19.5 14.16 19.25 15.08 18.9 15.96 18.47 16.79 17.96 17.54 17.37 18.23 16.72 18.83 16.01 19.34 15.25 19.76 14.45 20.08 13.63 20.29 12.78 20.41 11.92 20.41 11.07 20.32 10.22 20.11 9.4 19.81 8.61 19.4 7.86 18.9 7.16 18.3 6.53 17.63 5.96 16.88 5.48 16.07 5.08 15.2 4.77 14.3 4.56 13.36 4.45 12.41 4.44 11.45 4.53 10.5 4.72 9.57 5 8.67 5.38 7.82 5.85 7.03 6.4 6.3 7.03 5.64 7.72 5.08 8.48 4.6 9.28 4.22 10.13 3.95 11 3.78 11.89 3.72 12.79 3.78 13.68 3.95 14.56 4.23 14.63 4.04 13.75 3.7 12.84 3.46 11.9 3.34 10.96 3.34 10.02 3.46 9.09 3.69 8.2 4.05 7.35 4.51 6.55 5.09 5.81 5.76 5.16 6.53 4.59 7.38 4.12 8.3 3.74 9.29 3.48 10.31 3.33 11.37 3.29 12.45 3.36 13.54 3.56 14.61 3.86 15.66 4.28 16.67 4.8 17.63 5.43 18.52 6.14 19.34 6.94 20.07 7.82 20.69 8.76 21.21 9.74 21.61 10.77 21.88 11.82 22.02 12.88 22.03 13.93 21.91 14.96 21.65 15.96 21.26 16.9 20.75 17.77 20.12 18.57 19.38 19.28 18.54 19.89 17.62 20.4 16.63 20.79 15.58 21.06 14.48 21.22 13.35 21.25 12.21 21.15 11.07 20.94 9.94 20.6 8.85 20.15 7.8 19.6 6.81 18.94 5.89 18.19 5.06 17.35 4.33 16.45 3.71 15.49 3.21 14.48 2.83 13.47 2.61 13.27 2.6 13.08 2.7 12.98 2.88 12.97 3.09 13.08 3.27Z" />
+    </svg>
+  );
+}
+
 // The other candidates of `apply_review`'s: "a?" turning into "c", the answer changed, and "a" turning into "c".
 export function ApplyReviewLettersCIcon() {
   return (

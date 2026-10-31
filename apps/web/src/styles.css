@@ -480,6 +480,12 @@ body {
   fill: currentColor;
 }
 
+/* A pen stroke in an icon: a filled outline whose width varies, so it looks written by hand. */
+.icon .brush {
+  fill: currentColor;
+  stroke: none;
+}
+
 /* A word in an icon, e.g. "PDF" on a sheet. */
 .icon .icon-text {
   fill: currentColor;
