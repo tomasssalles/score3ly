@@ -125,7 +125,11 @@ Each of them has a list "Decisions made while building it (to confirm)" in `docs
 
 ### Zoom crops on request
 `docs/stages/music.md`, "Zooming in" (decided, for a later version), for `extract`, `review` and probably `apply_review`.
-- **Open, until `review` is built: accumulating zoom crops across stages.** The places `extract` zoomed into are the parts of the page that are hard to read, so the first `review` call for a system could get them from the start, with their reasons, and still ask for more; every later `review` and `apply_review` would get all zooms asked for so far, the set growing stage by stage. The caps could then differ, e.g. 3 per system for `extract` and 1 per system after it.
+
+### Zoom crops accumulated across stages
+`#optional`
+
+Once zoom crops on request exist: the places `extract` zoomed into are the parts of the page that are hard to read, so the first `review` call for a system could get them from the start, with their reasons, and still ask for more; every later `review` and `apply_review` would get all zooms asked for so far, the set growing stage by stage. The caps could then differ, e.g. 3 per system for `extract` and 1 per system after it.
 
 ### A failed check goes back to the model
 `#optional`
