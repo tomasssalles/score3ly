@@ -4,7 +4,7 @@ The stages that read and correct the music, system by system, and the artifact t
 
 **What they read and write:**
 - `extract` reads the latest layout (`docs/stages/layout.md`), the latest observations and `pieces` (`docs/stages/analyze.md`) and the model config; it writes one `extraction` output per system (the answer in the lens, its issues and warnings) and one `score_checks` output for the whole score (what the checks of the whole score found).
-- `review` reads the latest extraction, its issues and warnings, and the same crops as `extract`; it writes issues only (new ones, and choices on existing ones).
+- `review` reads the latest extraction before it (from `extract` today; from an `apply_review` once further reviews exist), its issues and warnings, and the same crops as `extract`; it writes issues only (new ones, and choices on existing ones), one output per call (see `review`, "How it stores what it does").
 - `apply_review` reads the latest extraction and the issues that need applying; it writes a new version of the extraction (only what changed, per stretch), with its issues and warnings.
 - `human_review` reads the latest extraction and issues; it writes the user's answers and issues, and is always followed by an `apply_review`.
 - **Who reads them:** each next review stage, and `engrave` (`docs/stages/engrave.md`), which builds the MEI from the latest extraction.
@@ -99,6 +99,8 @@ One call per system, with the same input as `extract`, plus the extraction (in t
   - **Its only config is the model config.** Further reviews are added from an `apply_review`'s "⋮" (the details are settled with `apply_review`, §15).
   - **Built before `apply_review`:** added to the recipe alone first, so for now it has no effect on the MEI.
   - **The card's result:** the number of proposed changes, new issues plus new choices on existing ones ("15 proposed changes").
+  - **What it reviews:** always the latest transcription before its own place in the pipeline: the extraction, its issues and its warnings as the latest stage that produces the extraction left them. Today that is always `extract`; once `apply_review` exists, it can be an `apply_review`.
+  - **How it stores what it does** (decided): **one output per call,** holding exactly that call's entries for the append-only log: its new issues (numbered by code as soon as the answer is stored, from the project's counter, like `extract`'s) and its choices on existing issues (each with its optional reason, and its new answer where it adds one). The issues as the review leaves them are a view: the issues of the transcription it reviewed with its entries applied, in the order of the calls. So a failed or interrupted run resumes system by system, as `extract` does, and the log of a call's prompt is the earlier calls' outputs as they read back from storage.
 
 ## Renderings for the models
 

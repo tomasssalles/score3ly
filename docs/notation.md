@@ -250,7 +250,7 @@ An **issue** is one question about what the printed score says at one place (or 
   - **Ids carry over:** every stage that touches the issues produces a new version of the same list, with the same ids.
 - **A resolved issue stays in the list for good.** No LLM stage can change its chosen answer: later reviews take it as the truth and don't raise the question again. The user can change it, in a later `human_review` (changing their own earlier decision).
 - **An issue needs applying** (`apply_review`) when its chosen answer differs from `applied`, which includes every issue whose `applied` is null.
-- **The issues of a score are one JSON artifact.** Each stage that touches them produces a new version (§5.4: stored stages never change).
+- **The issues of a score are one list, stored in parts.** Each stage that touches them produces a new version (§5.4: stored stages never change), but not as one document: `extract` stores each system's issues with its extraction (and the issues of the checks of the whole score with them), and `review` stores each call's new issues and choices (`docs/stages/music.md`, `review`, "How it stores what it does"). The list as a stage leaves it is a view of those parts.
 
 ## Warnings
 A **warning** is about the current extraction, or about how it was produced, not about the page (that is an issue). Code finds it; it has boxes and an explanation, and it is never answered or applied: it calls attention, the user's or a reviewer's. The user who sees one can act on it with an issue of their own, e.g. a box around a smudge with the answer "this is a smudge, not a note" after a duration warning showed where the extraction invented a note.
