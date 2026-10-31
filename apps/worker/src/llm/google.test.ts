@@ -67,6 +67,17 @@ test("a request is sent as the Gemini API expects", async () => {
   assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "HIGH");
 });
 
+test("cache marks are accepted and left out: Gemini caches matching prefixes by itself", async () => {
+  const captured: Captured[] = [];
+  const marked: LlmRequest = {
+    ...request,
+    messages: [{ role: "user", content: request.messages[0].content.map((part) => ({ ...part, cacheUpTo: true as const })) }],
+  };
+  const response = await new GoogleProvider({ apiKey: "g-key", fetch: fakeFetch(reply, captured) }).send(marked);
+  assert.deepEqual(response.json, { systems: 6 });
+  assert.deepEqual(captured[0].body.contents[0].parts, [{ inlineData: { mimeType: "image/jpeg", data: "/9j/4AAQ" } }, { text: "How many systems?" }]);
+});
+
 test("the answer leaves out thoughts; cached tokens and thinking are counted where they are billed", async () => {
   const response = await new GoogleProvider({ apiKey: "k", fetch: fakeFetch(reply, []) }).send(request);
   assert.equal(response.text, '{"systems":6}');
