@@ -5,6 +5,7 @@ import { FittedText } from "./FittedText";
 import { useHost } from "./host";
 import {
   AnalyzeIcon,
+  ApplyReviewACIcon,
   CloseIcon,
   ExtractIcon,
   EngraveIcon,
@@ -55,6 +56,7 @@ const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   analyze: AnalyzeIcon,
   extract: ExtractIcon,
   review: ReviewStrikeCMixedLongIcon,
+  apply_review: ApplyReviewACIcon,
   engrave: EngraveIcon,
 };
 
