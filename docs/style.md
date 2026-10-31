@@ -229,7 +229,7 @@ From the most local to the most interrupting; always the most local one that the
 ## Icons
 
 - **Small line icons** in the current text colour (24-unit grid, strokes, no fills), drawn by us (`icons.tsx`), so they follow the theme.
-- **An icon stands for a thing, consistently:** each automated step has its own (an upload arrow for Ingest, an image for images, a note turning into a letter for `extract` and the reverse for `engrave`); all manual stages share the wrench; each kind of artifact has its own (a sheet with "PDF" or "MEI" on it, an image, a note, braces for structured data).
+- **An icon stands for a thing, consistently:** each automated step has its own (an upload arrow for Ingest, an image for images, a note turning into a letter for `extract` and the reverse for `engrave`, a letter struck through with the correction above it for `review`, its stroke a filled outline of varying width so that it looks written by hand, `.brush`); all manual stages share the wrench; each kind of artifact has its own (a sheet with "PDF" or "MEI" on it, an image, a note, braces for structured data).
 - **Chevrons collapse, expand and open dropdowns; arrows navigate** (back and forward, pages). Never the other way round.
 - **Icon-only controls** are used where the meaning is visual and the set is small (editor tools, view toggles); they always have a tooltip and an accessible name. Everywhere else, words.
 

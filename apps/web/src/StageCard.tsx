@@ -22,6 +22,7 @@ import {
   PdfIcon,
   PlayIcon,
   RetryIcon,
+  ReviewStrikeCMixedLongIcon,
   SkewIcon,
   StopIcon,
 } from "./icons";
@@ -53,6 +54,7 @@ const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   layout: LayoutIcon,
   analyze: AnalyzeIcon,
   extract: ExtractIcon,
+  review: ReviewStrikeCMixedLongIcon,
   engrave: EngraveIcon,
 };
 

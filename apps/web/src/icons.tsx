@@ -584,6 +584,22 @@ export function ReviewStrikeCMixedLongIcon() {
   );
 }
 
+// `apply_review`'s counterpart of ReviewStrikeCMixedLongIcon: "a" turning into "c", the letters as heavy, laid out as
+// `engrave`'s.
+export function ApplyReviewACHeavyIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <Scaled x={2.6} y={2.4} scale={1.1} weight={2.3}>
+        <GlyphA />
+      </Scaled>
+      <path d="M10.8 10.8l3.4 3.4M14.2 11.2v3h-3" />
+      <Scaled x={16} y={14.4} scale={1.1} weight={2.3}>
+        <GlyphC />
+      </Scaled>
+    </svg>
+  );
+}
+
 // "a" circled, "c" written above it.
 export function ReviewCircleCIcon() {
   return (
