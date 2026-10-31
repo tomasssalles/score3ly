@@ -406,8 +406,8 @@ export function ReviewIcon() {
       <ellipse className="filled-shape" cx="5.4" cy="9.6" rx="2.4" ry="1.8" transform="rotate(-20 5.4 9.6)" />
       <path d="M7.6 9V2.5" />
       <path d="M10.5 10.5l3.5 3.5M14 10.8V14h-3.2" />
-      <path d="M16.3 16.9c0-1.3 1-2.1 2.3-2.1s2.3.8 2.3 2c0 1.8-2.3 1.8-2.3 3.6" />
-      <circle className="filled-shape" cx="18.6" cy="21.7" r="0.95" />
+      <path d="M16.3 16.9c0-1.3 1-2.1 2.3-2.1s2.3.8 2.3 2c0 1.4-2.3 1.6-2.3 3" />
+      <circle className="filled-shape" cx="18.6" cy="22" r="0.75" />
     </svg>
   );
 }
@@ -415,8 +415,8 @@ export function ReviewIcon() {
 export function ApplyReviewIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3.7 4.1c0-1.3 1-2.1 2.3-2.1s2.3.8 2.3 2c0 1.8-2.3 1.8-2.3 3.6" />
-      <circle className="filled-shape" cx="6" cy="8.9" r="0.95" />
+      <path d="M3.7 4.1c0-1.3 1-2.1 2.3-2.1s2.3.8 2.3 2c0 1.4-2.3 1.6-2.3 3" />
+      <circle className="filled-shape" cx="6" cy="9.3" r="0.75" />
       <path d="M11.3 11.3l3.5 3.5M14.8 11.6v3.2h-3.2" />
       <ellipse className="filled-shape" cx="17.4" cy="20" rx="2.4" ry="1.8" transform="rotate(-20 17.4 20)" />
       <path d="M19.6 19.4v-6.5" />
@@ -432,21 +432,51 @@ export function ReviewLettersIcon() {
       <path d="M3.3 10.05c.9-.6 2.1-.9 3.6-.9 2.55 0 3.9 1.05 3.9 3.45v6.3" />
       <path d="M10.8 13.65H6.9C4.5 13.65 3 14.7 3 16.35c0 1.5 1.2 2.55 2.85 2.55 2.1 0 3.9-1.05 4.95-2.7" />
       <path d="M13.5 8.4c0-2.1 1.65-3.3 3.75-3.3S21 6.3 21 8.4c0 3-3.75 3.15-3.75 6.45" />
-      <circle className="filled-shape" cx="17.25" cy="17.9" r="1" />
+      <circle className="filled-shape" cx="17.25" cy="18.15" r="0.8" />
     </svg>
+  );
+}
+
+// "a?" small at the top left, and the arrow, for the variants of `apply_review`'s letter icon.
+function SmallAQuestionArrow() {
+  return (
+    <>
+      <path d="M2.16 4.64c.48-.32 1.12-.48 1.92-.48 1.36 0 2.08.56 2.08 1.84v3.36" />
+      <path d="M6.16 6.56H4.08C2.8 6.56 2 7.12 2 8c0 .8.64 1.36 1.52 1.36 1.12 0 2.08-.56 2.64-1.44" />
+      <path d="M8.1 3.76C8.1 2.64 8.98 2 10.1 2s2 .64 2 1.76c0 1.4-2 1.5-2 3" />
+      <circle className="filled-shape" cx="10.1" cy="9.5" r="0.6" />
+      <path d="M12 12l3.4 3.4M15.4 12.8v2.6h-2.6" />
+    </>
   );
 }
 
 export function ApplyReviewLettersIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M2.16 4.64c.48-.32 1.12-.48 1.92-.48 1.36 0 2.08.56 2.08 1.84v3.36" />
-      <path d="M6.16 6.56H4.08C2.8 6.56 2 7.12 2 8c0 .8.64 1.36 1.52 1.36 1.12 0 2.08-.56 2.64-1.44" />
-      <path d="M8.1 3.76C8.1 2.64 8.98 2 10.1 2s2 .64 2 1.76c0 1.6-2 1.68-2 3.44" />
-      <circle className="filled-shape" cx="10.1" cy="9.1" r="0.8" />
-      <path d="M12.2 12.2l2.4 2.4M14.6 12.4v2.2h-2.2" />
+      <SmallAQuestionArrow />
       <path d="M17.2 14v7.7" />
       <path d="M17.2 19.2c0-1.5 1-2.5 2.2-2.5s2.2 1 2.2 2.5-1 2.5-2.2 2.5-2.2-1-2.2-2.5" />
+    </svg>
+  );
+}
+
+// More variants of `apply_review`'s: "a?" turning into "c", and "a" turning into "c" (laid out as `engrave`'s).
+export function ApplyReviewLettersCIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <SmallAQuestionArrow />
+      <path d="M21.4 17.5c-.5-.5-1.2-.8-2-.8-1.3 0-2.2 1.1-2.2 2.5s.9 2.5 2.2 2.5c.8 0 1.5-.3 2-.8" />
+    </svg>
+  );
+}
+
+export function ApplyReviewACIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3.2 3.1c.6-.4 1.4-.6 2.4-.6 1.7 0 2.6.7 2.6 2.3V9" />
+      <path d="M8.2 5.5H5.6C4 5.5 3 6.2 3 7.3c0 1 .8 1.7 1.9 1.7 1.4 0 2.6-.7 3.3-1.8" />
+      <path d="M11.3 11.3l3.5 3.5M14.8 11.6v3.2h-3.2" />
+      <path d="M21 16.3c-.6-.6-1.5-1-2.5-1-1.7 0-2.9 1.4-2.9 3.25s1.2 3.25 2.9 3.25c1 0 1.9-.4 2.5-1" />
     </svg>
   );
 }
