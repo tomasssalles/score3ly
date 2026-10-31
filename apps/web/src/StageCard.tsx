@@ -8,7 +8,7 @@ import {
   ApplyReviewACIcon,
   CloseIcon,
   ExtractIcon,
-  EngraveIcon,
+  EngraveCLeftIcon,
   ComputedIcon,
   DownloadIcon,
   DataIcon,
@@ -57,7 +57,7 @@ const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   extract: ExtractIcon,
   review: ReviewStrikeCMixedLongIcon,
   apply_review: ApplyReviewACIcon,
-  engrave: EngraveIcon,
+  engrave: EngraveCLeftIcon,
 };
 
 const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {
