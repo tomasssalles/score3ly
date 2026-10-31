@@ -5,10 +5,10 @@ import { FittedText } from "./FittedText";
 import { useHost } from "./host";
 import {
   AnalyzeIcon,
-  ApplyReviewACIcon,
+  ApplyReviewIcon,
   CloseIcon,
   ExtractIcon,
-  EngraveCLeftIcon,
+  EngraveIcon,
   ComputedIcon,
   DownloadIcon,
   DataIcon,
@@ -23,7 +23,7 @@ import {
   PdfIcon,
   PlayIcon,
   RetryIcon,
-  ReviewStrikeCMixedLongIcon,
+  ReviewIcon,
   SkewIcon,
   StopIcon,
 } from "./icons";
@@ -55,9 +55,9 @@ const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   layout: LayoutIcon,
   analyze: AnalyzeIcon,
   extract: ExtractIcon,
-  review: ReviewStrikeCMixedLongIcon,
-  apply_review: ApplyReviewACIcon,
-  engrave: EngraveCLeftIcon,
+  review: ReviewIcon,
+  apply_review: ApplyReviewIcon,
+  engrave: EngraveIcon,
 };
 
 const KIND_ICONS: Record<StageKind, () => React.JSX.Element> = {
