@@ -687,6 +687,19 @@ export function ApplyReviewACIcon() {
   );
 }
 
+// An experiment: `engrave`'s icon with `apply_review`'s "c" in place of the "a" (moved as `extract`'s "a" is moved
+// for `engrave`).
+export function EngraveCIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8.4 3.5c-.6-.6-1.5-1-2.5-1-1.7 0-2.9 1.4-2.9 3.25s1.2 3.25 2.9 3.25c1 0 1.9-.4 2.5-1" />
+      <path d="M11.3 11.3l3.5 3.5M14.8 11.6v3.2h-3.2" />
+      <ellipse className="filled-shape" cx="17.4" cy="20" rx="2.4" ry="1.8" transform="rotate(-20 17.4 20)" />
+      <path d="M19.6 19.4v-6.5" />
+    </svg>
+  );
+}
+
 // A staff with two boxes on it: shows or hides the boxes of issues and warnings on the score. The staff is lighter, so
 // the boxes stand out at the icon's size.
 export function BoxesIcon() {
