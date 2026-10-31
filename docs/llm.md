@@ -16,6 +16,11 @@ Built: `apps/worker/src/llm/`. One small request and response shape for every pr
   - **The sanity check compares the two model strings as they are;** whether Bedrock answers with the string that was asked is checked on the first real call (§15).
   - **Spending:** AWS has no hard spending cap as far as known: budgets alert, and a budget action can at most attach a deny policy. The app's spending cap (§10) and the IAM user's permissions are the limits.
 - Gemini on Vertex AI isn't built (§15).
+- **Prompt caching** (decided and built, 2026-10-31): a request can mark parts of its prompt, "cache up to here" (`cacheUpTo: true` on a part of a message, text or image), when later requests will start with the same prefix, e.g. `review`'s calls, which all start with the whole score and the issues (`docs/stages/music.md`, `review`). The provider then bills that prefix at its cache-write price once, and at its cache-read price, a fraction of the input price, each time a later request starts with it.
+  - **Provider-neutral:** the mark says where, each adapter decides how. **Claude** (Anthropic's API, Vertex AI, Bedrock): a cache breakpoint (`cache_control`) on that part, with the default lifetime, 5 minutes from the last use (1 hour is possible, at twice the input price to write instead of 1.25 times); a prefix shorter than the model's minimum is simply not cached. **Gemini:** the mark is ignored. Gemini caches matching prefixes by itself (implicit caching, without a guarantee), and reports what it read from the cache, which is counted as cache reads; its explicit caching (a cached-content resource created first, with a lifetime and a storage charge) isn't used. The fake providers ignore it.
+  - **At most 4 marks per request** (Anthropic's limit of breakpoints); the Worker refuses more.
+  - **Not part of the request key** (§5.2): the marks change what a call costs, not what the model is given, so moving them doesn't make paid calls run again. The recorded request keeps them, as it was sent.
+  - **Nothing is marked yet:** `review` is the first stage to use it. Whether `extract` gains from a mark after the part all its calls share (the instructions and the observations) is to be seen.
 - Tested without network, with a fake `fetch`, and run inside the local Workers runtime. `npm run llm:try -w apps/worker -- <anthropic|anthropic-vertex|anthropic-bedrock|google> <model> <image> "<question>" [--json]` sends one image and a question with real credentials, from environment variables.
 - **Wired into the Worker** (built, `apps/worker/src/llmRoutes.ts`), as Block 1 of the LLM stages:
   - **`POST /api/projects/<id>/stages/<stage id>/llm`** takes one request of a running stage (system prompt, messages of text and images, base64, an optional JSON schema and maximum of output tokens). The model config is the stage's (set when it starts, from the stage's choice or the default setting, "Which config a stage uses"). **The item-level cache comes first** (decided): an earlier successful call with the same request key, not deleted, is served at no cost, even when the spending cap is reached. Only then: the price, the spending cap, the secrets, the call. The request key is the hash of the request, with each image replaced by its recipe key (§5.2, "Only recipes"), and of the model's provider, model and effort.
@@ -42,10 +47,11 @@ Built: `apps/worker/src/llm/`. One small request and response shape for every pr
 - **A missing key:** if a secret was removed or renamed, the configs pointing to it are broken. The app says so on the config and before a run starts, not in the middle of one.
 
 ## Which config a stage uses
-Three levels; the most specific wins:
+Two levels; the more specific wins:
 1. **The config picked for a stage in a project** ("Change config" in the stage's "⋮", §5.6). Full flexibility, not normal use.
-2. **Advanced settings: a config per kind of work.** First draft of the kinds: finding layout boxes (`layout`), analyzing the pages (`analyze`: metadata and observations), extracting the music notation (`extract`, `apply_review`), review (`review`).
-3. **The default config:** one settings item. With it, and nothing else set, the pipeline is "fire and wait".
+2. **The default config:** one settings item. With it, and nothing else set, the pipeline is "fire and wait".
+
+A level between them, a config per kind of work in the advanced settings, is an optional task (§15, "Model configs per kind of work").
 
 - **Model configs are append-only** (§5.8): editing one adds a new row and marks the old one deleted (copy on change), and deleting one only marks it. So a stage and each of its calls refer to the row they actually used, and editing or deleting a config, or renaming a secret, doesn't rewrite the history of old projects. The secrets' names are part of the row; a secret's value isn't recorded in any way.
 - **Changing the config of a stage that already ran** is a change in the middle (§5.5): confirmation, then everything after it runs again.

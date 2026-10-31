@@ -90,7 +90,7 @@ One call per system, with the same input as `extract`, plus the extraction (in t
   3. the changes made by the stage's earlier calls, one entry per change, in the order of the calls (e.g. "review of system 7: chose answer 2 for issue 12", or a new issue). Entries are only ever appended, never rewritten, like `choices` in an issue;
   4. the system's own part: its crops, its extraction, the neighbouring systems' crops.
 
-  Parts 1 to 3 of a call are the start of the next call's prompt, so with a cache breakpoint at the end of part 3 each call pays the full price only for the entries added by the call before it, and the rest is read from the cache. Without the append-only log, every change to the issues would break the cache, and the cost would grow with the score's length times the number of issues, which is itself roughly proportional to the length. The calls run one after another (§10), so the cache stays warm between them.
+  Parts 1 to 3 of a call are the start of the next call's prompt, so with a cache mark at the end of part 3 (`docs/llm.md`, "Prompt caching") each call pays the full price only for the entries added by the call before it, and the rest is read from the cache. Without the append-only log, every change to the issues would break the cache, and the cost would grow with the score's length times the number of issues, which is itself roughly proportional to the length. The calls run one after another (§10), so the cache stays warm between them.
 
 - **Decided while preparing it** (2026-10-31):
   - **Choices only on the issues of its own system:** a call doesn't choose on issues of other systems, although it sees the whole score. Issues raised by code are issues like any other: a review chooses on them too.
@@ -118,7 +118,7 @@ One call per system, with the same input as `extract`, plus the extraction (in t
 - **Per issue, a boolean:** applied or not. If applied, `applied` becomes the chosen answer; if not, it stays, and the model's reason (e.g. the chosen answer contradicts what is printed) is shown to the user.
 - **Changes beyond the boxes:** the model may also change stretches of the systems just before and after its window, not only those under the boxes of the issues it applies, e.g. when an issue says a slur doesn't end at the box but continues into the next system, whose start then changes too. Every stretch changed outside the boxes comes with a reason. Every such change is accepted and becomes a warning, with the reason or without one, so a person sees what changed beyond the boxes and why. (Once failed checks go back to the model, `extract`'s "Later, perhaps", a change without a reason goes back once.)
 - **Checks:** those of `extract` (parsing; durations of the affected measures; continuations consistent across systems), handled as in `extract` (a single turn in the first version); then the comparison before and after (below). Code then rebuilds and renumbers the measures, choosing the 0-or-1 start anew.
-- **Model config:** the same kind of work as `extract` (§7.2: extracting the music notation).
+- **Model config:** like every LLM stage's (§7.2).
 
 ## `human_review` (Human review)
 

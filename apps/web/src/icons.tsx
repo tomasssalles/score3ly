@@ -453,6 +453,28 @@ function GlyphC() {
   return <path d="M5 1C4.4.35 3.6 0 2.7 0 1.1 0 0 1.4 0 3.25S1.1 6.5 2.7 6.5c.9 0 1.7-.35 2.3-1" />;
 }
 
+// Two links of a chain: scrolling and zooming are linked between two panels (`human_review`); the button unlinks them.
+export function LinkIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="12.25" width="12" height="5.5" rx="2.75" transform="rotate(-45 9 15)" />
+      <rect x="9" y="6.25" width="12" height="5.5" rx="2.75" transform="rotate(-45 15 9)" />
+    </svg>
+  );
+}
+
+// The chain broken: the links apart, with the marks of the break. The panels scroll and zoom on their own; the button
+// links them again.
+export function UnlinkIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="2.5" y="13.75" width="10" height="5.5" rx="2.75" transform="rotate(-45 7.5 16.5)" />
+      <rect x="11.5" y="4.75" width="10" height="5.5" rx="2.75" transform="rotate(-45 16.5 7.5)" />
+      <path d="M8.5 3.5v2.5M3.5 8.5H6M15.5 20.5V18M20.5 15.5H18" />
+    </svg>
+  );
+}
+
 // A staff with two boxes on it: shows or hides the boxes of issues and warnings on the score. The staff is lighter, so
 // the boxes stand out at the icon's size.
 export function BoxesIcon() {

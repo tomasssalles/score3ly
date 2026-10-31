@@ -5,7 +5,7 @@
 
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
-import { createProvider, LlmError, type Effort, type LlmContent, type ProviderConfig, type ProviderId } from "./llm/index.ts";
+import { createProvider, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS, type ProviderConfig, type ProviderId } from "./llm/index.ts";
 import { costOf, PRICES_AS_OF, priceOf } from "./llm/prices.ts";
 
 const PROVIDERS: ProviderId[] = ["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "fake", "fake-dev"];
@@ -131,10 +131,11 @@ function providerConfig(config: ModelConfig, env: Env): ProviderConfig | { missi
 // A request as the browser sends it. Each image is named by its recipe key (§5.2, "Only recipes, never pixels, in
 // any key"), and comes inline, as base64, only once the Worker has said it isn't cached: the browser asks first with
 // the recipe keys alone, so that a cached call is found before its images are made.
+// `cacheUpTo` marks where the prompt is worth caching at the provider (docs/llm.md, "Prompt caching").
 type RequestImage = { type: "image"; recipeKey: string; image?: { mediaType: "image/png" | "image/jpeg" | "image/webp"; base64: string } };
 type CallRequest = {
   system?: string;
-  messages: { role: "user" | "assistant"; content: ({ type: "text"; text: string } | RequestImage)[] }[];
+  messages: { role: "user" | "assistant"; content: (({ type: "text"; text: string } | RequestImage) & { cacheUpTo?: true })[] }[];
   maxOutputTokens?: number;
   jsonSchema?: Record<string, unknown>;
 };
@@ -155,8 +156,11 @@ function requestProblem(request: unknown): string | null {
           (c.image === undefined ||
             (typeof c.image?.base64 === "string" && ["image/png", "image/jpeg", "image/webp"].includes(c.image?.mediaType))));
       if (!ok) return "content must be text or an image named by its recipe key (PNG, JPEG or WebP, base64)";
+      if (c.cacheUpTo !== undefined && c.cacheUpTo !== true) return "'cacheUpTo' must be true or left out";
     }
   }
+  const marks = r.messages.flatMap((m) => m.content).filter((c) => c.cacheUpTo).length;
+  if (marks > MAX_CACHE_MARKS) return `at most ${MAX_CACHE_MARKS} parts can be marked 'cacheUpTo'`;
   if (r.maxOutputTokens !== undefined && !Number.isInteger(r.maxOutputTokens)) return "'maxOutputTokens' must be a whole number";
   if (r.jsonSchema !== undefined && (typeof r.jsonSchema !== "object" || r.jsonSchema === null)) return "'jsonSchema' must be an object";
   return null;
@@ -169,13 +173,14 @@ function base64Bytes(base64: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-// The request with each image as its recipe key alone: what the request key is made from.
+// The request with each image as its recipe key alone, and without the cache marks: what the request key is made
+// from. The marks change what a call costs, not what the model is given.
 function keyedRequest(request: CallRequest): unknown {
   return {
     ...request,
     messages: request.messages.map((m) => ({
       role: m.role,
-      content: m.content.map((c) => (c.type === "image" ? { type: "image", recipeKey: c.recipeKey } : c)),
+      content: m.content.map((c) => (c.type === "image" ? { type: "image", recipeKey: c.recipeKey } : { type: "text", text: c.text })),
     })),
   };
 }
@@ -204,7 +209,10 @@ async function recordedRequest(request: CallRequest): Promise<unknown> {
 function providerMessages(request: CallRequest): { role: "user" | "assistant"; content: LlmContent[] }[] {
   return request.messages.map((m) => ({
     role: m.role,
-    content: m.content.map((c): LlmContent => (c.type === "image" ? { type: "image", image: c.image! } : c)),
+    content: m.content.map(
+      (c): LlmContent =>
+        c.type === "image" ? { type: "image", image: c.image!, ...(c.cacheUpTo ? { cacheUpTo: true } : {}) } : c,
+    ),
   }));
 }
 

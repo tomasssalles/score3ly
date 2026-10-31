@@ -310,6 +310,28 @@ test("a call needs a running stage with a model config, a price, and the config'
   assert.equal((await call(without, { messages: [] })).status, 400);
 });
 
+test("cache marks aren't part of the request key, and are limited to 4", async () => {
+  const config = await modelConfig();
+  const stage = await runningStage(config.id);
+  const first = await json(await call(stage));
+  assert.equal(first.cached, false);
+
+  // The same request with marks: served from the first, since the marks change the price, not the answer.
+  const marked = request();
+  for (const part of marked.messages[0].content) (part as { cacheUpTo?: true }).cacheUpTo = true;
+  const served = await json(await call(stage, marked));
+  assert.equal(served.cached, true);
+  assert.equal(served.callId, first.callId);
+
+  // Only true, and at most 4.
+  const wrong = request();
+  (wrong.messages[0].content[1] as { cacheUpTo?: unknown }).cacheUpTo = false;
+  assert.equal((await call(stage, wrong)).status, 400);
+  const tooMany = request();
+  tooMany.messages[0].content = Array.from({ length: 5 }, (_, i) => ({ type: "text" as const, text: `part ${i}`, cacheUpTo: true as const }));
+  assert.equal((await call(stage, tooMany)).status, 400);
+});
+
 test("requests are keyed by the images' recipe keys: a cached call is found before the images are made", async () => {
   await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
   const config = await modelConfig();

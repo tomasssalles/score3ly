@@ -395,10 +395,12 @@ export async function fetchCosts(): Promise<CostData> {
 }
 
 // An image is named by its recipe key (docs/overview.md §5.2, "Only recipes, never pixels, in any key"), and comes with its
-// bytes only once the Worker has said the call isn't cached (llm.ts, `ask`).
-export type LlmContent =
+// bytes only once the Worker has said the call isn't cached (llm.ts, `ask`). `cacheUpTo`: the prompt up to and
+// including this part is worth caching at the provider (docs/llm.md, "Prompt caching"); at most 4 per request.
+export type LlmContent = (
   | { type: "text"; text: string }
-  | { type: "image"; recipeKey: string; image?: { mediaType: "image/png" | "image/jpeg" | "image/webp"; base64: string } };
+  | { type: "image"; recipeKey: string; image?: { mediaType: "image/png" | "image/jpeg" | "image/webp"; base64: string } }
+) & { cacheUpTo?: true };
 
 export type LlmRequest = {
   system?: string;

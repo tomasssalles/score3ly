@@ -109,12 +109,13 @@ export function toParams(request: LlmRequest): MessageCreateParamsBase {
     ...(request.system ? { system: request.system } : {}),
     messages: request.messages.map((message) => ({
       role: message.role,
-      content: message.content.map(
-        (part): ContentBlockParam =>
-          part.type === "text"
-            ? { type: "text", text: part.text }
-            : { type: "image", source: { type: "base64", media_type: part.image.mediaType, data: part.image.base64 } },
-      ),
+      content: message.content.map((part): ContentBlockParam => {
+        // A cache breakpoint, with the default lifetime: 5 minutes from the last use.
+        const cache = part.cacheUpTo ? { cache_control: { type: "ephemeral" as const } } : {};
+        return part.type === "text"
+          ? { type: "text", text: part.text, ...cache }
+          : { type: "image", source: { type: "base64", media_type: part.image.mediaType, data: part.image.base64 }, ...cache };
+      }),
     })),
     ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
   };

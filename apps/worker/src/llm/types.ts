@@ -11,7 +11,13 @@ export type LlmImage = {
   base64: string;
 };
 
-export type LlmContent = { type: "text"; text: string } | { type: "image"; image: LlmImage };
+// `cacheUpTo`: the prompt up to and including this part is worth caching at the provider (docs/llm.md, "Prompt
+// caching"): later requests that start with the same prefix read it at a fraction of the price. At most
+// MAX_CACHE_MARKS per request. Providers that cache by themselves, or not at all, ignore it.
+export type LlmContent = ({ type: "text"; text: string } | { type: "image"; image: LlmImage }) & { cacheUpTo?: true };
+
+// Anthropic's limit of cache breakpoints in a request.
+export const MAX_CACHE_MARKS = 4;
 
 export type LlmMessage = { role: "user" | "assistant"; content: LlmContent[] };
 

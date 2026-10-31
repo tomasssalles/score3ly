@@ -90,6 +90,28 @@ test("the effort and the output format are only sent when asked for", async () =
   assert.equal(captured[0].body.output_config, undefined);
 });
 
+test("a part marked to cache up to it becomes a cache breakpoint; unmarked parts have none", async () => {
+  const captured: Captured[] = [];
+  const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch(answer("hi"), captured) });
+  await provider.send({
+    model: "claude-opus-5-5",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "The whole score.", cacheUpTo: true },
+          { type: "image", image: { mediaType: "image/png", base64: "iVBORw0KGgo=" }, cacheUpTo: true },
+          { type: "text", text: "This system." },
+        ],
+      },
+    ],
+  });
+  const [text, image, last] = captured[0].body.messages[0].content;
+  assert.deepEqual(text, { type: "text", text: "The whole score.", cache_control: { type: "ephemeral" } });
+  assert.deepEqual(image.cache_control, { type: "ephemeral" });
+  assert.deepEqual(last, { type: "text", text: "This system." });
+});
+
 test("an answer from another model than the one asked comes back with its usage, saying so, unparsed", async () => {
   const provider = anthropicProvider({
     apiKey: "k",

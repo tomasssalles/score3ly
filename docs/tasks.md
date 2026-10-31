@@ -96,7 +96,7 @@ Proposed by the project owner (2026-10-29). A toggle on each project, set by the
 ### Settings page, the model configs
 `#next-release`
 
-§7.2, §10: adding, editing and deleting configs, choosing the default, the configs per kind of work, the free-tier mark. Today the page has one row per setting (the run mode for new projects, the spending cap), its label (with a short hint where needed) left and its control right, and below them "Model configs", read-only: a card per config with its name (else its model), badges for the default and free tier, its provider, model and effort, its plain values and its secrets by the Worker secret's name.
+§7.2, §10: adding, editing and deleting configs, choosing the default, the free-tier mark. Today the page has one row per setting (the run mode for new projects, the spending cap), its label (with a short hint where needed) left and its control right, and below them "Model configs", read-only: a card per config with its name (else its model), badges for the default and free tier, its provider, model and effort, its plain values and its secrets by the Worker secret's name.
 
 ### Verify the prompt and schema of `layout`
 `#owner` `#next-release`
@@ -419,7 +419,12 @@ They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk b
 - **Gemini's limits:** what Gemini said about them is in §6 (`analyze`), to check against Google's documentation when we use it. `imageLimit` gives Gemini Claude's limits for now; each provider's adapter should declare its own.
 
 ### LLM calls, what is left
-The configs per kind of work (§7.2); checking Bedrock's and Vertex AI's prices against the list prices that stand in for them (`llm/prices.ts`).
+Checking Bedrock's and Vertex AI's prices against the list prices that stand in for them (`llm/prices.ts`).
+
+### Model configs per kind of work
+`#optional`
+
+`docs/llm.md`, "Which config a stage uses": a level between a stage's own config and the default, in the advanced settings: a model config per kind of work, used by every stage of that kind that has no config of its own. Proposed kinds: finding layout boxes (`layout`), analyzing the pages (`analyze`: metadata and observations), extracting the music notation (`extract`, `apply_review`), reviewing (`review`).
 
 ### Set up Claude on Vertex AI
 `#owner`

@@ -9,7 +9,7 @@ import { keepFingerprints } from "./pageImages";
 import { CannotStart, type StageRun } from "./stageRunner";
 
 // The model config for an LLM stage: the one chosen for the stage (`modelConfigId` in its config), else the
-// default from the settings (§7.2, "Which config a stage uses"; the per-kind level isn't built).
+// default from the settings (§7.2, "Which config a stage uses").
 export async function stageModelConfig(stageConfig: Record<string, unknown> | null): Promise<ModelConfig> {
   const chosen = typeof stageConfig?.modelConfigId === "string" ? stageConfig.modelConfigId : null;
   const id = chosen ?? (await fetchSettings()).defaultModelConfigId;
@@ -106,7 +106,8 @@ async function pngContent(png: Blob): Promise<{ mediaType: "image/png"; base64: 
 // A request as a stage builds it: each image by its recipe key, with how to make it (pageImages.ts). It is made only
 // if the call isn't cached (§5.2: a re-run on another device doesn't make images only to find the answers stored).
 export type RequestImage = { type: "image"; recipe: unknown; recipeKey: string; make: () => Promise<Blob> };
-export type RequestContent = { type: "text"; text: string } | RequestImage;
+// `cacheUpTo`: where the prompt is worth caching at the provider (docs/llm.md, "Prompt caching").
+export type RequestContent = ({ type: "text"; text: string } | RequestImage) & { cacheUpTo?: true };
 export type PlannedRequest = Omit<LlmRequest, "messages"> & { messages: { role: "user" | "assistant"; content: RequestContent[] }[] };
 
 // An image for a request, from its recipe and the function that makes (or takes from the cache) the image of that
@@ -122,12 +123,13 @@ async function withImages(request: PlannedRequest, made: { recipe: unknown; png:
     const content: LlmRequest["messages"][number]["content"] = [];
     // One image at a time: a request can have many, and each is large.
     for (const c of m.content) {
+      const cache = c.cacheUpTo ? { cacheUpTo: true as const } : {};
       if (c.type !== "image") content.push(c);
-      else if (!made) content.push({ type: "image", recipeKey: c.recipeKey });
+      else if (!made) content.push({ type: "image", recipeKey: c.recipeKey, ...cache });
       else {
         const png = await c.make();
         made.push({ recipe: c.recipe, png });
-        content.push({ type: "image", recipeKey: c.recipeKey, image: await pngContent(png) });
+        content.push({ type: "image", recipeKey: c.recipeKey, image: await pngContent(png), ...cache });
       }
     }
     messages.push({ role: m.role, content });
