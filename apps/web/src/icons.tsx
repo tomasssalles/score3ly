@@ -554,6 +554,21 @@ export function ReviewStrikeCHeavyIcon() {
   );
 }
 
+// Heavier letters, the thin strike made longer at both ends.
+export function ReviewStrikeCMixedIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <Scaled x={2.4} y={12} scale={1.5} weight={2.3}>
+        <GlyphA />
+      </Scaled>
+      <path className="brush" d="M3.55 23.94 3.97 23.48 4.35 22.98 4.71 22.45 5.05 21.9 5.39 21.33 5.71 20.74 6.02 20.13 6.32 19.51 6.62 18.87 6.91 18.21 7.19 17.54 7.47 16.85 7.74 16.15 8.01 15.44 8.28 14.72 8.55 13.98 8.82 13.24 9.1 12.48 9.38 11.71 9.66 10.93 9.96 10.15 10.26 9.35 10.57 8.55 10.89 7.75 10.71 7.65 10.24 8.39 9.79 9.12 9.34 9.85 8.91 10.57 8.48 11.29 8.07 12 7.67 12.71 7.28 13.41 6.91 14.1 6.54 14.78 6.19 15.46 5.86 16.13 5.53 16.8 5.22 17.45 4.92 18.1 4.64 18.74 4.37 19.37 4.11 19.99 3.86 20.6 3.63 21.2 3.41 21.8 3.2 22.38 3 22.97 2.85 23.56 2.8 23.76 2.86 23.96 3.01 24.1 3.21 24.15 3.41 24.09Z" />
+      <Scaled x={15.4} y={3.4} scale={1.1} weight={2.3}>
+        <GlyphC />
+      </Scaled>
+    </svg>
+  );
+}
+
 // "a" circled, "c" written above it.
 export function ReviewCircleCIcon() {
   return (
