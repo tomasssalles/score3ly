@@ -123,6 +123,14 @@ Each of them has a list "Decisions made while building it (to confirm)" in `docs
 
 `docs/stages/music.md`, "Renderings for the models", on the test set, some day: run it both ways and compare what it finds, counting false findings as well as extra correct ones. If renderings help, they become the default, and a config option of `review` can turn them off.
 
+### The cache's lifetime for Claude: 5 minutes or 1 hour
+`#experiment` `#decision`
+
+`docs/llm.md`, "Prompt caching": Claude's cache breakpoints use the default lifetime, 5 minutes from the last use, so a call that takes longer than that lets the next call's prefix expire (`review`'s calls each read what the call before wrote). The 1-hour lifetime costs twice the input price to write instead of 1.25 times.
+- After using the app with real models for a while: from the call records, how often Claude calls take longer than 5 minutes, separately for each step.
+- If it happens often: calculate whether the 1-hour lifetime would save money, and how much.
+- Then decide whether to build it at all, and if so whether to use it always, never, or as a global setting, a stage's config, or part of the model config.
+
 ### Zoom crops on request
 `docs/stages/music.md`, "Zooming in" (decided, for a later version), for `extract`, `review` and probably `apply_review`.
 
