@@ -569,6 +569,21 @@ export function ReviewStrikeCMixedIcon() {
   );
 }
 
+// The same with the strike longer still: the "a" a little higher, so that it sticks out further below too.
+export function ReviewStrikeCMixedLongIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <Scaled x={2.4} y={11.4} scale={1.5} weight={2.3}>
+        <GlyphA />
+      </Scaled>
+      <path className="brush" d="M3.55 23.94 3.98 23.45 4.37 22.92 4.75 22.36 5.12 21.78 5.47 21.17 5.81 20.54 6.15 19.89 6.48 19.22 6.8 18.53 7.11 17.82 7.42 17.1 7.73 16.36 8.03 15.6 8.33 14.83 8.63 14.04 8.93 13.24 9.23 12.43 9.54 11.61 9.84 10.77 10.16 9.92 10.48 9.07 10.81 8.2 11.14 7.33 11.49 6.44 11.31 6.36 10.82 7.17 10.34 7.97 9.86 8.77 9.4 9.57 8.95 10.35 8.51 11.13 8.08 11.9 7.66 12.67 7.26 13.42 6.87 14.17 6.49 14.9 6.12 15.63 5.77 16.35 5.43 17.06 5.11 17.75 4.8 18.44 4.5 19.12 4.22 19.78 3.95 20.43 3.69 21.08 3.45 21.71 3.23 22.33 3.02 22.94 2.85 23.56 2.8 23.76 2.86 23.96 3.01 24.1 3.21 24.15 3.41 24.09Z" />
+      <Scaled x={15.4} y={3.4} scale={1.1} weight={2.3}>
+        <GlyphC />
+      </Scaled>
+    </svg>
+  );
+}
+
 // "a" circled, "c" written above it.
 export function ReviewCircleCIcon() {
   return (
