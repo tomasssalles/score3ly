@@ -200,7 +200,7 @@ function fakeReview(request: LlmRequest): unknown {
             location: "The second note of the upper staff",
             question: "Is this note a D or an E? (A made-up correction from the fake model.)",
             answers: [
-              { key: "a", text: "A D, as transcribed" },
+              { key: "a", text: "A D" },
               { key: "b", text: "An E" },
             ],
             applied: "a",

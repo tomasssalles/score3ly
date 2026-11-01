@@ -259,7 +259,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
   const first = answer.stretches[0];
   if (context.firstOfPiece && first.class === "continues") {
     codeIssues.push({
-      question: `The first stretch of a piece is read as continuing a measure. What part of a measure is it?`,
+      question: `What part of a measure is the first stretch of this piece?`,
       answers: stretchAnswers(),
       applied: "b",
       places: [here(1)],
@@ -278,11 +278,11 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
   for (const [i, s] of answer.stretches.entries()) {
     const later = answer.stretches.slice(i + 1);
     if (s.class === "none" && later.some((t) => t.class !== "none")) {
-      codeIssues.push({ question: `Stretch ${s.stretch} is read as part of no measure, but stretches after it are. What part of a measure is it?`, answers: stretchAnswers(), applied: "c", places: [here(s.stretch)] });
+      codeIssues.push({ question: `What part of a measure is stretch ${s.stretch} of system ${system}?`, answers: stretchAnswers(), applied: "c", places: [here(s.stretch)] });
     }
     if (s.printedNumber !== null && s.class !== "new") {
       codeIssues.push({
-        question: `Stretch ${s.stretch} has a printed measure number ("${s.printedNumber}") but isn't read as the start of a measure. What part of a measure is it?`,
+        question: `Stretch ${s.stretch} of system ${system} has a printed measure number ("${s.printedNumber}"). What part of a measure is it?`,
         answers: [
           { key: "a", text: "The start of a measure, because there is a printed measure number next to it" },
           { key: "b", text: "The continuation of a measure" },
@@ -300,7 +300,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     for (const v of s.voices) spans.voice(s.stretch, v.voice, v.staff, voices.get(`${s.stretch}/${v.voice}`)!);
   }
   for (const p of spans.finish()) {
-    codeIssues.push({ question: `Where does this end? Code found that ${p.message}.`, answers: [], applied: null, places: p.places });
+    codeIssues.push({ question: p.question, answers: [], applied: null, places: p.places });
   }
 
   // Durations and measures.

@@ -41,8 +41,18 @@ export function describeMark(m: OpenMark): string {
   }
 }
 
-// Where a problem is: the stretches it is about, by system and stretch number.
-export type SpanProblem = { message: string; places: { system: number; stretch: number }[] };
+// Where a problem is: the stretches it is about, by system and stretch number. `message` says what is wrong with the
+// transcription; `question` asks about the page, in words that stay true whichever answer is applied later
+// (docs/notation.md, "Issues": the texts are for people).
+export type SpanProblem = { message: string; question: string; places: { system: number; stretch: number }[] };
+
+// What a mark is called on the page.
+export function markName(kind: OpenMark["kind"]): string {
+  return { curve: "slur or tie", hairpin: "hairpin", trill: "trill line", glissando: "glissando", ottava: "ottava line", pedal: "pedal mark" }[kind];
+}
+
+const whereEnds = (kind: OpenMark["kind"]) => `Where does this ${markName(kind)} end?`;
+const whereStarts = (kind: OpenMark["kind"]) => `Where does this ${markName(kind)} start?`;
 
 // Follows the marks of one system's voices, stretch by stretch: `open` is what was open when the system began (from
 // the previous one), and is updated in place to what is open at its end. Each voice's string comes with the staff it
@@ -63,7 +73,7 @@ export class SpanTracker {
   // Returns the staff the voice is on at the end of the string (after any \change Staff).
   voice(stretch: number, voice: number, staff: number, events: Event[]): number {
     const here = [{ system: this.system, stretch }];
-    const problem = (message: string) => this.problems.push({ message, places: here });
+    const problem = (message: string, question: string) => this.problems.push({ message, question, places: here });
     const find = (pred: (m: OpenMark) => boolean) => this.open.findIndex(pred);
     const close = (index: number) => {
       const [m] = this.open.splice(index, 1);
@@ -77,10 +87,10 @@ export class SpanTracker {
         if (m.kind === "curve") {
           const at = find((o) => o.kind === "curve" && o.voice === voice && o.number === m.number);
           if (m.open) {
-            if (at >= 0) problem(`curve ${m.number} in voice ${voice} starts while curve ${m.number} is still open`);
+            if (at >= 0) problem(`curve ${m.number} in voice ${voice} starts while curve ${m.number} is still open`, whereEnds("curve"));
             else openMark({ kind: "curve", voice, number: m.number, ...origin });
           } else if (at < 0) {
-            problem(`curve ${m.number} in voice ${voice} ends, but no curve ${m.number} is open there`);
+            problem(`curve ${m.number} in voice ${voice} ends, but no curve ${m.number} is open there`, whereStarts("curve"));
           } else {
             close(at);
           }
@@ -90,25 +100,25 @@ export class SpanTracker {
             if (hairpin >= 0) close(hairpin);
             openMark({ kind: "hairpin", voice, ...origin });
           } else if (m.name === "!") {
-            if (hairpin < 0) problem(`a hairpin ends with \\! in voice ${voice}, but none is open there`);
+            if (hairpin < 0) problem(`a hairpin ends with \\! in voice ${voice}, but none is open there`, whereStarts("hairpin"));
             else close(hairpin);
           } else if (["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff", "sf", "sfz", "fz", "fp", "sfp", "rfz"].includes(m.name)) {
             if (hairpin >= 0) close(hairpin); // the next dynamic ends a hairpin
           } else if (m.name === "startTrillSpan") {
             const trill = find((o) => o.kind === "trill" && o.voice === voice);
-            if (trill >= 0) problem(`a trill line starts in voice ${voice} while another is open`);
+            if (trill >= 0) problem(`a trill line starts in voice ${voice} while another is open`, whereEnds("trill"));
             else openMark({ kind: "trill", voice, ...origin });
           } else if (m.name === "stopTrillSpan") {
             const trill = find((o) => o.kind === "trill" && o.voice === voice);
-            if (trill < 0) problem(`a trill line ends in voice ${voice}, but none is open there`);
+            if (trill < 0) problem(`a trill line ends in voice ${voice}, but none is open there`, whereStarts("trill"));
             else close(trill);
           } else if (m.name === "sustainOn") {
             const pedal = find((o) => o.kind === "pedal" && o.staff === staff);
-            if (pedal >= 0) problem(`the pedal goes down on staff ${staff} while it is already down`);
+            if (pedal >= 0) problem(`the pedal goes down on staff ${staff} while it is already down`, whereEnds("pedal"));
             else openMark({ kind: "pedal", staff, ...origin });
           } else if (m.name === "sustainOff") {
             const pedal = find((o) => o.kind === "pedal" && o.staff === staff);
-            if (pedal < 0) problem(`the pedal comes up on staff ${staff}, but it isn't down there`);
+            if (pedal < 0) problem(`the pedal comes up on staff ${staff}, but it isn't down there`, whereStarts("pedal"));
             else close(pedal);
           } else if (m.name === "glissando") {
             openMark({ kind: "glissando", voice, ...origin });
@@ -125,7 +135,7 @@ export class SpanTracker {
         case "ottava": {
           const at = find((o) => o.kind === "ottava" && o.staff === staff);
           if (event.value === 0) {
-            if (at < 0) problem(`an ottava ends on staff ${staff}, but none is open there`);
+            if (at < 0) problem(`an ottava ends on staff ${staff}, but none is open there`, whereStarts("ottava"));
             else close(at);
           } else {
             if (at >= 0) close(at);
@@ -163,6 +173,7 @@ export class SpanTracker {
       if (still) {
         this.problems.push({
           message: `${describeMark(m)} continues from the previous system, but doesn't end on this one`,
+          question: whereEnds(m.kind),
           places: [{ system: this.system, stretch: 1 }],
         });
       }

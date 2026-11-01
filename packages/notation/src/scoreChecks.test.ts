@@ -52,9 +52,9 @@ test("a piece that ends with a measure read as continuing, or with a curve still
   const last = system(2, false, { lastMeasureContinues: true }, (i) => (i === 2 ? { voices: [{ voice: 1, staff: 1, description: null, music: "c''1\\=1(" }] } : {}));
   const { codeIssues } = checkScore(checked([system(2, true), last, system(1, true)], [1, 3]), [1, 3]);
   assert.equal(codeIssues.length, 2);
-  assert.match(codeIssues[0].question, /System 2 ends its piece/);
+  assert.equal(codeIssues[0].question, "Does the piece end with the measure at the end of system 2?");
   assert.deepEqual(codeIssues[0].places, [{ system: 2, stretch: 2 }]);
-  assert.match(codeIssues[1].question, /curve 1 in voice 1 is still open/);
+  assert.equal(codeIssues[1].question, "Where does this slur or tie end?");
 });
 
 test("repeats: two start repeats in a row, and one never closed, are warnings", () => {

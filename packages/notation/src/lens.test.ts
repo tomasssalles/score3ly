@@ -172,7 +172,7 @@ test("a printed number on a stretch that doesn't start a measure, and a stretch 
   s.stretches[0] = stretch(1, true, { class: "none", kind: null });
   s.stretches[0].voices = [];
   const checked = ok(s, context(3));
-  assert.deepEqual(checked.codeIssues.map((i) => i.question.slice(0, 30)), ["Stretch 1 is read as part of n", "Stretch 2 has a printed measur"]);
+  assert.deepEqual(checked.codeIssues.map((i) => i.question.slice(0, 30)), ["What part of a measure is stre", "Stretch 2 of system 1 has a pr"]);
 });
 
 test("printed measure numbers: a warning only where the offset changes", () => {
@@ -199,10 +199,10 @@ test("curves left open continue on the next system, and must end there", () => {
   assert.deepEqual(second.closed, [{ mark: { kind: "curve", voice: 1, number: 1, from: 1, fromStretch: 1 }, at: { system: 2, stretch: 1 } }]);
   const unclosed = system(1, {}, false);
   const issues = ok(unclosed, context(1, { system: 2, firstOfPiece: false }), first.state).codeIssues;
-  assert.match(issues[0].question, /curve 1 in voice 1 continues from the previous system, but doesn't end on this one/);
+  assert.equal(issues[0].question, "Where does this slur or tie end?");
   const stray = system(1);
   stray.stretches[0].voices[0].music = "c''1\\=2)";
-  assert.match(ok(stray, context(1)).codeIssues[0].question, /curve 2 in voice 1 ends, but no curve 2 is open/);
+  assert.equal(ok(stray, context(1)).codeIssues[0].question, "Where does this slur or tie start?");
 });
 
 test("ottavas and pedal belong to the staff and may run on", () => {

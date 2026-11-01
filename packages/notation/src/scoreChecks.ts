@@ -5,7 +5,7 @@
 // warnings otherwise.
 
 import { repeatStructure } from "./links.ts";
-import { describeMark } from "./spans.ts";
+import { markName } from "./spans.ts";
 import type { CodeIssue, LensSystem, ScoreState, StretchPlace, Warning } from "./lens.ts";
 
 export type CheckedScoreSystem = { number: number; answer: LensSystem; state: ScoreState }; // `state`: what it leaves
@@ -34,7 +34,7 @@ function pieceEnd(last: CheckedScoreSystem, codeIssues: CodeIssue[], warnings: W
   const here = lastPlace(last);
   if (last.answer.lastMeasureContinues) {
     codeIssues.push({
-      question: `System ${last.number} ends its piece, but its last measure is read as continuing on the next system. Does it end here?`,
+      question: `Does the piece end with the measure at the end of system ${last.number}?`,
       answers: [
         { key: "a", text: "Yes, the measure ends with the piece" },
         { key: "b", text: "No, it continues" },
@@ -44,7 +44,7 @@ function pieceEnd(last: CheckedScoreSystem, codeIssues: CodeIssue[], warnings: W
     });
   }
   for (const m of last.state.open) {
-    codeIssues.push({ question: `Where does this end? Code found that ${describeMark(m)} is still open where the piece ends.`, answers: [], applied: null, places: [here] });
+    codeIssues.push({ question: `Where does this ${markName(m.kind)} end?`, answers: [], applied: null, places: [here] });
   }
   if (last.state.ending) warnings.push({ message: `An ending is still open where the piece ends, on system ${last.number}.`, places: [here] });
 }

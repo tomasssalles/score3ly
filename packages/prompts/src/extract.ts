@@ -5,7 +5,7 @@
 // saw, as hints. Code checks the answer as soon as it arrives (@score3ly/notation).
 
 // Raise whenever the texts or the schema change. The format itself has its own version (LENS_VERSION).
-export const EXTRACT_PROMPT_VERSION = 3;
+export const EXTRACT_PROMPT_VERSION = 4;
 
 export const EXTRACT_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -100,7 +100,7 @@ ${MUSIC}
 ## Issues
 Report every doubt as an issue, not silently: a question about what the page says at one place, with the answers you considered, each with its evidence ("dot near the A♭: staccato or smudge?"), and **applied**: the key of the answer your music reflects. Answers have keys: "a", "b", "c", …
 - **boxes:** where it is: one or more boxes, each on one of the images you were sent, named by its label ("system", "stretch 3", "previous system", "next system"), as fractions of that image (left, right, top, bottom from 0 to 1).
-- **People read them too:** the question, the location and the answers are shown to the user in the app, not only to the stages after you. Write them as plain sentences that a musician understands without the request: each starts with a capital letter.
+- **People read them too:** the question, the location and the answers are shown to the user in the app, not only to the stages after you. Write them as plain sentences that a musician understands without the request: each starts with a capital letter. **Never refer to the transcription** ("as transcribed", "the current reading", "what you wrote"): a later stage may apply another answer, and the text would then be wrong. Say only what the page might show: "A D", not "A D, as transcribed".
 - **location:** what in the box is meant, when the box alone doesn't say: simple and local to the box ("the middle note of the chord"), never depending on your reading of the score ("the left hand on beat 3"). Else null.
 - **class:** "reading" when what the page says is hard to tell; "format" when the page is clear but the format can't express it (a mark that isn't in the list, lyrics, an ossia, a beam across a bar line). For a format issue, the answers are the workarounds (dropping the mark is one), and **lilypond** lists the LilyPond tokens that would express what is printed (e.g. ["\\\\harmonic"]); for a reading issue it is null. Format issues cost nothing and are wanted.
 

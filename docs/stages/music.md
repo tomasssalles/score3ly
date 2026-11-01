@@ -64,8 +64,8 @@ The model classifies each stretch (see `docs/notation.md`, "Bar lines, stretches
 - **The fake provider** answers an `extract` request (recognized by its schema) with the piece's staves, or two, a voice per staff and a whole-measure rest in 4/4 in every stretch, and a `layout` request with two systems per page, so the pipeline runs end to end without a model (§7.2).
 - **Not done:** zoom crops, follow-up rounds for failed checks. Ties, the sounding pitches and the ottavas are worked out by the MEI builder (see §6, "MEI, built"), the 0-or-1 numbering of a pickup by the score model (`packages/notation/src/score.ts`).
 - **The checks of the whole score, built** (`packages/notation/src/scoreChecks.ts`), run once every system is in, on the stored answers and the state each system leaves:
-  - **a piece that ends with its last measure read as continuing:** an issue raised by code ("does it end here?");
-  - **marks with two ends still open where a piece ends** (curves, hairpins, ottavas, pedal, trill lines): an issue, "where does this end?"; and **an ending still open there:** a warning;
+  - **a piece that ends with its last measure read as continuing:** an issue raised by code ("Does the piece end with the measure at the end of system 12?");
+  - **marks with two ends still open where a piece ends** (curves, hairpins, ottavas, pedal, trill lines): an issue, "Where does this slur or tie end?" (the mark by its name on the page: slur or tie, hairpin, trill line, glissando, ottava line, pedal mark); and **an ending still open there:** a warning;
   - **the repeat structure:** two start repeats without an end repeat between them (repeats don't nest), a start repeat never closed in its piece; an end repeat without a start before it is fine (it goes back to the previous end repeat, or to the piece's start);
   - **endings:** one that another ending follows must end with an end repeat (it goes back); an ending with no other right before or after it stands alone. Both warnings;
   - **courtesy signatures:** a key or time on a stretch of no measure at a system's end that doesn't match the next system's start: a warning, with boxes on both.

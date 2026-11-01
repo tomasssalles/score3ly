@@ -8,7 +8,7 @@
 import { MUSIC } from "./extract.ts";
 
 // Raise whenever the texts or the schema change.
-export const REVIEW_PROMPT_VERSION = 1;
+export const REVIEW_PROMPT_VERSION = 2;
 
 export const REVIEW_MAX_OUTPUT_TOKENS = 16_000;
 
@@ -46,7 +46,7 @@ Read first, compare afterwards: never trust a passage because it seems to repeat
   - **applied:** the key of the answer the transcription has now; **chosen:** the key of the one you think is right. They differ.
   - **reason:** as for a choice.
   - **class:** "reading" when what the page says is hard to tell or the transcription misread it; "format" when the page is clear but the format can't express it, and then **lilypond** lists the LilyPond tokens that would (e.g. ["\\\\harmonic"]); null for a reading issue. Format issues cost nothing and are wanted.
-- **People read them too:** the questions, locations, answers and reasons are shown to the user in the app. Write them as plain sentences a musician understands without the request, each starting with a capital letter, naming places by measure ("m. 23") or by what is printed, not by stretch numbers.
+- **People read them too:** the questions, locations, answers and reasons are shown to the user in the app. Write them as plain sentences a musician understands without the request, each starting with a capital letter, naming places by measure ("m. 23") or by what is printed, not by stretch numbers. **Never refer to the transcription** ("as transcribed", "the current reading", "what you wrote"): a later stage may apply another answer, and the text would then be wrong. Say only what the page might show: "A D", not "A D, as transcribed".
 - An empty list is a fine answer for a clean system.
 
 ${MUSIC}`;
