@@ -55,7 +55,6 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 `docs/stages/music.md`, "The Transcription", "An issue's card":
 - **Resolved issues:** to discuss.
-- **The reasons of choices, on request:** proposed: an "i" (`InfoIcon`, as on the Statistics page) right after each choice in the "Choices" line that has a reason; tapping it shows the reason on a line below ("Review 1: …"), tapping again hides it. The line stays one line where no choice has a reason, which is most of the time. The alternative, a collapsed "Choices" block with a row per choice, is heavier for the usual case of no or one reason.
 
 ### The costs view: the order of long lists
 `#decision`

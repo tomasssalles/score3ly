@@ -2447,6 +2447,41 @@ textarea.field-input {
   color: var(--muted);
 }
 
+/* The "i" after a choice with a reason: small, in the line; coral while its reason is shown. */
+.reason-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.reason-toggle .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.reason-toggle:hover {
+  background: var(--hover);
+}
+
+.reason-toggle[aria-expanded="true"] {
+  color: var(--accent);
+}
+
+.issue-reason {
+  font-size: 13px;
+  color: var(--fg);
+}
+
 .crop-placeholder {
   aspect-ratio: 5;
 }

@@ -11,7 +11,7 @@ import { buildMei, serialize, type LensStretch, type Score } from "@score3ly/not
 import { fetchJsonContent } from "./api";
 import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
-import { BoxesIcon, ChangesIcon, MusicIcon, SourceIcon } from "./icons";
+import { BoxesIcon, ChangesIcon, InfoIcon, MusicIcon, SourceIcon } from "./icons";
 import type { PageLayout } from "./layout";
 import { ModeToggle } from "./pageEditor";
 import { cropImage, type CropRecipe } from "./pageImages";
@@ -443,18 +443,52 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
           LilyPond equivalent: <span className="issue-tokens">{issue.lilypond.join(" ")}</span>
         </p>
       )}
-      {issue.choices.length > 0 && (
-        <p className="issue-facts">
-          Choices:{" "}
-          {issue.choices.map((c, i) => (
-            <span key={i}>
-              {i > 0 ? " • " : ""}
-              {choosers[c.by]?.label ?? stepInfo(c.by).title} → {c.key}
-            </span>
-          ))}
-        </p>
-      )}
+      {issue.choices.length > 0 && <Choices choices={issue.choices} choosers={choosers} />}
     </div>
+  );
+}
+
+// Who chose which answer, in order; a choice with a reason has an "i" after it that shows the reason on a line below
+// (docs/stages/music.md, "An issue's card": the reasons are for later reviewers, shown only on request).
+function Choices({ choices, choosers }: { choices: StoredIssue["choices"]; choosers: Record<string, Chooser> }) {
+  const [open, setOpen] = useState<Set<number>>(new Set());
+  const name = (by: string) => choosers[by]?.label ?? stepInfo(by).title;
+  const toggle = (i: number) => {
+    const next = new Set(open);
+    if (!next.delete(i)) next.add(i);
+    setOpen(next);
+  };
+  return (
+    <>
+      <p className="issue-facts">
+        Choices:{" "}
+        {choices.map((c, i) => (
+          <span key={i}>
+            {i > 0 ? " • " : ""}
+            {name(c.by)} → {c.key}
+            {c.reason && (
+              <button
+                type="button"
+                className="reason-toggle"
+                aria-expanded={open.has(i)}
+                aria-label={`${open.has(i) ? "Hide" : "Show"} the reason of ${name(c.by)}`}
+                title={`${open.has(i) ? "Hide" : "Show"} the reason`}
+                onClick={() => toggle(i)}
+              >
+                <InfoIcon />
+              </button>
+            )}
+          </span>
+        ))}
+      </p>
+      {choices.map((c, i) =>
+        c.reason && open.has(i) ? (
+          <p key={i} className="issue-reason">
+            {name(c.by)}: {c.reason}
+          </p>
+        ) : null,
+      )}
+    </>
   );
 }
 
