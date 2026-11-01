@@ -185,7 +185,9 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
           >
             <BoxesIcon />
           </button>
-          {changed !== null && (
+        </div>
+        {changed !== null && (
+          <div className="editor-tools editor-modes">
             <button
               type="button"
               className="editor-mode"
@@ -196,8 +198,8 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
             >
               <ChangesIcon />
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       {boxes === "shown" && (
         <p className="editor-hint">Numbered boxes are questions about what the page says. Dashed boxes mark places where the transcription doesn't add up.</p>
