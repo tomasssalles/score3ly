@@ -2447,7 +2447,8 @@ textarea.field-input {
   color: var(--muted);
 }
 
-/* The "i" after a choice with a reason: small, in the line; coral while its reason is shown. */
+/* The "i" after a choice with a reason: small, in the line, in the line's colour (the view has colour enough; the
+   reason's line below shows that it is open). */
 .reason-toggle {
   display: inline-flex;
   align-items: center;
@@ -2471,10 +2472,6 @@ textarea.field-input {
 
 .reason-toggle:hover {
   background: var(--hover);
-}
-
-.reason-toggle[aria-expanded="true"] {
-  color: var(--accent);
 }
 
 .issue-reason {
