@@ -32,11 +32,6 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 `docs/notation.md`, "The symbolic format": the description of the symbolic format in `extract`'s prompt (`MUSIC` in `packages/prompts/src/extract.ts`) is written by hand, and the parser (`packages/notation`) accepts a closed list of tokens. The plan was to generate the prompt's list from the parser's code, so that the two can never drift apart: every token the parser accepts is described, and nothing it rejects is offered. A change of the generated text changes the prompt's version.
 
-### `review`
-`#next`
-
-`docs/stages/music.md` (`review`, "The Transcription"), §6 (the issues) and the first-release list (§16). Includes linking from the current extraction for `review`'s requests (§6, `analyze`, "Code links when the links are needed"): the observations' linking for `extract` is built (`apps/web/src/linking.ts`), and the same code is to pre-link the items of the extraction as it is at the start of the stage; `apply_review`'s requests use it too.
-
 ### `apply_review`
 `#next`
 
@@ -45,6 +40,8 @@ Everything that is still to do about score3ly is a task, and every task is in th
   - adding an `apply_review` automatically after every review;
   - dropping and reusing an `apply_review` always together with its review;
   - an `apply_review` can't be dropped by itself, not even an extra one, but its config can be changed, which replaces it like any change in the middle (§5.5).
+- **`fix_mei` from a review's "⋮":** offered while `apply_review` isn't built (`fixOffered`, `STEPS.review.fixes`); once every review is followed by its `apply_review`, take it out of the review's "⋮".
+- **Linking:** `apply_review`'s requests use `systemLinks` (`packages/notation/src/links.ts`), as `review`'s do.
 - **Where further reviews are added** (decided: only from an `apply_review`'s "⋮"; the only config of a review is its model config). To settle here: whether only from the last `apply_review` or from any of them, and if from any, whether the new review goes after the last `apply_review` or after the one it was added from.
 
 ### `human_review`

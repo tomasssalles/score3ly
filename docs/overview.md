@@ -607,12 +607,13 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [x] Define the lens and the symbolic format (§6)
 - [x] The lens's parser and checks
 - [x] Crops with margins for `extract`
-- [ ] The linking code (§6, `analyze`)
+- [x] The linking code (§6, `analyze`)
 - [x] `extract`
 - [x] The MEI builder, validated against MEI 5 and MEI Basic (`docs/notation.md`, "MEI")
 - [x] The Transcription: each system rendered by Verovio (§9), the boxes of issues and warnings, the raw toggle
 - [x] The checks of the whole score at the end of `extract` (`apply_review` runs them too, once it exists)
-- [ ] `review` and `apply_review`
+- [x] `review`
+- [ ] `apply_review`
 - [ ] `human_review`
 - [x] `engrave`: the full score's MEI, its view, the PDF, the download
 
