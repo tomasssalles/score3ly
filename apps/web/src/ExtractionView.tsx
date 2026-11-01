@@ -396,7 +396,7 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
           Choices:{" "}
           {issue.choices.map((c, i) => (
             <span key={i}>
-              {i > 0 ? " · " : ""}
+              {i > 0 ? " • " : ""}
               {choosers[c.by]?.label ?? stepInfo(c.by).title} → {c.key}
             </span>
           ))}
