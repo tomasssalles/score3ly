@@ -5,13 +5,13 @@
 // brings its text into view. Both toggles are remembered on the device.
 
 import { ImagesDiffer } from "./ImagesDiffer";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CLAUDE_IMAGE_LIMIT, CROP_VERSION, DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { buildMei, serialize, type LensStretch, type Score } from "@score3ly/notation";
 import { fetchJsonContent } from "./api";
 import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
-import { BoxesIcon, MusicIcon, SourceIcon } from "./icons";
+import { BoxesIcon, ChangesIcon, MusicIcon, SourceIcon } from "./icons";
 import type { PageLayout } from "./layout";
 import { ModeToggle } from "./pageEditor";
 import { cropImage, type CropRecipe } from "./pageImages";
@@ -21,7 +21,9 @@ import { applyEntries, withKept, type StoredReview } from "./review";
 import { stepInfo } from "./steps";
 import { boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
 
-type Loaded = { systems: (ShownSystem & { recipe: CropRecipe })[]; notes: Note[]; score: Score | { problem: string } };
+// `changed`: in a later stage's Transcription (a review's), the keys of the notes of the issues it changed: raised, or
+// chose on (its kept agreements aren't changes). Null in `extract`'s, where everything is new.
+type Loaded = { systems: (ShownSystem & { recipe: CropRecipe })[]; notes: Note[]; score: Score | { problem: string }; changed: Set<string> | null };
 
 function useTranscription(artifact: Artifact): Loaded | "error" | null {
   const [loaded, setLoaded] = useState<Loaded | "error" | null>(null);
@@ -39,6 +41,7 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
       // A review's Transcription: the issues as the review leaves them (docs/stages/music.md, `review`), each system's
       // own, and the new ones under the system whose call raised them.
       let shownChecks = checks;
+      let changed: Set<string> | null = null;
       if (data.review) {
         const review = data.review;
         const calls = await Promise.all(review.calls.map(async (c) => (await fetchJsonContent(c.sha256)) as StoredReview));
@@ -51,6 +54,12 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
           e.extraction = { ...e.extraction, issues: [...e.extraction.issues.map((i) => issues.get(i.id)!), ...(raised.get(e.extraction.system) ?? [])] };
         }
         if (checks) shownChecks = { ...checks, issues: checks.issues.map((i) => issues.get(i.id)!) };
+        changed = new Set(
+          [...issues.values()]
+            // A raised issue carries the review's choice too.
+            .filter((i) => i.choices.some((c) => c.by === review.stageId && !c.kept))
+            .map((i) => `issue-${i.id}`),
+        );
       }
       const systems = extractions
         .sort((a, b) => a.extraction.system - b.extraction.system)
@@ -69,7 +78,7 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
           };
           return [{ ...shown, recipe }];
         });
-      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, shownChecks), score: scoreOf(systems, pieces) });
+      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, shownChecks), score: scoreOf(systems, pieces), changed });
     })().catch(() => !cancelled && setLoaded("error"));
     return () => {
       cancelled = true;
@@ -109,6 +118,11 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
   const loaded = useTranscription(artifact);
   const [view, setView] = useRemembered<View>("score3ly.transcription.view", "rendered", ["rendered", "raw"]);
   const [boxes, setBoxes] = useRemembered<"shown" | "hidden">("score3ly.transcription.boxes", "shown", ["shown", "hidden"]);
+  // In a later stage's Transcription: only the issues it changed, or everything. Only the changes when the view opens
+  // (not remembered); warnings are always shown.
+  const [onlyChanges, setOnlyChanges] = useState(true);
+  const frame = useRef<HTMLDivElement>(null);
+  const anchor = useRef<{ element: Element; offset: number } | null>(null);
   // Each note's text below its system, and its colour: the layout's 7 colours (§6, `fix_layout`), in turn in the
   // order the texts are shown, so neighbouring boxes differ. The box, its label and its card share it.
   const { homes, colors } = useMemo(() => {
@@ -126,12 +140,38 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
     return { homes, colors };
   }, [loaded]);
 
+  // After the toggle, the element that was at the top of the view (a system or a changed issue's card, which both modes
+  // show) is put back where it was, so the user goes on seeing the same part of the score.
+  useLayoutEffect(() => {
+    const kept = anchor.current;
+    anchor.current = null;
+    const scroller = frame.current?.querySelector<HTMLElement>(".filmstrip");
+    if (!kept || !scroller || !kept.element.isConnected) return;
+    scroller.scrollTop += kept.element.getBoundingClientRect().top - scroller.getBoundingClientRect().top - kept.offset;
+  }, [onlyChanges]);
+
   if (loaded === "error") return <div className="text-view"><p>The transcription couldn't be loaded.</p></div>;
   if (!loaded) return <div className="text-view"><p>Loading the transcription…</p></div>;
-  const { systems, notes, score } = loaded;
+  const { systems, score, changed } = loaded;
+  const filtering = changed !== null && onlyChanges;
+  const shown = (note: Note) => !filtering || note.kind !== "issue" || changed!.has(note.key);
+  const notes = loaded.notes.filter(shown);
+  const toggleChanges = () => {
+    // The first thing still in view that both modes show: a system's caption, crop or rendering, or a changed issue's card.
+    const scroller = frame.current?.querySelector<HTMLElement>(".filmstrip");
+    if (scroller) {
+      const top = scroller.getBoundingClientRect().top;
+      const candidates = [...scroller.querySelectorAll(".film-item > figcaption, .film-item .page-image, .film-item .system-rendering, .film-item .system-music, .issue-card")].filter(
+        (el) => !el.classList.contains("issue-card") || changed?.has(el.id),
+      );
+      const element = candidates.find((el) => el.getBoundingClientRect().bottom > top);
+      anchor.current = element ? { element, offset: element.getBoundingClientRect().top - top } : null;
+    }
+    setOnlyChanges(!onlyChanges);
+  };
   const reveal = (key: string) => document.getElementById(key)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   return (
-    <div className="transcription">
+    <div className="transcription" ref={frame}>
       <div className="editor-toolbar">
         <ModeToggle modes={VIEWS} mode={view} onChange={setView} />
         <div className="editor-tools editor-modes">
@@ -145,6 +185,18 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
           >
             <BoxesIcon />
           </button>
+          {changed !== null && (
+            <button
+              type="button"
+              className="editor-mode"
+              aria-pressed={onlyChanges}
+              aria-label={onlyChanges ? "Show all issues" : "Show only what this stage changed"}
+              title={onlyChanges ? "Show all issues" : "Show only the issues this stage changed"}
+              onClick={toggleChanges}
+            >
+              <ChangesIcon />
+            </button>
+          )}
         </div>
       </div>
       {boxes === "shown" && (
@@ -156,7 +208,7 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
         render={(i) => {
           const s = systems[i];
           const { extraction } = s;
-          const own = homes.get(extraction.system) ?? [];
+          const own = (homes.get(extraction.system) ?? []).filter(shown);
           return (
             <figure className="film-item">
               <figcaption>

@@ -41,7 +41,7 @@ Everything that is still to do about score3ly is a task, and every task is in th
   - dropping and reusing an `apply_review` always together with its review;
   - an `apply_review` can't be dropped by itself, not even an extra one, but its config can be changed, which replaces it like any change in the middle (§5.5).
 - **`fix_mei` from a review's "⋮":** offered while `apply_review` isn't built (`fixOffered`, `STEPS.review.fixes`); once every review is followed by its `apply_review`, take it out of the review's "⋮".
-- **An answer that can't be applied as given** (`docs/stages/music.md`, `apply_review`): doesn't fit the transcription, conflicts with another chosen answer, can't be expressed, or is too vague. Failing the stage is a dead end (the cached work is kept, but a retry asks the same, and no stage before it lets anyone choose again). Proposed (the project owner's idea): `apply_review` adds a choice of its own on each such issue, repeating its applied answer, with a reason ("the reviewer asked for these two changes, but they're incompatible"), so the issue no longer needs applying and the next review sees why and doesn't make the same mistake. To settle: how such a choice is marked (not a decision, so not "chosen by"; perhaps "[not applied by Apply review 1]"), whether its reason is shown to people (it explains why the transcription didn't change), and what tells the user when no review comes after it.
+- **An answer that can't be applied as given** (`docs/stages/music.md`, `apply_review`): doesn't fit the transcription, conflicts with another chosen answer, can't be expressed, or is too vague. Failing the stage is a dead end (the cached work is kept, but a retry asks the same, and no stage before it lets anyone choose again). Proposed (the project owner's idea): `apply_review` adds a choice of its own on each such issue, repeating its applied answer, with a reason ("the reviewer asked for these two changes, but they're incompatible"), so the issue no longer needs applying and the next review sees why and doesn't make the same mistake. Decided so far: its suffix is "[reverted by Apply review 1]" (or "reverted to by"); its reason is shown on request like every choice's; the view of `apply_review` opens with a block at the top, in the colour of errors, listing the issues it couldn't apply; its card says so ("4 changes applied, 2 reverted").
 - **Linking:** `apply_review`'s requests use `systemLinks` (`packages/notation/src/links.ts`), as `review`'s do.
 - **Where further reviews are added** (decided: only from an `apply_review`'s "⋮"; the only config of a review is its model config). To settle here: whether only from the last `apply_review` or from any of them, and if from any, whether the new review goes after the last `apply_review` or after the one it was added from.
 
@@ -54,7 +54,8 @@ Everything that is still to do about score3ly is a task, and every task is in th
 `#next` `#style`
 
 `docs/stages/music.md`, "The Transcription", "An issue's card":
-- **Resolved issues** and **showing only what the latest `extract` or review changed:** to discuss.
+- **Resolved issues:** to discuss.
+- **The reasons of choices, on request:** proposed: an "i" (`InfoIcon`, as on the Statistics page) right after each choice in the "Choices" line that has a reason; tapping it shows the reason on a line below ("Review 1: …"), tapping again hides it. The line stays one line where no choice has a reason, which is most of the time. The alternative, a collapsed "Choices" block with a row per choice, is heavier for the usual case of no or one reason.
 
 ### The costs view: the order of long lists
 `#decision`

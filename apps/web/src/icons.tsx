@@ -483,6 +483,15 @@ export function UnlinkIcon() {
   );
 }
 
+// A delta, the sign of change: shows only what a stage changed (the Transcription of a review).
+export function ChangesIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 4.5l8.5 15h-17z" />
+    </svg>
+  );
+}
+
 // A staff with two boxes on it: shows or hides the boxes of issues and warnings on the score. The staff is lighter, so
 // the boxes stand out at the icon's size.
 export function BoxesIcon() {
