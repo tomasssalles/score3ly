@@ -329,7 +329,7 @@ function RawSource({ extraction }: { extraction: StoredExtraction }) {
 }
 
 // The classes of issues as users read them: words that say what the problem is (docs/stages/music.md, "An issue's card").
-const ISSUE_CLASS_LABELS: Record<StoredIssue["class"], string> = { reading: "[unclear]", format: "[can't be encoded]" };
+const ISSUE_CLASS_LABELS: Record<StoredIssue["class"], string> = { reading: "[unclear]", format: "[cannot be encoded]" };
 
 // An answer's suffixes (docs/stages/music.md, "An issue's card"): the one in the transcription shown, and the latest
 // choice, when a review or a person made it (in `extract`'s own view, its choice is the applied answer anyway).
@@ -357,7 +357,7 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
           {issue.answers.map((a) => {
             const tags = answerTags(issue, a.key, choosers);
             return (
-              <li key={a.key} className={tags.length > 0 ? "marked" : undefined}>
+              <li key={a.key}>
                 {a.key}) {a.text}
                 {tags.map((t) => (
                   <span key={t} className="answer-tag">
