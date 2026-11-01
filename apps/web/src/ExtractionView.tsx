@@ -329,13 +329,13 @@ function RawSource({ extraction }: { extraction: StoredExtraction }) {
 }
 
 // The classes of issues as users read them: words that say what the problem is (docs/stages/music.md, "An issue's card").
-const CLASS_LABELS: Record<StoredIssue["class"], string> = { reading: "[unclear]", format: "[can't be encoded]" };
+const ISSUE_CLASS_LABELS: Record<StoredIssue["class"], string> = { reading: "[unclear]", format: "[can't be encoded]" };
 
 function IssueCard({ id, issue, color }: { id: string; issue: StoredIssue; color?: string }) {
   return (
     <div className="issue-card" id={id} style={{ borderLeftColor: color }}>
       <p className="issue-head">
-        #{issue.id} · {CLASS_LABELS[issue.class]}
+        #{issue.id} · {ISSUE_CLASS_LABELS[issue.class]}
         {issue.source === "code" ? " · raised by code" : ""}
       </p>
       <p>
