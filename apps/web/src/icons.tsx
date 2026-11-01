@@ -483,11 +483,13 @@ export function UnlinkIcon() {
   );
 }
 
-// A delta, the sign of change: shows only what a stage changed (the Transcription of a review).
+// A delta, the sign of change: shows only what a stage changed (the Transcription of a review). Drawn as math fonts
+// draw it, its left side thin, its right side and base heavy, so that it doesn't read as a plain triangle: the
+// outline filled, its inside cut out.
 export function ChangesIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 4.5l8.5 15h-17z" />
+      <path className="brush" fillRule="evenodd" d="M12 3.6L21.2 20.2H2.8Z M11.11 7.57L5.5 17.7H16.73Z" />
     </svg>
   );
 }
