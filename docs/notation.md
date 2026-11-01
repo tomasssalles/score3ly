@@ -250,7 +250,7 @@ An **issue** is one question about what the printed score says at one place (or 
   - **Models never write ids.** A new issue comes without one, and code numbers it as soon as the answer is stored, so the next call (the next system, the next review) already sees it with its id. A model refers to existing issues by their ids, e.g. when choosing an answer; a reference to an id that doesn't exist is a failed check, which makes the answer unusable, as `extract`'s checks do.
   - **Ids carry over:** every stage that touches the issues produces a new version of the same list, with the same ids.
 - **A resolved issue stays in the list for good.** No LLM stage can change its chosen answer: later reviews take it as the truth and don't raise the question again. The user can change it, in a later `human_review` (changing their own earlier decision).
-- **An issue needs applying** (`apply_review`) when its chosen answer differs from `applied`, which includes every issue whose `applied` is null.
+- **An issue needs applying** (`apply_review`) when it has a choice and its latest choice differs from `applied`, which includes the case where `applied` is null (decided, 2026-11-01). An issue without a choice (code's, before anyone chose) needs nothing applied.
 - **The issues of a score are one list, stored in parts.** Each stage that touches them produces a new version (§5.4: stored stages never change), but not as one document: `extract` stores each system's issues with its extraction (and the issues of the checks of the whole score with them), and `review` stores each call's new issues and choices (`docs/stages/music.md`, `review`, "How it stores what it does"). The list as a stage leaves it is a view of those parts.
 
 ## Warnings

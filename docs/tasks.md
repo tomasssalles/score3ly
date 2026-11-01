@@ -56,8 +56,7 @@ Everything that is still to do about score3ly is a task, and every task is in th
 `#next` `#style`
 
 `docs/stages/music.md`, "The Transcription", "An issue's card":
-- **The class's wording for users:** "reading" and "format" come out of the blue. Wanted: a label in brackets that says it is a problem, e.g. "[unclear]" or "[unsure]" for `reading`, and something like "[can't be encoded]" for `format`.
-- **Naming several reviews in "Choices":** a number ("Review 2") or the model, one or the other; settled when further reviews exist.
+- **The suffixes of the answers:** the applied answer loses its ✓ for a suffix that says it is the one in the transcription shown (the view also shows earlier stages' transcriptions, so not "current"); in the views of `review`, `human_review` and `apply_review`, the latest choice gets a suffix too (both, where they are the same answer). Wording and formatting to decide.
 - **Resolved issues** and **showing only what the latest `extract` or review changed:** to discuss.
 
 ### The costs view: the order of long lists
