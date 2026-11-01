@@ -2440,6 +2440,12 @@ textarea.field-input {
   color: var(--muted);
 }
 
+/* The lines under an issue's answers: its LilyPond equivalent, who chose what. */
+.issue-facts {
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .crop-placeholder {
   aspect-ratio: 5;
 }

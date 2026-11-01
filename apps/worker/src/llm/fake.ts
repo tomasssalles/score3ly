@@ -140,11 +140,11 @@ function fakeExtract(request: LlmRequest): unknown {
   const issues: unknown[] = [
     {
       boxes: [{ image: "stretch 1", box }],
-      location: "the first note",
+      location: "The first note",
       question: "Is the dot after the first note a staccato or a smudge? (A made-up doubt from the fake model.)",
       answers: [
-        { key: "a", text: "a staccato" },
-        { key: "b", text: "a smudge" },
+        { key: "a", text: "A staccato" },
+        { key: "b", text: "A smudge" },
       ],
       applied: "b",
       class: "reading",
@@ -157,8 +157,8 @@ function fakeExtract(request: LlmRequest): unknown {
       location: null,
       question: "A harmonic is printed here, which the format can't write. (A made-up format issue from the fake model.)",
       answers: [
-        { key: "a", text: "left out" },
-        { key: "b", text: "written as a plain note" },
+        { key: "a", text: "Left out" },
+        { key: "b", text: "Written as a plain note" },
       ],
       applied: "a",
       class: "format",

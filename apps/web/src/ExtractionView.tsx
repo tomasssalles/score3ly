@@ -17,6 +17,7 @@ import { ModeToggle } from "./pageEditor";
 import { cropImage, type CropRecipe } from "./pageImages";
 import type { Artifact } from "./pipeline";
 import { renderMei } from "./rendering";
+import { stepInfo } from "./steps";
 import { boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
 
 type Loaded = { systems: (ShownSystem & { recipe: CropRecipe })[]; notes: Note[]; score: Score | { problem: string } };
@@ -348,7 +349,22 @@ function IssueCard({ id, issue, color }: { id: string; issue: StoredIssue; color
           ))}
         </ul>
       )}
-      {issue.lilypond && <p className="issue-tokens">{issue.lilypond.join(" ")}</p>}
+      {issue.lilypond && (
+        <p className="issue-facts">
+          LilyPond equivalent: <span className="issue-tokens">{issue.lilypond.join(" ")}</span>
+        </p>
+      )}
+      {issue.choices.length > 0 && (
+        <p className="issue-facts">
+          Choices:{" "}
+          {issue.choices.map((c, i) => (
+            <span key={i}>
+              {i > 0 ? " · " : ""}
+              {stepInfo(c.by).title} → {c.key}
+            </span>
+          ))}
+        </p>
+      )}
     </div>
   );
 }

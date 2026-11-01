@@ -231,7 +231,8 @@ An **issue** is one question about what the printed score says at one place (or 
   - **from the user:** one answer, chosen by the user, `resolved` set, `applied` null; the question may be missing;
   - **from code** (see "Bar lines, stretches and measures", and a slur or tie that never ends: "where does it end?"): a question, and the answers where code knows them (e.g. yes and no), with `applied` known when the extraction says which one it reflects. Code doesn't raise an issue when one about the same stretches and the same question exists already; otherwise every rebuild would raise it again.
 
-  The prompts explain what is missing for each source. Answers and choices added later go through the same append-only log as every other change (`review`).
+  The prompts explain what is missing for each source.
+- **Their texts are for people too** (decided, 2026-11-01): the question, the location, the answers and the reasons are shown to the user in the app, not only to later stages. Every prompt that asks for them says so: plain sentences a musician understands without the request, each starting with a capital letter; code's own questions and answers follow the same rule. Answers and choices added later go through the same append-only log as every other change (`review`).
 - **Classes of issues** (decided: two), in the `class` field of every issue:
   - **`reading`:** what the page says is hard to tell: a smudge or a staccato, a faint note, a slur that might end on either of two notes. Most of the models' doubts, and the questions code raises (a slur that never ends).
   - **`format`:** the page is clear, but the lens can't express it (a mark the symbolic format doesn't have, lyrics, an ossia). See below.

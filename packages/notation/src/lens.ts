@@ -267,8 +267,8 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     codeIssues.push({
       question: `Is the first stretch of system ${system} a continuation of the measure that ends system ${system - 1}?`,
       answers: [
-        { key: "a", text: "yes" },
-        { key: "b", text: "no" },
+        { key: "a", text: "Yes" },
+        { key: "b", text: "No" },
       ],
       applied: first.class === "continues" ? "a" : "b",
       places: [...(before.last ? [before.last] : []), here(1)],
@@ -283,9 +283,9 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
       codeIssues.push({
         question: `Stretch ${s.stretch} has a printed measure number ("${s.printedNumber}") but isn't read as the start of a measure. What part of a measure is it?`,
         answers: [
-          { key: "a", text: "the start of a measure, because there is a printed measure number next to it" },
-          { key: "b", text: "the continuation of a measure" },
-          { key: "c", text: "not part of a measure" },
+          { key: "a", text: "The start of a measure, because there is a printed measure number next to it" },
+          { key: "b", text: "The continuation of a measure" },
+          { key: "c", text: "Not part of a measure" },
         ],
         applied: s.class === "continues" ? "b" : "c",
         places: [here(s.stretch)],
@@ -437,9 +437,9 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
 
 function stretchAnswers(): LensAnswer[] {
   return [
-    { key: "a", text: "the start of a measure" },
-    { key: "b", text: "the continuation of a measure" },
-    { key: "c", text: "not part of a measure" },
+    { key: "a", text: "The start of a measure" },
+    { key: "b", text: "The continuation of a measure" },
+    { key: "c", text: "Not part of a measure" },
   ];
 }
 

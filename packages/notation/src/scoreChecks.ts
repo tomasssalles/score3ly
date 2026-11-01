@@ -35,8 +35,8 @@ function pieceEnd(last: CheckedScoreSystem, codeIssues: CodeIssue[], warnings: W
     codeIssues.push({
       question: `System ${last.number} ends its piece, but its last measure is read as continuing on the next system. Does it end here?`,
       answers: [
-        { key: "a", text: "yes, the measure ends with the piece" },
-        { key: "b", text: "no, it continues" },
+        { key: "a", text: "Yes, the measure ends with the piece" },
+        { key: "b", text: "No, it continues" },
       ],
       applied: "b",
       places: [here],

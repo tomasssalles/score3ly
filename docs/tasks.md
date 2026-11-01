@@ -52,6 +52,14 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 `docs/stages/music.md` (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5).
 
+### The issue card: what is still open
+`#next` `#style`
+
+`docs/stages/music.md`, "The Transcription", "An issue's card":
+- **The class's wording for users:** "reading" and "format" come out of the blue. Wanted: a label in brackets that says it is a problem, e.g. "[unclear]" or "[unsure]" for `reading`, and something like "[can't be encoded]" for `format`.
+- **Naming several reviews in "Choices":** a number ("Review 2") or the model, one or the other; settled when further reviews exist.
+- **Resolved issues** and **showing only what the latest `extract` or review changed:** to discuss.
+
 ### The costs view: the order of long lists
 `#decision`
 
