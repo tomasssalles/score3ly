@@ -50,6 +50,16 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 `docs/stages/music.md` (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5).
 
+### `human_review`'s name
+`#decision`
+
+It is the only manual stage that doesn't follow the naming of the others ("Fix skew", "Fix layout", "Fix metadata", "Fix observations", "Fix MEI": "Fix X", and "Fix X manually" in the "⋮"). Possible: `fix_issues` ("Fix issues") or `fix_choices` ("Fix choices"). To decide before it is built: the step id is stored with every stage and never changes afterwards.
+
+### A manual test suite
+`#manual-test` `#owner`
+
+A documented, step-by-step list of behavioural tests for trying the app by hand before showing it to anyone: covering the decisions in the docs and the edge cases the code handles (re-runs and carried manual stages, retries after a failed call, the cache, the spending cap, the views and their toggles, both layouts and themes, the desktop version, …). Each test: what to set up, what to do, what should happen. The project owner runs them; they also tell what is worth an automated test.
+
 ### The issue card: what is still open
 `#next` `#style`
 
