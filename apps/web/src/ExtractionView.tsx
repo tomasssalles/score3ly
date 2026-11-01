@@ -17,6 +17,7 @@ import { ModeToggle } from "./pageEditor";
 import { cropImage, type CropRecipe } from "./pageImages";
 import type { Artifact, Chooser } from "./pipeline";
 import { renderMei } from "./rendering";
+import { applyEntries, withKept, type StoredReview } from "./review";
 import { stepInfo } from "./steps";
 import { boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
 
@@ -35,6 +36,22 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
         data.piecesSha256 ? (fetchJsonContent(data.piecesSha256) as Promise<number[]>) : Promise.resolve([1]),
         data.checksSha256 ? (fetchJsonContent(data.checksSha256) as Promise<StoredScoreChecks>) : Promise.resolve(null),
       ]);
+      // A review's Transcription: the issues as the review leaves them (docs/stages/music.md, `review`), each system's
+      // own, and the new ones under the system whose call raised them.
+      let shownChecks = checks;
+      if (data.review) {
+        const review = data.review;
+        const calls = await Promise.all(review.calls.map(async (c) => (await fetchJsonContent(c.sha256)) as StoredReview));
+        const base = [...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])];
+        let issues = new Map(base.map((i) => [i.id, i]));
+        for (const call of [...calls].sort((a, b) => a.system - b.system)) issues = applyEntries(issues, call, review.stageId);
+        if (review.done) issues = withKept(issues, review.stageId, (by) => data.choosers[by]?.person ?? false);
+        const raised = new Map(calls.map((c) => [c.system, c.entries.flatMap((e) => ("newIssue" in e ? [issues.get(e.newIssue.id)!] : []))]));
+        for (const e of extractions) {
+          e.extraction = { ...e.extraction, issues: [...e.extraction.issues.map((i) => issues.get(i.id)!), ...(raised.get(e.extraction.system) ?? [])] };
+        }
+        if (checks) shownChecks = { ...checks, issues: checks.issues.map((i) => issues.get(i.id)!) };
+      }
       const systems = extractions
         .sort((a, b) => a.extraction.system - b.extraction.system)
         .flatMap(({ index, extraction }) => {
@@ -52,12 +69,12 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
           };
           return [{ ...shown, recipe }];
         });
-      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, checks), score: scoreOf(systems, pieces) });
+      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, shownChecks), score: scoreOf(systems, pieces) });
     })().catch(() => !cancelled && setLoaded("error"));
     return () => {
       cancelled = true;
     };
-  }, [data.systems.map((s) => s.sha256).join(), data.piecesSha256, data.checksSha256]);
+  }, [data.systems.map((s) => s.sha256).join(), data.piecesSha256, data.checksSha256, data.review?.calls.map((c) => c.sha256).join(), data.review?.done]);
   return loaded;
 }
 

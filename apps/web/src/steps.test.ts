@@ -12,6 +12,7 @@ const KINDS: Record<string, string> = {
   layout: "llm",
   analyze: "llm",
   extract: "llm",
+  review: "llm",
   engrave: "computed",
   fix_skew: "manual",
   fix_layout: "manual",
@@ -36,10 +37,12 @@ test("rasterize's config is checked against the PDF's page count before it is sa
   assert.notEqual(check({ pages: "5", dpi: 10 }, { pageCount: null }), null);
 });
 
-test("Fix MEI is offered only after the latest stage that produces the extraction", () => {
+test("Fix MEI is offered only after the latest stage that produces the extraction, or a review after it", () => {
   const stage = (step: string) => ({ step }) as ApiStage;
   assert.ok(STEPS.extract.fixes.includes("fix_mei"));
+  assert.ok(STEPS.review.fixes.includes("fix_mei"));
   assert.equal(fixOffered("fix_mei", [stage("engrave")]), true);
   assert.equal(fixOffered("fix_mei", [stage("extract"), stage("engrave")]), false);
+  assert.equal(fixOffered("fix_mei", [stage("review"), stage("engrave")]), false);
   assert.equal(fixOffered("fix_layout", [stage("extract")]), true);
 });

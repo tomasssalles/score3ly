@@ -7,8 +7,7 @@
 
 import { CROP_VERSION, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { checkScore, checkSystem, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
-import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractImageLabels, extractText } from "@score3ly/prompts";
-import type { StoredObservations, StoredPieces } from "./analyze";
+import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractText } from "@score3ly/prompts";
 import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers } from "./api";
 import {
   EXTRACT_VERSION,
@@ -16,8 +15,6 @@ import {
   extractRequest,
   extractStageKey,
   MARGINS,
-  pieceBounds,
-  stretchBox,
   stretchCropBoxes,
   storedExtraction,
   storedScoreChecks,
@@ -27,55 +24,21 @@ import {
   type ScoreSystem,
   type StoredExtraction,
 } from "./extract";
-import { firstNumbers } from "./fixLayout";
 import { canonicalJson } from "@score3ly/core";
-import type { PageLayout } from "./layout";
 import { linkSpans, systemHints } from "./linking";
+import { musicInputs } from "./musicInputs";
 import { ask, imageLimit, imageLimitFor, modelKey, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
-import { cropImage, type CropRecipe, type StraightRecipe } from "./pageImages";
-import { pageOfItem, type PageRecipe } from "./rasterize";
-import { CannotStart, runPlan, type StageRun } from "./stageRunner";
-
-const LAYOUT_STEPS = ["layout", "fix_layout"];
-const OBSERVATION_STEPS = ["fix_observations", "analyze"];
-const PIECE_STEPS = ["fix_metadata", "analyze"];
+import { cropImage, type CropRecipe } from "./pageImages";
+import { runPlan, type StageRun } from "./stageRunner";
 
 const json = (value: unknown) => new TextEncoder().encode(canonicalJson(value));
 
 export async function runExtract(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
-  const earlier = pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id)).reverse();
-  const rasterize = earlier.find((s) => s.step === "rasterize");
-  if (!rasterize || rasterize.status !== "done") throw new CannotStart("there are no page images: Rasterize hasn't run.");
-  const layoutStage = earlier.find((s) => LAYOUT_STEPS.includes(s.step));
-  if (!layoutStage || layoutStage.status !== "done") throw new CannotStart("the layout hasn't been found yet.");
-  // The latest observations and pieces: a fix's, else analyze's (a WIP fix must be finished first).
-  const latest = (steps: string[], type: string) => {
-    const s = earlier.find((x) => steps.includes(x.step) && x.outputs.some((o) => o.item === "" && o.type === type));
-    return s ? { stage: s, output: s.outputs.find((o) => o.item === "" && o.type === type && o.contentSha256)! } : null;
-  };
-  const obs = latest(OBSERVATION_STEPS, "observations");
-  const pcs = latest(PIECE_STEPS, "pieces");
-  if (!obs || !pcs) throw new CannotStart("the score hasn't been analysed yet.");
-  if (obs.stage.status !== "done" || pcs.stage.status !== "done") throw new CannotStart("a fix of the analysis isn't finished yet.");
-
-  const images = new Map(rasterize.outputs.filter((o) => o.type === "page_image").map((o) => [o.item, o]));
-  const pages = layoutStage.outputs
-    .filter((o) => o.type === "layout" && o.contentSha256 && images.get(o.item)?.recipe)
-    .map((o) => ({ output: o, image: images.get(o.item)!, page: pageOfItem(o.item) ?? 0 }))
-    .sort((a, b) => a.page - b.page);
-  const [layouts, observations, pieces] = await Promise.all([
-    Promise.all(pages.map((p) => fetchJsonContent(p.output.contentSha256!) as Promise<PageLayout>)),
-    fetchJsonContent(obs.output.contentSha256!) as Promise<StoredObservations>,
-    fetchJsonContent(pcs.output.contentSha256!) as Promise<StoredPieces>,
-  ]);
-  const firsts = firstNumbers(layouts.map((l) => l.systems.length));
-  const systems: (ScoreSystem & { pageIndex: number })[] = layouts.flatMap((l, i) =>
-    l.systems.map((s, j) => ({ number: firsts[i] + j, page: pages[i].page, item: `p${pages[i].page}/s${j + 1}`, layout: s, pageIndex: i })),
-  );
-  if (systems.length === 0) throw new CannotStart("the layout has no systems.");
-  const byNumber = new Map(systems.map((s) => [s.number, s]));
-  const lastSystem = systems[systems.length - 1].number;
+  const inputs = await musicInputs(stage, pipeline.stages);
+  const { pages, layouts, observations, pieces, systems, byNumber, straight, placeBox, bounds, labelsOf } = inputs;
+  const obs = { output: inputs.observationsOutput };
+  const pcs = { output: inputs.piecesOutput };
 
   const config = await stageModelConfig(stage.config);
   const imageRecipe = {
@@ -97,12 +60,7 @@ export async function runExtract(run: StageRun): Promise<void> {
     piecesSha256: pcs.output.contentSha256!,
   });
 
-  const straight = (i: number): StraightRecipe => ({ page: pages[i].image.recipe as PageRecipe, angle: layouts[i].angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION });
   const spans = linkSpans(observations, (page) => systems.filter((s) => s.page === page).map((s) => s.number));
-  const placeBox = (p: { system: number; stretch: number }) => {
-    const s = byNumber.get(p.system);
-    return s ? { page: s.page, box: stretchBox(s.layout, p.stretch) } : null;
-  };
 
   // Systems a failed run already recorded: loaded now, for the counts and for the state the next system starts from.
   const recorded = new Map(stage.outputs.filter((o) => o.type === "extraction" && o.contentSha256).map((o) => [o.item, o]));
@@ -121,11 +79,6 @@ export async function runExtract(run: StageRun): Promise<void> {
     firstOfPiece,
     images: labels,
   });
-  const bounds = (n: number) => pieceBounds(pieces, n, lastSystem);
-  const labelsOf = (s: ScoreSystem) => {
-    const { first, last } = bounds(s.number);
-    return extractImageLabels(s.layout.barLines.length + 1, !first && byNumber.has(s.number - 1), !last && byNumber.has(s.number + 1));
-  };
   function stateBefore(n: number): ScoreState {
     if (bounds(n).first || !byNumber.has(n - 1)) return pieceStart();
     return stateAfter(n - 1);

@@ -329,26 +329,47 @@ STEPS.fix_observations = {
   },
 };
 
+// The Transcription (§6) of a stage that produces the extraction (`transcribed`), as a later stage shows it: the
+// systems with their music, issues and warnings. The pages of the latest layout come along, for the systems' crops,
+// and the latest pieces, for the renderings. `review`: a review's calls, whose entries the view applies to the issues.
+function transcription(stage: ApiStage, transcribed: ApiStage, earlier: ApiStage[], review?: NonNullable<Artifact["extraction"]>["review"]): Artifact[] {
+  const systems = transcribed.outputs
+    .filter((o) => o.type === "extraction" && o.contentSha256 !== null)
+    .map((o) => ({ item: o.item, sha256: o.contentSha256!, index: Number(o.item.split("/s")[1] ?? 1) }));
+  if (systems.length === 0) return [];
+  const checksSha256 = transcribed.outputs.find((o) => o.item === "" && o.type === "score_checks")?.contentSha256 ?? null;
+  const pieces = [...earlier]
+    .reverse()
+    .find((s) => (s.step === "fix_metadata" || s.step === "analyze") && s.outputs.some((o) => o.item === "" && o.type === "pieces" && o.contentSha256));
+  const piecesSha256 = pieces?.outputs.find((o) => o.item === "" && o.type === "pieces")?.contentSha256 ?? null;
+  const pages = layoutPages(earlier);
+  const extraction = { systems, checksSha256, piecesSha256, choosers: choosers([...earlier, stage]), ...(review ? { review } : {}) };
+  return [{ id: `${stage.id}.music`, title: "Transcription", kind: "music", count: systems.length, item: "System", pages, extraction }];
+}
+
 STEPS.extract = {
   title: "Extract",
   kind: "llm",
   optional: false,
   fixes: ["fix_mei"],
-  // The Transcription: the systems with their music, issues and warnings (§6). The pages of the latest layout come along,
-  // for the systems' crops, and the latest pieces, for the renderings.
+  artifacts: (stage, earlier) => transcription(stage, stage, earlier),
+};
+
+STEPS.review = {
+  title: "Review",
+  kind: "llm",
+  optional: false,
+  // `fix_mei` comes right before `engrave` (docs/stages/engrave.md): while `apply_review` isn't built, a review is the
+  // stage before it.
+  fixes: ["fix_mei"],
+  // The Transcription it reviewed, with its issues as the review leaves them: its calls' entries, and, once it is
+  // done, its agreements.
   artifacts: (stage, earlier) => {
-    const systems = stage.outputs
-      .filter((o) => o.type === "extraction" && o.contentSha256 !== null)
-      .map((o) => ({ item: o.item, sha256: o.contentSha256!, index: Number(o.item.split("/s")[1] ?? 1) }));
-    if (systems.length === 0) return [];
-    const checksSha256 = stage.outputs.find((o) => o.item === "" && o.type === "score_checks")?.contentSha256 ?? null;
-    const pieces = [...earlier]
-      .reverse()
-      .find((s) => (s.step === "fix_metadata" || s.step === "analyze") && s.outputs.some((o) => o.item === "" && o.type === "pieces" && o.contentSha256));
-    const piecesSha256 = pieces?.outputs.find((o) => o.item === "" && o.type === "pieces")?.contentSha256 ?? null;
-    const pages = layoutPages(earlier);
-    const extraction = { systems, checksSha256, piecesSha256, choosers: choosers([...earlier, stage]) };
-    return [{ id: `${stage.id}.music`, title: "Transcription", kind: "music", count: systems.length, item: "System", pages, extraction }];
+    const transcribed = [...earlier].reverse().find((s) => EXTRACTION_STEPS.includes(s.step));
+    if (!transcribed) return [];
+    const calls = stage.outputs.filter((o) => o.type === "review" && o.contentSha256).map((o) => ({ item: o.item, sha256: o.contentSha256! }));
+    if (calls.length === 0) return [];
+    return transcription(stage, transcribed, earlier, { stageId: stage.id, calls, done: stage.status === "done" });
   },
 };
 
@@ -410,7 +431,7 @@ STEPS.fix_mei = {
 // Whether a manual step is offered after a stage, given the stages after it (`later`). `fix_mei` only after the
 // latest stage that produces the extraction, which `engrave` reads (§6, `fix_mei`).
 export function fixOffered(step: string, later: ApiStage[]): boolean {
-  return step !== "fix_mei" || !later.some((s) => EXTRACTION_STEPS.includes(s.step));
+  return step !== "fix_mei" || !later.some((s) => EXTRACTION_STEPS.includes(s.step) || s.step === "review");
 }
 
 // What a manual step needs to be added after a stage (docs/database.md): its version, page count and inputs. `earlier`:

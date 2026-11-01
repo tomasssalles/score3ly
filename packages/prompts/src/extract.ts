@@ -19,7 +19,7 @@ export function extractImageLabels(stretches: number, previous: boolean, next: b
   ];
 }
 
-const MUSIC = `## The music of a voice
+export const MUSIC = `## The music of a voice
 
 Each voice of each stretch is one string: LilyPond with these differences. Write only what is listed here: the parser rejects anything else. Spaces are as in LilyPond (\`<c' e'>4\`, \`c'4-.\\=1(\` and \`c'4 -. \\=1(\` are all fine). Quoted text runs to its closing quote, spaces included; \`\\"\` is a quote inside it.
 

@@ -5,6 +5,7 @@ import { runEngrave } from "./runEngrave";
 import { runExtract } from "./runExtract";
 import { runLayout } from "./runLayout";
 import { runRasterize } from "./runRasterize";
+import { runReview } from "./runReview";
 import { runSkewAnalysis } from "./runSkewAnalysis";
 import type { StageRun } from "./stageRunner";
 
@@ -14,5 +15,6 @@ export const RUNNERS: Record<string, (run: StageRun) => Promise<void>> = {
   layout: runLayout,
   analyze: runAnalyze,
   extract: runExtract,
+  review: runReview,
   engrave: runEngrave,
 };

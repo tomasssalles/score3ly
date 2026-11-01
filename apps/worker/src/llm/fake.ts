@@ -3,10 +3,11 @@
 // option), and its "tokens" are estimated from the request's text and images. Some model names make it fail on purpose:
 // "fake-error" (a server error), "fake-refusal", "fake-cut-off", "fake-unparseable", "fake-other-model" (another model
 // answers).
-// Two steps get more than that, so the pipeline runs end to end: `layout` (two systems on every page, each with three
-// bar lines, so that the later stages have systems to work on) and `extract`, whose answer must cover exactly the
+// Three steps get more than that, so the pipeline runs end to end: `layout` (two systems on every page, each with three
+// bar lines, so that the later stages have systems to work on), `extract`, whose answer must cover exactly the
 // stretches asked for, with a voice on every staff (the fake reads the request's JSON and answers with whole-measure
-// rests in 4/4, a made-up doubt on every system and a format issue on the first, so their views can be seen).
+// rests in 4/4, a made-up doubt on every system and a format issue on the first, so their views can be seen), and
+// `review` (a made-up correction on the first system, another answer chosen for the first issue of the second).
 
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse } from "./types.ts";
 
@@ -21,7 +22,7 @@ export class FakeProvider implements LlmProvider {
   async send(request: LlmRequest): Promise<LlmResponse> {
     if (request.model === "fake-error") throw new LlmError("server", "The fake provider failed, as asked.", 500);
     const unparseable = request.model === "fake-unparseable" && request.jsonSchema;
-    const answer = unparseable ? "Not JSON, as asked." : request.jsonSchema ? (fakeLayout(request) ?? fakeExtract(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
+    const answer = unparseable ? "Not JSON, as asked." : request.jsonSchema ? (fakeLayout(request) ?? fakeExtract(request) ?? fakeReview(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
     const text = typeof answer === "string" ? answer : JSON.stringify(answer);
     const stop = request.model === "fake-refusal" ? "refusal" : request.model === "fake-cut-off" ? "max_tokens" : "end";
     return {
@@ -175,4 +176,43 @@ function fakeLayout(request: LlmRequest): unknown {
   if (!("systems" in properties && "satisfied" in properties && "severelySkewed" in properties)) return null;
   const system = (top: number) => ({ left: 0.1, right: 0.9, top, bottom: top + 0.2, barLines: [0.3, 0.5, 0.7] });
   return { severelySkewed: false, systems: [system(0.2), system(0.55)], satisfied: true, note: "" };
+}
+
+// A `review` answer (its schema has only "entries"): on system 1 a new issue, a made-up correction; on system 2 a
+// choice of answer "a" for the first issue on it (the fake `extract`'s doubt there has "b" chosen); nothing elsewhere.
+function fakeReview(request: LlmRequest): unknown {
+  const properties = (request.jsonSchema?.properties ?? {}) as Record<string, unknown>;
+  if (Object.keys(properties).join() !== "entries") return null;
+  const texts = request.messages.flatMap((m) => m.content.flatMap((c) => (c.type === "text" ? [c.text] : [])));
+  const last = texts.at(-1) ?? "";
+  let r: { system: number; issues: number[] };
+  try {
+    r = JSON.parse(last.slice(last.indexOf("\n{") + 1)) as { system: number; issues: number[] };
+  } catch {
+    return null;
+  }
+  if (r.system === 1) {
+    return {
+      entries: [
+        {
+          newIssue: {
+            boxes: [{ image: "stretch 2", box: { left: 0.2, right: 0.6, top: 0.3, bottom: 0.7 } }],
+            location: "The second note of the upper staff",
+            question: "Is this note a D or an E? (A made-up correction from the fake model.)",
+            answers: [
+              { key: "a", text: "A D, as transcribed" },
+              { key: "b", text: "An E" },
+            ],
+            applied: "a",
+            chosen: "b",
+            reason: "Its head sits on the space above the line, as the E in the next measure does.",
+            class: "reading",
+            lilypond: null,
+          },
+        },
+      ],
+    };
+  }
+  if (r.system === 2 && r.issues.length > 0) return { entries: [{ choice: { issue: Math.min(...r.issues), key: "a", newAnswer: null, reason: null } }] };
+  return { entries: [] };
 }

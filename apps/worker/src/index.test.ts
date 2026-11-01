@@ -169,6 +169,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       ["layout", "planned", null],
       ["analyze", "planned", null],
       ["extract", "planned", null],
+      ["review", "planned", null],
       ["engrave", "planned", null],
     ],
   );
@@ -255,7 +256,7 @@ test("migration 0004 gives existing projects their Ingest stage, with the PDF as
   assert.equal(new Set(migratedPipelines.map((row) => row.stage_id)).size, 4);
 });
 
-test("migrations 0006, 0007, 0010, 0011, 0013 and 0015 give existing projects the recipe's planned stages", () => {
+test("migrations 0006, 0007, 0010, 0011, 0013, 0015 and 0023 give existing projects the recipe's planned stages", () => {
   assert.deepEqual(
     migratedPlanned.map((row) => [row.project_id, row.position, row.step, row.status, row.config_json]),
     ["p1", "p2", "p3", "p4"].flatMap((id) => [
@@ -264,7 +265,8 @@ test("migrations 0006, 0007, 0010, 0011, 0013 and 0015 give existing projects th
       [id, 4, "layout", "planned", null],
       [id, 5, "analyze", "planned", null],
       [id, 6, "extract", "planned", null],
-      [id, 7, "engrave", "planned", null],
+      [id, 7, "review", "planned", null],
+      [id, 8, "engrave", "planned", null],
     ]),
   );
 });
@@ -734,7 +736,7 @@ test("a manual stage is added WIP after a done stage, saved as the user works, a
   let pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status]),
-    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["engrave", "planned"]],
+    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["review", "planned"], ["engrave", "planned"]],
   );
   // The planned layout keeps its row.
   assert.equal(pipeline[4].id, stages[3].id);
@@ -780,7 +782,7 @@ test("a second fix of the same stage goes after the first, which stays, WIP or f
   const pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status]),
-    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["fix_layout", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["engrave", "planned"]],
+    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["fix_layout", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["review", "planned"], ["engrave", "planned"]],
   );
   assert.equal(pipeline[3].id, first);
   // Neither can be added again after the same stage.
@@ -805,7 +807,7 @@ test("adding a fix replaces the stages after it that ran; a change before a manu
   pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status, s.carried]),
-    [["ingest", "done", false], ["rasterize", "planned", false], ["skew_analysis", "planned", false], ["fix_skew", "wip", true], ["layout", "planned", false], ["analyze", "planned", false], ["extract", "planned", false], ["engrave", "planned", false]],
+    [["ingest", "done", false], ["rasterize", "planned", false], ["skew_analysis", "planned", false], ["fix_skew", "wip", true], ["layout", "planned", false], ["analyze", "planned", false], ["extract", "planned", false], ["review", "planned", false], ["engrave", "planned", false]],
   );
 });
 
@@ -870,11 +872,11 @@ test("a carried manual stage is dropped when what it reads changed, and the stag
   const response = await call(project.id, fix, "resolve", { inputIds: skewNow.outputs.map((o) => o.id) });
   const { kept, pipeline } = (await response.json()) as { kept: boolean; pipeline: { stages: StageJson[] } };
   assert.equal(kept, false);
-  assert.deepEqual(pipeline.stages.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "engrave"]);
+  assert.deepEqual(pipeline.stages.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "engrave"]);
   const { results } = await env.DB.prepare("SELECT position FROM pipeline_entries WHERE project_id = ? ORDER BY position")
     .bind(project.id)
     .all<{ position: number }>();
-  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7, 8]);
 });
 
 // A project whose finished fix_skew was dropped at its turn, its inputs having changed: the skew_analysis it came after.
@@ -954,17 +956,17 @@ test("dropping a manual stage takes it out and moves the later stages up; recipe
   assert.equal((await call(project.id, skew.id, "drop")).status, 409);
   assert.equal((await call(project.id, stageId, "drop")).status, 200);
   const pipeline = await pipelineOf(project.id);
-  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "engrave"]);
+  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "engrave"]);
   const { results } = await env.DB.prepare("SELECT position FROM pipeline_entries WHERE project_id = ? ORDER BY position")
     .bind(project.id)
     .all<{ position: number }>();
-  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7, 8]);
 });
 
 test("migration 0019 marks existing stages as the recipe's, unless their step is manual", () => {
   assert.deepEqual(
     migratedInRecipe.map((r) => [r.step, r.in_recipe]),
-    [["analyze", 1], ["engrave", 1], ["extract", 1], ["ingest", 1], ["layout", 1], ["rasterize", 1], ["skew_analysis", 1], ["fix_skew", 0]],
+    [["analyze", 1], ["engrave", 1], ["extract", 1], ["ingest", 1], ["layout", 1], ["rasterize", 1], ["review", 1], ["skew_analysis", 1], ["fix_skew", 0]],
   );
 });
 
@@ -992,7 +994,7 @@ test("the recipe's stages are marked as such, and so is every stage that replace
   assert.notEqual(after[2].id, before[2].id);
   assert.deepEqual(
     await Promise.all(after.map(async (s) => [s.step, await inRecipe(s.id)])),
-    [["ingest", 1], ["rasterize", 1], ["skew_analysis", 1], ["fix_skew", 0], ["layout", 1], ["analyze", 1], ["extract", 1], ["engrave", 1]],
+    [["ingest", 1], ["rasterize", 1], ["skew_analysis", 1], ["fix_skew", 0], ["layout", 1], ["analyze", 1], ["extract", 1], ["review", 1], ["engrave", 1]],
   );
 
   // A stopped recipe stage's planned replacement is the recipe's.
@@ -1334,7 +1336,7 @@ test("run times: finished projects only, their stages that started with items of
     items: [string, string, number, number, number, number, number][];
   };
   assert.deepEqual(data.projects.map((p) => [p.id, p.finishedAt, p.pages]), [[done.id, "2026-10-20T10:00:00.000Z", [1, 2]]]);
-  assert.deepEqual(data.recipe, ["rasterize", "skew_analysis", "layout", "analyze", "extract", "engrave"]);
+  assert.deepEqual(data.recipe, ["rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "engrave"]);
   assert.ok(!data.stages.some((s) => s.projectId === open.id || s.step === "ingest"));
   assert.ok(!data.stages.some((s) => s.id === "never"));
   assert.ok(data.projects[0].pipeline.includes(extract.id) && !data.projects[0].pipeline.includes("fix"));

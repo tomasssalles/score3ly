@@ -44,6 +44,9 @@ export type Artifact = {
     checksSha256: string | null;
     piecesSha256: string | null;
     choosers: Record<string, Chooser>;
+    // A review's Transcription: its calls (their stored entries, by item), applied to the issues of the
+    // transcription it reviewed; its agreements only once it is `done`.
+    review?: { stageId: string; calls: { item: string; sha256: string }[]; done: boolean };
   };
   // `engrave`'s MEI file, with the stage's config for its engraving; shown as the file or as the engraving. Both can be
   // downloaded.

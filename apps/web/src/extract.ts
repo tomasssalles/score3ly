@@ -97,7 +97,7 @@ export function extractRequest(input: {
 // counter, who chose which answer.
 export type StoredIssue = {
   id: number;
-  source: "extract" | "code";
+  source: "extract" | "review" | "code";
   class: "reading" | "format";
   boxes: { page: number; box: Box }[];
   location: string | null;
