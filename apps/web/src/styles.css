@@ -2429,9 +2429,19 @@ textarea.field-input {
   padding-left: 18px;
 }
 
-.issue-card li.applied {
+/* Answers: the marked ones (in the transcription shown, or the latest choice) in the text's colour, the others muted;
+   no bold. */
+.issue-card li {
+  color: var(--muted);
+}
+
+.issue-card li.marked {
   color: var(--fg);
-  font-weight: 600;
+}
+
+.answer-tag {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .issue-head,

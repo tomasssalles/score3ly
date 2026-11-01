@@ -15,7 +15,7 @@ import { BoxesIcon, MusicIcon, SourceIcon } from "./icons";
 import type { PageLayout } from "./layout";
 import { ModeToggle } from "./pageEditor";
 import { cropImage, type CropRecipe } from "./pageImages";
-import type { Artifact } from "./pipeline";
+import type { Artifact, Chooser } from "./pipeline";
 import { renderMei } from "./rendering";
 import { stepInfo } from "./steps";
 import { boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
@@ -153,7 +153,7 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
                 <div className="system-notes">
                   {own.map((note) =>
                     note.kind === "issue" ? (
-                      <IssueCard key={note.key} id={note.key} issue={note.issue} color={colors.get(note.key)} />
+                      <IssueCard key={note.key} id={note.key} issue={note.issue} color={colors.get(note.key)} choosers={artifact.extraction!.choosers} />
                     ) : (
                       <WarningCard key={note.key} id={note.key} warning={note.warning} color={colors.get(note.key)} />
                     ),
@@ -331,7 +331,17 @@ function RawSource({ extraction }: { extraction: StoredExtraction }) {
 // The classes of issues as users read them: words that say what the problem is (docs/stages/music.md, "An issue's card").
 const ISSUE_CLASS_LABELS: Record<StoredIssue["class"], string> = { reading: "[unclear]", format: "[can't be encoded]" };
 
-function IssueCard({ id, issue, color }: { id: string; issue: StoredIssue; color?: string }) {
+// An answer's suffixes (docs/stages/music.md, "An issue's card"): the one in the transcription shown, and the latest
+// choice, when a review or a person made it (in `extract`'s own view, its choice is the applied answer anyway).
+function answerTags(issue: StoredIssue, key: string, choosers: Record<string, Chooser>): string[] {
+  const tags = key === issue.applied ? ["in this transcription"] : [];
+  const latest = issue.choices[issue.choices.length - 1];
+  const chooser = latest && latest.by !== "extract" ? choosers[latest.by] : undefined;
+  if (latest?.key === key && chooser) tags.push(chooser.person ? "confirmed" : `${latest.kept ? "kept" : "chosen"} by ${chooser.label}`);
+  return tags;
+}
+
+function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIssue; color?: string; choosers: Record<string, Chooser> }) {
   return (
     <div className="issue-card" id={id} style={{ borderLeftColor: color }}>
       <p className="issue-head">
@@ -344,12 +354,19 @@ function IssueCard({ id, issue, color }: { id: string; issue: StoredIssue; color
       </p>
       {issue.answers.length > 0 && (
         <ul>
-          {issue.answers.map((a) => (
-            <li key={a.key} className={a.key === issue.applied ? "applied" : undefined}>
-              {a.key}) {a.text}
-              {a.key === issue.applied ? " ✓" : ""}
-            </li>
-          ))}
+          {issue.answers.map((a) => {
+            const tags = answerTags(issue, a.key, choosers);
+            return (
+              <li key={a.key} className={tags.length > 0 ? "marked" : undefined}>
+                {a.key}) {a.text}
+                {tags.map((t) => (
+                  <span key={t} className="answer-tag">
+                    {" "}[{t}]
+                  </span>
+                ))}
+              </li>
+            );
+          })}
         </ul>
       )}
       {issue.lilypond && (
@@ -363,7 +380,7 @@ function IssueCard({ id, issue, color }: { id: string; issue: StoredIssue; color
           {issue.choices.map((c, i) => (
             <span key={i}>
               {i > 0 ? " · " : ""}
-              {stepInfo(c.by).title} → {c.key}
+              {choosers[c.by]?.label ?? stepInfo(c.by).title} → {c.key}
             </span>
           ))}
         </p>

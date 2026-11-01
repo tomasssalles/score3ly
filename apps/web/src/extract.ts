@@ -103,7 +103,9 @@ export type StoredIssue = {
   location: string | null;
   question: string;
   answers: { key: string; text: string }[];
-  choices: { by: string; key: string; reason: string | null }[];
+  // `by`: the stage that chose, by its id (`extract`'s own choice: "extract"); `kept`: a review's agreement, added
+  // by code for an issue it left as it was (docs/stages/music.md, `review`).
+  choices: { by: string; key: string; reason: string | null; kept?: true }[];
   applied: string | null;
   resolved: boolean;
   lilypond: string[] | null;

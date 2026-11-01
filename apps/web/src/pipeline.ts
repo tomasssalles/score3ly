@@ -38,7 +38,13 @@ export type Artifact = {
   analysis?: { view: "metadata" | "observations"; sha256: string; parents?: { metadata?: string; pieces?: string; observations?: string } };
   // `extract`'s Transcription: its systems (their stored extractions, by item: page and index on it), the checks of the
   // whole score, and where the pieces start (for the renderings); `pages` has their pages with their layouts.
-  extraction?: { systems: { item: string; sha256: string; index: number }[]; checksSha256: string | null; piecesSha256: string | null };
+  // `choosers`: the stages that may have chosen answers of its issues, by id, as the view names them ("Review 2").
+  extraction?: {
+    systems: { item: string; sha256: string; index: number }[];
+    checksSha256: string | null;
+    piecesSha256: string | null;
+    choosers: Record<string, Chooser>;
+  };
   // `engrave`'s MEI file, with the stage's config for its engraving; shown as the file or as the engraving. Both can be
   // downloaded.
   engraving?: { view: "mei" | "pdf"; meiSha256: string; config: EngraveConfig };
@@ -46,6 +52,10 @@ export type Artifact = {
   // theirs). Shown as the MEI view, editable while the stage is WIP (with `editor`).
   fixMei?: { stage: ApiStage; earlier: ApiStage[] };
 };
+
+// A stage that chose an answer of an issue, as an issue's card names it: its title, reviews and human reviews with
+// their number among them ("Review 2", "Human review 1"); `person`: a human review.
+export type Chooser = { label: string; person: boolean };
 
 export type Stage = {
   id: string; // unique within the project, used in the URL
