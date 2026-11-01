@@ -190,10 +190,13 @@ test("curves left open continue on the next system, and must end there", () => {
   const a = system(1);
   a.stretches[0].voices[0].music = "c''4 d''4 e''4 f''4\\=1(";
   const first = ok(a, context(1));
-  assert.deepEqual(first.state.open, [{ kind: "curve", voice: 1, number: 1, from: 1 }]);
+  assert.deepEqual(first.state.open, [{ kind: "curve", voice: 1, number: 1, from: 1, fromStretch: 1 }]);
   const closed = system(1, {}, false);
   closed.stretches[0].voices[0].music = "g''1\\=1)";
-  assert.deepEqual(ok(closed, context(1, { system: 2, firstOfPiece: false }), first.state).codeIssues, []);
+  const second = ok(closed, context(1, { system: 2, firstOfPiece: false }), first.state);
+  assert.deepEqual(second.codeIssues, []);
+  // Where it closed, for the links across the system break.
+  assert.deepEqual(second.closed, [{ mark: { kind: "curve", voice: 1, number: 1, from: 1, fromStretch: 1 }, at: { system: 2, stretch: 1 } }]);
   const unclosed = system(1, {}, false);
   const issues = ok(unclosed, context(1, { system: 2, firstOfPiece: false }), first.state).codeIssues;
   assert.match(issues[0].question, /curve 1 in voice 1 continues from the previous system, but doesn't end on this one/);

@@ -4,6 +4,7 @@
 // them. Like the checks per system, they give issues raised by code where the question is about the page, and
 // warnings otherwise.
 
+import { repeatStructure } from "./links.ts";
 import { describeMark } from "./spans.ts";
 import type { CodeIssue, LensSystem, ScoreState, StretchPlace, Warning } from "./lens.ts";
 
@@ -48,62 +49,9 @@ function pieceEnd(last: CheckedScoreSystem, codeIssues: CodeIssue[], warnings: W
   if (last.state.ending) warnings.push({ message: `An ending is still open where the piece ends, on system ${last.number}.`, places: [here] });
 }
 
-type Ending = { label: string | null; start: StretchPlace; end: StretchPlace; endBarLine: string; next: number };
-
-// The repeat structure (§6, "No links between items"): an end repeat goes back to the nearest repeat sign before it, a
-// start repeat or another end repeat (`|: A :| B :|` plays A A B B), or to the piece's start; repeats don't nest.
-// Endings: one that another ending follows ends at an end repeat (it goes back), and an ending is never alone.
+// The repeat structure's warnings (links.ts works the structure out, for these checks and for `review`'s links).
 function repeats(piece: CheckedScoreSystem[], warnings: Warning[]) {
-  const stretches = piece.flatMap((s) => s.answer.stretches.filter((t) => t.class !== "none").map((t) => ({ system: s, stretch: t })));
-  let open: StretchPlace | null = null;
-  const start = (at: StretchPlace) => {
-    if (open) warnings.push({ message: `Two start repeats without an end repeat between them (system ${open.system} and system ${at.system}): repeats don't nest.`, places: [open, at] });
-    open = at;
-  };
-  const endings: Ending[] = [];
-  let current: Ending | null = null;
-  for (const [i, { system, stretch }] of stretches.entries()) {
-    const at = { system: system.number, stretch: stretch.stretch };
-    if (stretch.stretch === firstMeasureStretch(system.answer) && system.answer.startRepeat) start(at);
-    if (stretch.ending) {
-      if (stretch.ending.startsHere || !current) {
-        current = { label: stretch.ending.label, start: at, end: at, endBarLine: stretch.rightBarLine, next: -1 };
-        endings.push(current);
-      }
-      current.label = current.label ?? stretch.ending.label;
-      current.end = at;
-      current.endBarLine = stretch.rightBarLine;
-      if (stretch.ending.endsHere) {
-        current.next = i + 1;
-        current = null;
-      }
-    }
-    if (stretch.rightBarLine === "endRepeat" || stretch.rightBarLine === "bothRepeats") open = null;
-    if (stretch.rightBarLine === "startRepeat" || stretch.rightBarLine === "bothRepeats") start(i + 1 < stretches.length ? { system: stretches[i + 1].system.number, stretch: stretches[i + 1].stretch.stretch } : at);
-  }
-  if (open) {
-    const at: StretchPlace = open;
-    warnings.push({ message: `The start repeat on system ${at.system} has no end repeat after it in its piece.`, places: [at] });
-  }
-  const name = (e: Ending) => (e.label ? `The ending "${e.label}"` : "An ending");
-  for (const [k, e] of endings.entries()) {
-    const followed = endings[k + 1] && sameStretch(endings[k + 1].start, stretches[e.next]);
-    const preceded = k > 0 && sameStretch(e.start, stretches[endings[k - 1].next]);
-    if (followed && e.endBarLine !== "endRepeat" && e.endBarLine !== "bothRepeats") {
-      warnings.push({ message: `${name(e)} is followed by another ending, but doesn't end with an end repeat.`, places: endPlaces(e) });
-    }
-    if (!followed && !preceded) warnings.push({ message: `${name(e)} stands alone: no other ending comes right before or after it.`, places: endPlaces(e) });
-  }
-}
-
-const endPlaces = (e: Ending): StretchPlace[] => (e.start.system === e.end.system && e.start.stretch === e.end.stretch ? [e.start] : [e.start, e.end]);
-
-function sameStretch(a: StretchPlace, b: { system: CheckedScoreSystem; stretch: { stretch: number } } | undefined): boolean {
-  return !!b && a.system === b.system.number && a.stretch === b.stretch.stretch;
-}
-
-function firstMeasureStretch(answer: LensSystem): number {
-  return answer.stretches.find((s) => s.class !== "none")?.stretch ?? 1;
+  warnings.push(...repeatStructure(piece).warnings);
 }
 
 // A courtesy key or time signature at a system's end (on a stretch of no measure) announces the next system's start.

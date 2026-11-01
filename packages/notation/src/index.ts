@@ -9,3 +9,4 @@ export * from "./xml.ts";
 export * from "./score.ts";
 export * from "./mei.ts";
 export * from "./scoreChecks.ts";
+export * from "./links.ts";

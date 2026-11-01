@@ -30,8 +30,9 @@ export type LayoutSystem = { box: Box; barLines: number[] };
 
 // How the systems are labelled: from `first` (the number of the page's first system in the whole score, default 1),
 // and, with `barLineNumbers`, each bar line numbered within its system, in a small label just above the box's top
-// edge, so that it covers no notes (`analyze`, docs/stages/analyze.md).
-export type DrawOptions = { first?: number; barLineNumbers?: boolean };
+// edge, so that it covers no notes (`analyze`, docs/stages/analyze.md). `labels`: the boxes' own labels instead of
+// numbers counted from `first` (the issues' ids on `review`'s crops, docs/stages/music.md).
+export type DrawOptions = { first?: number; barLineNumbers?: boolean; labels?: string[] };
 
 export function drawLayout(image: RgbaImage, systems: LayoutSystem[], options: DrawOptions = {}): RgbaImage {
   const first = options.first ?? 1;
@@ -48,7 +49,7 @@ export function drawLayout(image: RgbaImage, systems: LayoutSystem[], options: D
     fill(out, x0, y0, thickness, y1 - y0, color);
     fill(out, x1 - thickness, y0, thickness, y1 - y0, color);
     for (const x of system.barLines) fill(out, Math.round(x * image.width - thickness / 2), y0, thickness, y1 - y0, color);
-    label(out, String(first + i), x0, y0, color, thickness);
+    label(out, options.labels?.[i] ?? String(first + i), x0, y0, color, thickness);
     if (options.barLineNumbers) {
       const scale = Math.max(2, thickness * 2);
       system.barLines.forEach((x, j) => {

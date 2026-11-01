@@ -6,14 +6,20 @@
 import { walk, type Event, type Mark } from "./symbolic.ts";
 
 // A curve, a hairpin, a trill span or a glissando belongs to its voice; an ottava and the pedal to the staff they
-// are written on (§6: a voice may move to another staff, and carries such marks there).
-export type OpenMark =
-  | { kind: "curve"; voice: number; number: number; from: number }
-  | { kind: "hairpin"; voice: number; from: number }
-  | { kind: "trill"; voice: number; from: number }
-  | { kind: "glissando"; voice: number; from: number }
-  | { kind: "ottava"; staff: number; value: number; from: number }
-  | { kind: "pedal"; staff: number; from: number };
+// are written on (§6: a voice may move to another staff, and carries such marks there). `from` and `fromStretch`:
+// where it opened.
+export type OpenMark = (
+  | { kind: "curve"; voice: number; number: number }
+  | { kind: "hairpin"; voice: number }
+  | { kind: "trill"; voice: number }
+  | { kind: "glissando"; voice: number }
+  | { kind: "ottava"; staff: number; value: number }
+  | { kind: "pedal"; staff: number }
+) & { from: number; fromStretch: number };
+
+// A mark from an earlier system that closed on this one, and where: what links a mark across system breaks
+// (links.ts).
+export type ClosedMark = { mark: OpenMark; at: { system: number; stretch: number } };
 
 // Marks that may run on over more than one system break.
 const LONG: OpenMark["kind"][] = ["ottava", "pedal", "trill"];
@@ -44,6 +50,7 @@ export type SpanProblem = { message: string; places: { system: number; stretch: 
 export class SpanTracker {
   readonly open: OpenMark[];
   readonly problems: SpanProblem[] = [];
+  readonly closed: ClosedMark[] = []; // marks from earlier systems that closed here
   private readonly system: number;
   private readonly carried: OpenMark[];
 
@@ -58,9 +65,12 @@ export class SpanTracker {
     const here = [{ system: this.system, stretch }];
     const problem = (message: string) => this.problems.push({ message, places: here });
     const find = (pred: (m: OpenMark) => boolean) => this.open.findIndex(pred);
-    const close = (index: number) => this.open.splice(index, 1);
+    const close = (index: number) => {
+      const [m] = this.open.splice(index, 1);
+      if (m.from < this.system) this.closed.push({ mark: m, at: { system: this.system, stretch } });
+    };
+    const origin = { from: this.system, fromStretch: stretch };
     const openMark = (m: OpenMark) => this.open.push(m);
-    const from = this.system;
 
     const marks = (list: Mark[]) => {
       for (const m of list) {
@@ -68,7 +78,7 @@ export class SpanTracker {
           const at = find((o) => o.kind === "curve" && o.voice === voice && o.number === m.number);
           if (m.open) {
             if (at >= 0) problem(`curve ${m.number} in voice ${voice} starts while curve ${m.number} is still open`);
-            else openMark({ kind: "curve", voice, number: m.number, from });
+            else openMark({ kind: "curve", voice, number: m.number, ...origin });
           } else if (at < 0) {
             problem(`curve ${m.number} in voice ${voice} ends, but no curve ${m.number} is open there`);
           } else {
@@ -78,7 +88,7 @@ export class SpanTracker {
           const hairpin = find((o) => o.kind === "hairpin" && o.voice === voice);
           if (m.name === "<" || m.name === ">") {
             if (hairpin >= 0) close(hairpin);
-            openMark({ kind: "hairpin", voice, from });
+            openMark({ kind: "hairpin", voice, ...origin });
           } else if (m.name === "!") {
             if (hairpin < 0) problem(`a hairpin ends with \\! in voice ${voice}, but none is open there`);
             else close(hairpin);
@@ -87,7 +97,7 @@ export class SpanTracker {
           } else if (m.name === "startTrillSpan") {
             const trill = find((o) => o.kind === "trill" && o.voice === voice);
             if (trill >= 0) problem(`a trill line starts in voice ${voice} while another is open`);
-            else openMark({ kind: "trill", voice, from });
+            else openMark({ kind: "trill", voice, ...origin });
           } else if (m.name === "stopTrillSpan") {
             const trill = find((o) => o.kind === "trill" && o.voice === voice);
             if (trill < 0) problem(`a trill line ends in voice ${voice}, but none is open there`);
@@ -95,13 +105,13 @@ export class SpanTracker {
           } else if (m.name === "sustainOn") {
             const pedal = find((o) => o.kind === "pedal" && o.staff === staff);
             if (pedal >= 0) problem(`the pedal goes down on staff ${staff} while it is already down`);
-            else openMark({ kind: "pedal", staff, from });
+            else openMark({ kind: "pedal", staff, ...origin });
           } else if (m.name === "sustainOff") {
             const pedal = find((o) => o.kind === "pedal" && o.staff === staff);
             if (pedal < 0) problem(`the pedal comes up on staff ${staff}, but it isn't down there`);
             else close(pedal);
           } else if (m.name === "glissando") {
-            openMark({ kind: "glissando", voice, from });
+            openMark({ kind: "glissando", voice, ...origin });
           }
         }
       }
@@ -119,7 +129,7 @@ export class SpanTracker {
             else close(at);
           } else {
             if (at >= 0) close(at);
-            openMark({ kind: "ottava", staff, value: event.value, from });
+            openMark({ kind: "ottava", staff, value: event.value, ...origin });
           }
           break;
         }
@@ -161,7 +171,7 @@ export class SpanTracker {
   }
 }
 
-function sameMark(a: OpenMark, b: OpenMark): boolean {
+export function sameMark(a: OpenMark, b: OpenMark): boolean {
   if (a.kind !== b.kind) return false;
   if ("voice" in a && "voice" in b && a.voice !== b.voice) return false;
   if ("staff" in a && "staff" in b && a.staff !== b.staff) return false;

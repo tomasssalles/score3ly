@@ -234,6 +234,18 @@ export async function drawnPage(recipe: DrawnPageRecipe): Promise<Blob> {
   return cachedOr(recipe, async () => derive(await modelPage(recipe.page), { draw: recipe.systems }));
 }
 
+// A crop sent to a model with boxes drawn on it, each labelled (`review`: the issues on the crop, by their ids;
+// docs/stages/music.md). The boxes are fractions of the crop. Cached under its recipe: the drawing is ours and
+// deterministic. `draw` is the drawing code's version (DRAW_VERSION).
+export type MarkedCropRecipe = { crop: CropRecipe; boxes: Box[]; labels: string[]; draw: number };
+
+export async function markedCrop(recipe: MarkedCropRecipe): Promise<Blob> {
+  if (recipe.boxes.length === 0) return cropImage(recipe.crop);
+  return cachedOr(recipe, async () =>
+    derive(await cropImage(recipe.crop), { draw: recipe.boxes.map((box) => ({ box, barLines: [] })), drawOptions: { labels: recipe.labels } }),
+  );
+}
+
 // A page sent to a model with its layout drawn on it, labelled for `analyze` (systems numbered in the whole score from
 // `first`, bar lines numbered), in colour or gray (docs/stages/analyze.md). Cached under its recipe: the drawing is ours and
 // deterministic. `draw` is the drawing code's version (DRAW_VERSION).

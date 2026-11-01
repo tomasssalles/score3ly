@@ -6,7 +6,7 @@
 
 import { add, equal, less, show, ZERO, type Fraction } from "./fraction.ts";
 import { eventsDuration, durationValue, measureLength, parseKey, parseTime, type TimeSignature } from "./durations.ts";
-import { SpanTracker, type OpenMark } from "./spans.ts";
+import { SpanTracker, type ClosedMark, type OpenMark } from "./spans.ts";
 import { normalizeClef, parseVoice, walk, type Event, type Tempo } from "./symbolic.ts";
 
 export const STRETCH_CLASSES = ["none", "new", "continues"] as const;
@@ -96,6 +96,7 @@ export type CheckedSystem = {
   codeIssues: CodeIssue[];
   warnings: Warning[];
   state: ScoreState; // what the next system starts from
+  closed: ClosedMark[]; // marks from earlier systems that closed on this one, and where (links.ts)
 };
 
 // Checks an answer against the system it is for and what came before it. A structural problem (§6, "Code checks
@@ -416,6 +417,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     voices,
     codeIssues,
     warnings,
+    closed: spans.closed,
     state: {
       staves,
       voices: voiceList,
