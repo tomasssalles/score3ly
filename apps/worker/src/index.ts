@@ -41,10 +41,6 @@ function isNameConflict(err: unknown): boolean {
   return String(err).includes("UNIQUE constraint failed: projects.name");
 }
 
-function escapeLike(text: string): string {
-  return text.replace(/[\\%_]/g, (ch) => "\\" + ch);
-}
-
 async function getProject(db: D1Database, id: string): Promise<Project | null> {
   const row = await db
     .prepare("SELECT * FROM projects WHERE id = ? AND deleted_at IS NULL")
@@ -78,11 +74,10 @@ app.get("/api/projects", async (c) => {
   return c.json(results.map(toProject));
 });
 
-async function takenNames(db: D1Database, base: string): Promise<string[]> {
-  const { results } = await db
-    .prepare("SELECT name FROM projects WHERE deleted_at IS NULL AND (name = ? OR name LIKE ? ESCAPE '\\')")
-    .bind(base, `${escapeLike(base)} (%)`)
-    .all<{ name: string }>();
+// Every name in use: firstFreeName picks from them in code. Not with LIKE: D1 refuses patterns over 50 bytes, and
+// file names are often longer (docs/overview.md §4). There are never so many projects that this matters.
+async function takenNames(db: D1Database): Promise<string[]> {
+  const { results } = await db.prepare("SELECT name FROM projects WHERE deleted_at IS NULL").all<{ name: string }>();
   return results.map((row) => row.name);
 }
 
@@ -110,7 +105,7 @@ app.get("/api/pdfs/:sha256", async (c) => {
   const base = defaultName(filename);
   return c.json({
     projects: results.map(toProject),
-    newProjectName: firstFreeName(base, await takenNames(c.env.DB, base)),
+    newProjectName: firstFreeName(base, await takenNames(c.env.DB)),
   });
 });
 
@@ -204,7 +199,7 @@ app.post("/api/projects", async (c) => {
   for (let attempt = 0; ; attempt++) {
     const project: Project = {
       id: crypto.randomUUID(),
-      name: firstFreeName(base, await takenNames(c.env.DB, base)),
+      name: firstFreeName(base, await takenNames(c.env.DB)),
       pdfSha256: sha256,
       pdfFilename: filename,
       createdAt: now,

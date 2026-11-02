@@ -391,6 +391,28 @@ test("a project whose default name is taken gets the next free number", async ()
   assert.deepEqual(names, ["Sonata", "sonata (1)", "SONATA (2)", "Sonata (1) (1)", "So_ata"]);
 });
 
+// D1 refuses LIKE patterns over 50 bytes, and files downloaded from IMSLP have names far longer than that.
+test("a long file name gets a project, numbered when taken, and its PDF can be looked up", async () => {
+  const filename = "IMSLP971706-PMLP2799-Schumann_Kinderscenen_leichte_Stu-cke_fu-r_das_Pianoforte.pdf";
+  const base = "IMSLP971706-PMLP2799-Schumann_Kinderscenen_leichte_Stu-cke_fu-r_das_Pianoforte";
+  const pdf = pdfBytes("long name");
+  const sha256 = await sha256Hex(pdf);
+  // Another project: SQLite checks a LIKE pattern only when it compares a row with it.
+  await createdProject("Sonata.pdf");
+
+  const first = await postProject({ pdf, filename, sha256 });
+  assert.equal(first.status, 201);
+  assert.equal(((await first.json()) as ProjectJson).name, base);
+
+  const lookup = await app.request(`/api/pdfs/${sha256}?filename=${encodeURIComponent(filename)}`, {}, env);
+  assert.equal(lookup.status, 200);
+  assert.equal(((await lookup.json()) as { newProjectName: string }).newProjectName, `${base} (1)`);
+
+  const second = await postProject({ pdf, filename, sha256 });
+  assert.equal(second.status, 201);
+  assert.equal(((await second.json()) as ProjectJson).name, `${base} (1)`);
+});
+
 test("renaming changes the name and the modification time, not the opening time", async () => {
   const project = await createdProject("sonata.pdf");
 

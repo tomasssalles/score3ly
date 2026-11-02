@@ -65,12 +65,7 @@ A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a 
 - **Multi-device tests wait for a real deployment** (§16, "Deployment"): listed at the end of the file, to be written as stories then, with real phones, Firefox and Safari.
 - **Stories to add** once built: `apply_review`, `human_review`, the model configs' form, the format gap report.
 - **The setup becomes a test environment** once those exist ("Build the test environments"), so the stories start with one command.
-- **Found while writing it** (each a task of its own): "Long PDF file names", "The MEI view at the end of a run", "A failed LLM stage keeps its model config", "`--persist-to` through the root's npm scripts".
-
-### Long PDF file names
-`#bug` `#next`
-
-Found 2026-11-01 while writing the manual test suite. A PDF whose file name is longer than about 45 characters can't be opened: "Checking the PDF failed: Error: HTTP 500". `takenNames` (`apps/worker/src/index.ts`) looks for the names a new project would clash with by `name LIKE '<base> (%)'`, and D1 refuses LIKE patterns over 50 bytes ("LIKE or GLOB pattern too complex"; each `_` escaped counts twice). Files downloaded from IMSLP have such names (`IMSLP971706-PMLP2799-Schumann_Kinderscenen_leichte_Stu-cke_fu-r_das_Pianoforte.pdf`), and so does `testset/schumann_kinderscenen_first_edition_p3.orig.pdf`. The desktop version's SQLite has no such limit, and the Worker's tests don't meet it either. The query runs twice: when the PDF is looked up (`GET /api/pdfs/<sha256>`) and when the project is created (`POST /api/projects`); renaming doesn't use it. A fix without LIKE: compare a prefix (`substr(name, 1, length(?)) = ? COLLATE NOCASE`) and check the rest in code; and a test with a long name against the real local D1 (Wrangler), not only the Node adapter.
+- **Found while writing it** (each a task of its own): "The MEI view at the end of a run", "A failed LLM stage keeps its model config", "`--persist-to` through the root's npm scripts".
 
 ### The MEI view at the end of a run
 `#bug`

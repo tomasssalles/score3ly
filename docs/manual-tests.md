@@ -35,7 +35,7 @@ Wrangler is called directly: through the root's `npm run dev:worker -- --persist
 | `debussy_clair_de_lune_mutopia.orig.pdf` | 4 vector pages: the resolution matters, and the lines differ with it. |
 | `bendel_la_cascade.orig.pdf` | 10 large, slightly skewed scans, a cover without staves: slow enough to stop, interrupt and watch progress (`rasterize` about 40 s, `skew_analysis` about 25 s). |
 | `schumann_kinderscenen_first_edition.orig.pdf` | 22 crooked colour scans, 13 MB: the big old book. |
-| `schumann_kinderscenen_first_edition_p3.orig.pdf` | 1 colour page: a quick second PDF. Until the bug "Long PDF file names" (§15) is fixed, it can't be opened ("Checking the PDF failed: Error: HTTP 500"): copy it to a short name, e.g. `kinderscenen_p3.pdf`. |
+| `schumann_kinderscenen_first_edition_p3.orig.pdf` | 1 colour page: a quick second PDF. |
 
 **Model configs.** A new database has "Fake model" (free, the default). The settings page shows configs read-only (§15, "Settings page, the model configs"), so the others are made with `curl`, and the default is switched the same way (a stage uses the default unless one was picked for it, and no picker exists yet):
 ```
@@ -182,7 +182,7 @@ Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new 
 1. → New project from Für Elise again. ✓ The dialog lists the PDF's projects, most recently opened first, and "+ New project" last with the name it would get, "beethoven_fuer_elise_leipzig.orig (<n>)" with the first free number. → Create it. ✓ That name; no upload (quick).
 2. → Project "⋮" → Rename. ✓ The name selected, "Rename" disabled while unchanged or empty (spaces only). → 201 characters. ✓ A message at once. → The other Für Elise project's name in other capitals. ✓ "A project with that name already exists. Names must be unique (case-insensitive).", the dialog open. → Only the case of its own name. ✓ Allowed.
 3. → Rename to something long (about 150 characters). ✓ Shortened in the middle in the panel and the picker, on one line.
-   → New project from a PDF with a long file name, as downloaded from IMSLP (copy any PDF to e.g. `IMSLP971706-PMLP2799-Schumann_Kinderscenen_leichte_Stu-cke_fu-r_das_Pianoforte.pdf`). ✓ A project with that name (without ".pdf"). (Fails today: the bug "Long PDF file names", §15.)
+   → New project from a PDF with a long file name, as downloaded from IMSLP (copy any PDF to e.g. `IMSLP971706-PMLP2799-Schumann_Kinderscenen_leichte_Stu-cke_fu-r_das_Pianoforte.pdf`). ✓ A project with that name (without ".pdf"). Once more: the same name with " (1)".
 4. → The picker: type part of a name, part of the PDF's file name. ✓ Both filter; most recently opened first. → Open a project from it, then use back and forward. ✓ The URL follows; back returns to the previous project; going back doesn't mark it as opened (its place in the list stays).
 5. → Open two tabs on two different projects. ✓ Each keeps its own; a reload keeps it.
 6. → "Delete project" on a finished one. ✓ The dialog: the full name, the text of `docs/database.md`, "Deleting a project", "Delete project" disabled. → Paste the name. ✓ Doesn't count. → Type it with one letter in another case. ✓ Still disabled. → Type it exactly, delete. ✓ The screen saying "<name>" was deleted from this device and from the remote storage; URL `#/`; back doesn't return to it; a reload shows the empty app; gone from the picker.
