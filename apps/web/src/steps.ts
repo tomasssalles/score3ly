@@ -58,7 +58,7 @@ export type StepInfo = {
 // Every LLM stage's config: its model config, so far nothing else (docs/llm.md, "Which config a stage uses"). Another
 // setting of an LLM step would be a field beside it; "Apply to the remaining stages…" changes only the model config.
 export const LLM_CONFIG: StepConfig = {
-  fields: [{ key: "modelConfigId", label: "Model config", kind: "modelConfig" }],
+  fields: [{ key: "modelConfigId", label: "Model", kind: "modelConfig" }],
   read: (stored) => ({ modelConfigId: typeof stored?.modelConfigId === "string" ? stored.modelConfigId : "" }),
   check: (values, { modelConfigs }) => {
     const picked = modelConfigs.find((c) => c.id === values.modelConfigId);

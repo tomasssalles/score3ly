@@ -1671,27 +1671,50 @@ body {
   accent-color: var(--accent);
 }
 
-.model-config-field .field-picker {
-  justify-self: start;
-  max-width: 100%;
+/* The label and the picker on one row; the name shortened in the middle to the room left. */
+.field .field-row {
+  position: relative; /* the configs' list hangs from the row, so it has the row's width on a phone */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
-/* The configs' list: as wide as its names, within the screen; shown past the dialog's edge rather than cut by it, and
+.field-row > span {
+  flex: none;
+}
+
+.model-config-field .field-picker {
+  position: static;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.model-config-field .mode-button {
+  max-width: 100%;
+  min-height: 32px;
+}
+
+/* The configs' list: as wide as its names, within the row; shown past the dialog's edge rather than cut by it, and
    scrolling when there are many. */
 .app-dialog:has(.model-config-field) {
   overflow: visible;
 }
 
 .model-config-field .dropdown-list {
+  left: 0;
+  right: auto;
   width: max-content;
   min-width: 140px;
-  max-width: min(360px, calc(100vw - 64px));
+  max-width: 100%;
   max-height: 50vh;
   overflow-y: auto;
 }
 
 .model-config-field .picker-value {
-  max-width: min(320px, 60vw);
+  min-width: 0;
+  max-width: 320px;
+  font-size: 14px;
   text-align: left;
 }
 
