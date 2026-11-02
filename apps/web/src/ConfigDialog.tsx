@@ -57,7 +57,7 @@ export function ConfigDialog({
     >
       <form onSubmit={save}>
         <div className="dialog-head">
-          <h2 id="config-title">{title}: config</h2>
+          <h2 id="config-title">{title}</h2>
           <button type="button" className="dialog-close" aria-label="Cancel" onClick={() => dialog.current?.close()}>
             <CloseIcon />
           </button>
