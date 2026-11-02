@@ -66,23 +66,21 @@ export function ConfigDialog({
           <div key={field.key}>
             {field.kind === "modelConfig" ? (
               <div className="field model-config-field">
-                <div className="field-row">
-                  <span>{field.label}</span>
-                  <Picker
-                    value={modelConfigLabel(context.modelConfigs.find((c) => c.id === texts[field.key])) ?? "Pick one"}
-                    label={field.label}
-                    fitted
-                    groups={[
-                      context.modelConfigs
-                        .filter((c) => !c.deleted)
-                        .map((c) => ({
-                          label: c.name,
-                          current: c.id === texts[field.key],
-                          onSelect: () => setTexts((t) => ({ ...t, [field.key]: c.id })),
-                        })),
-                    ]}
-                  />
-                </div>
+                <span>{field.label}</span>
+                <Picker
+                  value={modelConfigLabel(context.modelConfigs.find((c) => c.id === texts[field.key])) ?? "Pick one"}
+                  label={field.label}
+                  fitted
+                  groups={[
+                    context.modelConfigs
+                      .filter((c) => !c.deleted)
+                      .map((c) => ({
+                        label: c.name,
+                        current: c.id === texts[field.key],
+                        onSelect: () => setTexts((t) => ({ ...t, [field.key]: c.id })),
+                      })),
+                  ]}
+                />
                 {context.laterLlmStages > 0 && (
                   <label className="field-check">
                     <input type="checkbox" checked={toLater} onChange={(e) => setToLater(e.target.checked)} />

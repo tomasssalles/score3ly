@@ -1671,51 +1671,47 @@ body {
   accent-color: var(--accent);
 }
 
-/* The label and the picker on one row; the name shortened in the middle to the room left. */
-.field .field-row {
-  position: relative; /* the configs' list hangs from the row, so it has the row's width on a phone */
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.field-row > span {
-  flex: none;
-}
-
+/* The model config's picker looks like the other fields' inputs: the whole row, its name shortened in the middle when
+   it doesn't fit, and its list as wide as the field. */
 .model-config-field .field-picker {
-  position: static;
-  flex: 0 1 auto;
   min-width: 0;
 }
 
 .model-config-field .mode-button {
-  max-width: 100%;
-  min-height: 32px;
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  font: 16px var(--sans);
 }
 
-/* The configs' list: as wide as its names, within the row; shown past the dialog's edge rather than cut by it, and
-   scrolling when there are many. */
+.model-config-field .mode-button .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.model-config-field .picker-value {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+/* The configs' list is shown past the dialog's edge rather than cut by it, and scrolls when there are many. */
 .app-dialog:has(.model-config-field) {
   overflow: visible;
 }
 
 .model-config-field .dropdown-list {
   left: 0;
-  right: auto;
-  width: max-content;
-  min-width: 140px;
-  max-width: 100%;
+  right: 0;
+  width: auto;
   max-height: 50vh;
   overflow-y: auto;
-}
-
-.model-config-field .picker-value {
-  min-width: 0;
-  max-width: 320px;
-  font-size: 14px;
-  text-align: left;
 }
 
 .field-hint {
