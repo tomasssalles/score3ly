@@ -2651,11 +2651,10 @@ textarea.field-input {
   cursor: default;
 }
 
-.mei-piece .mode-button {
+/* The piece's name, shortened in the middle (FittedText). */
+.mei-piece .picker-value {
   max-width: 14em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: left;
 }
 
 .mei-problem {

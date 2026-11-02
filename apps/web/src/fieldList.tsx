@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CONFIDENCE_SYMBOLS, type ShownConfidence } from "./analyze";
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
+import { FittedText } from "./FittedText";
 import { ChevronDownIcon, CloseIcon } from "./icons";
 
 // What forms saved on this device and isn't yet in the pipeline the app has, by stage.
@@ -226,12 +227,15 @@ export function Picker({
   groups,
   headings,
   className = "",
+  fitted = false,
 }: {
   value: string;
   label: string;
   groups: MenuItem[][];
   headings?: string[];
   className?: string;
+  // The value on one line, shortened in the middle when it doesn't fit (docs/style.md); its width is set by CSS.
+  fitted?: boolean;
 }) {
   return (
     <DropdownMenu
@@ -239,7 +243,7 @@ export function Picker({
       buttonClassName="mode-button"
       icon={
         <>
-          {value}
+          {fitted ? <FittedText className="picker-value" text={value} lines={1} /> : value}
           <ChevronDownIcon />
         </>
       }

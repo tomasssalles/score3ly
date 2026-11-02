@@ -269,6 +269,7 @@ function GoTo({ index, goTo, onProblem }: { index: MeiIndex; goTo: (line: number
           value={pieceName(index.pieces.find((p) => p.n === piece) ?? index.pieces[0])}
           label="The piece"
           className="mei-piece"
+          fitted
           groups={[
             index.pieces.map((p) => ({
               label: pieceName(p),
