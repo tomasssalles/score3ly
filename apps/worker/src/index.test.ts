@@ -172,6 +172,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       ["analyze", "planned", fake],
       ["extract", "planned", fake],
       ["review", "planned", fake],
+      ["apply_review", "planned", fake],
       ["engrave", "planned", null],
     ],
   );
@@ -594,16 +595,16 @@ test("an LLM stage names its model config from its creation: the default then, k
   await app.request("/api/settings/defaultModelConfigId", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: "opus-new" }) }, env);
   const modelOf = async (projectId: string) => (await pipelineOf(projectId)).map((s) => (s.config as { modelConfigId?: string } | null)?.modelConfigId ?? null);
   // A new default changes nothing in stages that exist; a new project's stages get it.
-  assert.deepEqual(await modelOf(before.id), [null, null, null, "fake-model", "fake-model", "fake-model", "fake-model", null]);
+  assert.deepEqual(await modelOf(before.id), [null, null, null, "fake-model", "fake-model", "fake-model", "fake-model", "fake-model", null]);
   const after = await createdProject("after.pdf");
-  assert.deepEqual(await modelOf(after.id), [null, null, null, "opus-new", "opus-new", "opus-new", "opus-new", null]);
+  assert.deepEqual(await modelOf(after.id), [null, null, null, "opus-new", "opus-new", "opus-new", "opus-new", "opus-new", null]);
   assert.equal(((await pipelineOf(after.id))[3].modelConfig as { name: string }).name, "Opus for new stages");
 
   // A config set without a model config gets the default now; one naming a config that doesn't exist is refused.
   let layout = (await pipelineOf(before.id))[3];
   assert.equal((await call(before.id, layout.id, "config", { config: { modelConfigId: "missing" } }, "PUT")).status, 400);
   assert.equal((await call(before.id, layout.id, "config", { config: null }, "PUT")).status, 200);
-  assert.deepEqual(await modelOf(before.id), [null, null, null, "opus-new", "fake-model", "fake-model", "fake-model", null]);
+  assert.deepEqual(await modelOf(before.id), [null, null, null, "opus-new", "fake-model", "fake-model", "fake-model", "fake-model", null]);
   assert.equal((await call(before.id, layout.id, "config", { config: { modelConfigId: "fake-model" } }, "PUT")).status, 200);
 
   // A stage that ran, replaced by a change before it: the planned copy keeps its model config, not the default.
@@ -616,7 +617,7 @@ test("an LLM stage names its model config from its creation: the default then, k
   assert.equal((await call(before.id, layout.id, "stop")).status, 200);
   assert.deepEqual((await modelOf(before.id))[3], "fake-model");
   assert.equal((await call(before.id, rasterize.id, "stop")).status, 200);
-  assert.deepEqual(await modelOf(before.id), [null, null, null, "fake-model", "fake-model", "fake-model", "fake-model", null]);
+  assert.deepEqual(await modelOf(before.id), [null, null, null, "fake-model", "fake-model", "fake-model", "fake-model", "fake-model", null]);
   assert.deepEqual(((await pipelineOf(before.id))[3].modelConfig as { name: string }).name, "Fake model");
 
   // The default as the other tests expect it.
@@ -635,9 +636,10 @@ test("a model config applied to the remaining stages: only the LLM stages after,
 
   // Without the checkbox, only the stage itself.
   assert.equal((await call(project.id, (await at(3)).id, "config", { config: { modelConfigId: "other-model" } }, "PUT")).status, 200);
-  assert.deepEqual((await configs()).slice(3, 7), [
+  assert.deepEqual((await configs()).slice(3, 8), [
     { modelConfigId: "other-model" },
     { modelConfigId: "fake-model", keep: 1 },
+    { modelConfigId: "fake-model" },
     { modelConfigId: "fake-model" },
     { modelConfigId: "fake-model" },
   ]);
@@ -652,6 +654,7 @@ test("a model config applied to the remaining stages: only the LLM stages after,
     { modelConfigId: "other-model", keep: 1 },
     { modelConfigId: "other-model" },
     { modelConfigId: "other-model" },
+    { modelConfigId: "other-model" },
     null,
   ]);
   assert.deepEqual((await at(6)).modelConfig, { name: "Other model", model: "fake-model", deleted: false });
@@ -664,10 +667,11 @@ test("a model config applied to the remaining stages: only the LLM stages after,
   const after = await pipelineOf(project.id);
   assert.notEqual(after[5].id, extract.id);
   assert.equal(after[5].status, "planned");
-  assert.deepEqual(after.slice(3, 7).map((s) => s.config), [
+  assert.deepEqual(after.slice(3, 8).map((s) => s.config), [
     { modelConfigId: "fake-model" },
     { modelConfigId: "fake-model", keep: 1 },
     { modelConfigId: "fake-model", keep: 2 },
+    { modelConfigId: "fake-model" },
     { modelConfigId: "fake-model" },
   ]);
 
@@ -853,7 +857,7 @@ test("a manual stage is added WIP after a done stage, saved as the user works, a
   let pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status]),
-    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["review", "planned"], ["engrave", "planned"]],
+    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["review", "planned"], ["apply_review", "planned"], ["engrave", "planned"]],
   );
   // The planned layout keeps its row.
   assert.equal(pipeline[4].id, stages[3].id);
@@ -899,7 +903,7 @@ test("a second fix of the same stage goes after the first, which stays, WIP or f
   const pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status]),
-    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["fix_layout", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["review", "planned"], ["engrave", "planned"]],
+    [["ingest", "done"], ["rasterize", "done"], ["skew_analysis", "done"], ["fix_skew", "wip"], ["fix_layout", "wip"], ["layout", "planned"], ["analyze", "planned"], ["extract", "planned"], ["review", "planned"], ["apply_review", "planned"], ["engrave", "planned"]],
   );
   assert.equal(pipeline[3].id, first);
   // Neither can be added again after the same stage.
@@ -924,7 +928,7 @@ test("adding a fix replaces the stages after it that ran; a change before a manu
   pipeline = await pipelineOf(project.id);
   assert.deepEqual(
     pipeline.map((s) => [s.step, s.status, s.carried]),
-    [["ingest", "done", false], ["rasterize", "planned", false], ["skew_analysis", "planned", false], ["fix_skew", "wip", true], ["layout", "planned", false], ["analyze", "planned", false], ["extract", "planned", false], ["review", "planned", false], ["engrave", "planned", false]],
+    [["ingest", "done", false], ["rasterize", "planned", false], ["skew_analysis", "planned", false], ["fix_skew", "wip", true], ["layout", "planned", false], ["analyze", "planned", false], ["extract", "planned", false], ["review", "planned", false], ["apply_review", "planned", false], ["engrave", "planned", false]],
   );
 });
 
@@ -989,11 +993,11 @@ test("a carried manual stage is dropped when what it reads changed, and the stag
   const response = await call(project.id, fix, "resolve", { inputIds: skewNow.outputs.map((o) => o.id) });
   const { kept, pipeline } = (await response.json()) as { kept: boolean; pipeline: { stages: StageJson[] } };
   assert.equal(kept, false);
-  assert.deepEqual(pipeline.stages.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "engrave"]);
+  assert.deepEqual(pipeline.stages.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "engrave"]);
   const { results } = await env.DB.prepare("SELECT position FROM pipeline_entries WHERE project_id = ? ORDER BY position")
     .bind(project.id)
     .all<{ position: number }>();
-  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
 });
 
 // A project whose finished fix_skew was dropped at its turn, its inputs having changed: the skew_analysis it came after.
@@ -1073,11 +1077,89 @@ test("dropping a manual stage takes it out and moves the later stages up; recipe
   assert.equal((await call(project.id, skew.id, "drop")).status, 409);
   assert.equal((await call(project.id, stageId, "drop")).status, 200);
   const pipeline = await pipelineOf(project.id);
-  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "engrave"]);
+  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "engrave"]);
   const { results } = await env.DB.prepare("SELECT position FROM pipeline_entries WHERE project_id = ? ORDER BY position")
     .bind(project.id)
     .all<{ position: number }>();
-  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.deepEqual(results.map((r) => r.position), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+});
+
+// Further reviews (docs/stages/music.md, `apply_review`): added after any Apply review, right after it, with an Apply
+// review of their own; dropped with it; carried through a re-run like a manual stage, kept only if what it reads is the
+// same.
+test("a further review: added after an Apply review with its own, dropped with it, carried through a re-run", async () => {
+  const project = await createdProject("further.pdf");
+  const steps = async () => (await pipelineOf(project.id)).map((s) => s.step);
+  // Runs the stage at `index`: done, with one output whose content is `text`, having read `inputIds`.
+  const run = async (index: number, text: string, inputIds: string[] = []) => {
+    const stage = (await pipelineOf(project.id))[index];
+    const config = (stage.config as Record<string, unknown> | null) ?? {};
+    assert.equal((await call(project.id, stage.id, "start", { stepVersion: 1, config, stageKey: crypto.randomUUID().replace(/-/g, "").repeat(2), pageCount: 1, inputIds })).status, 200);
+    assert.equal((await call(project.id, stage.id, "outputs", { outputs: [{ item: "", type: "x", contentSha256: await putContent(text) }] })).status, 200);
+    assert.equal((await call(project.id, stage.id, "finish", { status: "done" })).status, 204);
+    return (await pipelineOf(project.id))[index];
+  };
+  let pipeline = await pipelineOf(project.id);
+  // Only after an Apply review.
+  assert.equal((await call(project.id, pipeline[6].id, "review")).status, 409);
+  const added = await call(project.id, pipeline[7].id, "review");
+  assert.equal(added.status, 200);
+  const { stageId } = (await added.json()) as { stageId: string };
+  pipeline = await pipelineOf(project.id);
+  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "review", "apply_review", "engrave"]);
+  assert.equal(pipeline[8].id, stageId);
+  assert.deepEqual(pipeline.slice(6, 10).map((s) => [s.status, s.inRecipe, s.config]), [
+    ["planned", true, { modelConfigId: "fake-model" }],
+    ["planned", true, { modelConfigId: "fake-model" }],
+    ["planned", false, { modelConfigId: "fake-model" }],
+    ["planned", false, { modelConfigId: "fake-model" }],
+  ]);
+  // The recipe's review can't be dropped, nor an Apply review by itself.
+  assert.equal((await call(project.id, pipeline[6].id, "drop")).status, 409);
+  assert.equal((await call(project.id, pipeline[9].id, "drop")).status, 409);
+
+  // Everything runs; the further review reads the first Apply review's output.
+  for (let i = 1; i <= 7; i++) await run(i, `stage ${i}`);
+  const firstApply = (await pipelineOf(project.id))[7];
+  await run(8, "further review", firstApply.outputs.map((o) => o.id as string));
+  await run(9, "its apply");
+
+  // A change before them: the further review is carried, its Apply review replaced by a planned copy.
+  const extract = (await pipelineOf(project.id))[5];
+  assert.equal((await call(project.id, extract.id, "config", { config: { modelConfigId: "fake-model", other: 1 } }, "PUT")).status, 200);
+  pipeline = await pipelineOf(project.id);
+  assert.deepEqual(pipeline.slice(8).map((s) => [s.step, s.status, s.carried]), [
+    ["review", "done", true],
+    ["apply_review", "planned", false],
+    ["engrave", "planned", false],
+  ]);
+  assert.equal(pipeline[8].id, stageId);
+  // The stages before it run again to the same result: it is kept, as it was.
+  for (let i = 5; i <= 7; i++) await run(i, `stage ${i}`);
+  const same = (await pipelineOf(project.id))[7].outputs.map((o) => o.id as string);
+  const kept = (await (await call(project.id, stageId, "resolve", { inputIds: same })).json()) as { kept: boolean; pipeline: { stages: StageJson[] } };
+  assert.equal(kept.kept, true);
+  assert.deepEqual(kept.pipeline.stages.slice(8).map((s) => [s.step, s.status, s.carried]), [
+    ["review", "done", false],
+    ["apply_review", "planned", false],
+    ["engrave", "planned", false],
+  ]);
+
+  // Again, to another result: it is dropped with its Apply review, one card for the pair.
+  await run(9, "its apply");
+  assert.equal((await call(project.id, (await pipelineOf(project.id))[5].id, "config", { config: { modelConfigId: "fake-model", other: 2 } }, "PUT")).status, 200);
+  for (let i = 5; i <= 6; i++) await run(i, `stage ${i}`);
+  const other = (await run(7, "another transcription")).outputs.map((o) => o.id as string);
+  const dropped = (await (await call(project.id, stageId, "resolve", { inputIds: other })).json()) as { kept: boolean; pipeline: { stages: StageJson[]; dropped: DroppedJson[] } };
+  assert.equal(dropped.kept, false);
+  assert.deepEqual(dropped.pipeline.stages.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "engrave"]);
+  assert.deepEqual(dropped.pipeline.dropped.map((d) => d.step), ["review"]);
+
+  // Added again and dropped by the user: the pair goes.
+  const again = (await (await call(project.id, (await pipelineOf(project.id))[7].id, "review")).json()) as { stageId: string };
+  assert.equal((await steps()).length, 11);
+  assert.equal((await call(project.id, again.stageId, "drop")).status, 200);
+  assert.deepEqual(await steps(), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "engrave"]);
 });
 
 test("migration 0019 marks existing stages as the recipe's, unless their step is manual", () => {
@@ -1111,7 +1193,7 @@ test("the recipe's stages are marked as such, and so is every stage that replace
   assert.notEqual(after[2].id, before[2].id);
   assert.deepEqual(
     await Promise.all(after.map(async (s) => [s.step, await inRecipe(s.id)])),
-    [["ingest", 1], ["rasterize", 1], ["skew_analysis", 1], ["fix_skew", 0], ["layout", 1], ["analyze", 1], ["extract", 1], ["review", 1], ["engrave", 1]],
+    [["ingest", 1], ["rasterize", 1], ["skew_analysis", 1], ["fix_skew", 0], ["layout", 1], ["analyze", 1], ["extract", 1], ["review", 1], ["apply_review", 1], ["engrave", 1]],
   );
 
   // A stopped recipe stage's planned replacement is the recipe's.
@@ -1453,7 +1535,7 @@ test("run times: finished projects only, their stages that started with items of
     items: [string, string, number, number, number, number, number][];
   };
   assert.deepEqual(data.projects.map((p) => [p.id, p.finishedAt, p.pages]), [[done.id, "2026-10-20T10:00:00.000Z", [1, 2]]]);
-  assert.deepEqual(data.recipe, ["rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "engrave"]);
+  assert.deepEqual(data.recipe, ["rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "engrave"]);
   assert.ok(!data.stages.some((s) => s.projectId === open.id || s.step === "ingest"));
   assert.ok(!data.stages.some((s) => s.id === "never"));
   assert.ok(data.projects[0].pipeline.includes(extract.id) && !data.projects[0].pipeline.includes("fix"));

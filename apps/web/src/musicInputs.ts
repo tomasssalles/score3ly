@@ -1,4 +1,4 @@
-// What the music stages (`extract`, `review`; docs/stages/music.md) read before they start: the page images, the
+// What the music stages (`extract`, `review`, `apply_review`; docs/stages/music.md) read before they start: the page images, the
 // latest layout, observations and pieces, and the systems of the score with what is needed to crop them. In one place,
 // so that every stage finds them the same way.
 

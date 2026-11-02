@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   addFixStage,
+  addReviewStage,
   dismissDropped,
   dropStage,
   editStage,
@@ -269,6 +270,19 @@ export function ProjectView({
     }
   }
 
+  // A further review and its Apply review, planned, right after an Apply review.
+  async function addReview(afterId: string) {
+    quiet();
+    try {
+      const result = await addReviewStage(project, afterId);
+      setStored(result.pipeline);
+      onChanged();
+      scroll();
+    } catch (err) {
+      setError(`Adding the review failed: ${err}`);
+    }
+  }
+
   async function edit(stageId: string) {
     quiet();
     try {
@@ -464,6 +478,7 @@ export function ProjectView({
       else setError(`"${stage?.title}" has nothing to set.`);
     },
     addFix: (id, step) => change(() => void addFix(id, step), fixReplaces(id), "Add stage"),
+    addReview: (id) => change(() => void addReview(id), replacesLater(id), "Add review"),
     edit: (id) => change(() => void edit(id), replacesLater(id), "Edit stage"),
     // `engrave`'s files (§6, `engrave`, "Downloads"), with the report on the pipeline up to the stage.
     download: async (stageId, kind) => {

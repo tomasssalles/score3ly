@@ -18,12 +18,20 @@ import { cropImage, type CropRecipe } from "./pageImages";
 import type { Artifact, Chooser } from "./pipeline";
 import { renderMei } from "./rendering";
 import { applyEntries, withKept, type StoredReview } from "./review";
+import type { StoredApplyCall } from "./applyReview";
 import { stepInfo } from "./steps";
 import { boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
 
 // `changed`: in a later stage's Transcription (a review's), the keys of the notes of the issues it changed: raised, or
 // chose on (its kept agreements aren't changes). Null in `extract`'s, where everything is new.
-type Loaded = { systems: (ShownSystem & { recipe: CropRecipe })[]; notes: Note[]; score: Score | { problem: string }; changed: Set<string> | null };
+// `reverted`: in an Apply review's, the issues it couldn't apply as given, with its reasons.
+type Loaded = {
+  systems: (ShownSystem & { recipe: CropRecipe })[];
+  notes: Note[];
+  score: Score | { problem: string };
+  changed: Set<string> | null;
+  reverted: { issue: StoredIssue; reason: string }[];
+};
 
 function useTranscription(artifact: Artifact): Loaded | "error" | null {
   const [loaded, setLoaded] = useState<Loaded | "error" | null>(null);
@@ -61,6 +69,16 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
             .map((i) => `issue-${i.id}`),
         );
       }
+      // An Apply review's Transcription: the issues it applied or reverted are its changes.
+      let reverted: Loaded["reverted"] = [];
+      if (data.apply) {
+        const calls = await Promise.all(data.apply.calls.map(async (c) => (await fetchJsonContent(c.sha256)) as StoredApplyCall));
+        const byId = new Map([...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])].map((i) => [i.id, i]));
+        changed = new Set(calls.flatMap((c) => [...c.applied, ...c.choices.map((x) => x.issue)]).map((id) => `issue-${id}`));
+        reverted = calls
+          .sort((a, b) => a.system - b.system)
+          .flatMap((c) => c.choices.flatMap((x) => (byId.has(x.issue) ? [{ issue: byId.get(x.issue)!, reason: x.reason }] : [])));
+      }
       const systems = extractions
         .sort((a, b) => a.extraction.system - b.extraction.system)
         .flatMap(({ index, extraction }) => {
@@ -78,12 +96,19 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
           };
           return [{ ...shown, recipe }];
         });
-      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, shownChecks), score: scoreOf(systems, pieces), changed });
+      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, shownChecks), score: scoreOf(systems, pieces), changed, reverted });
     })().catch(() => !cancelled && setLoaded("error"));
     return () => {
       cancelled = true;
     };
-  }, [data.systems.map((s) => s.sha256).join(), data.piecesSha256, data.checksSha256, data.review?.calls.map((c) => c.sha256).join(), data.review?.done]);
+  }, [
+    data.systems.map((s) => s.sha256).join(),
+    data.piecesSha256,
+    data.checksSha256,
+    data.review?.calls.map((c) => c.sha256).join(),
+    data.review?.done,
+    data.apply?.calls.map((c) => c.sha256).join(),
+  ]);
   return loaded;
 }
 
@@ -152,7 +177,7 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
 
   if (loaded === "error") return <div className="text-view"><p>The transcription couldn't be loaded.</p></div>;
   if (!loaded) return <div className="text-view"><p>Loading the transcription…</p></div>;
-  const { systems, score, changed } = loaded;
+  const { systems, score, changed, reverted } = loaded;
   const filtering = changed !== null && onlyChanges;
   const shown = (note: Note) => !filtering || note.kind !== "issue" || changed!.has(note.key);
   const notes = loaded.notes.filter(shown);
@@ -203,6 +228,24 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
       </div>
       {boxes === "shown" && (
         <p className="editor-hint">Numbered boxes are questions about what the page says. Dashed boxes mark places where the transcription doesn't add up.</p>
+      )}
+      {reverted.length > 0 && (
+        <div className="reverted-block" role="note">
+          <p className="reverted-head">
+            {reverted.length === 1 ? "1 answer couldn't be applied" : `${reverted.length} answers couldn't be applied`} as given, and{" "}
+            {reverted.length === 1 ? "was" : "were"} reverted:
+          </p>
+          <ul>
+            {reverted.map(({ issue, reason }) => (
+              <li key={issue.id}>
+                <button type="button" className="link-button" onClick={() => reveal(`issue-${issue.id}`)}>
+                  #{issue.id}
+                </button>{" "}
+                {reason}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <Filmstrip
         count={systems.length}
@@ -408,7 +451,9 @@ function answerTags(issue: StoredIssue, key: string, choosers: Record<string, Ch
   const tags = key === issue.applied ? ["in this transcription"] : [];
   const latest = issue.choices[issue.choices.length - 1];
   const chooser = latest && latest.by !== "extract" ? choosers[latest.by] : undefined;
-  if (latest?.key === key && chooser) tags.push(chooser.person ? "confirmed" : `${latest.kept ? "kept" : "chosen"} by ${chooser.label}`);
+  if (latest?.key === key && chooser) {
+    tags.push(chooser.person ? "confirmed" : `${latest.reverted ? "reverted to" : latest.kept ? "kept" : "chosen"} by ${chooser.label}`);
+  }
   return tags;
 }
 

@@ -32,7 +32,7 @@ import {
   type StoredReview,
 } from "./review";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
-import { choosers } from "./steps";
+import { choosers, reviewInputIds } from "./steps";
 import { boxesOnCrop } from "./transcription";
 
 const json = (value: unknown) => new TextEncoder().encode(canonicalJson(value));
@@ -117,12 +117,8 @@ export async function runReview(run: StageRun): Promise<void> {
     return map;
   };
 
-  const inputIds = [
-    ...[...extractionOutputs.values(), checksOutput].map((o) => o.id),
-    ...pages.flatMap((p) => [p.output.id, p.image.id]),
-    inputs.observationsOutput.id,
-    inputs.piecesOutput.id,
-  ];
+  // What it reads, as a further review carried through a re-run is compared by (steps.ts).
+  const inputIds = reviewInputIds(pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id)));
 
   await runPlan(run, {
     stepVersion: REVIEW_VERSION,

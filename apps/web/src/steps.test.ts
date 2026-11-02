@@ -15,6 +15,7 @@ const KINDS: Record<string, string> = {
   analyze: "llm",
   extract: "llm",
   review: "llm",
+  apply_review: "llm",
   engrave: "computed",
   fix_skew: "manual",
   fix_layout: "manual",
@@ -32,7 +33,7 @@ test("no step's kind ever changes", () => {
 
 // The Worker gives every LLM stage its model config when it creates the stage (docs/llm.md), by its own list of the LLM
 // steps (`LLM_STEPS` in apps/worker/src/pipeline.ts, read here as text: importing it would load the Worker's code). Every
-// step declared here as an LLM step must be in it; it may list steps not built here yet (`apply_review`).
+// step declared here as an LLM step must be in it, and the other way round.
 test("the Worker knows every LLM step", () => {
   const source = readFileSync(join(import.meta.dirname, "../../worker/src/pipeline.ts"), "utf8");
   const list = /export const LLM_STEPS = \[([^\]]*)\]/.exec(source)?.[1];
@@ -40,6 +41,7 @@ test("the Worker knows every LLM step", () => {
   const worker = [...list.matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
   const llm = Object.entries(STEPS).filter(([, info]) => info.kind === "llm").map(([id]) => id);
   assert.deepEqual(llm.filter((id) => !worker.includes(id)), []);
+  assert.deepEqual(worker.filter((id) => !llm.includes(id)), []);
 });
 
 const NO_MODELS = { modelConfigs: [], laterLlmStages: 0 };
@@ -70,12 +72,14 @@ test("every LLM stage's config has its model config: read from the stored config
   assert.equal(check({ modelConfigId: "old" }, context), '"Old" was deleted: pick another model config.');
 });
 
-test("Fix MEI is offered only after the latest stage that produces the extraction, or a review after it", () => {
+test("Fix MEI is offered only after the latest stage that produces the extraction, never with a review after it", () => {
   const stage = (step: string) => ({ step }) as ApiStage;
   assert.ok(STEPS.extract.fixes.includes("fix_mei"));
-  assert.ok(STEPS.review.fixes.includes("fix_mei"));
+  assert.ok(STEPS.apply_review.fixes.includes("fix_mei"));
+  assert.ok(!STEPS.review.fixes.includes("fix_mei"));
   assert.equal(fixOffered("fix_mei", [stage("engrave")]), true);
   assert.equal(fixOffered("fix_mei", [stage("extract"), stage("engrave")]), false);
-  assert.equal(fixOffered("fix_mei", [stage("review"), stage("engrave")]), false);
+  assert.equal(fixOffered("fix_mei", [stage("review"), stage("apply_review"), stage("engrave")]), false);
+  assert.equal(fixOffered("fix_mei", [stage("apply_review"), stage("engrave")]), false);
   assert.equal(fixOffered("fix_layout", [stage("extract")]), true);
 });

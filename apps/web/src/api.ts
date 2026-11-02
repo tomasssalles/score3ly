@@ -28,6 +28,7 @@ export type ApiStage = {
   modelConfig: { name: string; model: string; deleted: boolean } | null; // LLM stages: the model config it names
   costUsd: number | null; // what its LLM calls cost
   carried: boolean; // a manual stage carried through a re-run, waiting for its turn to be kept or dropped (§5.5)
+  inRecipe: boolean; // part of the recipe, or added by the user (a further review and its Apply review, a manual stage)
   outputs: ApiOutput[];
 };
 
@@ -224,6 +225,11 @@ export async function addFixStage(
   start: FixStart,
 ): Promise<{ stageId: string; pipeline: ApiPipeline }> {
   return (await send(stageUrl(project, afterStageId, "fix"), start)).json();
+}
+
+// Adds a further review after an Apply review, with an Apply review of its own (docs/stages/music.md, `apply_review`).
+export async function addReviewStage(project: Project, afterStageId: string): Promise<{ stageId: string; pipeline: ApiPipeline }> {
+  return (await send(stageUrl(project, afterStageId, "review"))).json();
 }
 
 // Edits a finished manual stage: a WIP copy takes its place.

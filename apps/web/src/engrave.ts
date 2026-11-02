@@ -54,7 +54,7 @@ export type EngraveSources = {
 };
 
 // The steps whose stages produce the extraction `engrave` reads; `fix_mei` is offered after the latest (§6).
-export const EXTRACTION_STEPS = ["extract"]; // `apply_review` too, once it exists
+export const EXTRACTION_STEPS = ["extract", "apply_review"];
 const LAYOUT_STEPS = ["layout", "fix_layout"];
 const METADATA_STEPS = ["fix_metadata", "analyze"];
 

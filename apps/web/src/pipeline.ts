@@ -47,6 +47,8 @@ export type Artifact = {
     // A review's Transcription: its calls (their stored entries, by item), applied to the issues of the
     // transcription it reviewed; its agreements only once it is `done`.
     review?: { stageId: string; calls: { item: string; sha256: string }[]; done: boolean };
+    // An Apply review's Transcription: its calls, for the issues it reverted and changed.
+    apply?: { stageId: string; calls: { item: string; sha256: string }[] };
   };
   // `engrave`'s MEI file, with the stage's config for its engraving; shown as the file or as the engraving. Both can be
   // downloaded.
@@ -168,7 +170,8 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
       .filter((step) => !following.some((s) => s.step === step) && fixOffered(step, later))
       .map((step) => ({ step, title: stepInfo(step).title })),
     carried: stored.carried,
-    droppable: info.kind === "manual" || info.optional,
+    // A further review can be dropped (with its Apply review), the recipe's can't (§5.5).
+    droppable: info.kind === "manual" || info.optional || (stored.step === "review" && !stored.inRecipe),
   };
 }
 

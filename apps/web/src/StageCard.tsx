@@ -41,6 +41,7 @@ export type StageActions = {
   finish: (stageId: string) => void;
   changeConfig: (stageId: string) => void;
   addFix: (stageId: string, step: string) => void;
+  addReview: (stageId: string) => void; // a further review after an Apply review (docs/stages/music.md, `apply_review`)
   edit: (stageId: string) => void;
   drop: (stageId: string) => void;
   download: (stageId: string, kind: DownloadKind) => Promise<void>; // the files the stage made (`engrave`'s)
@@ -260,6 +261,8 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
   if (stage.status === "done") {
     for (const fix of stage.fixes) changes.push({ label: `${fix.title} manually`, onSelect: () => actions.addFix(stage.id, fix.step) });
   }
+  // A further review goes right after any Apply review, with an Apply review of its own.
+  if (stage.stepId === "apply_review" && !stage.carried) changes.push({ label: "Add review", onSelect: () => actions.addReview(stage.id) });
   if (changes.length > 0) groups.push(changes);
   if (stage.droppable) {
     groups.push([{ label: "Drop stage", danger: true, onSelect: () => actions.drop(stage.id) }]);

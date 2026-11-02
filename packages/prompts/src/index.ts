@@ -4,3 +4,4 @@ export * from "./layout.ts";
 export * from "./analyze.ts";
 export * from "./extract.ts";
 export * from "./review.ts";
+export * from "./applyReview.ts";

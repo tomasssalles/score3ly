@@ -32,21 +32,10 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 `docs/notation.md`, "The symbolic format": the description of the symbolic format in `extract`'s prompt (`MUSIC` in `packages/prompts/src/extract.ts`) is written by hand, and the parser (`packages/notation`) accepts a closed list of tokens. The plan was to generate the prompt's list from the parser's code, so that the two can never drift apart: every token the parser accepts is described, and nothing it rejects is offered. A change of the generated text changes the prompt's version.
 
-### `apply_review`
-`#next`
-
-`docs/stages/music.md` (`apply_review`; its title in the app is "Apply review"). Further reviews and their `apply_review` are carried and dropped like manual stages; an `apply_review` goes with its review; the recipe's review can't be dropped (§5.5).
-- **`review` is built first, without `apply_review`** (decided, 2026-10-31), so for now a review has no effect on the MEI. What ties the two together is left to this task:
-  - adding an `apply_review` automatically after every review;
-  - dropping and reusing an `apply_review` always together with its review;
-  - an `apply_review` can't be dropped by itself, not even an extra one, but its config can be changed, which replaces it like any change in the middle (§5.5).
-- **`fix_mei` from a review's "⋮":** offered while `apply_review` isn't built (`fixOffered`, `STEPS.review.fixes`); once every review is followed by its `apply_review`, take it out of the review's "⋮".
-- **Linking:** `apply_review`'s requests use `systemLinks` (`packages/notation/src/links.ts`), as `review`'s do.
-
 ### `human_review`
 `#next`
 
-`docs/stages/music.md` (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5).
+`docs/stages/music.md` (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5). With `apply_review` built (2026-11-02): add `human_review` to its reviewing steps (`REVIEWING_STEPS` in `runApplyReview.ts`), its issues' answers applied like a review's choices (`applied` null for a user's own issue: such an issue can't be reverted, `checkPatch`), the Worker's adding of the pair and its dropping with the pair (as for a further review, `withItsApply`), and the rendering highlighting the measures whose stretches changed.
 
 ### `human_review`'s name
 `#decision`
@@ -61,7 +50,7 @@ A documented, step-by-step list of behavioural tests for trying the app by hand 
 A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a script of many actions in a row (the project owner's brief: no clean slate per case, stories of what a user might do, sized for a person), a smoke run of about 45 minutes and a full run of about 5 hours, with the fake models and `curl` for the configs the app can't make yet. Left to do:
 - **The project owner reviews it** and runs it once; the expected results come from the docs and may be wrong where the docs are.
 - **Multi-device tests wait for a real deployment** (§16, "Deployment"): listed at the end of the file, to be written as stories then, with real phones, Firefox and Safari.
-- **Stories to add** once built: `apply_review`, `human_review`, the model configs' form, the format gap report.
+- **Stories to add** once built: `human_review`, the model configs' form, the format gap report. (`apply_review` and further reviews: in stories 1 and 3, 2026-11-02.)
 - **The setup becomes a test environment** once those exist ("Build the test environments"), so the stories start with one command.
 - **Found while writing it** (each a task of its own): "Model configs for stages, and managing them".
 
@@ -69,7 +58,7 @@ A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a 
 `#next-release`
 
 Decided 2026-11-02: `docs/llm.md`, "Which config a stage uses" and "Managing model configs". To build:
-- **Built 2026-11-02:** every LLM stage names its config from its creation, the cards show it on planned and ready stages (a deleted one marked), and "Change config" picks it, with "Apply to the remaining stages planned in this pipeline" ("Which config a stage uses"). Stages added later (further reviews, `apply_review`) must go through the same `newStageConfig` when they are built.
+- **Built 2026-11-02:** every LLM stage names its config from its creation, the cards show it on planned and ready stages (a deleted one marked), and "Change config" picks it, with "Apply to the remaining stages planned in this pipeline" ("Which config a stage uses"). Stages added later go through the same `newStageConfig` (further reviews and their `apply_review` do, 2026-11-02; `human_review`'s `apply_review` must too).
 - **The settings page:** "Make default" in the create and clone forms, none in the cards' "⋮"; Rename, Clone (with "Delete the original" and the duplicate checks with their rename offers) and Delete on each config, no Edit. Part of "Settings page, the model configs".
 - **Rename and clone** in the Worker: a request that changes only the name (unique, like a new config's), and clone as a create, with the original deleted when "Delete the original" is ticked (the editing endpoint is gone, 2026-11-02).
 

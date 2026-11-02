@@ -31,6 +31,8 @@ export type Stage = {
   costUsd: number | null;
   // A manual stage carried through a re-run, waiting for its turn to be kept or dropped (docs/overview.md §5.5).
   carried: boolean;
+  // Part of the recipe, or added by the user (a further review and its `apply_review`, a manual stage).
+  inRecipe: boolean;
   outputs: Output[];
 };
 
@@ -44,7 +46,7 @@ export type Output = {
 };
 
 // The planned stages, in order (docs/overview.md §6). New projects get all of them; Ingest is done from the start.
-export const RECIPE = ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "engrave"] as const;
+export const RECIPE = ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "engrave"] as const;
 
 // The version of the Ingest step that new projects get.
 const INGEST_VERSION = 1;
@@ -55,6 +57,17 @@ export const MANUAL_STEPS = ["fix_skew", "fix_layout", "fix_metadata", "fix_obse
 
 function isManual(step: string): boolean {
   return (MANUAL_STEPS as readonly string[]).includes(step);
+}
+
+// A further review (docs/overview.md §5.5): a review the user added, not the recipe's. It is carried through a re-run
+// like a manual stage once it has run, and dropped with the `apply_review` that follows it.
+function isFurtherReview(row: { step: string; in_recipe: number }): boolean {
+  return row.step === "review" && row.in_recipe === 0;
+}
+
+// Whether a stage is carried through a re-run (docs/overview.md §5.5): a manual one, and a further review that has run.
+function isCarried(row: { step: string; in_recipe: number; status: StageStatus }): boolean {
+  return isManual(row.step) || (isFurtherReview(row) && row.status !== "planned");
 }
 
 // The LLM steps (docs/overview.md §7), declared in the web app too (a test keeps the two equal): every stage of one
@@ -222,7 +235,7 @@ async function rewriteFrom(
   for (const id of head) statements.push(point(id));
   for (const row of later) {
     const changed = modelConfig !== null && isLlm(row.step);
-    if (isManual(row.step)) statements.push(point(row.id, true));
+    if (isCarried(row)) statements.push(point(row.id, true));
     else if (row.status === "planned") {
       statements.push(point(row.id));
       if (changed) {
@@ -283,6 +296,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
       modelConfig: row.mc_model ? { name: row.mc_name ?? row.mc_model, model: row.mc_model, deleted: Boolean(row.mc_deleted_at) } : null,
       costUsd: row.cost_usd ?? null,
       carried: row.carried === 1,
+      inRecipe: row.in_recipe === 1,
       outputs: (byStage.get(row.id) ?? []).map((o) => ({
         id: o.id,
         item: o.item,
@@ -317,6 +331,20 @@ async function entry(
 
 function isStale(stage: StageRow, now: number): boolean {
   return stage.status === "running" && (stage.heartbeat_at === null || now - Date.parse(stage.heartbeat_at) > STALE_MS);
+}
+
+// The last position that goes when the stage at `position` is dropped: a review's `apply_review` goes with it
+// (docs/overview.md §5.5, "An `apply_review` goes with its review").
+async function withItsApply(db: D1Database, projectId: string, position: number): Promise<number> {
+  const next = await db
+    .prepare("SELECT s.step FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position = ?")
+    .bind(projectId, position + 1)
+    .first<{ step: string }>();
+  const stage = await db
+    .prepare("SELECT s.step FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position = ?")
+    .bind(projectId, position)
+    .first<{ step: string }>();
+  return stage?.step === "review" && next?.step === "apply_review" ? position + 1 : position;
 }
 
 function touchProject(db: D1Database, projectId: string, now: string): D1PreparedStatement {
@@ -757,7 +785,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       kept
         ? [db.prepare("UPDATE pipeline_entries SET carried = 0 WHERE project_id = ? AND position = ?").bind(pid, found.position)]
         : [
-            ...(await rewriteFrom(db, pid, found.position, [], found.position, iso)),
+            ...(await rewriteFrom(db, pid, found.position, [], await withItsApply(db, pid, found.position), iso)),
             db
               .prepare(
                 "INSERT INTO dropped_stages (project_id, after_stage_id, stage_id, step, dropped_at) SELECT ?, stage_id, ?, ?, ? FROM pipeline_entries WHERE project_id = ? AND position = ?",
@@ -769,6 +797,34 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json({ kept, pipeline: await readPipeline(db, pid) });
   });
 
+  // Adds a further review after an `apply_review` (docs/stages/music.md, `apply_review`: from any of them, right after
+  // it), with an `apply_review` of its own, both planned and with the default model config. The stages after them are
+  // replaced, as after any change in the middle (docs/overview.md §5.5). Returns the pipeline and the review's id.
+  app.post("/api/projects/:pid/stages/:sid/review", async (c) => {
+    const db = c.env.DB;
+    const { pid, sid } = c.req.param();
+    const found = await entry(db, pid, sid);
+    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    const { stage, position } = found;
+    if (stage.step !== "apply_review") return c.json({ error: "a review can only be added after an Apply review" }, 409);
+    if (found.carried) return c.json({ error: "the stage waits for its turn" }, 409);
+    const now = new Date();
+    if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
+    const iso = now.toISOString();
+    const defaultModelConfigId = await defaultForNewStages(db);
+    const ids = [crypto.randomUUID(), crypto.randomUUID()];
+    const statements = ["review", "apply_review"].map((step, i) => {
+      const config = newStageConfig(step, null, defaultModelConfigId);
+      return db
+        .prepare(
+          "INSERT INTO stages (id, created_in, step, status, config_json, model_config_id, in_recipe, created_at) VALUES (?, ?, ?, 'planned', ?, ?, 0, ?)",
+        )
+        .bind(ids[i], pid, step, config.configJson, config.modelConfigId, iso);
+    });
+    await db.batch([...statements, ...(await rewriteFrom(db, pid, position + 1, ids, position, iso)), touchProject(db, pid, iso)]);
+    return c.json({ stageId: ids[0], pipeline: await readPipeline(db, pid) });
+  });
+
   // Drops a manual stage, WIP or finished (docs/overview.md §5.5): its entry goes, and the stages after it move up and are
   // replaced. The stage's row and outputs stay, like a replaced stage's.
   app.post("/api/projects/:pid/stages/:sid/drop", async (c) => {
@@ -777,11 +833,12 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const found = await entry(db, pid, sid);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage, position } = found;
-    if (!isManual(stage.step)) return c.json({ error: "only stages outside the recipe can be dropped" }, 409);
+    if (!isManual(stage.step) && !isFurtherReview(stage)) return c.json({ error: "only stages outside the recipe can be dropped" }, 409);
     const now = new Date();
     if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
     const iso = now.toISOString();
-    await db.batch([...(await rewriteFrom(db, pid, position, [], position, iso)), touchProject(db, pid, iso)]);
+    const last = await withItsApply(db, pid, position);
+    await db.batch([...(await rewriteFrom(db, pid, position, [], last, iso)), touchProject(db, pid, iso)]);
     return c.json(await readPipeline(db, pid));
   });
 

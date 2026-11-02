@@ -1841,6 +1841,31 @@ body {
 }
 
 /* What to draw, in one short line under the toolbar. */
+/* An Apply review's Transcription: the answers it couldn't apply as given, in the colour of errors, at the top. */
+.reverted-block {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.reverted-block p {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.reverted-block ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.reverted-block .link-button {
+  color: inherit;
+  font-weight: 600;
+}
+
 .editor-hint {
   margin: 0;
   padding: 4px 12px;

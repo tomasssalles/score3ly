@@ -340,7 +340,7 @@ A re-run follows **the pipeline as it was, not the standard recipe** of recipe s
 - **A manual stage whose input changed at all is dropped as a whole** (decided), even if only one page or system of its input changed, and none of its fixes is applied, and the pipeline continues with the planned stages. The typical manual fix is a better deskewing angle or better system crops on a difficult old score. The point of it is that the stages after it then produce very different, better output, which ideally no longer needs the manual fixes that the poor first attempt needed.
 - **Stages must depend only on what they really use.** If an `extract` call got the whole metadata as context, composer included, correcting the composer would change the input of every `extract` call, and all of them would be paid for again.
 - **A dropped stage leaves a card where it was** (decided, built, migration 0018: `dropped_stages`): a courtesy heads-up, since which stages are dropped depends on the outcome of the run, can't be said beforehand, and would otherwise go unnoticed. Kept stages need no report: they are in the pipeline. What the card shows, where, and until when: `docs/project-view.md`, "Dropped stages".
-- **Extra reviews are dropped like manual stages** (decided; to build with the reviews, §6): a review added after the recipe's one (and its `apply_review`) is carried through a re-run, kept at its turn if its inputs are the same (it would come from the cache anyway) and dropped otherwise, with one card for the pair. Re-running them would be right for a user who always runs several reviews, and wrong for one who added one because the first review missed problems on this score, which a re-run may have fixed. Dropping them means what runs after the first `apply_review` is either not an LLM stage (`human_review`, `fix_mei`, `engrave`) or comes from the cache, so it is fast and free; a user who wants them adds them back, having paid for no unnecessary calls.
+- **Extra reviews are dropped like manual stages** (decided; built 2026-11-02, `docs/stages/music.md`, "`apply_review`, built"): a review added after the recipe's one (and its `apply_review`) is carried through a re-run, kept at its turn if its inputs are the same (it would come from the cache anyway) and dropped otherwise, with one card for the pair. Re-running them would be right for a user who always runs several reviews, and wrong for one who added one because the first review missed problems on this score, which a re-run may have fixed. Dropping them means what runs after the first `apply_review` is either not an LLM stage (`human_review`, `fix_mei`, `engrave`) or comes from the cache, so it is fast and free; a user who wants them adds them back, having paid for no unnecessary calls.
 - **An `apply_review` goes with its review** (decided): dropping an extra review or a `human_review`, by the user or at its turn, drops the `apply_review` that follows it too. **The recipe's review can't be dropped,** even with further reviews after it (decided: keeping it simple).
 
 #### Replaced stages
@@ -614,9 +614,9 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [x] `extract`
 - [x] The MEI builder, validated against MEI 5 and MEI Basic (`docs/notation.md`, "MEI")
 - [x] The Transcription: each system rendered by Verovio (§9), the boxes of issues and warnings, the raw toggle
-- [x] The checks of the whole score at the end of `extract` (`apply_review` runs them too, once it exists)
+- [x] The checks of the whole score at the end of `extract` and of `apply_review`
 - [x] `review`
-- [ ] `apply_review`
+- [x] `apply_review`
 - [ ] `human_review`
 - [x] `engrave`: the full score's MEI, its view, the PDF, the download
 

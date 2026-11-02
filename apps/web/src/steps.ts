@@ -353,8 +353,14 @@ STEPS.fix_observations = {
 
 // The Transcription (§6) of a stage that produces the extraction (`transcribed`), as a later stage shows it: the
 // systems with their music, issues and warnings. The pages of the latest layout come along, for the systems' crops,
-// and the latest pieces, for the renderings. `review`: a review's calls, whose entries the view applies to the issues.
-function transcription(stage: ApiStage, transcribed: ApiStage, earlier: ApiStage[], review?: NonNullable<Artifact["extraction"]>["review"]): Artifact[] {
+// and the latest pieces, for the renderings. `extra`: a review's calls, whose entries the view applies to the issues, or
+// an Apply review's, whose reverts and changes it shows.
+function transcription(
+  stage: ApiStage,
+  transcribed: ApiStage,
+  earlier: ApiStage[],
+  extra: Pick<NonNullable<Artifact["extraction"]>, "review" | "apply"> = {},
+): Artifact[] {
   const systems = transcribed.outputs
     .filter((o) => o.type === "extraction" && o.contentSha256 !== null)
     .map((o) => ({ item: o.item, sha256: o.contentSha256!, index: Number(o.item.split("/s")[1] ?? 1) }));
@@ -365,7 +371,7 @@ function transcription(stage: ApiStage, transcribed: ApiStage, earlier: ApiStage
     .find((s) => (s.step === "fix_metadata" || s.step === "analyze") && s.outputs.some((o) => o.item === "" && o.type === "pieces" && o.contentSha256));
   const piecesSha256 = pieces?.outputs.find((o) => o.item === "" && o.type === "pieces")?.contentSha256 ?? null;
   const pages = layoutPages(earlier);
-  const extraction = { systems, checksSha256, piecesSha256, choosers: choosers([...earlier, stage]), ...(review ? { review } : {}) };
+  const extraction = { systems, checksSha256, piecesSha256, choosers: choosers([...earlier, stage]), ...extra };
   return [{ id: `${stage.id}.music`, title: "Transcription", kind: "music", count: systems.length, item: "System", pages, extraction }];
 }
 
@@ -382,9 +388,7 @@ STEPS.review = {
   title: "Review",
   kind: "llm",
   optional: false,
-  // `fix_mei` comes right before `engrave` (docs/stages/engrave.md): while `apply_review` isn't built, a review is the
-  // stage before it.
-  fixes: ["fix_mei"],
+  fixes: [],
   config: LLM_CONFIG,
   // The Transcription it reviewed, with its issues as the review leaves them: its calls' entries, and, once it is
   // done, its agreements.
@@ -393,7 +397,21 @@ STEPS.review = {
     if (!transcribed) return [];
     const calls = stage.outputs.filter((o) => o.type === "review" && o.contentSha256).map((o) => ({ item: o.item, sha256: o.contentSha256! }));
     if (calls.length === 0) return [];
-    return transcription(stage, transcribed, earlier, { stageId: stage.id, calls, done: stage.status === "done" });
+    return transcription(stage, transcribed, earlier, { review: { stageId: stage.id, calls, done: stage.status === "done" } });
+  },
+};
+
+STEPS.apply_review = {
+  title: "Apply review",
+  kind: "llm",
+  optional: false,
+  // `fix_mei` comes right before `engrave` (docs/stages/engrave.md), after the latest Apply review.
+  fixes: ["fix_mei"],
+  config: LLM_CONFIG,
+  // The new transcription, once it is stored (every call in), with what its calls reverted and changed.
+  artifacts: (stage, earlier) => {
+    const calls = stage.outputs.filter((o) => o.type === "apply_review" && o.contentSha256).map((o) => ({ item: o.item, sha256: o.contentSha256! }));
+    return transcription(stage, stage, earlier, { apply: { stageId: stage.id, calls } });
   },
 };
 
@@ -403,8 +421,10 @@ export function choosers(stages: ApiStage[]): Record<string, Chooser> {
   const result: Record<string, Chooser> = { extract: { label: "Extract", person: false } };
   let reviews = 0;
   let humans = 0;
+  let applies = 0;
   for (const stage of stages) {
     if (stage.step === "review") result[stage.id] = { label: `Review ${++reviews}`, person: false };
+    if (stage.step === "apply_review") result[stage.id] = { label: `Apply review ${++applies}`, person: false };
     if (stage.step === "human_review") result[stage.id] = { label: `Human review ${++humans}`, person: true };
   }
   return result;
@@ -483,6 +503,8 @@ export const FIX_STARTS: Record<string, (after: ApiStage, earlier: ApiStage[]) =
 // What a carried manual stage would read now (docs/overview.md §5.5): the inputs it would get if it were added now after the
 // stage it fixes, the latest stage before it that isn't manual.
 export function carriedInputs(stages: ApiStage[], index: number): string[] {
+  // A further review reads what any review reads (§5.5: carried like a manual stage).
+  if (stages[index].step === "review") return reviewInputIds(stages.slice(0, index));
   let after = index - 1;
   while (after >= 0 && stepInfo(stages[after].step).kind === "manual") after--;
   const start = FIX_STARTS[stages[index].step];
@@ -493,4 +515,29 @@ export function carriedInputs(stages: ApiStage[], index: number): string[] {
 // A step this version of the app doesn't know (e.g. from a newer one) is shown by its id, without artifacts.
 export function stepInfo(step: string): StepInfo {
   return STEPS[step] ?? { title: step, kind: "computed", optional: false, fixes: [], artifacts: () => [] };
+}
+
+// What a review reads (docs/stages/music.md, `review`), by output ids: the latest transcription (its extractions and
+// the checks of the whole score), each page's layout and image, the latest observations and pieces. The same list
+// runReview.ts records when the stage starts, so a carried review is kept exactly when it would read the same.
+export function reviewInputIds(earlier: ApiStage[]): string[] {
+  const latest = [...earlier].reverse();
+  const transcribed = latest.find((s) => EXTRACTION_STEPS.includes(s.step));
+  const rasterize = latest.find((s) => s.step === "rasterize");
+  const layout = latest.find((s) => s.step === "layout" || s.step === "fix_layout");
+  const latestOutput = (steps: string[], type: string) =>
+    latest.find((s) => steps.includes(s.step) && s.outputs.some((o) => o.item === "" && o.type === type))?.outputs.find((o) => o.item === "" && o.type === type && o.contentSha256);
+  const observations = latestOutput(["fix_observations", "analyze"], "observations");
+  const pieces = latestOutput(["fix_metadata", "analyze"], "pieces");
+  if (!transcribed || !rasterize || !layout || !observations || !pieces) return [];
+  const images = new Map(rasterize.outputs.filter((o) => o.type === "page_image").map((o) => [o.item, o]));
+  const pages = layout.outputs
+    .filter((o) => o.type === "layout" && o.contentSha256 && images.get(o.item)?.recipe)
+    .sort((a, b) => (pageOfItem(a.item) ?? 0) - (pageOfItem(b.item) ?? 0));
+  return [
+    ...transcribed.outputs.filter((o) => (o.type === "extraction" || (o.item === "" && o.type === "score_checks")) && o.contentSha256).map((o) => o.id),
+    ...pages.flatMap((p) => [p.id, images.get(p.item)!.id]),
+    observations.id,
+    pieces.id,
+  ];
 }

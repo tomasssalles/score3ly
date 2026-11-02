@@ -7,7 +7,9 @@
 // bar lines, so that the later stages have systems to work on), `extract`, whose answer must cover exactly the
 // stretches asked for, with a voice on every staff (the fake reads the request's JSON and answers with whole-measure
 // rests in 4/4, a made-up doubt on every system and a format issue on the first, so their views can be seen), and
-// `review` (a made-up correction on the first system, another answer chosen for the first issue of the second).
+// `review` (a made-up correction on the first system, another answer chosen for the first issue of the second), and
+// `apply_review` (on a window that starts on an odd system, each issue applied by writing a C in the first voice of the
+// first stretch under it; on an even one, each reverted, with a made-up reason).
 
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse } from "./types.ts";
 
@@ -22,7 +24,7 @@ export class FakeProvider implements LlmProvider {
   async send(request: LlmRequest): Promise<LlmResponse> {
     if (request.model === "fake-error") throw new LlmError("server", "The fake provider failed, as asked.", 500);
     const unparseable = request.model === "fake-unparseable" && request.jsonSchema;
-    const answer = unparseable ? "Not JSON, as asked." : request.jsonSchema ? (fakeLayout(request) ?? fakeExtract(request) ?? fakeReview(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
+    const answer = unparseable ? "Not JSON, as asked." : request.jsonSchema ? (fakeLayout(request) ?? fakeExtract(request) ?? fakeReview(request) ?? fakeApplyReview(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
     const text = typeof answer === "string" ? answer : JSON.stringify(answer);
     const stop = request.model === "fake-refusal" ? "refusal" : request.model === "fake-cut-off" ? "max_tokens" : "end";
     return {
@@ -215,4 +217,42 @@ function fakeReview(request: LlmRequest): unknown {
   }
   if (r.system === 2 && r.issues.length > 0) return { entries: [{ choice: { issue: Math.min(...r.issues), key: "a", newAnswer: null, reason: null } }] };
   return { entries: [] };
+}
+
+type ApplyRequest = {
+  window: number[];
+  systems: { system: number; stretches: { stretch: number; voices: { voice: number; staff: number }[] }[] }[];
+  apply: { id: number; places: { system: number; stretches: number[] }[]; applied: string | null }[];
+};
+
+// An `apply_review` answer (its schema has "voices", "stretches", "systems" and "choices"): as said at the top.
+function fakeApplyReview(request: LlmRequest): unknown {
+  const properties = (request.jsonSchema?.properties ?? {}) as Record<string, unknown>;
+  if (Object.keys(properties).join() !== "voices,stretches,systems,choices") return null;
+  const texts = request.messages.flatMap((m) => m.content.flatMap((c) => (c.type === "text" ? [c.text] : [])));
+  const last = texts.at(-1) ?? "";
+  let r: ApplyRequest;
+  try {
+    r = JSON.parse(last.slice(last.indexOf("\n{") + 1)) as ApplyRequest;
+  } catch {
+    return null;
+  }
+  const answer = { voices: [] as unknown[], stretches: [], systems: [], choices: [] as unknown[] };
+  const done = new Set<string>();
+  for (const issue of r.apply) {
+    const place = issue.places.find((p) => r.window.includes(p.system) && p.stretches.length > 0);
+    const stretch = place && r.systems.find((s) => s.system === place.system)?.stretches.find((t) => t.stretch === place.stretches[0]);
+    const voice = stretch?.voices[0];
+    if (r.window[0] % 2 === 0 || !place || !voice) {
+      if (issue.applied !== null) {
+        answer.choices.push({ issue: issue.id, key: issue.applied, reason: "The fake model can't apply this answer (a made-up reason)." });
+      }
+      continue;
+    }
+    const key = `${place.system}/${place.stretches[0]}/${voice.voice}`;
+    if (done.has(key)) continue;
+    done.add(key);
+    answer.voices.push({ system: place.system, stretch: place.stretches[0], voice: voice.voice, staff: voice.staff, description: null, music: "c''1", reason: null });
+  }
+  return answer;
 }

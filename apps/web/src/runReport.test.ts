@@ -18,6 +18,7 @@ const stage = (step: string, over: Partial<ApiStage> = {}): ApiStage => ({
   modelConfig: null,
   costUsd: null,
   carried: false,
+  inRecipe: true,
   outputs: [],
   ...over,
 });

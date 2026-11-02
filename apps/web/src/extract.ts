@@ -104,8 +104,9 @@ export type StoredIssue = {
   question: string;
   answers: { key: string; text: string }[];
   // `by`: the stage that chose, by its id (`extract`'s own choice: "extract"); `kept`: a review's agreement, added
-  // by code for an issue it left as it was (docs/stages/music.md, `review`).
-  choices: { by: string; key: string; reason: string | null; kept?: true }[];
+  // by code for an issue it left as it was (docs/stages/music.md, `review`); `reverted`: `apply_review`'s choice of the
+  // answer already applied, for an answer it couldn't apply as given (docs/stages/music.md, `apply_review`).
+  choices: { by: string; key: string; reason: string | null; kept?: true; reverted?: true }[];
   applied: string | null;
   resolved: boolean;
   lilypond: string[] | null;

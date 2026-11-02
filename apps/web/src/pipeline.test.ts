@@ -35,6 +35,7 @@ function stage(id: string, step: string, fields: Partial<ApiStage> = {}): ApiSta
     modelConfig: null,
     costUsd: null,
     carried: false,
+    inRecipe: true,
     outputs: [],
     ...fields,
   };
