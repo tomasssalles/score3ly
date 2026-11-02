@@ -42,7 +42,6 @@ const opus: ModelConfig = {
   params: { region: "eu-central-1" },
   secrets: { accessKeyId: "BEDROCK_KEY_ID", secretAccessKey: "BEDROCK_SECRET" },
   freeTier: false,
-  supersedesId: null,
   createdAt: "",
 };
 

@@ -99,7 +99,7 @@ const PRICES: Record<string, Price> = {
 type Config = { id: string; family: keyof typeof PRICES | "gemini" | "fake"; responseModel: string; effort: string | null; free: boolean };
 const EFFORT_OUTPUT: Record<string, number> = { low: 0.4, medium: 0.7, high: 1, xhigh: 1.5, max: 2.2 };
 
-function config(row: { id: string; name: string; provider: string; model: string; effort: string | null; params?: object; secrets?: object; free?: boolean; created: string; deleted?: string; supersedes?: string }, family: Config["family"], responseModel: string): Config {
+function config(row: { id: string; name: string; provider: string; model: string; effort: string | null; params?: object; secrets?: object; free?: boolean; created: string; deleted?: string }, family: Config["family"], responseModel: string): Config {
   insert("model_configs", {
     id: row.id,
     name: row.name,
@@ -109,7 +109,6 @@ function config(row: { id: string; name: string; provider: string; model: string
     params_json: JSON.stringify(row.params ?? {}),
     secrets_json: JSON.stringify(row.secrets ?? {}),
     free_tier: row.free ? 1 : 0,
-    supersedes_id: row.supersedes ?? null,
     created_at: iso(at(row.created)),
     deleted_at: row.deleted ? iso(at(row.deleted)) : null,
   });
@@ -123,7 +122,7 @@ const HAIKU = config({ id: "cfg-haiku", name: "Haiku (Vertex)", provider: "anthr
 const GEMINI = config({ id: "cfg-gemini", name: "gemini-3.1-pro-preview · high", provider: "google", model: "gemini-3.1-pro-preview", effort: "high", secrets: { apiKey: "GEMINI_FREE_KEY" }, free: true, created: "2026-08-12T21:30:00" }, "gemini", "gemini-3.1-pro-preview");
 const FABLE = config({ id: "cfg-fable", name: "Fable", provider: "anthropic", model: "claude-fable-5-1", effort: "max", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-08-25T18:55:00", deleted: "2026-08-30T11:00:00" }, "fable", "claude-fable-5-1");
 const OPUS_EU_1 = config({ id: "cfg-opus-eu-1", name: "Opus EU", provider: "anthropic-bedrock", model: "anthropic.claude-opus-5-5", effort: "high", params: { region: "eu-central-1" }, secrets: { apiKey: "BEDROCK_API_KEY" }, created: "2026-09-01T19:20:00", deleted: "2026-09-15T20:10:00" }, "opus", "claude-opus-5-5");
-const OPUS_EU_2 = config({ id: "cfg-opus-eu-2", name: "Opus EU", provider: "anthropic-bedrock", model: "anthropic.claude-opus-5-5", effort: "xhigh", params: { region: "eu-central-1" }, secrets: { apiKey: "BEDROCK_API_KEY" }, created: "2026-09-15T20:10:00", supersedes: "cfg-opus-eu-1" }, "opus", "claude-opus-5-5");
+const OPUS_EU_2 = config({ id: "cfg-opus-eu-2", name: "Opus EU", provider: "anthropic-bedrock", model: "anthropic.claude-opus-5-5", effort: "xhigh", params: { region: "eu-central-1" }, secrets: { apiKey: "BEDROCK_API_KEY" }, created: "2026-09-15T20:10:00" }, "opus", "claude-opus-5-5");
 
 for (const [key, value] of [["defaultModelConfigId", OPUS_EU_2.id], ["spendingCapUsd", CAP_USD], ["newProjectRunMode", "auto"]] as const) {
   statements.push(`INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES (${sql(key)}, ${sql(JSON.stringify(value))}, ${sql(iso(at("2026-09-15T20:12:00")))});`);

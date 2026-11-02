@@ -32,7 +32,6 @@ export type ModelConfig = {
   params: Record<string, string>; // plain values, e.g. a region: not part of any cache key
   secrets: Record<string, string>; // field → name of a Worker secret: not part of any cache key
   freeTier: boolean;
-  supersedesId: string | null;
   createdAt: string;
 };
 
@@ -45,7 +44,6 @@ type ModelConfigRow = {
   params_json: string;
   secrets_json: string;
   free_tier: number;
-  supersedes_id: string | null;
   created_at: string;
   deleted_at: string | null;
 };
@@ -60,7 +58,6 @@ function toModelConfig(row: ModelConfigRow): ModelConfig {
     params: JSON.parse(row.params_json),
     secrets: JSON.parse(row.secrets_json),
     freeTier: row.free_tier === 1,
-    supersedesId: row.supersedes_id,
     createdAt: row.created_at,
   };
 }
@@ -272,7 +269,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json(await readSettings(c.env.DB));
   });
 
-  // The model configs that aren't deleted, oldest first. A config that was edited appears as its latest version.
+  // The model configs that aren't deleted, oldest first.
   app.get("/api/model-configs", async (c) => {
     const { results } = await c.env.DB.prepare(
       "SELECT * FROM model_configs WHERE deleted_at IS NULL ORDER BY created_at, id",
@@ -280,7 +277,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json(results.map(toModelConfig));
   });
 
-  // One model config, deleted or not: stages and calls refer to the version they used.
+  // One model config, deleted or not: stages and calls refer to the config they used.
   app.get("/api/model-configs/:id", async (c) => {
     const row = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(c.req.param("id")).first<ModelConfigRow>();
     return row ? c.json(toModelConfig(row)) : c.json({ error: "no such model config" }, 404);
@@ -290,40 +287,11 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const body = await c.req.json().catch(() => null);
     const problem = configProblem(body);
     if (problem) return c.json({ error: problem }, 400);
-    const name = await configName(c.env.DB, body, null);
+    const name = await configName(c.env.DB, body);
     if (name === null) return c.json({ error: NAME_TAKEN }, 409);
-    const row = newConfigRow(body, name, null);
+    const row = newConfigRow(body, name);
     await insertConfig(c.env.DB, row).run();
     return c.json(toModelConfig(row), 201);
-  });
-
-  // Editing is copy on change (§7.2): a new row supersedes the old one, which is marked deleted, and the default
-  // setting follows it. Stages and calls keep referring to the version they used.
-  app.put("/api/model-configs/:id", async (c) => {
-    const db = c.env.DB;
-    const id = c.req.param("id");
-    const body = await c.req.json().catch(() => null);
-    const problem = configProblem(body);
-    if (problem) return c.json({ error: problem }, 400);
-    const old = await db.prepare("SELECT id FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(id).first();
-    if (!old) return c.json({ error: "no such model config" }, 404);
-    const name = await configName(db, body, id);
-    if (name === null) return c.json({ error: NAME_TAKEN }, 409);
-    const row = newConfigRow(body, name, id);
-    const settings = await readSettings(db);
-    // The old version is marked first: the new one may keep its name, which is unique among the configs not deleted.
-    await db.batch([
-      db.prepare("UPDATE model_configs SET deleted_at = ? WHERE id = ?").bind(row.created_at, id),
-      insertConfig(db, row),
-      ...(settings.defaultModelConfigId === id
-        ? [
-            db
-              .prepare("INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES ('defaultModelConfigId', ?, ?)")
-              .bind(JSON.stringify(row.id), row.created_at),
-          ]
-        : []),
-    ]);
-    return c.json(toModelConfig(row));
   });
 
   app.delete("/api/model-configs/:id", async (c) => {
@@ -518,12 +486,9 @@ export function generatedConfigName(model: string, effort: string | null): strin
 }
 
 // The name of a new config: the one given, or else one made from its model and effort, the first free one. A given name
-// that another config has (ignoring case) is refused: null. `except` is the config a new version replaces.
-async function configName(db: D1Database, body: Record<string, unknown>, except: string | null): Promise<string | null> {
-  const { results } = await db
-    .prepare("SELECT name FROM model_configs WHERE deleted_at IS NULL AND id IS NOT ?")
-    .bind(except)
-    .all<{ name: string }>();
+// that another config has (ignoring case) is refused: null.
+async function configName(db: D1Database, body: Record<string, unknown>): Promise<string | null> {
+  const { results } = await db.prepare("SELECT name FROM model_configs WHERE deleted_at IS NULL").all<{ name: string }>();
   const taken = results.map((row) => row.name);
   const given = typeof body.name === "string" ? body.name.trim() : "";
   if (given) return taken.some((name) => name.toLowerCase() === given.toLowerCase()) ? null : given;
@@ -533,7 +498,7 @@ async function configName(db: D1Database, body: Record<string, unknown>, except:
 
 const NAME_TAKEN = "A model config with that name already exists. Names must be unique (case-insensitive).";
 
-function newConfigRow(body: Record<string, unknown>, name: string, supersedesId: string | null): ModelConfigRow {
+function newConfigRow(body: Record<string, unknown>, name: string): ModelConfigRow {
   return {
     id: crypto.randomUUID(),
     name,
@@ -543,7 +508,6 @@ function newConfigRow(body: Record<string, unknown>, name: string, supersedesId:
     params_json: JSON.stringify(body.params ?? {}),
     secrets_json: JSON.stringify(body.secrets ?? {}),
     free_tier: body.freeTier === true ? 1 : 0,
-    supersedes_id: supersedesId,
     created_at: new Date().toISOString(),
     deleted_at: null,
   };
@@ -552,7 +516,7 @@ function newConfigRow(body: Record<string, unknown>, name: string, supersedesId:
 function insertConfig(db: D1Database, row: ModelConfigRow): D1PreparedStatement {
   return db
     .prepare(
-      "INSERT INTO model_configs (id, name, provider, model, effort, params_json, secrets_json, free_tier, supersedes_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO model_configs (id, name, provider, model, effort, params_json, secrets_json, free_tier, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
-    .bind(row.id, row.name, row.provider, row.model, row.effort, row.params_json, row.secrets_json, row.free_tier, row.supersedes_id, row.created_at);
+    .bind(row.id, row.name, row.provider, row.model, row.effort, row.params_json, row.secrets_json, row.free_tier, row.created_at);
 }

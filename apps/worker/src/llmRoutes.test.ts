@@ -136,7 +136,7 @@ test("prices: Claude's list prices, Bedrock's names included; unknown models hav
   assert.equal(costOf({ inputTokens: 10_000, outputTokens: 2_000, cacheReadTokens: 1_000, cacheWriteTokens: 1_000 }, price), 0.0852);
 });
 
-test("model configs: checked per provider, edited by copy on change, deleted by marking", async () => {
+test("model configs: checked per provider, never edited, deleted by marking", async () => {
   assert.equal((await send("/api/model-configs", { provider: "anthropic", model: "claude-opus-5-5" })).status, 400); // no secret
   assert.equal(
     (await send("/api/model-configs", { provider: "anthropic-bedrock", model: "x", secrets: { apiKey: "BEDROCK_KEY" } })).status,
@@ -149,22 +149,13 @@ test("model configs: checked per provider, edited by copy on change, deleted by 
     secrets: { accessKeyId: "AWS_KEY_ID", secretAccessKey: "AWS_SECRET" },
   });
   assert.deepEqual(bedrock.secrets, { accessKeyId: "AWS_KEY_ID", secretAccessKey: "AWS_SECRET" });
-
-  await send("/api/settings/defaultModelConfigId", { value: bedrock.id }, "PUT");
-  const edited = await json<Record<string, string>>(
-    await send(`/api/model-configs/${bedrock.id}`, { provider: "fake", model: "fake-model", name: "Try" }, "PUT"),
-  );
-  assert.equal(edited.supersedesId, bedrock.id);
-  assert.equal((await json<Record<string, unknown>>(await app.request("/api/settings", {}, env))).defaultModelConfigId, edited.id);
-  const listed = await json<{ id: string }[]>(await app.request("/api/model-configs", {}, env));
-  assert.deepEqual(
-    listed.map((c) => c.id),
-    [edited.id],
-  );
-  // The old version can still be read: stages and calls refer to it.
+  // No editing (docs/llm.md, "Managing model configs").
+  assert.equal((await send(`/api/model-configs/${bedrock.id}`, { provider: "fake", model: "fake-model" }, "PUT")).status, 404);
+  assert.equal((await send(`/api/model-configs/${bedrock.id}`, undefined, "DELETE")).status, 204);
+  assert.equal((await send(`/api/model-configs/${bedrock.id}`, undefined, "DELETE")).status, 404);
+  assert.deepEqual(await json(await app.request("/api/model-configs", {}, env)), []);
+  // A deleted config can still be read: stages and calls refer to it.
   assert.equal((await app.request(`/api/model-configs/${bedrock.id}`, {}, env)).status, 200);
-  assert.equal((await send(`/api/model-configs/${edited.id}`, undefined, "DELETE")).status, 204);
-  assert.equal((await send(`/api/model-configs/${edited.id}`, undefined, "DELETE")).status, 404);
 });
 
 test("model configs are named: the name given, else the model and effort, numbered when taken; a name taken is refused", async () => {
@@ -176,14 +167,6 @@ test("model configs are named: the name given, else the model and effort, number
   assert.equal(taken.status, 409);
   assert.match((await json<{ error: string }>(taken)).error, /already exists/);
   assert.equal((await send("/api/model-configs", { provider: "fake-dev", model: "fake-model", name: "x".repeat(201) })).status, 400);
-  // A new version may keep its own name (the old one is marked deleted first), not take another config's.
-  const sonnet = await modelConfig({ name: "Sonnet" });
-  const keptResponse = await send(`/api/model-configs/${sonnet.id}`, { provider: "fake-dev", model: "fake-model", effort: "low", name: "SONNET" }, "PUT");
-  assert.equal(keptResponse.status, 200);
-  const kept = await json<Record<string, string>>(keptResponse);
-  assert.equal(kept.name, "SONNET");
-  const clash = await send(`/api/model-configs/${kept.id}`, { provider: "fake-dev", model: "fake-model", name: "Opus 5.5" }, "PUT");
-  assert.equal(clash.status, 409);
   // A deleted config's name is free again.
   const opus = (await json<{ id: string; name: string }[]>(await app.request("/api/model-configs", {}, env))).find((c) => c.name === "Opus 5.5")!;
   assert.equal((await send(`/api/model-configs/${opus.id}`, undefined, "DELETE")).status, 204);

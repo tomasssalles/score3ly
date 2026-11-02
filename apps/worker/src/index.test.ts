@@ -1137,7 +1137,7 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
   const layout = (await pipelineOf(project.id))[3];
   await env.DB.batch([
     env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
-    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('free', NULL, 'google', 'gemini', 1, '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('free', 'Gemini (free)', 'google', 'gemini', 1, '2026-10-01')"),
     // A replaced stage: no longer in any pipeline.
     env.DB.prepare("INSERT INTO stages (id, created_in, step, status, in_recipe, created_at) VALUES ('old-layout', ?, 'layout', 'done', 1, '2026-10-01')").bind(project.id),
   ]);
@@ -1217,7 +1217,7 @@ test("the costs: paid calls of unknown cost counted per stage, config and quarte
   const layout = (await pipelineOf(project.id))[3];
   await env.DB.batch([
     env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
-    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('free', NULL, 'google', 'gemini', 1, '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('free', 'Gemini (free)', 'google', 'gemini', 1, '2026-10-01')"),
     env.DB.prepare("INSERT INTO stages (id, created_in, step, status, in_recipe, created_at) VALUES ('lost-layout', ?, 'layout', 'failed', 1, '2026-10-01')").bind(project.id),
   ]);
   const quarter = Math.floor(Date.now() / 900_000) * 900_000;

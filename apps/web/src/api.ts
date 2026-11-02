@@ -272,7 +272,6 @@ export type ModelConfig = {
   params: Record<string, string>;
   secrets: Record<string, string>; // field → name of a Worker secret
   freeTier: boolean;
-  supersedesId: string | null;
   createdAt: string;
 };
 
