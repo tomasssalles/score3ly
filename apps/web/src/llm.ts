@@ -12,8 +12,11 @@ import { CannotStart, type StageRun } from "./stageRunner";
 // default then unless it was given one (docs/llm.md, "Which config a stage uses"). It is never looked up later.
 export async function stageModelConfig(stageConfig: Record<string, unknown> | null): Promise<ModelConfig> {
   const id = typeof stageConfig?.modelConfigId === "string" ? stageConfig.modelConfigId : null;
-  if (!id) throw new CannotStart("this stage has no model config: there was no default model config when it was created.");
-  return fetchModelConfig(id);
+  if (!id) throw new CannotStart("it has no model config: there was no default model config when it was created.");
+  const config = await fetchModelConfig(id);
+  // Said as the Worker says it, which refuses to start the stage too (deletedConfigMessage).
+  if (config.deletedAt) throw new CannotStart(`its model config, "${config.name}", was deleted.`);
+  return config;
 }
 
 // What of a model config goes into stage and request keys (§5.2): provider, model and effort. Not its name,

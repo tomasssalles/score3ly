@@ -4,7 +4,7 @@
 
 import type { Hono } from "hono";
 import { QUARTER_MS } from "./activeTime.ts";
-import { readSettings } from "./llmRoutes.ts";
+import { deletedConfigMessage, readSettings } from "./llmRoutes.ts";
 
 export type Pipeline = { stages: Stage[]; dropped: Dropped[] };
 
@@ -395,8 +395,13 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     }
     const iso = now.toISOString();
     if (modelConfigId !== null) {
-      const exists = await db.prepare("SELECT id FROM model_configs WHERE id = ?").bind(modelConfigId).first();
-      if (!exists) return c.json({ error: "no such model config" }, 404);
+      const config = await db
+        .prepare("SELECT name, deleted_at FROM model_configs WHERE id = ?")
+        .bind(modelConfigId)
+        .first<{ name: string; deleted_at: string | null }>();
+      if (!config) return c.json({ error: "no such model config" }, 404);
+      // A deleted config is never used again (docs/llm.md, "Managing model configs").
+      if (config.deleted_at) return c.json({ error: deletedConfigMessage(config.name), code: "deleted_model_config" }, 409);
     }
     const reusable = await db
       .prepare("SELECT id FROM stages WHERE stage_key = ? AND status = 'done' AND deleted_at IS NULL AND id != ? LIMIT 1")

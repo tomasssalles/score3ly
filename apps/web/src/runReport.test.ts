@@ -43,6 +43,7 @@ const opus: ModelConfig = {
   secrets: { accessKeyId: "BEDROCK_KEY_ID", secretAccessKey: "BEDROCK_SECRET" },
   freeTier: false,
   createdAt: "",
+  deletedAt: null,
 };
 
 test("the report has every stage, its config and its model config without secrets, and the total cost", () => {

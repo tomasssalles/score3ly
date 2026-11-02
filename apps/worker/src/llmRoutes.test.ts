@@ -334,9 +334,36 @@ test("a call needs a running stage with a model config, a price, and the config'
   );
   const missing = await json(await call(unset));
   assert.equal(missing.code, "missing_secret");
-  assert.match(missing.error as string, /NO_SUCH_SECRET/);
+  // Said so that the user knows what to do: which config, which secret, where secrets are set.
+  assert.equal(
+    missing.error,
+    'The model config "claude-opus-5-5 · high" needs the secret NO_SUCH_SECRET, which isn\'t set. Set it where the app\'s secrets are kept (Settings, "Secrets"), then retry.',
+  );
   assert.equal((await calls()).length, 0);
   assert.equal((await call(without, { messages: [] })).status, 400);
+});
+
+test("a stage whose model config was deleted can't start, and says why", async () => {
+  const config = await modelConfig({ name: "Opus EU" });
+  await runningStage(config.id); // starts while the config exists
+  assert.equal((await send(`/api/model-configs/${config.id}`, undefined, "DELETE")).status, 204);
+  const form = new FormData();
+  const pdf = new TextEncoder().encode(`pdf ${Math.random()}`);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", pdf));
+  form.append("pdf", new File([pdf], "deleted.pdf"));
+  form.append("sha256", [...digest].map((b) => b.toString(16).padStart(2, "0")).join(""));
+  const project = await json<{ id: string }>(await app.request("/api/projects", { method: "POST", body: form }, env));
+  const { stages } = await json<{ stages: { id: string }[] }>(await app.request(`/api/projects/${project.id}/pipeline`, {}, env));
+  const refused = await send(`/api/projects/${project.id}/stages/${stages[3].id}/start`, {
+    stepVersion: 1,
+    config: { modelConfigId: config.id },
+    stageKey: "e".repeat(64),
+    pageCount: 1,
+    inputIds: [],
+    modelConfigId: config.id,
+  });
+  assert.equal(refused.status, 409);
+  assert.deepEqual(await json(refused), { error: 'its model config, "Opus EU", was deleted.', code: "deleted_model_config" });
 });
 
 test("cache marks aren't part of the request key, and are limited to 4", async () => {

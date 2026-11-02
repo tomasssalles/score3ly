@@ -33,6 +33,7 @@ export type ModelConfig = {
   secrets: Record<string, string>; // field → name of a Worker secret: not part of any cache key
   freeTier: boolean;
   createdAt: string;
+  deletedAt: string | null; // a deleted config is never used again: a stage that names one can't start
 };
 
 type ModelConfigRow = {
@@ -59,6 +60,7 @@ function toModelConfig(row: ModelConfigRow): ModelConfig {
     secrets: JSON.parse(row.secrets_json),
     freeTier: row.free_tier === 1,
     createdAt: row.created_at,
+    deletedAt: row.deleted_at,
   };
 }
 
@@ -114,6 +116,16 @@ function configProblem(body: Record<string, unknown> | null): string | null {
     return `'secrets' must name ${fields.secrets.map((set) => set.join(" and ") || "nothing").join(", or ")} for ${provider}`;
   }
   return null;
+}
+
+// Why a stage can't run with its model config, said so that the user knows what to do (docs/llm.md, "A missing key" and
+// "Managing model configs"). The browser shows them after the stage's name ("Layout" can't run: …).
+export function deletedConfigMessage(name: string): string {
+  return `its model config, "${name}", was deleted.`;
+}
+
+export function missingSecretMessage(configName: string, secretName: string): string {
+  return `The model config "${configName}" needs the secret ${secretName}, which isn't set. Set it where the app's secrets are kept (Settings, "Secrets"), then retry.`;
 }
 
 // The provider's config, with the secrets' values from the Worker's environment. Null names a missing secret.
@@ -401,7 +413,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     }
     const providerSettings = providerConfig(config, c.env);
     if ("missing" in providerSettings) {
-      return c.json({ error: `The Worker has no secret named ${providerSettings.missing}.`, code: "missing_secret" }, 409);
+      return c.json({ error: missingSecretMessage(config.name, providerSettings.missing), code: "missing_secret" }, 409);
     }
 
     const callId = crypto.randomUUID();

@@ -273,6 +273,7 @@ export type ModelConfig = {
   secrets: Record<string, string>; // field → name of a Worker secret
   freeTier: boolean;
   createdAt: string;
+  deletedAt: string | null; // a deleted config is never used again
 };
 
 export type Settings = { defaultModelConfigId: string | null; spendingCapUsd: number; newProjectRunMode: RunMode };
