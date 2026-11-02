@@ -65,17 +65,12 @@ A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a 
 - **Multi-device tests wait for a real deployment** (§16, "Deployment"): listed at the end of the file, to be written as stories then, with real phones, Firefox and Safari.
 - **Stories to add** once built: `apply_review`, `human_review`, the model configs' form, the format gap report.
 - **The setup becomes a test environment** once those exist ("Build the test environments"), so the stories start with one command.
-- **Found while writing it** (each a task of its own): "A failed LLM stage keeps its model config", "`--persist-to` through the root's npm scripts".
+- **Found while writing it** (each a task of its own): "A failed LLM stage keeps its model config".
 
 ### A failed LLM stage keeps its model config
 `#bug` `#decision`
 
 Found 2026-11-01 while writing the manual test suite. A stage records the model config it started with in its config (`{ modelConfigId }`, `runLayout.ts` and the others), and Retry uses that again. So when a stage fails because of its model config (no price for the model, a broken config, a model that refuses), changing the default doesn't help, and no LLM stage has a config form to pick another: the only way out is a new project (or the Worker's `PUT …/config` by hand). To decide: whether Retry takes the default again when the stage's model config wasn't picked for it, or LLM stages get a config form with the model config (part of "Settings page, the model configs" and "Decide the model configs").
-
-### `--persist-to` through the root's npm scripts
-`#bug` `#docs`
-
-Found 2026-11-01: `npm run dev:worker -- --persist-to <folder>` from the repository's root, as `docs/statistics.md` ("Mock data") and `scripts/seedStats.ts` say, doesn't work: the root script calls `npm run dev -w apps/worker`, npm takes `--persist-to` as its own option, and Wrangler gets only the folder, as its entry point ("points to a directory, rather than a file"). Either fix the instructions (`cd apps/worker && npx wrangler dev --persist-to …`, or `npm run dev:worker -- -- --persist-to …` if that passes through) or the scripts.
 
 ### The issue card: what is still open
 `#next` `#style`

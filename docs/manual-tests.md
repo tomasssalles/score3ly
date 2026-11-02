@@ -16,16 +16,15 @@ A suite of behavioural tests for trying the app by hand: short scripts, each tel
 
 What the stories need: a local Worker and Vite on their own database and storage, a browser with empty storage, a few PDFs from the test set, and model configs that fail or cost money on purpose. **No real model and no API key** (the fake provider, docs/llm.md): the stories test the app, not the prompts. Once the test environments exist (§15, "Build the test environments"), this setup becomes one of them and one command.
 
-**The servers**, on a state folder of their own, in two terminals:
+**The servers**, on a state folder of their own (relative to `apps/worker`), in two terminals:
 ```
-cd apps/worker && mkdir -p ../web/dist
-npx wrangler d1 migrations apply score3ly --local --persist-to .wrangler/manual
-npx wrangler dev --persist-to .wrangler/manual
+(cd apps/worker && npx wrangler d1 migrations apply score3ly --local --persist-to .wrangler/manual)
+npm run dev:worker -- --persist-to .wrangler/manual
 ```
 ```
 npm run dev:web
 ```
-Wrangler is called directly: through the root's `npm run dev:worker -- --persist-to …`, npm takes `--persist-to` as its own option and passes Wrangler only the folder (tried 2026-11-01). To start again from nothing: stop the Worker, delete `apps/worker/.wrangler/manual`, and repeat. (Tried: the migrations, the Worker, and the `curl` commands below.) **The browser:** a profile of its own, so OPFS (the image cache), `localStorage` and history start empty, e.g. `google-chrome --user-data-dir=/tmp/s3l-manual --no-first-run http://localhost:5173` (a new folder for a fresh start).
+To start again from nothing: stop the Worker, delete `apps/worker/.wrangler/manual`, and repeat. (Tried: the migrations, the Worker, and the `curl` commands below.) **The browser:** a profile of its own, so OPFS (the image cache), `localStorage` and history start empty, e.g. `google-chrome --user-data-dir=/tmp/s3l-manual --no-first-run http://localhost:5173` (a new folder for a fresh start).
 
 **The PDFs** (all in `testset/`):
 
