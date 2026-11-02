@@ -6,6 +6,13 @@
 - Tasks go in `docs/tasks.md`, and only there, never in the other docs; look there when looking for tasks. A done task is deleted, and its decisions go into the docs file that covers its topic.
 - Follow the style guide (`docs/style.md`) when building anything the user sees, and keep it up to date when a decision about style is made.
 
+## Code and tests
+- Write code and tests the way that is most comfortable for you, the way you know best. There is no TDD requirement.
+- A bug found by chance in existing code is first reproduced in a test; then fixed, and the test checked to pass.
+
+## Existing data
+- For now, the only users of the app are you and me, and there is no important data anywhere yet. Solutions don't have to avoid breaking existing data (migrations that keep old projects working, compatibility with what is stored), because there isn't any. I will say when I start using the app with data I care about, and this section changes then.
+
 ## The overview
 
 @docs/overview.md
