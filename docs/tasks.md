@@ -76,7 +76,7 @@ Decided 2026-11-02: `docs/llm.md`, "Which config a stage uses" and "Managing mod
 - **"Change config" for LLM stages:** a form with the config picker and "Also for the model stages after this one"; the confirmation before a re-run says so when it is ticked.
 - **The settings page:** the rule next to the default; Rename, Clone (with "Delete the original" and the duplicate checks with their rename offers) and Delete on each config, no Edit. Part of "Settings page, the model configs".
 - **The table:** drop the column of the row a version supersedes, and the Worker's copy-on-edit (`PUT /api/model-configs/<id>`), for rename and clone.
-- **Open:** whether names become required (unique names, and the rename offers, name configs; today a config may have none and is shown by its model string); whether adding a further review opens the config picker right away.
+- **Names required and unique:** the generated name when the field is left empty (`docs/llm.md`, "Model configs"); existing configs without a name get one the same way (no data to keep, CLAUDE.md).
 
 Until it is built, a stage that fails because of its model config (no price, a broken config) keeps failing on Retry, since it keeps the config it started with, and no LLM stage has a config form: the manual tests work around it with the Worker's `PUT …/config` (`docs/manual-tests.md`, story 4).
 ### The issue card: what is still open
