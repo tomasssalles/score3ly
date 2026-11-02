@@ -36,7 +36,7 @@ To start again from nothing: stop the Worker, delete `apps/worker/.wrangler/manu
 | `schumann_kinderscenen_first_edition.orig.pdf` | 22 crooked colour scans, 13 MB: the big old book. |
 | `schumann_kinderscenen_first_edition_p3.orig.pdf` | 1 colour page: a quick second PDF. |
 
-**Model configs.** A new database has "Fake model" (free, the default). The settings page shows configs read-only (§15, "Settings page, the model configs"), so the others are made with `curl`, and the default is switched the same way (a stage uses the default unless one was picked for it, and no picker exists yet):
+**Model configs.** A new database has "Fake model" (free, the default). The settings page can't make configs yet (§15, "Settings page, the model configs"), so the others are made with `curl`; the default is picked on the settings page ("Default model config for new LLM stages"), which the stories call "make … the default":
 ```
 W=http://localhost:8787/api
 mk() { curl -s -X POST $W/model-configs -H 'content-type: application/json' -d "$1"; echo; }
@@ -49,9 +49,8 @@ mk '{"provider":"fake","model":"fake-other-model","name":"Fails: other model"}'
 mk '{"provider":"anthropic","model":"claude-opus-5-5","name":"No key","secrets":{"apiKey":"NOT_SET"}}'
 mk '{"provider":"anthropic","model":"claude-made-up-9","name":"No price","secrets":{"apiKey":"NOT_SET"}}'
 curl -s $W/model-configs | grep -o '"id":"[^"]*","name":"[^"]*"'            # the ids
-use() { curl -s -X PUT $W/settings/defaultModelConfigId -H 'content-type: application/json' -d "{\"value\":\"$1\"}" > /dev/null; }
 ```
-Then `use <id>` makes a config the default. Neither "No key" nor "No price" reaches the network: the Worker refuses them first (docs/llm.md, "Errors the stage acts on").
+Neither "No key" nor "No price" reaches the network: the Worker refuses them first (docs/llm.md, "Errors the stage acts on").
 
 **What the fake model answers** (so that its output isn't mistaken for bugs): `layout` two systems on every page, three bar lines each (so four stretches); `analyze` empty metadata and observations; `extract` a whole-measure rest in 4/4 in every stretch, a voice per staff, a made-up doubt on every system and a format issue on the first; `review` a correction on system 1 and another answer chosen for the first issue of system 2.
 
@@ -143,9 +142,9 @@ Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new 
 
 *Models that fail, a user who stops, a tab that closes mid-run.* About 40 minutes (the ★ steps about 15). Covers: failures and Retry, Stop, interrupted runs, the errors the Worker acts on.
 
-1. ★ → `use` "Fails: server". New project from Kinderscenen p3, Auto, Run. ✓ Rasterize and Skew detection run; Layout fails: red border, the error on the card, "Layout failed" in red in the head, Run reads **Retry** with a circular arrow, the pipeline stops. → Retry. ✓ It fails again the same way.
-2. → For each of "Fails: refusal", "Fails: cut off", "Fails: not JSON", "Fails: other model", "No key", "No price": `use` it, then `reset` Layout (below) and Run. ✓ Each fails with a message that says what happened (refused, cut off, not JSON, another model answered, the secret `NOT_SET` missing, no price for the model), never a blank or only technical error.
-3. → `use` "Fake model", `reset` Layout, Run. ✓ Layout runs and the pipeline goes on to the end.
+1. ★ → Make "Fails: server" the default. New project from Kinderscenen p3, Auto, Run. ✓ Rasterize and Skew detection run; Layout fails: red border, the error on the card, "Layout failed" in red in the head, Run reads **Retry** with a circular arrow, the pipeline stops. → Retry. ✓ It fails again the same way.
+2. → For each of "Fails: refusal", "Fails: cut off", "Fails: not JSON", "Fails: other model", "No key", "No price": make it the default, then `reset` Layout (below) and Run. ✓ Each fails with a message that says what happened (refused, cut off, not JSON, another model answered, the secret `NOT_SET` missing, no price for the model), never a blank or only technical error.
+3. → Make "Fake model" the default, `reset` Layout, Run. ✓ Layout runs and the pipeline goes on to the end.
 
    **Why `reset`:** a stage records the model config it started with, and a Retry uses it again, so switching the default doesn't change a failed stage's model; and no LLM stage has a config form yet, so the app can't change it either. `reset` sets the stage's config back to "the default" through the Worker, which replaces the failed stage with a planned one; the project and stage ids are in the URL of the stage's "Show details" (`#/projects/<pid>/stages/<sid>`):
    ```
@@ -165,7 +164,7 @@ Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new 
 *A user with a priced model, a low spending cap, and the Statistics page.* About 35 minutes. Covers: the spending cap, costs in the details and the costs view, the cache serving paid calls, the other Statistics tabs.
 
 1. → Settings → spending cap: try `0`, `-1`, `abc`, an empty field, Escape. ✓ None saved, each says why; Escape brings back "$ 1.00". → `0.05`, Enter. ✓ Saved (reload to check).
-2. → `use` "Fake (priced)". New project from Bendel, Auto, Run. ✓ Somewhere in Layout or Analyze the stage fails with the spending cap's message (in the panel, where the user is, not in a menu). If it runs through, the fake's made-up costs were too small: a new project with the cap at `0.01`.
+2. → Make "Fake (priced)" the default. New project from Bendel, Auto, Run. ✓ Somewhere in Layout or Analyze the stage fails with the spending cap's message (in the panel, where the user is, not in a menu). If it runs through, the fake's made-up costs were too small: a new project with the cap at `0.01`.
 3. → Show details of the failed stage and of a done LLM stage. ✓ Costs in US dollars there; none on the cards.
 4. → Settings → spending cap `5`. Retry. ✓ The run continues where it stopped, without paying twice for the calls already made.
 5. → Set the cap back to `0.05`. New project on the same Bendel PDF (the known-PDF dialog, "+ New project"), Run. ✓ Every LLM stage is served from the record (same inputs, same config): it runs to the end although the cap is reached, at no new cost.

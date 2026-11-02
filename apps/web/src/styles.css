@@ -1496,6 +1496,20 @@ body {
   right: 0;
 }
 
+/* The default model config's picker: names are longer than the run mode's. */
+.config-picker-name {
+  max-width: min(220px, 35vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-list .config-picker .dropdown-list {
+  width: max-content;
+  min-width: 140px;
+  max-width: min(320px, 80vw);
+}
+
 .page-view .settings-error {
   color: var(--danger);
 }

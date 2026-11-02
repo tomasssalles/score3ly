@@ -1,5 +1,5 @@
 // The settings (docs/overview.md §5.1, docs/database.md, docs/llm.md, "Costs"): the user's, stored by the Worker. So far the run mode new projects
-// start with and the spending cap, the model configs, read-only, and where their secrets are set. A pick is saved at
+// start with, the default model config, the spending cap, the model configs, read-only, and where their secrets are set. A pick is saved at
 // once, an amount when it is left or Enter is pressed. Then this device's own, kept in the browser: the theme (§5.7)
 // and the image cache's size limit (§8.5).
 
@@ -59,6 +59,20 @@ export function SettingsPage() {
                   onSelect: () => void save("newProjectRunMode", mode),
                 })),
               ]}
+            />
+          </dd>
+          <dt>
+            Default model config for new LLM stages
+            <span className="settings-hint">
+              Given to every LLM stage when it is created: in a new project, or when one is added to a project. Stages
+              that already exist keep theirs; change them with "Change config" in a stage's{"\u00a0"}⋮.
+            </span>
+          </dt>
+          <dd>
+            <DefaultConfigPicker
+              configs={configs}
+              defaultId={settings.defaultModelConfigId}
+              onPick={(id) => void save("defaultModelConfigId", id)}
             />
           </dd>
           <dt>
@@ -154,6 +168,41 @@ function ImageCacheSetting() {
         />
       </dd>
     </>
+  );
+}
+
+// The default model config (docs/llm.md, "Which config a stage uses"): a drop-down of the configs by name (else their
+// model), like the run mode's. Until the configs are loaded, the button says so.
+function DefaultConfigPicker({
+  configs,
+  defaultId,
+  onPick,
+}: {
+  configs: ModelConfig[] | null;
+  defaultId: string | null;
+  onPick: (id: string) => void;
+}) {
+  const shown = (config: ModelConfig) => config.name ?? config.model;
+  const current = configs?.find((config) => config.id === defaultId);
+  return (
+    <DropdownMenu
+      className="mode-picker config-picker"
+      buttonClassName="mode-button"
+      icon={
+        <>
+          <span className="config-picker-name">{configs === null ? "Loading…" : current ? shown(current) : "None"}</span>
+          <ChevronDownIcon />
+        </>
+      }
+      label="Default model config for new LLM stages"
+      groups={[
+        (configs ?? []).map((config) => ({
+          label: shown(config),
+          current: config.id === defaultId,
+          onSelect: () => onPick(config.id),
+        })),
+      ]}
+    />
   );
 }
 

@@ -597,7 +597,7 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [x] The pipeline in D1: stages, outputs, run, stop, retry, Auto and Manual, config changes with confirmation (§5.8)
 - [x] Manual stages: add, finish, edit, drop (§5.4, §5.8)
 - [x] LLM calls through the Worker: the providers' adapters, call records, the cache, costs, the spending cap (§7.2, §10)
-- [x] Settings page: run mode, spending cap, model configs read-only
+- [x] Settings page: run mode, default model config, spending cap, model configs read-only
 - [ ] Model configs: decide (§15), then supported models and prices in the database, and the config form (§7.2)
 - [x] Delete a project (§4)
 - [x] Statistics page (§10; docs/statistics.md)
