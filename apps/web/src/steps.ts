@@ -16,7 +16,9 @@ import { fixMeiStart } from "./fixMei.ts";
 export type ConfigField = {
   key: string;
   label: string;
-  kind: "text" | "number" | "choice";
+  // "modelConfig": an LLM stage's model config, picked from the configs, with "Apply to the remaining stages planned in
+  // this pipeline" grouped under it (docs/llm.md, "Which config a stage uses").
+  kind: "text" | "number" | "choice" | "modelConfig";
   options?: { value: string; label: string }[]; // a choice's
   hint?: string;
   placeholder?: string;
@@ -27,8 +29,14 @@ export type ConfigField = {
 
 export type ConfigValues = Record<string, string | number>;
 
-// What a config is checked against besides itself: the PDF's page count (null while unknown).
-export type ConfigContext = { pageCount: number | null };
+// What a config is checked against besides itself, and what its fields offer: the PDF's page count (null while
+// unknown); the model configs (those not deleted, and the stage's own if it was deleted, marked so); how many LLM stages
+// come after the stage, which the model config can be applied to as well.
+export type ConfigContext = {
+  pageCount: number | null;
+  modelConfigs: { id: string; name: string; deleted: boolean }[];
+  laterLlmStages: number;
+};
 
 export type StepConfig = {
   fields: ConfigField[];
@@ -45,6 +53,18 @@ export type StepInfo = {
   config?: StepConfig; // none: nothing to set
   // The first is the main one. `earlier` are the stages before it in the pipeline, for its inputs.
   artifacts: (stage: ApiStage, earlier: ApiStage[]) => Artifact[];
+};
+
+// Every LLM stage's config: its model config, so far nothing else (docs/llm.md, "Which config a stage uses"). Another
+// setting of an LLM step would be a field beside it; "Apply to the remaining stages…" changes only the model config.
+export const LLM_CONFIG: StepConfig = {
+  fields: [{ key: "modelConfigId", label: "Model config", kind: "modelConfig" }],
+  read: (stored) => ({ modelConfigId: typeof stored?.modelConfigId === "string" ? stored.modelConfigId : "" }),
+  check: (values, { modelConfigs }) => {
+    const picked = modelConfigs.find((c) => c.id === values.modelConfigId);
+    if (!picked) return "Pick a model config.";
+    return picked.deleted ? `"${picked.name}" was deleted: pick another model config.` : null;
+  },
 };
 
 // The page images of the latest `rasterize` before a stage: what each page is made from, by page number.
@@ -153,6 +173,7 @@ STEPS.layout = {
   kind: "llm",
   optional: false,
   fixes: ["fix_layout"],
+  config: LLM_CONFIG,
   artifacts: (stage, earlier) => {
     const recipes = pageRecipes(earlier);
     const pages = stage.outputs
@@ -240,6 +261,7 @@ STEPS.analyze = {
   kind: "llm",
   optional: false,
   fixes: ["fix_metadata", "fix_observations"],
+  config: LLM_CONFIG,
   // The metadata, with the pages as they are (to look for a field), and the observations, with the pages as the
   // layout numbers them (§6).
   artifacts: (stage, earlier) => {
@@ -352,6 +374,7 @@ STEPS.extract = {
   kind: "llm",
   optional: false,
   fixes: ["fix_mei"],
+  config: LLM_CONFIG,
   artifacts: (stage, earlier) => transcription(stage, stage, earlier),
 };
 
@@ -362,6 +385,7 @@ STEPS.review = {
   // `fix_mei` comes right before `engrave` (docs/stages/engrave.md): while `apply_review` isn't built, a review is the
   // stage before it.
   fixes: ["fix_mei"],
+  config: LLM_CONFIG,
   // The Transcription it reviewed, with its issues as the review leaves them: its calls' entries, and, once it is
   // done, its agreements.
   artifacts: (stage, earlier) => {

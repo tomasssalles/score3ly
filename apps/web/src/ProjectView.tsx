@@ -4,6 +4,8 @@ import {
   dismissDropped,
   dropStage,
   editStage,
+  fetchModelConfig,
+  fetchModelConfigs,
   fetchPipeline,
   finishStage,
   resolveStage,
@@ -416,10 +418,10 @@ export function ProjectView({
     }
   }
 
-  async function saveConfig(stage: Stage, config: unknown) {
+  async function saveConfig(stage: Stage, config: unknown, applyModelConfigToLater = false) {
     quiet();
     try {
-      setStored(await setStageConfig(project, stage.id, config));
+      setStored(await setStageConfig(project, stage.id, config, applyModelConfigToLater));
       onChanged();
       scroll();
     } catch (err) {
@@ -444,10 +446,19 @@ export function ProjectView({
     changeConfig: (id) => {
       const stage = findStage(pipeline, id);
       if (stage && stepInfo(stage.stepId).config) {
-        // The PDF's page count, to check a page selection before saving. Unknown if the PDF can't be opened here.
-        openPdfForImages(project.pdfSha256).then(
-          ({ pageCount }) => setConfiguring({ stage, context: { pageCount } }),
-          () => setConfiguring({ stage, context: { pageCount: null } }),
+        const llm = stage.kind === "llm";
+        const position = pipeline.stages.indexOf(stage);
+        void Promise.all([
+          // The PDF's page count, to check a page selection before saving. Unknown if the PDF can't be opened here.
+          llm ? null : openPdfForImages(project.pdfSha256).then(({ pageCount }) => pageCount, () => null),
+          // The model configs to pick from (an LLM stage's), its own included if it was deleted (docs/llm.md).
+          llm ? modelConfigsFor(stored?.stages[position]?.config ?? null) : [],
+        ]).then(
+          ([pageCount, modelConfigs]) => {
+            const laterLlmStages = pipeline.stages.slice(position + 1).filter((s) => s.kind === "llm").length;
+            setConfiguring({ stage, context: { pageCount, modelConfigs, laterLlmStages } });
+          },
+          (err) => setError(`The model configs couldn't be loaded: ${err}`),
         );
       }
       else setError(`"${stage?.title}" has nothing to set.`);
@@ -489,10 +500,15 @@ export function ProjectView({
       config={configForm}
       values={configForm.read(stored?.stages.find((s) => s.id === configuring.stage.id)?.config ?? null)}
       context={configuring.context}
-      onSave={(values) => {
+      onSave={(values, applyModelConfigToLater) => {
         const { stage } = configuring;
+        const initial = configForm.read(stored?.stages.find((s) => s.id === stage.id)?.config ?? null);
+        const changed = configForm.fields.some((f) => values[f.key] !== initial[f.key]);
         // No manual stage has a config: if one ever has, this text must change (§5.5).
-        change(() => saveConfig(stage, values), replacesWork(stage.id), "Change config", "This stage will have to run again with the new config. ");
+        const before =
+          (changed ? "This stage will have to run again with the new config. " : "") +
+          (applyModelConfigToLater ? "The remaining stages planned in this pipeline will use its model config too. " : "");
+        change(() => saveConfig(stage, values, applyModelConfigToLater), replacesWork(stage.id), "Change config", before);
       }}
       onCancel={() => setConfiguring(null)}
     />
@@ -652,4 +668,16 @@ function writeFlag(key: string, value: boolean) {
   } catch {
     // Not remembered, then.
   }
+}
+
+// The model configs an LLM stage's config form offers: those not deleted, and the stage's own if it was deleted, marked
+// so (it shows as the current one, and can't be picked anew; docs/llm.md).
+async function modelConfigsFor(config: Record<string, unknown> | null): Promise<{ id: string; name: string; deleted: boolean }[]> {
+  const configs = (await fetchModelConfigs()).map((c) => ({ id: c.id, name: c.name, deleted: false }));
+  const own = typeof config?.modelConfigId === "string" ? config.modelConfigId : null;
+  if (own && !configs.some((c) => c.id === own)) {
+    const deleted = await fetchModelConfig(own).catch(() => null);
+    if (deleted) configs.push({ id: deleted.id, name: deleted.name, deleted: true });
+  }
+  return configs;
 }

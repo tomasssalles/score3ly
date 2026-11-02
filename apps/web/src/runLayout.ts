@@ -52,7 +52,7 @@ export async function runLayout(run: StageRun): Promise<void> {
   let flaggedCount = 0;
   await runPlan(run, {
     stepVersion: LAYOUT_VERSION,
-    config: { modelConfigId: config.id },
+    config: { ...(stage.config ?? {}), modelConfigId: config.id }, // the stage's config, its model config included
     modelConfigId: config.id,
     stageKey,
     pageCount: pages.length,

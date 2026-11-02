@@ -42,13 +42,32 @@ test("the Worker knows every LLM step", () => {
   assert.deepEqual(llm.filter((id) => !worker.includes(id)), []);
 });
 
+const NO_MODELS = { modelConfigs: [], laterLlmStages: 0 };
+
 test("rasterize's config is checked against the PDF's page count before it is saved", () => {
   const { check } = STEPS.rasterize.config!;
-  assert.equal(check({ pages: "1-3", dpi: 300 }, { pageCount: 3 }), null);
-  assert.equal(check({ pages: "2, 5", dpi: 300 }, { pageCount: 3 }), "The PDF has 3 pages: there is no page 5.");
+  assert.equal(check({ pages: "1-3", dpi: 300 }, { pageCount: 3, ...NO_MODELS }), null);
+  assert.equal(check({ pages: "2, 5", dpi: 300 }, { pageCount: 3, ...NO_MODELS }), "The PDF has 3 pages: there is no page 5.");
   // Unknown page count: only the config itself is checked.
-  assert.equal(check({ pages: "5", dpi: 300 }, { pageCount: null }), null);
-  assert.notEqual(check({ pages: "5", dpi: 10 }, { pageCount: null }), null);
+  assert.equal(check({ pages: "5", dpi: 300 }, { pageCount: null, ...NO_MODELS }), null);
+  assert.notEqual(check({ pages: "5", dpi: 10 }, { pageCount: null, ...NO_MODELS }), null);
+});
+
+test("every LLM stage's config has its model config: read from the stored config, checked against the configs", () => {
+  for (const [id, info] of Object.entries(STEPS)) {
+    if (info.kind === "llm") assert.equal(info.config?.fields.find((f) => f.kind === "modelConfig")?.key, "modelConfigId", id);
+  }
+  const { read, check } = STEPS.layout.config!;
+  assert.deepEqual(read({ modelConfigId: "opus" }), { modelConfigId: "opus" });
+  assert.deepEqual(read(null), { modelConfigId: "" });
+  const context = {
+    pageCount: null,
+    modelConfigs: [{ id: "opus", name: "Opus", deleted: false }, { id: "old", name: "Old", deleted: true }],
+    laterLlmStages: 2,
+  };
+  assert.equal(check({ modelConfigId: "opus" }, context), null);
+  assert.equal(check({ modelConfigId: "" }, context), "Pick a model config.");
+  assert.equal(check({ modelConfigId: "old" }, context), '"Old" was deleted: pick another model config.');
 });
 
 test("Fix MEI is offered only after the latest stage that produces the extraction, or a review after it", () => {

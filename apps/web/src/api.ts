@@ -157,8 +157,9 @@ async function send(url: string, body?: unknown, method = "POST"): Promise<Respo
 }
 
 // Sets a stage's config (null: the defaults). A stage that has run is replaced, with the stages after it.
-export async function setStageConfig(project: Project, stageId: string, config: unknown): Promise<ApiPipeline> {
-  return (await send(stageUrl(project, stageId, "config"), { config }, "PUT")).json();
+// `applyModelConfigToLater`: the LLM stages after this one get its model config too, and nothing else (docs/llm.md).
+export async function setStageConfig(project: Project, stageId: string, config: unknown, applyModelConfigToLater = false): Promise<ApiPipeline> {
+  return (await send(stageUrl(project, stageId, "config"), { config, applyModelConfigToLater }, "PUT")).json();
 }
 
 export type StageStart = {

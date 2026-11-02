@@ -623,6 +623,59 @@ test("an LLM stage names its model config from its creation: the default then, k
   await app.request("/api/settings/defaultModelConfigId", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: "fake-model" }) }, env);
 });
 
+test("a model config applied to the remaining stages: only the LLM stages after, only their model config", async () => {
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('other-model', 'Other model', 'fake-dev', 'fake-model', 1, '2026-10-01')",
+  ).run();
+  const project = await createdProject("apply.pdf");
+  const at = async (i: number) => (await pipelineOf(project.id))[i];
+  const configs = async () => (await pipelineOf(project.id)).map((s) => s.config);
+  // Analyze has a setting of its own, which applying the model config leaves alone.
+  assert.equal((await call(project.id, (await at(4)).id, "config", { config: { modelConfigId: "fake-model", keep: 1 } }, "PUT")).status, 200);
+
+  // Without the checkbox, only the stage itself.
+  assert.equal((await call(project.id, (await at(3)).id, "config", { config: { modelConfigId: "other-model" } }, "PUT")).status, 200);
+  assert.deepEqual((await configs()).slice(3, 7), [
+    { modelConfigId: "other-model" },
+    { modelConfigId: "fake-model", keep: 1 },
+    { modelConfigId: "fake-model" },
+    { modelConfigId: "fake-model" },
+  ]);
+  // With it, planned stages after it in place; not the stages before it, nor those without a model config.
+  assert.equal((await call(project.id, (await at(4)).id, "config", { config: { modelConfigId: "fake-model", keep: 1 }, applyModelConfigToLater: "yes" }, "PUT")).status, 400);
+  assert.equal((await call(project.id, (await at(4)).id, "config", { config: { modelConfigId: "other-model", keep: 1 }, applyModelConfigToLater: true }, "PUT")).status, 200);
+  assert.deepEqual(await configs(), [
+    {},
+    null,
+    null,
+    { modelConfigId: "other-model" },
+    { modelConfigId: "other-model", keep: 1 },
+    { modelConfigId: "other-model" },
+    { modelConfigId: "other-model" },
+    null,
+  ]);
+  assert.deepEqual((await at(6)).modelConfig, { name: "Other model", model: "fake-model", deleted: false });
+
+  // A stage that ran is replaced by a copy with the new model config, its other settings kept.
+  const extract = await at(5);
+  assert.equal((await call(project.id, extract.id, "start", { stepVersion: 1, config: { modelConfigId: "other-model", keep: 2 }, modelConfigId: "other-model", stageKey: "f".repeat(64), pageCount: 1, inputIds: [] })).status, 200);
+  assert.equal((await call(project.id, extract.id, "finish", { status: "done" })).status, 204);
+  assert.equal((await call(project.id, (await at(3)).id, "config", { config: { modelConfigId: "fake-model" }, applyModelConfigToLater: true }, "PUT")).status, 200);
+  const after = await pipelineOf(project.id);
+  assert.notEqual(after[5].id, extract.id);
+  assert.equal(after[5].status, "planned");
+  assert.deepEqual(after.slice(3, 7).map((s) => s.config), [
+    { modelConfigId: "fake-model" },
+    { modelConfigId: "fake-model", keep: 1 },
+    { modelConfigId: "fake-model", keep: 2 },
+    { modelConfigId: "fake-model" },
+  ]);
+
+  // A deleted config can't be picked anew.
+  await env.DB.prepare("UPDATE model_configs SET deleted_at = '2026-10-02' WHERE id = 'other-model'").run();
+  assert.equal((await call(project.id, (await at(3)).id, "config", { config: { modelConfigId: "other-model" } }, "PUT")).status, 400);
+});
+
 test("an item's timing is kept with its output: its duration, its answers and images, and how many came from the caches", async () => {
   const project = await createdProject("timing.pdf");
   const { rasterize } = await startRasterize(project.id);

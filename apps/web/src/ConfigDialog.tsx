@@ -3,7 +3,9 @@ import { Picker } from "./fieldList";
 import { CloseIcon } from "./icons";
 import type { ConfigContext, ConfigValues, StepConfig } from "./steps";
 
-// A stage's config (docs/project-view.md, "Change config"): the form its step declares (steps.ts).
+// A stage's config (docs/project-view.md, "Change config"): the form its step declares (steps.ts). An LLM stage's form
+// has its model config, with "Apply to the remaining stages planned in this pipeline" grouped under it: ticked, the LLM
+// stages after this one get the same model config, and nothing else in their configs changes (docs/llm.md).
 export function ConfigDialog({
   title,
   config,
@@ -16,7 +18,7 @@ export function ConfigDialog({
   config: StepConfig;
   values: ConfigValues;
   context: ConfigContext;
-  onSave: (values: ConfigValues) => void;
+  onSave: (values: ConfigValues, applyModelConfigToLater: boolean) => void;
   onCancel: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -24,6 +26,7 @@ export function ConfigDialog({
   const [texts, setTexts] = useState<Record<string, string>>(() =>
     Object.fromEntries(config.fields.map((f) => [f.key, String(initial[f.key] ?? "")])),
   );
+  const [toLater, setToLater] = useState(false);
 
   useEffect(() => {
     dialog.current?.showModal();
@@ -34,12 +37,13 @@ export function ConfigDialog({
   );
   const empty = config.fields.find((f) => f.kind === "number" && texts[f.key].trim() === "");
   const problem = empty ? `Enter a value for "${empty.label}".` : config.check(values, context);
-  const unchanged = config.fields.every((f) => values[f.key] === initial[f.key]);
+  // Ticked, the later stages change even if this one doesn't.
+  const unchanged = config.fields.every((f) => values[f.key] === initial[f.key]) && !toLater;
 
   function save(e: React.FormEvent) {
     e.preventDefault();
     if (problem !== null || unchanged) return;
-    onSave(values);
+    onSave(values, toLater);
     dialog.current?.close();
   }
 
@@ -60,7 +64,31 @@ export function ConfigDialog({
         </div>
         {config.fields.map((field) => (
           <div key={field.key}>
-            {field.kind === "choice" ? (
+            {field.kind === "modelConfig" ? (
+              <div className="field model-config-field">
+                <span>{field.label}</span>
+                <Picker
+                  value={modelConfigLabel(context.modelConfigs.find((c) => c.id === texts[field.key])) ?? "Pick one"}
+                  label={field.label}
+                  fitted
+                  groups={[
+                    context.modelConfigs
+                      .filter((c) => !c.deleted)
+                      .map((c) => ({
+                        label: c.name,
+                        current: c.id === texts[field.key],
+                        onSelect: () => setTexts((t) => ({ ...t, [field.key]: c.id })),
+                      })),
+                  ]}
+                />
+                {context.laterLlmStages > 0 && (
+                  <label className="field-check">
+                    <input type="checkbox" checked={toLater} onChange={(e) => setToLater(e.target.checked)} />
+                    Apply to the remaining stages planned in this pipeline
+                  </label>
+                )}
+              </div>
+            ) : field.kind === "choice" ? (
               <div className="field">
                 <span>{field.label}</span>
                 <Picker
@@ -114,4 +142,9 @@ export function ConfigDialog({
       </form>
     </dialog>
   );
+}
+
+// A model config as the picker shows it: its name, marked if it was deleted (docs/llm.md).
+function modelConfigLabel(config: { name: string; deleted: boolean } | undefined): string | undefined {
+  return config && (config.deleted ? `${config.name} (deleted)` : config.name);
 }

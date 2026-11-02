@@ -46,7 +46,7 @@ What the app shows and how it behaves around a project: the two layouts, the art
   - **running**: a green border and its progress bar;
   - **failed**: a red border and the error. It can run again;
   - **ready**: its turn has come. It looks like a done card, but without outputs;
-  - **planned**: not its turn yet. Only the dimmed title (and the "⋮"), no outputs. It becomes ready, no longer dim, when its turn comes;
+  - **planned**: not its turn yet. Only the dimmed title (and the "⋮"; an LLM stage's model config too), no outputs. Dimmed part by part, not as a whole: opacity on the card dimmed its open menu too and put it under the next card (found and fixed 2026-11-02, `stageCardStyles.test.ts`). It becomes ready, no longer dim, when its turn comes;
   - **WIP**: a manual stage being worked on (below).
   - A "needs you" state for a model asking for human input is left out for now; it will be easy to add (§5.1, §15).
 - **Buttons:** in Manual mode, the ready stage has **Run** and, while it runs, **Stop** in the same place. In Auto mode the cards have no Run or Stop: those are in the head. When the stage whose turn it is has failed, Run reads **Retry**, with a circular arrow, in both modes. Stop throws away what the running stage did so far: the stage is marked as stopped and leaves the pipeline. Its LLM calls stay, for the costs and the cache.

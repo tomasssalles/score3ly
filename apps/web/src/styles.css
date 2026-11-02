@@ -830,8 +830,15 @@ body {
   margin-left: 30px;
 }
 
+/* Dimmed part by part, not as a whole: opacity on the card would dim its open "⋮" menu too and put it under the next
+   card (stageCardStyles.test.ts). */
 .stage-card.planned {
   padding-bottom: 10px;
+}
+
+.stage-card.planned > :not(.stage-head),
+.stage-card.planned .stage-head > :not(.dropdown),
+.stage-card.planned .stage-head .dropdown-button {
   opacity: 0.45;
 }
 
@@ -1643,6 +1650,49 @@ body {
 .field input:focus {
   border-color: var(--accent);
   outline: none;
+}
+
+/* A checkbox that belongs to the field above it (the model config's "Apply to the remaining stages…"). */
+.field .field-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.field .field-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.model-config-field .field-picker {
+  justify-self: start;
+  max-width: 100%;
+}
+
+/* The configs' list: as wide as its names, within the screen; shown past the dialog's edge rather than cut by it, and
+   scrolling when there are many. */
+.app-dialog:has(.model-config-field) {
+  overflow: visible;
+}
+
+.model-config-field .dropdown-list {
+  width: max-content;
+  min-width: 140px;
+  max-width: min(360px, calc(100vw - 64px));
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.model-config-field .picker-value {
+  max-width: min(320px, 60vw);
+  text-align: left;
 }
 
 .field-hint {

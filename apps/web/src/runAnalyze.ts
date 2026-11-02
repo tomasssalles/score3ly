@@ -169,7 +169,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
   let pieces = 0;
   await runPlan(run, {
     stepVersion: ANALYZE_VERSION,
-    config: { modelConfigId: config.id },
+    config: { ...(stage.config ?? {}), modelConfigId: config.id }, // the stage's config, its model config included
     modelConfigId: config.id,
     stageKey,
     pageCount: pages.length,

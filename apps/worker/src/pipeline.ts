@@ -65,6 +65,11 @@ export function isLlm(step: string): boolean {
   return (LLM_STEPS as readonly string[]).includes(step);
 }
 
+// A stage's config with another model config, everything else in it as it was.
+function withModelConfig(configJson: string | null, modelConfigId: string): string {
+  return JSON.stringify({ ...(configJson === null ? {} : (JSON.parse(configJson) as Record<string, unknown>)), modelConfigId });
+}
+
 // The default model config for the LLM stages created now: the setting, if it names a config that exists (configs are
 // only marked deleted, so it does unless the database was changed by hand).
 export async function defaultForNewStages(db: D1Database): Promise<string | null> {
@@ -182,6 +187,8 @@ function plannedStage(
 // at `position`, and then the stages that were after `after`, replaced (docs/overview.md §5.5): a planned one keeps its
 // row, one that ran gets a planned copy with its config, and a manual one, WIP or done, is carried: it stays, waiting
 // for its turn, when it is kept if what it reads is the same as what it read (`resolve`).
+// `modelConfig`: given, the LLM stages after `after` get that model config, and nothing else in their configs changes
+// ("Apply to the remaining stages planned in this pipeline", docs/llm.md): a planned one in place, a copy as it is made.
 async function rewriteFrom(
   db: D1Database,
   projectId: string,
@@ -189,6 +196,7 @@ async function rewriteFrom(
   head: string[],
   after: number,
   now: string,
+  modelConfig: string | null = null,
 ): Promise<D1PreparedStatement[]> {
   const { results: later } = await db
     .prepare(
@@ -213,9 +221,19 @@ async function rewriteFrom(
       .bind(projectId, next++, stageId, carried ? 1 : 0);
   for (const id of head) statements.push(point(id));
   for (const row of later) {
+    const changed = modelConfig !== null && isLlm(row.step);
     if (isManual(row.step)) statements.push(point(row.id, true));
-    else if (row.status === "planned") statements.push(point(row.id));
-    else statements.push(...plannedStage(db, projectId, next++, row.step, row.config_json, row.in_recipe === 1, defaultModelConfigId, now));
+    else if (row.status === "planned") {
+      statements.push(point(row.id));
+      if (changed) {
+        statements.push(
+          db.prepare("UPDATE stages SET config_json = ?, model_config_id = ? WHERE id = ?").bind(withModelConfig(row.config_json, modelConfig), modelConfig, row.id),
+        );
+      }
+    } else {
+      const config = changed ? withModelConfig(row.config_json, modelConfig) : row.config_json;
+      statements.push(...plannedStage(db, projectId, next++, row.step, config, row.in_recipe === 1, defaultModelConfigId, now));
+    }
   }
   return statements;
 }
@@ -332,6 +350,10 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (body === null || !("config" in body) || (body.config !== null && typeof body.config !== "object")) {
       return c.json({ error: "expected a 'config' object or null" }, 400);
     }
+    // "Apply to the remaining stages planned in this pipeline": the LLM stages after this one get its model config too.
+    if (body.applyModelConfigToLater !== undefined && typeof body.applyModelConfigToLater !== "boolean") {
+      return c.json({ error: "'applyModelConfigToLater' must be true or false" }, 400);
+    }
     const found = await entry(db, pid, sid);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const now = new Date().toISOString();
@@ -342,9 +364,14 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       body.config === null ? null : JSON.stringify(body.config),
       await defaultForNewStages(db),
     );
-    if (modelConfigId !== null && !(await db.prepare("SELECT id FROM model_configs WHERE id = ?").bind(modelConfigId).first())) {
-      return c.json({ error: "no such model config" }, 400);
+    if (modelConfigId !== null) {
+      const picked = await db.prepare("SELECT deleted_at FROM model_configs WHERE id = ?").bind(modelConfigId).first<{ deleted_at: string | null }>();
+      if (!picked) return c.json({ error: "no such model config" }, 400);
+      // A stage that names a deleted config keeps it until another is picked; a deleted one can't be picked anew.
+      const before = stage.config_json === null ? null : (JSON.parse(stage.config_json) as { modelConfigId?: string }).modelConfigId;
+      if (picked.deleted_at && before !== modelConfigId) return c.json({ error: "that model config was deleted" }, 400);
     }
+    const toLater = body.applyModelConfigToLater === true && modelConfigId !== null ? modelConfigId : null;
     if (stage.status === "running" && !isStale(stage, Date.now())) {
       return c.json({ error: "the stage is running" }, 409);
     }
@@ -353,6 +380,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const statements: D1PreparedStatement[] = [touchProject(db, pid, now)];
     if (stage.status === "planned") {
       statements.push(db.prepare("UPDATE stages SET config_json = ?, model_config_id = ? WHERE id = ?").bind(configJson, modelConfigId, sid));
+      if (toLater !== null) statements.push(...(await rewriteFrom(db, pid, position + 1, [], position, now, toLater)));
     } else {
       const id = crypto.randomUUID();
       statements.push(
@@ -361,7 +389,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
             "INSERT INTO stages (id, created_in, step, status, config_json, model_config_id, in_recipe, created_at) VALUES (?, ?, ?, 'planned', ?, ?, ?, ?)",
           )
           .bind(id, pid, stage.step, configJson, modelConfigId, stage.in_recipe, now),
-        ...(await rewriteFrom(db, pid, position, [id], position, now)),
+        ...(await rewriteFrom(db, pid, position, [id], position, now, toLater)),
       );
     }
     await db.batch(statements);

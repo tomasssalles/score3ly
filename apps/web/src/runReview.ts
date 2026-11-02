@@ -126,7 +126,7 @@ export async function runReview(run: StageRun): Promise<void> {
 
   await runPlan(run, {
     stepVersion: REVIEW_VERSION,
-    config: { modelConfigId: config.id },
+    config: { ...(stage.config ?? {}), modelConfigId: config.id }, // the stage's config, its model config included
     modelConfigId: config.id,
     stageKey,
     pageCount: pages.length,
