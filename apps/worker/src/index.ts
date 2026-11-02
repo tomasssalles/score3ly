@@ -8,7 +8,7 @@ import { deleteProject } from "./deletion.ts";
 import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 import { fingerprintRoutes } from "./fingerprints.ts";
 import { llmRoutes, readSettings } from "./llmRoutes.ts";
-import { newPipeline, pipelineRoutes } from "./pipeline.ts";
+import { defaultForNewStages, newPipeline, pipelineRoutes } from "./pipeline.ts";
 
 export type { Project, RunMode } from "@score3ly/core";
 import type { Project, RunMode } from "@score3ly/core";
@@ -195,6 +195,7 @@ app.post("/api/projects", async (c) => {
   const now = new Date().toISOString();
   const base = defaultName(filename);
   const { newProjectRunMode } = await readSettings(c.env.DB);
+  const defaultModelConfigId = await defaultForNewStages(c.env.DB);
   // Another project may take the chosen name between the lookup and the insert: then look again.
   for (let attempt = 0; ; attempt++) {
     const project: Project = {
@@ -225,7 +226,7 @@ app.post("/api/projects", async (c) => {
             project.lastModifiedAt,
             project.lastOpenedAt,
           ),
-        ...newPipeline(db, project.id, project.pdfSha256, now),
+        ...newPipeline(db, project.id, project.pdfSha256, defaultModelConfigId, now),
       ]);
       return c.json(project, 201);
     } catch (err) {

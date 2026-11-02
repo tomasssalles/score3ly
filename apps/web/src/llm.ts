@@ -2,18 +2,17 @@
 // depends on it, images for requests, and asking the model.
 
 import { CLAUDE_IMAGE_LIMIT, type SizeLimit } from "@score3ly/imaging";
-import { callLlm, fetchModelConfig, fetchSettings, type LlmAnswer, type LlmRequest, type ModelConfig } from "./api";
+import { callLlm, fetchModelConfig, type LlmAnswer, type LlmRequest, type ModelConfig } from "./api";
 import { keyOf } from "@score3ly/core";
 import { noteAnswer } from "./itemTiming";
 import { keepFingerprints } from "./pageImages";
 import { CannotStart, type StageRun } from "./stageRunner";
 
-// The model config for an LLM stage: the one chosen for the stage (`modelConfigId` in its config), else the
-// default from the settings (§7.2, "Which config a stage uses").
+// The model config of an LLM stage: the one its config names (`modelConfigId`), which it got when it was created, the
+// default then unless it was given one (docs/llm.md, "Which config a stage uses"). It is never looked up later.
 export async function stageModelConfig(stageConfig: Record<string, unknown> | null): Promise<ModelConfig> {
-  const chosen = typeof stageConfig?.modelConfigId === "string" ? stageConfig.modelConfigId : null;
-  const id = chosen ?? (await fetchSettings()).defaultModelConfigId;
-  if (!id) throw new CannotStart("no model config is chosen: set a default model config in the settings.");
+  const id = typeof stageConfig?.modelConfigId === "string" ? stageConfig.modelConfigId : null;
+  if (!id) throw new CannotStart("this stage has no model config: there was no default model config when it was created.");
   return fetchModelConfig(id);
 }
 

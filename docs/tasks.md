@@ -71,8 +71,8 @@ A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a 
 `#next-release`
 
 Decided 2026-11-02: `docs/llm.md`, "Which config a stage uses" and "Managing model configs". To build:
-- **Every LLM stage names its config from its creation:** the Worker gives the default to the LLM stages it creates (a new project's, and stages added later); planned copies keep theirs (they do already); no more resolving the default at start (`stageModelConfig` in `apps/web/src/llm.ts`).
-- **The cards** show the config on planned and ready stages too; a deleted config in red, and such a stage refuses to run.
+- **Built 2026-11-02:** every LLM stage names its config from its creation, and the cards show it on planned and ready stages ("Which config a stage uses"). Stages added later (further reviews, `apply_review`) must go through the same `newStageConfig` when they are built.
+- **A deleted config:** in red on the card of a stage that hasn't run, and such a stage refuses to run (today it would run with it).
 - **"Change config" for LLM stages:** a form with the config picker and "Apply to the remaining stages planned in this pipeline"; the confirmation before a re-run says so when it is ticked.
 - **The settings page:** "Make default" in the create and clone forms, none in the cards' "⋮"; Rename, Clone (with "Delete the original" and the duplicate checks with their rename offers) and Delete on each config, no Edit. Part of "Settings page, the model configs".
 - **Rename and clone** in the Worker: a request that changes only the name (unique, like a new config's), and clone as a create, with the original deleted when "Delete the original" is ticked (the editing endpoint is gone, 2026-11-02).

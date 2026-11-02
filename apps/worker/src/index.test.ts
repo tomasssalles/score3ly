@@ -52,7 +52,7 @@ before(async () => {
   ).results;
   migratedPlanned = (
     await env.DB.prepare(
-      "SELECT e.project_id, e.position, s.step, s.status, s.config_json FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.position >= 2 ORDER BY e.project_id, e.position",
+      "SELECT e.project_id, e.position, s.step, s.status, s.config_json, s.model_config_id FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.position >= 2 ORDER BY e.project_id, e.position",
     ).all()
   ).results;
 });
@@ -160,19 +160,23 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
   const pipeline = (await (await app.request(`/api/projects/${project.id}/pipeline`, {}, env)).json()) as {
     stages: Record<string, unknown>[];
   };
+  // Its LLM stages name the default model config from the start (docs/llm.md, "Which config a stage uses").
+  const fake = { modelConfigId: "fake-model" };
   assert.deepEqual(
     pipeline.stages.map((s) => [s.step, s.status, s.config]),
     [
       ["ingest", "done", {}],
       ["rasterize", "planned", null],
       ["skew_analysis", "planned", null],
-      ["layout", "planned", null],
-      ["analyze", "planned", null],
-      ["extract", "planned", null],
-      ["review", "planned", null],
+      ["layout", "planned", fake],
+      ["analyze", "planned", fake],
+      ["extract", "planned", fake],
+      ["review", "planned", fake],
       ["engrave", "planned", null],
     ],
   );
+  assert.deepEqual(pipeline.stages[3].modelConfig, { name: "Fake model", model: "fake" });
+  assert.equal(pipeline.stages[1].modelConfig, null);
   const [ingest] = pipeline.stages;
   assert.equal(ingest.step, "ingest");
   assert.equal(ingest.stepVersion, 1);
@@ -256,17 +260,18 @@ test("migration 0004 gives existing projects their Ingest stage, with the PDF as
   assert.equal(new Set(migratedPipelines.map((row) => row.stage_id)).size, 4);
 });
 
-test("migrations 0006, 0007, 0010, 0011, 0013, 0015 and 0023 give existing projects the recipe's planned stages", () => {
+test("migrations 0006, 0007, 0010, 0011, 0013, 0015 and 0023 give existing projects the recipe's planned stages; 0026 their LLM stages the default model config", () => {
+  const fake = '{"modelConfigId":"fake-model"}';
   assert.deepEqual(
-    migratedPlanned.map((row) => [row.project_id, row.position, row.step, row.status, row.config_json]),
+    migratedPlanned.map((row) => [row.project_id, row.position, row.step, row.status, row.config_json, row.model_config_id]),
     ["p1", "p2", "p3", "p4"].flatMap((id) => [
-      [id, 2, "rasterize", "planned", null],
-      [id, 3, "skew_analysis", "planned", null],
-      [id, 4, "layout", "planned", null],
-      [id, 5, "analyze", "planned", null],
-      [id, 6, "extract", "planned", null],
-      [id, 7, "review", "planned", null],
-      [id, 8, "engrave", "planned", null],
+      [id, 2, "rasterize", "planned", null, null],
+      [id, 3, "skew_analysis", "planned", null, null],
+      [id, 4, "layout", "planned", fake, "fake-model"],
+      [id, 5, "analyze", "planned", fake, "fake-model"],
+      [id, 6, "extract", "planned", fake, "fake-model"],
+      [id, 7, "review", "planned", fake, "fake-model"],
+      [id, 8, "engrave", "planned", null, null],
     ]),
   );
 });
@@ -580,6 +585,43 @@ async function startRasterize(projectId: string, stageKey = KEY) {
   });
   return { response, ingest, rasterize };
 }
+
+test("an LLM stage names its model config from its creation: the default then, kept through changes, a copy, a stop", async () => {
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('opus-new', 'Opus for new stages', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')",
+  ).run();
+  const before = await createdProject("before.pdf");
+  await app.request("/api/settings/defaultModelConfigId", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: "opus-new" }) }, env);
+  const modelOf = async (projectId: string) => (await pipelineOf(projectId)).map((s) => (s.config as { modelConfigId?: string } | null)?.modelConfigId ?? null);
+  // A new default changes nothing in stages that exist; a new project's stages get it.
+  assert.deepEqual(await modelOf(before.id), [null, null, null, "fake-model", "fake-model", "fake-model", "fake-model", null]);
+  const after = await createdProject("after.pdf");
+  assert.deepEqual(await modelOf(after.id), [null, null, null, "opus-new", "opus-new", "opus-new", "opus-new", null]);
+  assert.equal(((await pipelineOf(after.id))[3].modelConfig as { name: string }).name, "Opus for new stages");
+
+  // A config set without a model config gets the default now; one naming a config that doesn't exist is refused.
+  let layout = (await pipelineOf(before.id))[3];
+  assert.equal((await call(before.id, layout.id, "config", { config: { modelConfigId: "missing" } }, "PUT")).status, 400);
+  assert.equal((await call(before.id, layout.id, "config", { config: null }, "PUT")).status, 200);
+  assert.deepEqual(await modelOf(before.id), [null, null, null, "opus-new", "fake-model", "fake-model", "fake-model", null]);
+  assert.equal((await call(before.id, layout.id, "config", { config: { modelConfigId: "fake-model" } }, "PUT")).status, 200);
+
+  // A stage that ran, replaced by a change before it: the planned copy keeps its model config, not the default.
+  await startRasterize(before.id);
+  const rasterize = (await pipelineOf(before.id))[1];
+  layout = (await pipelineOf(before.id))[3];
+  const started = await call(before.id, layout.id, "start", { stepVersion: 1, config: { modelConfigId: "fake-model" }, modelConfigId: "fake-model", stageKey: "d".repeat(64), pageCount: 2, inputIds: [] });
+  assert.equal(started.status, 200);
+  // Stopped, its replacement keeps it too.
+  assert.equal((await call(before.id, layout.id, "stop")).status, 200);
+  assert.deepEqual((await modelOf(before.id))[3], "fake-model");
+  assert.equal((await call(before.id, rasterize.id, "stop")).status, 200);
+  assert.deepEqual(await modelOf(before.id), [null, null, null, "fake-model", "fake-model", "fake-model", "fake-model", null]);
+  assert.deepEqual(((await pipelineOf(before.id))[3].modelConfig as { name: string }).name, "Fake model");
+
+  // The default as the other tests expect it.
+  await app.request("/api/settings/defaultModelConfigId", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: "fake-model" }) }, env);
+});
 
 test("an item's timing is kept with its output: its duration, its answers and images, and how many came from the caches", async () => {
   const project = await createdProject("timing.pdf");

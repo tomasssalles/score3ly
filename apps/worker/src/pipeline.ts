@@ -4,6 +4,7 @@
 
 import type { Hono } from "hono";
 import { QUARTER_MS } from "./activeTime.ts";
+import { readSettings } from "./llmRoutes.ts";
 
 export type Pipeline = { stages: Stage[]; dropped: Dropped[] };
 
@@ -56,6 +57,37 @@ function isManual(step: string): boolean {
   return (MANUAL_STEPS as readonly string[]).includes(step);
 }
 
+// The LLM steps (docs/overview.md §7), declared in the web app too (a test keeps the two equal): every stage of one
+// names its model config from the moment it is created (docs/llm.md, "Which config a stage uses").
+export const LLM_STEPS = ["layout", "analyze", "extract", "review", "apply_review"] as const;
+
+export function isLlm(step: string): boolean {
+  return (LLM_STEPS as readonly string[]).includes(step);
+}
+
+// The default model config for the LLM stages created now: the setting, if it names a config that exists (configs are
+// only marked deleted, so it does unless the database was changed by hand).
+export async function defaultForNewStages(db: D1Database): Promise<string | null> {
+  const { defaultModelConfigId } = await readSettings(db);
+  if (defaultModelConfigId === null) return null;
+  return (await db.prepare("SELECT id FROM model_configs WHERE id = ?").bind(defaultModelConfigId).first()) ? defaultModelConfigId : null;
+}
+
+// A new stage's config as stored, and its model config: an LLM stage's config names the model config it uses (its
+// `modelConfigId`), the default when it is created unless it names one already (a copy keeps the one of the stage it
+// replaces). Any other stage's config is as given, without a model config.
+export function newStageConfig(
+  step: string,
+  configJson: string | null,
+  defaultModelConfigId: string | null,
+): { configJson: string | null; modelConfigId: string | null } {
+  if (!isLlm(step)) return { configJson, modelConfigId: null };
+  const config = configJson === null ? {} : (JSON.parse(configJson) as Record<string, unknown>);
+  const named = typeof config.modelConfigId === "string" ? config.modelConfigId : defaultModelConfigId;
+  if (named === null) return { configJson, modelConfigId: null };
+  return { configJson: JSON.stringify({ ...config, modelConfigId: named }), modelConfigId: named };
+}
+
 // A running stage whose heartbeat is older than this was interrupted (the tab was closed): it can run again.
 export const STALE_MS = 3 * 60 * 1000;
 
@@ -90,7 +122,13 @@ type OutputRow = {
 
 // The statements that give a new project its pipeline: Ingest, done, with the PDF as its output, and the other
 // stages of the recipe, planned. Run in the same batch as the project's own insert.
-export function newPipeline(db: D1Database, projectId: string, pdfSha256: string, now: string): D1PreparedStatement[] {
+export function newPipeline(
+  db: D1Database,
+  projectId: string,
+  pdfSha256: string,
+  defaultModelConfigId: string | null,
+  now: string,
+): D1PreparedStatement[] {
   const ingestId = crypto.randomUUID();
   // Ingest never runs and nothing looks it up, so it has no stage key.
   const statements = [
@@ -106,12 +144,15 @@ export function newPipeline(db: D1Database, projectId: string, pdfSha256: string
       .prepare("INSERT INTO outputs (id, stage_id, item, type, content_sha256, created_at) VALUES (?, ?, '', 'pdf', ?, ?)")
       .bind(crypto.randomUUID(), ingestId, pdfSha256, now),
   ];
-  RECIPE.slice(1).forEach((step, i) => statements.push(...plannedStage(db, projectId, i + 2, step, null, true, now)));
+  RECIPE.slice(1).forEach((step, i) =>
+    statements.push(...plannedStage(db, projectId, i + 2, step, null, true, defaultModelConfigId, now)),
+  );
   return statements;
 }
 
 // A new planned stage at `position` of the project's pipeline (replacing what was there). `inRecipe`: whether it is
-// the recipe's or one the user added (docs/database.md); a stage that replaces another takes its mark.
+// the recipe's or one the user added (docs/database.md); a stage that replaces another takes its mark. An LLM stage
+// gets its model config now (`newStageConfig`).
 function plannedStage(
   db: D1Database,
   projectId: string,
@@ -119,13 +160,17 @@ function plannedStage(
   step: string,
   configJson: string | null,
   inRecipe: boolean,
+  defaultModelConfigId: string | null,
   now: string,
 ): D1PreparedStatement[] {
   const id = crypto.randomUUID();
+  const config = newStageConfig(step, configJson, defaultModelConfigId);
   return [
     db
-      .prepare("INSERT INTO stages (id, created_in, step, status, config_json, in_recipe, created_at) VALUES (?, ?, ?, 'planned', ?, ?, ?)")
-      .bind(id, projectId, step, configJson, inRecipe ? 1 : 0, now),
+      .prepare(
+        "INSERT INTO stages (id, created_in, step, status, config_json, model_config_id, in_recipe, created_at) VALUES (?, ?, ?, 'planned', ?, ?, ?, ?)",
+      )
+      .bind(id, projectId, step, config.configJson, config.modelConfigId, inRecipe ? 1 : 0, now),
     db
       .prepare("INSERT OR REPLACE INTO pipeline_entries (project_id, position, stage_id) VALUES (?, ?, ?)")
       .bind(projectId, position, id),
@@ -150,6 +195,7 @@ async function rewriteFrom(
     )
     .bind(projectId, after)
     .all<{ id: string; step: string; status: StageStatus; config_json: string | null; in_recipe: number }>();
+  const defaultModelConfigId = await defaultForNewStages(db);
   const statements = [
     // The cards of dropped stages in the part rewritten go (docs/overview.md §5.5).
     db
@@ -168,7 +214,7 @@ async function rewriteFrom(
   for (const row of later) {
     if (isManual(row.step)) statements.push(point(row.id, true));
     else if (row.status === "planned") statements.push(point(row.id));
-    else statements.push(...plannedStage(db, projectId, next++, row.step, row.config_json, row.in_recipe === 1, now));
+    else statements.push(...plannedStage(db, projectId, next++, row.step, row.config_json, row.in_recipe === 1, defaultModelConfigId, now));
   }
   return statements;
 }
@@ -288,8 +334,16 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const found = await entry(db, pid, sid);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const now = new Date().toISOString();
-    const configJson = body.config === null ? null : JSON.stringify(body.config);
     const { stage, position } = found;
+    // An LLM stage's config names its model config: the one given, else the default now (docs/llm.md).
+    const { configJson, modelConfigId } = newStageConfig(
+      stage.step,
+      body.config === null ? null : JSON.stringify(body.config),
+      await defaultForNewStages(db),
+    );
+    if (modelConfigId !== null && !(await db.prepare("SELECT id FROM model_configs WHERE id = ?").bind(modelConfigId).first())) {
+      return c.json({ error: "no such model config" }, 400);
+    }
     if (stage.status === "running" && !isStale(stage, Date.now())) {
       return c.json({ error: "the stage is running" }, 409);
     }
@@ -297,15 +351,15 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (isManual(stage.step)) return c.json({ error: "a manual stage has no config" }, 409);
     const statements: D1PreparedStatement[] = [touchProject(db, pid, now)];
     if (stage.status === "planned") {
-      statements.push(db.prepare("UPDATE stages SET config_json = ? WHERE id = ?").bind(configJson, sid));
+      statements.push(db.prepare("UPDATE stages SET config_json = ?, model_config_id = ? WHERE id = ?").bind(configJson, modelConfigId, sid));
     } else {
       const id = crypto.randomUUID();
       statements.push(
         db
           .prepare(
-            "INSERT INTO stages (id, created_in, step, status, config_json, in_recipe, created_at) VALUES (?, ?, ?, 'planned', ?, ?, ?)",
+            "INSERT INTO stages (id, created_in, step, status, config_json, model_config_id, in_recipe, created_at) VALUES (?, ?, ?, 'planned', ?, ?, ?, ?)",
           )
-          .bind(id, pid, stage.step, configJson, stage.in_recipe, now),
+          .bind(id, pid, stage.step, configJson, modelConfigId, stage.in_recipe, now),
         ...(await rewriteFrom(db, pid, position, [id], position, now)),
       );
     }
@@ -515,6 +569,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const { stage, position } = found;
     if (stage.status !== "running") return c.json({ error: "the stage isn't running" }, 409);
     const now = new Date().toISOString();
+    const defaultModelConfigId = await defaultForNewStages(db);
     await db.batch([
       db
         .prepare("UPDATE stages SET status = 'stopped', finished_at = ?, heartbeat_at = NULL WHERE id = ?")
@@ -523,7 +578,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
         .prepare("DELETE FROM output_inputs WHERE output_id IN (SELECT id FROM outputs WHERE stage_id = ?)")
         .bind(sid),
       db.prepare("DELETE FROM outputs WHERE stage_id = ?").bind(sid),
-      ...plannedStage(db, pid, position, stage.step, stage.config_json, stage.in_recipe === 1, now),
+      ...plannedStage(db, pid, position, stage.step, stage.config_json, stage.in_recipe === 1, defaultModelConfigId, now),
       touchProject(db, pid, now),
     ]);
     return c.json(await readPipeline(db, pid));

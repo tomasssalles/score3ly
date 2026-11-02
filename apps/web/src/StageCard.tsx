@@ -90,7 +90,7 @@ export function DroppedCard({ dropped, onDismiss }: { dropped: Dropped; onDismis
 }
 
 // One stage of the pipeline: what it is, how it went, what it can do next, and its artifacts as tiles.
-// A planned stage (not its turn yet) is only a dimmed title.
+// A planned stage (not its turn yet) is a dimmed title, with its model config for an LLM stage.
 export function StageCard({
   stage,
   mode,
@@ -107,7 +107,6 @@ export function StageCard({
   actions: StageActions;
 }) {
   const Icon = STEP_ICONS[stage.stepId] ?? KIND_ICONS[stage.kind];
-  const planned = stage.status === "planned";
   const desktop = useHost() === "desktop";
   const classes = ["stage-card", stage.status, detailsShown ? "selected" : ""].join(" ");
 
@@ -124,7 +123,7 @@ export function StageCard({
         <DropdownMenu icon={<MoreIcon />} label={`${stage.title}: actions`} groups={menu(stage, busy, actions)} />
       </div>
 
-      {!planned && <Facts stage={stage} />}
+      <Facts stage={stage} />
       {stage.status === "running" && <ProgressBar value={stage.progress} label={`${stage.title}: progress`} />}
       {stage.status === "running" && stage.imagesDiffer && (
         <p className="stage-warning">
