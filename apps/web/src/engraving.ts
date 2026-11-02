@@ -3,24 +3,11 @@
 // loaded only when a PDF is made).
 
 import { fetchTextContent } from "./api";
-import { PAGE_SIZES, type EngraveConfig } from "./engrave";
+import { PAGE_SIZES, pageOptions, type EngraveConfig } from "./engrave";
 import type { Artifact } from "./pipeline";
 import { renderPages } from "./rendering";
 
 type Engraving = NonNullable<Artifact["engraving"]>;
-
-// Verovio's options for a page of the given size (its units are tenths of a millimetre).
-export function pageOptions(config: EngraveConfig): Record<string, unknown> {
-  const size = PAGE_SIZES[config.pageSize];
-  return {
-    breaks: "auto",
-    pageWidth: Math.round(size.width * 10),
-    pageHeight: Math.round(size.height * 10),
-    scale: 40,
-    footer: "none",
-    svgViewBox: true,
-  };
-}
 
 export async function engravedPages(engraving: Engraving): Promise<string[]> {
   return renderPages(await fetchTextContent(engraving.meiSha256), pageOptions(engraving.config));

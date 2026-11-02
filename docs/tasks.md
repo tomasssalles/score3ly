@@ -65,12 +65,7 @@ A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a 
 - **Multi-device tests wait for a real deployment** (§16, "Deployment"): listed at the end of the file, to be written as stories then, with real phones, Firefox and Safari.
 - **Stories to add** once built: `apply_review`, `human_review`, the model configs' form, the format gap report.
 - **The setup becomes a test environment** once those exist ("Build the test environments"), so the stories start with one command.
-- **Found while writing it** (each a task of its own): "The MEI view at the end of a run", "A failed LLM stage keeps its model config", "`--persist-to` through the root's npm scripts".
-
-### The MEI view at the end of a run
-`#bug`
-
-Found 2026-11-01 in a trial run (fake model, Chromium, wide): when the pipeline finishes and the artifact view switches to Engrave's MEI by itself, the engraving has no title and other spacing (8 or 11 bars to a system); after a reload, the same MEI is engraved with "Untitled" above it and other breaks. Once (of three runs) the file's pane stayed empty until a reload. Probably the view renders before the stored MEI or the right options are loaded, or keeps a rendering from before.
+- **Found while writing it** (each a task of its own): "A failed LLM stage keeps its model config", "`--persist-to` through the root's npm scripts".
 
 ### A failed LLM stage keeps its model config
 `#bug` `#decision`

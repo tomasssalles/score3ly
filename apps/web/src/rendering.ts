@@ -9,6 +9,10 @@ import type { RenderRequest, RenderResponse } from "./renderWorker.ts";
 // Verovio's version, in the cache key: a new version renders anew. A test keeps it equal to the installed one.
 export const VEROVIO_VERSION = "6.3.0";
 
+// Our rendering code's version, in the cache key too: 2 since each rendering starts from Verovio's default options
+// (verovioRender.ts); before, an engraving made after a system kept the system's options, and was cached so.
+const RENDERING_VERSION = 2;
+
 // One system on one line, whatever its width (`breaks: "none"`), without a title or a footer, sized by its view box.
 export const SYSTEM_OPTIONS = {
   breaks: "none",
@@ -56,7 +60,7 @@ function ask(mei: string, options: Record<string, unknown>, allPages: boolean): 
 
 // One system on one line (the Transcription).
 export async function renderMei(mei: string, options: Record<string, unknown> = SYSTEM_OPTIONS): Promise<string> {
-  const key = await keyOf({ mei, options, verovio: VEROVIO_VERSION });
+  const key = await keyOf({ mei, options, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION });
   const cached = await cachedSvg(key);
   if (cached) return cached;
   const [svg] = await ask(mei, options, false);
@@ -66,7 +70,7 @@ export async function renderMei(mei: string, options: Record<string, unknown> = 
 
 // Every page of an engraving (`engrave`).
 export async function renderPages(mei: string, options: Record<string, unknown>): Promise<string[]> {
-  const key = await keyOf({ mei, options, verovio: VEROVIO_VERSION, pages: true });
+  const key = await keyOf({ mei, options, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION, pages: true });
   const cached = await cachedSvgs(key);
   if (cached) return cached;
   const svgs = await ask(mei, options, true);

@@ -5,8 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import type { Project } from "./api";
-import { DEFAULT_ENGRAVE_CONFIG } from "./engrave";
-import { pageOptions } from "./engraving";
+import { DEFAULT_ENGRAVE_CONFIG, pageOptions } from "./engrave";
 import { loadFixMei, problemText, saveText, type FixMeiTexts } from "./fixMei";
 import type { MeiProblem } from "./meiChecks";
 import { MeiWorkspace, type Selection } from "./MeiWorkspace";

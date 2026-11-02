@@ -26,6 +26,19 @@ export const PAGE_SIZES = {
   letter: { label: "US Letter", width: 215.9, height: 279.4 },
 } as const;
 
+// Verovio's options for a page of the given size (its units are tenths of a millimetre).
+export function pageOptions(config: EngraveConfig): Record<string, unknown> {
+  const size = PAGE_SIZES[config.pageSize];
+  return {
+    breaks: "auto",
+    pageWidth: Math.round(size.width * 10),
+    pageHeight: Math.round(size.height * 10),
+    scale: 40,
+    footer: "none",
+    svgViewBox: true,
+  };
+}
+
 export function engraveConfigOf(stored: Record<string, unknown> | null): EngraveConfig {
   const pageSize = stored?.pageSize === "a4" || stored?.pageSize === "letter" ? stored.pageSize : DEFAULT_ENGRAVE_CONFIG.pageSize;
   return { pageSize };
