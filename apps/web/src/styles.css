@@ -1496,12 +1496,10 @@ body {
   right: 0;
 }
 
-/* The default model config's picker: names are longer than the run mode's. */
+/* The default model config's picker: names are longer than the run mode's, shortened in the middle (FittedText). */
 .config-picker-name {
   max-width: min(220px, 35vw);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: left;
 }
 
 .settings-list .config-picker .dropdown-list {

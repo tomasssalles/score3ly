@@ -6,6 +6,7 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { fetchModelConfigs, fetchSettings, openSecretsFile, putSetting, type ModelConfig, type Settings } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
+import { FittedText } from "./FittedText";
 import { CACHE_LIMITS_MB, cacheLimitMb, formatSize, setCacheLimitMb } from "./cacheLru";
 import { useHost } from "./host";
 import { cacheUsage, pruneNow } from "./imageCache";
@@ -172,7 +173,7 @@ function ImageCacheSetting() {
 }
 
 // The default model config (docs/llm.md, "Which config a stage uses"): a drop-down of the configs by name (else their
-// model), like the run mode's. Until the configs are loaded, the button says so.
+// model), like the run mode's, the name shortened in the middle in the button. Until the configs are loaded, it says so.
 function DefaultConfigPicker({
   configs,
   defaultId,
@@ -190,7 +191,7 @@ function DefaultConfigPicker({
       buttonClassName="mode-button"
       icon={
         <>
-          <span className="config-picker-name">{configs === null ? "Loading…" : current ? shown(current) : "None"}</span>
+          <FittedText className="config-picker-name" text={configs === null ? "Loading…" : current ? shown(current) : "None"} lines={1} />
           <ChevronDownIcon />
         </>
       }
