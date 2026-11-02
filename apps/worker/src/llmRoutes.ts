@@ -124,6 +124,11 @@ export function deletedConfigMessage(name: string): string {
   return `its model config, "${name}", was deleted.`;
 }
 
+// A config deleted while its stage ran: the next request is refused (the start was checked already).
+export function deletedWhileRunningMessage(name: string): string {
+  return `The model config "${name}" was deleted while the stage ran. Pick another with "Change config" in the stage's ⋮, then retry.`;
+}
+
 export function missingSecretMessage(configName: string, secretName: string): string {
   return `The model config "${configName}" needs the secret ${secretName}, which isn't set. Set it where the app's secrets are kept (Settings, "Secrets"), then retry.`;
 }
@@ -307,6 +312,19 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   app.delete("/api/model-configs/:id", async (c) => {
+    // The default can't be deleted until another config is the default (docs/llm.md, "Managing model configs").
+    const { defaultModelConfigId } = await readSettings(c.env.DB);
+    if (defaultModelConfigId === c.req.param("id")) {
+      const row = await c.env.DB.prepare("SELECT name FROM model_configs WHERE id = ? AND deleted_at IS NULL")
+        .bind(defaultModelConfigId)
+        .first<{ name: string }>();
+      if (row) {
+        return c.json(
+          { error: `"${row.name}" is the default model config: make another config the default first.`, code: "default_model_config" },
+          409,
+        );
+      }
+    }
     const result = await c.env.DB.prepare("UPDATE model_configs SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
       .bind(new Date().toISOString(), c.req.param("id"))
       .run();
@@ -348,6 +366,8 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (!stage.model_config_id) return c.json({ error: "the stage has no model config", code: "no_model_config" }, 409);
     const row = await db.prepare("SELECT * FROM model_configs WHERE id = ?").bind(stage.model_config_id).first<ModelConfigRow>();
     if (!row) return c.json({ error: "the stage's model config doesn't exist", code: "no_model_config" }, 409);
+    // Checked before every request, the cache included: a config deleted while its stage runs is never used again.
+    if (row.deleted_at) return c.json({ error: deletedWhileRunningMessage(row.name), code: "deleted_model_config" }, 409);
     const config = toModelConfig(row);
 
     // The request key: the exact request, images by their recipe keys, with the model's provider, model and effort.

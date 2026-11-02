@@ -370,6 +370,35 @@ test("a stage whose model config was deleted can't start, says why, and its card
 });
 
 
+test("a model config deleted while its stage runs: the next request is refused, the cache included", async () => {
+  const config = await modelConfig({ name: "Opus EU" });
+  const stage = await runningStage(config.id);
+  assert.equal((await json(await call(stage))).cached, false);
+  assert.equal((await send(`/api/model-configs/${config.id}`, undefined, "DELETE")).status, 204);
+  const refused = await call(stage);
+  assert.equal(refused.status, 409);
+  assert.deepEqual(await json(refused), {
+    error: 'The model config "Opus EU" was deleted while the stage ran. Pick another with "Change config" in the stage\'s ⋮, then retry.',
+    code: "deleted_model_config",
+  });
+  assert.equal((await calls()).length, 1);
+});
+
+test("the default model config can't be deleted until another is the default", async () => {
+  const first = await modelConfig({ name: "First" });
+  const second = await modelConfig({ name: "Second" });
+  await send("/api/settings/defaultModelConfigId", { value: first.id }, "PUT");
+  const refused = await send(`/api/model-configs/${first.id}`, undefined, "DELETE");
+  assert.equal(refused.status, 409);
+  assert.deepEqual(await json(refused), {
+    error: '"First" is the default model config: make another config the default first.',
+    code: "default_model_config",
+  });
+  assert.equal((await json(await app.request(`/api/model-configs/${first.id}`, {}, env))).deletedAt, null);
+  await send("/api/settings/defaultModelConfigId", { value: second.id }, "PUT");
+  assert.equal((await send(`/api/model-configs/${first.id}`, undefined, "DELETE")).status, 204);
+});
+
 test("cache marks aren't part of the request key, and are limited to 4", async () => {
   const config = await modelConfig();
   const stage = await runningStage(config.id);
