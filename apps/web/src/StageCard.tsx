@@ -164,13 +164,19 @@ function Facts({ stage }: { stage: Stage }) {
   return (
     <>
       {stage.model && (
-        <p className="stage-facts stage-model">
+        // A deleted config in red where it keeps the stage from running: on a stage that hasn't finished (docs/llm.md).
+        <p className={stage.modelDeleted && blockedByConfig(stage) ? "stage-facts stage-model deleted" : "stage-facts stage-model"}>
           <FittedText text={stage.model} lines={1} />
         </p>
       )}
       {shown.length > 0 && <p className="stage-facts">{shown.join(" · ")}</p>}
     </>
   );
+}
+
+// Whether a stage would still have to start with its model config: not one that ran to its end, or runs.
+function blockedByConfig(stage: Stage): boolean {
+  return stage.status === "planned" || stage.status === "ready" || stage.status === "failed";
 }
 
 // What a Run button says: "Retry" for a stage that failed.

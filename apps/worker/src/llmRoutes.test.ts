@@ -217,7 +217,7 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   const { stages } = await json<{ stages: Record<string, unknown>[] }>(
     await app.request(`/api/projects/${stage.projectId}/pipeline`, {}, env),
   );
-  assert.deepEqual(stages[1].modelConfig, { name: "fake-model · high", model: "fake-model" });
+  assert.deepEqual(stages[1].modelConfig, { name: "fake-model · high", model: "fake-model", deleted: false });
   assert.equal(stages[1].costUsd, first.costUsd);
 
   // The same request again, from another stage with another config of the same model: served, nothing paid.
@@ -343,17 +343,20 @@ test("a call needs a running stage with a model config, a price, and the config'
   assert.equal((await call(without, { messages: [] })).status, 400);
 });
 
-test("a stage whose model config was deleted can't start, and says why", async () => {
+test("a stage whose model config was deleted can't start, says why, and its card can show it", async () => {
   const config = await modelConfig({ name: "Opus EU" });
-  await runningStage(config.id); // starts while the config exists
-  assert.equal((await send(`/api/model-configs/${config.id}`, undefined, "DELETE")).status, 204);
+  await send("/api/settings/defaultModelConfigId", { value: config.id }, "PUT");
   const form = new FormData();
   const pdf = new TextEncoder().encode(`pdf ${Math.random()}`);
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", pdf));
   form.append("pdf", new File([pdf], "deleted.pdf"));
   form.append("sha256", [...digest].map((b) => b.toString(16).padStart(2, "0")).join(""));
   const project = await json<{ id: string }>(await app.request("/api/projects", { method: "POST", body: form }, env));
-  const { stages } = await json<{ stages: { id: string }[] }>(await app.request(`/api/projects/${project.id}/pipeline`, {}, env));
+  await send("/api/settings/defaultModelConfigId", { value: null }, "PUT");
+  assert.equal((await send(`/api/model-configs/${config.id}`, undefined, "DELETE")).status, 204);
+  const { stages } = await json<{ stages: { id: string; modelConfig: unknown }[] }>(await app.request(`/api/projects/${project.id}/pipeline`, {}, env));
+  // The pipeline says so for every stage that names it, so that the card shows it.
+  assert.deepEqual(stages[3].modelConfig, { name: "Opus EU", model: "fake-model", deleted: true });
   const refused = await send(`/api/projects/${project.id}/stages/${stages[3].id}/start`, {
     stepVersion: 1,
     config: { modelConfigId: config.id },
@@ -365,6 +368,7 @@ test("a stage whose model config was deleted can't start, and says why", async (
   assert.equal(refused.status, 409);
   assert.deepEqual(await json(refused), { error: 'its model config, "Opus EU", was deleted.', code: "deleted_model_config" });
 });
+
 
 test("cache marks aren't part of the request key, and are limited to 4", async () => {
   const config = await modelConfig();

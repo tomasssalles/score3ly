@@ -185,12 +185,18 @@ test("skew_analysis's artifact shows the page images of the rasterize before it,
   assert.equal(defaultArtifactId(p), "s3.lines");
 });
 
-test("an LLM stage shows its model config's name; another stage, none", () => {
+test("an LLM stage shows its model config's name, marked if it was deleted; another stage, none", () => {
   const llm = toPipeline("auto", { dropped: [],
-    stages: [ingest, stage("s2", "layout", { modelConfig: { name: "Opus EU", model: "eu.anthropic.claude-opus-5-5" }, costUsd: 0.42 })],
+    stages: [ingest, stage("s2", "layout", { modelConfig: { name: "Opus EU", model: "eu.anthropic.claude-opus-5-5", deleted: false }, costUsd: 0.42 })],
   }).stages[1];
   assert.equal(llm.model, "Opus EU");
+  assert.equal(llm.modelDeleted, false);
   assert.equal(llm.cost, 0.42);
+  const deleted = toPipeline("auto", { dropped: [],
+    stages: [ingest, stage("s2", "layout", { status: "planned", modelConfig: { name: "Opus EU", model: "eu.anthropic.claude-opus-5-5", deleted: true } })],
+  }).stages[1];
+  assert.equal(deleted.model, "Opus EU (deleted)");
+  assert.equal(deleted.modelDeleted, true);
   const computed = toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", {})] }).stages[1];
   assert.equal(computed.model, undefined);
   assert.equal(computed.cost, undefined);

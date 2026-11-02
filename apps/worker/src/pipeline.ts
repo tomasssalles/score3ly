@@ -26,8 +26,8 @@ export type Stage = {
   startedAt: string | null;
   heartbeatAt: string | null; // written once a minute while running
   finishedAt: string | null;
-  // LLM stages: the model config used, for the card (its name, else its model string), and what its calls cost.
-  modelConfig: { name: string; model: string } | null;
+  // LLM stages: the model config it names, for the card (whether it was deleted too), and what its calls cost.
+  modelConfig: { name: string; model: string; deleted: boolean } | null;
   costUsd: number | null;
   // A manual stage carried through a re-run, waiting for its turn to be kept or dropped (docs/overview.md §5.5).
   carried: boolean;
@@ -105,6 +105,7 @@ type StageRow = {
   finished_at: string | null;
   mc_name?: string;
   mc_model?: string | null;
+  mc_deleted_at?: string | null;
   cost_usd?: number | null;
   carried?: number;
   in_recipe: number;
@@ -234,7 +235,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
   const [stages, outputs, dropped] = await db.batch([
     db
       .prepare(
-        "SELECT s.*, e.carried, m.name AS mc_name, m.model AS mc_model, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
+        "SELECT s.*, e.carried, m.name AS mc_name, m.model AS mc_model, m.deleted_at AS mc_deleted_at, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
       )
       .bind(projectId),
     db
@@ -261,7 +262,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
       startedAt: row.started_at,
       heartbeatAt: row.heartbeat_at,
       finishedAt: row.finished_at,
-      modelConfig: row.mc_model ? { name: row.mc_name ?? row.mc_model, model: row.mc_model } : null,
+      modelConfig: row.mc_model ? { name: row.mc_name ?? row.mc_model, model: row.mc_model, deleted: Boolean(row.mc_deleted_at) } : null,
       costUsd: row.cost_usd ?? null,
       carried: row.carried === 1,
       outputs: (byStage.get(row.id) ?? []).map((o) => ({

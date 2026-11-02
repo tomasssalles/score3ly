@@ -175,7 +175,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       ["engrave", "planned", null],
     ],
   );
-  assert.deepEqual(pipeline.stages[3].modelConfig, { name: "Fake model", model: "fake" });
+  assert.deepEqual(pipeline.stages[3].modelConfig, { name: "Fake model", model: "fake", deleted: false });
   assert.equal(pipeline.stages[1].modelConfig, null);
   const [ingest] = pipeline.stages;
   assert.equal(ingest.step, "ingest");

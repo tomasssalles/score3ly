@@ -67,7 +67,8 @@ export type Stage = {
   title: string;
   kind: StageKind;
   status: StageStatus;
-  model?: string; // LLM stages: the model config's name, else its model string (docs/llm.md)
+  model?: string; // LLM stages: the model config's name, with " (deleted)" if it was deleted (docs/llm.md)
+  modelDeleted?: boolean; // the model config was deleted: a stage that hasn't run can't start with it
   seconds?: number; // run time, once done
   cost?: number; // US dollars, LLM stages once done
   note?: string; // one short fact about the result, e.g. "3 boxes moved"
@@ -150,7 +151,8 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
     kind: info.kind,
     status,
     seconds,
-    model: stored.modelConfig?.name,
+    model: stored.modelConfig ? `${stored.modelConfig.name}${stored.modelConfig.deleted ? " (deleted)" : ""}` : undefined,
+    modelDeleted: stored.modelConfig?.deleted ?? false,
     cost: stored.costUsd ?? undefined,
     note: stored.note ?? undefined,
     error: stored.error ?? undefined,

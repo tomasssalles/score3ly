@@ -888,6 +888,11 @@ body {
   vertical-align: 1px;
 }
 
+/* A deleted model config on a stage that still has to start with it. */
+.stage-model.deleted {
+  color: var(--danger);
+}
+
 .stage-facts {
   margin: -4px 0 0;
   font-size: 12.5px;

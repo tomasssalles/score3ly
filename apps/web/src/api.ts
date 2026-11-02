@@ -25,7 +25,7 @@ export type ApiStage = {
   startedAt: string | null;
   heartbeatAt: string | null;
   finishedAt: string | null;
-  modelConfig: { name: string; model: string } | null; // LLM stages: the model config used
+  modelConfig: { name: string; model: string; deleted: boolean } | null; // LLM stages: the model config it names
   costUsd: number | null; // what its LLM calls cost
   carried: boolean; // a manual stage carried through a re-run, waiting for its turn to be kept or dropped (§5.5)
   outputs: ApiOutput[];
