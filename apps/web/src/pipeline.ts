@@ -150,7 +150,7 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
     kind: info.kind,
     status,
     seconds,
-    model: stored.modelConfig ? (stored.modelConfig.name ?? stored.modelConfig.model) : undefined,
+    model: stored.modelConfig?.name,
     cost: stored.costUsd ?? undefined,
     note: stored.note ?? undefined,
     error: stored.error ?? undefined,

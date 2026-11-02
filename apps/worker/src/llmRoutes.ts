@@ -7,6 +7,7 @@ import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
 import { createProvider, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS, type ProviderConfig, type ProviderId } from "./llm/index.ts";
 import { costOf, PRICES_AS_OF, priceOf } from "./llm/prices.ts";
+import { firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 
 const PROVIDERS: ProviderId[] = ["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "fake", "fake-dev"];
 const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
@@ -24,7 +25,7 @@ const FIELDS: Record<ProviderId, { secrets: string[][]; params: string[]; option
 
 export type ModelConfig = {
   id: string;
-  name: string | null;
+  name: string; // required and unique, ignoring case, among the configs that aren't deleted (docs/llm.md)
   provider: ProviderId;
   model: string;
   effort: Effort | null;
@@ -37,7 +38,7 @@ export type ModelConfig = {
 
 type ModelConfigRow = {
   id: string;
-  name: string | null;
+  name: string;
   provider: ProviderId;
   model: string;
   effort: Effort | null;
@@ -94,6 +95,7 @@ function configProblem(body: Record<string, unknown> | null): string | null {
   if (!body) return "expected a JSON body";
   const { name, provider, model, effort, params, secrets, freeTier } = body;
   if (name !== undefined && name !== null && typeof name !== "string") return "'name' must be text";
+  if (typeof name === "string" && name.trim().length > MAX_NAME_LENGTH) return `'name' must be at most ${MAX_NAME_LENGTH} characters`;
   if (!PROVIDERS.includes(provider as ProviderId)) return `'provider' must be one of ${PROVIDERS.join(", ")}`;
   if (typeof model !== "string" || model.trim() === "") return "'model' must be the provider's model name";
   if (effort !== undefined && effort !== null && !EFFORTS.includes(effort as Effort)) {
@@ -288,7 +290,9 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const body = await c.req.json().catch(() => null);
     const problem = configProblem(body);
     if (problem) return c.json({ error: problem }, 400);
-    const row = newConfigRow(body, null);
+    const name = await configName(c.env.DB, body, null);
+    if (name === null) return c.json({ error: NAME_TAKEN }, 409);
+    const row = newConfigRow(body, name, null);
     await insertConfig(c.env.DB, row).run();
     return c.json(toModelConfig(row), 201);
   });
@@ -303,11 +307,14 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (problem) return c.json({ error: problem }, 400);
     const old = await db.prepare("SELECT id FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(id).first();
     if (!old) return c.json({ error: "no such model config" }, 404);
-    const row = newConfigRow(body, id);
+    const name = await configName(db, body, id);
+    if (name === null) return c.json({ error: NAME_TAKEN }, 409);
+    const row = newConfigRow(body, name, id);
     const settings = await readSettings(db);
+    // The old version is marked first: the new one may keep its name, which is unique among the configs not deleted.
     await db.batch([
-      insertConfig(db, row),
       db.prepare("UPDATE model_configs SET deleted_at = ? WHERE id = ?").bind(row.created_at, id),
+      insertConfig(db, row),
       ...(settings.defaultModelConfigId === id
         ? [
             db
@@ -504,10 +511,32 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   });
 }
 
-function newConfigRow(body: Record<string, unknown>, supersedesId: string | null): ModelConfigRow {
+// The name a config gets when none is given: its model and effort ("claude-opus-5-5 · high"), the model alone without
+// an effort; numbered like project names when taken (docs/llm.md, "Model configs").
+export function generatedConfigName(model: string, effort: string | null): string {
+  return effort ? `${model} · ${effort}` : model;
+}
+
+// The name of a new config: the one given, or else one made from its model and effort, the first free one. A given name
+// that another config has (ignoring case) is refused: null. `except` is the config a new version replaces.
+async function configName(db: D1Database, body: Record<string, unknown>, except: string | null): Promise<string | null> {
+  const { results } = await db
+    .prepare("SELECT name FROM model_configs WHERE deleted_at IS NULL AND id IS NOT ?")
+    .bind(except)
+    .all<{ name: string }>();
+  const taken = results.map((row) => row.name);
+  const given = typeof body.name === "string" ? body.name.trim() : "";
+  if (given) return taken.some((name) => name.toLowerCase() === given.toLowerCase()) ? null : given;
+  const base = generatedConfigName((body.model as string).trim(), (body.effort as string | undefined) ?? null);
+  return firstFreeName(base.slice(0, MAX_NAME_LENGTH).trim(), taken);
+}
+
+const NAME_TAKEN = "A model config with that name already exists. Names must be unique (case-insensitive).";
+
+function newConfigRow(body: Record<string, unknown>, name: string, supersedesId: string | null): ModelConfigRow {
   return {
     id: crypto.randomUUID(),
-    name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : null,
+    name,
     provider: body.provider as ProviderId,
     model: (body.model as string).trim(),
     effort: (body.effort as Effort | undefined) ?? null,

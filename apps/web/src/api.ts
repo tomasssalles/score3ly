@@ -25,7 +25,7 @@ export type ApiStage = {
   startedAt: string | null;
   heartbeatAt: string | null;
   finishedAt: string | null;
-  modelConfig: { name: string | null; model: string } | null; // LLM stages: the model config used
+  modelConfig: { name: string; model: string } | null; // LLM stages: the model config used
   costUsd: number | null; // what its LLM calls cost
   carried: boolean; // a manual stage carried through a re-run, waiting for its turn to be kept or dropped (§5.5)
   outputs: ApiOutput[];
@@ -265,7 +265,7 @@ export async function fetchTextContent(sha256: string): Promise<string> {
 
 export type ModelConfig = {
   id: string;
-  name: string | null;
+  name: string; // required and unique (docs/llm.md, "Model configs")
   provider: "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "fake" | "fake-dev";
   model: string;
   effort: "low" | "medium" | "high" | "xhigh" | "max" | null;

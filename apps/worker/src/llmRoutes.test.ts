@@ -10,14 +10,28 @@ import { costOf, priceOf } from "./llm/prices.ts";
 const workerDir = join(import.meta.dirname, "..");
 let platform: Awaited<ReturnType<typeof getPlatformProxy<Env>>>;
 let env: Env;
+// The names migration 0024 gave the configs that had none.
+let migratedNames: Record<string, unknown>[];
 
 before(async () => {
   platform = await getPlatformProxy<Env>({ configPath: join(workerDir, "wrangler.jsonc"), persist: false });
   env = platform.env;
   const migrationsDir = join(workerDir, "migrations");
   for (const file of readdirSync(migrationsDir).sort()) {
+    if (file.startsWith("0024_")) {
+      // Configs from before names were required: two alike without a name, one without an effort, one deleted.
+      await env.DB.exec(
+        withoutComments(`
+          INSERT INTO model_configs (id, name, provider, model, effort, params_json, secrets_json, free_tier, created_at) VALUES ('m1', NULL, 'fake-dev', 'fake-model', 'high', '{}', '{}', 0, '2026-10-01T00:00:00.000Z');
+          INSERT INTO model_configs (id, name, provider, model, effort, params_json, secrets_json, free_tier, created_at) VALUES ('m2', ' ', 'fake-dev', 'fake-model', 'high', '{}', '{}', 0, '2026-10-02T00:00:00.000Z');
+          INSERT INTO model_configs (id, name, provider, model, effort, params_json, secrets_json, free_tier, created_at) VALUES ('m3', NULL, 'fake-dev', 'fake-model', NULL, '{}', '{}', 0, '2026-10-03T00:00:00.000Z');
+          INSERT INTO model_configs (id, name, provider, model, effort, params_json, secrets_json, free_tier, created_at, deleted_at) VALUES ('m4', NULL, 'fake-dev', 'fake-model', 'high', '{}', '{}', 0, '2026-09-01T00:00:00.000Z', '2026-09-02T00:00:00.000Z');
+        `),
+      );
+    }
     await env.DB.exec(withoutComments(readFileSync(join(migrationsDir, file), "utf8")));
   }
+  migratedNames = (await env.DB.prepare("SELECT id, name FROM model_configs WHERE id LIKE 'm%' ORDER BY id").all()).results;
 });
 
 beforeEach(async () => {
@@ -153,6 +167,38 @@ test("model configs: checked per provider, edited by copy on change, deleted by 
   assert.equal((await send(`/api/model-configs/${edited.id}`, undefined, "DELETE")).status, 404);
 });
 
+test("model configs are named: the name given, else the model and effort, numbered when taken; a name taken is refused", async () => {
+  assert.equal((await modelConfig()).name, "fake-model · high");
+  assert.equal((await modelConfig()).name, "fake-model · high (1)");
+  assert.equal((await modelConfig({ effort: null })).name, "fake-model");
+  assert.equal((await modelConfig({ name: "  Opus 5.5  " })).name, "Opus 5.5");
+  const taken = await send("/api/model-configs", { provider: "fake-dev", model: "fake-model", name: "opus 5.5" });
+  assert.equal(taken.status, 409);
+  assert.match((await json<{ error: string }>(taken)).error, /already exists/);
+  assert.equal((await send("/api/model-configs", { provider: "fake-dev", model: "fake-model", name: "x".repeat(201) })).status, 400);
+  // A new version may keep its own name (the old one is marked deleted first), not take another config's.
+  const sonnet = await modelConfig({ name: "Sonnet" });
+  const keptResponse = await send(`/api/model-configs/${sonnet.id}`, { provider: "fake-dev", model: "fake-model", effort: "low", name: "SONNET" }, "PUT");
+  assert.equal(keptResponse.status, 200);
+  const kept = await json<Record<string, string>>(keptResponse);
+  assert.equal(kept.name, "SONNET");
+  const clash = await send(`/api/model-configs/${kept.id}`, { provider: "fake-dev", model: "fake-model", name: "Opus 5.5" }, "PUT");
+  assert.equal(clash.status, 409);
+  // A deleted config's name is free again.
+  const opus = (await json<{ id: string; name: string }[]>(await app.request("/api/model-configs", {}, env))).find((c) => c.name === "Opus 5.5")!;
+  assert.equal((await send(`/api/model-configs/${opus.id}`, undefined, "DELETE")).status, 204);
+  assert.equal((await modelConfig({ name: "Opus 5.5" })).name, "Opus 5.5");
+});
+
+test("migration 0024 names the configs that had none, numbering repeats among those not deleted", () => {
+  assert.deepEqual(migratedNames, [
+    { id: "m1", name: "fake-model · high" },
+    { id: "m2", name: "fake-model · high (1)" },
+    { id: "m3", name: "fake-model" },
+    { id: "m4", name: "fake-model · high" },
+  ]);
+});
+
 test("settings: checked, with defaults", async () => {
   assert.deepEqual(await json(await app.request("/api/settings", {}, env)), { defaultModelConfigId: null, spendingCapUsd: 1, newProjectRunMode: "auto" });
   // There is always a cap.
@@ -188,7 +234,7 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   const { stages } = await json<{ stages: Record<string, unknown>[] }>(
     await app.request(`/api/projects/${stage.projectId}/pipeline`, {}, env),
   );
-  assert.deepEqual(stages[1].modelConfig, { name: null, model: "fake-model" });
+  assert.deepEqual(stages[1].modelConfig, { name: "fake-model · high", model: "fake-model" });
   assert.equal(stages[1].costUsd, first.costUsd);
 
   // The same request again, from another stage with another config of the same model: served, nothing paid.

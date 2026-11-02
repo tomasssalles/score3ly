@@ -172,8 +172,8 @@ function ImageCacheSetting() {
   );
 }
 
-// The default model config (docs/llm.md, "Which config a stage uses"): a drop-down of the configs by name (else their
-// model), like the run mode's, the name shortened in the middle in the button. Until the configs are loaded, it says so.
+// The default model config (docs/llm.md, "Which config a stage uses"): a drop-down of the configs by name, like the run
+// mode's, the name shortened in the middle in the button. Until the configs are loaded, it says so.
 function DefaultConfigPicker({
   configs,
   defaultId,
@@ -183,7 +183,6 @@ function DefaultConfigPicker({
   defaultId: string | null;
   onPick: (id: string) => void;
 }) {
-  const shown = (config: ModelConfig) => config.name ?? config.model;
   const current = configs?.find((config) => config.id === defaultId);
   return (
     <DropdownMenu
@@ -191,14 +190,14 @@ function DefaultConfigPicker({
       buttonClassName="mode-button"
       icon={
         <>
-          <FittedText className="config-picker-name" text={configs === null ? "Loading…" : current ? shown(current) : "None"} lines={1} />
+          <FittedText className="config-picker-name" text={configs === null ? "Loading…" : current ? current.name : "None"} lines={1} />
           <ChevronDownIcon />
         </>
       }
       label="Default model config for new LLM stages"
       groups={[
         (configs ?? []).map((config) => ({
-          label: shown(config),
+          label: config.name,
           current: config.id === defaultId,
           onSelect: () => onPick(config.id),
         })),
@@ -280,7 +279,7 @@ function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultI
         {configs.map((config) => (
           <li key={config.id} className="model-config">
             <p className="model-config-name">
-              {config.name ?? config.model}
+              {config.name}
               {config.id === defaultId && <span className="badge">Default</span>}
               {config.freeTier && <span className="badge muted">Free tier</span>}
             </p>

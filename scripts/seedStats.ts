@@ -99,7 +99,7 @@ const PRICES: Record<string, Price> = {
 type Config = { id: string; family: keyof typeof PRICES | "gemini" | "fake"; responseModel: string; effort: string | null; free: boolean };
 const EFFORT_OUTPUT: Record<string, number> = { low: 0.4, medium: 0.7, high: 1, xhigh: 1.5, max: 2.2 };
 
-function config(row: { id: string; name: string | null; provider: string; model: string; effort: string | null; params?: object; secrets?: object; free?: boolean; created: string; deleted?: string; supersedes?: string }, family: Config["family"], responseModel: string): Config {
+function config(row: { id: string; name: string; provider: string; model: string; effort: string | null; params?: object; secrets?: object; free?: boolean; created: string; deleted?: string; supersedes?: string }, family: Config["family"], responseModel: string): Config {
   insert("model_configs", {
     id: row.id,
     name: row.name,
@@ -120,7 +120,7 @@ const FAKE: Config = { id: "fake-model", family: "fake", responseModel: "fake", 
 const OPUS = config({ id: "cfg-opus", name: "Opus", provider: "anthropic", model: "claude-opus-5-5", effort: "high", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-06-04T19:12:00" }, "opus", "claude-opus-5-5");
 const SONNET = config({ id: "cfg-sonnet", name: "Sonnet", provider: "anthropic", model: "claude-sonnet-5-5", effort: "medium", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-06-10T20:03:00" }, "sonnet", "claude-sonnet-5-5");
 const HAIKU = config({ id: "cfg-haiku", name: "Haiku (Vertex)", provider: "anthropic-vertex", model: "claude-haiku-5-5", effort: "low", params: { region: "europe-west1", projectId: "score3ly" }, secrets: { serviceAccount: "VERTEX_SERVICE_ACCOUNT" }, created: "2026-06-20T10:40:00" }, "haiku", "claude-haiku-5-5");
-const GEMINI = config({ id: "cfg-gemini", name: null, provider: "google", model: "gemini-3.1-pro-preview", effort: "high", secrets: { apiKey: "GEMINI_FREE_KEY" }, free: true, created: "2026-08-12T21:30:00" }, "gemini", "gemini-3.1-pro-preview");
+const GEMINI = config({ id: "cfg-gemini", name: "gemini-3.1-pro-preview · high", provider: "google", model: "gemini-3.1-pro-preview", effort: "high", secrets: { apiKey: "GEMINI_FREE_KEY" }, free: true, created: "2026-08-12T21:30:00" }, "gemini", "gemini-3.1-pro-preview");
 const FABLE = config({ id: "cfg-fable", name: "Fable", provider: "anthropic", model: "claude-fable-5-1", effort: "max", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-08-25T18:55:00", deleted: "2026-08-30T11:00:00" }, "fable", "claude-fable-5-1");
 const OPUS_EU_1 = config({ id: "cfg-opus-eu-1", name: "Opus EU", provider: "anthropic-bedrock", model: "anthropic.claude-opus-5-5", effort: "high", params: { region: "eu-central-1" }, secrets: { apiKey: "BEDROCK_API_KEY" }, created: "2026-09-01T19:20:00", deleted: "2026-09-15T20:10:00" }, "opus", "claude-opus-5-5");
 const OPUS_EU_2 = config({ id: "cfg-opus-eu-2", name: "Opus EU", provider: "anthropic-bedrock", model: "anthropic.claude-opus-5-5", effort: "xhigh", params: { region: "eu-central-1" }, secrets: { apiKey: "BEDROCK_API_KEY" }, created: "2026-09-15T20:10:00", supersedes: "cfg-opus-eu-1" }, "opus", "claude-opus-5-5");

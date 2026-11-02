@@ -8,7 +8,7 @@ import type { StageKind } from "./pipeline";
 
 export const REPORT_VERSION = 1;
 
-export type ReportModelConfig = { name: string | null; provider: string; model: string; effort: string | null; region: string | null; freeTier: boolean };
+export type ReportModelConfig = { name: string; provider: string; model: string; effort: string | null; region: string | null; freeTier: boolean };
 
 export type RunReport = {
   report: "score3ly run report";

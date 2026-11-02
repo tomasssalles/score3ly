@@ -26,7 +26,7 @@ export type Stage = {
   heartbeatAt: string | null; // written once a minute while running
   finishedAt: string | null;
   // LLM stages: the model config used, for the card (its name, else its model string), and what its calls cost.
-  modelConfig: { name: string | null; model: string } | null;
+  modelConfig: { name: string; model: string } | null;
   costUsd: number | null;
   // A manual stage carried through a re-run, waiting for its turn to be kept or dropped (docs/overview.md §5.5).
   carried: boolean;
@@ -71,7 +71,7 @@ type StageRow = {
   started_at: string | null;
   heartbeat_at: string | null;
   finished_at: string | null;
-  mc_name?: string | null;
+  mc_name?: string;
   mc_model?: string | null;
   cost_usd?: number | null;
   carried?: number;
@@ -215,7 +215,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
       startedAt: row.started_at,
       heartbeatAt: row.heartbeat_at,
       finishedAt: row.finished_at,
-      modelConfig: row.mc_model ? { name: row.mc_name ?? null, model: row.mc_model } : null,
+      modelConfig: row.mc_model ? { name: row.mc_name ?? row.mc_model, model: row.mc_model } : null,
       costUsd: row.cost_usd ?? null,
       carried: row.carried === 1,
       outputs: (byStage.get(row.id) ?? []).map((o) => ({
