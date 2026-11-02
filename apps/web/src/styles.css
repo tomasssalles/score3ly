@@ -1781,6 +1781,19 @@ body {
   padding-right: 60px;
 }
 
+/* The page editors' toolbar on a phone: it doesn't fit on one row, and the room for the close button would be kept on
+   every row, leaving the rows after the first short of the edge. So the page arrows take the first row, beside the
+   close button's room, and the tools wrap below them up to the edge. (The MEI view's toolbar: see .mei-view.) */
+@media (max-width: 640px) {
+  .artifact-view.overlay .page-editor-toolbar {
+    padding-right: 12px;
+    column-gap: 4px; /* Fix layout's tools fit on one row at 390 px */
+  }
+  .artifact-view.overlay .page-editor-toolbar > :first-child {
+    flex-basis: calc(100% - 48px);
+  }
+}
+
 .editor-tools {
   display: flex;
   align-items: center;

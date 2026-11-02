@@ -271,7 +271,7 @@ function PageEditor({
   return (
     <div className="page-editor" onKeyDown={onKeyDown}>
       {/* After a button, the keys still go to the editor (a disabled button would leave the focus nowhere). */}
-      <div className="editor-toolbar" onClick={viewport.focus}>
+      <div className="editor-toolbar page-editor-toolbar" onClick={viewport.focus}>
         <PageNav nav={nav} />
         <ModeToggle modes={MODES} mode={mode} onChange={switchMode} />
         <ZoomTools viewport={viewport}>
