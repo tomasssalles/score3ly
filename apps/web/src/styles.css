@@ -2657,6 +2657,78 @@ textarea.field-input {
   text-align: left;
 }
 
+/* The toolbar where the view covers the app (narrow screens, docs/project-view.md), with its close button at the top
+   right: the search first, with room for the close button on its right; the piece; the measure, Go, and the two
+   buttons at the right edge; Fix MEI's tools last. The room is kept on the first row only: the overlay's padding
+   (above) would leave every wrapped row short of the edge. Elsewhere the toolbar is one row, wrapping if it must. */
+.artifact-view.overlay .mei-view .editor-toolbar {
+  display: grid;
+  grid-template-columns: auto auto 1fr 48px; /* the last: the close button's room */
+  grid-template-areas:
+    "search search search close"
+    "piece piece piece piece"
+    "measure go end end"
+    "tools tools tools tools";
+  gap: 8px 6px;
+  padding-right: 12px;
+}
+
+.artifact-view.overlay .mei-view .editor-toolbar:not(:has(.mei-piece)) {
+  grid-template-areas:
+    "search search search close"
+    "measure go end end"
+    "tools tools tools tools";
+}
+
+/* Wider, the piece goes on the measure's row. */
+@container (min-width: 600px) {
+  .artifact-view.overlay .mei-view .editor-toolbar {
+    grid-template-columns: auto auto auto 1fr 48px;
+    grid-template-areas:
+      "search search search search close"
+      "piece measure go end end"
+      "tools tools tools tools tools";
+  }
+  .artifact-view.overlay .mei-view .editor-toolbar:not(:has(.mei-piece)) {
+    grid-template-columns: auto auto 1fr 48px;
+    grid-template-areas:
+      "search search search close"
+      "measure go end end"
+      "tools tools tools tools";
+  }
+}
+
+.artifact-view.overlay .mei-view .mei-goto {
+  display: contents;
+}
+
+.artifact-view.overlay .mei-view .mei-search {
+  grid-area: search;
+}
+
+.artifact-view.overlay .mei-view .mei-piece {
+  grid-area: piece;
+  justify-self: start;
+}
+
+.artifact-view.overlay .mei-view .mei-measure {
+  grid-area: measure;
+}
+
+.artifact-view.overlay .mei-view .mei-goto > .editor-modes {
+  grid-area: go;
+}
+
+.artifact-view.overlay .mei-view .mei-end {
+  grid-area: end;
+  justify-self: end;
+  margin-left: 0;
+}
+
+.artifact-view.overlay .mei-view .fix-mei-tools {
+  grid-area: tools;
+}
+
 .mei-problem {
   color: var(--danger);
 }
