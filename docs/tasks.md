@@ -65,13 +65,20 @@ A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a 
 - **Multi-device tests wait for a real deployment** (§16, "Deployment"): listed at the end of the file, to be written as stories then, with real phones, Firefox and Safari.
 - **Stories to add** once built: `apply_review`, `human_review`, the model configs' form, the format gap report.
 - **The setup becomes a test environment** once those exist ("Build the test environments"), so the stories start with one command.
-- **Found while writing it** (each a task of its own): "A failed LLM stage keeps its model config".
+- **Found while writing it** (each a task of its own): "Model configs for stages, and managing them".
 
-### A failed LLM stage keeps its model config
-`#bug` `#decision`
+### Model configs for stages, and managing them
+`#next-release`
 
-Found 2026-11-01 while writing the manual test suite. A stage records the model config it started with in its config (`{ modelConfigId }`, `runLayout.ts` and the others), and Retry uses that again. So when a stage fails because of its model config (no price for the model, a broken config, a model that refuses), changing the default doesn't help, and no LLM stage has a config form to pick another: the only way out is a new project (or the Worker's `PUT …/config` by hand). To decide: whether Retry takes the default again when the stage's model config wasn't picked for it, or LLM stages get a config form with the model config (part of "Settings page, the model configs" and "Decide the model configs").
+Decided 2026-11-02: `docs/llm.md`, "Which config a stage uses" and "Managing model configs". To build:
+- **Every LLM stage names its config from its creation:** the Worker gives the default to the LLM stages it creates (a new project's, and stages added later); planned copies keep theirs (they do already); no more resolving the default at start (`stageModelConfig` in `apps/web/src/llm.ts`).
+- **The cards** show the config on planned and ready stages too; a deleted config in red, and such a stage refuses to run.
+- **"Change config" for LLM stages:** a form with the config picker and "Also for the model stages after this one"; the confirmation before a re-run says so when it is ticked.
+- **The settings page:** the rule next to the default; Rename, Clone (with "Delete the original" and the duplicate checks with their rename offers) and Delete on each config, no Edit. Part of "Settings page, the model configs".
+- **The table:** drop the column of the row a version supersedes, and the Worker's copy-on-edit (`PUT /api/model-configs/<id>`), for rename and clone.
+- **Open:** whether names become required (unique names, and the rename offers, name configs; today a config may have none and is shown by its model string); whether adding a further review opens the config picker right away.
 
+Until it is built, a stage that fails because of its model config (no price, a broken config) keeps failing on Retry, since it keeps the config it started with, and no LLM stage has a config form: the manual tests work around it with the Worker's `PUT …/config` (`docs/manual-tests.md`, story 4).
 ### The issue card: what is still open
 `#next` `#style`
 
@@ -109,7 +116,7 @@ Proposed by the project owner (2026-10-29). A toggle on each project, set by the
 `#decision` `#research` `#next-release`
 
 `docs/llm.md`, "Supported models, prices and the config form" (under discussion): the supported models and their prices in the database, the config form with pickers. Then build the first round: the table and its shipped list, the form, adding a supported model, Fake pre-installed as the default, the price label on the cards, the Test button.
-- **Soon after the first round:** editing a config (copy on change, as now), removing a config, editing a supported model (e.g. its prices).
+- **Soon after the first round:** editing a supported model (e.g. its prices). Configs themselves are never edited, only renamed, cloned and deleted ("Model configs for stages, and managing them").
 - **Still to settle or research** (the AWS and Google documentation couldn't be reached from the cloud session where this was discussed):
   - **Global versus regional on Bedrock's Messages API endpoint:** a request goes to a regional URL (`bedrock-mantle.{region}.api.aws`); how it asks for global routing, and so what a config stores for "Global", isn't documented on Anthropic's page. Also how the geographic inference profiles (US, EU, JP, AU) are addressed there. AWS's documentation, or a test call.
   - **Bedrock's per-region prices:** whether they differ beyond the 10% regional premium (AWS's pricing page and its price list files), and which regions serve which Claude models (Anthropic's page lists 27 regions; Fable 5.1 is regional only in `us-east-1`).
@@ -122,7 +129,7 @@ Proposed by the project owner (2026-10-29). A toggle on each project, set by the
 ### Settings page, the model configs
 `#next-release`
 
-§7.2, §10: adding, editing and deleting configs, choosing the default, the free-tier mark. Today the page has one row per setting (the run mode for new projects, the spending cap), its label (with a short hint where needed) left and its control right, and below them "Model configs", read-only: a card per config with its name (else its model), badges for the default and free tier, its provider, model and effort, its plain values and its secrets by the Worker secret's name.
+§7.2, §10: creating, renaming, cloning and deleting configs (no editing: `docs/llm.md`, "Managing model configs"), choosing the default with its rule, the free-tier mark. Today the page has one row per setting (the run mode for new projects, the spending cap), its label (with a short hint where needed) left and its control right, and below them "Model configs", read-only: a card per config with its name (else its model), badges for the default and free tier, its provider, model and effort, its plain values and its secrets by the Worker secret's name.
 
 ### Verify the prompt and schema of `layout`
 `#owner` `#next-release`
