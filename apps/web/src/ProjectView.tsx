@@ -42,6 +42,7 @@ import { ConfigDialog } from "./ConfigDialog";
 import { RUNNERS } from "./runners";
 import { CannotStart } from "./stageRunner";
 import { useWakeLock } from "./wakeLock";
+import { setRunningProject } from "./leaveGuard";
 import { carriedInputs, FIX_STARTS, stepInfo, type ConfigContext } from "./steps";
 import { onImagesDiffer, openPdfForImages } from "./pageImages";
 import { download } from "./downloads";
@@ -163,6 +164,11 @@ export function ProjectView({
   }, [runningHere]);
   // And the screen stays on meanwhile, so that a phone doesn't go to sleep and pause the run.
   useWakeLock(runningHere);
+  // Leaving the project inside the app asks first too (App.tsx): the run belongs to this view.
+  useEffect(() => {
+    setRunningProject(runningHere ? project.id : null);
+    return () => setRunningProject(null);
+  }, [runningHere, project.id]);
 
   // An ID that doesn't exist (an old or edited URL, or a replaced stage) counts as no pick.
   const pickedArtifact = artifactId === null ? null : findArtifact(pipeline, artifactId);

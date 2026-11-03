@@ -402,7 +402,7 @@ In every list of projects on the Statistics page (as above): a search field that
 ### Keep a run going while another page of the app is open
 `#optional`
 
-Not for the first release (decided 2026-11-03): the navigation it protects (Settings, Statistics, About, another project) is rare during a run, and a run is fragile anyway (a phone stops it when the app goes to the background). Until then, leaving a project while it runs asks first ("Warn before leaving a running project").
+Not for the first release (decided 2026-11-03): the navigation it protects (Settings, Statistics, About, another project) is rare during a run, and a run is fragile anyway (a phone stops it when the app goes to the background). Until then, leaving a project while it runs asks first (`docs/project-view.md`, "Leaving a running project").
 
 Today a run belongs to the project view: opening a menu page (Statistics, Settings, About) or another project unmounts it, and its cleanup aborts the run (`ProjectView.tsx`, the first `useEffect`), without a warning, unlike closing the tab. The outputs saved stay; an LLM answer on its way is lost, although it is paid for; the stage shows as running until its heartbeat is 3 minutes old, then as interrupted, and a retry asks only for what is missing (docs/database.md). The same in the web app and in cadenza. Switching to another window doesn't stop a run (a hidden window's timers are slowed, but the heartbeat stays within the 3 minutes).
 
@@ -455,11 +455,6 @@ The one way to let a phone run a pipeline in the background (discussed 2026-11-0
 - **The risk, to settle first with a prototype on a real phone (about a day):** the service keeps the process alive, but the browser view may still pause its JavaScript timers in the background, which would stop the heartbeat (`docs/database.md`); Capacitor's settings or a line of native code should prevent it.
 - **A client of the user's own deployment:** a phone can't run the Worker (no Node, unlike cadenza), so the app asks for the app's address on its first start and logs in through Cloudflare Access inside it. Nothing in the APK is the user's, so one APK serves everyone.
 - **Distribution:** without a store, for free (users already deploy to Cloudflare or build cadenza themselves): an APK signed with our own key (free), on GitHub's releases, or built by users themselves like cadenza; installed by allowing installs from unknown sources. One key, so a new version installs over the old one.
-
-### Warn before leaving a running project
-`#next-release`
-
-While this device runs a stage, leaving the project inside the app (a menu page, another project) aborts the run without a word (`ProjectView.tsx`, the first `useEffect`), unlike closing the tab, which asks (`beforeunload`). Ask first, with our own dialog, as the confirmation before a re-run does: e.g. "A stage is running. Leaving the project stops it." with "Stay" and "Leave". The browser's back button too. (Moving the run out of the project view instead: "Keep a run going while another page of the app is open", optional.)
 
 ### Closing cadenza during a run
 `#bug` `#next-release`

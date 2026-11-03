@@ -55,7 +55,7 @@ const TABS: { id: StatsTab; label: string }[] = [
 ];
 
 export function StatsPage() {
-  const tab = statsTabFromHash(useHash());
+  const tab = statsTabFromHash(useHash().hash);
   return (
     <div className="page-view stats">
       <h2>Statistics</h2>

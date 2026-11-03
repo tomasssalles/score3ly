@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { leavesProject, runningProject } from "./leaveGuard";
 import { createProject, listProjects, lookUpPdf, markOpened, type PdfLookup, type Project } from "./api";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { Header } from "./Header";
@@ -26,8 +28,29 @@ export function App() {
   // In the desktop app everything is on this computer: there is no remote storage to speak of (docs/desktop.md).
   const desktop = useHost() === "desktop";
   useEditionWindow();
-  // The open project, and the artifact the user picked, are the ones in the URL, if any.
-  const hash = useHash();
+  // Leaving a project while this device runs one of its stages asks first (docs/project-view.md): the URL it was
+  // going to, and what to do once it is there.
+  const [leaving, setLeaving] = useState<{ hash: string; then: () => void } | null>(null);
+  const holds = (next: string) => {
+    const running = runningProject();
+    return running !== null && leavesProject(next, running);
+  };
+  // The open project, and the artifact the user picked, are the ones in the URL, if any. A change that leaves a
+  // running project (a link, the back button) is held until the user confirms.
+  const { hash, go } = useHash((next, proceed) => {
+    if (!holds(next)) return false;
+    setLeaving({ hash: next, then: proceed });
+    return true;
+  });
+  // Goes to a URL from within the app, asking first if that leaves a running project.
+  const navigate = (next: string, then?: () => void) => {
+    const goThere = () => {
+      go(next);
+      then?.();
+    };
+    if (holds(next)) return setLeaving({ hash: next, then: goThere });
+    goThere();
+  };
   const route = parseRoute(hash);
   // A page from the menu, if one is open instead of a project.
   const page = pageFromHash(hash);
@@ -77,7 +100,7 @@ export function App() {
     setError(null);
     try {
       const created = await createProject(pdf, sha256, alreadyStored);
-      window.location.hash = hashForProject(created.id);
+      navigate(hashForProject(created.id));
     } catch (err) {
       setError(`Creating the project failed: ${err}`);
       return;
@@ -108,16 +131,18 @@ export function App() {
     }
   }
 
-  async function open(project: Project) {
+  function open(project: Project) {
     setError(null);
-    window.location.hash = hashForProject(project.id);
-    try {
-      await markOpened(project);
-    } catch (err) {
-      setError(`Opening the project failed: ${err}`);
-      return;
-    }
-    await refresh();
+    // Marked as opened only once it is: not if the user stays in a running project.
+    navigate(hashForProject(project.id), async () => {
+      try {
+        await markOpened(project);
+      } catch (err) {
+        setError(`Opening the project failed: ${err}`);
+        return;
+      }
+      await refresh();
+    });
   }
 
   return (
@@ -162,6 +187,21 @@ export function App() {
               refresh();
             }}
             onCancel={() => setDeleting(false)}
+          />
+        )}
+        {leaving && (
+          <ConfirmDialog
+            title="Leave the project?"
+            text={[
+              "A stage is running. Leaving the project stops it. What is done so far is kept, and Run picks up from there; an answer from a model still on its way is lost, although it is paid for.",
+            ]}
+            confirmLabel="Leave"
+            onConfirm={() => {
+              const { then } = leaving;
+              setLeaving(null);
+              then();
+            }}
+            onCancel={() => setLeaving(null)}
           />
         )}
         {knownPdf && (

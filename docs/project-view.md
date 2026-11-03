@@ -73,6 +73,10 @@ A stage dropped by a re-run leaves a card where it was (decided, built; the rule
 - **Where:** after the stage it came after (`after_stage_id`); several there are in the order they were dropped.
 - **Until:** the user dismisses it; or a change rewrites the pipeline at or before the stage it came after (a new config, a stage added, edited or dropped there; a change after it leaves it); or a stage of the same step is added there again (e.g. `fix_metadata` dropped after `analyze` ran with a new config, then "Fix metadata manually" in `analyze`'s "⋮"). Stored with the project, so a drop during an Auto run is still there when the user comes back; deleting the project deletes its cards.
 
+## Leaving a running project
+
+(decided and built 2026-11-03; `leaveGuard.ts`, `useHash.ts`, `App.tsx`) A run belongs to the project view: while this device runs one of the project's stages, leaving the project inside the app (a page of the menu, another project, "+ New project", the back or forward button, a URL typed in) would stop it, so the app asks first, with its own dialog: **"Leave the project?"**, "A stage is running. Leaving the project stops it. What is done so far is kept, and Run picks up from there; an answer from a model still on its way is lost, although it is paid for.", with "Cancel" and "Leave". Another artifact or a stage's details of the same project don't ask. Cancel leaves the URL and the history as they were: each history entry is numbered, so a held step back or forward is undone by the opposite step, and a held new entry by going back. Closing or reloading the tab asks too, with the browser's own dialog (`beforeunload`); what a run does when the app goes to the background is in the task "A run in a background tab" and the user guide.
+
 ## Confirmation before a re-run
 
 When it shows is in `docs/overview.md` §5.5, "Confirmation before a re-run". What it says:
