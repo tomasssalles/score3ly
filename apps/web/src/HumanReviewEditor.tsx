@@ -8,7 +8,7 @@
 // user's own issues come later.
 
 import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { fetchJsonContent, putContent, recordOutputs, type Project } from "./api";
 import { AnswerTags, Choices, ISSUE_CLASS_LABELS, useRemembered } from "./ExtractionView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks } from "./extract";
@@ -300,7 +300,14 @@ function IssuePanel({
   const otherKey = String.fromCharCode("a".charCodeAt(0) + original.answers.length);
   const [text, setText] = useState(mine?.newAnswer?.text ?? "");
   const [pending, setPending] = useState(false); // the row chosen, its text not saved yet
-  const field = useRef<HTMLInputElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null);
+  // The field grows with its text, wrapping like the other answers.
+  useLayoutEffect(() => {
+    const el = field.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [text]);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
   const otherChosen = mine?.newAnswer != null || pending;
@@ -371,9 +378,10 @@ function IssuePanel({
         <div className="answer-option answer-other" role="radio" aria-checked={otherChosen} tabIndex={-1} onClick={(e) => e.target === field.current || pickOther()}>
           <span className="answer-mark" aria-hidden="true" />
           <span className="answer-other-key">{otherKey})</span>
-          <input
+          <span className="answer-other-text">
+          <textarea
             ref={field}
-            type="text"
+            rows={1}
             className="answer-other-field"
             aria-label="Another answer"
             value={text}
@@ -388,10 +396,19 @@ function IssuePanel({
               if (!text.trim()) setPending(false);
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") commit(text);
+              // One line of text: Enter ends it, as in any field.
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commit(text);
+              }
             }}
           />
-          {mine?.newAnswer && <AnswerTags tags={answerTags(issue, mine.newAnswer.key, choosers)} />}
+          {mine?.newAnswer && (
+            <span className="answer-other-tags">
+              <AnswerTags tags={answerTags(issue, mine.newAnswer.key, choosers)} />
+            </span>
+          )}
+          </span>
         </div>
       </div>
       {issue.lilypond && (
