@@ -446,6 +446,16 @@ For trying the app by hand on prepared data, locally only (no remote test databa
 
 To check when building it: whether an existing `.dev.vars` makes Wrangler ignore the `--env-file`.
 
+### An Android app
+`#optional`
+
+The one way to let a phone run a pipeline in the background (discussed 2026-11-03): on a phone, a web app stops when it goes to the background, and nothing can prevent it; on iOS a packaged app is suspended as well, so this is for Android only. After the first release.
+- **A wrapper, not an app written from scratch:** Capacitor (Ionic's; Electron's idea for phones) puts the web app in Android's own browser view (Chromium) and makes the Android project around it, built with Gradle and the Android SDK.
+- **The native part:** a foreground service, as music players use, started when a run starts and stopped when it ends, with a notification ("score3ly: Extract, system 12 of 40"). A community Capacitor plugin, or about a hundred lines of Kotlin. Android 15 limits some kinds of these services to about 6 hours a day: plenty.
+- **The risk, to settle first with a prototype on a real phone (about a day):** the service keeps the process alive, but the browser view may still pause its JavaScript timers in the background, which would stop the heartbeat (`docs/database.md`); Capacitor's settings or a line of native code should prevent it.
+- **A client of the user's own deployment:** a phone can't run the Worker (no Node, unlike cadenza), so the app asks for the app's address on its first start and logs in through Cloudflare Access inside it. Nothing in the APK is the user's, so one APK serves everyone.
+- **Distribution:** without a store, for free (users already deploy to Cloudflare or build cadenza themselves): an APK signed with our own key (free), on GitHub's releases, or built by users themselves like cadenza; installed by allowing installs from unknown sources. One key, so a new version installs over the old one.
+
 ### Warn before leaving a running project
 `#next-release`
 
