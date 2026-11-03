@@ -8,7 +8,7 @@
 import { MUSIC } from "./extract.ts";
 
 // Raise whenever the texts or the schema change.
-export const REVIEW_PROMPT_VERSION = 2;
+export const REVIEW_PROMPT_VERSION = 3;
 
 export const REVIEW_MAX_OUTPUT_TOKENS = 16_000;
 
@@ -40,6 +40,7 @@ Read first, compare afterwards: never trust a passage because it seems to repeat
   - **It must change the chosen answer:** where you agree with the latest choice, leave the issue alone; that counts as agreement.
   - **reason:** null, unless it adds something a reader wouldn't see by themselves: "measure 23 is the same figure and there it's clearly a D", "the same spot appears on several notes nearby, so it is paper ageing, not a staccato". "I think it's a D" adds nothing.
 - **A new issue,** for every correction you want, and for every doubt or gap of the format nobody raised: \`{ "newIssue": { … } }\` with
+  - **Never about what a resolved issue settled:** a person decided it, and their answer is the truth, even where you would read the page otherwise. Don't raise the same question again in other words, and don't raise one whose answer would change what the resolved issue says.
   - **boxes:** one or more, each on one of the images you were sent, named by its label ("system", "stretch 3", "previous system", "next system"), as fractions of that image (left, right, top, bottom from 0 to 1). At least one on your system; others may be on the previous or the next system, not both.
   - **location:** what in the box is meant, when the box alone doesn't say: simple and local to the box ("the middle note of the chord"), never depending on a reading of the score. Else null.
   - **question**, and **answers** with keys "a", "b", "c", …: at least two, one for what the transcription has now and one for what you think is right, with others where they are reasonable.

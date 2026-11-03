@@ -311,7 +311,7 @@ function IssuePanel({
     if (value.trim()) {
       if (value.trim() !== mine?.newAnswer?.text) onWrite(value);
       // The text of one of the answers chooses that one (writeAnswer).
-      if (original.answers.some((a) => a.text.trim().toLowerCase() === value.trim().toLowerCase())) setPending(false);
+      if (original.answers.some((a) => a.text.trim() === value.trim())) setPending(false);
     } else if (mine?.newAnswer) onClear();
   }
   function type(value: string) {

@@ -48,7 +48,7 @@ export function userChoice(stored: StoredHumanReview, issue: number): { key: str
 }
 
 const others = (stored: StoredHumanReview, issue: number) => stored.entries.filter((e) => !("choice" in e && e.choice.issue === issue));
-const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+const sameText = (a: string, b: string) => a.trim() === b.trim();
 
 // Chooses one of an issue's answers: the user's choice on it, replacing any earlier one.
 export function chooseAnswer(stored: StoredHumanReview, issue: StoredIssue, key: string): StoredHumanReview {
@@ -56,7 +56,7 @@ export function chooseAnswer(stored: StoredHumanReview, issue: StoredIssue, key:
 }
 
 // Chooses an answer the user wrote ("none of these, but ..."): a new answer with the next letter, or the existing one
-// with the same text. Empty text changes nothing.
+// with exactly the same text (spaces around it aside; case counts). Empty text changes nothing.
 export function writeAnswer(stored: StoredHumanReview, issue: StoredIssue, text: string): StoredHumanReview {
   const written = text.trim();
   if (written === "") return stored;

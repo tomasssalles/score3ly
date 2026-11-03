@@ -125,17 +125,23 @@ Proposed by the project owner (2026-10-29). Arbitrary tags on projects, added by
 
 Proposed by the project owner (2026-10-29). A toggle on each project, set by the user when satisfied with the result: a much clearer signal than the finished pipeline the statistics use today (Run times, the average cost per page's "unfinished pipeline"), which says nothing about whether the result still needs work. To decide: whether the statistics then use the mark instead of the finished pipeline, or both (e.g. the mark where it is set).
 
+### Generate the shipped price list
+`#next` `#next-release` `#owner` `#research`
+
+`docs/llm.md`, "Supported models, prices and the config form", "Shipped prices" (decided 2026-11-03): a script that generates the app's list of supported models and their prices from the providers' published price lists, run at release time, its result spot-checked before the release; never run by the app. The first thing to build of the model configs. **To be done in a local session** (the project owner's decision): it has access to more of the internet than the cloud sessions, where the AWS and Google documentation couldn't be reached.
+- **What to find out:** which files or APIs (AWS's public price list JSON files for Bedrock; Google's Cloud Billing catalog for Vertex AI and Gemini, which needs an API key; Anthropic's and Google AI Studio's pages), and how their entries map to our rows (provider, model string, family, region, four prices per million tokens in US dollars). The open questions of "Decide the model configs" about regions, endpoints and prices are answered on the way.
+- **The output:** the list in the code, with its version, and a short report to spot-check (every row, grouped by model, with what each price came from).
+
 ### Decide the model configs
 `#decision` `#research` `#next-release`
 
-`docs/llm.md`, "Supported models, prices and the config form" (under discussion): the supported models and their prices in the database, the config form with pickers. Then build the first round: the table and its shipped list, the form, adding a supported model, Fake pre-installed as the default, the price label on the cards, the Test button.
+`docs/llm.md`, "Supported models, prices and the config form" (under discussion): the supported models and their prices in the database, the config form with pickers. Then build the first round: the table and its shipped list ("Generate the shipped price list", first), the form, adding a supported model (decided 2026-11-03: `docs/llm.md`, "Models the user adds": priced as another model, unpriced or free tier, never a typed price), Fake pre-installed as the default, the price label on the cards, the Test button.
 - **Soon after the first round:** editing a supported model (e.g. its prices). Configs themselves are never edited, only renamed, cloned and deleted ("Model configs for stages, and managing them").
 - **Still to settle or research** (the AWS and Google documentation couldn't be reached from the cloud session where this was discussed):
   - **Global versus regional on Bedrock's Messages API endpoint:** a request goes to a regional URL (`bedrock-mantle.{region}.api.aws`); how it asks for global routing, and so what a config stores for "Global", isn't documented on Anthropic's page. Also how the geographic inference profiles (US, EU, JP, AU) are addressed there. AWS's documentation, or a test call.
   - **Bedrock's per-region prices:** whether they differ beyond the 10% regional premium (AWS's pricing page and its price list files), and which regions serve which Claude models (Anthropic's page lists 27 regions; Fable 5.1 is regional only in `us-east-1`).
   - **Vertex AI:** its global, multi-region (`eu`, `us`) and regional endpoints, their prices, and which models each serves.
   - **Gemini's current models and prices** on Google AI Studio, from Google's own pricing page (third-party pages disagree).
-  - **The script that generates the shipped list:** which files or APIs, and how it maps their entries to our rows.
   - **Prices that change with the prompt's length** (Haiku 5.5 above 100,000 tokens, Gemini Pro above 200,000): not modelled, since our prompts are believed to be smaller. Stays open until the pipeline is finished and has run on most of the test set with a real model (the task "Measure the prompt lengths").
   - **Model strings on Vertex AI** (with or without an `@` version) for the current models.
 

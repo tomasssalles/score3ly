@@ -68,8 +68,9 @@ test("the user's choice: one per issue, an existing answer or a written one, tak
   stored = writeAnswer(stored, issue(1), "  An accent ");
   assert.deepEqual(userChoice(stored, 1), { key: "c", newAnswer: { key: "c", text: "An accent" } });
   assert.equal(stored.entries.length, 2);
-  // A written answer that is one of the answers chooses it; empty text changes nothing.
-  assert.deepEqual(userChoice(writeAnswer(stored, issue(1), "a SMUDGE"), 1), { key: "b", newAnswer: null });
+  // A written answer that is one of the answers, exactly, chooses it; case counts; empty text changes nothing.
+  assert.deepEqual(userChoice(writeAnswer(stored, issue(1), " A smudge "), 1), { key: "b", newAnswer: null });
+  assert.deepEqual(userChoice(writeAnswer(stored, issue(1), "a SMUDGE"), 1), { key: "c", newAnswer: { key: "c", text: "a SMUDGE" } });
   assert.equal(writeAnswer(stored, issue(1), "  "), stored);
   stored = clearChoice(stored, 1);
   assert.equal(userChoice(stored, 1), null);
