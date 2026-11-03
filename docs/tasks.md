@@ -54,6 +54,20 @@ A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a 
 - **The setup becomes a test environment** once those exist ("Build the test environments"), so the stories start with one command.
 - **Found while writing it** (each a task of its own): "Model configs for stages, and managing them".
 
+### Clean up the codebase
+
+Go through the entire codebase and clean it up: dead code, duplicated helpers, names and comments that no longer say what the code does, modules that grew too large, tests that test the same thing twice. Behaviour stays as it is.
+
+### Clean up the docs before the first release tag
+`#next-release` `#docs`
+
+Right before the first release tag (§11, "Branches and releases"): go through the entire `docs/` folder and clean it up: what is outdated, repeated or contradicts the code or another file, notes of decisions that no longer need their history, and the overview's summaries against the files they sum up.
+
+### Run the whole manual test suite before the first release tag
+`#next-release` `#manual-test` `#owner`
+
+Once, right before the first release tag: every story of `docs/manual-tests.md`, the full run, not only the smoke run. What fails becomes a bug task; what the stories got wrong is fixed in them.
+
 ### Model configs for stages, and managing them
 `#next-release`
 
