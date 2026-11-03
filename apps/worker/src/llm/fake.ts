@@ -9,7 +9,8 @@
 // rests in 4/4, a made-up doubt on every system and a format issue on the first, so their views can be seen), and
 // `review` (a made-up correction on the first system, another answer chosen for the first issue of the second), and
 // `apply_review` (on a window that starts on an odd system, each issue applied by writing a C in the first voice of the
-// first stretch under it; on an even one, each reverted, with a made-up reason).
+// first stretch under it; on an even one, each reverted, with a made-up reason, by a made-up new answer where none is
+// applied; a person's answers, resolved, are applied on either).
 
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse } from "./types.ts";
 
@@ -222,7 +223,7 @@ function fakeReview(request: LlmRequest): unknown {
 type ApplyRequest = {
   window: number[];
   systems: { system: number; stretches: { stretch: number; voices: { voice: number; staff: number }[] }[] }[];
-  apply: { id: number; places: { system: number; stretches: number[] }[]; applied: string | null }[];
+  apply: { id: number; places: { system: number; stretches: number[] }[]; applied: string | null; resolved?: boolean }[];
 };
 
 // An `apply_review` answer (its schema has "voices", "stretches", "systems" and "choices"): as said at the top.
@@ -243,10 +244,11 @@ function fakeApplyReview(request: LlmRequest): unknown {
     const place = issue.places.find((p) => r.window.includes(p.system) && p.stretches.length > 0);
     const stretch = place && r.systems.find((s) => s.system === place.system)?.stretches.find((t) => t.stretch === place.stretches[0]);
     const voice = stretch?.voices[0];
-    if (r.window[0] % 2 === 0 || !place || !voice) {
-      if (issue.applied !== null) {
-        answer.choices.push({ issue: issue.id, key: issue.applied, reason: "The fake model can't apply this answer (a made-up reason)." });
-      }
+    // A person's answers are always applied where they can be, so that a human review gets through.
+    if ((r.window[0] % 2 === 0 && !issue.resolved) || !place || !voice) {
+      const reason = "The fake model can't apply this answer (a made-up reason).";
+      if (issue.applied !== null) answer.choices.push({ issue: issue.id, key: issue.applied, newAnswer: null, reason });
+      else answer.choices.push({ issue: issue.id, key: null, newAnswer: "As it is now (a made-up answer from the fake model)", reason });
       continue;
     }
     const key = `${place.system}/${place.stretches[0]}/${voice.voice}`;

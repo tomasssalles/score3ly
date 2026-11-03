@@ -334,7 +334,8 @@ function Screen({
     if (y !== null) viewport.center({ x: W / 2, y });
   }, [image]);
   // The original moved: the rendering follows.
-  useLayoutEffect(() => {
+  const align = useRef(() => {});
+  align.current = () => {
     if (!linked || !bothShown || !image || leading("original") || !pane.current) return;
     const m = viewport.middle();
     if (!m) return;
@@ -343,7 +344,15 @@ function Screen({
     if (target === null) return;
     leader.current = { side: "original", until: Date.now() + 200 };
     pane.current.scrollTop = target - pane.current.clientHeight / 2;
-  }, [viewport.view, linked, bothShown, image, index]);
+  };
+  useLayoutEffect(() => align.current(), [viewport.view, linked, bothShown, image, index]);
+  // The renderings are drawn as they come near the view, and change size then: the alignment follows.
+  useEffect(() => {
+    if (!showRendering) return;
+    const observer = new ResizeObserver(() => align.current());
+    for (const el of rendered.current.values()) observer.observe(el);
+    return () => observer.disconnect();
+  }, [showRendering, loaded.systems]);
   // The rendering scrolled by the user: the original follows (to another page if the system is there).
   function onRenderingScroll() {
     const el = pane.current;

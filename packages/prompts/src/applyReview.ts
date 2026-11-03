@@ -11,7 +11,7 @@
 import { MUSIC } from "./extract.ts";
 
 // Raise whenever the texts or the schema change.
-export const APPLY_REVIEW_PROMPT_VERSION = 1;
+export const APPLY_REVIEW_PROMPT_VERSION = 2;
 
 export const APPLY_REVIEW_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -21,7 +21,7 @@ export const APPLY_REVIEW_SYSTEM = `You apply decisions to a transcription of pr
 
 ## What you get
 1. **The score:** the whole transcription as it was when this stage started, in the format below, as JSON: for each piece its staves and voices, and for each system its staves, groups and stretches, each stretch with **measure**, the number code gave the measure it belongs to, and the music of its voices. Observations from an earlier look at the pages follow it.
-2. **The issues and the warnings,** as they were when this stage started. An issue is a question about what the page says at a place: **places** (the systems and stretches its boxes cover), **location** and **question**, **answers** with keys "a", "b", …, **choices** (who chose which answer, in order: the latest counts), **applied** (the answer the transcription reflects now). A warning is something code found wrong with the transcription itself.
+2. **The issues and the warnings,** as they were when this stage started. An issue is a question about what the page says at a place: **places** (the systems and stretches its boxes cover), **location** and **question**, **answers** with keys "a", "b", …, **choices** (who chose which answer, in order: the latest counts), **applied** (the answer the transcription reflects now; null when that isn't known), **resolved** (a person decided it). A warning is something code found wrong with the transcription itself.
 3. **What this stage's earlier calls changed,** one entry per change, in order. They are part of the transcription now.
 4. **Your window:** one system, or two when an issue reaches the next one. Its crops ("System 17:", and each of its stretches, "System 17, stretch 2:"), with the boxes of the issues drawn in colour and labelled with the issue's id, and the systems before and after it for context; then a request: the window's systems as they are now (with the changes of the earlier calls), the systems just before and after it, the **links** (what on these systems belongs with something elsewhere), the issues to **apply** (each with its **chosen** answer), the **other** issues on these systems, and the warnings on them.
 
@@ -39,7 +39,9 @@ Each unit you name is replaced whole by what you write; whatever you don't name 
 - **stretches:** the other fields of a stretch, \`{ "system", "stretch", "class", "kind", "printedNumber", "measureNumber", "changes", "ending", "rightBarLine", "reason" }\`, all of them replaced (its voices stay). Merging two stretches into one measure is the second's class going from "new" to "continues"; splitting is the reverse.
 - **systems:** the fields of a system, \`{ "system", "startRepeat", "staves", "groups", "lastMeasureContinues", "reason" }\`, all of them replaced (its stretches stay). In **staves**, description is null for a staff that exists.
 - **reason:** null for a change under the boxes of the issues it applies; for a change outside them, why it is needed ("the slur of issue 12 now ends here").
-- **choices:** the issues you can't apply as given. Only when it truly can't be done: the answer doesn't fit the transcription (the slur is to end on a G the measure doesn't have), two chosen answers conflict (one makes a note a quarter, another a dotted quarter), the format can't express it, or the answer is too vague to act on. Then leave the transcription as it is for that issue, and write \`{ "issue": 12, "key": "a", "reason": "…" }\` with **key** the issue's **applied** answer (the one the transcription has now) and **reason** what makes it impossible, written for a musician who reads it in the app and for the next reviewer, so that it isn't asked again: "The reviewer asked for these two changes, but they're incompatible: …". Disagreeing with an answer is never a reason.
+- **choices:** the issues you can't apply as given. Only when it truly can't be done: the answer doesn't fit the transcription (the slur is to end on a G the measure doesn't have), two chosen answers conflict (one makes a note a quarter, another a dotted quarter), the format can't express it, or the answer is too vague to act on. Then leave the transcription as it is for that issue, and write \`{ "issue": 12, "key": "a", "newAnswer": null, "reason": "…" }\` with **key** the issue's **applied** answer (the one the transcription has now), **newAnswer** null, and **reason** what makes it impossible, written for a musician who reads it in the app and for the next reviewer, so that it isn't asked again: "The reviewer asked for these two changes, but they're incompatible: …". Disagreeing with an answer is never a reason.
+  - **An issue whose applied is null** (nothing is known of what the transcription has there): choose the answer that says what the transcription has, by its **key** (never the chosen one); if none of the answers says it, **key** null and **newAnswer** a short text that does, about the page and never mentioning the transcription ("On the E of the next measure").
+  - **A resolved issue** (a person's answer) is reverted the same way when it truly can't be applied: the stage then stops and shows your reason, so that the person can answer again.
 - Every issue to apply that you don't name in **choices** counts as applied: make sure the transcription then says what its chosen answer says.
 
 ${MUSIC}`;
@@ -105,7 +107,7 @@ export const APPLY_REVIEW_SCHEMA = object({
       reason: nullable(str),
     }),
   },
-  choices: { type: "array", items: object({ issue: int, key: str, reason: str }) },
+  choices: { type: "array", items: object({ issue: int, key: nullable(str), newAnswer: nullable(str), reason: str }) },
 });
 
 // The answer, as the schema has it.
@@ -138,5 +140,5 @@ export type ApplySystemUnit = {
   lastMeasureContinues: boolean;
   reason: string | null;
 };
-export type ApplyRevert = { issue: number; key: string; reason: string };
+export type ApplyRevert = { issue: number; key: string | null; newAnswer: string | null; reason: string };
 export type ApplyReviewAnswer = { voices: ApplyVoiceUnit[]; stretches: ApplyStretchUnit[]; systems: ApplySystemUnit[]; choices: ApplyRevert[] };

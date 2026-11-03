@@ -290,6 +290,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
                 chosen: chosen.key,
                 chosenBy: chooser(chosen.by),
                 applied: i.applied,
+                resolved: i.resolved,
               };
             }),
             others: onWindow.filter((i) => !planned.issues.includes(i.id)).map((i) => i.id),
@@ -310,6 +311,15 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           };
           const patch = checkPatch(JSON.parse(canonicalJson(answer.json)), { window: planned.window, allowed, answers, toApply: planned.issues, issues: startIssues });
           if ("problem" in patch) return unusable(patch.problem);
+          // An answer of a person's that can't be applied: the stage stops, for the person to answer again (docs/stages/
+          // music.md, `apply_review`, "A resolved issue"). The answer is usable, so a retry gets the same.
+          const blocked = patch.choices.find((c) => startIssues.get(c.issue)?.resolved);
+          if (blocked) {
+            const issue = startIssues.get(blocked.issue)!;
+            const by = [...issue.choices].reverse().find((c) => person(c.by))?.by;
+            const who = by ? chooser(by) : "a person";
+            throw new Error(`The answer ${who} gave to issue ${blocked.issue} can't be applied: ${blocked.reason} Edit ${who} to answer it again.`);
+          }
           const after = applyPatch(answers, patch);
           const recheck = checkAll(after, toCheck, pieceStart);
           if ("system" in recheck) return unusable(`with its changes, system ${recheck.system} doesn't pass the checks: ${recheck.problem}`);

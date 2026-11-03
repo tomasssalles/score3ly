@@ -56,7 +56,9 @@ export type StoredApplyCall = {
   voices: ApplyVoiceUnit[];
   stretches: ApplyStretchUnit[];
   systems: ApplySystemUnit[];
-  choices: { issue: number; key: string; reason: string }[];
+  // A revert: the answer chosen (an issue without an applied answer: the one that says what the transcription has,
+  // `newAnswer` when the model wrote it), with the reason.
+  choices: { issue: number; key: string; newAnswer?: { key: string; text: string }; reason: string }[];
   applied: number[];
   changed: StretchPlace[];
   warnings: StoredWarning[];
@@ -162,11 +164,31 @@ export function checkPatch(json: unknown, ctx: ApplyContext): Pick<StoredApplyCa
     const issue = ctx.issues.get(c.issue);
     if (!issue || !ctx.toApply.includes(c.issue)) return { problem: `issue ${c.issue} isn't one this call applies: only those can be reverted` };
     if (choices.some((x) => x.issue === c.issue)) return { problem: `issue ${c.issue} is reverted twice` };
-    if (issue.applied === null) return { problem: `issue ${c.issue} has no applied answer to revert to: it must be applied` };
-    if (c.key !== issue.applied) return { problem: `a revert of issue ${c.issue} must choose its applied answer ("${issue.applied}"), not "${c.key}"` };
     const reason = typeof c.reason === "string" ? c.reason.trim() : "";
     if (reason === "") return { problem: `the revert of issue ${c.issue} needs a reason: why it can't be applied` };
-    choices.push({ issue: c.issue, key: c.key, reason });
+    const written = typeof c.newAnswer === "string" ? c.newAnswer.trim() : "";
+    // A resolved issue's revert stops the stage (runApplyReview): what it chose doesn't matter.
+    if (issue.resolved) {
+      choices.push({ issue: c.issue, key: issue.applied ?? "", reason });
+      continue;
+    }
+    if (issue.applied !== null) {
+      if (c.key !== issue.applied || written) return { problem: `a revert of issue ${c.issue} must choose its applied answer ("${issue.applied}"), not "${c.key ?? written}"` };
+      choices.push({ issue: c.issue, key: c.key, reason });
+      continue;
+    }
+    // No applied answer (docs/stages/music.md, `apply_review`, "An issue with no applied answer"): the answer that says
+    // what the transcription has, an existing one other than the chosen one, or a new one.
+    if ((c.key === null) === (written === "")) return { problem: `the revert of issue ${c.issue} needs exactly one of a key and a new answer` };
+    if (c.key !== null) {
+      if (!issue.answers.some((a) => a.key === c.key)) return { problem: `issue ${c.issue} has no answer "${c.key}"` };
+      if (latest(issue)?.key === c.key) return { problem: `the revert of issue ${c.issue} chooses its chosen answer ("${c.key}"), which is to be applied` };
+      choices.push({ issue: c.issue, key: c.key, reason });
+    } else {
+      if (issue.answers.some((a) => a.text.trim() === written)) return { problem: `the new answer of issue ${c.issue} is one of its answers: choose it by its key` };
+      const key = String.fromCharCode("a".charCodeAt(0) + issue.answers.length);
+      choices.push({ issue: c.issue, key, newAnswer: { key, text: written }, reason });
+    }
   }
   return { voices, stretches, systems, choices };
 }
@@ -249,13 +271,21 @@ export function callWarnings(input: {
 }
 
 // The issues after the stage's calls (docs/stages/music.md, `apply_review`): a reverted issue gets the stage's choice
-// of its applied answer, with the reason; every other issue a call applied has its latest choice as `applied`.
+// of its applied answer, with the reason; one without an applied answer gets the answer chosen as `applied` (a new one
+// added first), with no application (who wrote that music isn't known: "[in this transcription]"); every other issue a
+// call applied has its latest choice as `applied`.
 export function appliedIssues(issues: Map<number, StoredIssue>, calls: StoredApplyCall[], stageId: string): Map<number, StoredIssue> {
   const out = new Map(issues);
   for (const call of [...calls].sort((a, b) => a.system - b.system)) {
     for (const c of call.choices) {
       const issue = out.get(c.issue);
-      if (issue) out.set(c.issue, { ...issue, choices: [...issue.choices, { by: stageId, key: c.key, reason: c.reason, reverted: true }] });
+      if (!issue) continue;
+      out.set(c.issue, {
+        ...issue,
+        answers: c.newAnswer ? [...issue.answers, c.newAnswer] : issue.answers,
+        choices: [...issue.choices, { by: stageId, key: c.key, reason: c.reason, reverted: true }],
+        applied: issue.applied ?? c.key,
+      });
     }
     for (const id of call.applied) {
       const issue = out.get(id);

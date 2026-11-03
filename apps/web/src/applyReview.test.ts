@@ -207,3 +207,34 @@ test("an issue raised by code again is new only if none asks the same about the 
   assert.equal(isNewCodeIssue({ question: "Where does the slur end?", boxes: [on(3)] }, existing), true);
   assert.equal(isNewCodeIssue({ question: "Where does the tie end?", boxes: [on(2)] }, existing), true);
 });
+
+// docs/stages/music.md, `apply_review`, "When an answer can't be applied as given" (decided 2026-11-03).
+test("reverts of an issue with no applied answer choose what the transcription has; a resolved issue's revert is taken as given", () => {
+  const unknown = issue(1, [on(2)], { source: "code", applied: null });
+  const resolved = issue(2, [on(2)], { source: "user", resolved: true, applied: null, answers: [{ key: "a", text: "A C flat" }], choices: [{ by: "human-1", key: "a", reason: null }] });
+  const issues = new Map([unknown, resolved].map((i) => [i.id, i]));
+  const ctx: ApplyContext = { window: [2], allowed: [1, 2, 3], answers: answers(), toApply: [1, 2], issues };
+  const check = (choices: object[]) => checkPatch({ ...empty, choices }, ctx);
+  const problem = (choices: object[]) => {
+    const r = check(choices);
+    return "problem" in r ? r.problem : null;
+  };
+  // An existing answer other than the chosen one, or a new one; not both, not neither, not the chosen one.
+  assert.equal(problem([{ issue: 1, key: "a", newAnswer: null, reason: "No D there." }]), null);
+  assert.match(problem([{ issue: 1, key: "b", newAnswer: null, reason: "No D there." }])!, /chooses its chosen answer/);
+  assert.match(problem([{ issue: 1, key: "a", newAnswer: "An E", reason: "No D there." }])!, /exactly one/);
+  assert.match(problem([{ issue: 1, key: null, newAnswer: null, reason: "No D there." }])!, /exactly one/);
+  assert.match(problem([{ issue: 1, key: null, newAnswer: "A C", reason: "No D there." }])!, /choose it by its key/);
+  const written = check([{ issue: 1, key: null, newAnswer: " An E ", reason: "No D there." }]);
+  assert.ok(!("problem" in written));
+  assert.deepEqual(written.choices, [{ issue: 1, key: "c", newAnswer: { key: "c", text: "An E" }, reason: "No D there." }]);
+  // After the calls: the new answer is there, chosen and applied, with no application ("[in this transcription]").
+  const call: StoredApplyCall = { system: 2, window: [2], ...empty, choices: written.choices, applied: [], changed: [], warnings: [] };
+  const after = appliedIssues(issues, [call], "apply-1").get(1)!;
+  assert.deepEqual(after.answers.at(-1), { key: "c", text: "An E" });
+  assert.equal(after.applied, "c");
+  assert.equal(after.applications, undefined);
+  assert.equal(needsApplying(after), false);
+  // A resolved issue: whatever it chose, taken (the stage then stops, runApplyReview).
+  assert.deepEqual(problem([{ issue: 2, key: "zz", newAnswer: null, reason: "No such note." }]), null);
+});
