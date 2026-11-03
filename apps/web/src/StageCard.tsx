@@ -284,7 +284,8 @@ function ArtifactTile({
     <button type="button" className="output-tile" aria-current={selected ? "true" : undefined} onClick={onSelect}>
       <span className="output-thumb">
         <ArtifactIcon artifact={artifact} />
-        {artifact.count > 1 && <span className="output-count">×{artifact.count}</span>}
+        {/* A Transcription doesn't count its systems: "×2" read as two transcriptions. */}
+        {artifact.count > 1 && artifact.kind !== "music" && <span className="output-count">×{artifact.count}</span>}
       </span>
       <span className="output-title">{artifact.title}</span>
     </button>

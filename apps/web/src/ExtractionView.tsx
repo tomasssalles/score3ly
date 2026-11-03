@@ -24,8 +24,10 @@ import { boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type Sho
 
 // `changed`: in a later stage's Transcription (a review's), the keys of the notes of the issues it changed: raised, or
 // chose on (its kept agreements aren't changes). Null in `extract`'s, where everything is new.
-// `reverted`: in an Apply review's, the issues it couldn't apply as given, with its reasons.
+// `reverted`: in an Apply review's, the issues it couldn't apply as given, with its reasons; `changedMeasures`: the
+// measures whose stretches it changed ("p1m3": piece 1, its third measure), tinted in the renderings.
 type Loaded = {
+  changedMeasures: Set<string>;
   systems: (ShownSystem & { recipe: CropRecipe })[];
   notes: Note[];
   score: Score | { problem: string };
@@ -71,10 +73,12 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
       }
       // An Apply review's Transcription: the issues it applied or reverted are its changes.
       let reverted: Loaded["reverted"] = [];
+      let changedStretches: { system: number; stretch: number }[] = [];
       if (data.apply) {
         const calls = await Promise.all(data.apply.calls.map(async (c) => (await fetchJsonContent(c.sha256)) as StoredApplyCall));
         const byId = new Map([...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])].map((i) => [i.id, i]));
         changed = new Set(calls.flatMap((c) => [...c.applied, ...c.choices.map((x) => x.issue)]).map((id) => `issue-${id}`));
+        changedStretches = calls.flatMap((c) => c.changed);
         reverted = calls
           .sort((a, b) => a.system - b.system)
           .flatMap((c) => c.choices.flatMap((x) => (byId.has(x.issue) ? [{ issue: byId.get(x.issue)!, reason: x.reason }] : [])));
@@ -96,7 +100,8 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
           };
           return [{ ...shown, recipe }];
         });
-      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, shownChecks), score: scoreOf(systems, pieces), changed, reverted });
+      const score = scoreOf(systems, pieces);
+      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, shownChecks), score, changed, reverted, changedMeasures: measuresOf(score, changedStretches) });
     })().catch(() => !cancelled && setLoaded("error"));
     return () => {
       cancelled = true;
@@ -177,7 +182,7 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
 
   if (loaded === "error") return <div className="text-view"><p>The transcription couldn't be loaded.</p></div>;
   if (!loaded) return <div className="text-view"><p>Loading the transcription…</p></div>;
-  const { systems, score, changed, reverted } = loaded;
+  const { systems, score, changed, reverted, changedMeasures } = loaded;
   const filtering = changed !== null && onlyChanges;
   const shown = (note: Note) => !filtering || note.kind !== "issue" || changed!.has(note.key);
   const notes = loaded.notes.filter(shown);
@@ -262,7 +267,7 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
               <CropView recipe={s.recipe} label={`System ${extraction.system}`}>
                 {boxes === "shown" && <BoxOverlay boxes={boxesOnCrop(notes, extraction.page, s.crop)} colors={colors} onPick={reveal} />}
               </CropView>
-              {view === "rendered" ? <SystemRendering score={score} system={extraction.system} /> : <RawSource extraction={extraction} />}
+              {view === "rendered" ? <SystemRendering score={score} system={extraction.system} changed={changedMeasures} /> : <RawSource extraction={extraction} />}
               {own.length > 0 && (
                 <div className="system-notes">
                   {own.map((note) =>
@@ -370,10 +375,25 @@ function BoxOverlay({
 }
 
 // The system rendered by Verovio from a small MEI of its own, once it scrolls near the view.
-function SystemRendering({ score, system }: { score: Score | { problem: string }; system: number }) {
+function SystemRendering({ score, system, changed }: { score: Score | { problem: string }; system: number; changed: Set<string> }) {
   const { ref, near } = useNear();
+  const frame = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>("problem" in score ? `The music can't be rendered: ${score.problem}` : null);
+  // The measures a stage changed: a tint behind each, in the accent colour, drawn once the SVG is in the page (its
+  // boxes are known only then). A measure split across systems has a part of its own on each ("p1m3-s5t1").
+  useLayoutEffect(() => {
+    const root = frame.current;
+    if (!root || changed.size === 0) return;
+    for (const g of root.querySelectorAll<SVGGElement>("g.measure")) {
+      if (!changed.has(g.id.split("-")[0])) continue;
+      const box = g.getBBox();
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("class", "changed-measure");
+      for (const [k, v] of Object.entries({ x: box.x, y: box.y, width: box.width, height: box.height })) rect.setAttribute(k, String(v));
+      g.insertBefore(rect, g.firstChild);
+    }
+  }, [svg, changed]);
   useEffect(() => {
     if (!near || "problem" in score) return;
     let cancelled = false;
@@ -390,12 +410,25 @@ function SystemRendering({ score, system }: { score: Score | { problem: string }
     <div ref={ref} className="system-rendering">
       {svg ? (
         // At its own size (its view box, in pixels), narrower where the view is: a short system isn't blown up.
-        <div className="rendering" style={{ maxWidth: naturalWidth(svg) }} dangerouslySetInnerHTML={{ __html: svg }} />
+        <div ref={frame} className="rendering" style={{ maxWidth: naturalWidth(svg) }} dangerouslySetInnerHTML={{ __html: svg }} />
       ) : (
         <div className="rendering-placeholder">{error ?? "Rendering the music…"}</div>
       )}
     </div>
   );
+}
+
+// The measures (by their MEI ids without a part's suffix) that hold any of the stretches.
+function measuresOf(score: Score | { problem: string }, stretches: { system: number; stretch: number }[]): Set<string> {
+  const ids = new Set<string>();
+  if ("problem" in score || stretches.length === 0) return ids;
+  const wanted = new Set(stretches.map((p) => `${p.system}/${p.stretch}`));
+  for (const piece of score.pieces) {
+    for (const m of piece.measures) {
+      if (m.parts.some((p) => p.stretches.some((k) => wanted.has(`${p.system}/${k}`)))) ids.add(`p${piece.index + 1}m${m.index + 1}`);
+    }
+  }
+  return ids;
 }
 
 function naturalWidth(svg: string): number | undefined {

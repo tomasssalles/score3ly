@@ -10,6 +10,9 @@
 - Write code and tests the way that is most comfortable for you, the way you know best. There is no TDD requirement.
 - A bug found by chance in existing code is first reproduced in a test; then fixed, and the test checked to pass.
 
+## Screenshots
+- To show what was just built or changed, take screenshots of that only, with a small script of your own. Run the full screenshot script (`npm run screenshots`) only when I ask for it: it takes too long.
+
 ## Existing data
 - For now, the only users of the app are you and me, and there is no important data anywhere yet. Solutions don't have to avoid breaking existing data (migrations that keep old projects working, compatibility with what is stored), because there isn't any. I will say when I start using the app with data I care about, and this section changes then.
 
