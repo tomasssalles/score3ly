@@ -68,6 +68,22 @@ Right before the first release tag (§11, "Branches and releases"): go through t
 
 Once, right before the first release tag: every story of `docs/manual-tests.md`, the full run, not only the smoke run. What fails becomes a bug task; what the stories got wrong is fixed in them.
 
+### Try other colours for the tint of changed measures
+`#style`
+
+`docs/stages/music.md`, "`apply_review`, built": the measures an Apply review changed are tinted in the accent colour (`.changed-measure` in `styles.css`, fill-opacity 0.16). Try other colours, in both themes, and keep the one that reads best behind the notes. Only where the printed change is (decided 2026-11-03): a changed time signature tints the measure it is printed at, not the measures it affects.
+
+### A "Build MEI" stage before Engrave
+`#next`
+
+Decided 2026-11-03:
+- **A recipe stage `build_mei` ("Build MEI") right before `engrave`,** kind computed, no config: it builds the full score's MEI from the latest extraction, layout, metadata and pieces (what `engrave` builds today) and stores it. Its artifact is the MEI view (today `engrave`'s: the file beside its engraving, linked both ways).
+- **"Fix MEI manually" is in Build MEI's "⋮",** not Apply review's or Extract's: `fix_mei` reads Build MEI's stored MEI as its parent, like every fix, and the special logic goes (`fixOffered`'s rule for `fix_mei`, `fixMeiStart` rebuilding what `engrave` would build, the carried inputs).
+- **Engrave's only artifact is the PDF;** it reads the latest MEI (`fix_mei`'s, else `build_mei`'s) and keeps its page size config.
+- **The rule of what is a stage** (`docs/overview.md` §6, "A stage exists where there is a config or a decision") becomes: a config, a decision, or an output a manual stage fixes.
+- **Downloads move to a card of their own, after Engrave,** which isn't a stage: it holds only the download button (the bundle, the MEI, the PDF, the report, as today), disabled until Engrave is done. The pipeline is done when Engrave is done: downloading has nothing to do with it. The PDF and the run report are still made when a download asks for them (`downloads.ts`), never stored.
+- **To update with it:** the docs (§6's table and summaries, `docs/stages/engrave.md`, `docs/project-view.md`, the manual tests), the recipe (`RECIPE`, and a migration only if wanted: CLAUDE.md, "Existing data"), the screenshots script's seeds.
+
 ### Model configs for stages, and managing them
 `#next-release`
 
