@@ -216,7 +216,7 @@ From the most local to the most interrupting; always the most local one that the
 
 - **"Select", not "pick"** (decided), for choosing items in a list or filter: "no projects selected".
 - **English, plain and short,** in sentence case ("Change config", "Fix layout manually", "Run mode for new projects"). No jargon where a plain word exists; the user is a musician, not an engineer. Technical names (MEI, LilyPond, PDF) are fine where they are the thing itself.
-- **Names of things are consistent:** a step is called the same on its card, in its menu items, in toasts and in the docs. A manual stage is "Fix X", added with "Fix X manually".
+- **Names of things are consistent:** a step is called the same on its card, in its menu items, in toasts and in the docs. A manual stage is "Fix X", added with "Fix X manually", except Human review, a review done by a person rather than a fix, added with "Add Human review" (`docs/stages/music.md`, "Its name").
 - **Labels and buttons have no period; sentences do.** Toasts and status lines are labels.
 - **An ellipsis (…) means "in progress"** ("Analyze…", "Preparing…"); never used for decoration.
 - **The middle dot (·) joins facts** on one line: "2s · 54 systems · 3 issues".

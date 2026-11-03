@@ -182,6 +182,8 @@ One call per system, with the same input as `extract`, plus the extraction (in t
 
 ## `human_review` (Human review)
 
+**Its name** (decided, 2026-11-03): "Human review", not "Fix X" like the other manual stages. It isn't a fix of something before it: not of `apply_review` or of the review, and only indirectly of the extraction; it also creates issues of its own, so neither "Fix issues" nor "Fix choices" covers it. And a fix is final, while a human review can be followed by another review, another human review, and so on. It is a review like `review` in every way except who performs it. So it is added with **"Add Human review"** in an `apply_review`'s "⋮" (like "Add review"), not "Human review manually". Like every manual stage, its icon is the wrench.
+
 The user picks another answer for an issue, or writes one that isn't in the list ("none of these, but ..."). The user also adds issues of their own to correct something no model raised.
 - **Adding a correction:** the user draws one or more boxes on the original score, with the box tool of `fix_layout` (tap, tap at two opposite corners), and writes the correction as free text ("this should be a C flat"). It becomes an issue like any other (below).
 - **The warnings of the version being reviewed** are shown too (see `docs/notation.md`, "Warnings"). The user never sees MEI or LilyPond.
