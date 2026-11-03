@@ -28,6 +28,16 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 ## The tasks
 
+### Move the tasks to GitHub issues
+`#next-release`
+
+After the first release, work turns from quick, large changes to one issue at a time with mostly localized changes, and outside users (and perhaps contributors) report problems: GitHub issues are the place for that (discussed 2026-11-03). So the tasks in this file go, gradually: some are done, the rest are moved to issues, reworded and organized on the way (the tags become labels), and fewer and fewer new tasks are added here, until only "Delete the tasks file" is left. Decisions still go into the docs, as now.
+
+### Delete the tasks file
+`#next-release`
+
+Once this file holds only this task (see "Move the tasks to GitHub issues"), delete it and work with GitHub issues from then on: update `CLAUDE.md` and the docs that point here (`docs/overview.md`'s "The docs" and §15, and the references to tasks by name across the docs). Temporary task files in feature or release branches stay possible later.
+
 ### Generate the prompt's token list from the parser
 
 `docs/notation.md`, "The symbolic format": the description of the symbolic format in `extract`'s prompt (`MUSIC` in `packages/prompts/src/extract.ts`) is written by hand, and the parser (`packages/notation`) accepts a closed list of tokens. The plan was to generate the prompt's list from the parser's code, so that the two can never drift apart: every token the parser accepts is described, and nothing it rejects is offered. A change of the generated text changes the prompt's version.
