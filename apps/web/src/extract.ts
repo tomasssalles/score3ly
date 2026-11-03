@@ -108,6 +108,10 @@ export type StoredIssue = {
   // answer already applied, for an answer it couldn't apply as given (docs/stages/music.md, `apply_review`).
   choices: { by: string; key: string; reason: string | null; kept?: true; reverted?: true }[];
   applied: string | null;
+  // Who put which answer in the transcription, in order: "extract" for Extract's own issues and those its checks raised,
+  // an Apply review by its stage id (docs/stages/music.md, "An issue's card"). None for an issue raised after its
+  // transcription was written (a review's new issue, code's on an Apply review's transcription).
+  applications?: { by: string; key: string }[];
   resolved: boolean;
   lilypond: string[] | null;
 };
@@ -144,6 +148,7 @@ export function storedExtraction(
     answers: issue.answers,
     choices: [{ by: "extract", key: issue.applied, reason: null }],
     applied: issue.applied,
+    applications: [{ by: "extract", key: issue.applied }],
     resolved: false,
     lilypond: issue.class === "format" ? issue.lilypond : null,
   });
@@ -177,7 +182,20 @@ export function storedScoreChecks(
 }
 
 function codeIssue(issue: CodeIssue, id: number, places: (list: StretchPlace[]) => { page: number; box: Box }[]): StoredIssue {
-  return { id, source: "code", class: "reading", boxes: places(issue.places), location: null, question: issue.question, answers: issue.answers, choices: [], applied: issue.applied, resolved: false, lilypond: null };
+  return {
+    id,
+    source: "code",
+    class: "reading",
+    boxes: places(issue.places),
+    location: null,
+    question: issue.question,
+    answers: issue.answers,
+    choices: [],
+    applied: issue.applied,
+    applications: issue.applied === null ? [] : [{ by: "extract", key: issue.applied }],
+    resolved: false,
+    lilypond: null,
+  };
 }
 
 // The stage key (§5.2): the step, its version, the prompt's and the lens's versions, the model, the images' recipe,

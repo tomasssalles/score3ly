@@ -5,6 +5,7 @@
 import { buildScore, type Box, type Score } from "@score3ly/notation";
 import type { LayoutSystem } from "@score3ly/prompts";
 import { systemCropBox, type StoredExtraction, type StoredIssue, type StoredWarning } from "./extract.ts";
+import type { Chooser } from "./pipeline.ts";
 
 export type ShownSystem = { extraction: StoredExtraction; layout: LayoutSystem; crop: Box };
 
@@ -76,4 +77,21 @@ export function scoreOf(systems: ShownSystem[], pieces: number[]): Score | { pro
   } catch (err) {
     return { problem: err instanceof Error ? err.message : String(err) };
   }
+}
+
+// An answer's suffixes (docs/stages/music.md, "An issue's card"), at most two: on the applied answer, who put it in the
+// transcription (the latest application; "in this transcription" for an issue raised after it was written), and on
+// the latest choice, who chose it, when a stage other than Extract or a person did. A revert is a choice like any
+// other: "chosen by Apply review 1".
+export function answerTags(issue: StoredIssue, key: string, choosers: Record<string, Chooser>): string[] {
+  const tags: string[] = [];
+  if (key === issue.applied) {
+    const last = issue.applications?.at(-1);
+    const by = last?.key === key ? last.by : null;
+    tags.push(by === null ? "in this transcription" : by === "extract" ? "written by Extract" : `applied by ${choosers[by]?.label ?? by}`);
+  }
+  const latest = issue.choices[issue.choices.length - 1];
+  const chooser = latest && latest.by !== "extract" ? choosers[latest.by] : undefined;
+  if (latest?.key === key && chooser) tags.push(`${chooser.person ? "confirmed" : latest.kept ? "kept" : "chosen"} by ${chooser.label}`);
+  return tags;
 }

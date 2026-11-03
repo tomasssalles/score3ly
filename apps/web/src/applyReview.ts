@@ -260,7 +260,7 @@ export function appliedIssues(issues: Map<number, StoredIssue>, calls: StoredApp
     for (const id of call.applied) {
       const issue = out.get(id);
       const last = issue && latest(issue);
-      if (issue && last) out.set(id, { ...issue, applied: last.key });
+      if (issue && last) out.set(id, { ...issue, applied: last.key, applications: [...(issue.applications ?? []), { by: stageId, key: last.key }] });
     }
   }
   return out;

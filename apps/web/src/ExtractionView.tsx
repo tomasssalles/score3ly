@@ -20,7 +20,7 @@ import { renderMei } from "./rendering";
 import { applyEntries, withKept, type StoredReview } from "./review";
 import type { StoredApplyCall } from "./applyReview";
 import { stepInfo } from "./steps";
-import { boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
+import { answerTags, boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
 
 // `changed`: in a later stage's Transcription (a review's), the keys of the notes of the issues it changed: raised, or
 // chose on (its kept agreements aren't changes). Null in `extract`'s, where everything is new.
@@ -478,17 +478,6 @@ function RawSource({ extraction }: { extraction: StoredExtraction }) {
 // The classes of issues as users read them: words that say what the problem is (docs/stages/music.md, "An issue's card").
 const ISSUE_CLASS_LABELS: Record<StoredIssue["class"], string> = { reading: "[unclear]", format: "[cannot be encoded]" };
 
-// An answer's suffixes (docs/stages/music.md, "An issue's card"): the one in the transcription shown, and the latest
-// choice, when a review or a person made it (in `extract`'s own view, its choice is the applied answer anyway).
-function answerTags(issue: StoredIssue, key: string, choosers: Record<string, Chooser>): string[] {
-  const tags = key === issue.applied ? ["in this transcription"] : [];
-  const latest = issue.choices[issue.choices.length - 1];
-  const chooser = latest && latest.by !== "extract" ? choosers[latest.by] : undefined;
-  if (latest?.key === key && chooser) {
-    tags.push(chooser.person ? "confirmed" : `${latest.reverted ? "reverted to" : latest.kept ? "kept" : "chosen"} by ${chooser.label}`);
-  }
-  return tags;
-}
 
 function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIssue; color?: string; choosers: Record<string, Chooser> }) {
   return (
