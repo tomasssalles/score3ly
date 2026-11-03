@@ -58,3 +58,30 @@ test("a human review reads the transcription of the Apply review it follows", ()
   } as unknown as ApiStage;
   assert.deepEqual(humanReviewStart(after), { stepVersion: HUMAN_REVIEW_VERSION, pageCount: 2, inputIds: ["e1", "c"] });
 });
+
+import { chooseAnswer, clearChoice, scoreOrder, userChoice, writeAnswer } from "./humanReview.ts";
+
+test("the user's choice: one per issue, an existing answer or a written one, taken back", () => {
+  let stored = chooseAnswer({ entries: [] }, issue(1), "b");
+  stored = chooseAnswer(stored, issue(2), "a");
+  assert.deepEqual(userChoice(stored, 1), { key: "b", newAnswer: null });
+  stored = writeAnswer(stored, issue(1), "  An accent ");
+  assert.deepEqual(userChoice(stored, 1), { key: "c", newAnswer: { key: "c", text: "An accent" } });
+  assert.equal(stored.entries.length, 2);
+  // A written answer that is one of the answers chooses it; empty text changes nothing.
+  assert.deepEqual(userChoice(writeAnswer(stored, issue(1), "a SMUDGE"), 1), { key: "b", newAnswer: null });
+  assert.equal(writeAnswer(stored, issue(1), "  "), stored);
+  stored = clearChoice(stored, 1);
+  assert.equal(userChoice(stored, 1), null);
+  assert.deepEqual(userChoice(stored, 2), { key: "a", newAnswer: null });
+});
+
+test("issues in the score's order: page, then system, then from left to right", () => {
+  const at = (id: number, page: number, left: number, top: number) => issue(id, { boxes: [{ page, box: { left, right: left + 0.1, top, bottom: top + 0.05 } }] });
+  const systems = [
+    { left: 0, right: 1, top: 0.1, bottom: 0.3 },
+    { left: 0, right: 1, top: 0.5, bottom: 0.7 },
+  ];
+  const order = scoreOrder([at(1, 2, 0.1, 0.15), at(2, 1, 0.5, 0.55), at(3, 1, 0.8, 0.15), at(4, 1, 0.2, 0.55), at(5, 1, 0.1, 0.15)], () => systems);
+  assert.deepEqual(order.map((i) => i.id), [5, 3, 4, 2, 1]);
+});

@@ -49,6 +49,9 @@ export type Artifact = {
     review?: { stageId: string; calls: { item: string; sha256: string }[]; done: boolean };
     // An Apply review's Transcription: its calls, for the issues it reverted and changed.
     apply?: { stageId: string; calls: { item: string; sha256: string }[] };
+    // A human review's Transcription: what it stored (its entries), applied to the issues of the transcription it
+    // reviewed; while WIP, its screen (with the artifact's `editor`).
+    human?: { stageId: string; sha256: string | null };
   };
   // `engrave`'s MEI file, with the stage's config for its engraving; shown as the file or as the engraving. Both can be
   // downloaded.

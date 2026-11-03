@@ -60,7 +60,27 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
     fitScale.current = scale;
     setView({ scale, x: (el.clientWidth - image.width * scale) / 2, y: (el.clientHeight - image.height * scale) / 2 });
   }
-  useLayoutEffect(fit, [image]);
+  // A rectangle (in image px) to show once the image is there: see `show`.
+  const pending = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
+  useLayoutEffect(() => {
+    fit();
+    if (pending.current) show(pending.current);
+  }, [image]);
+
+  // A rectangle of the image (in image px) in the middle of the view, with room around it for context, at most 1.5
+  // times the image's own size and never smaller than the whole page; a later image (another page) waits for it.
+  function show(rect: { left: number; top: number; right: number; bottom: number }) {
+    const el = ref.current;
+    if (!el || !image) {
+      pending.current = rect;
+      return;
+    }
+    pending.current = null;
+    const w = Math.max(1, rect.right - rect.left);
+    const h = Math.max(1, rect.bottom - rect.top);
+    const scale = Math.max(fitScale.current, Math.min(1.5, (el.clientWidth * 0.5) / w, (el.clientHeight * 0.4) / h));
+    setView({ scale, x: el.clientWidth / 2 - ((rect.left + rect.right) / 2) * scale, y: el.clientHeight / 2 - ((rect.top + rect.bottom) / 2) * scale });
+  }
 
   // Zooms by `factor` around a point of the viewport, which stays where it is.
   function zoomAt(at: Point, factor: number) {
@@ -175,6 +195,7 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
     scale: view.scale,
     transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
     fit,
+    show,
     zoomBy,
     focus: () => ref.current?.focus({ preventScroll: true }),
     dragging: () => gesture.current.kind === "drag",

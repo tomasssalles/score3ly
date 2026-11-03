@@ -14,6 +14,7 @@ import { PdfView } from "./PdfView";
 import { SkewEditor } from "./SkewEditor";
 import { AnalysisView } from "./AnalysisView";
 import { EngravingView } from "./EngravingView";
+import { HumanReviewEditor } from "./HumanReviewEditor";
 import { ExtractionView } from "./ExtractionView";
 import { FixMeiView } from "./FixMeiView";
 import { LayoutEditor } from "./LayoutEditor";
@@ -58,14 +59,9 @@ export function ArtifactContent({
   if (artifact.kind === "pdf") return <PdfView key={project.pdfSha256} url={pdfUrl(project.pdfSha256)} />;
   const pages = artifact.pages;
   if (artifact.analysis) return <AnalysisView key={artifact.id} project={project} artifact={artifact} onEdited={onEdited} />;
-  // A WIP human review's screen (docs/stages/music.md, `human_review`): not built yet.
-  if (artifact.editor?.step === "human_review") {
-    return (
-      <div className="text-view">
-        <p>Answering the issues and adding your own come in a later version.</p>
-        <p>For now, finishing keeps the transcription and its issues as they are.</p>
-      </div>
-    );
+  // A WIP human review's screen (docs/stages/music.md, `human_review`).
+  if (artifact.editor?.step === "human_review" && artifact.extraction) {
+    return <HumanReviewEditor key={artifact.id} project={project} artifact={artifact} onEdited={onEdited} />;
   }
   if (artifact.extraction) return <ExtractionView key={artifact.id} artifact={artifact} />;
   // A WIP manual stage's artifact is its editor (docs/project-view.md).

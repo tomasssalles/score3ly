@@ -19,8 +19,9 @@ import type { Artifact, Chooser } from "./pipeline";
 import { renderMei } from "./rendering";
 import { applyEntries, withKept, type StoredReview } from "./review";
 import type { StoredApplyCall } from "./applyReview";
+import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
 import { stepInfo } from "./steps";
-import { answerTags, boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
+import { answerTags, type AnswerTag, boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
 
 // `changed`: in a later stage's Transcription (a review's), the keys of the notes of the issues it changed: raised, or
 // chose on (its kept agreements aren't changes). Null in `extract`'s, where everything is new.
@@ -71,6 +72,17 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
             .map((i) => `issue-${i.id}`),
         );
       }
+      // A human review's Transcription: the issues with the user's answers (docs/stages/music.md, `human_review`); the
+      // issues answered are its changes.
+      if (data.human) {
+        const human = data.human;
+        const stored: StoredHumanReview = human.sha256 ? ((await fetchJsonContent(human.sha256)) as StoredHumanReview) : { entries: [] };
+        const base = [...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])];
+        const issues = humanReviewedIssues(new Map(base.map((i) => [i.id, i])), stored, human.stageId);
+        for (const e of extractions) e.extraction = { ...e.extraction, issues: e.extraction.issues.map((i) => issues.get(i.id)!) };
+        if (checks) shownChecks = { ...checks, issues: checks.issues.map((i) => issues.get(i.id)!) };
+        changed = new Set([...issues.values()].filter((i) => i.choices.some((c) => c.by === human.stageId)).map((i) => `issue-${i.id}`));
+      }
       // An Apply review's Transcription: the issues it applied or reverted are its changes.
       let reverted: Loaded["reverted"] = [];
       let changedStretches: { system: number; stretch: number }[] = [];
@@ -113,6 +125,7 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
     data.review?.calls.map((c) => c.sha256).join(),
     data.review?.done,
     data.apply?.calls.map((c) => c.sha256).join(),
+    data.human?.sha256,
   ]);
   return loaded;
 }
@@ -476,7 +489,7 @@ function RawSource({ extraction }: { extraction: StoredExtraction }) {
 }
 
 // The classes of issues as users read them: words that say what the problem is (docs/stages/music.md, "An issue's card").
-const ISSUE_CLASS_LABELS: Record<StoredIssue["class"], string> = { reading: "[unclear]", format: "[cannot be encoded]" };
+export const ISSUE_CLASS_LABELS: Record<StoredIssue["class"], string> = { reading: "[unclear]", format: "[cannot be encoded]" };
 
 
 function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIssue; color?: string; choosers: Record<string, Chooser> }) {
@@ -497,18 +510,7 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
             return (
               <li key={a.key}>
                 {a.key}) {a.text}
-                {tags.map((t) => (
-                  <span key={t.words} className="answer-tag">
-                    {" "}[{t.words}
-                    {t.stage && (
-                      <>
-                        {" "}
-                        <strong>{t.stage}</strong>
-                      </>
-                    )}
-                    ]
-                  </span>
-                ))}
+                <AnswerTags tags={tags} />
               </li>
             );
           })}
@@ -524,9 +526,29 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
   );
 }
 
+// An answer's suffixes, muted, the stage they name in bold (docs/stages/music.md, "An issue's card").
+export function AnswerTags({ tags }: { tags: AnswerTag[] }) {
+  return (
+    <>
+      {tags.map((t) => (
+        <span key={t.words} className="answer-tag">
+          {" "}[{t.words}
+          {t.stage && (
+            <>
+              {" "}
+              <strong>{t.stage}</strong>
+            </>
+          )}
+          ]
+        </span>
+      ))}
+    </>
+  );
+}
+
 // Who chose which answer, in order; a choice with a reason has an "i" after it that shows the reason on a line below
 // (docs/stages/music.md, "An issue's card": the reasons are for later reviewers, shown only on request).
-function Choices({ choices, choosers }: { choices: StoredIssue["choices"]; choosers: Record<string, Chooser> }) {
+export function Choices({ choices, choosers }: { choices: StoredIssue["choices"]; choosers: Record<string, Chooser> }) {
   const [open, setOpen] = useState<Set<number>>(new Set());
   const name = (by: string) => choosers[by]?.label ?? stepInfo(by).title;
   const toggle = (i: number) => {

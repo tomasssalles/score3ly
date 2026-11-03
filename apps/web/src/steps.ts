@@ -360,7 +360,7 @@ function transcription(
   stage: ApiStage,
   transcribed: ApiStage,
   earlier: ApiStage[],
-  extra: Pick<NonNullable<Artifact["extraction"]>, "review" | "apply"> = {},
+  extra: Pick<NonNullable<Artifact["extraction"]>, "review" | "apply" | "human"> = {},
 ): Artifact[] {
   const systems = transcribed.outputs
     .filter((o) => o.type === "extraction" && o.contentSha256 !== null)
@@ -416,8 +416,7 @@ STEPS.apply_review = {
 };
 
 // A review done by a person (docs/stages/music.md, `human_review`), added with "Add Human review" after an Apply review,
-// not as a fix. Its artifact is the Transcription it reviews; while WIP, the screen for the review. (First step: no
-// screen yet, and no entries; the Transcription shows the issues as they were.)
+// not as a fix. Its artifact is the Transcription it reviews, with its entries; while WIP, the screen for the review.
 STEPS.human_review = {
   title: "Human review",
   kind: "manual",
@@ -426,7 +425,8 @@ STEPS.human_review = {
   artifacts: (stage, earlier) => {
     const transcribed = [...earlier].reverse().find((s) => EXTRACTION_STEPS.includes(s.step));
     if (!transcribed) return [];
-    const artifacts = transcription(stage, transcribed, earlier);
+    const sha256 = stage.outputs.find((o) => o.item === "" && o.type === "human_review")?.contentSha256 ?? null;
+    const artifacts = transcription(stage, transcribed, earlier, { human: { stageId: stage.id, sha256 } });
     const editor = stage.status === "wip" ? { stageId: stage.id, step: "human_review" } : undefined;
     return artifacts.map((a) => ({ ...a, editor }));
   },

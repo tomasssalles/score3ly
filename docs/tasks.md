@@ -45,12 +45,10 @@ Once this file holds only this task (see "Move the tasks to GitHub issues"), del
 ### `human_review`
 `#next`
 
-`docs/stages/music.md` (`human_review`), built in steps (decided 2026-11-03). **Done, the first step** (`docs/stages/music.md`, "`human_review`, built"): the stage with everything around it and an empty screen. **Left, in this order:**
-- **Answering existing issues:** the issue panel on the original; the answers stored as the stage's entries (choices, a written answer as a new one).
+`docs/stages/music.md` (`human_review`), built in steps (decided 2026-11-03). **Done** (`docs/stages/music.md`, "`human_review`, built"): the stage with everything around it, and answering the existing issues. **Left, in this order:**
 - **The user's own issues:** the box tool of `fix_layout`, the 2-system rule, ids from code (`reserveIssueNumbers`).
 - **The warnings' boxes** on the original.
 - **The rendering panel,** with scrolling and zoom linked system by system, and the measures whose stretches changed highlighted.
-- **The Transcription after a human review** shows its entries (its choices and issues), as a review's does, with the Δ toggle.
 - **Reverts** (decided 2026-11-03, `docs/stages/music.md`, `apply_review`, "When an answer can't be applied as given"), once real answers reach Apply review: to build: a revert of an issue with no applied answer chooses a matching existing answer or adds one ("[in this transcription]"), which becomes `applied`; an answer of a resolved issue that can't be applied fails the stage, pointing to editing the human review; `checkPatch` and the prompt changed to match.
 
 ### A manual test suite
