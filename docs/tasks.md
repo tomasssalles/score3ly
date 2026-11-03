@@ -89,12 +89,6 @@ Decided 2026-11-02: `docs/llm.md`, "Which config a stage uses" and "Managing mod
 - **The settings page:** "Make default" in the create and clone forms, none in the cards' "⋮"; Rename, Clone (with "Delete the original" and the duplicate checks with their rename offers) and Delete on each config, no Edit. Part of "Settings page, the model configs".
 - **Rename and clone** in the Worker: a request that changes only the name (unique, like a new config's), and clone as a create, with the original deleted when "Delete the original" is ticked (the editing endpoint is gone, 2026-11-02).
 
-### The issue card: what is still open
-`#next` `#style`
-
-`docs/stages/music.md`, "The Transcription", "An issue's card":
-- **Resolved issues:** to discuss.
-
 ### The costs view: the order of long lists
 `#decision`
 
@@ -493,7 +487,7 @@ Checking Bedrock's and Vertex AI's prices against the list prices that stand in 
 ### Gemini on Vertex AI
 `#next-release`
 
-§7.2: not built; only Claude runs on Vertex AI, and Gemini only on Google AI Studio. Needed for the task "Try the app with Gemini 3.1 Pro on Vertex AI". Gemini 3.1 Pro may be offered on Vertex AI's global endpoint only, not in the EU (to check; §10, "Data residency").
+§7.2: not built; only Claude runs on Vertex AI, and Gemini only on Google AI Studio. **The providers for the first release** (decided 2026-11-03): Claude on Anthropic's API, Vertex AI and Bedrock, Gemini on Google AI Studio and Vertex AI; that is plenty (not Claude on Microsoft's cloud, nor other model families or resellers). Needed for the task "Try the app with Gemini 3.1 Pro on Vertex AI". Gemini 3.1 Pro may be offered on Vertex AI's global endpoint only, not in the EU (to check; §10, "Data residency").
 
 ### Make the first real request on Bedrock
 `#next` `#owner`
