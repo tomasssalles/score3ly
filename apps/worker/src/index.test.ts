@@ -1166,6 +1166,77 @@ test("a further review: added after an Apply review with its own, dropped with i
   assert.deepEqual(await steps(), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "build_mei", "engrave"]);
 });
 
+// Human reviews (docs/stages/music.md, `human_review`): added WIP after a done Apply review, right after it, with a
+// planned Apply review of its own; never as a fix; finished, edited, dropped with its Apply review, carried.
+test("a human review: added after a done Apply review with its own, finished, edited, dropped with it, carried", async () => {
+  const project = await createdProject("human.pdf");
+  const steps = async () => (await pipelineOf(project.id)).map((s) => s.step);
+  const run = async (index: number, text: string, inputIds: string[] = []) => {
+    const stage = (await pipelineOf(project.id))[index];
+    const config = (stage.config as Record<string, unknown> | null) ?? {};
+    assert.equal((await call(project.id, stage.id, "start", { stepVersion: 1, config, stageKey: crypto.randomUUID().replace(/-/g, "").repeat(2), pageCount: 1, inputIds })).status, 200);
+    assert.equal((await call(project.id, stage.id, "outputs", { outputs: [{ item: "", type: "x", contentSha256: await putContent(text) }] })).status, 200);
+    assert.equal((await call(project.id, stage.id, "finish", { status: "done" })).status, 204);
+    return (await pipelineOf(project.id))[index];
+  };
+  const start = (inputIds: string[]) => ({ stepVersion: 1, pageCount: 1, inputIds });
+  let pipeline = await pipelineOf(project.id);
+  // Only after a done Apply review, and never as a fix.
+  assert.equal((await call(project.id, pipeline[7].id, "human-review", start([]))).status, 409);
+  for (let i = 1; i <= 7; i++) await run(i, `stage ${i}`);
+  pipeline = await pipelineOf(project.id);
+  assert.equal((await call(project.id, pipeline[6].id, "human-review", start([]))).status, 409);
+  assert.equal((await call(project.id, pipeline[7].id, "fix", { step: "human_review", ...start([]) })).status, 409);
+  const applyOutputs = pipeline[7].outputs.map((o) => o.id as string);
+  const added = await call(project.id, pipeline[7].id, "human-review", start(applyOutputs));
+  assert.equal(added.status, 200);
+  const { stageId } = (await added.json()) as { stageId: string };
+  pipeline = await pipelineOf(project.id);
+  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "human_review", "apply_review", "build_mei", "engrave"]);
+  assert.equal(pipeline[8].id, stageId);
+  assert.deepEqual(pipeline.slice(8, 10).map((s) => [s.status, s.inRecipe, s.config]), [
+    ["wip", false, {}],
+    ["planned", false, { modelConfigId: "fake-model" }],
+  ]);
+  // Its Apply review can't be dropped by itself.
+  assert.equal((await call(project.id, pipeline[9].id, "drop")).status, 409);
+
+  // Saved, finished; its Apply review runs.
+  assert.equal((await call(project.id, stageId, "outputs", { outputs: [{ item: "", type: "human_review", contentSha256: await putContent("no entries") }] })).status, 200);
+  assert.equal((await call(project.id, stageId, "finish", { status: "done" })).status, 204);
+  await run(9, "its apply");
+  // Edited: a WIP copy in its place, its Apply review replaced by a planned copy.
+  const edited = (await (await call(project.id, stageId, "edit")).json()) as { stageId: string };
+  pipeline = await pipelineOf(project.id);
+  assert.deepEqual(pipeline.slice(8, 10).map((s) => [s.step, s.status]), [["human_review", "wip"], ["apply_review", "planned"]]);
+  assert.equal(pipeline[8].id, edited.stageId);
+  assert.equal((await call(project.id, edited.stageId, "finish", { status: "done" })).status, 204);
+
+  // A change before it: carried, and dropped at its turn when what it reads changed, with its Apply review, one card.
+  assert.equal((await call(project.id, (await pipelineOf(project.id))[5].id, "config", { config: { modelConfigId: "fake-model", other: 1 } }, "PUT")).status, 200);
+  pipeline = await pipelineOf(project.id);
+  assert.deepEqual(pipeline.slice(8).map((s) => [s.step, s.status, s.carried]), [
+    ["human_review", "done", true],
+    ["apply_review", "planned", false],
+    ["build_mei", "planned", false],
+    ["engrave", "planned", false],
+  ]);
+  for (let i = 5; i <= 6; i++) await run(i, `stage ${i}`);
+  const other = (await run(7, "another transcription")).outputs.map((o) => o.id as string);
+  const dropped = (await (await call(project.id, edited.stageId, "resolve", { inputIds: other })).json()) as { kept: boolean; pipeline: { stages: StageJson[]; dropped: DroppedJson[] } };
+  assert.equal(dropped.kept, false);
+  assert.deepEqual(dropped.pipeline.stages.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "build_mei", "engrave"]);
+  assert.deepEqual(dropped.pipeline.dropped.map((d) => d.step), ["human_review"]);
+
+  // Added again there: the card goes. Dropped by the user: the pair goes.
+  const applyNow = (await pipelineOf(project.id))[7];
+  const again = (await (await call(project.id, applyNow.id, "human-review", start([]))).json()) as { stageId: string; pipeline: { dropped: DroppedJson[] } };
+  assert.deepEqual(again.pipeline.dropped, []);
+  assert.equal((await steps()).length, 12);
+  assert.equal((await call(project.id, again.stageId, "drop")).status, 200);
+  assert.deepEqual(await steps(), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "build_mei", "engrave"]);
+});
+
 test("migration 0019 marks existing stages as the recipe's, unless their step is manual", () => {
   assert.deepEqual(
     migratedInRecipe.map((r) => [r.step, r.in_recipe]),

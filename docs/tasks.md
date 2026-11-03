@@ -45,8 +45,13 @@ Once this file holds only this task (see "Move the tasks to GitHub issues"), del
 ### `human_review`
 `#next`
 
-`docs/stages/music.md` (`human_review`): a manual stage, never in the recipe, added by the user; an `apply_review` is added after it automatically and is dropped with it (§5.5). With `apply_review` built (2026-11-02): add `human_review` to its reviewing steps (`REVIEWING_STEPS` in `runApplyReview.ts`), its issues' answers applied like a review's choices (`applied` null for a user's own issue: such an issue can't be reverted, `checkPatch`), the Worker's adding of the pair and its dropping with the pair (as for a further review, `withItsApply`), and the rendering highlighting the measures whose stretches changed. Its "⋮" entry is "Add Human review" in `apply_review`'s "⋮", not "… manually" (`docs/stages/music.md`, "Its name"), which needs its own logic where the menu builds the "Fix … manually" entries.
-- **Reverts** (decided 2026-11-03, `docs/stages/music.md`, `apply_review`, "When an answer can't be applied as given"): to build: a revert of an issue with no applied answer chooses a matching existing answer or adds one ("[in this transcription]"), which becomes `applied`; an answer of a resolved issue that can't be applied fails the stage, pointing to editing the human review; `checkPatch` and the prompt changed to match.
+`docs/stages/music.md` (`human_review`), built in steps (decided 2026-11-03). **Done, the first step** (`docs/stages/music.md`, "`human_review`, built"): the stage with everything around it and an empty screen. **Left, in this order:**
+- **Answering existing issues:** the issue panel on the original; the answers stored as the stage's entries (choices, a written answer as a new one).
+- **The user's own issues:** the box tool of `fix_layout`, the 2-system rule, ids from code (`reserveIssueNumbers`).
+- **The warnings' boxes** on the original.
+- **The rendering panel,** with scrolling and zoom linked system by system, and the measures whose stretches changed highlighted.
+- **The Transcription after a human review** shows its entries (its choices and issues), as a review's does, with the Δ toggle.
+- **Reverts** (decided 2026-11-03, `docs/stages/music.md`, `apply_review`, "When an answer can't be applied as given"), once real answers reach Apply review: to build: a revert of an issue with no applied answer chooses a matching existing answer or adds one ("[in this transcription]"), which becomes `applied`; an answer of a resolved issue that can't be applied fails the stage, pointing to editing the human review; `checkPatch` and the prompt changed to match.
 
 ### A manual test suite
 `#manual-test` `#owner`

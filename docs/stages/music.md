@@ -168,7 +168,7 @@ One call per system, with the same input as `extract`, plus the extraction (in t
 
 (`apps/web/src/runApplyReview.ts`, `applyReview.ts`; the prompt and schema in `packages/prompts/src/applyReview.ts`), built 2026-11-02, tested with unit tests and with the fake provider, not yet with a real model (the prompt is a draft):
 - **The recipe's eighth stage,** right after the review and before `engrave`. No migration gives existing projects one (no data to keep yet, CLAUDE.md); a new project has it.
-- **What it reads:** the latest transcription before it (as `review` does), the review between that transcription and it (its stored calls, applied to the issues as the review's view applies them, with its agreements), and the same layout, observations and pieces. Only `review` counts as a reviewing step so far; `human_review` joins it when it is built.
+- **What it reads:** the latest transcription before it (as `review` does), the review between that transcription and it (its stored calls, applied to the issues as the review's view applies them, with its agreements), and the same layout, observations and pieces. `review` and `human_review` are its reviewing steps (`REVIEWING_STEPS`).
 - **The calls** (`applyCalls`): one per system where an issue that needs applying begins (the first system its boxes cover), with its issues in the order of their ids; the window is that system and the next when an issue reaches it. The systems a call may change are the window and the systems right before and after it, within the piece.
 - **A call's prompt,** in one user message: the score as it was when the stage started, the same text as `review`'s (`reviewScoreText`), with the observations; the issues as the review left them and the warnings, marked "cache up to here"; the log, one text block per earlier call (its units without their reasons, its reverts, the ids it applied), the last one marked too; then the images, each after its caption: the previous system, each window system and its stretches, the next system, all with the issues' boxes drawn and labelled with their ids (no clean copies); then the request: the window, its systems as they are now (with the earlier calls' changes, each stretch with code's `measure`, the descriptions included), the systems right before and after it, the links of the window's systems, the issues to apply (places, location, question, answers, the chosen key and who chose it, `applied`), the ids of the other issues on the window, the warnings on it.
 - **The answer** (`APPLY_REVIEW_SCHEMA`): four lists, `voices` (a voice of a stretch: its music replaced whole, null removes it), `stretches` (all the fields of a stretch but its voices), `systems` (`startRepeat`, `staves`, `groups`, `lastMeasureContinues`), each unit with a `reason`, and `choices`, the reverts, `{ issue, key, reason }`. A stretch's or a system's fields are replaced as a unit, all of them: with structured output, "unchanged" can't be told from null in a nullable field, and the units are small.
@@ -180,7 +180,7 @@ One call per system, with the same input as `extract`, plus the extraction (in t
 - **Further reviews** (`POST …/stages/<apply_review>/review`): "Add review" in any Apply review's "⋮" adds a review and its Apply review right after it, planned, with the default model config, both marked as the user's (`in_recipe` 0); after an Apply review that isn't the last, the stages after them are replaced, after the confirmation. A further review has "Drop stage", which drops its Apply review too; the recipe's review and any Apply review can't be dropped. A further review that has run is carried through a re-run like a manual stage (its Apply review gets a planned copy, which the stage key finds again when the review is kept), kept at its turn if it would read the same, and dropped otherwise, with its Apply review and one card.
 - **`fix_mei`** is offered in an Apply review's "⋮" (the latest one), no longer in a review's.
 - **The fake provider** applies each issue on a window that starts on an odd system by writing a C in the first voice of the first stretch under it, and reverts every issue on a window that starts on an even one, with a made-up reason.
-- **Not done:** zoom crops; `human_review` as a reviewing step.
+- **Not done:** zoom crops.
 
 ## `human_review` (Human review)
 
@@ -204,6 +204,16 @@ The user picks another answer for an issue, or writes one that isn't in the list
   - **Code can't tell** whether the change is the chosen answer: the right stretch changed the wrong way passes. Where several issues share stretches, a change can't be credited to one of them.
   - **The answer itself** can only be verified by a model or the user looking at the result, e.g. in a later review.
 - **No editing of the source and no replacing it by an upload** (decided). Either would make the issues unreliable: after a direct edit, nobody knows which answer of each issue the MEI reflects. Direct editing comes only at the end, in `fix_mei` (§6), after which nothing needs the issues.
+
+## `human_review`, built
+
+The first step (2026-11-03; `apps/web/src/humanReview.ts`, `finishHumanReview.ts`; the Worker's `POST …/stages/<apply_review>/human-review`): the stage and everything around it, with no screen yet to answer issues or add new ones.
+- **Added** with "Add Human review" in a done Apply review's "⋮": the human review, WIP, right after it, with a planned Apply review of its own (the default model config), both marked as the user's (`in_recipe` 0); the stages after them are replaced, after the confirmation. Never as a fix (`fix` refuses the step). Its screen opens.
+- **A manual stage in every other way:** Finish, Edit (its Apply review replaced by a planned copy), "Drop stage", which drops its Apply review too (`withItsApply`), and carried through a re-run, kept if the transcription it reads (the Apply review's extractions and checks of the whole score) is the same, else dropped with its Apply review, one card for the pair. Adding one again where one was dropped takes the card away.
+- **What it stores** (item '', type `human_review`): `{ entries }`, a review's entries (`ReviewEntry`: choices, a written answer as a new answer, and new issues); recorded on Finish, with no entries for now. Its note: "0 changes".
+- **The Apply review after it** reads it as a reviewing step: its entries applied like a review call's, every issue they choose on or raise resolved (`humanReviewedIssues`), and no agreements (`kept`). With no entries nothing needs applying: "0 changes applied", no call.
+- **Its artifact:** while WIP, a screen saying that answering issues and adding one's own come later; once finished, the Transcription it reviewed, read-only.
+- **Its icon** is the wrench, as for every manual stage.
 
 ## Zooming in
 **Zoom crops on request, without tool calls** (decided, for a later version: the first version has none), for `extract`, `review` and probably `apply_review`:

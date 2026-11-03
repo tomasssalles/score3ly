@@ -42,6 +42,7 @@ export type StageActions = {
   changeConfig: (stageId: string) => void;
   addFix: (stageId: string, step: string) => void;
   addReview: (stageId: string) => void; // a further review after an Apply review (docs/stages/music.md, `apply_review`)
+  addHumanReview: (stageId: string) => void; // a human review after a done Apply review (docs/stages/music.md, `human_review`)
   edit: (stageId: string) => void;
   drop: (stageId: string) => void;
   download: (stageId: string, kind: DownloadKind) => Promise<void>; // the files the stage made (`engrave`'s)
@@ -267,6 +268,10 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
   }
   // A further review goes right after any Apply review, with an Apply review of its own.
   if (stage.stepId === "apply_review" && !stage.carried) changes.push({ label: "Add review", onSelect: () => actions.addReview(stage.id) });
+  // A human review too, once the Apply review is done: a review by a person, named as one, not as a fix.
+  if (stage.stepId === "apply_review" && !stage.carried && stage.status === "done") {
+    changes.push({ label: "Add Human review", onSelect: () => actions.addHumanReview(stage.id) });
+  }
   if (changes.length > 0) groups.push(changes);
   if (stage.droppable) {
     groups.push([{ label: "Drop stage", danger: true, onSelect: () => actions.drop(stage.id) }]);

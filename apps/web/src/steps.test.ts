@@ -22,6 +22,7 @@ const KINDS: Record<string, string> = {
   fix_layout: "manual",
   fix_metadata: "manual",
   fix_observations: "manual",
+  human_review: "manual",
   fix_mei: "manual",
 };
 

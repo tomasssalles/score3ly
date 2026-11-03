@@ -232,6 +232,16 @@ export async function addReviewStage(project: Project, afterStageId: string): Pr
   return (await send(stageUrl(project, afterStageId, "review"))).json();
 }
 
+// Adds a human review after a done Apply review, WIP, with an Apply review of its own (docs/stages/music.md,
+// `human_review`).
+export async function addHumanReviewStage(
+  project: Project,
+  afterStageId: string,
+  start: Omit<FixStart, "step">,
+): Promise<{ stageId: string; pipeline: ApiPipeline }> {
+  return (await send(stageUrl(project, afterStageId, "human-review"), start)).json();
+}
+
 // Edits a finished manual stage: a WIP copy takes its place.
 export async function editStage(project: Project, stageId: string): Promise<{ stageId: string; pipeline: ApiPipeline }> {
   return (await send(stageUrl(project, stageId, "edit"))).json();

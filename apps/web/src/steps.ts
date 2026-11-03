@@ -11,6 +11,7 @@ import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
 import { DEFAULT_ENGRAVE_CONFIG, engraveConfigOf, EXTRACTION_STEPS, PAGE_SIZES } from "./engrave.ts";
 import { fixMeiStart } from "./fixMei.ts";
+import { humanReviewStart } from "./humanReview.ts";
 
 // One field of a step's config form.
 export type ConfigField = {
@@ -414,6 +415,23 @@ STEPS.apply_review = {
   },
 };
 
+// A review done by a person (docs/stages/music.md, `human_review`), added with "Add Human review" after an Apply review,
+// not as a fix. Its artifact is the Transcription it reviews; while WIP, the screen for the review. (First step: no
+// screen yet, and no entries; the Transcription shows the issues as they were.)
+STEPS.human_review = {
+  title: "Human review",
+  kind: "manual",
+  optional: true,
+  fixes: [],
+  artifacts: (stage, earlier) => {
+    const transcribed = [...earlier].reverse().find((s) => EXTRACTION_STEPS.includes(s.step));
+    if (!transcribed) return [];
+    const artifacts = transcription(stage, transcribed, earlier);
+    const editor = stage.status === "wip" ? { stageId: stage.id, step: "human_review" } : undefined;
+    return artifacts.map((a) => ({ ...a, editor }));
+  },
+};
+
 // The stages that may have chosen answers of issues, up to a stage: reviews and human reviews numbered in their order
 // (docs/stages/music.md, "An issue's card").
 export function choosers(stages: ApiStage[]): Record<string, Chooser> {
@@ -504,6 +522,8 @@ export const FIX_STARTS: Record<string, (after: ApiStage, earlier: ApiStage[]) =
     return { stepVersion: FIX_OBSERVATIONS_VERSION, pageCount: after.pageCount, inputIds: inputs.map((o) => o.id) };
   },
   fix_mei: (after) => fixMeiStart(after),
+  // Added with its Apply review ("Add Human review"), not as a fix; here for when it is carried.
+  human_review: (after) => humanReviewStart(after),
 };
 
 // What a carried manual stage would read now (docs/overview.md §5.5): the inputs it would get if it were added now after the

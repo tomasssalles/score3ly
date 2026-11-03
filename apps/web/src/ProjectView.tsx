@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   addFixStage,
+  addHumanReviewStage,
   addReviewStage,
   dismissDropped,
   dropStage,
@@ -44,6 +45,7 @@ import { CannotStart } from "./stageRunner";
 import { useWakeLock } from "./wakeLock";
 import { setRunningProject } from "./leaveGuard";
 import { carriedInputs, FIX_STARTS, stepInfo, type ConfigContext } from "./steps";
+import { humanReviewStart } from "./humanReview";
 import { onImagesDiffer, openPdfForImages } from "./pageImages";
 import { download } from "./downloads";
 import { StageDetails } from "./StageDetails";
@@ -289,6 +291,18 @@ export function ProjectView({
     }
   }
 
+  // A human review, WIP, and its Apply review, planned, right after a done Apply review: its screen opens.
+  async function addHumanReview(afterId: string) {
+    quiet();
+    const after = stored?.stages.find((s) => s.id === afterId);
+    if (!after) return;
+    try {
+      opened(await addHumanReviewStage(project, afterId, humanReviewStart(after)));
+    } catch (err) {
+      setError(`Adding the human review failed: ${err}`);
+    }
+  }
+
   async function edit(stageId: string) {
     quiet();
     try {
@@ -485,6 +499,7 @@ export function ProjectView({
     },
     addFix: (id, step) => change(() => void addFix(id, step), fixReplaces(id), "Add stage"),
     addReview: (id) => change(() => void addReview(id), replacesLater(id), "Add review"),
+    addHumanReview: (id) => change(() => void addHumanReview(id), replacesLater(id), "Add Human review"),
     edit: (id) => change(() => void edit(id), replacesLater(id), "Edit stage"),
     // `engrave`'s files (§6, `engrave`, "Downloads"), with the report on the pipeline up to the stage.
     download: async (stageId, kind) => {

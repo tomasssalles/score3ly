@@ -7,11 +7,13 @@ import { finishFixMetadata } from "./finishFixMetadata";
 import { finishFixObservations } from "./finishFixObservations";
 import { finishFixSkew } from "./finishFixSkew";
 import { finishFixMei } from "./fixMei";
+import { finishHumanReview } from "./finishHumanReview";
 
 export const FINISHERS: Record<string, (project: Project, stage: ApiStage, pipeline: ApiPipeline) => Promise<string>> = {
   fix_skew: finishFixSkew,
   fix_layout: finishFixLayout,
   fix_metadata: finishFixMetadata,
   fix_observations: finishFixObservations,
+  human_review: finishHumanReview,
   fix_mei: finishFixMei,
 };

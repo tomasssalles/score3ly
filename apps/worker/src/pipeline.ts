@@ -53,7 +53,8 @@ const INGEST_VERSION = 1;
 
 // The manual steps (docs/overview.md §5.4). A step's kind is declared in the web app; the Worker needs to know these to
 // add, edit and drop them, and to carry them when the stages after a change are replaced (§5.5).
-export const MANUAL_STEPS = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "fix_mei"] as const;
+// `human_review` is one too, though it is added with an `apply_review` of its own (docs/stages/music.md, `human_review`).
+export const MANUAL_STEPS = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"] as const;
 
 function isManual(step: string): boolean {
   return (MANUAL_STEPS as readonly string[]).includes(step);
@@ -333,8 +334,8 @@ function isStale(stage: StageRow, now: number): boolean {
   return stage.status === "running" && (stage.heartbeat_at === null || now - Date.parse(stage.heartbeat_at) > STALE_MS);
 }
 
-// The last position that goes when the stage at `position` is dropped: a review's `apply_review` goes with it
-// (docs/overview.md §5.5, "An `apply_review` goes with its review").
+// The last position that goes when the stage at `position` is dropped: a review's or a human review's `apply_review`
+// goes with it (docs/overview.md §5.5, "An `apply_review` goes with its review").
 async function withItsApply(db: D1Database, projectId: string, position: number): Promise<number> {
   const next = await db
     .prepare("SELECT s.step FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position = ?")
@@ -344,7 +345,7 @@ async function withItsApply(db: D1Database, projectId: string, position: number)
     .prepare("SELECT s.step FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position = ?")
     .bind(projectId, position)
     .first<{ step: string }>();
-  return stage?.step === "review" && next?.step === "apply_review" ? position + 1 : position;
+  return (stage?.step === "review" || stage?.step === "human_review") && next?.step === "apply_review" ? position + 1 : position;
 }
 
 function touchProject(db: D1Database, projectId: string, now: string): D1PreparedStatement {
@@ -664,6 +665,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     ) {
       return c.json({ error: "expected a manual 'step', 'stepVersion', 'pageCount' and 'inputIds'" }, 400);
     }
+    if (step === "human_review") return c.json({ error: "a Human review is added with its Apply review" }, 409);
     const found = await entry(db, pid, sid);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage, position } = found;
@@ -822,6 +824,52 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
         .bind(ids[i], pid, step, config.configJson, config.modelConfigId, iso);
     });
     await db.batch([...statements, ...(await rewriteFrom(db, pid, position + 1, ids, position, iso)), touchProject(db, pid, iso)]);
+    return c.json({ stageId: ids[0], pipeline: await readPipeline(db, pid) });
+  });
+
+  // Adds a human review after a done `apply_review` (docs/stages/music.md, `human_review`): WIP, right after it, with a
+  // planned `apply_review` of its own (the default model config), as a further review is added. Body as for a fix:
+  // { stepVersion, pageCount, inputIds }. The stages after them are replaced. Returns the pipeline and its id.
+  app.post("/api/projects/:pid/stages/:sid/human-review", async (c) => {
+    const db = c.env.DB;
+    const { pid, sid } = c.req.param();
+    const body = await c.req.json().catch(() => null);
+    const { stepVersion, pageCount, inputIds } = body ?? {};
+    if (!Number.isInteger(stepVersion) || !(pageCount === null || Number.isInteger(pageCount)) || !isStringArray(inputIds)) {
+      return c.json({ error: "expected 'stepVersion', 'pageCount' and 'inputIds'" }, 400);
+    }
+    const found = await entry(db, pid, sid);
+    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    const { stage, position } = found;
+    if (stage.step !== "apply_review") return c.json({ error: "a Human review can only be added after an Apply review" }, 409);
+    if (stage.status !== "done") return c.json({ error: "a Human review can only follow a done stage" }, 409);
+    if (found.carried) return c.json({ error: "the stage waits for its turn" }, 409);
+    const now = new Date();
+    if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
+    const iso = now.toISOString();
+    const ids = [crypto.randomUUID(), crypto.randomUUID()];
+    const apply = newStageConfig("apply_review", null, await defaultForNewStages(db));
+    await db.batch([
+      db
+        .prepare(
+          "INSERT INTO stages (id, created_in, step, step_version, status, config_json, page_count, in_recipe, created_at, started_at) VALUES (?, ?, 'human_review', ?, 'wip', '{}', ?, 0, ?, ?)",
+        )
+        .bind(ids[0], pid, stepVersion, pageCount, iso, iso),
+      ...inputIds.map((outputId: string) =>
+        db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(ids[0], outputId),
+      ),
+      db
+        .prepare(
+          "INSERT INTO stages (id, created_in, step, status, config_json, model_config_id, in_recipe, created_at) VALUES (?, ?, 'apply_review', 'planned', ?, ?, 0, ?)",
+        )
+        .bind(ids[1], pid, apply.configJson, apply.modelConfigId, iso),
+      // A human review added again where one was dropped: its card goes (docs/overview.md §5.5).
+      db
+        .prepare("DELETE FROM dropped_stages WHERE project_id = ? AND step = 'human_review' AND after_stage_id = ?")
+        .bind(pid, sid),
+      ...(await rewriteFrom(db, pid, position + 1, ids, position, iso)),
+      touchProject(db, pid, iso),
+    ]);
     return c.json({ stageId: ids[0], pipeline: await readPipeline(db, pid) });
   });
 
