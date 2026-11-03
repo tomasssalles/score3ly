@@ -345,12 +345,13 @@ Once the app is deployed (§10): back navigation with the app's buttons and the 
 ### Rewrite the README
 `#docs`
 
-The root `README.md`; the owner wants it written properly, today it is the development notes with the logo on top: what score3ly is and does, with screenshots, how to use it, how to develop it; and badges at the top (version, license, tests passing, and the like).
+The root `README.md`; the owner wants it written properly, today it is the development notes with the logo on top: what score3ly is and does, with screenshots, how to use it, how to develop it; and badges at the top (version, license, tests passing, and the like). Wording for dropping and adding stages: see "Help".
 
 ### Help
 `#docs` `#next-release`
 
 Write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.2). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
+- **Wording to use, here and in the README** (the project owner's, 2026-11-03): *you can drop a stage you added.* That is every manual stage and every extra review; a new project already comes with a standard review, which you didn't add, so you can't drop it. *Reviews, by a model or by you, are added from an Apply review stage.*
 
 ### Try `analyze` on an excerpt that starts or ends mid-page
 `#experiment`
