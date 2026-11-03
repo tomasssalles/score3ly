@@ -3619,20 +3619,48 @@ textarea.field-input {
   font-weight: 500;
 }
 
-/* Human review's screen (docs/stages/music.md, `human_review`): the original, and the selected issue's panel beside
-   it (below it on a narrow screen). The issues' boxes are dimmed; the selected one isn't. */
+/* Human review's screen (docs/stages/music.md, `human_review`): the toolbar and hint over two panes, the original and
+   the rendering side by side (one above the other on a narrow screen); the selected issue's panel covers the rendering.
+   The boxes are dimmed; the selected one isn't. */
 .human-review {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.human-review-panes {
   flex: 1;
   min-height: 0;
   display: flex;
 }
 
-.human-review > .page-editor {
+.human-review-panes > * {
+  flex: 1 1 0;
   min-width: 0;
+  min-height: 0;
+}
+
+.human-review-panes > * + * {
+  border-left: 1px solid var(--line);
+}
+
+@media (max-width: 1023px) {
+  .human-review-panes {
+    flex-direction: column;
+  }
+  .human-review-panes > * + * {
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
 }
 
 .review-box rect:not(.layout-label) {
   stroke-width: calc(2 * var(--px));
+}
+
+.review-box.warning rect:not(.layout-label) {
+  stroke-dasharray: calc(6 * var(--px)) calc(4 * var(--px));
 }
 
 .review-box {
@@ -3647,26 +3675,55 @@ textarea.field-input {
   stroke-width: calc(3 * var(--px));
 }
 
+/* The rendering: the systems one below the other, on paper, in the grey around pages. */
+.review-rendering {
+  overflow: auto;
+  padding: 12px;
+  background: var(--viewer);
+}
+
+.review-rendering-system {
+  margin: 0 0 12px;
+}
+
+.review-rendering-system figcaption {
+  margin-bottom: 4px;
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
 .issue-panel {
-  flex: none;
-  width: min(420px, 40%);
   overflow-y: auto;
   padding: 10px 16px 16px;
-  border-left: 1px solid var(--line);
   border-top: 3px solid var(--accent);
   background: var(--raised);
   font-size: 14px;
 }
 
-@media (max-width: 1023px) {
-  .human-review {
-    flex-direction: column;
-  }
-  .issue-panel {
-    width: auto;
-    max-height: 50%;
-    border-left: none;
-  }
+.hint-problem,
+.link-button.danger-link {
+  color: var(--danger);
+}
+
+.own-correction {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.own-boxes {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.own-boxes li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .issue-panel-head {
@@ -3759,4 +3816,9 @@ textarea.field-input {
 
 .answer-other-field:focus {
   border-color: var(--accent);
+}
+
+.answer-own-label {
+  font-size: 13px;
+  color: var(--muted);
 }

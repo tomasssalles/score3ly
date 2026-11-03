@@ -19,7 +19,7 @@ import type { Artifact, Chooser } from "./pipeline";
 import { renderMei } from "./rendering";
 import { applyEntries, withKept, type StoredReview } from "./review";
 import type { StoredApplyCall } from "./applyReview";
-import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
+import { humanReviewedIssues, ownIssues, type StoredHumanReview } from "./humanReview";
 import { stepInfo } from "./steps";
 import { answerTags, type AnswerTag, boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
 
@@ -80,7 +80,9 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
         const base = [...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])];
         const issues = humanReviewedIssues(new Map(base.map((i) => [i.id, i])), stored, human.stageId);
         for (const e of extractions) e.extraction = { ...e.extraction, issues: e.extraction.issues.map((i) => issues.get(i.id)!) };
-        if (checks) shownChecks = { ...checks, issues: checks.issues.map((i) => issues.get(i.id)!) };
+        // The user's own issues go with the checks' (each is shown below the system its boxes fall on).
+        const own = ownIssues(stored).map((i) => issues.get(i.id)!);
+        shownChecks = { issues: [...(checks?.issues.map((i) => issues.get(i.id)!) ?? []), ...own], warnings: checks?.warnings ?? [] } as StoredScoreChecks;
         changed = new Set([...issues.values()].filter((i) => i.choices.some((c) => c.by === human.stageId)).map((i) => `issue-${i.id}`));
       }
       // An Apply review's Transcription: the issues it applied or reverted are its changes.
@@ -388,7 +390,9 @@ function BoxOverlay({
 }
 
 // The system rendered by Verovio from a small MEI of its own, once it scrolls near the view.
-function SystemRendering({ score, system, changed }: { score: Score | { problem: string }; system: number; changed: Set<string> }) {
+// `width`: its width in screen px (linked to the original's zoom, Human review), else its own size, narrower where the
+// view is.
+export function SystemRendering({ score, system, changed, width }: { score: Score | { problem: string }; system: number; changed: Set<string>; width?: number }) {
   const { ref, near } = useNear();
   const frame = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string | null>(null);
@@ -423,7 +427,7 @@ function SystemRendering({ score, system, changed }: { score: Score | { problem:
     <div ref={ref} className="system-rendering">
       {svg ? (
         // At its own size (its view box, in pixels), narrower where the view is: a short system isn't blown up.
-        <div ref={frame} className="rendering" style={{ maxWidth: naturalWidth(svg) }} dangerouslySetInnerHTML={{ __html: svg }} />
+        <div ref={frame} className="rendering" style={width ? { width } : { maxWidth: naturalWidth(svg) }} dangerouslySetInnerHTML={{ __html: svg }} />
       ) : (
         <div className="rendering-placeholder">{error ?? "Rendering the music…"}</div>
       )}
@@ -496,7 +500,7 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
   return (
     <div className="issue-card" id={id} style={{ borderLeftColor: color }}>
       <p className="issue-head">
-        #{issue.id} · {ISSUE_CLASS_LABELS[issue.class]}
+        #{issue.id} · {issue.source === "user" ? "[your correction]" : ISSUE_CLASS_LABELS[issue.class]}
         {issue.source === "code" ? " · raised by code" : ""}
       </p>
       <p>

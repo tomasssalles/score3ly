@@ -60,22 +60,34 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
     fitScale.current = scale;
     setView({ scale, x: (el.clientWidth - image.width * scale) / 2, y: (el.clientHeight - image.height * scale) / 2 });
   }
-  // A rectangle (in image px) to show once the image is there: see `show`.
-  const pending = useRef<{ left: number; top: number; right: number; bottom: number } | null>(null);
+  // What to show once the image is there (`show`, `center`): a later image (another page) waits for it.
+  const pending = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
     fit();
-    if (pending.current) show(pending.current);
+    const then = pending.current;
+    pending.current = null;
+    then?.();
   }, [image]);
+
+  // A point of the image (in image px) in the middle of the view; at `scale` if given, else at the scale it has.
+  function center(p: Point, scale?: number) {
+    const el = ref.current;
+    if (!el || !image) {
+      pending.current = () => center(p, scale);
+      return;
+    }
+    const k = scale ?? viewRef.current.scale;
+    setView({ scale: k, x: el.clientWidth / 2 - p.x * k, y: el.clientHeight / 2 - p.y * k });
+  }
 
   // A rectangle of the image (in image px) in the middle of the view, with room around it for context, at most 1.5
   // times the image's own size and never smaller than the whole page; a later image (another page) waits for it.
   function show(rect: { left: number; top: number; right: number; bottom: number }) {
     const el = ref.current;
     if (!el || !image) {
-      pending.current = rect;
+      pending.current = () => show(rect);
       return;
     }
-    pending.current = null;
     const w = Math.max(1, rect.right - rect.left);
     const h = Math.max(1, rect.bottom - rect.top);
     const scale = Math.max(fitScale.current, Math.min(1.5, (el.clientWidth * 0.5) / w, (el.clientHeight * 0.4) / h));
@@ -196,7 +208,16 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
     transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
     fit,
     show,
+    center,
     zoomBy,
+    view, // screen px per image px, and where the image's corner is
+    // The point of the image (in image px) in the middle of the view, if the view has a size.
+    middle: (): Point | null => {
+      const el = ref.current;
+      if (!el || !el.clientWidth) return null;
+      const v = viewRef.current;
+      return { x: (el.clientWidth / 2 - v.x) / v.scale, y: (el.clientHeight / 2 - v.y) / v.scale };
+    },
     focus: () => ref.current?.focus({ preventScroll: true }),
     dragging: () => gesture.current.kind === "drag",
     handlers: {

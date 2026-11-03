@@ -1,14 +1,15 @@
 // The `human_review` step (docs/stages/music.md, `human_review`): a review done by a person, a manual stage after an
 // `apply_review`, followed by an `apply_review` of its own that applies its answers. What doesn't need React.
 //
-// Built in steps (docs/tasks.md): the stage and everything around it, and answering the existing issues (one choice per
-// issue: an existing answer, or one the user writes). Adding issues of one's own comes later.
+// The user answers existing issues (one choice per issue: an existing answer, or one the user writes) and raises issues
+// of their own: corrections with boxes on the original and the correction as text (docs/notation.md, "Issues": from the
+// user, one answer, chosen by the user, resolved, `applied` null).
 
 import type { ApiStage } from "./api.ts";
 import { EXTRACTION_STEPS } from "./engrave.ts";
 import type { StoredIssue } from "./extract.ts";
 import type { Box } from "@score3ly/notation";
-import { applyEntries, type ReviewEntry } from "./review.ts";
+import { applyEntries, systemsOf, type PlacedSystem, type ReviewEntry } from "./review.ts";
 
 export const HUMAN_REVIEW_VERSION = 1;
 
@@ -71,22 +72,89 @@ export function clearChoice(stored: StoredHumanReview, issue: number): StoredHum
   return { entries: others(stored, issue) };
 }
 
-// The issues in the score's order (docs/stages/music.md, `human_review`: the arrows go from box to box): by the page of
-// their first box, then the system it falls on (the layout's order on the page), then from left to right.
-export function scoreOrder(issues: StoredIssue[], systemsOf: (page: number) => Box[]): StoredIssue[] {
-  const place = (issue: StoredIssue) => {
-    const first = issue.boxes[0];
-    if (!first) return [Infinity, Infinity, Infinity, issue.id];
-    const systems = systemsOf(first.page);
+// Issues and warnings in the score's order (docs/stages/music.md, `human_review`: the arrows go from box to box): by the
+// page of their first box, then the system it falls on (the layout's order on the page), then from left to right, then
+// as given.
+export function scoreOrder<T extends { boxes: { page: number; box: Box }[] }>(items: T[], systemsOn: (page: number) => Box[]): T[] {
+  const place = (item: T, index: number) => {
+    const first = item.boxes[0];
+    if (!first) return [Infinity, Infinity, Infinity, index];
+    const systems = systemsOn(first.page);
     const middle = (first.box.top + first.box.bottom) / 2;
     let system = systems.findIndex((b) => middle >= b.top && middle <= b.bottom);
     if (system < 0) system = systems.filter((b) => b.bottom < middle).length - 0.5;
-    return [first.page, system, first.box.left, issue.id];
+    return [first.page, system, first.box.left, index];
   };
-  const placed = issues.map((issue) => ({ issue, at: place(issue) }));
+  const placed = items.map((issue, i) => ({ issue, at: place(issue, i) }));
   placed.sort((a, b) => {
     for (let i = 0; i < 4; i++) if (a.at[i] !== b.at[i]) return a.at[i] - b.at[i];
     return 0;
   });
   return placed.map((p) => p.issue);
+}
+
+// The user's own issue (docs/notation.md, "Issues", "from the user"): its boxes and the correction as its one answer,
+// chosen by the human review, resolved; nothing is known of what the transcription has (`applied` null), and the
+// question may be missing. Without a correction yet, it has no answer: it can't be finished like that (`unwritten`).
+export function ownIssue(stageId: string, id: number, boxes: { page: number; box: Box }[], text: string): StoredIssue {
+  const written = text.trim();
+  return {
+    id,
+    source: "user",
+    class: "reading",
+    boxes,
+    location: null,
+    question: "",
+    answers: written ? [{ key: "a", text: written }] : [],
+    choices: written ? [{ by: stageId, key: "a", reason: null }] : [],
+    applied: null,
+    resolved: true,
+    lilypond: null,
+  };
+}
+
+// The user's own issues, in the order they were raised.
+export function ownIssues(stored: StoredHumanReview): StoredIssue[] {
+  return stored.entries.flatMap((e) => ("newIssue" in e ? [e.newIssue] : []));
+}
+
+// An own issue added, or replaced where it is (same id).
+export function putOwnIssue(stored: StoredHumanReview, issue: StoredIssue): StoredHumanReview {
+  const at = stored.entries.findIndex((e) => "newIssue" in e && e.newIssue.id === issue.id);
+  if (at < 0) return { entries: [...stored.entries, { newIssue: issue }] };
+  return { entries: stored.entries.map((e, i) => (i === at ? { newIssue: issue } : e)) };
+}
+
+export function removeOwnIssue(stored: StoredHumanReview, id: number): StoredHumanReview {
+  return { entries: stored.entries.filter((e) => !("newIssue" in e && e.newIssue.id === id)) };
+}
+
+// The own issues without a correction yet: finishing waits for them.
+export function unwritten(stored: StoredHumanReview): number[] {
+  return ownIssues(stored).filter((i) => i.answers.length === 0).map((i) => i.id);
+}
+
+// Why these boxes can't be an issue's (docs/notation.md, "Issues": at most 2 systems, consecutive), or null. Every box
+// must fall on a system.
+export function boxesProblem(boxes: { page: number; box: Box }[], systems: PlacedSystem[]): string | null {
+  for (const b of boxes) if (systemsOf([b], systems).length === 0) return "A box has to be on a system.";
+  const covered = systemsOf(boxes, systems);
+  if (covered.length > 2 || (covered.length === 2 && covered[1] - covered[0] !== 1)) {
+    return "An issue's boxes can cover at most two systems, one right after the other. For more, raise several issues.";
+  }
+  return null;
+}
+
+// Maps a position through matching anchors (docs/stages/music.md, `human_review`, linked scrolling: system by system,
+// piecewise linear): `from` and `to` are increasing positions that correspond one to one (each system's top and bottom
+// on both sides); between two anchors linearly, beyond the ends with the slope of the nearest segment. Null without
+// anchors.
+export function mapThrough(from: number[], to: number[], v: number): number | null {
+  if (from.length === 0 || from.length !== to.length) return null;
+  if (from.length === 1) return to[0] + (v - from[0]);
+  let i = 0;
+  while (i < from.length - 2 && v > from[i + 1]) i++;
+  const span = from[i + 1] - from[i];
+  const slope = span > 0 ? (to[i + 1] - to[i]) / span : 1;
+  return to[i] + (v - from[i]) * slope;
 }

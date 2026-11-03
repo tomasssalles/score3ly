@@ -351,7 +351,7 @@ export function ProjectView({
       onChanged();
       if (modeRef.current === "auto") await run(next);
     } catch (err) {
-      setError(`Finishing the stage failed: ${err}`);
+      setError(`Finishing the stage failed: ${err instanceof Error ? err.message : err}`);
     } finally {
       finishing.current = false;
     }
