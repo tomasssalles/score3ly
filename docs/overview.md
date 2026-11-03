@@ -618,7 +618,7 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [x] The checks of the whole score at the end of `extract` and of `apply_review`
 - [x] `review`
 - [x] `apply_review`
-- [ ] `human_review`
+- [x] `human_review`
 - [x] `build_mei` and `engrave`: the full score's MEI, its view, the PDF, the download
 
 **With real models and scores**

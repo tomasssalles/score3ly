@@ -42,14 +42,16 @@ Once this file holds only this task (see "Move the tasks to GitHub issues"), del
 
 `docs/notation.md`, "The symbolic format": the description of the symbolic format in `extract`'s prompt (`MUSIC` in `packages/prompts/src/extract.ts`) is written by hand, and the parser (`packages/notation`) accepts a closed list of tokens. The plan was to generate the prompt's list from the parser's code, so that the two can never drift apart: every token the parser accepts is described, and nothing it rejects is offered. A change of the generated text changes the prompt's version.
 
-### `human_review`
-`#next`
+### Human review: what is left
+`#next-release`
 
-`docs/stages/music.md` (`human_review`), built in steps (decided 2026-11-03). **Done** (`docs/stages/music.md`, "`human_review`, built"): the stage with everything around it, and answering the existing issues. **Left, in this order:**
-- **The user's own issues:** the box tool of `fix_layout`, the 2-system rule, ids from code (`reserveIssueNumbers`).
-- **The warnings' boxes** on the original.
-- **The rendering panel,** with scrolling and zoom linked system by system, and the measures whose stretches changed highlighted.
-- **Reverts** (decided 2026-11-03, `docs/stages/music.md`, `apply_review`, "When an answer can't be applied as given"), once real answers reach Apply review: to build: a revert of an issue with no applied answer chooses a matching existing answer or adds one ("[in this transcription]"), which becomes `applied`; an answer of a resolved issue that can't be applied fails the stage, pointing to editing the human review; `checkPatch` and the prompt changed to match.
+`docs/stages/music.md`, "`human_review`, built": the stage works end to end (2026-11-03). Left, found while building it:
+- **Undo and redo** in its screen (`docs/style.md`, "Editors on a page"; the page editors have them).
+- **Adjusting the boxes** of one's own issue with handles, as in `fix_layout` (today: add and remove only).
+- **"Delete this issue"** asks nothing; perhaps a confirmation (`docs/style.md`, "Ask before anything is lost"), or an undo.
+- **The rendering's tint** of the measures the Apply review before it changed (its Transcription has it; the screen's rendering doesn't).
+- **The second panel's size:** the panes are half and half; the original may deserve more on a wide screen.
+- **A story** in `docs/manual-tests.md` ("A manual test suite").
 
 ### A manual test suite
 `#manual-test` `#owner`
