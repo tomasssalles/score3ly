@@ -498,7 +498,7 @@ export function ProjectView({
       else setError(`"${stage?.title}" has nothing to set.`);
     },
     addFix: (id, step) => change(() => void addFix(id, step), fixReplaces(id), "Add stage"),
-    addReview: (id) => change(() => void addReview(id), replacesLater(id), "Add review"),
+    addReview: (id) => change(() => void addReview(id), replacesLater(id), "Add Review"),
     addHumanReview: (id) => change(() => void addHumanReview(id), replacesLater(id), "Add Human review"),
     edit: (id) => change(() => void edit(id), replacesLater(id), "Edit stage"),
     // `engrave`'s files (§6, `engrave`, "Downloads"), with the report on the pipeline up to the stage.

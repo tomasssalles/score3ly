@@ -267,7 +267,7 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
     for (const fix of stage.fixes) changes.push({ label: `${fix.title} manually`, onSelect: () => actions.addFix(stage.id, fix.step) });
   }
   // A further review goes right after any Apply review, with an Apply review of its own.
-  if (stage.stepId === "apply_review" && !stage.carried) changes.push({ label: "Add review", onSelect: () => actions.addReview(stage.id) });
+  if (stage.stepId === "apply_review" && !stage.carried) changes.push({ label: "Add Review", onSelect: () => actions.addReview(stage.id) });
   // A human review too, once the Apply review is done: a review by a person, named as one, not as a fix.
   if (stage.stepId === "apply_review" && !stage.carried && stage.status === "done") {
     changes.push({ label: "Add Human review", onSelect: () => actions.addHumanReview(stage.id) });
