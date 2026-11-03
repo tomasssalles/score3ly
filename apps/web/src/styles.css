@@ -2619,6 +2619,16 @@ textarea.field-input {
 }
 
 /* `engrave`: the download button on its card, the engraved pages, the MEI file. */
+/* The download card: after the last stage, not a stage: only its button (docs/project-view.md). */
+.download-card {
+  display: flex;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+}
+
+.stage-downloads .button-primary,
 .stage-downloads .button-secondary {
   display: inline-flex;
   align-items: center;

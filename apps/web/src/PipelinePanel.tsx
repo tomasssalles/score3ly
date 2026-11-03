@@ -5,7 +5,7 @@ import { FittedText } from "./FittedText";
 import { ChevronDownIcon, CollapseIcon, MoreIcon, StopIcon } from "./icons";
 import { canRun, currentStage, MODE_LABELS, MODES, pipelineState, runningStage, stateLabel, type Pipeline, type Progress, type RunMode } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
-import { DroppedCard, RunLabel, StageCard, type StageActions } from "./StageCard";
+import { DownloadCard, DroppedCard, RunLabel, StageCard, type StageActions } from "./StageCard";
 import { when } from "./time";
 
 export type PanelActions = StageActions & {
@@ -143,6 +143,11 @@ export function PipelinePanel({
               ))}
           </Fragment>
         ))}
+        <DownloadCard
+          stageId={[...pipeline.stages].reverse().find((s) => s.artifacts.some((a) => a.engraving?.view === "pdf"))?.id ?? null}
+          enabled={pipeline.stages.length > 0 && pipeline.stages.every((s) => s.status === "done")}
+          actions={actions}
+        />
       </ol>
     </div>
   );

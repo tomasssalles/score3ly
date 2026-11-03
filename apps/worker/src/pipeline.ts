@@ -46,7 +46,7 @@ export type Output = {
 };
 
 // The planned stages, in order (docs/overview.md §6). New projects get all of them; Ingest is done from the start.
-export const RECIPE = ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "engrave"] as const;
+export const RECIPE = ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "build_mei", "engrave"] as const;
 
 // The version of the Ingest step that new projects get.
 const INGEST_VERSION = 1;

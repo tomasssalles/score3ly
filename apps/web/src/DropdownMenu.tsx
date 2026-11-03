@@ -20,6 +20,7 @@ export function DropdownMenu({
   headings,
   className = "",
   buttonClassName = "icon-button",
+  disabled = false,
 }: {
   icon: ReactNode; // the button's content: an icon, or e.g. the current choice and a chevron
   label: string; // the button's accessible name
@@ -27,6 +28,7 @@ export function DropdownMenu({
   headings?: string[]; // a heading above each group
   className?: string;
   buttonClassName?: string;
+  disabled?: boolean; // the button can't be pressed
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -76,6 +78,7 @@ export function DropdownMenu({
         title={label}
         aria-haspopup="menu"
         aria-expanded={open}
+        disabled={disabled}
         onClick={() => setOpen(!open)}
       >
         {icon}

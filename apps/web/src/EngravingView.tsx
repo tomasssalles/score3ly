@@ -1,10 +1,10 @@
-// `engrave`'s artifacts (docs/stages/engrave.md): the MEI file in the MEI view (MeiWorkspace.tsx), read-only, beside
-// the score engraved from it; and the engraving, Verovio's pages, made when they are shown.
+// The MEI and the PDF (docs/stages/engrave.md): `build_mei`'s MEI file in the MEI view (MeiWorkspace.tsx), read-only,
+// beside the score engraved from it; and `engrave`'s PDF, the file itself.
 
 import { useEffect, useState } from "react";
 import { fetchTextContent } from "./api";
-import { Filmstrip } from "./ArtifactView";
-import { engravedPages } from "./engraving";
+import { cachedEngravedPdf, engravedPages, engravedPdf } from "./engraving";
+import { PdfView } from "./PdfView";
 import { MeiWorkspace } from "./MeiWorkspace";
 import type { Artifact } from "./pipeline";
 
@@ -12,38 +12,38 @@ type Engraving = NonNullable<Artifact["engraving"]>;
 
 export function EngravingView({ artifact }: { artifact: Artifact }) {
   const engraving = artifact.engraving!;
-  return engraving.view === "mei" ? <MeiView engraving={engraving} /> : <EngravedPages engraving={engraving} />;
+  return engraving.view === "mei" ? <MeiView engraving={engraving} /> : <EngravedPdf engraving={engraving} />;
 }
 
-// --- The engraving ---------------------------------------------------------------------------------------------------
+// --- The engraving ----------------------------------------------------------------------------------------------------
 
-function EngravedPages({ engraving }: { engraving: Engraving }) {
-  const [pages, setPages] = useState<string[] | null>(null);
+// The PDF itself, as downloaded, drawn by pdf.js like the original PDF: from the device's cache, or made again from its
+// recipe when it isn't there ("Regenerating", never "Engraving": for the user the engraving already happened).
+function EngravedPdf({ engraving }: { engraving: Engraving }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    engravedPages(engraving).then(
-      (svgs) => !cancelled && setPages(svgs),
-      (err) => !cancelled && setError(`The score can't be engraved: ${err instanceof Error ? err.message : err}`),
-    );
+    let made: string | null = null;
+    (async () => {
+      let pdf = await cachedEngravedPdf(engraving);
+      if (!pdf) {
+        if (!cancelled) setRegenerating(true);
+        pdf = await engravedPdf(engraving);
+      }
+      if (cancelled) return;
+      made = URL.createObjectURL(pdf);
+      setUrl(made);
+    })().catch((err) => !cancelled && setError(`The PDF can't be made: ${err instanceof Error ? err.message : err}`));
     return () => {
       cancelled = true;
+      if (made) URL.revokeObjectURL(made);
     };
   }, [engraving.meiSha256, JSON.stringify(engraving.config)]);
   if (error) return <div className="text-view"><p>{error}</p></div>;
-  if (!pages) return <div className="text-view"><p>Engraving the score…</p></div>;
-  return (
-    <Filmstrip
-      count={pages.length}
-      wide={false}
-      render={(i) => (
-        <figure className="film-item">
-          <figcaption>Page {i + 1}</figcaption>
-          <div className="engraved-page" dangerouslySetInnerHTML={{ __html: pages[i] }} />
-        </figure>
-      )}
-    />
-  );
+  if (!url) return <div className="text-view"><p>{regenerating ? "Regenerating the PDF…" : "Loading the PDF…"}</p></div>;
+  return <PdfView key={url} url={url} />;
 }
 
 // --- The MEI file ----------------------------------------------------------------------------------------------------

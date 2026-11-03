@@ -1,28 +1,52 @@
-// `engrave`'s engraving (docs/stages/engrave.md): Verovio's pages of the stored MEI, with its own breaks, made when
-// they are shown or downloaded, never stored. The PDF is made from the pages in the browser (jsPDF and svg2pdf.js,
-// loaded only when a PDF is made).
+// `engrave`'s engraving (docs/stages/engrave.md): Verovio's pages of the latest MEI, with its own breaks, as a PDF made in
+// the browser (jsPDF and svg2pdf.js, loaded only when a PDF is made). The stage stores only the PDF's recipe; the PDF is
+// cached on the device under it, and made again where it is missing. The same recipe gives the same bytes: no date in
+// the file, and its id from the recipe.
 
+import { keyOf } from "@score3ly/core";
 import { fetchTextContent } from "./api";
-import { PAGE_SIZES, pageOptions, type EngraveConfig } from "./engrave";
+import { PAGE_SIZES, pageOptions, withoutDate, type EngraveConfig } from "./engrave";
+import { cachedPdfFile, cachePdfFile } from "./imageCache";
 import type { Artifact } from "./pipeline";
-import { renderPages } from "./rendering";
+import { RENDERING_VERSION, renderPages, VEROVIO_VERSION } from "./rendering";
 
 type Engraving = NonNullable<Artifact["engraving"]>;
+
+// Our PDF code's version, in the recipe: a change of how the pages become a PDF makes it anew.
+export const PDF_VERSION = 1;
+
+// What the PDF is made from: the MEI, the page size, and the versions of the code that make it.
+export type PdfRecipe = { mei: string; config: EngraveConfig; verovio: string; rendering: number; pdf: number };
+
+export function pdfRecipe(meiSha256: string, config: EngraveConfig): PdfRecipe {
+  return { mei: meiSha256, config, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION, pdf: PDF_VERSION };
+}
 
 export async function engravedPages(engraving: Engraving): Promise<string[]> {
   return renderPages(await fetchTextContent(engraving.meiSha256), pageOptions(engraving.config));
 }
 
-// The pages as a PDF of the config's page size.
-export async function engravedPdf(engraving: Engraving): Promise<Blob> {
-  return pdfOfPages(await engravedPages(engraving), engraving.config.pageSize);
+// The PDF, from the device's cache, or null when it isn't there.
+export async function cachedEngravedPdf(engraving: Engraving): Promise<Blob | null> {
+  return cachedPdfFile(await keyOf(pdfRecipe(engraving.meiSha256, engraving.config)));
 }
 
-// Verovio's pages (SVG) as a PDF of that page size.
-export async function pdfOfPages(svgs: string[], pageSize: EngraveConfig["pageSize"]): Promise<Blob> {
+// The PDF: from the cache, else made (Verovio's pages, then the PDF) and cached.
+export async function engravedPdf(engraving: Engraving): Promise<Blob> {
+  const key = await keyOf(pdfRecipe(engraving.meiSha256, engraving.config));
+  const cached = await cachedPdfFile(key);
+  if (cached) return cached;
+  const pdf = await pdfOfPages(await engravedPages(engraving), engraving.config.pageSize, key.slice(0, 32));
+  await cachePdfFile(key, pdf);
+  return pdf;
+}
+
+// Verovio's pages (SVG) as a PDF of that page size. `fileId`: 32 hex digits, the file's id (jsPDF's is random).
+export async function pdfOfPages(svgs: string[], pageSize: EngraveConfig["pageSize"], fileId: string): Promise<Blob> {
   const [{ jsPDF }, { svg2pdf }, { METRONOME_FONT }] = await Promise.all([import("jspdf"), import("svg2pdf.js"), import("./metronomeFont")]);
   const { width, height } = PAGE_SIZES[pageSize];
   const pdf = new jsPDF({ unit: "mm", format: [width, height], orientation: "portrait" });
+  pdf.setFileId(fileId);
   // Verovio draws a tempo mark's note in its music font, which it embeds in the SVG where the PDF can't use it: the
   // metronome glyphs are added under the same name (scripts/metronomeFont.ts).
   // Under every style svg2pdf.js may ask for (a tempo mark's text is bold): the glyphs are the same.
@@ -43,7 +67,7 @@ export async function pdfOfPages(svgs: string[], pageSize: EngraveConfig["pageSi
   } finally {
     holder.remove();
   }
-  return pdf.output("blob");
+  return new Blob([withoutDate(new Uint8Array(pdf.output("arraybuffer")))], { type: "application/pdf" });
 }
 
 // svg2pdf.js lays out the text after a music glyph in a line of text (a tempo mark's note) as if the glyph were in the

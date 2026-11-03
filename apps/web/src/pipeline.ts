@@ -4,7 +4,7 @@
 import type { ApiPipeline, ApiStage, RunMode } from "./api";
 import type { EngraveConfig } from "./engrave.ts";
 import type { PageRecipe } from "./rasterize.ts";
-import { fixOffered, stepInfo } from "./steps.ts";
+import { stepInfo } from "./steps.ts";
 
 export type { RunMode } from "./api";
 
@@ -84,6 +84,7 @@ export type Stage = {
   fixes: { step: string; title: string }[]; // the manual stages that can be added after it, e.g. "Fix skew"
   carried: boolean; // a manual stage carried through a re-run: shown as planned until its turn comes (§5.5)
   droppable: boolean; // not part of the recipe (docs/overview.md §5.5)
+  configurable: boolean; // its step has a config form: "Change config" is offered
 };
 
 // The card of a manual stage dropped at its turn because its inputs changed (docs/overview.md §5.5): after the stage with
@@ -167,11 +168,12 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
       Object.entries(stored.config ?? {}).map(([key, value]) => [key, typeof value === "string" ? value : JSON.stringify(value)]),
     ),
     fixes: info.fixes
-      .filter((step) => !following.some((s) => s.step === step) && fixOffered(step, later))
+      .filter((step) => !following.some((s) => s.step === step))
       .map((step) => ({ step, title: stepInfo(step).title })),
     carried: stored.carried,
     // A further review can be dropped (with its Apply review), the recipe's can't (§5.5).
     droppable: info.kind === "manual" || info.optional || (stored.step === "review" && !stored.inRecipe),
+    configurable: info.config !== undefined,
   };
 }
 

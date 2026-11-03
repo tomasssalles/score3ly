@@ -1,6 +1,7 @@
 // The steps that can run in the browser, by step id (docs/overview.md §5.1). Ingest never runs.
 
 import { runAnalyze } from "./runAnalyze";
+import { runBuildMei } from "./runBuildMei";
 import { runApplyReview } from "./runApplyReview";
 import { runEngrave } from "./runEngrave";
 import { runExtract } from "./runExtract";
@@ -18,5 +19,6 @@ export const RUNNERS: Record<string, (run: StageRun) => Promise<void>> = {
   extract: runExtract,
   review: runReview,
   apply_review: runApplyReview,
+  build_mei: runBuildMei,
   engrave: runEngrave,
 };

@@ -68,20 +68,10 @@ Right before the first release tag (§11, "Branches and releases"): go through t
 
 Once, right before the first release tag: every story of `docs/manual-tests.md`, the full run, not only the smoke run. What fails becomes a bug task; what the stories got wrong is fixed in them.
 
-### A "Build MEI" stage before Engrave
-`#next`
+### Build MEI's icon
+`#owner` `#style`
 
-Decided 2026-11-03:
-- **A recipe stage `build_mei` ("Build MEI") right before `engrave`,** kind computed, no config: it builds the full score's MEI from the latest extraction, layout, metadata and pieces (what `engrave` builds today) and stores it. Its artifact is the MEI view (today `engrave`'s: the file beside its engraving, linked both ways).
-- **"Fix MEI manually" is in Build MEI's "⋮",** not Apply review's or Extract's: `fix_mei` reads Build MEI's stored MEI as its parent, like every fix, and the special logic goes (`fixOffered`'s rule for `fix_mei`, `fixMeiStart` rebuilding what `engrave` would build, the carried inputs).
-- **Engrave's only artifact is the PDF, and Engrave makes it** (decided 2026-11-03): it reads the latest MEI (`fix_mei`'s, else `build_mei`'s), keeps its page size config, renders the pages with Verovio and converts them to the PDF (what `downloads.ts` does today when a download asks). **Its output is a recipe, like Rasterize's page images:** nothing stored but the recipe (the MEI's hash, the page size and the other rendering options, Verovio's version, our rendering and PDF code's versions); the PDF is cached on the device under it and made again where it is missing. **The PDF view shows that file,** drawn by pdf.js like the original PDF, not Verovio's SVG pages: the conversion changes things (fonts, the metronome glyphs added by hand), so the app shows exactly what is downloaded, which also lets the project owner check the real PDF while developing and testing. The conversion's time becomes run time of Engrave, where it belongs: it was hidden behind the download button, and it is significant. **No date in the PDF** (jsPDF writes its creation date by default): the same recipe gives the same bytes every time.
-- **The rule of what is a stage** (`docs/overview.md` §6, "A stage exists where there is a config or a decision") becomes: a config, a decision, or an output a manual stage fixes.
-- **Downloads move to a card of their own, after Engrave,** which isn't a stage, so it has no config: it holds only the download button, the usual accent-coloured "Download" (the bundle, the MEI, the PDF, the report, as today), with no title, icon, "⋮" or status (decided 2026-11-03), and doesn't count in the progress. The button is disabled whenever the pipeline isn't finished, during a re-run too. The pipeline is done when Engrave is done: downloading has nothing to do with it. A download takes the PDF from the device's cache (made again from its recipe if it was evicted); only the run report is made when a download asks for it (`downloads.ts`), never stored.
-- **Build MEI's view** (decided 2026-11-03): the engraving beside the MEI file uses the default page size, as Fix MEI's view does: it is for finding one's way in the file; the PDF with the chosen page size is Engrave's.
-- **The downloads' contents** stay as now (decided 2026-11-03): with a Fix MEI, the MEI file is Fix MEI's, the one Engrave engraved; the report lists every stage up to Engrave.
-- **A PDF evicted from the device's cache** is made again from its recipe when the view or a download needs it; the view says "Regenerating the PDF…" meanwhile, never "Engraving…": for the user the engraving already happened (decided 2026-11-03).
-- **Icons:** Engrave keeps its icon (decided: notes are printed, engraved music; letters are its source code; `extract` goes from notes to letters, `engrave` from letters to notes). Build MEI's icon, and whether Engrave's changes, are the project owner's to decide.
-- **To update with it:** the docs (§6's table and summaries, `docs/stages/engrave.md`, `docs/project-view.md`, the manual tests), the recipe (`RECIPE`, and a migration only if wanted: CLAUDE.md, "Existing data"), the screenshots script's seeds.
+`docs/stages/engrave.md`, `build_mei`: the stage has a placeholder icon (its kind's, computed). The project owner decides its icon, and whether Engrave's changes with it. Decided already: notes are printed, engraved music; letters are its source code; `extract` goes from notes to letters, `engrave` from letters to notes.
 
 ### Model configs for stages, and managing them
 `#next-release`

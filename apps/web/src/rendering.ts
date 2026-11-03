@@ -11,7 +11,7 @@ export const VEROVIO_VERSION = "6.3.0";
 
 // Our rendering code's version, in the cache key too: 2 since each rendering starts from Verovio's default options
 // (verovioRender.ts); before, an engraving made after a system kept the system's options, and was cached so.
-const RENDERING_VERSION = 2;
+export const RENDERING_VERSION = 2;
 
 // One system on one line, whatever its width (`breaks: "none"`), without a title or a footer, sized by its view box.
 export const SYSTEM_OPTIONS = {

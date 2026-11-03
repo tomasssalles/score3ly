@@ -1,7 +1,8 @@
-// The `engrave` step (docs/stages/engrave.md): the last stage, always. It builds the full score's MEI from the latest extraction
-// (the systems' stored answers, their layout, where the pieces start) and the metadata, and stores it: the file a user
-// downloads. The engraving (Verovio's pages, the PDF) is made from the same sources and the config when it is needed,
-// never stored. What doesn't need the browser is here; the runner is runEngrave.ts, the views EngravingView.tsx.
+// The last two steps (docs/stages/engrave.md). `build_mei` builds the full score's MEI from the latest extraction (the
+// systems' stored answers, their layout, where the pieces start) and the metadata, and stores it: the file a user
+// downloads, unless `fix_mei` edits it. `engrave`, the last stage, always, engraves the latest MEI as a PDF of its page
+// size: its output is the PDF's recipe, the PDF itself cached on the device (engraving.ts). What doesn't need the
+// browser is here; the runners are runBuildMei.ts and runEngrave.ts, the views EngravingView.tsx.
 
 import { buildScore, meiString, type MeiMetadata, type Score } from "@score3ly/notation";
 import { REPOSITORY_URL } from "./about.ts";
@@ -13,7 +14,8 @@ import type { PageLayout } from "./layout";
 import { indexMei } from "./meiView.ts";
 import { pageOfItem } from "./rasterize.ts";
 
-export const ENGRAVE_VERSION = 1;
+export const BUILD_MEI_VERSION = 1;
+export const ENGRAVE_VERSION = 2; // 2: the PDF is made by the stage; the MEI by `build_mei`
 
 // The page size. The engraving always has Verovio's own breaks (docs/stages/engrave.md).
 export type EngraveConfig = { pageSize: "a4" | "letter" };
@@ -44,8 +46,8 @@ export function engraveConfigOf(stored: Record<string, unknown> | null): Engrave
   return { pageSize };
 }
 
-// What `engrave` is built from: the latest extraction's systems, the latest layout's pages, the latest metadata and
-// pieces before it. Null where something is missing (the stage can't run yet).
+// What `build_mei` builds the MEI from: the latest extraction's systems, the latest layout's pages, the latest metadata
+// and pieces before it. Null where something is missing (the stage can't run yet).
 export type EngraveSources = {
   extractions: { id: string; item: string; sha256: string }[];
   layouts: { id: string; page: number; sha256: string }[];
@@ -53,7 +55,7 @@ export type EngraveSources = {
   pieces: { id: string; sha256: string };
 };
 
-// The steps whose stages produce the extraction `engrave` reads; `fix_mei` is offered after the latest (§6).
+// The steps whose stages produce the extraction (what `build_mei` and the reviews read).
 export const EXTRACTION_STEPS = ["extract", "apply_review"];
 const LAYOUT_STEPS = ["layout", "fix_layout"];
 const METADATA_STEPS = ["fix_metadata", "analyze"];
@@ -83,19 +85,16 @@ export function engraveSources(earlier: ApiStage[]): EngraveSources | { missing:
   };
 }
 
-// What `engrave` reads: the sources it builds the MEI from, or, when `fix_mei` comes right before it, that
-// stage's MEI, taken as it is.
-export type EngraveInput = { built: EngraveSources } | { edited: { id: string; sha256: string } };
+// The latest MEI before a stage: `fix_mei`'s when it comes right before, else the latest `build_mei`'s. What `engrave`
+// engraves, and what a `fix_mei` starts from (its parent).
+export const MEI_STEPS = ["build_mei", "fix_mei"];
 
-export function engraveInput(earlier: ApiStage[]): EngraveInput | { missing: string } {
-  const last = earlier.at(-1);
-  if (last?.step === "fix_mei") {
-    const mei = last.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
-    if (last.status !== "done" || !mei) return { missing: "\"Fix MEI\" isn't finished yet." };
-    return { edited: { id: mei.id, sha256: mei.contentSha256! } };
-  }
-  const sources = engraveSources(earlier);
-  return "missing" in sources ? sources : { built: sources };
+export function latestMei(earlier: ApiStage[]): { id: string; sha256: string; step: string } | { missing: string } {
+  const stage = [...earlier].reverse().find((s) => MEI_STEPS.includes(s.step));
+  const mei = stage?.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
+  if (!stage) return { missing: "the MEI hasn't been built yet." };
+  if (stage.status !== "done" || !mei) return { missing: stage.step === "fix_mei" ? "\"Fix MEI\" isn't finished yet." : "the MEI hasn't been built yet." };
+  return { id: mei.id, sha256: mei.contentSha256!, step: stage.step };
 }
 
 export const sourceIds = (sources: EngraveSources): string[] => [
@@ -105,16 +104,13 @@ export const sourceIds = (sources: EngraveSources): string[] => [
   sources.pieces.id,
 ];
 
-// The stage key (§5.2): the step, its version, the MEI builder's (the format's) version, the config, and the content of
-// what it reads (with `fix_mei`'s MEI, that file).
-export function engraveStageKey(config: EngraveConfig, input: EngraveInput, lensVersion: number): Promise<string> {
-  if ("edited" in input) return keyOf({ step: "engrave", version: ENGRAVE_VERSION, config, mei: input.edited.sha256 });
-  const sources = input.built;
+// `build_mei`'s stage key (§5.2): the step, its version, the MEI builder's (the format's) version, and the content of
+// what it reads.
+export function buildMeiStageKey(sources: EngraveSources, lensVersion: number): Promise<string> {
   return keyOf({
-    step: "engrave",
-    version: ENGRAVE_VERSION,
+    step: "build_mei",
+    version: BUILD_MEI_VERSION,
     lensVersion,
-    config,
     extractions: sources.extractions.map((e) => [e.item, e.sha256]),
     layouts: sources.layouts.map((l) => [l.page, l.sha256]),
     metadata: sources.metadata.sha256,
@@ -139,7 +135,7 @@ export async function loadScore(sources: EngraveSources, fetch: (sha256: string)
   return { score: buildScore(systems, pieces), metadata: meiMetadata(metadata) };
 }
 
-// The full score's MEI as `engrave` stores it: the file, with how it was made.
+// The full score's MEI as `build_mei` stores it: the file, with how it was made.
 export function meiText(score: Score, metadata: MeiMetadata): string {
   return meiString(score, { metadata, application: { name: "score3ly", version: __APP_VERSION__, url: REPOSITORY_URL } });
 }
@@ -190,4 +186,20 @@ export function meiNote(text: string): string {
 export function downloadName(projectName: string, extension: "mei" | "pdf" | "zip" | "report.json"): string {
   const base = projectName.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_").trim() || "score";
   return `${base}.s3l.${extension}`;
+}
+
+// jsPDF always writes the creation date: it is overwritten with spaces, so every offset in the file stays right and
+// the same recipe gives the same bytes.
+export function withoutDate(bytes: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
+  const text = new TextDecoder("latin1").decode(bytes);
+  const at = text.indexOf("/CreationDate (");
+  if (at < 0) return bytes;
+  const end = text.indexOf(")", at);
+  bytes.fill(0x20, at, end + 1);
+  return bytes;
+}
+
+// How many pages a PDF made by jsPDF has: its page objects.
+export function pdfPageCount(text: string): number {
+  return (text.match(/\/Type \/Page\b(?!s)/g) ?? []).length;
 }

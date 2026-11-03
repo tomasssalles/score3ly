@@ -34,6 +34,7 @@ export const STEPS = [
   "review",
   "apply_review",
   "human_review",
+  "build_mei",
   "fix_mei",
   "engrave",
 ];

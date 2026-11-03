@@ -9,7 +9,7 @@ import { analyzeOutputs, FIX_METADATA_VERSION } from "./fixMetadata.ts";
 import { FIX_OBSERVATIONS_VERSION } from "./fixObservations.ts";
 import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
-import { engraveConfigOf, EXTRACTION_STEPS, PAGE_SIZES } from "./engrave.ts";
+import { DEFAULT_ENGRAVE_CONFIG, engraveConfigOf, EXTRACTION_STEPS, PAGE_SIZES } from "./engrave.ts";
 import { fixMeiStart } from "./fixMei.ts";
 
 // One field of a step's config form.
@@ -379,7 +379,7 @@ STEPS.extract = {
   title: "Extract",
   kind: "llm",
   optional: false,
-  fixes: ["fix_mei"],
+  fixes: [],
   config: LLM_CONFIG,
   artifacts: (stage, earlier) => transcription(stage, stage, earlier),
 };
@@ -405,8 +405,7 @@ STEPS.apply_review = {
   title: "Apply review",
   kind: "llm",
   optional: false,
-  // `fix_mei` comes right before `engrave` (docs/stages/engrave.md), after the latest Apply review.
-  fixes: ["fix_mei"],
+  fixes: [],
   config: LLM_CONFIG,
   // The new transcription, once it is stored (every call in), with what its calls reverted and changed.
   artifacts: (stage, earlier) => {
@@ -430,6 +429,21 @@ export function choosers(stages: ApiStage[]): Record<string, Chooser> {
   return result;
 }
 
+STEPS.build_mei = {
+  title: "Build MEI",
+  kind: "computed",
+  optional: false,
+  // "Fix MEI manually" is in the "⋮" of the stage that creates the MEI (§6).
+  fixes: ["fix_mei"],
+  // The MEI file, in the MEI view: the file beside its engraving, on pages of the default size (the PDF with the chosen
+  // size is Engrave's).
+  artifacts: (stage) => {
+    const mei = stage.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
+    if (!mei) return [];
+    return [{ id: `${stage.id}.mei`, title: "MEI", kind: "mei", count: 1, engraving: { view: "mei", meiSha256: mei.contentSha256!, config: DEFAULT_ENGRAVE_CONFIG } }];
+  },
+};
+
 STEPS.engrave = {
   title: "Engrave",
   kind: "computed",
@@ -447,16 +461,12 @@ STEPS.engrave = {
     read: (stored) => engraveConfigOf(stored),
     check: () => null,
   },
-  // The MEI file (the main artifact: what the user takes and leaves with, §5.6) and its engraving as a PDF, with the
-  // stage's config.
+  // The PDF, made from its recipe (the MEI it engraved and the config), shown as the file it is.
   artifacts: (stage) => {
-    const mei = stage.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
-    if (!mei) return [];
-    const engraving = { meiSha256: mei.contentSha256!, config: engraveConfigOf(stage.config) };
-    return [
-      { id: `${stage.id}.mei`, title: "MEI", kind: "mei", count: 1, engraving: { ...engraving, view: "mei" } },
-      { id: `${stage.id}.pdf`, title: "PDF", kind: "pdf", count: 1, engraving: { ...engraving, view: "pdf" } },
-    ];
+    const pdf = stage.outputs.find((o) => o.item === "" && o.type === "pdf" && o.recipe);
+    const recipe = pdf?.recipe as { mei?: string } | undefined;
+    if (!recipe?.mei) return [];
+    return [{ id: `${stage.id}.pdf`, title: "PDF", kind: "pdf", count: 1, engraving: { view: "pdf", meiSha256: recipe.mei, config: engraveConfigOf(stage.config) } }];
   },
 };
 
@@ -472,11 +482,7 @@ STEPS.fix_mei = {
   },
 };
 
-// Whether a manual step is offered after a stage, given the stages after it (`later`). `fix_mei` only after the
-// latest stage that produces the extraction, which `engrave` reads (§6, `fix_mei`).
-export function fixOffered(step: string, later: ApiStage[]): boolean {
-  return step !== "fix_mei" || !later.some((s) => EXTRACTION_STEPS.includes(s.step) || s.step === "review");
-}
+
 
 // What a manual step needs to be added after a stage (docs/database.md): its version, page count and inputs. `earlier`:
 // the stages up to and including that one.
@@ -497,7 +503,7 @@ export const FIX_STARTS: Record<string, (after: ApiStage, earlier: ApiStage[]) =
     const inputs = after.outputs.filter((o) => o.item === "" && o.type === "observations");
     return { stepVersion: FIX_OBSERVATIONS_VERSION, pageCount: after.pageCount, inputIds: inputs.map((o) => o.id) };
   },
-  fix_mei: (_after, earlier) => fixMeiStart(earlier),
+  fix_mei: (after) => fixMeiStart(after),
 };
 
 // What a carried manual stage would read now (docs/overview.md §5.5): the inputs it would get if it were added now after the

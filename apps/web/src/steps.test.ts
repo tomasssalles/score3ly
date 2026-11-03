@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fixOffered, STEPS } from "./steps.ts";
+import { STEPS } from "./steps.ts";
 import type { ApiStage } from "./api.ts";
 
 // Every step's kind, as it was declared. A step's kind never changes (docs/database.md): add new steps here, but
@@ -16,6 +16,7 @@ const KINDS: Record<string, string> = {
   extract: "llm",
   review: "llm",
   apply_review: "llm",
+  build_mei: "computed",
   engrave: "computed",
   fix_skew: "manual",
   fix_layout: "manual",
@@ -72,14 +73,6 @@ test("every LLM stage's config has its model config: read from the stored config
   assert.equal(check({ modelConfigId: "old" }, context), '"Old" was deleted: pick another model config.');
 });
 
-test("Fix MEI is offered only after the latest stage that produces the extraction, never with a review after it", () => {
-  const stage = (step: string) => ({ step }) as ApiStage;
-  assert.ok(STEPS.extract.fixes.includes("fix_mei"));
-  assert.ok(STEPS.apply_review.fixes.includes("fix_mei"));
-  assert.ok(!STEPS.review.fixes.includes("fix_mei"));
-  assert.equal(fixOffered("fix_mei", [stage("engrave")]), true);
-  assert.equal(fixOffered("fix_mei", [stage("extract"), stage("engrave")]), false);
-  assert.equal(fixOffered("fix_mei", [stage("review"), stage("apply_review"), stage("engrave")]), false);
-  assert.equal(fixOffered("fix_mei", [stage("apply_review"), stage("engrave")]), false);
-  assert.equal(fixOffered("fix_layout", [stage("extract")]), true);
+test("Fix MEI is offered only by Build MEI, the stage that creates the MEI", () => {
+  for (const [id, info] of Object.entries(STEPS)) assert.equal(info.fixes.includes("fix_mei"), id === "build_mei", id);
 });

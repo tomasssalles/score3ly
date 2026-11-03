@@ -134,7 +134,6 @@ export function StageCard({
       )}
       {stage.status === "failed" && <p className="stage-error">{stage.error}</p>}
       <StageButton stage={stage} mode={mode} actions={actions} />
-      {stage.status === "done" && <Downloads stage={stage} actions={actions} />}
 
       {hasArtifacts(stage) && stage.artifacts.length > 0 && (
         <ul className="output-grid">
@@ -224,28 +223,33 @@ function StageButton({ stage, mode, actions }: { stage: Stage; mode: RunMode; ac
   return null;
 }
 
-// A stage's files to take away (`engrave`'s, §5.6): a button with a menu of them, everything in one zip first. Making
-// the PDF takes a moment, which the button says.
-function Downloads({ stage, actions }: { stage: Stage; actions: StageActions }) {
+// The files to take away (docs/project-view.md, "The download card"): a card after the last stage, which isn't a stage,
+// with only the button, a menu of the files, everything in one zip first. Disabled whenever the pipeline isn't finished,
+// during a re-run too; downloading has nothing to do with the pipeline being done. `stageId`: Engrave's, whose PDF and
+// MEI the files are. Taking a PDF the device no longer has takes a moment, which the button says.
+export function DownloadCard({ stageId, enabled, actions }: { stageId: string | null; enabled: boolean; actions: StageActions }) {
   const [pending, setPending] = useState<DownloadKind | null>(null);
-  if (!stage.artifacts.some((a) => a.engraving)) return null;
   const take = (kind: DownloadKind) => {
+    if (!stageId) return;
     setPending(kind);
-    actions.download(stage.id, kind).finally(() => setPending(null));
+    actions.download(stageId, kind).finally(() => setPending(null));
   };
   return (
-    <DropdownMenu
-      className="stage-downloads"
-      buttonClassName="button-secondary stage-button"
-      icon={
-        <>
-          <DownloadIcon />
-          {pending ? "Preparing…" : "Download"}
-        </>
-      }
-      label="Download"
-      groups={[DOWNLOADS.map((d) => ({ label: d.label, disabled: pending !== null, onSelect: () => take(d.kind) }))]}
-    />
+    <li className="download-card">
+      <DropdownMenu
+        className="stage-downloads"
+        buttonClassName="button-primary stage-button"
+        disabled={!enabled || !stageId}
+        icon={
+          <>
+            <DownloadIcon />
+            {pending ? "Preparing…" : "Download"}
+          </>
+        }
+        label="Download"
+        groups={[DOWNLOADS.map((d) => ({ label: d.label, disabled: pending !== null, onSelect: () => take(d.kind) }))]}
+      />
+    </li>
   );
 }
 
@@ -255,7 +259,7 @@ function menu(stage: Stage, busy: boolean, actions: StageActions): MenuItem[][] 
   const changes: MenuItem[] = [];
   if (stage.kind === "manual") {
     if (stage.status === "done") changes.push({ label: "Edit", onSelect: () => actions.edit(stage.id) });
-  } else {
+  } else if (stage.configurable) {
     changes.push({ label: "Change config", onSelect: () => actions.changeConfig(stage.id) });
   }
   if (stage.status === "done") {

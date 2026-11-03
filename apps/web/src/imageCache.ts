@@ -238,3 +238,8 @@ export async function cachedSvgs(key: string): Promise<string[] | null> {
 }
 
 export const cacheSvgs = (key: string, svgs: string[]): Promise<void> => cacheFile(`${key}.json`, new Blob([JSON.stringify(svgs)], { type: "application/json" }));
+
+// A PDF the app made (`engrave`'s), under its recipe's key.
+export const cachedPdfFile = (key: string): Promise<Blob | null> => cachedFile(`${key}.pdf`);
+
+export const cachePdfFile = (key: string, pdf: Blob): Promise<void> => cacheFile(`${key}.pdf`, pdf);

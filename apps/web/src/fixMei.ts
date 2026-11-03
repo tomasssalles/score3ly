@@ -1,10 +1,10 @@
-// The `fix_mei` step (docs/stages/engrave.md): the user edits the full score's MEI as text, right before `engrave`. Its
-// outputs (item '', all overwritten while WIP): `mei_base`, the MEI `engrave` would have built, written when the editor
-// first opens (what "lines changed" counts against); `mei_draft`, the text as last saved; `mei`, the text last
-// applied (it passed the checks). The editor is FixMeiView.tsx; finishing, finishFixMei below.
+// The `fix_mei` step (docs/stages/engrave.md): the user edits the full score's MEI as text, after `build_mei` and right
+// before `engrave`. It reads `build_mei`'s MEI, its parent, like every fix reads the output it corrects. Its outputs
+// (item '', all overwritten while WIP): `mei_base`, the MEI it started from, written when the editor first opens (what
+// "lines changed" counts against); `mei_draft`, the text as last saved; `mei`, the text last applied (it passed the
+// checks). The editor is FixMeiView.tsx; finishing, finishFixMei below.
 
-import { fetchJsonContent, fetchTextContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api.ts";
-import { engraveSources, loadScore, meiText, sourceIds, type EngraveSources } from "./engrave.ts";
+import { fetchTextContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api.ts";
 import { changesNote, linesChanged, type MeiProblem } from "./meiChecks.ts";
 
 export const FIX_MEI_VERSION = 1;
@@ -15,16 +15,16 @@ export function ownOutput(stage: ApiStage, type: FixMeiType): string | null {
   return stage.outputs.find((o) => o.item === "" && o.type === type)?.contentSha256 ?? null;
 }
 
-// What adding the stage after the latest extraction records (`earlier`: the stages up to and including that one).
-export function fixMeiStart(earlier: ApiStage[]): { stepVersion: number; pageCount: number | null; inputIds: string[] } {
-  const sources = engraveSources(earlier);
-  if ("missing" in sources) throw new Error(`"Fix MEI" can't start: ${sources.missing}`);
-  const rasterize = [...earlier].reverse().find((s) => s.step === "rasterize");
-  return {
-    stepVersion: FIX_MEI_VERSION,
-    pageCount: rasterize?.outputs.filter((o) => o.type === "page_image").length ?? null,
-    inputIds: sourceIds(sources),
-  };
+// `build_mei`'s MEI, the output a `fix_mei` after it corrects.
+function parentMei(buildMei: ApiStage) {
+  return buildMei.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256) ?? null;
+}
+
+// What adding the stage after `build_mei` records: its MEI as the input, and its page count.
+export function fixMeiStart(buildMei: ApiStage): { stepVersion: number; pageCount: number | null; inputIds: string[] } {
+  const mei = parentMei(buildMei);
+  if (buildMei.step !== "build_mei" || !mei) throw new Error(`"Fix MEI" can't start: the MEI hasn't been built yet.`);
+  return { stepVersion: FIX_MEI_VERSION, pageCount: buildMei.pageCount, inputIds: [mei.id] };
 }
 
 // Stores a text as the stage's outputs of the given types.
@@ -36,8 +36,8 @@ export async function saveText(project: Project, stageId: string, text: string, 
 
 export type FixMeiTexts = { base: string; draft: string; applied: string };
 
-// The stage's texts: what it saved, else what it started from. The start is built from the same sources as
-// `engrave`'s MEI and, while the stage is WIP, saved the first time.
+// The stage's texts: what it saved, else what it started from: the latest `build_mei`'s MEI, saved the first time while
+// the stage is WIP.
 export async function loadFixMei(project: Project, stage: ApiStage, earlier: ApiStage[]): Promise<FixMeiTexts> {
   const text = async (type: FixMeiType) => {
     const sha256 = ownOutput(stage, type);
@@ -45,10 +45,10 @@ export async function loadFixMei(project: Project, stage: ApiStage, earlier: Api
   };
   let base = await text("mei_base");
   if (base === null) {
-    const sources: EngraveSources | { missing: string } = engraveSources(earlier);
-    if ("missing" in sources) throw new Error(`The MEI can't be built: ${sources.missing}`);
-    const { score, metadata } = await loadScore(sources, fetchJsonContent);
-    base = meiText(score, metadata);
+    const buildMei = [...earlier].reverse().find((s) => s.step === "build_mei");
+    const mei = buildMei && parentMei(buildMei);
+    if (!mei) throw new Error("The MEI hasn't been built yet.");
+    base = await fetchTextContent(mei.contentSha256!);
     if (stage.status === "wip") await saveText(project, stage.id, base, ["mei_base"]);
   }
   const applied = (await text("mei")) ?? base;

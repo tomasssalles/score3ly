@@ -1,40 +1,39 @@
-// Runs `engrave` (docs/stages/engrave.md): the full score's MEI, built from the latest extraction, its layout, the pieces and the
-// metadata, or taken as it is from `fix_mei` right before it, stored as the stage's one output (item '', type
-// `mei`). The engraving itself is made when it is shown or downloaded (EngravingView.tsx).
+// Runs `engrave` (docs/stages/engrave.md): the latest MEI (`fix_mei`'s right before it, else `build_mei`'s), engraved by
+// Verovio with the config's page size and made into a PDF. The stage's one output (item '', type `pdf`) is the PDF's
+// recipe; the PDF itself is cached on the device and made again where it is missing (engraving.ts).
 
-import { LENS_VERSION } from "@score3ly/notation";
-import { fetchJsonContent, fetchTextContent, putContent } from "./api";
-import { ENGRAVE_VERSION, engraveConfigOf, engraveInput, engraveNote, engraveStageKey, loadScore, meiNote, meiText, sourceIds } from "./engrave";
+import { keyOf } from "@score3ly/core";
+import { ENGRAVE_VERSION, engraveConfigOf, latestMei, pdfPageCount } from "./engrave";
+import { engravedPdf, pdfRecipe } from "./engraving";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 
 export async function runEngrave(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
   const earlier = pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id));
-  const input = engraveInput(earlier);
-  if ("missing" in input) throw new CannotStart(input.missing);
+  const mei = latestMei(earlier);
+  if ("missing" in mei) throw new CannotStart(mei.missing);
   const rasterize = [...earlier].reverse().find((s) => s.step === "rasterize");
   const config = engraveConfigOf(stage.config);
-
-  const inputIds = "edited" in input ? [input.edited.id] : sourceIds(input.built);
-  let note: string;
-  let make: () => Promise<string>; // the stored MEI's hash
-  if ("edited" in input) {
-    const { sha256 } = input.edited;
-    note = meiNote(await fetchTextContent(sha256));
-    make = async () => sha256;
-  } else {
-    const { score, metadata } = await loadScore(input.built, fetchJsonContent);
-    note = engraveNote(score);
-    make = () => putContent(new TextEncoder().encode(meiText(score, metadata)), "application/xml");
-  }
+  const recipe = pdfRecipe(mei.sha256, config);
+  const recipeKey = await keyOf(recipe);
+  let pages = 0;
   await runPlan(run, {
     stepVersion: ENGRAVE_VERSION,
     config,
-    stageKey: await engraveStageKey(config, input, LENS_VERSION),
-    // All selected pages: the header comes from the metadata, read from every page (§5.8).
+    stageKey: await keyOf({ step: "engrave", version: ENGRAVE_VERSION, recipe }),
     pageCount: rasterize?.outputs.filter((o) => o.type === "page_image").length ?? null,
-    inputIds,
-    note,
-    items: [{ item: "", type: "mei", make: async () => ({ contentSha256: await make(), inputIds }) }],
+    inputIds: [mei.id],
+    note: () => `${pages} page${pages === 1 ? "" : "s"}`,
+    items: [
+      {
+        item: "",
+        type: "pdf",
+        make: async () => {
+          const pdf = await engravedPdf({ view: "pdf", meiSha256: mei.sha256, config });
+          pages = pdfPageCount(new TextDecoder("latin1").decode(await pdf.arrayBuffer()));
+          return { recipeKey, recipe, inputIds: [mei.id] };
+        },
+      },
+    ],
   });
 }
