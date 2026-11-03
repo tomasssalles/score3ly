@@ -505,7 +505,7 @@ Checking Bedrock's and Vertex AI's prices against the list prices that stand in 
 `docs/llm.md`, "Which config a stage uses": a level between a stage's own config and the default, in the advanced settings: a model config per kind of work, used by every stage of that kind that has no config of its own. Proposed kinds: finding layout boxes (`layout`), analyzing the pages (`analyze`: metadata and observations), extracting the music notation (`extract`, `apply_review`), reviewing (`review`).
 
 ### Set up Claude on Vertex AI
-`#owner`
+`#next-release` `#owner`
 
 `docs/llm.md`, "Calling the providers": a service account, enabling Claude for the project ("score3ly", with its €30 monthly cap and the Vertex AI API enabled), a key file, the first real call, and checking whether Opus 5.5 is offered on Vertex AI at all (not in Europe: checked 2026-10-09, §10).
 
@@ -518,19 +518,34 @@ Checking Bedrock's and Vertex AI's prices against the list prices that stand in 
 §7.2: not built; only Claude runs on Vertex AI, and Gemini only on Google AI Studio. **The providers for the first release** (decided 2026-11-03): Claude on Anthropic's API, Vertex AI and Bedrock, Gemini on Google AI Studio and Vertex AI; that is plenty (not Claude on Microsoft's cloud, nor other model families or resellers). Needed for the task "Try the app with Gemini 3.1 Pro on Vertex AI". Gemini 3.1 Pro may be offered on Vertex AI's global endpoint only, not in the EU (to check; §10, "Data residency").
 
 ### Make the first real request on Bedrock
-`#next` `#owner`
+`#next-release` `#owner`
 
 The project owner's AWS account for Bedrock exists already; it has to make a real request. The steps (`docs/llm.md`, "Calling the providers"): access to Claude Opus 5.5 enabled for the account in an EU region (e.g. `eu-central-1`); credentials, either a Bedrock API key or an access key pair; a Worker secret holding them (`apps/worker/.dev.vars` locally); then one call, e.g. `npm run llm:try -w apps/worker -- anthropic-bedrock <model> <image> "<question>"`, and a model config for the app. Settles on the way: the task "Check Bedrock's model name on the first real call", and from "Decide the model configs" how a request asks for an EU-only (geographic) or global routing on Bedrock's Messages API endpoint.
 
 ### Try the app with Opus 5.5 in Europe on Bedrock
-`#next` `#owner` `#manual-test`
+`#next-release` `#owner` `#manual-test`
 
 After "Make the first real request on Bedrock": run the whole pipeline with Claude Opus 5.5 on Bedrock, processed in the EU only (§10, "Data residency"), on a few scores of the test set (`docs/evaluation.md`), in the web app or the desktop app. Look at the results, the stages' failures and their messages, the statistics (costs against the list prices the app uses, `llm/prices.ts`, with Bedrock's regional premium; run times; failed calls), and anything that gets in the way. Feeds the tasks checking the prompts of `layout`, `analyze` and `extract`, and the first release's "Run the pipeline with a real LLM" (§16).
 
 ### Try the app with Gemini 3.1 Pro on Vertex AI
-`#next` `#owner` `#manual-test`
+`#next-release` `#owner` `#manual-test`
 
 After "Gemini on Vertex AI" is built: run the whole pipeline with Gemini 3.1 Pro on Vertex AI, on the same scores as the Opus run, to compare the two (the prompts are tuned on Opus, §7.2). Perhaps only on the global endpoint, which processes data outside the EU (§10, "Data residency"); then the projects tried should be ones where that is acceptable. Needs a Google Cloud project with the Vertex AI API enabled and a service account (as for "Set up Claude on Vertex AI"), and Gemini's prices on Vertex AI (from "Decide the model configs").
+
+### Try the app with Claude on Anthropic's API
+`#next-release` `#owner` `#manual-test`
+
+Every combination of model family and provider the first release supports gets a run of its own (decided 2026-11-03: Claude on Anthropic's API, Vertex AI and Bedrock; Gemini on Google AI Studio and Vertex AI); the big comparison of results is "Try the app with Opus 5.5 in Europe on Bedrock" and "… Gemini 3.1 Pro on Vertex AI". This one checks that the provider works end to end, on a short score (a few pages): every LLM stage runs; prompt caching shows in the calls' cache reads (Claude's marks, Gemini's implicit caching); costs match the provider's prices (`llm/prices.ts`); a wrong or missing key fails with a clear message; the images aren't too large for the provider; the region is the one configured. Needs an Anthropic API key as a Worker secret. Anthropic's API has no EU processing (§10, "Data residency").
+
+### Try the app with Claude on Vertex AI
+`#next-release` `#owner` `#manual-test`
+
+Every combination of model family and provider the first release supports gets a run of its own (decided 2026-11-03: Claude on Anthropic's API, Vertex AI and Bedrock; Gemini on Google AI Studio and Vertex AI); the big comparison of results is "Try the app with Opus 5.5 in Europe on Bedrock" and "… Gemini 3.1 Pro on Vertex AI". This one checks that the provider works end to end, on a short score (a few pages): every LLM stage runs; prompt caching shows in the calls' cache reads (Claude's marks, Gemini's implicit caching); costs match the provider's prices (`llm/prices.ts`); a wrong or missing key fails with a clear message; the images aren't too large for the provider; the region is the one configured. After "Set up Claude on Vertex AI"; with the models Vertex AI offers in the region chosen (Opus 5.5 isn't in Europe there, checked 2026-10-09).
+
+### Try the app with Gemini on Google AI Studio
+`#next-release` `#owner` `#manual-test`
+
+Every combination of model family and provider the first release supports gets a run of its own (decided 2026-11-03: Claude on Anthropic's API, Vertex AI and Bedrock; Gemini on Google AI Studio and Vertex AI); the big comparison of results is "Try the app with Opus 5.5 in Europe on Bedrock" and "… Gemini 3.1 Pro on Vertex AI". This one checks that the provider works end to end, on a short score (a few pages): every LLM stage runs; prompt caching shows in the calls' cache reads (Claude's marks, Gemini's implicit caching); costs match the provider's prices (`llm/prices.ts`); a wrong or missing key fails with a clear message; the images aren't too large for the provider; the region is the one configured. Needs a Gemini API key as a Worker secret; on the free tier, Google may use the inputs (§10), so a score where that is acceptable.
 
 ### Try a run on a real phone that goes to sleep or to another app
 `#manual-test`
