@@ -512,11 +512,6 @@ Checking Bedrock's and Vertex AI's prices against the list prices that stand in 
 ### Check Bedrock's model name on the first real call
 `docs/llm.md`, "Calling the providers": whether the answer names the model with the same string that was asked (an inference profile may come back as the bare model ID). The sanity check compares the two as they are.
 
-### Gemini on Vertex AI
-`#next-release`
-
-§7.2: not built; only Claude runs on Vertex AI, and Gemini only on Google AI Studio. **The providers for the first release** (decided 2026-11-03): Claude on Anthropic's API, Vertex AI and Bedrock, Gemini on Google AI Studio and Vertex AI; that is plenty (not Claude on Microsoft's cloud, nor other model families or resellers). Needed for the task "Try the app with Gemini 3.1 Pro on Vertex AI". Gemini 3.1 Pro may be offered on Vertex AI's global endpoint only, not in the EU (to check; §10, "Data residency").
-
 ### Make the first real request on Bedrock
 `#next-release` `#owner`
 
@@ -530,7 +525,7 @@ After "Make the first real request on Bedrock": run the whole pipeline with Clau
 ### Try the app with Gemini 3.1 Pro on Vertex AI
 `#next-release` `#owner` `#manual-test`
 
-After "Gemini on Vertex AI" is built: run the whole pipeline with Gemini 3.1 Pro on Vertex AI, on the same scores as the Opus run, to compare the two (the prompts are tuned on Opus, §7.2). Perhaps only on the global endpoint, which processes data outside the EU (§10, "Data residency"); then the projects tried should be ones where that is acceptable. Needs a Google Cloud project with the Vertex AI API enabled and a service account (as for "Set up Claude on Vertex AI"), and Gemini's prices on Vertex AI (from "Decide the model configs").
+Gemini on Vertex AI is built (2026-11-03, `docs/llm.md`), not yet tried with a real call: run the whole pipeline with Gemini 3.1 Pro on Vertex AI, on the same scores as the Opus run, to compare the two (the prompts are tuned on Opus, §7.2). Perhaps only on the global endpoint, which processes data outside the EU (§10, "Data residency"); then the projects tried should be ones where that is acceptable. Needs a Google Cloud project with the Vertex AI API enabled and a service account (as for "Set up Claude on Vertex AI"), and Gemini's prices on Vertex AI (from "Decide the model configs"; until then the config needs the free-tier mark). First one call, `npm run llm:try -w apps/worker -- google-vertex <model> <image> "<question>"` (the script's header says which variables it reads): it shows at once whether the location has the model and whether Vertex accepts every field of the request.
 
 ### Try the app with Claude on Anthropic's API
 `#next-release` `#owner` `#manual-test`

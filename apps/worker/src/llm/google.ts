@@ -16,6 +16,7 @@ import {
   type LlmResponse,
   withJson,
 } from "./types.ts";
+import { parseServiceAccount, tokenSource, type TokenSource } from "./googleServiceAccount.ts";
 
 // Gemini's thinking levels are fewer than our efforts.
 const THINKING_LEVELS: Record<Effort, ThinkingLevel> = {
@@ -37,8 +38,8 @@ const REFUSALS = new Set<string>([
   FinishReason.IMAGE_PROHIBITED_CONTENT,
 ]);
 
-// Gemini through Google's Gemini API (AI Studio keys), with the official SDK. Vertex AI, for processing in the
-// EU (§10), would be another adapter on the same SDK.
+// Gemini through Google's Gemini API (AI Studio keys), with the official SDK. Gemini on Vertex AI is
+// `VertexGeminiProvider` below.
 export class GoogleProvider implements LlmProvider {
   readonly id = "google" as const;
   readonly #client: GoogleGenAI;
@@ -131,4 +132,73 @@ function toLlmError(err: unknown): LlmError {
   if (err instanceof DOMException && err.name === "AbortError") return new LlmError("aborted", "The request was aborted.");
   if (err instanceof TypeError) return new LlmError("network", String(err)); // fetch's own failure
   return new LlmError("unknown", String(err));
+}
+
+// Where Vertex AI answers for a location: the global endpoint, the US or EU multi-region, or a single region (the same
+// rule as Anthropic's Vertex SDK, for Claude).
+export function vertexHost(location: string): string {
+  if (location === "global") return "aiplatform.googleapis.com";
+  if (location === "us" || location === "eu") return `aiplatform.${location}.rep.googleapis.com`;
+  return `${location}-aiplatform.googleapis.com`;
+}
+
+// The body of Vertex AI's `generateContent` (REST, as JSON): the same request as the Gemini API's, with the config
+// split into a system instruction and a generation config.
+export function toVertexBody(request: LlmRequest): Record<string, unknown> {
+  const { contents, config } = toParams(request);
+  const { systemInstruction, abortSignal: _signal, ...generationConfig } = config ?? {};
+  return {
+    contents,
+    ...(systemInstruction ? { systemInstruction: { parts: [{ text: systemInstruction as string }] } } : {}),
+    ...(Object.keys(generationConfig).length > 0 ? { generationConfig } : {}),
+  };
+}
+
+// Gemini through Google Cloud's Vertex AI, for processing in a chosen location (e.g. in the EU, §10), with a service
+// account's key file as for Claude on Vertex AI. Vertex's REST API is called directly: Google's SDK authenticates
+// with Google's auth library, which doesn't run in a Worker; the token comes from our own token source instead.
+export class VertexGeminiProvider implements LlmProvider {
+  readonly id = "google-vertex" as const;
+  readonly #fetch: Fetch;
+  readonly #auth: TokenSource;
+  readonly #location: string;
+  readonly #projectId: string;
+
+  constructor(options: { serviceAccount: string; region: string; projectId?: string; fetch?: Fetch }) {
+    const account = parseServiceAccount(options.serviceAccount);
+    this.#fetch = options.fetch ?? fetch;
+    this.#auth = tokenSource(account, this.#fetch);
+    this.#location = options.region;
+    this.#projectId = options.projectId ?? account.projectId;
+  }
+
+  async send(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse> {
+    const url = `https://${vertexHost(this.#location)}/v1/projects/${encodeURIComponent(this.#projectId)}/locations/${encodeURIComponent(this.#location)}/publishers/google/models/${encodeURIComponent(request.model)}:generateContent`;
+    let response: Response;
+    try {
+      const headers = await this.#auth.getRequestHeaders();
+      headers.set("content-type", "application/json");
+      response = await this.#fetch(url, { method: "POST", headers, body: JSON.stringify(toVertexBody(request)), signal });
+    } catch (err) {
+      throw err instanceof LlmError ? err : toLlmError(err);
+    }
+    const text = await response.text();
+    if (!response.ok) {
+      let message = text;
+      try {
+        message = (JSON.parse(text) as { error?: { message?: string } }).error?.message ?? text;
+      } catch {
+        // Not JSON: the text as it is.
+      }
+      throw new LlmError(kindForStatus(response.status), `Vertex AI: ${message}`, response.status);
+    }
+    let result: GenerateContentResponse;
+    try {
+      result = JSON.parse(text) as GenerateContentResponse;
+    } catch (err) {
+      throw toLlmError(err);
+    }
+    const answer = { ...fromResult(result, request), provider: "google-vertex" as const };
+    return request.jsonSchema ? withJson(answer) : answer;
+  }
 }

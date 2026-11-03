@@ -35,6 +35,7 @@ export function imageLimit(config: ModelConfig): SizeLimit {
     case "anthropic-vertex":
     case "anthropic-bedrock":
     case "google":
+    case "google-vertex":
     case "fake":
     case "fake-dev":
       return CLAUDE_IMAGE_LIMIT;
@@ -45,7 +46,7 @@ export function imageLimit(config: ModelConfig): SizeLimit {
 // 32 MB per request, 10 MB per image, and with more than 20 images none may be larger than 2000 px either way
 // (the vision docs, 2026-10). Bedrock and Vertex AI: 5 MB per image, and less per request than the API (assumed 20 MB
 // until checked). Gemini, as Gemini said (to check against Google's documentation): 20 MB per request, 7 MB per image
-// at the least.
+// at the least, on Vertex AI too (to check as well).
 export type RequestLimits = {
   maxRequestBytes: number;
   maxImageBytes: number;
@@ -65,6 +66,7 @@ export function requestLimits(config: ModelConfig): RequestLimits {
     case "anthropic-bedrock":
       return { maxRequestBytes: 20 * MB, maxImageBytes: 5 * MB, manyImages: many };
     case "google":
+    case "google-vertex":
       return { maxRequestBytes: 20 * MB, maxImageBytes: 7 * MB, manyImages: null };
   }
 }

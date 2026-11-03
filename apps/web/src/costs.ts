@@ -175,9 +175,10 @@ const PROVIDERS: Record<string, string> = {
   "anthropic-vertex": "Vertex AI",
   "anthropic-bedrock": "AWS Bedrock",
   google: "Google AI Studio",
+  "google-vertex": "Vertex AI",
   "fake-dev": "Fake (dev)",
 };
-const FAMILIES: Record<string, string> = { anthropic: "Claude", "anthropic-vertex": "Claude", "anthropic-bedrock": "Claude", google: "Gemini", "fake-dev": "Fake" };
+const FAMILIES: Record<string, string> = { anthropic: "Claude", "anthropic-vertex": "Claude", "anthropic-bedrock": "Claude", google: "Gemini", "google-vertex": "Gemini", "fake-dev": "Fake" };
 const FAMILY_ORDER = ["Claude", "Gemini", "Fake"];
 
 // A call's status as the costs view tells them apart (the Worker's `outcome`), in the order listed.

@@ -3,7 +3,7 @@
 
 import { anthropicProvider, bedrockClaudeProvider, vertexClaudeProvider } from "./anthropic.ts";
 import { FakeProvider } from "./fake.ts";
-import { GoogleProvider } from "./google.ts";
+import { GoogleProvider, VertexGeminiProvider } from "./google.ts";
 import type { Fetch, LlmProvider } from "./types.ts";
 
 export * from "./types.ts";
@@ -14,6 +14,7 @@ export type ProviderConfig =
   | { provider: "anthropic-bedrock"; region: string; apiKey: string }
   | { provider: "anthropic-bedrock"; region: string; accessKeyId: string; secretAccessKey: string }
   | { provider: "google"; apiKey: string }
+  | { provider: "google-vertex"; serviceAccount: string; region: string; projectId?: string }
   | { provider: "fake" | "fake-dev" };
 
 export function createProvider(config: ProviderConfig, options: { fetch?: Fetch } = {}): LlmProvider {
@@ -26,6 +27,8 @@ export function createProvider(config: ProviderConfig, options: { fetch?: Fetch 
       return bedrockClaudeProvider({ ...config, fetch: options.fetch });
     case "google":
       return new GoogleProvider({ apiKey: config.apiKey, fetch: options.fetch });
+    case "google-vertex":
+      return new VertexGeminiProvider({ ...config, fetch: options.fetch });
     case "fake":
     case "fake-dev":
       return new FakeProvider(config.provider);

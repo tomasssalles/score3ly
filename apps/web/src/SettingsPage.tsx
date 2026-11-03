@@ -252,6 +252,7 @@ const PROVIDERS: Record<ModelConfig["provider"], string> = {
   "anthropic-vertex": "Claude on Google Vertex AI",
   "anthropic-bedrock": "Claude on AWS Bedrock",
   google: "Google Gemini API",
+  "google-vertex": "Gemini on Google Vertex AI",
   fake: "Fake (no network, no costs, for trying the app)",
   "fake-dev": "Fake with costs (for development)",
 };

@@ -273,7 +273,7 @@ export async function fetchTextContent(sha256: string): Promise<string> {
 export type ModelConfig = {
   id: string;
   name: string; // required and unique (docs/llm.md, "Model configs")
-  provider: "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "fake" | "fake-dev";
+  provider: "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "google-vertex" | "fake" | "fake-dev";
   model: string;
   effort: "low" | "medium" | "high" | "xhigh" | "max" | null;
   params: Record<string, string>;

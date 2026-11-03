@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createProvider } from "./index.ts";
+import { vertexHost } from "./google.ts";
 import { parseServiceAccount, tokenSource } from "./googleServiceAccount.ts";
 import { LlmError } from "./types.ts";
 
@@ -163,5 +164,93 @@ test("a refused service account is an auth error", async () => {
   await assert.rejects(
     provider.send({ model: "claude-opus-5-5", messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] }),
     (err: unknown) => err instanceof LlmError && err.kind === "auth" && !err.retryable,
+  );
+});
+
+// Gemini on Vertex AI: Google's token endpoint and Vertex's generateContent, faked.
+function fakeVertexGemini(calls: Call[], reply: object, status = 200): typeof fetch {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    calls.push({ url, headers: new Headers(init?.headers), body: String(init?.body) });
+    if (url === "https://oauth2.googleapis.com/token") {
+      return Response.json({ access_token: `token-${calls.length}`, expires_in: 3600, token_type: "Bearer" });
+    }
+    return new Response(JSON.stringify(reply), { status, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+}
+
+const geminiReply = {
+  candidates: [{ content: { role: "model", parts: [{ text: "thinking…", thought: true }, { text: '{"systems":6}' }] }, finishReason: "STOP" }],
+  usageMetadata: { promptTokenCount: 1300, cachedContentTokenCount: 300, candidatesTokenCount: 12, thoughtsTokenCount: 500 },
+  modelVersion: "gemini-3.1-pro",
+};
+
+test("Gemini on Vertex AI: the endpoint for the location, the project, the token, and the request as the Gemini API's", async () => {
+  const { json } = await makeAccount();
+  const calls: Call[] = [];
+  const provider = createProvider({ provider: "google-vertex", serviceAccount: json, region: "europe-west4" }, { fetch: fakeVertexGemini(calls, geminiReply) });
+  const response = await provider.send({
+    model: "gemini-3.1-pro",
+    system: "You read music.",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", image: { mediaType: "image/png", base64: "iVBOR" }, cacheUpTo: true },
+          { type: "text", text: "How many systems?" },
+        ],
+      },
+    ],
+    maxOutputTokens: 8000,
+    effort: "high",
+    jsonSchema: { type: "object", properties: { systems: { type: "integer" } }, required: ["systems"] },
+  });
+
+  const call = calls.find((c) => c.url.includes("aiplatform"))!;
+  assert.equal(
+    call.url,
+    "https://europe-west4-aiplatform.googleapis.com/v1/projects/my-project/locations/europe-west4/publishers/google/models/gemini-3.1-pro:generateContent",
+  );
+  assert.equal(call.headers.get("authorization"), "Bearer token-1");
+  const body = JSON.parse(call.body);
+  assert.deepEqual(body.contents, [
+    { role: "user", parts: [{ inlineData: { mimeType: "image/png", data: "iVBOR" } }, { text: "How many systems?" }] },
+  ]);
+  assert.deepEqual(body.systemInstruction, { parts: [{ text: "You read music." }] });
+  assert.equal(body.generationConfig.maxOutputTokens, 8000);
+  assert.equal(body.generationConfig.responseMimeType, "application/json");
+  assert.deepEqual(body.generationConfig.responseJsonSchema.required, ["systems"]);
+  assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "HIGH");
+
+  assert.equal(response.provider, "google-vertex");
+  assert.equal(response.model, "gemini-3.1-pro");
+  assert.equal(response.text, '{"systems":6}');
+  assert.deepEqual(response.json, { systems: 6 });
+  assert.deepEqual(response.usage, { inputTokens: 1000, outputTokens: 512, cacheReadTokens: 300, cacheWriteTokens: 0 });
+});
+
+test("Gemini on Vertex AI: the global endpoint and the multi-regions; another project", async () => {
+  assert.equal(vertexHost("global"), "aiplatform.googleapis.com");
+  assert.equal(vertexHost("eu"), "aiplatform.eu.rep.googleapis.com");
+  assert.equal(vertexHost("us-central1"), "us-central1-aiplatform.googleapis.com");
+  const { json } = await makeAccount();
+  const calls: Call[] = [];
+  const provider = createProvider(
+    { provider: "google-vertex", serviceAccount: json, region: "global", projectId: "other" },
+    { fetch: fakeVertexGemini(calls, geminiReply) },
+  );
+  await provider.send({ model: "gemini-3.1-pro", messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] });
+  assert.match(calls.find((c) => c.url.includes("aiplatform"))!.url, /^https:\/\/aiplatform\.googleapis\.com\/v1\/projects\/other\/locations\/global\//);
+});
+
+test("Gemini on Vertex AI: an HTTP error is a typed error with Vertex's message", async () => {
+  const { json } = await makeAccount();
+  const provider = createProvider(
+    { provider: "google-vertex", serviceAccount: json, region: "europe-west4" },
+    { fetch: fakeVertexGemini([], { error: { code: 404, message: "Publisher model gemini-x was not found." } }, 404) },
+  );
+  await assert.rejects(
+    provider.send({ model: "gemini-x", messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] }),
+    (err: unknown) => err instanceof LlmError && err.status === 404 && /Vertex AI: Publisher model gemini-x was not found\./.test(err.message),
   );
 });

@@ -9,7 +9,7 @@ import { createProvider, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS
 import { costOf, PRICES_AS_OF, priceOf } from "./llm/prices.ts";
 import { firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 
-const PROVIDERS: ProviderId[] = ["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "fake", "fake-dev"];
+const PROVIDERS: ProviderId[] = ["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "google-vertex", "fake", "fake-dev"];
 const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
 
 // Each provider's fields: which are secrets (the name of a Worker secret is stored, never its value) and which are
@@ -19,6 +19,7 @@ const FIELDS: Record<ProviderId, { secrets: string[][]; params: string[]; option
   "anthropic-vertex": { secrets: [["serviceAccount"]], params: ["region"], optionalParams: ["projectId"] },
   "anthropic-bedrock": { secrets: [["apiKey"], ["accessKeyId", "secretAccessKey"]], params: ["region"], optionalParams: [] },
   google: { secrets: [["apiKey"]], params: [], optionalParams: [] },
+  "google-vertex": { secrets: [["serviceAccount"]], params: ["region"], optionalParams: ["projectId"] },
   fake: { secrets: [[]], params: [], optionalParams: [] },
   "fake-dev": { secrets: [[]], params: [], optionalParams: [] },
 };

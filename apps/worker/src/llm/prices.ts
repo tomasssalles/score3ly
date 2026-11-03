@@ -41,7 +41,7 @@ function baseModel(model: string): string {
 export function priceOf(provider: ProviderId, model: string): Price | null {
   if (provider === "fake") return FREE;
   if (provider === "fake-dev") return FAKE_DEV;
-  if (provider === "google") return null;
+  if (provider === "google" || provider === "google-vertex") return null;
   return CLAUDE[baseModel(model)] ?? null;
 }
 
