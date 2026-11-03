@@ -3723,17 +3723,28 @@ textarea.field-input {
   background: radial-gradient(var(--accent) 45%, transparent 50%);
 }
 
-.answer-own {
-  display: grid;
-  gap: 4px;
-  margin: 8px 0;
+/* The last answer: one of the user's own, its text a field in the row ("Other"). */
+.answer-other {
+  align-items: center;
+  cursor: pointer;
 }
 
-.answer-own-label {
-  font-size: 13px;
+.answer-other .answer-mark {
+  margin-top: 0;
+}
+
+.answer-other-field {
+  flex: 1;
+  min-width: 0;
+  margin-left: -6px; /* a space's width after its letter, as in the other rows */
+  padding: 0;
+  border: none;
+  outline: none;
+  background: none;
+  color: var(--fg);
+  font: 16px var(--sans); /* 16px keeps phones from zooming in */
+}
+
+.answer-other-field::placeholder {
   color: var(--muted);
-}
-
-.answer-own .field-input.chosen {
-  border-color: var(--accent);
 }

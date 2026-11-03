@@ -75,6 +75,8 @@ function Screen({
 }) {
   const { pages } = loaded;
   const [stored, setStored] = useState(loaded.stored);
+  // The latest answers, for changes that follow each other before a render (a field left, then an answer tapped).
+  const latest = useRef(loaded.stored);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [boxes, setBoxes] = useRemembered<"shown" | "hidden">("score3ly.humanReview.boxes", "shown", ["shown", "hidden"]);
@@ -157,7 +159,10 @@ function Screen({
   };
 
   // A change of the user's answers: shown, and saved, one save after the other.
-  function change(next: StoredHumanReview) {
+  function change(update: (current: StoredHumanReview) => StoredHumanReview) {
+    const next = update(latest.current);
+    if (next === latest.current) return;
+    latest.current = next;
     setStored(next);
     saved.set(stageId, next);
     chain.current = chain.current
@@ -255,9 +260,9 @@ function Screen({
           color={colors.get(issue.id)}
           choosers={choosers}
           mine={userChoice(stored, issue.id)}
-          onChoose={(key) => change(chooseAnswer(stored, order.find((i) => i.id === issue.id)!, key))}
-          onWrite={(text) => change(writeAnswer(stored, order.find((i) => i.id === issue.id)!, text))}
-          onClear={() => change(clearChoice(stored, issue.id))}
+          onChoose={(key) => change((current) => chooseAnswer(current, order.find((i) => i.id === issue.id)!, key))}
+          onWrite={(text) => change((current) => writeAnswer(current, order.find((i) => i.id === issue.id)!, text))}
+          onClear={() => change((current) => clearChoice(current, issue.id))}
           onClose={() => setSelected(null)}
         />
       )}
@@ -289,10 +294,43 @@ function IssuePanel({
   onClear: () => void;
   onClose: () => void;
 }) {
+  // The last row, an answer of the user's own: its letter the next one, its text a field ("Other"). Typing in it
+  // chooses it; its text stays there while another answer is chosen, and choosing it again uses it. An empty field
+  // chosen adds nothing until something is typed; emptying it takes the answer back.
+  const otherKey = String.fromCharCode("a".charCodeAt(0) + original.answers.length);
   const [text, setText] = useState(mine?.newAnswer?.text ?? "");
-  const write = () => {
-    if (text.trim() && text.trim() !== mine?.newAnswer?.text) onWrite(text);
-  };
+  const [pending, setPending] = useState(false); // the row chosen, its text not saved yet
+  const field = useRef<HTMLInputElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const otherChosen = mine?.newAnswer != null || pending;
+  // The field's text as the answer: written, or, emptied, taken back. Text saves when the typing pauses or the field is
+  // left (docs/style.md, "Confirmations, saving and undo").
+  function commit(value: string) {
+    clearTimeout(timer.current);
+    if (value.trim()) {
+      if (value.trim() !== mine?.newAnswer?.text) onWrite(value);
+      // The text of one of the answers chooses that one (writeAnswer).
+      if (original.answers.some((a) => a.text.trim().toLowerCase() === value.trim().toLowerCase())) setPending(false);
+    } else if (mine?.newAnswer) onClear();
+  }
+  function type(value: string) {
+    setText(value);
+    setPending(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => commit(value), 800);
+  }
+  function pickOther() {
+    if (otherChosen) {
+      clearTimeout(timer.current);
+      setPending(false);
+      if (mine?.newAnswer) onClear();
+    } else if (text.trim()) onWrite(text);
+    else {
+      setPending(true);
+      field.current?.focus();
+    }
+  }
   return (
     <aside className="issue-panel" aria-label={`Issue ${issue.id}`} style={{ borderTopColor: color }}>
       <div className="issue-panel-head">
@@ -314,9 +352,14 @@ function IssuePanel({
             key={a.key}
             type="button"
             role="radio"
-            aria-checked={mine?.key === a.key}
+            aria-checked={mine?.key === a.key && !mine.newAnswer && !pending}
             className="answer-option"
-            onClick={() => (mine?.key === a.key ? onClear() : onChoose(a.key))}
+            onClick={() => {
+              clearTimeout(timer.current);
+              setPending(false);
+              if (mine?.key === a.key && !mine.newAnswer) onClear();
+              else onChoose(a.key);
+            }}
           >
             <span className="answer-mark" aria-hidden="true" />
             <span>
@@ -325,39 +368,32 @@ function IssuePanel({
             </span>
           </button>
         ))}
-      </div>
-      <label className="answer-own">
-        <span className="answer-own-label">None of these, but:</span>
-        <span className="answer-own-row">
+        <div className="answer-option answer-other" role="radio" aria-checked={otherChosen} tabIndex={-1} onClick={(e) => e.target === field.current || pickOther()}>
+          <span className="answer-mark" aria-hidden="true" />
+          <span className="answer-other-key">{otherKey})</span>
           <input
+            ref={field}
             type="text"
-            className={mine?.newAnswer ? "field-input chosen" : "field-input"}
+            className="answer-other-field"
+            aria-label="Another answer"
             value={text}
-            placeholder="Your answer, e.g. “A C flat”"
-            onChange={(e) => setText(e.target.value)}
-            onBlur={write}
+            placeholder="Other"
+            onChange={(e) => type(e.target.value)}
+            onFocus={() => {
+              if (!otherChosen && text.trim()) onWrite(text);
+              else if (!otherChosen) setPending(true);
+            }}
+            onBlur={() => {
+              commit(text);
+              if (!text.trim()) setPending(false);
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") write();
-              if (e.key === "Escape") setText(mine?.newAnswer?.text ?? "");
+              if (e.key === "Enter") commit(text);
             }}
           />
-        </span>
-      </label>
-      {mine && (
-        <p className="issue-facts">
-          Your answer: {mine.key}).{" "}
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => {
-              setText("");
-              onClear();
-            }}
-          >
-            Take it back
-          </button>
-        </p>
-      )}
+          {mine?.newAnswer && <AnswerTags tags={answerTags(issue, mine.newAnswer.key, choosers)} />}
+        </div>
+      </div>
       {issue.lilypond && (
         <p className="issue-facts">
           LilyPond equivalent: <span className="issue-tokens">{issue.lilypond.join(" ")}</span>
