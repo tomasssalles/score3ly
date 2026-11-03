@@ -74,7 +74,7 @@ Once, right before the first release tag: every story of `docs/manual-tests.md`,
 `docs/stages/engrave.md`, `build_mei`: the stage has a placeholder icon (its kind's, computed). The project owner decides its icon, and whether Engrave's changes with it. Decided already: notes are printed, engraved music; letters are its source code; `extract` goes from notes to letters, `engrave` from letters to notes.
 
 ### Squash the migrations into one
-`#nice-to-have`
+`#next-release`
 
 While no data needs keeping (CLAUDE.md, "Existing data"), replace the 26 migrations in `apps/worker/migrations` with one, `0001_initial.sql`: the schema as it stands, plus the rows a new database starts with (the fake model config as the default, the settings' defaults). Kept as a migration, not a schema file of its own, so Wrangler, the desktop app's runner (`apps/desktop/src/d1.ts`) and the tests' setups work as they are; later changes are 0002 onwards, once real data needs keeping.
 - **How:** take the schema from a database the current migrations made (SQLite's dump of the schema), then check that a database made from the new file has the same tables, columns, indexes and starting rows as one made from the old chain.
