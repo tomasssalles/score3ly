@@ -498,8 +498,15 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
               <li key={a.key}>
                 {a.key}) {a.text}
                 {tags.map((t) => (
-                  <span key={t} className="answer-tag">
-                    {" "}[{t}]
+                  <span key={t.words} className="answer-tag">
+                    {" "}[{t.words}
+                    {t.stage && (
+                      <>
+                        {" "}
+                        <strong>{t.stage}</strong>
+                      </>
+                    )}
+                    ]
                   </span>
                 ))}
               </li>

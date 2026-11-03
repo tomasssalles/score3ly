@@ -83,15 +83,24 @@ export function scoreOf(systems: ShownSystem[], pieces: number[]): Score | { pro
 // transcription (the latest application; "in this transcription" for an issue raised after it was written), and on
 // the latest choice, who chose it, when a stage other than Extract or a person did. A revert is a choice like any
 // other: "chosen by Apply review 1".
-export function answerTags(issue: StoredIssue, key: string, choosers: Record<string, Chooser>): string[] {
-  const tags: string[] = [];
+// Each suffix is its words and the stage they name, shown in bold ("written by **Extract**"); null where none is named.
+export type AnswerTag = { words: string; stage: string | null };
+
+export function answerTags(issue: StoredIssue, key: string, choosers: Record<string, Chooser>): AnswerTag[] {
+  const tags: AnswerTag[] = [];
   if (key === issue.applied) {
     const last = issue.applications?.at(-1);
     const by = last?.key === key ? last.by : null;
-    tags.push(by === null ? "in this transcription" : by === "extract" ? "written by Extract" : `applied by ${choosers[by]?.label ?? by}`);
+    tags.push(
+      by === null
+        ? { words: "in this transcription", stage: null }
+        : by === "extract"
+          ? { words: "written by", stage: "Extract" }
+          : { words: "applied by", stage: choosers[by]?.label ?? by },
+    );
   }
   const latest = issue.choices[issue.choices.length - 1];
   const chooser = latest && latest.by !== "extract" ? choosers[latest.by] : undefined;
-  if (latest?.key === key && chooser) tags.push(`${chooser.person ? "confirmed" : latest.kept ? "kept" : "chosen"} by ${chooser.label}`);
+  if (latest?.key === key && chooser) tags.push({ words: `${chooser.person ? "confirmed" : latest.kept ? "kept" : "chosen"} by`, stage: chooser.label });
   return tags;
 }

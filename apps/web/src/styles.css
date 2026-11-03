@@ -2560,10 +2560,14 @@ textarea.field-input {
   padding-left: 18px;
 }
 
-/* Answers: no bold, their suffixes small and muted. */
+/* Answers: no bold, their suffixes small and muted, the stage they name in bold (it would read as ordinary words). */
 .answer-tag {
   font-size: 12px;
   color: var(--muted);
+}
+
+.answer-tag strong {
+  font-weight: 600;
 }
 
 .issue-head,

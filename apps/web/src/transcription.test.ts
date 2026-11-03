@@ -68,7 +68,9 @@ test("an answer's suffixes: who put it in the transcription, and who chose it la
     resolved: false,
     lilypond: null,
   };
-  const tags = (issue: StoredIssue) => issue.answers.map((a) => answerTags(issue, a.key, choosers));
+  const tags = (issue: StoredIssue) => issue.answers.map((a) => answerTags(issue, a.key, choosers).map((t) => (t.stage ? `${t.words} ${t.stage}` : t.words)));
+  // The stage's name apart, to be shown in bold.
+  assert.deepEqual(answerTags(base, "a", choosers), [{ words: "written by", stage: "Extract" }]);
   assert.deepEqual(tags(base), [["written by Extract"], []]);
   const kept = { ...base, choices: [...base.choices, { by: "r1", key: "a", reason: null, kept: true as const }] };
   assert.deepEqual(tags(kept), [["written by Extract", "kept by Review 1"], []]);
