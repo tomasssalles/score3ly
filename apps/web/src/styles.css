@@ -2628,6 +2628,30 @@ textarea.field-input {
   background: var(--raised);
 }
 
+/* The button spans the card's width. */
+.download-card .stage-downloads {
+  flex: 1;
+}
+
+.download-card .stage-downloads .button-primary {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Open, it stays the accent's colour (a menu button's open state would turn it grey). */
+.download-card .stage-downloads .button-primary[aria-expanded="true"] {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+/* The card is always last, at the bottom of the panel: its menu opens upwards. */
+.download-card .stage-downloads .dropdown-list {
+  left: 0;
+  right: auto;
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
 .stage-downloads .button-primary,
 .stage-downloads .button-secondary {
   display: inline-flex;
