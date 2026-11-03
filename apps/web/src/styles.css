@@ -2485,10 +2485,10 @@ textarea.field-input {
   background: var(--paper);
 }
 
-/* A measure the stage changed (an Apply review's Transcription): a tint behind it. */
+/* A measure the stage changed (an Apply review's Transcription): a violet tint behind it. */
 .rendering .changed-measure {
-  fill: var(--accent);
-  fill-opacity: 0.16;
+  fill: var(--changed);
+  fill-opacity: 0.14;
   stroke: none;
 }
 

@@ -40,6 +40,7 @@
   --on-mark: #ffffff;
   --on-layout: #000000; /* text on the layout's box colours (packages/imaging, LAYOUT_COLORS) */
   --highlight: #e0a030; /* what is selected in an engraving or the MEI file */
+  --changed: #8957e5; /* violet: a measure a stage changed, tinted behind it in a rendering */
   --on-highlight: #000000;
 
   /* Charts (the statistics): one series in the chart colour; split, the groups in these, the most expensive first,
@@ -100,6 +101,7 @@
   --on-mark: #ffffff;
   --on-layout: #000000;
   --highlight: #e0a030;
+  --changed: #8957e5;
   --on-highlight: #000000;
 
   /* Charts: as in the dark theme, darkened for white */

@@ -68,11 +68,6 @@ Right before the first release tag (§11, "Branches and releases"): go through t
 
 Once, right before the first release tag: every story of `docs/manual-tests.md`, the full run, not only the smoke run. What fails becomes a bug task; what the stories got wrong is fixed in them.
 
-### Try other colours for the tint of changed measures
-`#style`
-
-`docs/stages/music.md`, "`apply_review`, built": the measures an Apply review changed are tinted in the accent colour (`.changed-measure` in `styles.css`, fill-opacity 0.16). Try other colours, in both themes, and keep the one that reads best behind the notes. Only where the printed change is (decided 2026-11-03): a changed time signature tints the measure it is printed at, not the measures it affects.
-
 ### A "Build MEI" stage before Engrave
 `#next`
 

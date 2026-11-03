@@ -32,7 +32,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 | **Amber** | `--warning` | **worth a look, not broken** | a result that may not be what it seems, a change not applied yet, a warning on a card or over an image |
 | Paper | `--paper`, `--viewer` | the score | white behind music, grey around it |
 | Charts | `--chart`, `--series-1` … `--series-6`, `--series-other` | data, not state | the statistics: one series in `--chart` (the accent); split, the groups in the series colours, the most expensive first, the rest in grey |
-| Marks on paper | `--mark`, `--highlight`, the layout colours | drawn by the app onto the music | lines that should be horizontal (red), what is selected in an engraving (amber), boxes and their labels |
+| Marks on paper | `--mark`, `--highlight`, `--changed`, the layout colours | drawn by the app onto the music | lines that should be horizontal (red), what is selected in an engraving (amber), a measure a stage changed (a violet tint behind it), boxes and their labels |
 
 **Rules that follow:**
 - **Text that warns about a problem is red; text that asks for a look is amber; text that reports is muted.** "Layout failed" is red, "Some images differ from…" is amber, "2s · 54 systems" is muted.
@@ -41,7 +41,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 - **Green starts things and shows things moving;** the opposite, stopping, is red (Run is green, Stop is red), like a traffic light.
 - **Colour is never the only signal.** Every state with a colour also has a word or an icon: a failed card says why, a selected tile has an outline, a confirmed field has a check mark, a running stage has a bar.
 - **Text on a filled colour uses its `--on-…` token** (black on coral in the dark theme, white on darker coral in the light one).
-- **Colours drawn over the music are the same in every theme,** because the paper is: the layout's seven box colours (chosen to be told apart by colour-blind people), the red of lines, the amber of a highlight. The UI around them follows the theme.
+- **Colours drawn over the music are the same in every theme,** because the paper is: the layout's seven box colours (chosen to be told apart by colour-blind people), the red of lines, the amber of a highlight, the violet of a changed measure (chosen 2026-11-03 over coral, amber, yellow, blue, green and grey: it says "changed" without saying "wrong", and means nothing else in the app). The UI around them follows the theme.
 - **Things that belong together share a colour.** A box on the page and the card that explains it have the same colour; a system's bar lines have its box's colour. Colours cycle in a fixed order, so neighbours differ.
 - **The app's icon and the manifest's colours are fixed,** not themed: they appear where the app's CSS can't reach (a home screen, a favicon, GitHub).
 
