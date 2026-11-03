@@ -457,9 +457,13 @@ The one way to let a phone run a pipeline in the background (discussed 2026-11-0
 - **Distribution:** without a store, for free (users already deploy to Cloudflare or build cadenza themselves): an APK signed with our own key (free), on GitHub's releases, or built by users themselves like cadenza; installed by allowing installs from unknown sources. One key, so a new version installs over the old one.
 
 ### Closing cadenza during a run
-`#bug` `#next-release`
+`#bug` `#next-release` `#manual-test` `#owner`
 
-`docs/desktop.md`: closing the desktop app while a stage runs probably does nothing at all. The page's leave warning (`beforeunload` in `ProjectView.tsx`) doesn't show a dialog in Electron: it cancels the close silently, unless the main process handles it (`will-prevent-unload`), which ours doesn't (`apps/desktop/src/main.ts`). Check by hand, reproduce in a test of the main process if possible, and show our own dialog instead: "A stage is running. Quit anyway? The run stops.", "Quit" and "Cancel".
+`docs/desktop.md`, "Closing during a run": closing the desktop app while a stage ran probably did nothing at all (Electron cancels the close silently when the page holds back from being unloaded). Fixed 2026-11-03 without trying it: the main process asks with its own dialog (`will-prevent-unload`, `apps/desktop/src/leaving.ts`), as Electron's documentation describes; Electron can't run in the sessions' environment. To check by hand in cadenza, during a run (the fake model with many pages, so it runs long enough):
+- Close the window: "Close while a stage is running?". Cancel: the window stays, the run goes on. Close: the window closes (and the app quits, but on macOS).
+- Reload (Ctrl+R or Cmd+R): "Reload while a stage is running?", the same two ways.
+- Quit from the menu, and Cmd+Q on macOS: the same question as closing.
+- Without a run, closing and reloading ask nothing.
 
 ### A run in a background tab
 `#manual-test` `#owner` `#next-release`

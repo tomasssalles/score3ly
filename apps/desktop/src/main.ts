@@ -2,9 +2,10 @@
 // the data in the app's data folder, and shows it in a window. The web app is the same as on Cloudflare; what Electron
 // adds is what a browser would: back and forward by keyboard, mouse and swipe, links opening in the browser.
 
-import { app, BrowserWindow, Menu, nativeTheme, shell, type Input } from "electron";
+import { app, BrowserWindow, dialog, Menu, nativeTheme, shell, type Input } from "electron";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { leaveQuestion } from "./leaving.ts";
 import { startServer, type RunningServer, type WindowTheme } from "./server.ts";
 
 // The data folder is named after the app, not the package ("desktop").
@@ -132,6 +133,19 @@ function createWindow(url: string) {
       event.preventDefault();
       if (/^https?:/.test(target)) void shell.openExternal(target);
     }
+  });
+
+  // While a stage runs, the page holds back from being left (its `beforeunload`), and Electron would then keep the
+  // window open without a word: the app asks instead (leaving.ts). The window's "close" comes before the page's
+  // `beforeunload`, so it says whether this is quitting or a reload.
+  let closing = false;
+  window.on("close", () => (closing = true));
+  window.webContents.on("will-prevent-unload", (event) => {
+    const question = leaveQuestion(closing);
+    closing = false;
+    const answer = dialog.showMessageBoxSync(window!, { type: "question", ...question, defaultId: 1, cancelId: 1, noLink: true });
+    // Prevented, the page's hold is ignored: the window closes, or the page reloads.
+    if (answer === 0) event.preventDefault();
   });
 
   window.on("closed", () => (window = null));
