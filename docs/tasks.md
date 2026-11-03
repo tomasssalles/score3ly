@@ -344,6 +344,7 @@ The root `README.md`; the owner wants it written properly, today it is the devel
 
 Write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.2). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
 - **Wording to use, here and in the README** (the project owner's, 2026-11-03): *you can drop a stage you added.* That is every manual stage and every extra review; a new project already comes with a standard review, which you didn't add, so you can't drop it. *Reviews, by a model or by you, are added from an Apply review stage.*
+- **Runs in the background** (decided 2026-11-03): on a computer, a run goes on while the app's tab or window is in the background (another tab, another window, minimized), in the browser and in the desktop app; only closing it stops the run (and asks first). On a phone, a run only goes on while the app is open and in front: switching apps or locking the screen stops it, and nothing can warn first (the screen is kept on while it runs). **Run picks up where it stopped,** in about a second: what was done is kept, so after an interruption, Run again.
 
 ### Try `analyze` on an excerpt that starts or ends mid-page
 `#experiment`
@@ -399,7 +400,9 @@ In every list of projects on the Statistics page (Costs: the average per page's 
 In every list of projects on the Statistics page (as above): a search field that keeps the projects whose name contains the text, ignoring case, as the project picker in the header does. Everywhere or nowhere (decided).
 
 ### Keep a run going while another page of the app is open
-`#next-release`
+`#optional`
+
+Not for the first release (decided 2026-11-03): the navigation it protects (Settings, Statistics, About, another project) is rare during a run, and a run is fragile anyway (a phone stops it when the app goes to the background). Until then, leaving a project while it runs asks first ("Warn before leaving a running project").
 
 Today a run belongs to the project view: opening a menu page (Statistics, Settings, About) or another project unmounts it, and its cleanup aborts the run (`ProjectView.tsx`, the first `useEffect`), without a warning, unlike closing the tab. The outputs saved stay; an LLM answer on its way is lost, although it is paid for; the stage shows as running until its heartbeat is 3 minutes old, then as interrupted, and a retry asks only for what is missing (docs/database.md). The same in the web app and in cadenza. Switching to another window doesn't stop a run (a hidden window's timers are slowed, but the heartbeat stays within the 3 minutes).
 
@@ -442,6 +445,21 @@ For trying the app by hand on prepared data, locally only (no remote test databa
   - **Which browser and where it is installed** is a local setting, in an uncommitted file, with the usual install paths as defaults.
 
 To check when building it: whether an existing `.dev.vars` makes Wrangler ignore the `--env-file`.
+
+### Warn before leaving a running project
+`#next-release`
+
+While this device runs a stage, leaving the project inside the app (a menu page, another project) aborts the run without a word (`ProjectView.tsx`, the first `useEffect`), unlike closing the tab, which asks (`beforeunload`). Ask first, with our own dialog, as the confirmation before a re-run does: e.g. "A stage is running. Leaving the project stops it." with "Stay" and "Leave". The browser's back button too. (Moving the run out of the project view instead: "Keep a run going while another page of the app is open", optional.)
+
+### Closing cadenza during a run
+`#bug` `#next-release`
+
+`docs/desktop.md`: closing the desktop app while a stage runs probably does nothing at all. The page's leave warning (`beforeunload` in `ProjectView.tsx`) doesn't show a dialog in Electron: it cancels the close silently, unless the main process handles it (`will-prevent-unload`), which ours doesn't (`apps/desktop/src/main.ts`). Check by hand, reproduce in a test of the main process if possible, and show our own dialog instead: "A stage is running. Quit anyway? The run stops.", "Quit" and "Cancel".
+
+### A run in a background tab
+`#manual-test` `#owner` `#next-release`
+
+On a computer, a run should go on while its tab is in the background: the page keeps running, and the heartbeat (once a minute, stale after 3) stays within its limit even under Chrome's strongest timer slowing (once a minute after 5 hidden minutes). What isn't known: whether Chrome's Memory Saver, Edge's sleeping tabs or Safari put a busy tab to sleep after a while, which would stop the run. Run a long pipeline (a real model, or the fake one with many pages), then spend 30 minutes or more in another tab and another window, in Chrome, Edge, Firefox and Safari; note what each did. The user guide's text depends on it ("Help").
 
 ### Try the page images in Firefox, Safari and on phones
 `#manual-test` `#next-release`
