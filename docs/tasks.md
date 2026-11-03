@@ -68,10 +68,10 @@ Right before the first release tag (§11, "Branches and releases"): go through t
 
 Once, right before the first release tag: every story of `docs/manual-tests.md`, the full run, not only the smoke run. What fails becomes a bug task; what the stories got wrong is fixed in them.
 
-### Build MEI's icon
-`#owner` `#style`
+### The stages' icons
+`#owner` `#style` `#next-release`
 
-`docs/stages/engrave.md`, `build_mei`: the stage has a placeholder icon (its kind's, computed). The project owner decides its icon, and whether Engrave's changes with it. Decided already: notes are printed, engraved music; letters are its source code; `extract` goes from notes to letters, `engrave` from letters to notes.
+`docs/stages/engrave.md`, `build_mei`: the stage has a placeholder icon (its kind's, computed). The project owner decides its icon. **The icons have to work together, so none is final until the first release** (the project owner, 2026-11-03): Build MEI's may change others. The idea so far: notes are printed, engraved music; letters are its source code; `extract` goes from notes to letters, `engrave` from letters to notes.
 
 ### Squash the migrations into one
 `#next-release`
@@ -491,7 +491,7 @@ Checking Bedrock's and Vertex AI's prices against the list prices that stand in 
 `docs/llm.md`, "Calling the providers": whether the answer names the model with the same string that was asked (an inference profile may come back as the bare model ID). The sanity check compares the two as they are.
 
 ### Gemini on Vertex AI
-`#next`
+`#next-release`
 
 §7.2: not built; only Claude runs on Vertex AI, and Gemini only on Google AI Studio. Needed for the task "Try the app with Gemini 3.1 Pro on Vertex AI". Gemini 3.1 Pro may be offered on Vertex AI's global endpoint only, not in the EU (to check; §10, "Data residency").
 
