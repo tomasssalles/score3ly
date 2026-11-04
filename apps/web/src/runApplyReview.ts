@@ -359,7 +359,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           const fresh = here.codeIssues
             .map((c) => ({ question: c.question, answers: c.answers, applied: c.applied, boxes: c.places.flatMap((p) => placeBox(p) ?? []) }))
             .filter((c) => isNewCodeIssue(c, all.values()));
-          let id = fresh.length > 0 ? await reserveIssueNumbers(run.project, fresh.length) : 1;
+          let id = fresh.length > 0 ? await reserveIssueNumbers(run.project, fresh.length, all.values()) : 1;
           const result: StoredExtraction = {
             system: s.number,
             page: s.page,
@@ -386,7 +386,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           const fresh = scoreChecks.codeIssues
             .map((c) => ({ question: c.question, answers: c.answers, applied: c.applied, boxes: c.places.flatMap((p) => placeBox(p) ?? []) }))
             .filter((c) => isNewCodeIssue(c, all.values()));
-          let id = fresh.length > 0 ? await reserveIssueNumbers(run.project, fresh.length) : 1;
+          let id = fresh.length > 0 ? await reserveIssueNumbers(run.project, fresh.length, all.values()) : 1;
           const result: StoredScoreChecks = {
             issues: [
               ...[...all.values()].filter((i) => homeOf(i) === null).sort((a, b) => a.id - b.id),

@@ -196,7 +196,7 @@ export async function runReview(run: StageRun): Promise<void> {
         }
         // The new issues get their numbers from the project's counter, now that the answer is usable.
         const count = newIssueCount(parsed);
-        let id = count > 0 ? await reserveIssueNumbers(run.project, count) : 1;
+        let id = count > 0 ? await reserveIssueNumbers(run.project, count, issues.values()) : 1;
         const entries: ReviewEntry[] = checked.entries.map((e) => ("newIssue" in e ? { newIssue: { ...e.newIssue, id: id++ } } : e));
         const result: StoredReview = { system: s.number, entries };
         // As it reads back from storage (canonical JSON): the later calls' log is then the same in this run and in a

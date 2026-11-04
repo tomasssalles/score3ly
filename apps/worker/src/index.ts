@@ -283,15 +283,19 @@ app.post("/api/projects/:id/opened", async (c) => {
 });
 
 // Reserves `count` issue numbers (docs/notation.md, "Issue ids"): a short number per project, never reused, not even after
-// a re-run drops the issue. Returns the first; the others follow it.
+// a re-run drops the issue. Returns the first; the others follow it. `above` (optional): the largest number the caller
+// already knows of among the issues it works on, which may come from another project's counter (stages reused from the
+// stage cache): the numbers continue above it.
 app.post("/api/projects/:id/issue-numbers", async (c) => {
   const body = await c.req.json().catch(() => null);
   const count = body?.count;
+  const above = body?.above ?? 0;
   if (!Number.isInteger(count) || count < 1 || count > 1000) return c.json({ error: "expected a 'count' from 1 to 1000" }, 400);
+  if (!Number.isInteger(above) || above < 0) return c.json({ error: "'above' must be a number of 0 or more" }, 400);
   const row = await c.env.DB.prepare(
-    "UPDATE projects SET next_issue_number = next_issue_number + ? WHERE id = ? AND deleted_at IS NULL RETURNING next_issue_number",
+    "UPDATE projects SET next_issue_number = MAX(next_issue_number, ? + 1) + ? WHERE id = ? AND deleted_at IS NULL RETURNING next_issue_number",
   )
-    .bind(count, c.req.param("id"))
+    .bind(above, count, c.req.param("id"))
     .first<{ next_issue_number: number }>();
   if (!row) return c.json({ error: "no such project" }, 404);
   return c.json({ first: row.next_issue_number - count });

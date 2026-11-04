@@ -220,7 +220,7 @@ function Screen({
       return;
     }
     try {
-      const id = await reserveIssueNumbers(project, 1);
+      const id = await reserveIssueNumbers(project, 1, [...loaded.issues, ...ownIssues(latest.current)]);
       change((current) => putOwnIssue(current, ownIssue(stageId, id, [placedBox], "")));
       setSelected(`issue-${id}`);
     } catch (err) {

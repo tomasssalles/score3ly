@@ -167,7 +167,7 @@ export async function runExtract(run: StageRun): Promise<void> {
           }
           states.set(s.number, checked.state);
           const count = checked.answer.issues.length + checked.codeIssues.length;
-          const firstId = count > 0 ? await reserveIssueNumbers(run.project, count) : 1;
+          const firstId = count > 0 ? await reserveIssueNumbers(run.project, count, [...stored.values()].flatMap((e) => e.issues)) : 1;
           const result = storedExtraction(s, checked, sources, placeBox, firstId);
           stored.set(s.number, result);
           const contentSha256 = await putContent(json(result), "application/json");
@@ -183,7 +183,7 @@ export async function runExtract(run: StageRun): Promise<void> {
             pieces,
           );
           const count = checked.codeIssues.length;
-          const firstId = count > 0 ? await reserveIssueNumbers(run.project, count) : 1;
+          const firstId = count > 0 ? await reserveIssueNumbers(run.project, count, [...stored.values()].flatMap((e) => e.issues)) : 1;
           scoreChecks = storedScoreChecks(checked, placeBox, firstId);
           const contentSha256 = await putContent(json(scoreChecks), "application/json");
           return { contentSha256, inputIds: [...new Set(systems.flatMap(inputsOf))] };

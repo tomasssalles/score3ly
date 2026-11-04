@@ -486,6 +486,10 @@ export async function markUnusable(project: Project, stageId: string, callId: st
 }
 
 // Reserves `count` issue numbers for the project (docs/notation.md, "Issue ids"): never reused. Returns the first.
-export async function reserveIssueNumbers(project: Project, count: number): Promise<number> {
-  return ((await (await send(`/api/projects/${project.id}/issue-numbers`, { count })).json()) as { first: number }).first;
+// `known`: the issues the caller works on; the numbers continue above theirs, which may come from another project's
+// counter (stages reused from the stage cache, found 2026-11-04).
+export async function reserveIssueNumbers(project: Project, count: number, known: Iterable<{ id: number }> = []): Promise<number> {
+  let above = 0;
+  for (const issue of known) above = Math.max(above, issue.id);
+  return ((await (await send(`/api/projects/${project.id}/issue-numbers`, { count, above })).json()) as { first: number }).first;
 }

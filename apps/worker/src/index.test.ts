@@ -1290,6 +1290,20 @@ test("issue numbers are reserved per project, never twice", async () => {
   assert.deepEqual(await response.json(), { first: 1 });
 });
 
+// Found 2026-11-04: a project whose earlier stages were reused from another project's (the stage cache) has their issues,
+// numbered by the other project's counter, while its own counter is still at 1; a later stage then got numbers its issues
+// already had. The caller says the largest number it knows of, and the numbering continues above it.
+test("issue numbers continue above the largest the caller already knows of", async () => {
+  const project = await createdProject("reused.pdf");
+  const reserve = async (body: unknown) =>
+    (await app.request(`/api/projects/${project.id}/issue-numbers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, env)).json();
+  assert.deepEqual(await reserve({ count: 1, above: 9 }), { first: 10 });
+  assert.deepEqual(await reserve({ count: 2, above: 3 }), { first: 11 }); // never back below what was handed out
+  assert.deepEqual(await reserve({ count: 1 }), { first: 13 });
+  const bad = await app.request(`/api/projects/${project.id}/issue-numbers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ count: 1, above: -1 }) }, env);
+  assert.equal(bad.status, 400);
+});
+
 test("migration 0014 adds the fake model config as the default, once, and keeps a default already chosen", async () => {
   const config = await env.DB.prepare("SELECT name, provider, model, free_tier FROM model_configs WHERE id = 'fake-model'").first();
   assert.deepEqual(config, { name: "Fake model", provider: "fake", model: "fake", free_tier: 1 });
