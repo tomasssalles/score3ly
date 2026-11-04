@@ -12,11 +12,9 @@ import { fetchJsonContent, putContent, recordOutputs, type Project } from "./api
 import { layoutBytes } from "./finishFixLayout";
 import {
   addBarLine,
-  BOX_HANDLES,
   boxThrough,
   firstNumbers,
   fixedLayout,
-  handlePoint,
   moveBarLine,
   resizeBox,
   sortSystems,
@@ -28,6 +26,8 @@ import { canRedo, canUndo, pushState, redo, startHistory, undo, type History } f
 import { BarLineIcon, BoxIcon, HandIcon, TrashIcon } from "./icons";
 import type { PageLayout } from "./layout";
 import {
+  BoxHandles,
+  handleAt,
   ModeToggle,
   PageCanvas,
   PageNav,
@@ -53,9 +53,8 @@ const MODES = [
   { value: "bar" as const, label: "Bar line", title: "Bar line: click or tap where a bar line goes", icon: <BarLineIcon /> },
 ];
 
-// In screen px: a tap this close to a bar line selects it, this close to a handle grabs it.
+// In screen px: a tap this close to a bar line selects it.
 const LINE_REACH = 14;
-const HANDLE_REACH = 22;
 // A label's size in screen px, per digit and fixed.
 const LABEL = { height: 18, digit: 8, padding: 8 };
 
@@ -273,11 +272,8 @@ function PageEditor({
   const viewport = useViewport<Grab>(image, {
     grab: (q, scale) => {
       if (mode !== "hand" || !selected) return null;
-      const { box } = systems[selected.system];
-      for (const handle of BOX_HANDLES) {
-        const p = handlePoint(box, handle);
-        if (Math.hypot(p.x * W - q.x, p.y * H - q.y) * scale < HANDLE_REACH) return { kind: "box", handle };
-      }
+      const handle = handleAt(systems[selected.system].box, q, { width: W, height: H }, scale);
+      if (handle) return { kind: "box", handle };
       const bar = barAt(q, scale);
       return bar === null ? null : { kind: "bar", index: bar };
     },
@@ -448,22 +444,7 @@ function PageEditor({
                 </g>
               );
             })}
-            {selected &&
-              systems[selected.system] &&
-              BOX_HANDLES.map((handle, k) => {
-                const p = handlePoint(systems[selected.system].box, handle);
-                return (
-                  <rect
-                    key={k}
-                    className="editor-handle"
-                    x={p.x * W - 7 / s}
-                    y={p.y * H - 7 / s}
-                    width={14 / s}
-                    height={14 / s}
-                    strokeWidth={2 / s}
-                  />
-                );
-              })}
+            {selected && systems[selected.system] && <BoxHandles box={systems[selected.system].box} size={{ width: W, height: H }} scale={s} />}
             {rubber && (
               <rect
                 className="editor-rubber"

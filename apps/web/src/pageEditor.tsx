@@ -8,6 +8,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { CollapseIcon, ExpandIcon, FitIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
 import { pngSize } from "./pageImages";
+import { BOX_HANDLES, handlePoint, type BoxHandle } from "./fixLayout";
+import type { Box } from "@score3ly/notation";
 
 export type Point = { x: number; y: number };
 type View = { scale: number; x: number; y: number }; // screen px per image px, and where the image's corner is
@@ -426,4 +428,39 @@ export function undoKey(event: React.KeyboardEvent, onUndo: () => void, onRedo: 
   if (key === "y" || event.shiftKey) onRedo();
   else onUndo();
   return true;
+}
+
+// The handles of a box being resized (docs/stages/layout.md, `fix_layout`; also one's own issues in a human review):
+// a corner moves two edges, the middle of an edge one. In screen px: a pointer this close to a handle grabs it.
+const HANDLE_REACH = 22;
+
+// The handle of a box (fractions of the image) a pointer at `q` (image px) takes hold of, if any.
+export function handleAt(box: Box, q: Point, size: { width: number; height: number }, scale: number): BoxHandle | null {
+  for (const handle of BOX_HANDLES) {
+    const p = handlePoint(box, handle);
+    if (Math.hypot(p.x * size.width - q.x, p.y * size.height - q.y) * scale < HANDLE_REACH) return handle;
+  }
+  return null;
+}
+
+// A box's handles, drawn in the editor's SVG (image px), the same size on screen at any zoom.
+export function BoxHandles({ box, size, scale }: { box: Box; size: { width: number; height: number }; scale: number }) {
+  return (
+    <>
+      {BOX_HANDLES.map((handle, k) => {
+        const p = handlePoint(box, handle);
+        return (
+          <rect
+            key={k}
+            className="editor-handle"
+            x={p.x * size.width - 7 / scale}
+            y={p.y * size.height - 7 / scale}
+            width={14 / scale}
+            height={14 / scale}
+            strokeWidth={2 / scale}
+          />
+        );
+      })}
+    </>
+  );
 }

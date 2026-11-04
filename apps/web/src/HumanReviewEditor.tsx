@@ -14,7 +14,7 @@ import { DropdownMenu } from "./DropdownMenu";
 import { AnswerTags, Choices, ISSUE_CLASS_LABELS, SystemRendering, useRemembered } from "./ExtractionView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
 import { jsonBytes } from "./finishFixMetadata";
-import { boxThrough } from "./fixLayout";
+import { boxThrough, resizeBox, type BoxHandle } from "./fixLayout";
 import {
   boxesProblem,
   chooseAnswer,
@@ -33,7 +33,7 @@ import {
 import { BackIcon, BoxIcon, ChevronDownIcon, ForwardIcon, HandIcon, LinkIcon, MoreIcon, UnlinkIcon } from "./icons";
 import { ImagesDiffer } from "./ImagesDiffer";
 import type { PageLayout } from "./layout";
-import { ModeToggle, PageCanvas, PageNav, usePageImage, useViewport, ZoomTools, type Point } from "./pageEditor";
+import { BoxHandles, handleAt, ModeToggle, PageCanvas, PageNav, usePageImage, useViewport, ZoomTools, type Point } from "./pageEditor";
 import { straightPage } from "./pageImages";
 import type { Artifact, Chooser } from "./pipeline";
 import type { PageRecipe } from "./rasterize";
@@ -175,7 +175,15 @@ function Screen({
   const frac = (q: Point) => ({ x: q.x / W, y: q.y / H });
   const labelOf = (item: Item) =>
     item.kind === "warning" ? "!" : `${item.issue.id}${!item.own && userChoice(stored, item.issue.id) ? " ✓" : ""}`;
-  const onPage = items.flatMap((item) => item.boxes.flatMap((b, k) => (b.page === page.page ? [{ item, box: b.box, k }] : [])));
+  // While a box of one's own issue is resized: its boxes as they are, not yet a change.
+  const [live, setLiveState] = useState<{ page: number; box: Box }[] | null>(null);
+  const liveRef = useRef<{ page: number; box: Box }[] | null>(null);
+  const setLive = (next: { page: number; box: Box }[] | null) => {
+    liveRef.current = next;
+    setLiveState(next);
+  };
+  const boxesOf = (item: Item) => (live && item.key === selected ? live : item.boxes);
+  const onPage = items.flatMap((item) => boxesOf(item).flatMap((b, k) => (b.page === page.page ? [{ item, box: b.box, k }] : [])));
 
   // What a tap at a point selects: a label first, then the smallest box under it; tapping again where boxes overlap
   // goes through them.
@@ -221,7 +229,31 @@ function Screen({
     }
   }
 
-  const viewport = useViewport<never>(image, {
+  // The handles of one's own issue's boxes, as in `fix_layout` (pageEditor.tsx): dragging one resizes its box, which is
+  // saved when it is let go, if the boxes still keep the rules (`boxesProblem`).
+  const viewport = useViewport<{ k: number; handle: BoxHandle }>(image, {
+    grab: (q, scale) => {
+      if (mode !== "hand" || !selectedOwn || boxes === "hidden") return null;
+      for (const [k, b] of selectedOwn.boxes.entries()) {
+        if (b.page !== page.page) continue;
+        const handle = handleAt(b.box, q, { width: W, height: H }, scale);
+        if (handle) return { k, handle };
+      }
+      return null;
+    },
+    drag: (grabbed, q) => {
+      if (!selectedOwn) return;
+      const current = liveRef.current ?? selectedOwn.boxes;
+      setLive(current.map((b, j) => (j === grabbed.k ? { ...b, box: resizeBox(b.box, grabbed.handle, frac(q)) } : b)));
+    },
+    release: () => {
+      const current = liveRef.current;
+      setLive(null);
+      if (!current || !selectedOwn) return;
+      const why = boxesProblem(current, placed);
+      setProblem(why);
+      if (!why) change((stored) => putOwnIssue(stored, ownIssue(stageId, selectedOwn.id, current, selectedOwn.answers[0]?.text ?? "")));
+    },
     tap: (q, scale) => {
       if (mode === "hand") return setSelected(itemAt(q, scale));
       if (!anchor) return setAnchor(q);
@@ -391,7 +423,9 @@ function Screen({
       ? selectedOwn
         ? `Tap two opposite corners to add a box to issue ${selectedOwn.id}.`
         : "Tap two opposite corners of a box around what is wrong, to raise an issue of your own."
-      : items.length === 0
+      : selectedOwn
+        ? `Drag the handles to resize the boxes of issue ${selectedOwn.id}; the box tool adds more.`
+        : items.length === 0
         ? "There are no issues. To raise one, use the box tool."
         : "Tap a box to answer its issue. A ✓ marks the issues you answered.");
   const issue = selectedItem?.kind === "issue" && !selectedItem.own ? (answered.get(selectedItem.issue.id) ?? null) : null;
@@ -477,6 +511,12 @@ function Screen({
                         </g>
                       );
                     })}
+                  {mode === "hand" &&
+                    boxes === "shown" &&
+                    selectedOwn &&
+                    boxesOf({ kind: "issue", key: `issue-${selectedOwn.id}`, boxes: selectedOwn.boxes, issue: selectedOwn, own: true })
+                      .filter((b) => b.page === page.page)
+                      .map((b, k) => <BoxHandles key={k} box={b.box} size={{ width: W, height: H }} scale={s} />)}
                   {rubber && (
                     <rect
                       className="editor-rubber"
