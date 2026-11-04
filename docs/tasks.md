@@ -46,7 +46,6 @@ Once this file holds only this task (see "Move the tasks to GitHub issues"), del
 `#next-release`
 
 `docs/stages/music.md`, "`human_review`, built": the stage works end to end (2026-11-03). Left, found while building it:
-- **Undo and redo** in its screen (`docs/style.md`, "Editors on a page"; the page editors have them).
 - **The rendering's tint** of the measures the Apply review before it changed (its Transcription has it; the screen's rendering doesn't).
 - **The second panel's size:** the panes are half and half; the original may deserve more on a wide screen.
 - **A story** in `docs/manual-tests.md` ("A manual test suite").
