@@ -118,6 +118,11 @@ Proposed by the project owner (2026-10-29). A toggle on each project, set by the
 - **What to find out:** which files or APIs (AWS's public price list JSON files for Bedrock; Google's Cloud Billing catalog for Vertex AI and Gemini, which needs an API key; Anthropic's and Google AI Studio's pages), and how their entries map to our rows (provider, model string, family, region, four prices per million tokens in US dollars). The open questions of "Decide the model configs" about regions, endpoints and prices are answered on the way.
 - **The output:** the list in the code, with its version, and a short report to spot-check (every row, grouped by model, with what each price came from).
 
+### Do our prompts reach long-context prices?
+`#research`
+
+`docs/llm.md`, "Supported models, prices and the config form": the prices are the short-context ones (decided 2026-11-04). Check, once real runs exist, whether a prompt of ours ever reaches a provider's threshold for long-context prices (Gemini's Pro models: more than 200K tokens of prompt; Claude's long-context variants on Bedrock; Haiku 5.5: more than 100K), for every provider and family the release supports. The likeliest is `review` on a long score, which sends the whole score with every call. The data is there: every call's prompt is the sum of its `input_tokens`, `cached_tokens` (cache reads) and `cache_write_tokens` in `llm_calls`, so a query over the calls of real runs answers it; each provider's exact rule (which tokens count towards the threshold) is checked on the way. If a prompt does reach one, a new task: get the long-context prices and use them where they apply.
+
 ### Decide the model configs
 `#decision` `#research` `#next-release`
 
