@@ -33,6 +33,7 @@ import {
 } from "./humanReview";
 import { BackIcon, BoxIcon, ChevronDownIcon, ForwardIcon, HandIcon, InfoIcon, LinkIcon, MoreIcon, UnlinkIcon } from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { Picker } from "./fieldList";
 import { NO_TEXT } from "./humanReview";
 import { ImagesDiffer } from "./ImagesDiffer";
 import type { PageLayout } from "./layout";
@@ -131,7 +132,9 @@ function Screen({
   const [anchor, setAnchor] = useState<Point | null>(null); // the box tool's first corner, in image px
   const [hover, setHover] = useState<Point | null>(null);
   const [boxes, setBoxes] = useRemembered<"shown" | "hidden">("score3ly.humanReview.boxes", "shown", ["shown", "hidden"]);
-  const [original, setOriginal] = useRemembered<"shown" | "hidden">("score3ly.humanReview.original", "shown", ["shown", "hidden"]);
+  // What the screen shows (docs/stages/music.md, `human_review`, decided 2026-11-04): the original, the transcription, or
+  // both (side by side, or one above the other on a narrow screen). Remembered on the device.
+  const [view, setView] = useRemembered<"both" | "original" | "transcription">("score3ly.humanReview.view", "both", ["both", "original", "transcription"]);
   const [linked, setLinked] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const chain = useRef(Promise.resolve());
@@ -332,8 +335,9 @@ function Screen({
   const pane = useRef<HTMLDivElement>(null);
   const rendered = useRef(new Map<number, HTMLElement>());
   const leader = useRef<{ side: "original" | "rendering"; until: number } | null>(null);
-  const showRendering = original === "hidden" || selectedItem === null;
-  const showOriginal = original === "shown";
+  const showOriginal = view !== "transcription";
+  // The selected annotation's panel covers the rendering when both are shown; with one of them, it is beside it.
+  const showRendering = view === "transcription" || (view === "both" && selectedItem === null);
   const bothShown = showRendering && showOriginal;
   // The page's systems (their tops and bottoms on the page, in image px) and their renderings' (in the pane's scroll px).
   function anchorsOn(n: number): { page: number[]; rendering: number[] } {
@@ -348,16 +352,90 @@ function Screen({
     return { page, rendering };
   }
   const leading = (side: "original" | "rendering") => leader.current !== null && leader.current.side !== side && Date.now() < leader.current.until;
-  // The rendering scrolled to a system on another page: where the original goes once that page is drawn.
-  const pendingMiddle = useRef<number | null>(null);
-  useLayoutEffect(() => {
-    if (!image || pendingMiddle.current === null) return;
-    const a = anchorsOn(page.page);
-    const y = mapThrough(a.rendering, a.page, pendingMiddle.current);
-    pendingMiddle.current = null;
+  // Where the rendering is: the system nearest the middle of its pane, and how far into it (0 at its top, 1 at its
+  // bottom). Kept while the rendering is hidden, so that it can come back where it was, or the original can go there.
+  const renderingAt = useRef<{ system: number; frac: number } | null>(null);
+  function readRendering(): { system: ShownSystem; frac: number } | null {
+    const el = pane.current;
+    if (!el) return null;
+    const middle = el.scrollTop + el.clientHeight / 2;
+    let nearest: { system: ShownSystem; frac: number } | null = null;
+    let distance = Infinity;
+    for (const sys of loaded.systems) {
+      const r = rendered.current.get(sys.extraction.system);
+      if (!r || !r.offsetHeight) continue;
+      const d = middle < r.offsetTop ? r.offsetTop - middle : middle > r.offsetTop + r.offsetHeight ? middle - r.offsetTop - r.offsetHeight : 0;
+      if (d < distance) [nearest, distance] = [{ system: sys, frac: (middle - r.offsetTop) / r.offsetHeight }, d];
+    }
+    if (nearest) renderingAt.current = { system: nearest.system.extraction.system, frac: nearest.frac };
+    return nearest;
+  }
+  // The original to a place of the rendering: its system's page, at the same height into the system.
+  const pendingFollow = useRef<{ system: number; frac: number } | null>(null);
+  function originalTo(at: { system: number; frac: number }) {
+    const sys = loaded.systems.find((x) => x.extraction.system === at.system);
+    if (!sys) return;
+    const target = pages.findIndex((p) => p.page === sys.extraction.page);
+    if (target < 0) return;
+    if (target !== index || !image) {
+      pendingFollow.current = at;
+      leader.current = { side: "rendering", until: Date.now() + 5000 }; // until the page is drawn
+      setIndex(target);
+      return;
+    }
     leader.current = { side: "rendering", until: Date.now() + 300 };
-    if (y !== null) viewport.center({ x: W / 2, y });
+    const m = viewport.middle();
+    const box = sys.layout.box;
+    viewport.center({ x: m?.x ?? W / 2, y: (box.top + at.frac * (box.bottom - box.top)) * H });
+  }
+  useLayoutEffect(() => {
+    if (!image || !pendingFollow.current) return;
+    const at = pendingFollow.current;
+    pendingFollow.current = null;
+    originalTo(at);
   }, [image]);
+  // The rendering to a place (coming back into view). Its systems are drawn as they come near the view and change height
+  // then, so for a moment it is put there again as they do (`restoring`, in the resize observer below).
+  const restoring = useRef<{ at: { system: number; frac: number }; until: number } | null>(null);
+  function renderingTo(at: { system: number; frac: number }) {
+    const el = pane.current;
+    const r = rendered.current.get(at.system);
+    if (!el || !r) return;
+    restoring.current = { at, until: Date.now() + 1500 };
+    leader.current = { side: "rendering", until: Date.now() + 300 };
+    el.scrollTop = r.offsetTop + at.frac * r.offsetHeight - el.clientHeight / 2;
+  }
+  // A pane coming back into view (another view picked, the panel closed): linked, it goes to where the other one is;
+  // unlinked, it is where it was left (the original keeps its page and zoom by itself; the rendering is put back).
+  // Where the original is, in the same terms (the system nearest the middle of its view on its page), kept while it is
+  // hidden.
+  const originalAt = useRef<{ system: number; frac: number } | null>(null);
+  useEffect(() => {
+    if (!showOriginal || !image) return;
+    const m = viewport.middle();
+    if (!m) return;
+    let best: { system: number; frac: number; d: number } | null = null;
+    for (const sys of loaded.systems.filter((x) => x.extraction.page === page.page)) {
+      const top = sys.layout.box.top * H;
+      const bottom = sys.layout.box.bottom * H;
+      const d = m.y < top ? top - m.y : m.y > bottom ? m.y - bottom : 0;
+      if (!best || d < best.d) best = { system: sys.extraction.system, frac: (m.y - top) / Math.max(1, bottom - top), d };
+    }
+    if (best) originalAt.current = { system: best.system, frac: best.frac };
+  }, [viewport.view, index, image, showOriginal]);
+  const shown = useRef({ original: showOriginal, rendering: showRendering });
+  useLayoutEffect(() => {
+    const before = shown.current;
+    shown.current = { original: showOriginal, rendering: showRendering };
+    // The original back: linked, to where the transcription was last.
+    if (showOriginal && !before.original && linked && renderingAt.current) originalTo(renderingAt.current);
+    // The transcription back: unlinked, where it was left; linked, where the original is (when both show, the alignment
+    // below does it).
+    if (showRendering && !before.rendering) {
+      if (!linked && renderingAt.current) renderingTo(renderingAt.current);
+      else if (linked && !showOriginal && originalAt.current) renderingTo(originalAt.current);
+    }
+  }, [showOriginal, showRendering]);
   // The original moved: the rendering follows.
   const align = useRef(() => {});
   align.current = () => {
@@ -374,36 +452,22 @@ function Screen({
   // The renderings are drawn as they come near the view, and change size then: the alignment follows.
   useEffect(() => {
     if (!showRendering) return;
-    const observer = new ResizeObserver(() => align.current());
+    const observer = new ResizeObserver(() => {
+      const back = restoring.current;
+      if (back && Date.now() < back.until) renderingTo(back.at);
+      else align.current();
+    });
     for (const el of rendered.current.values()) observer.observe(el);
     return () => observer.disconnect();
   }, [showRendering, loaded.systems]);
-  // The rendering scrolled by the user: the original follows (to another page if the system is there).
+  // The rendering scrolled (by the user, or following): where it is is kept; linked and moved by the user, the original
+  // follows, to another page if the system is there.
   function onRenderingScroll() {
-    const el = pane.current;
-    if (!linked || !bothShown || !el || leading("rendering")) return;
-    const middle = el.scrollTop + el.clientHeight / 2;
-    let nearest: ShownSystem | null = null;
-    let distance = Infinity;
-    for (const s of loaded.systems) {
-      const r = rendered.current.get(s.extraction.system);
-      if (!r) continue;
-      const d = middle < r.offsetTop ? r.offsetTop - middle : middle > r.offsetTop + r.offsetHeight ? middle - r.offsetTop - r.offsetHeight : 0;
-      if (d < distance) [nearest, distance] = [s, d];
-    }
-    if (!nearest) return;
-    leader.current = { side: "rendering", until: Date.now() + 200 };
-    const target = pages.findIndex((p) => p.page === nearest!.extraction.page);
-    if (target !== index) {
-      pendingMiddle.current = middle;
-      leader.current = { side: "rendering", until: Date.now() + 5000 }; // until the page is drawn
-      setIndex(target);
-      return;
-    }
-    const a = anchorsOn(page.page);
-    const y = mapThrough(a.rendering, a.page, middle);
-    const m = viewport.middle();
-    if (y !== null) viewport.center({ x: m?.x ?? W / 2, y });
+    // While it is being put back, the place it is put at stays the one kept.
+    if (restoring.current && Date.now() < restoring.current.until) return;
+    const at = readRendering();
+    if (!at || !linked || !bothShown || leading("rendering")) return;
+    originalTo({ system: at.system.extraction.system, frac: at.frac });
   }
   // A system's width in the rendering: the same as on the original, at its zoom (while linked).
   const widthOf = (s: ShownSystem) => (linked && bothShown && image ? (s.layout.box.right - s.layout.box.left) * W * viewport.scale : undefined);
@@ -440,14 +504,23 @@ function Screen({
         </div>
         {showOriginal && <ModeToggle modes={MODES} mode={mode} onChange={switchMode} />}
         {showOriginal && <ZoomTools viewport={viewport} />}
-        {bothShown && (
+        <Picker
+          value={VIEWS.find((v) => v.value === view)!.label}
+          label="What to show"
+          groups={[VIEWS.map((v) => ({ label: v.label, onSelect: () => setView(v.value) }))]}
+        />
+        {(
           <div className="editor-tools editor-modes">
             <button
               type="button"
               className="editor-mode"
               aria-pressed={linked}
-              aria-label={linked ? "Unlink the rendering from the original" : "Link the rendering to the original"}
-              title={linked ? "Linked: the rendering follows the original. Click to unlink." : "Unlinked. Click to link the rendering to the original again."}
+              aria-label={linked ? "Unlink the original and the transcription" : "Link the original and the transcription"}
+              title={
+                linked
+                  ? "Linked: the original and the transcription follow each other, also when one of them is hidden. Click to unlink."
+                  : "Unlinked: each stays where you leave it. Click to link them again."
+              }
               onClick={() => setLinked(!linked)}
             >
               {linked ? <LinkIcon /> : <UnlinkIcon />}
@@ -460,7 +533,6 @@ function Screen({
           groups={[
             [
               { label: boxes === "shown" ? "Hide the boxes" : "Show the boxes", onSelect: () => setBoxes(boxes === "shown" ? "hidden" : "shown") },
-              { label: original === "shown" ? "Hide the original" : "Show the original", onSelect: () => setOriginal(original === "shown" ? "hidden" : "shown") },
             ],
             ...(showOriginal ? [[{ label: "Add clarification", onSelect: () => { setSelected(null); switchMode("box"); } }]] : []),
           ]}
@@ -585,6 +657,12 @@ function Screen({
 }
 
 const NO_CHANGES = new Set<string>();
+
+const VIEWS = [
+  { value: "both" as const, label: "Show both" },
+  { value: "original" as const, label: "Original only" },
+  { value: "transcription" as const, label: "Transcription only" },
+];
 
 // A warning's panel: its explanation, nothing to answer (docs/stages/music.md, `human_review`, "Warnings use the same UI").
 function WarningPanel({ warning, color, onClose }: { warning: StoredWarning; color?: string; onClose: () => void }) {
