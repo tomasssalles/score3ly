@@ -373,7 +373,7 @@ export function AnalyzeIcon() {
 
 // The music stages' icons tell a story: `extract` sees a note (a "c") and writes "a"; `review` marks the "a" as
 // wrong, with the "c" written above it, on the transcription; `apply_review` replaces the "a" with the "c" in a new
-// transcription; `engrave` makes the note again from the "c".
+// transcription; `build_mei` makes the "c" an MEI element, "<c>"; `engrave` makes the note again from it.
 
 // `extract`: a quarter note turning into an "a".
 export function ExtractIcon() {
@@ -416,15 +416,39 @@ export function ApplyReviewIcon() {
   );
 }
 
-// `engrave`: a "c" turning into a quarter note.
+// `build_mei`: a "c" turning into an element, "<c>".
+export function BuildMeiIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 3.5c-.6-.65-1.4-1-2.3-1-1.6 0-2.7 1.4-2.7 3.25S4.1 9 5.7 9c.9 0 1.7-.35 2.3-1" />
+      <path d="M9.6 9.6l3.5 3.5M13.1 9.9v3.2h-3.2" />
+      <Element x={10.2} y={16.3} />
+    </svg>
+  );
+}
+
+// `engrave`: the element, "<c>", turning into a quarter note.
 export function EngraveIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8.4 3.5c-.6-.6-1.5-1-2.5-1-1.7 0-2.9 1.4-2.9 3.25s1.2 3.25 2.9 3.25c1 0 1.9-.4 2.5-1" />
+      <Element x={1.2} y={3} />
       <path d="M10.7 11.3l3.5 3.5M14.2 11.6v3.2h-3.2" />
       <ellipse className="filled-shape" cx="17.4" cy="20" rx="2.4" ry="1.8" transform="rotate(-20 17.4 20)" />
       <path d="M19.6 19.4v-6.5" />
     </svg>
+  );
+}
+
+// "<c>", 12.2 × 5 units from the origin: smaller than the other letters, so that the brackets stay apart from the "c".
+function Element({ x, y }: { x: number; y: number }) {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <path d="M1.8 0 0 2.5 1.8 5" />
+      <Scaled x={4.2} y={0} scale={5 / 6.5}>
+        <GlyphC />
+      </Scaled>
+      <path d="M10.4 0 12.2 2.5 10.4 5" />
+    </g>
   );
 }
 

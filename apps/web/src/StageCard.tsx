@@ -6,6 +6,7 @@ import { useHost } from "./host";
 import {
   AnalyzeIcon,
   ApplyReviewIcon,
+  BuildMeiIcon,
   CloseIcon,
   ExtractIcon,
   EngraveIcon,
@@ -59,6 +60,7 @@ const STEP_ICONS: Record<string, () => React.JSX.Element> = {
   extract: ExtractIcon,
   review: ReviewIcon,
   apply_review: ApplyReviewIcon,
+  build_mei: BuildMeiIcon,
   engrave: EngraveIcon,
 };
 
