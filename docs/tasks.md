@@ -42,12 +42,6 @@ Once this file holds only this task (see "Move the tasks to GitHub issues"), del
 
 `docs/notation.md`, "The symbolic format": the description of the symbolic format in `extract`'s prompt (`MUSIC` in `packages/prompts/src/extract.ts`) is written by hand, and the parser (`packages/notation`) accepts a closed list of tokens. The plan was to generate the prompt's list from the parser's code, so that the two can never drift apart: every token the parser accepts is described, and nothing it rejects is offered. A change of the generated text changes the prompt's version.
 
-### Human review: what is left
-`#next-release`
-
-`docs/stages/music.md`, "`human_review`, built": the stage works end to end (2026-11-03). Left, found while building it:
-- **The panes' sizes:** half and half when both are shown; with the view picker ("Original only", 2026-11-04) the original can have the whole width, so perhaps nothing more is needed.
-
 ### A manual test suite
 `#manual-test` `#owner`
 
