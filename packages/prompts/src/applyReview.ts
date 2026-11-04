@@ -11,7 +11,7 @@
 import { MUSIC } from "./extract.ts";
 
 // Raise whenever the texts or the schema change.
-export const APPLY_REVIEW_PROMPT_VERSION = 2;
+export const APPLY_REVIEW_PROMPT_VERSION = 3;
 
 export const APPLY_REVIEW_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -29,6 +29,7 @@ export const APPLY_REVIEW_SYSTEM = `You apply decisions to a transcription of pr
 
 ## What to do
 For each issue to apply, change the transcription so that it says what the chosen answer says. Change only what the answer needs:
+- **A clarification** (an issue whose **source** is "user", usually with no question and one answer, chosen by a person) is a person's statement of what the original score has in the places its boxes mark, e.g. "This is a C flat". Apply it like any chosen answer: make the transcription say what it says there. Where the transcription already does, change nothing for it.
 - **Leave everything else as it is,** above all the other issues on these systems: their answers are not yours to apply.
 - **Usually only the stretches under the issue's boxes change.** Where an answer needs more (a slur said to continue into the next system changes where it ends there too; a note made longer changes what follows it in the measure), change the stretches it needs, also on the systems just before and after your window, and give a **reason** for every change outside the boxes.
 - **Keep the transcription consistent:** every voice of a stretch lasts the same, every staff has a voice in every stretch that is part of a measure, curves keep their numbers across bar lines and systems, a voice or staff that is new has a description where it first appears.

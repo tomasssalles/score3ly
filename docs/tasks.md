@@ -47,7 +47,6 @@ Once this file holds only this task (see "Move the tasks to GitHub issues"), del
 
 `docs/stages/music.md`, "`human_review`, built": the stage works end to end (2026-11-03). Left, found while building it:
 - **The second panel's size:** the panes are half and half; the original may deserve more on a wide screen.
-- **A story** in `docs/manual-tests.md` ("A manual test suite").
 
 ### A manual test suite
 `#manual-test` `#owner`
@@ -57,7 +56,7 @@ A documented, step-by-step list of behavioural tests for trying the app by hand 
 A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a script of many actions in a row (the project owner's brief: no clean slate per case, stories of what a user might do, sized for a person), a smoke run of about 45 minutes and a full run of about 5 hours, with the fake models and `curl` for the configs the app can't make yet. Left to do:
 - **The project owner reviews it** and runs it once; the expected results come from the docs and may be wrong where the docs are.
 - **Multi-device tests wait for a real deployment** (§16, "Deployment"): listed at the end of the file, to be written as stories then, with real phones, Firefox and Safari.
-- **Stories to add** once built: `human_review`, the model configs' form, the format gap report. (`apply_review` and further reviews: in stories 1 and 3, 2026-11-02.)
+- **Stories to add** once built: the model configs' form, the format gap report. (`apply_review` and further reviews: in stories 1 and 3, 2026-11-02; `human_review`: in stories 2 and 3, 2026-11-04.)
 - **The setup becomes a test environment** once those exist ("Build the test environments"), so the stories start with one command.
 - **Found while writing it** (each a task of its own): "Model configs for stages, and managing them".
 

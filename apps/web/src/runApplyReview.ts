@@ -283,6 +283,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
               const chosen = i.choices[i.choices.length - 1];
               return {
                 id: i.id,
+                source: i.source,
                 places: placesOf(i.boxes, placed),
                 location: i.location,
                 question: i.question,

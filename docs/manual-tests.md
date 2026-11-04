@@ -52,9 +52,9 @@ curl -s $W/model-configs | grep -o '"id":"[^"]*","name":"[^"]*"'            # th
 ```
 Neither "No key" nor "No price" reaches the network: the Worker refuses them first (docs/llm.md, "Errors the stage acts on").
 
-**What the fake model answers** (so that its output isn't mistaken for bugs): `layout` two systems on every page, three bar lines each (so four stretches); `analyze` empty metadata and observations; `extract` a whole-measure rest in 4/4 in every stretch, a voice per staff, a made-up doubt on every system and a format issue on the first; `review` a correction on system 1 and another answer chosen for the first issue of system 2.
+**What the fake model answers** (so that its output isn't mistaken for bugs): `layout` two systems on every page, three bar lines each (so four stretches); `analyze` empty metadata and observations; `extract` a whole-measure rest in 4/4 in every stretch, a voice per staff, a made-up doubt on every system and a format issue on the first; `review` a correction on system 1 and another answer chosen for the first issue of system 2; `apply_review` applies the issues of a window that starts on an odd system (a C in the first voice) and reverts those of an even one with a made-up reason, but always applies a person's answers.
 
-**Known gaps** (not bugs; their tasks are in §15): leaving a running project for another page of the app or another project aborts the run ("Keep a run going while another page of the app is open"); nothing checks the project's version yet ("Optimistic locking"); model configs can't be made or edited in the app; `human_review` isn't built.
+**Known gaps** (not bugs; their tasks are in §15): leaving a running project for another page of the app or another project aborts the run ("Keep a run going while another page of the app is open"); nothing checks the project's version yet ("Optimistic locking"); model configs can't be made or edited in the app; the fake model always applies a person's answers in Apply review, so a human review that stops the stage (`docs/stages/music.md`, "A resolved issue") can't be tried here.
 
 ## Story 1: The first score
 
@@ -85,7 +85,7 @@ Neither "No key" nor "No price" reaches the network: the Worker refuses them fir
 
 ## Story 2: The careful user
 
-*Someone who checks every step: Manual mode, a vector PDF, a different page selection, every manual stage.* About 60 minutes (best split after step 12). Covers: Manual mode, config dialogs and their checks, `fix_skew`, `fix_layout`, `fix_metadata`, `fix_observations`, `fix_mei`, Finish.
+*Someone who checks every step: Manual mode, a vector PDF, a different page selection, every manual stage.* About 90 minutes (best split after steps 12 and 14). Covers: Manual mode, config dialogs and their checks, `fix_skew`, `fix_layout`, `fix_metadata`, `fix_observations`, `fix_mei`, `human_review` (its screen, answers, clarifications, Finish's checks), Finish.
 
 1. → Settings → run mode for new projects "Manual". → New project from Debussy. ✓ The project's run mode shows "Manual"; Rasterize ready, with **Run** on its card; no Run in the head.
 2. → Rasterize's "⋮" → Change config: Pages `9`. ✓ Refused when saved (beyond the last page, 4), the old config kept. → Pages `3,1`, resolution `1000`. ✓ The resolution refused (72 to 600). → Pages `3,1`, 150 dpi, save. ✓ No confirmation (nothing ran yet). → Run. ✓ Two pages, the card "2 pages"-style, the config shown as "1, 3" in the details. The next stage is ready, not started.
@@ -119,12 +119,20 @@ Neither "No key" nor "No price" reaches the network: the Worker refuses them fir
     - → Fix them, Apply. ✓ Accepted; the score engraved again; Apply disabled. → Undo once. ✓ The text changes again and Apply is enabled (undo goes on past an Apply).
     - → Finish (with the undone change pending). ✓ The text is applied first (or refused if it doesn't pass); "… lines changed".
 14. → Run Engrave. ✓ It engraves the edited MEI (the changed rest shows in the PDF). → Engrave's "⋮" → Change config: US Letter. ✓ The confirmation (Engrave ran); after Run, taller pages.
+15. → Apply review's "⋮". ✓ "Add Review" and "Add Human review". → "Add Human review". ✓ The confirmation ("Add Human review": the stages after it ran); a Human review card (the wrench, WIP, Finish) right after Apply review, and a planned Apply review after it with the default model config; the Human review's screen opens: a toolbar (page arrows, "Annotation –/n" between arrows, the hand and the box tools, zoom, the link button, "⋮"), the hint, the original (straightened, every issue's boxes dimmed and numbered, warnings dashed with "!") and the transcription rendered beside it, system by system.
+16. → The next-annotation arrow, then the → key. ✓ The page of the first annotation, its box in the middle and no longer dimmed; its panel covers the rendering: its number and class, the question, the answers with radio marks and their suffixes, the last row a field "Other" (italic). → Choose b. ✓ Marked, "[confirmed by Human review 1]" on it, "✓" on the box's label. → Tap b again. ✓ Taken back. → Type "An accent" in the last row. ✓ The row chosen; saved after a pause. → Choose a, then the last row again. ✓ a, then "An accent" again (the text stayed). → Empty the field. ✓ Taken back. → Type exactly the text of answer a, then the same in other capitals. ✓ Exactly: a is chosen; other capitals: a new answer. Leave b chosen on this issue, and answer two more.
+17. → Close the panel (the chevron). Pan and zoom the original. ✓ The rendering follows, the same system in the middle and as wide on both sides. → Scroll the rendering to the last system. ✓ The original follows, to the other page. → The link button (unlink); pan. ✓ Each side alone, the renderings at their own size. → Link. ✓ The rendering aligned to the original again. → "⋮" → Hide the original, Show the original, Hide the boxes, Show the boxes; reload. ✓ Each works, and the choice is remembered.
+18. → "⋮" → "Add clarification". → Tap two opposite corners between two systems (on no system). ✓ A clarification with its panel: "#n · [clarification]", "What's in the original score?" with an "i", the field "Clarification" focused; in red "The clarification text cannot be empty." and "Boxes must be on top of systems."; on the page the box's label red, with "!". → Finish. ✓ Refused: "Finishing the stage failed: Clarification n: The clarification text cannot be empty. Boxes must be on top of systems. Everything else is kept."
+19. → With the clarification selected, the box tool: a box on a system. → Remove the first box. → Write "This is a C flat". ✓ No red left. → The hand tool: drag a handle of its box. ✓ It resizes, saved when let go. → The box tool: a box two systems away. ✓ Red: "The boxes are on systems 1, 3. They can be on one system, or on two neighbouring systems."-style. → Remove it, then the last box. ✓ "A clarification needs at least one box." → Draw a box on a system again. ✓ No red. → Both "i"s. ✓ Their texts, below them; tapped again, gone.
+20. → A second clarification; "Delete clarification". ✓ "Are you sure?", the text, "Delete" in red. → Cancel. ✓ Kept. → Delete. ✓ Gone, from the page too.
+21. → Finish. ✓ "4 changes"-style; the Apply review after it ready. → Run it, then Build MEI and Engrave. ✓ "… changes applied" (the fake model applies a person's answers, never stops on them). → The Human review's Transcription. ✓ The answers with "[confirmed by Human review 1]", the clarification as "#n · [clarification]" under its system; Δ shows only what it answered. → The new Apply review's Transcription. ✓ "[applied by Apply review 2]" on them, and the measures it changed tinted.
+22. → The Human review's "⋮" → Edit. ✓ The confirmation; WIP again with everything as left; its Apply review planned again. → Finish, run to the end. → The Human review's "⋮" → Drop stage. ✓ The confirmation; it goes with its Apply review; the stages after them wait for Run.
 
 *Worth automating:* the config dialog's refusals; the order in which a second fix after `analyze` is placed.
 
 ## Story 3: Second thoughts
 
-*The user changes their mind in the middle: a new config upstream, edits to finished manual stages, drops. What is reused, what is carried, what is dropped.* About 45 minutes. Covers: §5.5 (re-runs, carried and dropped stages, the confirmation, the dropped cards), the cache.
+*The user changes their mind in the middle: a new config upstream, edits to finished manual stages, drops. What is reused, what is carried, what is dropped.* About 50 minutes. Covers: §5.5 (re-runs, carried and dropped stages, the confirmation, the dropped cards), the cache.
 
 Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new project from Für Elise (the scan) in **Auto** mode, let it run to the end, then add a Fix skew (change one line, Finish) and let the pipeline run again to the end.
 
@@ -139,6 +147,8 @@ Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new 
 9. ★ → Try "Drop stage" on a recipe stage. ✓ Not offered. → Open any running stage's "⋮". ✓ Only "Show details".
 10. → Apply review's "⋮" → "Add Review". ✓ The confirmation ("Add Review": Engrave ran); a Review and an Apply review after it, planned, with the default model config; Apply review's "⋮" has "Add Review", the new Review's has "Drop stage". → Run to the end. ✓ The second review sees the first's results (its view: the issues as Apply review 1 left them; "chosen by Review 2"). → Add another review after the *first* Apply review. ✓ It goes right after it, before Review 2, and the stages after it wait for Run.
 11. → Drop the review added last. ✓ The confirmation; it goes with its Apply review. → Analyze's "⋮" → "Fix metadata manually", add a piece at system 2, Finish. ✓ Review 2 is carried (dimmed while it waits) and **dropped** at its turn with its Apply review, one card ("Review", "⚠️ Dropped: inputs have changed"): Extract's output changed, so what it would read did. → Add a review again after the Apply review, run, then change Engrave's page size. ✓ Nothing before Engrave runs again: Review 2 isn't touched by a change after it.
+
+12. → After the last Apply review: "Add Human review", choose an answer, Finish, run to the end. → Analyze's "⋮" → "Fix metadata manually", add a piece, Finish. ✓ The Human review is carried (dimmed while it waits) and **dropped** at its turn with its Apply review, one card ("Human review", "⚠️ Dropped: inputs have changed"): the transcription it read changed. → "Add Human review" after that Apply review again. ✓ The card disappears.
 
 *Worth automating:* the kept/dropped outcomes of steps 2, 3 and 6 as a replay test, once fixtures exist (§12).
 
@@ -245,4 +255,4 @@ Multi-device tests, and tests on real phones and other browsers, wait until the 
 - **Cloudflare Access** in front of the app, and the secrets in the dashboard.
 - **Real models:** a short story with a real key and a cheap model, once the model configs can be made in the app.
 
-Also still to add, once built: `human_review` (story 2 and story 3), the model configs' form (Setup, story 5), the format gap report (Settings, "Developer").
+Also still to add, once built: the model configs' form (Setup, story 5), the format gap report (Settings, "Developer").
