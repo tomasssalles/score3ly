@@ -16,13 +16,14 @@ import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } 
 import { jsonBytes } from "./finishFixMetadata";
 import { boxThrough, resizeBox, type BoxHandle } from "./fixLayout";
 import {
-  boxesProblem,
+  boxProblems,
   chooseAnswer,
   clearChoice,
   humanReviewedIssues,
   mapThrough,
   ownIssue,
   ownIssues,
+  placedSystems,
   putOwnIssue,
   removeOwnIssue,
   scoreOrder,
@@ -30,7 +31,8 @@ import {
   writeAnswer,
   type StoredHumanReview,
 } from "./humanReview";
-import { BackIcon, BoxIcon, ChevronDownIcon, ForwardIcon, HandIcon, LinkIcon, MoreIcon, UnlinkIcon } from "./icons";
+import { BackIcon, BoxIcon, ChevronDownIcon, ForwardIcon, HandIcon, InfoIcon, LinkIcon, MoreIcon, UnlinkIcon } from "./icons";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { ImagesDiffer } from "./ImagesDiffer";
 import type { PageLayout } from "./layout";
 import { BoxHandles, handleAt, ModeToggle, PageCanvas, PageNav, usePageImage, useViewport, ZoomTools, type Point } from "./pageEditor";
@@ -102,7 +104,7 @@ type Item =
 
 const MODES = [
   { value: "hand" as const, label: "Hand", title: "Hand: pan, select a box", icon: <HandIcon /> },
-  { value: "box" as const, label: "New issue", title: "New issue: click or tap at two opposite corners of a box", icon: <BoxIcon /> },
+  { value: "box" as const, label: "Add clarification", title: "Add clarification: click or tap at two opposite corners of a box", icon: <BoxIcon /> },
 ];
 
 function Screen({
@@ -131,13 +133,10 @@ function Screen({
   const [original, setOriginal] = useRemembered<"shown" | "hidden">("score3ly.humanReview.original", "shown", ["shown", "hidden"]);
   const [linked, setLinked] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string | null>(null); // why a box wasn't added
   const chain = useRef(Promise.resolve());
 
-  const placed: PlacedSystem[] = useMemo(
-    () => loaded.systems.map((s) => ({ number: s.extraction.system, page: s.extraction.page, layout: s.layout })),
-    [loaded.systems],
-  );
+  // The systems as Finish checks the clarifications' boxes against them (finishHumanReview.ts).
+  const placed: PlacedSystem[] = useMemo(() => placedSystems(pages.map((p) => ({ page: p.page, systems: p.layout.systems }))), [pages]);
   const systemsOn = (n: number) => pages.find((p) => p.page === n)?.layout.systems.map((s) => s.box) ?? [];
 
   // Everything with a box, in the score's order, each with its colour; the transcription's issues as the user's answers
@@ -207,30 +206,26 @@ function Screen({
     return keys[(at + 1) % keys.length];
   }
 
-  // A box drawn with the box tool: added to the selected own issue, or a new issue of the user's own.
+  // A box drawn with the box tool: added to the selected clarification, or a new clarification. Anything goes while the
+  // user draws: what breaks the rules is shown, and checked on Finish.
   async function addBox(box: Box) {
     const placedBox = { page: page.page, box };
     if (selectedOwn) {
       const next = [...selectedOwn.boxes, placedBox];
-      const why = boxesProblem(next, placed);
-      setProblem(why);
-      if (!why) change((current) => putOwnIssue(current, ownIssue(stageId, selectedOwn.id, next, selectedOwn.answers[0]?.text ?? "")));
+      change((current) => putOwnIssue(current, ownIssue(stageId, selectedOwn.id, next, selectedOwn.answers[0]?.text ?? "")));
       return;
     }
-    const why = boxesProblem([placedBox], placed);
-    setProblem(why);
-    if (why) return;
     try {
       const id = await reserveIssueNumbers(project, 1);
       change((current) => putOwnIssue(current, ownIssue(stageId, id, [placedBox], "")));
       setSelected(`issue-${id}`);
     } catch (err) {
-      setError(`The issue couldn't be raised: ${err instanceof Error ? err.message : err}`);
+      setError(`The clarification couldn't be added: ${err instanceof Error ? err.message : err}`);
     }
   }
 
-  // The handles of one's own issue's boxes, as in `fix_layout` (pageEditor.tsx): dragging one resizes its box, which is
-  // saved when it is let go, if the boxes still keep the rules (`boxesProblem`).
+  // The handles of a clarification's boxes, as in `fix_layout` (pageEditor.tsx): dragging one resizes its box, saved when
+  // it is let go.
   const viewport = useViewport<{ k: number; handle: BoxHandle }>(image, {
     grab: (q, scale) => {
       if (mode !== "hand" || !selectedOwn || boxes === "hidden") return null;
@@ -250,9 +245,7 @@ function Screen({
       const current = liveRef.current;
       setLive(null);
       if (!current || !selectedOwn) return;
-      const why = boxesProblem(current, placed);
-      setProblem(why);
-      if (!why) change((stored) => putOwnIssue(stored, ownIssue(stageId, selectedOwn.id, current, selectedOwn.answers[0]?.text ?? "")));
+      change((stored) => putOwnIssue(stored, ownIssue(stageId, selectedOwn.id, current, selectedOwn.answers[0]?.text ?? "")));
     },
     tap: (q, scale) => {
       if (mode === "hand") return setSelected(itemAt(q, scale));
@@ -318,7 +311,6 @@ function Screen({
     setMode(next);
     setAnchor(null);
     setHover(null);
-    setProblem(null);
   }
 
   function onKeyDown(event: React.KeyboardEvent) {
@@ -418,16 +410,17 @@ function Screen({
   const s = viewport.scale;
   const rubber = mode === "box" && anchor && hover ? boxThrough(frac(anchor), frac(hover)) : null;
   const hint =
-    problem ??
-    (mode === "box"
+    mode === "box"
       ? selectedOwn
-        ? `Tap two opposite corners to add a box to issue ${selectedOwn.id}.`
-        : "Tap two opposite corners of a box around what is wrong, to raise an issue of your own."
+        ? `Tap two opposite corners to add a box to clarification ${selectedOwn.id}.`
+        : "Tap two opposite corners of a box around a place in the original, to add a clarification about it."
       : selectedOwn
-        ? `Drag the handles to resize the boxes of issue ${selectedOwn.id}; the box tool adds more.`
+        ? `Drag the handles to resize the boxes of clarification ${selectedOwn.id}; the box tool adds more.`
         : items.length === 0
-        ? "There are no issues. To raise one, use the box tool."
-        : "Tap a box to answer its issue. A ✓ marks the issues you answered.");
+          ? "There are no issues. To add a clarification, use the box tool."
+          : "Tap a box to answer its issue. A ✓ marks the issues you answered.";
+  // The boxes of each clarification that break a rule, drawn in red.
+  const badBoxes = new Map(ownIssues(stored).map((issue) => [`issue-${issue.id}`, new Set(boxProblems(boxesOf({ kind: "issue", key: `issue-${issue.id}`, boxes: issue.boxes, issue, own: true }), placed).bad)]));
   const issue = selectedItem?.kind === "issue" && !selectedItem.own ? (answered.get(selectedItem.issue.id) ?? null) : null;
   return (
     <div className="human-review" onKeyDown={onKeyDown}>
@@ -468,11 +461,11 @@ function Screen({
               { label: boxes === "shown" ? "Hide the boxes" : "Show the boxes", onSelect: () => setBoxes(boxes === "shown" ? "hidden" : "shown") },
               { label: original === "shown" ? "Hide the original" : "Show the original", onSelect: () => setOriginal(original === "shown" ? "hidden" : "shown") },
             ],
-            ...(showOriginal ? [[{ label: "New issue", onSelect: () => { setSelected(null); switchMode("box"); } }]] : []),
+            ...(showOriginal ? [[{ label: "Add clarification", onSelect: () => { setSelected(null); switchMode("box"); } }]] : []),
           ]}
         />
       </div>
-      {showOriginal && <p className={problem ? "editor-hint hint-problem" : "editor-hint"}>{hint}</p>}
+      {showOriginal && <p className="editor-hint">{hint}</p>}
       <div className="human-review-panes">
         {showOriginal && (
           <div className="page-editor">
@@ -488,13 +481,14 @@ function Screen({
                 <>
                   {boxes === "shown" &&
                     onPage.map(({ item, box, k }) => {
-                      const label = labelOf(item);
+                      const invalid = badBoxes.get(item.key)?.has(k) ?? false;
+                      const label = `${labelOf(item)}${invalid ? " !" : ""}`;
                       const color = colors.get(item.key);
                       return (
                         <g
                           key={`${item.key}-${k}`}
                           stroke={color}
-                          className={`review-box${item.kind === "warning" ? " warning" : ""}${item.key === selected ? " selected" : ""}`}
+                          className={`review-box${item.kind === "warning" ? " warning" : ""}${item.key === selected ? " selected" : ""}${invalid ? " invalid" : ""}`}
                         >
                           <rect x={box.left * W} y={box.top * H} width={(box.right - box.left) * W} height={(box.bottom - box.top) * H} fill="none" />
                           <rect
@@ -559,6 +553,7 @@ function Screen({
             issue={selectedOwn}
             color={colors.get(`issue-${selectedOwn.id}`)}
             systems={placed}
+            problem={boxProblems(selectedOwn.boxes, placed)}
             onWrite={(text) => change((current) => putOwnIssue(current, ownIssue(stageId, selectedOwn.id, selectedOwn.boxes, text)))}
             onRemoveBox={(k) => change((current) => putOwnIssue(current, ownIssue(stageId, selectedOwn.id, selectedOwn.boxes.filter((_, j) => j !== k), selectedOwn.answers[0]?.text ?? "")))}
             onAddBox={() => switchMode("box")}
@@ -606,11 +601,13 @@ function WarningPanel({ warning, color, onClose }: { warning: StoredWarning; col
   );
 }
 
-// The user's own issue: the correction, its boxes (each removable while another is left), and Delete.
+// A clarification, the user's own issue: what the original score has in the places its boxes mark, the boxes (each
+// removable), "Add a box", and "Delete clarification", which asks first. What keeps it from being finished is said in red.
 function OwnIssuePanel({
   issue,
   color,
   systems,
+  problem,
   onWrite,
   onRemoveBox,
   onAddBox,
@@ -620,6 +617,7 @@ function OwnIssuePanel({
   issue: StoredIssue;
   color?: string;
   systems: PlacedSystem[];
+  problem: { problem: string | null; bad: number[] };
   onWrite: (text: string) => void;
   onRemoveBox: (k: number) => void;
   onAddBox: () => void;
@@ -627,6 +625,7 @@ function OwnIssuePanel({
   onClose: () => void;
 }) {
   const [text, setText] = useState(issue.answers[0]?.text ?? "");
+  const [deleting, setDeleting] = useState(false);
   const field = useRef<HTMLTextAreaElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -644,29 +643,34 @@ function OwnIssuePanel({
     if (value.trim() !== (issue.answers[0]?.text ?? "")) onWrite(value);
   }
   const where = (b: { page: number; box: Box }) => {
-    const on = systems.filter((s) => s.page === b.page).map((s) => s.number);
-    const covered = on.filter((n) => {
-      const sys = systems.find((s) => s.number === n)!.layout.box;
-      return Math.min(b.box.bottom, sys.bottom) > Math.max(b.box.top, sys.top);
-    });
-    return `page ${b.page}${covered.length ? `, system ${covered.join(" and ")}` : ""}`;
+    const covered = systems.filter((s) => s.page === b.page && Math.min(b.box.bottom, s.layout.box.bottom) > Math.max(b.box.top, s.layout.box.top));
+    return `page ${b.page}${covered.length ? `, system ${covered.map((s) => s.number).join(" and ")}` : ""}`;
   };
   return (
-    <aside className="issue-panel" aria-label={`Issue ${issue.id}`} style={{ borderTopColor: color }}>
+    <aside className="issue-panel" aria-label={`Clarification ${issue.id}`} style={{ borderTopColor: color }}>
       <div className="issue-panel-head">
-        <p className="issue-head">#{issue.id} · [your correction]</p>
-        <button type="button" className="icon-button" aria-label="Hide the issue" title="Hide the issue" onClick={onClose}>
+        <p className="issue-head">#{issue.id} · [clarification]</p>
+        <button type="button" className="icon-button" aria-label="Hide the clarification" title="Hide the clarification" onClick={onClose}>
           <ChevronDownIcon />
         </button>
       </div>
-      <label className="own-correction">
-        <span className="answer-own-label">Your correction</span>
+      <div className="own-correction">
+        <span className="answer-own-label">
+          <label htmlFor={`clarification-${issue.id}`}>What's in the original score?</label>
+          <Info label="What to write">
+            Explain what you see in the places marked by the boxes, where the models seem to be confused. Write about what the
+            original score has, not about the mistakes you see in the transcription: if the original has a C that was
+            transcribed as a D, write "This is a C" rather than "The D is wrong". That way, what you write still makes sense in
+            later stages, once the mistake has been corrected.
+          </Info>
+        </span>
         <textarea
+          id={`clarification-${issue.id}`}
           ref={field}
           rows={1}
           className="answer-other-field"
           value={text}
-          placeholder="What the page says here, e.g. “This note is a C flat”"
+          placeholder="For example: “This is a C flat”"
           onChange={(e) => {
             const value = e.target.value;
             setText(value);
@@ -681,34 +685,63 @@ function OwnIssuePanel({
             }
           }}
         />
-      </label>
-      {!text.trim() && <p className="issue-facts hint-problem">Write the correction: the stage can't be finished without it.</p>}
+      </div>
+      {!text.trim() && <p className="issue-facts hint-problem">Write what's there: the stage can't be finished without it.</p>}
+      {problem.problem && <p className="issue-facts hint-problem">{problem.problem} The stage can't be finished like this.</p>}
       <ul className="own-boxes">
         {issue.boxes.map((b, k) => (
-          <li key={k}>
+          <li key={k} className={problem.bad.includes(k) ? "hint-problem" : undefined}>
             <span>
               Box {k + 1} · {where(b)}
             </span>
-            {issue.boxes.length > 1 && (
-              <button type="button" className="link-button" onClick={() => onRemoveBox(k)}>
-                Remove
-              </button>
-            )}
+            <button type="button" className="button-secondary button-small" onClick={() => onRemoveBox(k)}>
+              Remove
+            </button>
           </li>
         ))}
       </ul>
-      <p className="issue-facts">
-        <button type="button" className="link-button" onClick={onAddBox}>
-          Add a box
-        </button>{" "}
-        (at most two systems, one right after the other)
-      </p>
-      <p className="issue-facts">
-        <button type="button" className="link-button danger-link" onClick={onDelete}>
-          Delete this issue
+      <div className="own-actions">
+        <span className="own-add">
+          <button type="button" className="button-secondary" onClick={onAddBox}>
+            Add a box
+          </button>
+          <Info label="The rules for boxes">
+            Each box has to be on a system. The boxes can be on one system, or on two systems right next to each other (the
+            last of a page and the first of the next count as neighbours too). To mark something on more systems, add more
+            clarifications. While you draw, anything goes: what breaks a rule is shown in red, and checked when you finish.
+          </Info>
+        </span>
+        <button type="button" className="button-danger" onClick={() => setDeleting(true)}>
+          Delete clarification
         </button>
-      </p>
+      </div>
+      {deleting && (
+        <ConfirmDialog
+          title="Are you sure?"
+          text={[`Clarification ${issue.id} and its boxes will be deleted. This action cannot be undone.`]}
+          confirmLabel="Delete clarification"
+          danger
+          onConfirm={() => {
+            setDeleting(false);
+            onDelete();
+          }}
+          onCancel={() => setDeleting(false)}
+        />
+      )}
     </aside>
+  );
+}
+
+// An "i" that shows its text below the line it is on, and hides it again (as a choice's reason does).
+function Info({ label, children }: { label: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className="reason-toggle" aria-expanded={open} aria-label={label} title={label} onClick={() => setOpen(!open)}>
+        <InfoIcon />
+      </button>
+      {open && <span className="info-text">{children}</span>}
+    </>
   );
 }
 

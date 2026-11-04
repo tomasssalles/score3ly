@@ -3700,8 +3700,7 @@ textarea.field-input {
   font-size: 14px;
 }
 
-.hint-problem,
-.link-button.danger-link {
+.hint-problem {
   color: var(--danger);
 }
 
@@ -3722,6 +3721,7 @@ textarea.field-input {
 
 .own-boxes li {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
@@ -3821,4 +3821,38 @@ textarea.field-input {
 .answer-own-label {
   font-size: 13px;
   color: var(--muted);
+}
+
+/* A clarification's box that breaks a rule: its label in the red of marks, with "!". */
+.review-box.invalid .layout-label {
+  fill: var(--mark);
+}
+
+.answer-own-label,
+.own-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+}
+
+/* An "i"'s text, on a line of its own below. */
+.info-text {
+  flex-basis: 100%;
+  margin: 2px 0 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.own-actions {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.button-secondary.button-small {
+  padding: 4px 10px;
+  font-size: 13px;
 }

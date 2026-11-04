@@ -500,7 +500,7 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
   return (
     <div className="issue-card" id={id} style={{ borderLeftColor: color }}>
       <p className="issue-head">
-        #{issue.id} · {issue.source === "user" ? "[your correction]" : ISSUE_CLASS_LABELS[issue.class]}
+        #{issue.id} · {issue.source === "user" ? "[clarification]" : ISSUE_CLASS_LABELS[issue.class]}
         {issue.source === "code" ? " · raised by code" : ""}
       </p>
       <p>

@@ -3,17 +3,27 @@
 
 import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import { jsonBytes } from "./finishFixMetadata";
-import { humanReviewNote, unwritten, type StoredHumanReview } from "./humanReview";
+import { humanReviewNote, ownIssueProblems, placedSystems, type StoredHumanReview } from "./humanReview";
+import type { PageLayout } from "./layout";
+import { pageOfItem } from "./rasterize";
 
-export async function finishHumanReview(project: Project, stage: ApiStage, _pipeline: ApiPipeline): Promise<string> {
+export async function finishHumanReview(project: Project, stage: ApiStage, pipeline: ApiPipeline): Promise<string> {
   const saved = stage.outputs.find((o) => o.item === "" && o.type === "human_review" && o.contentSha256);
   const stored: StoredHumanReview = saved ? ((await fetchJsonContent(saved.contentSha256!)) as StoredHumanReview) : { entries: [] };
-  // An issue of the user's own needs its correction (docs/stages/music.md, `human_review`).
-  const open = unwritten(stored);
-  if (open.length > 0) {
-    throw new Error(
-      `${open.length === 1 ? `Issue ${open[0]} has` : `Issues ${open.join(", ")} have`} no correction yet: write it, or delete the issue. Everything else is kept.`,
+  // Every clarification needs its text, and boxes that keep the rules (docs/stages/music.md, `human_review`): checked
+  // here, not while the user draws.
+  if (stored.entries.some((e) => "newIssue" in e)) {
+    const index = pipeline.stages.findIndex((s) => s.id === stage.id);
+    const layout = pipeline.stages.slice(0, index).reverse().find((s) => s.step === "layout" || s.step === "fix_layout");
+    const pages = await Promise.all(
+      (layout?.outputs ?? [])
+        .filter((o) => o.type === "layout" && o.contentSha256)
+        .map(async (o) => ({ page: pageOfItem(o.item) ?? 0, systems: ((await fetchJsonContent(o.contentSha256!)) as PageLayout).systems })),
     );
+    const problems = ownIssueProblems(stored, placedSystems(pages));
+    if (problems.length > 0) {
+      throw new Error(`${problems.map((p) => `Clarification ${p.id}: ${p.problem}`).join(" ")} Fix it or delete it; everything else is kept.`);
+    }
   }
   if (!saved) {
     await recordOutputs(project, stage.id, [{ item: "", type: "human_review", contentSha256: await putContent(jsonBytes(stored), "application/json") }]);

@@ -93,9 +93,10 @@ export function scoreOrder<T extends { boxes: { page: number; box: Box }[] }>(it
   return placed.map((p) => p.issue);
 }
 
-// The user's own issue (docs/notation.md, "Issues", "from the user"): its boxes and the correction as its one answer,
+// A clarification, the user's own issue (docs/notation.md, "Issues", "from the user"): its boxes and what the original
+// score has there as its one answer,
 // chosen by the human review, resolved; nothing is known of what the transcription has (`applied` null), and the
-// question may be missing. Without a correction yet, it has no answer: it can't be finished like that (`unwritten`).
+// question may be missing. Without its text yet, it has no answer: it can't be finished like that (`ownIssueProblems`).
 export function ownIssue(stageId: string, id: number, boxes: { page: number; box: Box }[], text: string): StoredIssue {
   const written = text.trim();
   return {
@@ -129,20 +130,40 @@ export function removeOwnIssue(stored: StoredHumanReview, id: number): StoredHum
   return { entries: stored.entries.filter((e) => !("newIssue" in e && e.newIssue.id === id)) };
 }
 
-// The own issues without a correction yet: finishing waits for them.
-export function unwritten(stored: StoredHumanReview): number[] {
-  return ownIssues(stored).filter((i) => i.answers.length === 0).map((i) => i.id);
-}
-
-// Why these boxes can't be an issue's (docs/notation.md, "Issues": at most 2 systems, consecutive), or null. Every box
-// must fall on a system.
-export function boxesProblem(boxes: { page: number; box: Box }[], systems: PlacedSystem[]): string | null {
-  for (const b of boxes) if (systemsOf([b], systems).length === 0) return "A box has to be on a system.";
+// What is wrong with a clarification's boxes (docs/notation.md, "Issues": on at most 2 systems, neighbours), if anything:
+// the problem, and which boxes break the rules (by index). Not enforced while the user draws: shown, and checked when
+// the stage is finished (`ownIssueProblems`).
+export function boxProblems(boxes: { page: number; box: Box }[], systems: PlacedSystem[]): { problem: string | null; bad: number[] } {
+  if (boxes.length === 0) return { problem: "It has no box: add one around what it is about.", bad: [] };
+  const off = boxes.flatMap((b, k) => (systemsOf([b], systems).length === 0 ? [k] : []));
+  if (off.length > 0) return { problem: off.length === 1 ? "A box isn't on a system." : "Some boxes aren't on a system.", bad: off };
   const covered = systemsOf(boxes, systems);
   if (covered.length > 2 || (covered.length === 2 && covered[1] - covered[0] !== 1)) {
-    return "An issue's boxes can cover at most two systems, one right after the other. For more, raise several issues.";
+    return {
+      problem: `Its boxes are on systems ${covered.join(", ")}: they can be on one system, or on two neighbouring systems.`,
+      bad: boxes.map((_, k) => k),
+    };
   }
-  return null;
+  return { problem: null, bad: [] };
+}
+
+// What keeps a human review from being finished: each clarification without its text, or whose boxes break the rules.
+export function ownIssueProblems(stored: StoredHumanReview, systems: PlacedSystem[]): { id: number; problem: string }[] {
+  return ownIssues(stored).flatMap((issue) => {
+    const problems = [
+      ...(issue.answers.length === 0 ? ["It has no text yet."] : []),
+      ...[boxProblems(issue.boxes, systems).problem ?? []].flat(),
+    ];
+    return problems.length > 0 ? [{ id: issue.id, problem: problems.join(" ") }] : [];
+  });
+}
+
+// The systems of the layout, numbered top to bottom, continuing from page to page (docs/overview.md §6).
+export function placedSystems(pages: { page: number; systems: { box: Box; barLines: number[] }[] }[]): PlacedSystem[] {
+  let n = 0;
+  return [...pages]
+    .sort((a, b) => a.page - b.page)
+    .flatMap((p) => p.systems.map((layout) => ({ number: ++n, page: p.page, layout })));
 }
 
 // Maps a position through matching anchors (docs/stages/music.md, `human_review`, linked scrolling: system by system,

@@ -8,7 +8,9 @@ export function ConfirmDialog({
   confirmLabel,
   onConfirm,
   onCancel,
+  danger = false,
 }: {
+  danger?: boolean; // the action destroys something: its button is red (docs/style.md, "Dialogs")
   title: string;
   text: string[];
   confirmLabel: string;
@@ -48,7 +50,7 @@ export function ConfirmDialog({
         </button>
         <button
           type="button"
-          className="button-primary"
+          className={danger ? "button-danger" : "button-primary"}
           onClick={() => {
             confirmed.current = true;
             dialog.current?.close();
