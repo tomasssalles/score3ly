@@ -400,13 +400,13 @@ function Screen({
       <div className="editor-toolbar page-editor-toolbar human-review-toolbar" onClick={viewport.focus}>
         {showOriginal && <PageNav nav={{ index, count: pages.length, go: (i) => setIndex(Math.max(0, Math.min(pages.length - 1, i))) }} />}
         <div className="editor-tools">
-          <button type="button" className="icon-button" aria-label="Previous box" title="Previous issue or warning" disabled={items.length === 0} onClick={() => step(-1)}>
+          <button type="button" className="icon-button" aria-label="Previous annotation" title="Previous annotation: issue or warning" disabled={items.length === 0} onClick={() => step(-1)}>
             <BackIcon />
           </button>
           <span className="editor-page" title="Issues and warnings">
-            Box {position < 0 ? "–" : position + 1}/{items.length}
+            Annotation {position < 0 ? "–" : position + 1}/{items.length}
           </span>
-          <button type="button" className="icon-button" aria-label="Next box" title="Next issue or warning" disabled={items.length === 0} onClick={() => step(1)}>
+          <button type="button" className="icon-button" aria-label="Next annotation" title="Next annotation: issue or warning" disabled={items.length === 0} onClick={() => step(1)}>
             <ForwardIcon />
           </button>
         </div>
