@@ -659,10 +659,10 @@ function OwnIssuePanel({
         <span className="answer-own-label">
           <label htmlFor={`clarification-${issue.id}`}>What's in the original score?</label>
           <Info label="What to write">
-            Explain what you see in the places marked by the boxes, where the models seem to be confused. Write about what the
-            original score has, not about the mistakes you see in the transcription: if the original has a C that was
-            transcribed as a D, write "This is a C" rather than "The D is wrong". That way, what you write still makes sense in
-            later stages, once the mistake has been corrected.
+            Explain what you see in the places marked by the boxes, where the models seem to be confused. Focus on what the
+            original score shows, not on the mistakes you see in the transcription. For example, if the original has a C that
+            was transcribed as a D, write “This is a C” rather than “The D is wrong”. That way, what you write still makes sense
+            in later stages, once the mistake has been corrected.
           </Info>
         </span>
         <textarea
@@ -707,9 +707,9 @@ function OwnIssuePanel({
             Add box
           </button>
           <Info label="The rules for boxes">
-            Each box has to be on a system. The boxes can be on one system, or on two systems right next to each other (the
-            last of a page and the first of the next count as neighbours too). To mark something on more systems, add more
-            clarifications. While you draw, anything goes: what breaks a rule is shown in red, and checked when you finish.
+            Every clarification needs at least one box. Each box has to be on a system. The boxes can be on one system, or on
+            two neighbouring systems. While you work on this stage, the rules are not enforced (what breaks a rule is just shown
+            in red). To successfully finish the stage, however, all rules must be followed.
           </Info>
         </span>
         <button type="button" className="button-danger" onClick={() => setDeleting(true)}>
