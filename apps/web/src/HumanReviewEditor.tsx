@@ -33,6 +33,7 @@ import {
 } from "./humanReview";
 import { BackIcon, BoxIcon, ChevronDownIcon, ForwardIcon, HandIcon, InfoIcon, LinkIcon, MoreIcon, UnlinkIcon } from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { NO_TEXT } from "./humanReview";
 import { ImagesDiffer } from "./ImagesDiffer";
 import type { PageLayout } from "./layout";
 import { BoxHandles, handleAt, ModeToggle, PageCanvas, PageNav, usePageImage, useViewport, ZoomTools, type Point } from "./pageEditor";
@@ -670,7 +671,7 @@ function OwnIssuePanel({
           rows={1}
           className="answer-other-field"
           value={text}
-          placeholder="For example: “This is a C flat”"
+          placeholder="Clarification"
           onChange={(e) => {
             const value = e.target.value;
             setText(value);
@@ -686,8 +687,8 @@ function OwnIssuePanel({
           }}
         />
       </div>
-      {!text.trim() && <p className="issue-facts hint-problem">Write what's there: the stage can't be finished without it.</p>}
-      {problem.problem && <p className="issue-facts hint-problem">{problem.problem} The stage can't be finished like this.</p>}
+      {!text.trim() && <p className="issue-facts hint-problem">{NO_TEXT}</p>}
+      {problem.problem && <p className="issue-facts hint-problem">{problem.problem}</p>}
       <ul className="own-boxes">
         {issue.boxes.map((b, k) => (
           <li key={k} className={problem.bad.includes(k) ? "hint-problem" : undefined}>
@@ -703,7 +704,7 @@ function OwnIssuePanel({
       <div className="own-actions">
         <span className="own-add">
           <button type="button" className="button-secondary" onClick={onAddBox}>
-            Add a box
+            Add box
           </button>
           <Info label="The rules for boxes">
             Each box has to be on a system. The boxes can be on one system, or on two systems right next to each other (the
@@ -719,7 +720,7 @@ function OwnIssuePanel({
         <ConfirmDialog
           title="Are you sure?"
           text={[`Clarification ${issue.id} and its boxes will be deleted. This action cannot be undone.`]}
-          confirmLabel="Delete clarification"
+          confirmLabel="Delete"
           danger
           onConfirm={() => {
             setDeleting(false);

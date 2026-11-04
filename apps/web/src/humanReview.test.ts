@@ -95,7 +95,7 @@ test("clarifications: raised, written, replaced in place, removed; one without t
   assert.deepEqual([draft.source, draft.answers, draft.choices, draft.applied, draft.resolved], ["user", [], [], null, true]);
   let stored = putOwnIssue(chooseAnswer({ entries: [] }, issue(1), "b"), draft);
   const systems = placedSystems([{ page: 1, systems: [{ box: { left: 0.1, right: 0.9, top: 0.1, bottom: 0.3 }, barLines: [] }] }]);
-  assert.deepEqual(ownIssueProblems(stored, systems), [{ id: 7, problem: "It has no text yet." }]);
+  assert.deepEqual(ownIssueProblems(stored, systems), [{ id: 7, problem: "The clarification text cannot be empty." }]);
   const written = ownIssue("h1", 7, [box], " A C flat ");
   assert.deepEqual([written.answers, written.choices], [[{ key: "a", text: "A C flat" }], [{ by: "h1", key: "a", reason: null }]]);
   stored = putOwnIssue(stored, written);
@@ -122,12 +122,12 @@ test("a clarification's boxes: at least one, each on a system, on one system or 
   assert.deepEqual(boxProblems([on(1, 0.15), on(1, 0.55)], systems).problem, null);
   assert.deepEqual(boxProblems([on(1, 0.55), on(2, 0.15)], systems).problem, null);
   assert.deepEqual(boxProblems([on(1, 0.15), on(2, 0.15)], systems), {
-    problem: "Its boxes are on systems 1, 3: they can be on one system, or on two neighbouring systems.",
+    problem: "The boxes are on systems 1, 3. They can be on one system, or on two neighbouring systems.",
     bad: [0, 1],
   });
   assert.match(boxProblems([on(1, 0.15), on(1, 0.55), on(2, 0.15)], systems).problem!, /neighbouring/);
-  assert.deepEqual(boxProblems([on(1, 0.15), off], systems), { problem: "A box isn't on a system.", bad: [1] });
-  assert.match(boxProblems([], systems).problem!, /no box/);
+  assert.deepEqual(boxProblems([on(1, 0.15), off], systems), { problem: "Boxes must be on top of systems.", bad: [1] });
+  assert.equal(boxProblems([], systems).problem, "A clarification needs at least one box.");
 });
 
 import { mapThrough } from "./humanReview.ts";

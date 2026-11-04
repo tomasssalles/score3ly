@@ -22,7 +22,7 @@ export async function finishHumanReview(project: Project, stage: ApiStage, pipel
     );
     const problems = ownIssueProblems(stored, placedSystems(pages));
     if (problems.length > 0) {
-      throw new Error(`${problems.map((p) => `Clarification ${p.id}: ${p.problem}`).join(" ")} Fix it or delete it; everything else is kept.`);
+      throw new Error(`${problems.map((p) => `Clarification ${p.id}: ${p.problem}`).join(" ")} Everything else is kept.`);
     }
   }
   if (!saved) {

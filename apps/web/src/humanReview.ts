@@ -130,17 +130,22 @@ export function removeOwnIssue(stored: StoredHumanReview, id: number): StoredHum
   return { entries: stored.entries.filter((e) => !("newIssue" in e && e.newIssue.id === id)) };
 }
 
+// The messages about a clarification, in its panel and from Finish.
+export const NO_TEXT = "The clarification text cannot be empty.";
+export const NO_BOX = "A clarification needs at least one box.";
+export const OFF_SYSTEM = "Boxes must be on top of systems.";
+
 // What is wrong with a clarification's boxes (docs/notation.md, "Issues": on at most 2 systems, neighbours), if anything:
 // the problem, and which boxes break the rules (by index). Not enforced while the user draws: shown, and checked when
 // the stage is finished (`ownIssueProblems`).
 export function boxProblems(boxes: { page: number; box: Box }[], systems: PlacedSystem[]): { problem: string | null; bad: number[] } {
-  if (boxes.length === 0) return { problem: "It has no box: add one around what it is about.", bad: [] };
+  if (boxes.length === 0) return { problem: NO_BOX, bad: [] };
   const off = boxes.flatMap((b, k) => (systemsOf([b], systems).length === 0 ? [k] : []));
-  if (off.length > 0) return { problem: off.length === 1 ? "A box isn't on a system." : "Some boxes aren't on a system.", bad: off };
+  if (off.length > 0) return { problem: OFF_SYSTEM, bad: off };
   const covered = systemsOf(boxes, systems);
   if (covered.length > 2 || (covered.length === 2 && covered[1] - covered[0] !== 1)) {
     return {
-      problem: `Its boxes are on systems ${covered.join(", ")}: they can be on one system, or on two neighbouring systems.`,
+      problem: `The boxes are on systems ${covered.join(", ")}. They can be on one system, or on two neighbouring systems.`,
       bad: boxes.map((_, k) => k),
     };
   }
@@ -151,7 +156,7 @@ export function boxProblems(boxes: { page: number; box: Box }[], systems: Placed
 export function ownIssueProblems(stored: StoredHumanReview, systems: PlacedSystem[]): { id: number; problem: string }[] {
   return ownIssues(stored).flatMap((issue) => {
     const problems = [
-      ...(issue.answers.length === 0 ? ["It has no text yet."] : []),
+      ...(issue.answers.length === 0 ? [NO_TEXT] : []),
       ...[boxProblems(issue.boxes, systems).problem ?? []].flat(),
     ];
     return problems.length > 0 ? [{ id: issue.id, problem: problems.join(" ") }] : [];
