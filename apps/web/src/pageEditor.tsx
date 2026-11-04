@@ -443,7 +443,8 @@ export function handleAt(box: Box, q: Point, size: { width: number; height: numb
   return null;
 }
 
-// A box's handles, drawn in the editor's SVG (image px), the same size on screen at any zoom.
+// A box's handles, drawn in the editor's SVG (image px), the same size on screen at any zoom; their border one screen pixel,
+// thinner than the boxes', so they don't read as boxes themselves.
 export function BoxHandles({ box, size, scale }: { box: Box; size: { width: number; height: number }; scale: number }) {
   return (
     <>
@@ -457,7 +458,7 @@ export function BoxHandles({ box, size, scale }: { box: Box; size: { width: numb
             y={p.y * size.height - 7 / scale}
             width={14 / scale}
             height={14 / scale}
-            strokeWidth={2 / scale}
+            strokeWidth={1 / scale}
           />
         );
       })}
