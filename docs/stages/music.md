@@ -221,6 +221,7 @@ Built 2026-11-03, in steps (`apps/web/src/humanReview.ts`, `HumanReviewEditor.ts
 - **The Apply review after it** reads it as a reviewing step: its entries applied like a review call's, every issue they choose on or raise resolved (`humanReviewedIssues`), and no agreements (`kept`). With no entries nothing needs applying: "0 changes applied", no call.
 - **Its artifact:** while WIP, the screen; once finished, the Transcription it reviewed, with its answers on the issues and the Δ toggle showing only the issues it answered.
 - **Its icon** is the wrench, as for every manual stage.
+- **No tint of changed measures** in its rendering (decided 2026-11-04): the tint shows what an Apply review did, so only an Apply review's Transcription has it, not a human review's screen or Transcription, nor a review's.
 - **No undo and redo** (decided 2026-11-04), unlike the page editors (`docs/style.md`, "Editors on a page"): the boxes of the transcription's issues can't be changed, only answered, and an answer is changed by choosing again; what can be drawn, a clarification's boxes, is resized or removed directly.
 
 ## Zooming in
