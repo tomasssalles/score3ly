@@ -123,6 +123,11 @@ Proposed by the project owner (2026-10-29). A toggle on each project, set by the
 
 `docs/llm.md`, "Supported models, prices and the config form": the prices are the short-context ones (decided 2026-11-04). Check, once real runs exist, whether a prompt of ours ever reaches a provider's threshold for long-context prices (Gemini's Pro models: more than 200K tokens of prompt; Claude's long-context variants on Bedrock; Haiku 5.5: more than 100K), for every provider and family the release supports. The likeliest is `review` on a long score, which sends the whole score with every call. The data is there: every call's prompt is the sum of its `input_tokens`, `cached_tokens` (cache reads) and `cache_write_tokens` in `llm_calls`, so a query over the calls of real runs answers it; each provider's exact rule (which tokens count towards the threshold) is checked on the way. If a prompt does reach one, a new task: get the long-context prices and use them where they apply.
 
+### A switch that turns off the cache
+`#optional`
+
+For testing and debugging: run stages as if nothing were cached, without our own cache (§5.2) at either level, the stage's key or an item's (an LLM request's record, an image's recipe), so that a stage is reproduced under the same conditions and its calls are really made (and paid for). Set when the app is started, by a special flag or an environment variable (e.g. for `wrangler dev`, the desktop app and the screenshot script), not in the app's settings. To decide on the way: whether the calls made with it on still fill the cache for later runs; whether the providers' own prompt caching stays on (it is a price, not a reuse of answers); and whether the app shows that it is on.
+
 ### Decide the model configs
 `#decision` `#research` `#next-release`
 
