@@ -4,7 +4,8 @@
 //
 // It starts its own Worker and Vite on the test ports (8887 and 5273), with a database and storage of their own in a
 // temporary folder, so nothing of the usual local data is touched; seeds them through the app with the fake model
-// (a finished project, one with the card of a dropped stage, one with a manual stage in progress, one whose stage failed, and one whose page images differ
+// (a finished project, one with the card of a dropped stage, one with a manual stage in progress, one with a human review in
+// progress, one whose stage failed, and one whose page images differ
 // from their stored fingerprints); then, for every theme in apps/web/src/themes.ts and three layouts (wide with the
 // pipeline panel expanded, wide with it collapsed, narrow), takes a fixed list of shots: pages by their URLs, plus a
 // few scripted steps for dialogs and open menus. It writes `<theme>/<layout>/<shot>.png` and `index.html`, a contact
@@ -123,7 +124,18 @@ async function runToEnd(page: Page, id: string) {
   throw new Error(`project ${id} didn't finish`);
 }
 
-type Seed = { done: string; dropped: string; wip: string; wipEditor: string; failed: string; differs: string; differsLayout: string; artifacts: { title: string; hash: string }[]; stageIds: { title: string; id: string }[] };
+type Seed = {
+  done: string;
+  dropped: string;
+  wip: string;
+  wipEditor: string;
+  humanReview: string; // the screen of a human review in progress
+  failed: string;
+  differs: string;
+  differsLayout: string;
+  artifacts: { title: string; hash: string }[];
+  stageIds: { title: string; id: string }[];
+};
 
 async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -167,6 +179,27 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   await page.locator(".editor-viewport").waitFor({ timeout: 60_000 });
   const wipEditor = new URL(page.url()).hash;
 
+  // A human review in progress (on the same PDF: everything before it is reused): an answer chosen on the first issue, and
+  // a clarification without its text yet, so its panel shows what keeps the stage from being finished.
+  const human = await newProject(page, PDF);
+  await runToEnd(page, human);
+  await page.goto(`${APP}#/projects/${human}`);
+  await page.locator(".stage-card", { has: page.locator(".stage-title", { hasText: /^Apply review$/ }) }).getByRole("button", { name: /actions/ }).click();
+  await page.getByRole("menuitem", { name: "Add Human review" }).click();
+  if (await confirm.isVisible({ timeout: 2000 }).catch(() => false)) await confirm.click();
+  await page.locator(".human-review .editor-content img").waitFor({ timeout: 60_000 });
+  const humanReview = new URL(page.url()).hash;
+  await page.getByRole("button", { name: "Next annotation" }).click();
+  await page.locator(".answer-list .answer-option").nth(1).click();
+  await page.getByRole("button", { name: "Hide the issue" }).click();
+  await page.getByRole("radio", { name: "Add clarification" }).click();
+  await page.getByRole("button", { name: "Whole page" }).click();
+  const viewport = (await page.locator(".human-review .editor-viewport").boundingBox())!;
+  await page.mouse.click(viewport.x + viewport.width * 0.55, viewport.y + viewport.height * 0.3);
+  await page.mouse.click(viewport.x + viewport.width * 0.62, viewport.y + viewport.height * 0.36);
+  await page.locator(".issue-panel", { hasText: "[clarification]" }).waitFor();
+  await page.waitForTimeout(1500); // saved
+
   // A stage that failed: the layout with a model config that fails on purpose.
   const failing = await api<{ id: string }>("/model-configs", { name: "Failing model", provider: "fake", model: "fake-error" });
   const failed = await newProject(page, PDF);
@@ -185,7 +218,7 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   sql(stateDir, `UPDATE image_fingerprints SET height = height + 1 WHERE pdf_sha256 = '${sha}'`);
 
   await context.close();
-  return { done, dropped, wip, wipEditor, failed, differs, differsLayout, artifacts, stageIds };
+  return { done, dropped, wip, wipEditor, humanReview, failed, differs, differsLayout, artifacts, stageIds };
 }
 
 // Runs SQL on the servers' database: Wrangler's local D1, or the desktop server's SQLite file.
@@ -234,6 +267,22 @@ async function projectActions(page: Page, id: string) {
   await page.getByRole("button", { name: "Project actions" }).click();
 }
 
+// The human review's clarification, selected: the annotation arrows until its panel shows.
+async function humanReviewClarification(page: Page, hash: string) {
+  await open(page, hash);
+  for (let i = 0; i < 20 && !(await page.locator(".issue-panel", { hasText: "[clarification]" }).isVisible()); i++) {
+    await page.getByRole("button", { name: "Next annotation" }).click();
+  }
+  await settled(page);
+}
+
+async function humanReviewView(page: Page, hash: string, view: string) {
+  await open(page, hash);
+  await page.getByRole("button", { name: "What to show" }).click();
+  await page.getByRole("menuitem", { name: view }).click();
+  await settled(page);
+}
+
 function shots(seed: Seed): Shot[] {
   const project = (id: string) => `#/projects/${id}`;
   const all: Shot[] = [
@@ -261,6 +310,31 @@ function shots(seed: Seed): Shot[] {
         await p.waitForTimeout(300);
       },
     },
+    {
+      name: "13b-menu-apply-review",
+      layouts: ["wide", "narrow"],
+      take: async (p) => {
+        await open(p, project(seed.done));
+        await p.locator(".stage-card", { has: p.locator(".stage-title", { hasText: /^Apply review$/ }) }).getByRole("button", { name: /actions/ }).click();
+        await p.waitForTimeout(300);
+      },
+    },
+    // A human review in progress (docs/stages/music.md, `human_review`): its screen, an issue's panel, the clarification's
+    // panel with what keeps it from being finished, the confirmation before deleting it, and the two single views.
+    { name: "20-human-review", take: (p) => open(p, seed.humanReview) },
+    { name: "21-human-review-issue", take: (p) => open(p, seed.humanReview).then(() => p.getByRole("button", { name: "Next annotation" }).click()).then(() => settled(p)) },
+    { name: "22-human-review-clarification", take: (p) => humanReviewClarification(p, seed.humanReview) },
+    {
+      name: "23-dialog-delete-clarification",
+      layouts: ["wide", "narrow"],
+      take: async (p) => {
+        await humanReviewClarification(p, seed.humanReview);
+        await p.getByRole("button", { name: "Delete clarification" }).click();
+        await p.waitForTimeout(300);
+      },
+    },
+    { name: "24-human-review-original-only", layouts: ["wide", "narrow"], take: (p) => humanReviewView(p, seed.humanReview, "Original only") },
+    { name: "25-human-review-transcription-only", layouts: ["wide", "narrow"], take: (p) => humanReviewView(p, seed.humanReview, "Transcription only") },
     // Dialogs, cancelled afterwards (each shot starts from a fresh page anyway).
     { name: "14-dialog-rename", layouts: ["wide", "narrow"], take: (p) => projectActions(p, seed.done).then(() => p.getByRole("menuitem", { name: "Rename" }).click()).then(() => p.waitForTimeout(300)) },
     {

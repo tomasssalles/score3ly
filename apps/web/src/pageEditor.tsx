@@ -403,7 +403,7 @@ export function ZoomTools({ viewport, children }: { viewport: Viewport; children
       <button type="button" className="icon-button zoom-step" aria-label="Zoom in" onClick={() => viewport.zoomBy(1.5)}>
         <ZoomInIcon />
       </button>
-      <button type="button" className="icon-button" aria-label="Whole page" onClick={viewport.fit}>
+      <button type="button" className="icon-button zoom-fit" aria-label="Whole page" onClick={viewport.fit}>
         <FitIcon />
       </button>
       {children}

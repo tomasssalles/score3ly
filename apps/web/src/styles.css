@@ -2479,7 +2479,11 @@ textarea.field-input {
   margin-top: 8px;
 }
 
+/* A system's rendering, centred where it is narrower than its place (the Transcription's crops are as wide as the view):
+   the music is centred everywhere, the original and the transcription alike. */
 .rendering {
+  margin-left: auto;
+  margin-right: auto;
   padding: 4px;
   border-radius: 2px;
   background: var(--paper);
@@ -3874,8 +3878,8 @@ textarea.field-input {
   .artifact-view.overlay .human-review-toolbar .editor-page {
     min-width: 0;
   }
-  /* On a phone, two fingers zoom: the zoom buttons give way so that the tools fit on one row ("whole page" stays). */
-  .artifact-view.overlay .human-review-toolbar .zoom-step {
+  /* On a phone, "whole page" gives way so that the tools fit on one row (two fingers zoom out as well). */
+  .artifact-view.overlay .human-review-toolbar .zoom-fit {
     display: none;
   }
 }
