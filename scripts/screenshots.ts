@@ -11,7 +11,8 @@
 // few scripted steps for dialogs and open menus. It writes `<theme>/<layout>/<shot>.png` and `index.html`, a contact
 // sheet of all of them. Everything it started is stopped and deleted at the end.
 //
-// Needs Playwright's Chromium: `npx playwright install chromium` once (the cloud sessions have it already).
+// Needs Playwright's Chromium: `npx playwright install chromium` once; or another Chromium, by its path in `CHROMIUM_PATH`
+// (the cloud sessions have one at /opt/pw-browsers/chromium).
 
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -189,13 +190,17 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   if (await confirm.isVisible({ timeout: 2000 }).catch(() => false)) await confirm.click();
   await page.locator(".human-review .editor-content img").waitFor({ timeout: 60_000 });
   const humanReview = new URL(page.url()).hash;
+  await page.waitForTimeout(1000);
   await page.getByRole("button", { name: "Next annotation" }).click();
   await page.locator(".answer-list .answer-option").nth(1).click();
   await page.getByRole("button", { name: "Hide the issue" }).click();
   await page.getByRole("radio", { name: "Add clarification" }).click();
+  await page.getByText("to add a clarification about it").waitFor();
   await page.getByRole("button", { name: "Whole page" }).click();
+  await page.waitForTimeout(500);
   const viewport = (await page.locator(".human-review .editor-viewport").boundingBox())!;
   await page.mouse.click(viewport.x + viewport.width * 0.55, viewport.y + viewport.height * 0.3);
+  await page.waitForTimeout(300);
   await page.mouse.click(viewport.x + viewport.width * 0.62, viewport.y + viewport.height * 0.36);
   await page.locator(".issue-panel", { hasText: "[clarification]" }).waitFor();
   await page.waitForTimeout(1500); // saved
@@ -267,19 +272,20 @@ async function projectActions(page: Page, id: string) {
   await page.getByRole("button", { name: "Project actions" }).click();
 }
 
-// The human review's clarification, selected: the annotation arrows until its panel shows.
-async function humanReviewClarification(page: Page, hash: string) {
+// The human review in one of its views, with an annotation's panel open: the first whose head has `head` ("[unclear]",
+// "[clarification]"), found with the annotation arrows; or none.
+const VIEW_LABELS = { both: "Show both", original: "Original only", transcription: "Transcription only" };
+async function humanReviewPanel(page: Page, hash: string, view: keyof typeof VIEW_LABELS, head: string | null) {
   await open(page, hash);
-  for (let i = 0; i < 20 && !(await page.locator(".issue-panel", { hasText: "[clarification]" }).isVisible()); i++) {
-    await page.getByRole("button", { name: "Next annotation" }).click();
+  if (view !== "both") {
+    await page.getByRole("button", { name: "What to show" }).click();
+    await page.getByRole("menuitem", { name: VIEW_LABELS[view] }).click();
   }
-  await settled(page);
-}
-
-async function humanReviewView(page: Page, hash: string, view: string) {
-  await open(page, hash);
-  await page.getByRole("button", { name: "What to show" }).click();
-  await page.getByRole("menuitem", { name: view }).click();
+  if (head) {
+    for (let i = 0; i < 20 && !(await page.locator(".issue-panel", { hasText: head }).isVisible()); i++) {
+      await page.getByRole("button", { name: "Next annotation" }).click();
+    }
+  }
   await settled(page);
 }
 
@@ -322,19 +328,22 @@ function shots(seed: Seed): Shot[] {
     // A human review in progress (docs/stages/music.md, `human_review`): its screen, an issue's panel, the clarification's
     // panel with what keeps it from being finished, the confirmation before deleting it, and the two single views.
     { name: "20-human-review", take: (p) => open(p, seed.humanReview) },
-    { name: "21-human-review-issue", take: (p) => open(p, seed.humanReview).then(() => p.getByRole("button", { name: "Next annotation" }).click()).then(() => settled(p)) },
-    { name: "22-human-review-clarification", take: (p) => humanReviewClarification(p, seed.humanReview) },
+    // An issue's and the clarification's panels, in each of the three views.
+    ...(["both", "original", "transcription"] as const).flatMap((view) => [
+      { name: `21-human-review-issue-${view}`, take: (p: Page) => humanReviewPanel(p, seed.humanReview, view, "[unclear]") },
+      { name: `22-human-review-clarification-${view}`, take: (p: Page) => humanReviewPanel(p, seed.humanReview, view, "[clarification]") },
+    ]),
     {
       name: "23-dialog-delete-clarification",
       layouts: ["wide", "narrow"],
       take: async (p) => {
-        await humanReviewClarification(p, seed.humanReview);
+        await humanReviewPanel(p, seed.humanReview, "both", "[clarification]");
         await p.getByRole("button", { name: "Delete clarification" }).click();
         await p.waitForTimeout(300);
       },
     },
-    { name: "24-human-review-original-only", layouts: ["wide", "narrow"], take: (p) => humanReviewView(p, seed.humanReview, "Original only") },
-    { name: "25-human-review-transcription-only", layouts: ["wide", "narrow"], take: (p) => humanReviewView(p, seed.humanReview, "Transcription only") },
+    { name: "24-human-review-original-only", layouts: ["wide", "narrow"], take: (p) => humanReviewPanel(p, seed.humanReview, "original", null) },
+    { name: "25-human-review-transcription-only", layouts: ["wide", "narrow"], take: (p) => humanReviewPanel(p, seed.humanReview, "transcription", null) },
     // Dialogs, cancelled afterwards (each shot starts from a fresh page anyway).
     { name: "14-dialog-rename", layouts: ["wide", "narrow"], take: (p) => projectActions(p, seed.done).then(() => p.getByRole("menuitem", { name: "Rename" }).click()).then(() => p.waitForTimeout(300)) },
     {
@@ -456,7 +465,7 @@ async function main() {
   await waitFor(`${API}/health`, "The Worker");
   await waitFor(APP, "Vite");
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
   try {
     console.log("Seeding the projects (the fake model runs them)…");
     const seeded = await seed(browser, stateDir);
