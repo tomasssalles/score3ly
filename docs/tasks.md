@@ -68,11 +68,6 @@ Right before the first release tag (§11, "Branches and releases"): go through t
 
 Once, right before the first release tag: every story of `docs/manual-tests.md`, the full run, not only the smoke run. What fails becomes a bug task; what the stories got wrong is fixed in them.
 
-### The stages' icons
-`#owner` `#style` `#next-release`
-
-`docs/stages/engrave.md`, `build_mei`: the stage has a placeholder icon (its kind's, computed). The project owner decides its icon. **The icons have to work together, so none is final until the first release** (the project owner, 2026-11-03): Build MEI's may change others. The idea so far: notes are printed, engraved music; letters are its source code; `extract` goes from notes to letters, `engrave` from letters to notes.
-
 ### Squash the migrations into one
 `#next-release`
 
