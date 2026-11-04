@@ -166,7 +166,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 **Filmstrips** show a group of items (pages, systems) one below the other with a small gap, scrolling continuously, so the end of one and the start of the next are seen together. A counter in a corner says where the user is ("12 / 54").
 
-**Editors on a page** (lines, boxes, bar lines; later, issues) share one frame: a toolbar at the top with page arrows and "Page 3/10", the tools as an icon-only toggle (hand first), zoom out, zoom in and fit, delete, then undo and redo (on a phone, where two fingers zoom, zoom out and zoom in may give way so the tools fit: Human review's do); a one-line muted hint below the toolbar saying what to draw; the page below, zoomable and pannable. Every change is saved at once; nothing needs a Save button.
+**Editors on a page** (lines, boxes, bar lines; later, issues) share one frame: a toolbar at the top with page arrows and "Page 3/10", the tools as an icon-only toggle (hand first), zoom out, zoom in and fit, delete, then undo and redo (on a phone, where two fingers zoom, "whole page" may give way so the tools fit: Human review's does); a one-line muted hint below the toolbar saying what to draw; the page below, zoomable and pannable. Every change is saved at once; nothing needs a Save button.
 
 **Toggles that change what a view shows** (the score beside the MEI, the boxes over the crops, rendered or raw music) are icon buttons at the view's top, remembered per device.
 
