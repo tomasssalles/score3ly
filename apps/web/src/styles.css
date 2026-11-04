@@ -3856,3 +3856,38 @@ textarea.field-input {
   padding: 4px 10px;
   font-size: 13px;
 }
+
+/* Human review's toolbar: the page and annotation arrows together, a row of their own on a phone (the page editors'
+   rule for the first child, above), and the tools on the row below. */
+.review-navs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+@media (max-width: 640px) {
+  .artifact-view.overlay .human-review-toolbar {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .artifact-view.overlay .human-review-toolbar .editor-page {
+    min-width: 0;
+  }
+  /* On a phone, two fingers zoom: the zoom buttons give way so that the tools fit on one row ("whole page" stays). */
+  .artifact-view.overlay .human-review-toolbar .zoom-step {
+    display: none;
+  }
+}
+
+/* The transcription's systems centred in their pane, as the original is in its own. */
+.review-rendering-system {
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.human-review-panes > [hidden] {
+  display: none;
+}

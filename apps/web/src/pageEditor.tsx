@@ -124,6 +124,20 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
     return { x: (p.x - v.x) / v.scale, y: (p.y - v.y) / v.scale };
   }
 
+  // The view's size changing (a pane beside it shown or hidden, the window resized): what was in its middle stays there,
+  // so a page that was centred stays centred.
+  useEffect(() => {
+    const el = ref.current!;
+    let size = { w: el.clientWidth, h: el.clientHeight };
+    const observer = new ResizeObserver(() => {
+      const next = { w: el.clientWidth, h: el.clientHeight };
+      if (size.w && size.h && next.w && next.h && (next.w !== size.w || next.h !== size.h)) panBy((next.w - size.w) / 2, (next.h - size.h) / 2);
+      size = next;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // Ctrl + wheel (and a trackpad's pinch) zooms; the wheel alone pans. The listener can't be passive.
   useEffect(() => {
     const el = ref.current!;
@@ -383,10 +397,10 @@ export function ModeToggle<M extends string>({
 export function ZoomTools({ viewport, children }: { viewport: Viewport; children?: ReactNode }) {
   return (
     <div className="editor-tools">
-      <button type="button" className="icon-button" aria-label="Zoom out" onClick={() => viewport.zoomBy(1 / 1.5)}>
+      <button type="button" className="icon-button zoom-step" aria-label="Zoom out" onClick={() => viewport.zoomBy(1 / 1.5)}>
         <ZoomOutIcon />
       </button>
-      <button type="button" className="icon-button" aria-label="Zoom in" onClick={() => viewport.zoomBy(1.5)}>
+      <button type="button" className="icon-button zoom-step" aria-label="Zoom in" onClick={() => viewport.zoomBy(1.5)}>
         <ZoomInIcon />
       </button>
       <button type="button" className="icon-button" aria-label="Whole page" onClick={viewport.fit}>

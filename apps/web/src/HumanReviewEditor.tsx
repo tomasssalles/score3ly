@@ -31,7 +31,7 @@ import {
   writeAnswer,
   type StoredHumanReview,
 } from "./humanReview";
-import { BackIcon, BoxIcon, ChevronDownIcon, ForwardIcon, HandIcon, InfoIcon, LinkIcon, MoreIcon, UnlinkIcon } from "./icons";
+import { BoxIcon, ChevronDownIcon, CollapseIcon, ExpandIcon, HandIcon, InfoIcon, LinkIcon, MoreIcon, UnlinkIcon } from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Picker } from "./fieldList";
 import { NO_TEXT } from "./humanReview";
@@ -490,17 +490,20 @@ function Screen({
   return (
     <div className="human-review" onKeyDown={onKeyDown}>
       <div className="editor-toolbar page-editor-toolbar human-review-toolbar" onClick={viewport.focus}>
+        {/* The pages and the annotations together: one row of their own on a phone. */}
+        <div className="review-navs">
         {showOriginal && <PageNav nav={{ index, count: pages.length, go: (i) => setIndex(Math.max(0, Math.min(pages.length - 1, i))) }} />}
         <div className="editor-tools">
           <button type="button" className="icon-button" aria-label="Previous annotation" title="Previous annotation: issue or warning" disabled={items.length === 0} onClick={() => step(-1)}>
-            <BackIcon />
+            <CollapseIcon />
           </button>
           <span className="editor-page" title="Issues and warnings">
             Annotation {position < 0 ? "–" : position + 1}/{items.length}
           </span>
           <button type="button" className="icon-button" aria-label="Next annotation" title="Next annotation: issue or warning" disabled={items.length === 0} onClick={() => step(1)}>
-            <ForwardIcon />
+            <ExpandIcon />
           </button>
+        </div>
         </div>
         {showOriginal && <ModeToggle modes={MODES} mode={mode} onChange={switchMode} />}
         {showOriginal && <ZoomTools viewport={viewport} />}
@@ -540,8 +543,8 @@ function Screen({
       </div>
       {showOriginal && <p className="editor-hint">{hint}</p>}
       <div className="human-review-panes">
-        {showOriginal && (
-          <div className="page-editor">
+        {/* Kept in the page while hidden ("Transcription only"): its gestures and its place stay with it. */}
+          <div className="page-editor" hidden={!showOriginal}>
             <PageCanvas
               viewport={viewport}
               image={image}
@@ -599,7 +602,6 @@ function Screen({
               )}
             </PageCanvas>
           </div>
-        )}
         {showRendering && (
           <div className="review-rendering" ref={pane} onScroll={onRenderingScroll} aria-label="The transcription, rendered">
             {loaded.systems.map((sys) => (

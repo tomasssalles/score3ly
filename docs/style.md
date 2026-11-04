@@ -166,7 +166,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 **Filmstrips** show a group of items (pages, systems) one below the other with a small gap, scrolling continuously, so the end of one and the start of the next are seen together. A counter in a corner says where the user is ("12 / 54").
 
-**Editors on a page** (lines, boxes, bar lines; later, issues) share one frame: a toolbar at the top with page arrows and "Page 3/10", the tools as an icon-only toggle (hand first), zoom out, zoom in and fit, delete, then undo and redo; a one-line muted hint below the toolbar saying what to draw; the page below, zoomable and pannable. Every change is saved at once; nothing needs a Save button.
+**Editors on a page** (lines, boxes, bar lines; later, issues) share one frame: a toolbar at the top with page arrows and "Page 3/10", the tools as an icon-only toggle (hand first), zoom out, zoom in and fit, delete, then undo and redo (on a phone, where two fingers zoom, zoom out and zoom in may give way so the tools fit: Human review's do); a one-line muted hint below the toolbar saying what to draw; the page below, zoomable and pannable. Every change is saved at once; nothing needs a Save button.
 
 **Toggles that change what a view shows** (the score beside the MEI, the boxes over the crops, rendered or raw music) are icon buttons at the view's top, remembered per device.
 
@@ -231,7 +231,7 @@ From the most local to the most interrupting; always the most local one that the
 
 - **Small line icons** in the current text colour (24-unit grid, strokes, no fills), drawn by us (`icons.tsx`), so they follow the theme.
 - **An icon stands for a thing, consistently:** each automated step has its own (an upload arrow for Ingest, an image for images, a note turning into an "a" for `extract` and a "c" turning into a note for `engrave`, a letter struck through with the correction above it for `review`, its stroke a filled outline of varying width so that it looks written by hand, `.brush`, and a letter turning into another for `apply_review`). The music stages' icons tell a story (decided, 2026-10-31): `extract` sees a note (a "c") and writes "a"; `review` marks the "a" as wrong, with the "c" written above it, on the transcription; `apply_review` replaces the "a" with the "c" in a new transcription; `engrave` makes the note again from the "c"; all manual stages share the wrench; each kind of artifact has its own (a sheet with "PDF" or "MEI" on it, an image, a note, braces for structured data).
-- **Chevrons collapse, expand and open dropdowns; arrows navigate** (back and forward, pages). Never the other way round.
+- **Chevrons collapse, expand, open dropdowns, and step through items** (pages, annotations: "‹ Page 1/4 ›"); **arrows go back and forward** in the app's history (decided 2026-11-04: the page editors already stepped through pages with chevrons, and Human review's annotations do the same). Never the other way round.
 - **Icon-only controls** are used where the meaning is visual and the set is small (editor tools, view toggles); they always have a tooltip and an accessible name. Everywhere else, words.
 
 ## Motion
