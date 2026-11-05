@@ -4,8 +4,8 @@
 
 import type { Hono } from "hono";
 import { QUARTER_MS } from "./activeTime.ts";
-import { deletedConfigMessage, readSettings, resolvedModel } from "./llmRoutes.ts";
-import type { Family, Provider } from "./llm/models.ts";
+import { deletedConfigMessage, readSettings, resolvedModel, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
+import type { Family, Pricing, Provider, Routing } from "./llm/models.ts";
 
 export type Pipeline = { stages: Stage[]; dropped: Dropped[] };
 
@@ -128,6 +128,10 @@ type StageRow = {
   mc_model_id?: string | null;
   mc_model_string?: string | null;
   mc_family?: Family | null;
+  mc_region?: string | null;
+  mc_routing?: Routing | null;
+  mc_pricing_kind?: Pricing["kind"] | null;
+  mc_pricing_reference?: string | null;
   mc_deleted_at?: string | null;
   cost_usd?: number | null;
   carried?: number;
@@ -271,7 +275,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
   const [stages, outputs, dropped] = await db.batch([
     db
       .prepare(
-        "SELECT s.*, e.carried, m.name AS mc_name, m.provider AS mc_provider, m.model_id AS mc_model_id, m.model_string AS mc_model_string, m.family AS mc_family, m.deleted_at AS mc_deleted_at, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
+        "SELECT s.*, e.carried, m.name AS mc_name, m.provider AS mc_provider, m.model_id AS mc_model_id, m.model_string AS mc_model_string, m.family AS mc_family, m.region AS mc_region, m.routing AS mc_routing, m.pricing_kind AS mc_pricing_kind, m.pricing_reference AS mc_pricing_reference, m.deleted_at AS mc_deleted_at, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
       )
       .bind(projectId),
     db
@@ -298,11 +302,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
       startedAt: row.started_at,
       heartbeatAt: row.heartbeat_at,
       finishedAt: row.finished_at,
-      modelConfig: row.mc_provider
-        ? (({ model }) => ({ name: row.mc_name ?? model, model, deleted: Boolean(row.mc_deleted_at) }))(
-            resolvedModel({ provider: row.mc_provider, model_id: row.mc_model_id ?? null, model_string: row.mc_model_string ?? null, family: row.mc_family ?? null }),
-          )
-        : null,
+      modelConfig: row.mc_provider ? stageModelConfig(row) : null,
       costUsd: row.cost_usd ?? null,
       carried: row.carried === 1,
       inRecipe: row.in_recipe === 1,
@@ -402,11 +402,12 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       await defaultForNewStages(db),
     );
     if (modelConfigId !== null) {
-      const picked = await db.prepare("SELECT deleted_at FROM model_configs WHERE id = ?").bind(modelConfigId).first<{ deleted_at: string | null }>();
+      const picked = await db.prepare("SELECT * FROM model_configs WHERE id = ?").bind(modelConfigId).first<ModelConfigRow>();
       if (!picked) return c.json({ error: "no such model config" }, 400);
-      // A stage that names a deleted config keeps it until another is picked; a deleted one can't be picked anew.
+      // A stage that names a deleted or unsupported config keeps it until another is picked; such a one can't be picked anew.
       const before = stage.config_json === null ? null : (JSON.parse(stage.config_json) as { modelConfigId?: string }).modelConfigId;
       if (picked.deleted_at && before !== modelConfigId) return c.json({ error: "that model config was deleted" }, 400);
+      if (unsupportedOf(picked) && before !== modelConfigId) return c.json({ error: `"${picked.name}" ${unsupportedOf(picked)}` }, 400);
     }
     const toLater = body.applyModelConfigToLater === true && modelConfigId !== null ? modelConfigId : null;
     if (stage.status === "running" && !isStale(stage, Date.now())) {
@@ -461,13 +462,13 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     }
     const iso = now.toISOString();
     if (modelConfigId !== null) {
-      const config = await db
-        .prepare("SELECT name, deleted_at FROM model_configs WHERE id = ?")
-        .bind(modelConfigId)
-        .first<{ name: string; deleted_at: string | null }>();
+      const config = await db.prepare("SELECT * FROM model_configs WHERE id = ?").bind(modelConfigId).first<ModelConfigRow>();
       if (!config) return c.json({ error: "no such model config" }, 404);
-      // A deleted config is never used again (docs/llm.md, "Managing model configs").
+      // A deleted config is never used again (docs/llm.md, "Managing model configs"), nor one the app no longer
+      // supports ("No longer supported"): the run stops here, failed.
       if (config.deleted_at) return c.json({ error: deletedConfigMessage(config.name), code: "deleted_model_config" }, 409);
+      const unsupported = unsupportedOf(config);
+      if (unsupported) return c.json({ error: unsupportedConfigMessage(config.name, unsupported), code: "unsupported_model_config" }, 409);
     }
     const reusable = await db
       .prepare("SELECT id FROM stages WHERE stage_key = ? AND status = 'done' AND deleted_at IS NULL AND id != ? LIMIT 1")
@@ -932,4 +933,21 @@ function isTiming(t: unknown): t is Timing {
 
 function timingValues(t: Timing | undefined): (number | null)[] {
   return t ? [t.durationMs, t.calls, t.callsCached, t.images, t.imagesCached] : [null, null, null, null, null];
+}
+
+// What a stage's card shows of its model config: its name, model, whether it was deleted, and whether the app no
+// longer supports it (docs/llm.md, "No longer supported").
+function stageModelConfig(row: StageRow): { name: string; model: string; deleted: boolean; unsupported: boolean } {
+  const config = {
+    provider: row.mc_provider!,
+    model_id: row.mc_model_id ?? null,
+    model_string: row.mc_model_string ?? null,
+    family: row.mc_family ?? null,
+    region: row.mc_region ?? "",
+    routing: row.mc_routing ?? null,
+    pricing_kind: row.mc_pricing_kind ?? "unpriced",
+    pricing_reference: row.mc_pricing_reference ?? null,
+  } as ModelConfigRow;
+  const { model } = resolvedModel(config);
+  return { name: row.mc_name ?? model, model, deleted: Boolean(row.mc_deleted_at), unsupported: unsupportedOf(config) !== null };
 }

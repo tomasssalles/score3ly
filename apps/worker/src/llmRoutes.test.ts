@@ -172,7 +172,9 @@ test("model configs: a listed model or one added by hand, at a place of its prov
   const bedrock = { provider: "bedrock", modelId: "claude-opus-5-5", pricing: { kind: "list" }, secrets: { apiKey: "BEDROCK_KEY" } };
   await refused(bedrock, /no region ""/);
   await refused({ ...bedrock, region: "eu-central-1", routing: "in-region" }, /no region eu-central-1 with in-region routing/);
-  await refused({ ...bedrock, modelId: "claude-fable-5-1", region: "eu-central-1", routing: "geographic" }, /no price for this model there/);
+  await refused({ ...bedrock, modelId: "claude-fable-5-1", region: "eu-central-1", routing: "geographic" }, /doesn't support Claude Fable 5\.1 on Bedrock there/);
+  // However it is priced: a listed model only where the list has its price.
+  await refused({ ...bedrock, modelId: "claude-fable-5-1", region: "eu-central-1", routing: "geographic", pricing: { kind: "free" } }, /doesn't support/);
   // A model added by hand: a family the app supports on the provider, priced as a listed model of that family.
   const added = { provider: "bedrock", modelString: "anthropic.claude-opus-6", family: "claude", region: "eu-central-1", routing: "global", secrets: { apiKey: "K" } };
   await refused({ ...added, family: "gemini", pricing: { kind: "unpriced" } }, /one the app supports on Bedrock: Claude/);
@@ -272,7 +274,7 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   const { stages } = await json<{ stages: Record<string, unknown>[] }>(
     await app.request(`/api/projects/${stage.projectId}/pipeline`, {}, env),
   );
-  assert.deepEqual(stages[1].modelConfig, { name: "fake-model (Fake (dev)) · high", model: "fake-model", deleted: false });
+  assert.deepEqual(stages[1].modelConfig, { name: "fake-model (Fake (dev)) · high", model: "fake-model", deleted: false, unsupported: false });
   assert.equal(stages[1].costUsd, first.costUsd);
 
   // The same request again, from another stage with another config of the same model: served, nothing paid.
@@ -378,22 +380,10 @@ test("free-tier configs are always allowed: without a spending cap, and without 
   assert.equal(row.price_json, null);
 });
 
-test("a call needs a running stage with a model config, a price, and the config's secrets", async () => {
+test("a call needs a running stage with a model config the app supports, and the config's secrets", async () => {
   await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
   const without = await runningStage(null);
   assert.equal((await json(await call(without))).code, "no_model_config");
-  // A listed model at a place the list (no longer) has a price for.
-  await env.DB.prepare(
-    "INSERT INTO model_configs (id, name, provider, model_id, region, routing, secrets_json, pricing_kind, created_at) VALUES ('no-price', 'Fable EU', 'bedrock', 'claude-fable-5-1', 'eu-central-1', 'geographic', '{\"apiKey\":\"K\"}', 'list', '2026-10-01')",
-  ).run();
-  const noPrice = await json(await call(await runningStage("no-price")));
-  assert.equal(noPrice.code, "no_price");
-  assert.match(noPrice.error as string, /no price for "Fable EU" there/);
-  // A listed model the list doesn't have at all.
-  await env.DB.prepare(
-    "INSERT INTO model_configs (id, name, provider, model_id, secrets_json, pricing_kind, created_at) VALUES ('gone', 'Gone', 'anthropic', 'claude-gone', '{\"apiKey\":\"K\"}', 'list', '2026-10-01')",
-  ).run();
-  assert.equal((await json(await call(await runningStage("gone")))).code, "unknown_model");
   const unset = await runningStage(
     (await modelConfig({ provider: "anthropic", modelId: "claude-opus-5-5", pricing: { kind: "list" }, secrets: { apiKey: "NO_SUCH_SECRET" } })).id,
   );
@@ -404,8 +394,55 @@ test("a call needs a running stage with a model config, a price, and the config'
     missing.error,
     'The model config "Claude Opus 5.5 (Anthropic) · high" needs the secret NO_SUCH_SECRET, which isn\'t set. Set it where the app\'s secrets are kept (Settings, "Secrets"), then retry.',
   );
+  // A config the app no longer supports (its row left the list's prices) while its stage runs: refused, the cache too.
+  const opus = await modelConfig({ name: "Opus", provider: "anthropic", modelId: "claude-opus-5-5", pricing: { kind: "list" }, secrets: { apiKey: "K" } });
+  const stage = await runningStage(opus.id);
+  await env.DB.prepare("UPDATE model_configs SET model_id = 'claude-gone' WHERE id = ?").bind(opus.id).run();
+  const refused = await json(await call(stage));
+  assert.equal(refused.code, "unsupported_model_config");
+  assert.equal(refused.error, 'The model config "Opus" uses claude-gone on Anthropic, which the app no longer supports. Pick another with "Change config" in the stage\'s ⋮, then retry.');
   assert.equal((await calls()).length, 0);
   assert.equal((await call(without, { messages: [] })).status, 400);
+});
+
+test("a config the app no longer supports: marked, its stages can't start, it can't be picked or be the default", async () => {
+  // Listed at a place the list has no price for (any more): Fable 5.1 on Bedrock in the EU, routed within the EU.
+  await env.DB.prepare(
+    "INSERT INTO model_configs (id, name, provider, model_id, region, routing, secrets_json, pricing_kind, created_at) VALUES ('fable-eu', 'Fable EU', 'bedrock', 'claude-fable-5-1', 'eu-central-1', 'geographic', '{\"apiKey\":\"K\"}', 'list', '2026-10-01')",
+  ).run();
+  const config = await json(await app.request("/api/model-configs/fable-eu", {}, env));
+  assert.equal(config.unsupported, "uses Claude Fable 5.1 on Bedrock in eu-central-1 (geographic routing), which the app no longer supports");
+  assert.equal((await send("/api/settings/defaultModelConfigId", { value: "fable-eu" }, "PUT")).status, 400);
+  // Its stage shows it, and can't start: the run stops there.
+  const project = await runningStage(null);
+  const { stages } = await json<{ stages: { id: string; modelConfig: unknown }[] }>(await app.request(`/api/projects/${project.projectId}/pipeline`, {}, env));
+  const layout = stages[3];
+  const picked = await send(`/api/projects/${project.projectId}/stages/${layout.id}/config`, { config: { modelConfigId: "fable-eu" } }, "PUT");
+  assert.equal(picked.status, 400);
+  await env.DB.prepare("UPDATE stages SET config_json = ?, model_config_id = 'fable-eu' WHERE id = ?").bind(JSON.stringify({ modelConfigId: "fable-eu" }), layout.id).run();
+  const after = await json<{ stages: { id: string; modelConfig: unknown }[] }>(await app.request(`/api/projects/${project.projectId}/pipeline`, {}, env));
+  assert.deepEqual(after.stages[3].modelConfig, { name: "Fable EU", model: "anthropic.claude-fable-5-1", deleted: false, unsupported: true });
+  const start = await send(`/api/projects/${project.projectId}/stages/${layout.id}/start`, {
+    stepVersion: 1,
+    config: { modelConfigId: "fable-eu" },
+    stageKey: "f".repeat(64),
+    pageCount: 1,
+    inputIds: [],
+    modelConfigId: "fable-eu",
+  });
+  assert.equal(start.status, 409);
+  assert.deepEqual(await json(start), {
+    error: 'its model config, "Fable EU", uses Claude Fable 5.1 on Bedrock in eu-central-1 (geographic routing), which the app no longer supports.',
+    code: "unsupported_model_config",
+  });
+  // A model added by hand priced as a listed one where that one has no price: the same.
+  await env.DB.prepare(
+    "INSERT INTO model_configs (id, name, provider, model_string, family, region, routing, secrets_json, pricing_kind, pricing_reference, created_at) VALUES ('new-eu', 'New EU', 'bedrock', 'anthropic.claude-new', 'claude', 'eu-central-1', 'geographic', '{\"apiKey\":\"K\"}', 'list', 'claude-fable-5-1', '2026-10-01')",
+  ).run();
+  assert.equal(
+    (await json(await app.request("/api/model-configs/new-eu", {}, env))).unsupported,
+    "is priced as Claude Fable 5.1 on Bedrock in eu-central-1 (geographic routing), which the app no longer has a price for",
+  );
 });
 
 test("unpriced calls are made and recorded with their tokens but no cost, and the spending cap doesn't stop them", async () => {
@@ -434,7 +471,7 @@ test("a stage whose model config was deleted can't start, says why, and its card
   assert.equal((await send(`/api/model-configs/${config.id}`, undefined, "DELETE")).status, 204);
   const { stages } = await json<{ stages: { id: string; modelConfig: unknown }[] }>(await app.request(`/api/projects/${project.id}/pipeline`, {}, env));
   // The pipeline says so for every stage that names it, so that the card shows it.
-  assert.deepEqual(stages[3].modelConfig, { name: "Opus EU", model: "fake-model", deleted: true });
+  assert.deepEqual(stages[3].modelConfig, { name: "Opus EU", model: "fake-model", deleted: true, unsupported: false });
   const refused = await send(`/api/projects/${project.id}/stages/${stages[3].id}/start`, {
     stepVersion: 1,
     config: { modelConfigId: config.id },

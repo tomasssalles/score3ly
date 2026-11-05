@@ -35,7 +35,7 @@ export type ConfigValues = Record<string, string | number>;
 // come after the stage, which the model config can be applied to as well.
 export type ConfigContext = {
   pageCount: number | null;
-  modelConfigs: { id: string; name: string; deleted: boolean }[];
+  modelConfigs: { id: string; name: string; deleted: boolean; unsupported: boolean }[];
   laterLlmStages: number;
 };
 
@@ -64,7 +64,8 @@ export const LLM_CONFIG: StepConfig = {
   check: (values, { modelConfigs }) => {
     const picked = modelConfigs.find((c) => c.id === values.modelConfigId);
     if (!picked) return "Pick a model config.";
-    return picked.deleted ? `"${picked.name}" was deleted: pick another model config.` : null;
+    if (picked.deleted) return `"${picked.name}" was deleted: pick another model config.`;
+    return picked.unsupported ? `The app no longer supports "${picked.name}": pick another model config.` : null;
   },
 };
 

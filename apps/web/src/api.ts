@@ -25,7 +25,7 @@ export type ApiStage = {
   startedAt: string | null;
   heartbeatAt: string | null;
   finishedAt: string | null;
-  modelConfig: { name: string; model: string; deleted: boolean } | null; // LLM stages: the model config it names
+  modelConfig: { name: string; model: string; deleted: boolean; unsupported: boolean } | null; // LLM stages: the model config it names
   costUsd: number | null; // what its LLM calls cost
   carried: boolean; // a manual stage carried through a re-run, waiting for its turn to be kept or dropped (§5.5)
   inRecipe: boolean; // part of the recipe, or added by the user (a further review and its Apply review, a manual stage)
@@ -293,7 +293,9 @@ export type ModelConfig = {
   model: string; // the model's string on the provider
   family: Family;
   modelName: string | null; // a listed model's name for people
-  retired: boolean;
+  // Why the app no longer supports it, said after its name, or null: its stages can't start, and it can't be picked
+  // (docs/llm.md, "No longer supported").
+  unsupported: string | null;
   effort: "low" | "medium" | "high" | "xhigh" | "max" | null;
   region: string; // "" where the provider has no regions
   routing: "global" | "geographic" | "in-region" | null; // Bedrock only

@@ -895,7 +895,7 @@ body {
   vertical-align: 1px;
 }
 
-/* A deleted model config on a stage that still has to start with it. */
+/* A deleted or unsupported model config on a stage that still has to start with it. */
 .stage-model.deleted {
   color: var(--danger);
 }
@@ -1565,6 +1565,12 @@ body {
 .badge.muted {
   border-color: var(--line);
   color: var(--muted);
+}
+
+/* A model config the app no longer supports (docs/llm.md). */
+.badge.danger {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .model-config-facts {

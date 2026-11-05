@@ -167,8 +167,9 @@ function Facts({ stage }: { stage: Stage }) {
   return (
     <>
       {stage.model && (
-        // A deleted config in red where it keeps the stage from running: on a stage that hasn't finished (docs/llm.md).
-        <p className={stage.modelDeleted && blockedByConfig(stage) ? "stage-facts stage-model deleted" : "stage-facts stage-model"}>
+        // A deleted or unsupported config in red where it keeps the stage from running: on a stage that hasn't finished
+        // (docs/llm.md).
+        <p className={stage.modelUnusable && blockedByConfig(stage) ? "stage-facts stage-model deleted" : "stage-facts stage-model"}>
           <FittedText text={stage.model} lines={1} />
         </p>
       )}

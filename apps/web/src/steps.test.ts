@@ -66,12 +66,17 @@ test("every LLM stage's config has its model config: read from the stored config
   assert.deepEqual(read(null), { modelConfigId: "" });
   const context = {
     pageCount: null,
-    modelConfigs: [{ id: "opus", name: "Opus", deleted: false }, { id: "old", name: "Old", deleted: true }],
+    modelConfigs: [
+      { id: "opus", name: "Opus", deleted: false, unsupported: false },
+      { id: "old", name: "Old", deleted: true, unsupported: false },
+      { id: "gone", name: "Gone", deleted: false, unsupported: true },
+    ],
     laterLlmStages: 2,
   };
   assert.equal(check({ modelConfigId: "opus" }, context), null);
   assert.equal(check({ modelConfigId: "" }, context), "Pick a model config.");
   assert.equal(check({ modelConfigId: "old" }, context), '"Old" was deleted: pick another model config.');
+  assert.equal(check({ modelConfigId: "gone" }, context), 'The app no longer supports "Gone": pick another model config.');
 });
 
 test("Fix MEI is offered only by Build MEI, the stage that creates the MEI", () => {

@@ -139,7 +139,17 @@ For testing and debugging: run stages as if nothing were cached, without our own
   - **Vertex AI:** which locations (`global`, multi-regions such as `eu`, regions) serve which models, and their prices.
   - **Gemini's current models and prices** on Google AI Studio, from Google's own pricing page (third-party pages disagree).
   - **Model strings on Vertex AI** (with or without an `@` version) for the current models.
-  - **Retired models** (a model that left the list, kept in it marked retired, 2026-11-05): its configs keep showing wherever they appear (stage cards, call records, costs, statistics), but are no longer used for new calls. To decide: how they are marked (on the settings page's cards, in the pickers, on the cards of stages that name them; perhaps like a deleted config, in red with " (retired)" where a stage still has to start with it); whether a stage naming one is refused before it starts, like a deleted config, or whether its calls served from the record still run; whether a retired config is offered in "Change config" (probably not); and, since the default may be retired by a new version of the app, how the user is told to act at once (a notice when the app opens, or on every page, until another default is picked), and what new LLM stages get meanwhile.
+  - **Converting configs added by hand** (proposed 2026-11-05, to decide; the docs disagree): `docs/llm.md`'s "Models the user adds" says the real price replaces the borrowed one (or none), "Configs" that the pricing kind stays as the user set it. Proposed: "priced as" becomes the model's own price, "unpriced" becomes priced, "free" stays free (the user's free tier, not a guess). A config whose string the list now has but not at its place keeps what it had (borrowed or unpriced) and converts once there is a price there. When: the first time the configs are read after the list's date changed (a Worker has no start-up hook; the Worker stores the list date it last converted for). Names aren't changed: only the user renames.
+
+### Stages from the record with a config that can't be used
+`#optional` `#decision`
+
+`docs/llm.md`, "No longer supported" (2026-11-05): a stage whose model config was deleted or is no longer supported can't start, even when every one of its calls would be served from the record without a call. Whether such a stage should be used after all (nothing is paid, nothing is sent), and how the UI would then show the config (in red today, which would be confusing for a stage that runs without problems). Rare: it needs a new list of models, or a deleted config, between two runs of the same stage.
+
+### Say where a model is still supported
+`#nice-to-have`
+
+`docs/llm.md`, "No longer supported": when a config is no longer supported, a hint where the app still supports its model, from the list: the same model on the same provider in other regions or routings ("The app still supports Claude Opus 4 on Bedrock in eu-central-1, …"), else on other providers ("… on Vertex AI and Anthropic"), else other models of the family on the same provider. Shown in the stage's failure and on the settings card, and useful in the clone form. Not hard with the list's lookups (`placesOf`, `modelsOf`); the wording and how much to list are the work.
 
 ### Statistics by model
 `#optional`

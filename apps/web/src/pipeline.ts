@@ -72,8 +72,10 @@ export type Stage = {
   title: string;
   kind: StageKind;
   status: StageStatus;
-  model?: string; // LLM stages: the model config's name, with " (deleted)" if it was deleted (docs/llm.md)
-  modelDeleted?: boolean; // the model config was deleted: a stage that hasn't run can't start with it
+  // LLM stages: the model config's name, with " (deleted)" if it was deleted, " (no longer supported)" if the app no
+  // longer supports it (docs/llm.md)
+  model?: string;
+  modelUnusable?: boolean; // the model config was deleted or isn't supported: a stage that hasn't run can't start with it
   seconds?: number; // run time, once done
   cost?: number; // US dollars, LLM stages once done
   note?: string; // one short fact about the result, e.g. "3 boxes moved"
@@ -157,8 +159,8 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
     kind: info.kind,
     status,
     seconds,
-    model: stored.modelConfig ? `${stored.modelConfig.name}${stored.modelConfig.deleted ? " (deleted)" : ""}` : undefined,
-    modelDeleted: stored.modelConfig?.deleted ?? false,
+    model: stored.modelConfig ? `${stored.modelConfig.name}${unusableMark(stored.modelConfig)}` : undefined,
+    modelUnusable: Boolean(stored.modelConfig && (stored.modelConfig.deleted || stored.modelConfig.unsupported)),
     cost: stored.costUsd ?? undefined,
     note: stored.note ?? undefined,
     error: stored.error ?? undefined,
@@ -269,4 +271,9 @@ export function progressOf(pipeline: Pipeline): Progress {
   const done = stages.filter((stage) => stage.status === "done").length;
   const running = runningStage(pipeline);
   return { stage: running?.progress ?? null, pipeline: (done + (running?.progress ?? 0)) / stages.length };
+}
+
+// How a model config that can't be used is marked after its name (docs/llm.md): deleted, or no longer supported.
+export function unusableMark(config: { deleted: boolean; unsupported: boolean }): string {
+  return config.deleted ? " (deleted)" : config.unsupported ? " (no longer supported)" : "";
 }

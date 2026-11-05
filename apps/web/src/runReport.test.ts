@@ -43,7 +43,7 @@ const opus: ModelConfig = {
   model: "anthropic.claude-opus-5-5",
   family: "claude",
   modelName: "Claude Opus 5.5",
-  retired: false,
+  unsupported: null,
   effort: "high",
   region: "eu-central-1",
   routing: "geographic",

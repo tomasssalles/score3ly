@@ -190,6 +190,24 @@ export function priceOfConfig(list: ModelList, config: PricedConfig): ConfigPric
   };
 }
 
+// Why the app no longer supports a config, or null where it does (docs/llm.md, "No longer supported"): at the smallest
+// scope, a listed model is supported on a provider at a place where the list has its price, so a row missing from the
+// list's prices retires that config, not the model everywhere; a model added by hand and priced as a listed one needs
+// that model's price there. Free and unpriced models added by hand are always supported.
+// Said after the config's name: `its model config, "X", ${reason}.`
+export function unsupportedReason(list: ModelList, config: PricedConfig): string | null {
+  const where = `${PROVIDER_NAMES[config.provider]}${config.place.region ? ` in ${config.place.region}` : ""}${config.place.routing ? ` (${config.place.routing} routing)` : ""}`;
+  if ("modelId" in config.model) {
+    if (listedPrice(list, config.model.modelId, config.provider, config.place)) return null;
+    const name = modelById(list, config.model.modelId)?.name ?? config.model.modelId;
+    return `uses ${name} on ${where}, which the app no longer supports`;
+  }
+  if (config.pricing.kind !== "list" || config.pricing.reference === null) return null;
+  if (listedPrice(list, config.pricing.reference, config.provider, config.place)) return null;
+  const name = modelById(list, config.pricing.reference)?.name ?? config.pricing.reference;
+  return `is priced as ${name} on ${where}, which the app no longer has a price for`;
+}
+
 // A config's default name before numbering (docs/llm.md, "Configs"): "Claude Opus 5.5 (Bedrock) · high". A model the
 // user added shows its string; the effort is left out where it is the model's default.
 export function configBaseName(list: ModelList, provider: Provider, model: ConfigModel, effort: Effort | null): string {

@@ -177,7 +177,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       ["engrave", "planned", null],
     ],
   );
-  assert.deepEqual(pipeline.stages[3].modelConfig, { name: "Fake model", model: "fake", deleted: false });
+  assert.deepEqual(pipeline.stages[3].modelConfig, { name: "Fake model", model: "fake", deleted: false, unsupported: false });
   assert.equal(pipeline.stages[1].modelConfig, null);
   const [ingest] = pipeline.stages;
   assert.equal(ingest.step, "ingest");
@@ -659,7 +659,7 @@ test("a model config applied to the remaining stages: only the LLM stages after,
     null,
     null,
   ]);
-  assert.deepEqual((await at(6)).modelConfig, { name: "Other model", model: "fake-model", deleted: false });
+  assert.deepEqual((await at(6)).modelConfig, { name: "Other model", model: "fake-model", deleted: false, unsupported: false });
 
   // A stage that ran is replaced by a copy with the new model config, its other settings kept.
   const extract = await at(5);

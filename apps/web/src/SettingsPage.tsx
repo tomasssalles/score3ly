@@ -197,7 +197,8 @@ function DefaultConfigPicker({
       }
       label="Default model config for new LLM stages"
       groups={[
-        (configs ?? []).map((config) => ({
+        // Configs the app no longer supports can't be the default (docs/llm.md, "No longer supported").
+        (configs ?? []).filter((config) => !config.unsupported || config.id === defaultId).map((config) => ({
           label: config.name,
           current: config.id === defaultId,
           onSelect: () => onPick(config.id),
@@ -285,6 +286,7 @@ function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultI
               {config.name}
               {config.id === defaultId && <span className="badge">Default</span>}
               {config.freeTier && <span className="badge muted">Free tier</span>}
+              {config.unsupported && <span className="badge danger">No longer supported</span>}
             </p>
             <dl className="model-config-facts">
               <dt>Provider</dt>
@@ -292,7 +294,7 @@ function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultI
               <dt>Model</dt>
               <dd>
                 {config.modelName ?? <span className="mono">{config.model}</span>}
-                {config.retired && <span className="model-config-hint"> (no longer supported)</span>}
+
               </dd>
               <dt>Effort</dt>
               <dd>{config.effort ?? "Default"}</dd>

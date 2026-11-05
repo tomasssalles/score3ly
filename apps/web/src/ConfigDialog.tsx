@@ -1,3 +1,4 @@
+import { unusableMark } from "./pipeline";
 import { useEffect, useRef, useState } from "react";
 import { Picker } from "./fieldList";
 import { CloseIcon } from "./icons";
@@ -73,7 +74,7 @@ export function ConfigDialog({
                   fitted
                   groups={[
                     context.modelConfigs
-                      .filter((c) => !c.deleted)
+                      .filter((c) => !c.deleted && !c.unsupported)
                       .map((c) => ({
                         label: c.name,
                         current: c.id === texts[field.key],
@@ -144,7 +145,7 @@ export function ConfigDialog({
   );
 }
 
-// A model config as the picker shows it: its name, marked if it was deleted (docs/llm.md).
-function modelConfigLabel(config: { name: string; deleted: boolean } | undefined): string | undefined {
-  return config && (config.deleted ? `${config.name} (deleted)` : config.name);
+// A model config as the picker shows it: its name, marked if it was deleted or isn't supported (docs/llm.md).
+function modelConfigLabel(config: { name: string; deleted: boolean; unsupported: boolean } | undefined): string | undefined {
+  return config && `${config.name}${unusableMark(config)}`;
 }

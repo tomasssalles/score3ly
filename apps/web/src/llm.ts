@@ -14,8 +14,9 @@ export async function stageModelConfig(stageConfig: Record<string, unknown> | nu
   const id = typeof stageConfig?.modelConfigId === "string" ? stageConfig.modelConfigId : null;
   if (!id) throw new CannotStart("it has no model config: there was no default model config when it was created.");
   const config = await fetchModelConfig(id);
-  // Said as the Worker says it, which refuses to start the stage too (deletedConfigMessage).
+  // Said as the Worker says it, which refuses to start the stage too (deletedConfigMessage, unsupportedConfigMessage).
   if (config.deletedAt) throw new CannotStart(`its model config, "${config.name}", was deleted.`);
+  if (config.unsupported) throw new CannotStart(`its model config, "${config.name}", ${config.unsupported}.`);
   return config;
 }
 

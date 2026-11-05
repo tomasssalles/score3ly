@@ -16,6 +16,7 @@ import {
   modelById,
   placesOfProvider,
   priceOfConfig,
+  unsupportedReason,
   PROVIDER_NAMES,
   PROVIDERS,
   resolveModel,
@@ -44,7 +45,7 @@ const SECRETS: Record<string, string[][]> = {
 };
 
 // A model config (docs/llm.md, "Configs"), as stored, with what the list says about its model (`model`, `family`,
-// `modelName`, `retired`) for the browser.
+// `modelName`, `unsupported`, `price`) for the browser.
 export type ModelConfig = {
   id: string;
   name: string; // required and unique, ignoring case, among the configs that aren't deleted (docs/llm.md)
@@ -54,7 +55,9 @@ export type ModelConfig = {
   model: string; // the model's string on the provider ("" for a listed model the list doesn't have any more)
   family: Family;
   modelName: string | null; // the listed model's name for people
-  retired: boolean; // the listed model left the list: not used for new calls
+  // Why the app no longer supports it, said after its name (`its model config, "X", ${unsupported}.`), or null: a
+  // stage that names it can't start, and it can't be picked (docs/llm.md, "No longer supported").
+  unsupported: string | null;
   effort: Effort | null;
   region: string; // "" for providers without regions: not part of any cache key
   routing: Routing | null; // Bedrock only
@@ -100,9 +103,15 @@ export function resolvedModel(row: Pick<ModelConfigRow, "provider" | "model_id" 
     model: resolved?.string ?? "",
     family: resolved?.family ?? entry?.family ?? row.family ?? "fake",
     modelName: resolved?.name ?? entry?.name ?? null,
-    retired: resolved?.retired ?? true,
-    known: resolved !== null,
   };
+}
+
+export function unsupportedOf(row: ModelConfigRow, pricing: Pricing = pricingOf(row), list: ModelList = MODEL_LIST): string | null {
+  return unsupportedReason(list, { provider: row.provider, model: configModel(row), place: { region: row.region, routing: row.routing }, pricing });
+}
+
+function pricingOf(row: ModelConfigRow): Pricing {
+  return row.pricing_kind === "list" ? { kind: "list", reference: row.pricing_reference } : { kind: row.pricing_kind };
 }
 
 function configPrice(row: ModelConfigRow, pricing: Pricing, list: ModelList = MODEL_LIST): ModelConfig["price"] {
@@ -112,8 +121,8 @@ function configPrice(row: ModelConfigRow, pricing: Pricing, list: ModelList = MO
 }
 
 export function toModelConfig(row: ModelConfigRow): ModelConfig {
-  const { model, family, modelName, retired } = resolvedModel(row);
-  const pricing: Pricing = row.pricing_kind === "list" ? { kind: "list", reference: row.pricing_reference } : { kind: row.pricing_kind };
+  const { model, family, modelName } = resolvedModel(row);
+  const pricing = pricingOf(row);
   return {
     id: row.id,
     name: row.name,
@@ -123,7 +132,7 @@ export function toModelConfig(row: ModelConfigRow): ModelConfig {
     model,
     family,
     modelName,
-    retired,
+    unsupported: unsupportedOf(row, pricing),
     effort: row.effort,
     region: row.region,
     routing: row.routing,
@@ -176,7 +185,6 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
     if (modelString !== undefined && modelString !== null) return "give either 'modelId' or 'modelString', not both";
     const entry = typeof modelId === "string" ? modelById(list, modelId) : null;
     if (!entry) return "'modelId' must be a model of the list";
-    if (entry.retired) return `${entry.name} is no longer supported`;
     if (entry.strings[p] === undefined) return `${entry.name} isn't offered on ${PROVIDER_NAMES[p]}`;
     if (family !== undefined && family !== null) return "a listed model's family comes from the list: leave 'family' out";
     modelFamily = entry.family;
@@ -200,6 +208,10 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
   if (!placesOfProvider(list, p).some((other) => samePlace(other, place))) {
     return `${PROVIDER_NAMES[p]} has no region ${place.region || '""'}${place.routing ? ` with ${place.routing} routing` : ""} in the list`;
   }
+  // A listed model only where the list has its price, however the config is priced: elsewhere the app doesn't support it.
+  if (typeof modelId === "string" && modelId !== "" && !listedPrice(list, modelId, p, place)) {
+    return `The app doesn't support ${modelById(list, modelId)!.name} on ${PROVIDER_NAMES[p]} there: pick another region`;
+  }
   if (project !== undefined && project !== null && (p !== "vertex" || typeof project !== "string")) return "'project' is for Vertex AI only";
   // The secrets: one of the adapter's sets.
   const isStrings = (v: unknown) =>
@@ -217,7 +229,6 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
     const reference = pr.reference ?? null;
     if (modelId) {
       if (reference !== null) return "a listed model is priced as itself: leave 'reference' out";
-      if (!listedPrice(list, modelId as string, p, place)) return "the list has no price for this model there: pick another region, or price it as free or unpriced";
     } else {
       const entry = typeof reference === "string" ? modelById(list, reference) : null;
       if (!entry) return "a model you add is priced from the list as one of its models: 'reference' must be one";
@@ -232,6 +243,10 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
 // "Managing model configs"). The browser shows them after the stage's name ("Layout" can't run: …).
 export function deletedConfigMessage(name: string): string {
   return `its model config, "${name}", was deleted.`;
+}
+
+export function unsupportedConfigMessage(name: string, reason: string): string {
+  return `its model config, "${name}", ${reason}.`;
 }
 
 // A config deleted while its stage ran: the next request is refused (the start was checked already).
@@ -387,8 +402,9 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const problem = body && "value" in body ? settingProblem(key, body.value) : "expected a 'value'";
     if (problem) return c.json({ error: problem }, 400);
     if (key === "defaultModelConfigId" && body.value !== null) {
-      const exists = await c.env.DB.prepare("SELECT id FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(body.value).first();
+      const exists = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(body.value).first<ModelConfigRow>();
       if (!exists) return c.json({ error: "no such model config" }, 404);
+      if (unsupportedOf(exists)) return c.json({ error: `"${exists.name}" ${unsupportedOf(exists)}: it can't be the default` }, 400);
     }
     await c.env.DB.prepare("INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)")
       .bind(key, JSON.stringify(body.value), new Date().toISOString())
@@ -478,12 +494,12 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (!row) return c.json({ error: "the stage's model config doesn't exist", code: "no_model_config" }, 409);
     // Checked before every request, the cache included: a config deleted while its stage runs is never used again.
     if (row.deleted_at) return c.json({ error: deletedWhileRunningMessage(row.name), code: "deleted_model_config" }, 409);
-    const config = toModelConfig(row);
-
-    // A listed model the list doesn't have at all can't be called (a model that left the list is kept, retired).
-    if (!resolvedModel(row).known) {
-      return c.json({ error: `The model of "${config.name}" isn't in the app's list of models.`, code: "unknown_model" }, 409);
+    // So is one the app no longer supports (a new list of models), the cache included; its stage wasn't allowed to start.
+    const unsupported = unsupportedOf(row);
+    if (unsupported) {
+      return c.json({ error: `The model config "${row.name}" ${unsupported}. Pick another with "Change config" in the stage's ⋮, then retry.`, code: "unsupported_model_config" }, 409);
     }
+    const config = toModelConfig(row);
 
     // The request key: the exact request, images by their recipe keys, with the model's provider, model and effort.
     // Not the config's id, region, routing, project or secrets: they don't change the answer (§5.2).
@@ -529,23 +545,10 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       return c.json({ imagesNeeded: true });
     }
 
-    // A retired model isn't used for new calls; answers already recorded were served above (docs/llm.md, "Models").
-    if (config.retired) {
-      return c.json(
-        { error: `The model of "${config.name}", ${config.modelName ?? config.model}, is no longer supported. Pick another config with "Change config" in the stage's ⋮.`, code: "retired_model" },
-        409,
-      );
-    }
-
     // Then what a priced call needs: a price, room under the spending cap, and the secrets. Free and unpriced calls
     // don't count towards the cap (docs/llm.md, "Models the user adds").
     const priced = priceOfConfig(MODEL_LIST, { provider: config.provider, model: configModel(row), place: { region: config.region, routing: config.routing }, pricing: config.pricing });
-    if (priced.kind === "missing") {
-      return c.json(
-        { error: `The app has no price for "${config.name}" there: the spending cap couldn't count its calls. Clone it in another region, or priced as free or unpriced.`, code: "no_price" },
-        409,
-      );
-    }
+    // (Never "missing": that is an unsupported config, refused above.)
     const price = priced.kind === "priced" ? priced.price : null;
     if (price) {
       const { spendingCapUsd } = await readSettings(db);

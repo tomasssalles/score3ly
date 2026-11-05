@@ -707,13 +707,14 @@ function writeFlag(key: string, value: boolean) {
 }
 
 // The model configs an LLM stage's config form offers: those not deleted, and the stage's own if it was deleted, marked
-// so (it shows as the current one, and can't be picked anew; docs/llm.md).
-async function modelConfigsFor(config: Record<string, unknown> | null): Promise<{ id: string; name: string; deleted: boolean }[]> {
-  const configs = (await fetchModelConfigs()).map((c) => ({ id: c.id, name: c.name, deleted: false }));
+// so (it shows as the current one, and can't be picked anew; docs/llm.md). Those the app no longer supports are marked
+// too, and the form offers only the others.
+async function modelConfigsFor(config: Record<string, unknown> | null): Promise<{ id: string; name: string; deleted: boolean; unsupported: boolean }[]> {
+  const configs = (await fetchModelConfigs()).map((c) => ({ id: c.id, name: c.name, deleted: false, unsupported: c.unsupported !== null }));
   const own = typeof config?.modelConfigId === "string" ? config.modelConfigId : null;
   if (own && !configs.some((c) => c.id === own)) {
     const deleted = await fetchModelConfig(own).catch(() => null);
-    if (deleted) configs.push({ id: deleted.id, name: deleted.name, deleted: true });
+    if (deleted) configs.push({ id: deleted.id, name: deleted.name, deleted: true, unsupported: deleted.unsupported !== null });
   }
   return configs;
 }
