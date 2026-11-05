@@ -1,0 +1,54 @@
+{
+  "$schema": "./schema.json",
+  "provider": "ai-studio",
+  "collectedAt": "2026-11-05",
+  "mock": true,
+  "sources": [
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/pricing",
+      "note": "mock: made-up strings and prices"
+    }
+  ],
+  "models": [
+    {
+      "id": "gemini-3-1-pro",
+      "name": "Gemini 3.1 Pro",
+      "family": "gemini",
+      "string": "gemini-3.1-pro"
+    },
+    {
+      "id": "gemini-3-flash",
+      "name": "Gemini 3 Flash",
+      "family": "gemini",
+      "string": "gemini-3-flash"
+    }
+  ],
+  "regions": [
+    {
+      "region": "",
+      "routings": null
+    }
+  ],
+  "prices": [
+    {
+      "model": "gemini-3-1-pro",
+      "region": "",
+      "routing": null,
+      "input": 2,
+      "output": 12,
+      "cacheRead": 0.2,
+      "cacheWrite": 0,
+      "source": "mock: made up"
+    },
+    {
+      "model": "gemini-3-flash",
+      "region": "",
+      "routing": null,
+      "input": 0.5,
+      "output": 3,
+      "cacheRead": 0.05,
+      "cacheWrite": 0,
+      "source": "mock: made up"
+    }
+  ]
+}

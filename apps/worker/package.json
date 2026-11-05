@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "migrate:local": "wrangler d1 migrations apply score3ly --local",
     "test": "node --test \"src/**/*.test.ts\"",
-    "llm:try": "node scripts/try-llm.ts"
+    "llm:try": "node scripts/try-llm.ts",
+    "model-list": "node scripts/generate-model-list.ts"
   },
   "dependencies": {
     "@anthropic-ai/bedrock-sdk": "^0.34.4",

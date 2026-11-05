@@ -1,0 +1,86 @@
+{
+  "$schema": "./schema.json",
+  "provider": "anthropic",
+  "collectedAt": "2026-11-05",
+  "mock": true,
+  "sources": [
+    {
+      "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "note": "mock: Anthropic's list prices of 2026-10, not gathered"
+    }
+  ],
+  "models": [
+    {
+      "id": "claude-opus-5-5",
+      "name": "Claude Opus 5.5",
+      "family": "claude",
+      "string": "claude-opus-5-5"
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "name": "Claude Sonnet 5.5",
+      "family": "claude",
+      "string": "claude-sonnet-5-5"
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "name": "Claude Haiku 5.5",
+      "family": "claude",
+      "string": "claude-haiku-5-5"
+    },
+    {
+      "id": "claude-fable-5-1",
+      "name": "Claude Fable 5.1",
+      "family": "claude",
+      "string": "claude-fable-5-1"
+    }
+  ],
+  "regions": [
+    {
+      "region": "",
+      "routings": null
+    }
+  ],
+  "prices": [
+    {
+      "model": "claude-opus-5-5",
+      "region": "",
+      "routing": null,
+      "input": 4,
+      "output": 20,
+      "cacheRead": 0.2,
+      "cacheWrite": 5,
+      "source": "mock: Anthropic's list price"
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "region": "",
+      "routing": null,
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.2,
+      "cacheWrite": 2.5,
+      "source": "mock: Anthropic's list price"
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "region": "",
+      "routing": null,
+      "input": 0.1,
+      "output": 0.5,
+      "cacheRead": 0.01,
+      "cacheWrite": 0.125,
+      "source": "mock: Anthropic's list price"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "region": "",
+      "routing": null,
+      "input": 10,
+      "output": 50,
+      "cacheRead": 0.25,
+      "cacheWrite": 12.5,
+      "source": "mock: Anthropic's list price"
+    }
+  ]
+}

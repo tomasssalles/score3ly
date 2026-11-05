@@ -300,6 +300,12 @@ export type ModelConfig = {
   project: string | null; // Vertex AI only
   secrets: Record<string, string>; // field → name of a Worker secret
   pricing: { kind: "list"; reference: string | null } | { kind: "free" } | { kind: "unpriced" };
+  // What its calls cost now: per million tokens, perhaps borrowed from another model (its name).
+  price:
+    | { kind: "priced"; price: { input: number; output: number; cacheRead: number; cacheWrite: number }; borrowedFrom: string | null }
+    | { kind: "free" }
+    | { kind: "unpriced" }
+    | { kind: "missing" };
   freeTier: boolean; // pricing "free"
   createdAt: string;
   deletedAt: string | null; // a deleted config is never used again

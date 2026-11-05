@@ -1,0 +1,32 @@
+{
+  "$schema": "./schema.json",
+  "provider": "fake-dev",
+  "collectedAt": "2026-11-05",
+  "sources": [],
+  "models": [
+    {
+      "id": "fake",
+      "name": "Fake model",
+      "family": "fake",
+      "string": "fake"
+    }
+  ],
+  "regions": [
+    {
+      "region": "",
+      "routings": null
+    }
+  ],
+  "prices": [
+    {
+      "model": "fake",
+      "region": "",
+      "routing": null,
+      "input": 1,
+      "output": 5,
+      "cacheRead": 0.1,
+      "cacheWrite": 1.25,
+      "source": "made-up prices, for developing the costs and the cap"
+    }
+  ]
+}

@@ -6,7 +6,7 @@
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
-import { costOf } from "./llm/prices.ts";
+import { costOf, type Price } from "./llm/prices.ts";
 import { adapterFor, supportedFamilies } from "./llm/adapters.ts";
 import {
   configBaseName,
@@ -61,6 +61,9 @@ export type ModelConfig = {
   project: string | null; // Vertex AI only
   secrets: Record<string, string>; // field → name of a Worker secret: not part of any cache key
   pricing: Pricing;
+  // What its calls cost now, from the list: its prices (perhaps borrowed: the model's name for people), free, unpriced,
+  // or missing (the list has no price there any more).
+  price: { kind: "priced"; price: Price; borrowedFrom: string | null } | { kind: "free" } | { kind: "unpriced" } | { kind: "missing" };
   freeTier: boolean; // pricing "free": its calls cost nothing and don't count towards the spending cap
   createdAt: string;
   deletedAt: string | null; // a deleted config is never used again: a stage that names one can't start
@@ -102,6 +105,12 @@ export function resolvedModel(row: Pick<ModelConfigRow, "provider" | "model_id" 
   };
 }
 
+function configPrice(row: ModelConfigRow, pricing: Pricing, list: ModelList = MODEL_LIST): ModelConfig["price"] {
+  const priced = priceOfConfig(list, { provider: row.provider, model: configModel(row), place: { region: row.region, routing: row.routing }, pricing });
+  if (priced.kind !== "priced") return priced;
+  return { ...priced, borrowedFrom: priced.borrowedFrom ? (modelById(list, priced.borrowedFrom)?.name ?? priced.borrowedFrom) : null };
+}
+
 export function toModelConfig(row: ModelConfigRow): ModelConfig {
   const { model, family, modelName, retired } = resolvedModel(row);
   const pricing: Pricing = row.pricing_kind === "list" ? { kind: "list", reference: row.pricing_reference } : { kind: row.pricing_kind };
@@ -121,6 +130,7 @@ export function toModelConfig(row: ModelConfigRow): ModelConfig {
     project: row.project,
     secrets: JSON.parse(row.secrets_json),
     pricing,
+    price: configPrice(row, pricing),
     freeTier: pricing.kind === "free",
     createdAt: row.created_at,
     deletedAt: row.deleted_at,

@@ -13,7 +13,6 @@ import {
   resolveModel,
   type ModelList,
 } from "./models.ts";
-import { MOCK_MODEL_LIST } from "./modelList.mock.ts";
 import { adapterFor, supportedFamilies } from "./adapters.ts";
 import { MODEL_LIST } from "./modelList.ts";
 
@@ -118,9 +117,9 @@ const EU_GLOBAL = { region: "eu-west-1", routing: "global" as const };
 const EU_IN_REGION = { region: "eu-west-1", routing: "in-region" as const };
 const NOWHERE = { region: "", routing: null };
 
-test("the app's list and the mock have no problems", () => {
+test("the app's list has no problems", () => {
   assert.deepEqual(listProblems(MODEL_LIST), []);
-  assert.deepEqual(listProblems(MOCK_MODEL_LIST), []);
+
   assert.deepEqual(listProblems(LIST), []);
 });
 
@@ -283,8 +282,8 @@ test("a provider's places come from the list's regions", () => {
   ]);
   assert.deepEqual(placesOfProvider(LIST, "anthropic"), [NOWHERE]);
   assert.deepEqual(placesOfProvider(LIST, "fake"), []);
-  // The mock has Bedrock's regions as Anthropic's page lists them.
-  const bedrock = MOCK_MODEL_LIST.regions.filter((r) => r.provider === "bedrock");
+  // The app's list has Bedrock's regions as Anthropic's page lists them.
+  const bedrock = MODEL_LIST.regions.filter((r) => r.provider === "bedrock");
   assert.equal(bedrock.length, 27);
   assert.deepEqual(
     bedrock.find((r) => r.region === "il-central-1"),

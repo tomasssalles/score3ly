@@ -9,6 +9,7 @@ import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { CACHE_LIMITS_MB, cacheLimitMb, formatSize, setCacheLimitMb } from "./cacheLru";
 import { useHost } from "./host";
+import { pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
 import { ChevronDownIcon } from "./icons";
 import { MODE_LABELS, MODES } from "./pipeline";
@@ -258,13 +259,6 @@ const PROVIDERS: Record<ModelConfig["provider"], string> = {
 
 const ROUTINGS: Record<NonNullable<ModelConfig["routing"]>, string> = { global: "Global", geographic: "Geographic", "in-region": "In-region" };
 
-// How a config is priced (docs/llm.md, "Configs").
-function pricingText(config: ModelConfig): string {
-  if (config.pricing.kind === "free") return "Free tier";
-  if (config.pricing.kind === "unpriced") return "Unpriced";
-  return config.pricing.reference ? `Priced as ${config.pricing.reference}` : "From the app's list";
-}
-
 // The providers' fields by name (the Worker's FIELDS); one it doesn't know is shown as stored.
 const FIELD_LABELS: Record<string, string> = {
   apiKey: "API key",
@@ -301,7 +295,7 @@ function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultI
                 {config.retired && <span className="model-config-hint"> (no longer supported)</span>}
               </dd>
               <dt>Effort</dt>
-              <dd>{config.effort ?? "the model's default"}</dd>
+              <dd>{config.effort ?? "Default"}</dd>
               {config.region && <Fact label="region" value={config.region} />}
               {config.routing && (
                 <>

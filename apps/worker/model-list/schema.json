@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "score3ly/model-list/provider",
+  "title": "One provider's models, regions and prices",
+  "description": "What step 1 (gathering) writes for one provider, and step 2 (npm run model-list -w apps/worker) reads to generate the list of models and prices (docs/llm.md, \"The list of models and prices: code, generated\"). The same schema for every provider; the rules between files and those that differ by provider (only Bedrock has routings) are checked when the list is generated.",
+  "type": "object",
+  "required": ["provider", "collectedAt", "sources", "models", "regions", "prices"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "provider": {
+      "description": "The provider (a platform), as the app's code names it.",
+      "enum": ["anthropic", "bedrock", "ai-studio", "vertex", "fake", "fake-dev"]
+    },
+    "collectedAt": {
+      "description": "The day the information was collected (YYYY-MM-DD). The list's date is the oldest of its files'.",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "mock": {
+      "description": "True for made-up or unchecked contents, standing in until the real gathering.",
+      "type": "boolean"
+    },
+    "sources": {
+      "description": "Where the information came from: the pages and files read.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["url"],
+        "additionalProperties": false,
+        "properties": {
+          "url": { "type": "string" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "models": {
+      "description": "The models the provider offers that the app lists.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "family", "string"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "The model's id in the app, the same on every provider (from the mapping kept by hand): configs refer to it.",
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9.-]*$"
+          },
+          "name": { "description": "The model's name for people, e.g. \"Claude Opus 5.5\".", "type": "string", "minLength": 1 },
+          "family": { "enum": ["claude", "gemini", "fake"] },
+          "string": { "description": "The model string as this provider spells it.", "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "regions": {
+      "description": "The provider's regions: \"\" for a provider without regions. On Bedrock, each with its routings and, for geographic routing, its geography.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["region", "routings"],
+        "additionalProperties": false,
+        "properties": {
+          "region": { "type": "string" },
+          "routings": {
+            "description": "Bedrock only; null elsewhere.",
+            "type": ["array", "null"],
+            "items": { "enum": ["global", "geographic", "in-region"] }
+          },
+          "geography": { "description": "For geographic routing: EU, US, JP, AU.", "type": "string" }
+        }
+      }
+    },
+    "prices": {
+      "description": "One price per model, region and routing, in US dollars per million tokens (the short-context prices; Claude's cache write is the 5-minute one).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["model", "region", "routing", "input", "output", "cacheRead", "cacheWrite", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "model": { "description": "A model's id, from this file's models.", "type": "string" },
+          "region": { "type": "string" },
+          "routing": { "enum": ["global", "geographic", "in-region", null] },
+          "input": { "type": "number", "minimum": 0 },
+          "output": { "type": "number", "minimum": 0 },
+          "cacheRead": { "type": "number", "minimum": 0 },
+          "cacheWrite": { "type": "number", "minimum": 0 },
+          "source": { "description": "What the price came from, for the spot-check (a file's entry, a page's table).", "type": "string" }
+        }
+      }
+    }
+  }
+}
