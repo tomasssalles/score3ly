@@ -27,13 +27,13 @@ export function failureRoutes(app: Hono<{ Bindings: Env }>) {
              END AS reason,
              COUNT(*) AS n
            FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
-           WHERE m.provider <> 'fake' AND (c.status <> 'running' OR c.started_at < ?)
+           WHERE c.stage_id IS NOT NULL AND m.provider <> 'fake' AND (c.status <> 'running' OR c.started_at < ?)
            GROUP BY config, t, reason
            ORDER BY t`,
         )
         .bind(zombie),
       db.prepare(
-        "SELECT id, name, provider, model_id, model_string, family, created_at, deleted_at FROM model_configs WHERE provider <> 'fake' AND id IN (SELECT DISTINCT model_config_id FROM llm_calls) ORDER BY created_at",
+        "SELECT id, name, provider, model_id, model_string, family, created_at, deleted_at FROM model_configs WHERE provider <> 'fake' AND id IN (SELECT DISTINCT model_config_id FROM llm_calls WHERE stage_id IS NOT NULL) ORDER BY created_at",
       ),
     ]);
     type Point = { config: string; t: number; reason: string; n: number };

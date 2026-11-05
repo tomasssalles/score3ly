@@ -624,6 +624,24 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     return result.meta.changes === 0 ? c.json({ error: "no such model config" }, 404) : c.body(null, 204);
   });
 
+  // A config's test (docs/llm.md, "The settings page"): one small real request, with an image and a JSON schema, that
+  // shows the model, the place, the key, the effort and structured output working before a long run. Never served from
+  // the record nor cached: it is sent every time, recorded as a call of no stage, and counts towards the spending cap.
+  // Real providers only (decided 2026-11-06): the fake ones need no test.
+  app.post("/api/model-configs/:id/test", async (c) => {
+    const row = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(c.req.param("id")).first<ModelConfigRow>();
+    if (!row) return c.json({ error: "no such model config" }, 404);
+    if (row.deleted_at) return c.json({ error: `The model config "${row.name}" was deleted.`, code: "deleted_model_config" }, 409);
+    const unsupported = unsupportedOf(row);
+    if (unsupported) return c.json({ error: `The model config "${row.name}" ${unsupported}.`, code: "unsupported_model_config" }, 409);
+    if (row.provider === "fake" || row.provider === "fake-dev") return c.json({ error: "Only configs of real providers can be tested." }, 400);
+    const startedAt = Date.now();
+    const sent = await sendCall(c.env, row, TEST_REQUEST, `test:${crypto.randomUUID()}`, null);
+    if ("refusal" in sent) return c.json({ error: sent.refusal.error, code: sent.refusal.code }, sent.refusal.status);
+    const colour = (sent.json as { colour?: unknown } | null)?.colour;
+    return c.json({ ...sent, answer: typeof colour === "string" ? colour : null, durationMs: Date.now() - startedAt });
+  });
+
   // An answer that is valid JSON but that the stage can't use (e.g. LilyPond inside it that doesn't parse, or boxes
   // outside the page): it is marked unparseable, so it is never served from the cache again and a retry asks anew
   // (§5.2). Its cost stays in the records: it was paid for.
@@ -712,106 +730,134 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       return c.json({ imagesNeeded: true });
     }
 
-    // Then what a priced call needs: a price, room under the spending cap, and the secrets. Free and unpriced calls
-    // don't count towards the cap (docs/llm.md, "Models the user adds").
-    const priced = priceOfConfig(MODEL_LIST, { provider: config.provider, model: configModel(row), place: { region: config.region, routing: config.routing }, pricing: config.pricing });
-    // (Never "missing": that is an unsupported config, refused above.)
-    const price = priced.kind === "priced" ? priced.price : null;
-    if (price) {
-      const { spendingCapUsd } = await readSettings(db);
-      if ((await spentInLastDay(db)) >= spendingCapUsd) {
-        return c.json(
-          { error: `The spending cap has been reached: $${spendingCapUsd.toFixed(2)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap" },
-          429,
-        );
-      }
-    }
-    const secrets = secretValues(config, c.env);
-    if ("missing" in secrets) {
-      return c.json({ error: missingSecretMessage(config.name, secrets.missing as string), code: "missing_secret" }, 409);
-    }
-    const adapter = createAdapter({ provider: config.provider, family: config.family, region: config.region, project: config.project, secrets });
-    if (!adapter) {
-      return c.json({ error: `The app doesn't support ${FAMILY_NAMES[config.family]} on ${PROVIDER_NAMES[config.provider]}.`, code: "unsupported" }, 409);
-    }
-    // On Bedrock the routing is a prefix of the model string sent (llm/index.ts).
-    const geography = MODEL_LIST.regions.find((r) => r.provider === config.provider && r.region === config.region)?.geography;
-    const sentModel = config.provider === "bedrock" ? bedrockModel(config.model, config.routing, geography) : config.model;
+    const sent = await sendCall(c.env, row, request, requestKey, sid);
+    if ("refusal" in sent) return c.json({ error: sent.refusal.error, code: sent.refusal.code }, sent.refusal.status);
+    return c.json(sent);
+  });
+}
 
-    const callId = crypto.randomUUID();
-    const startedAt = new Date().toISOString();
-    const requestSha = await putJson(c.env.PDFS, await recordedRequest(request));
+// The test's request: a black square on white, 32 × 32 px, and a question about it, answered in a JSON schema. Its
+// output is short, but a model thinking at a high effort may write more, hence the room.
+const TEST_IMAGE = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAAAABWESUoAAAAGklEQVR42mP4TwAwjDAFDGhgVMHIVjDC8wUAMJb9Hysc1uIAAAAASUVORK5CYII=";
+export const TEST_REQUEST: CallRequest = {
+  messages: [
+    {
+      role: "user",
+      content: [
+        // The image's "recipe key" is its own hash: the test's image is no recipe's.
+        { type: "image", recipeKey: "0e784026ef6e7650937f03b3311dd53d180be45ef51c960dfe8528beaa4d10f6", image: { mediaType: "image/png", base64: TEST_IMAGE } },
+        { type: "text", text: "What colour is the square in this image? Answer with one word." },
+      ],
+    },
+  ],
+  maxOutputTokens: 4000,
+  jsonSchema: { type: "object", properties: { colour: { type: "string" } }, required: ["colour"], additionalProperties: false },
+};
+
+// Sends a request that wasn't served from the record, and records the call: what a stage's request and a config's
+// test have in common. Refused before anything is sent where the spending cap is reached (priced calls only), a secret
+// is missing or the app has no adapter.
+type Refusal = { refusal: { error: string; code: string; status: 409 | 429 } };
+
+async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, requestKey: string, stageId: string | null): Promise<CallAnswer | Refusal> {
+  const db = env.DB;
+  const config = toModelConfig(row);
+  // Then what a priced call needs: a price, room under the spending cap, and the secrets. Free and unpriced calls
+  // don't count towards the cap (docs/llm.md, "Models the user adds").
+  const priced = priceOfConfig(MODEL_LIST, { provider: config.provider, model: configModel(row), place: { region: config.region, routing: config.routing }, pricing: config.pricing });
+  // (Never "missing": that is an unsupported config, refused above.)
+  const price = priced.kind === "priced" ? priced.price : null;
+  if (price) {
+    const { spendingCapUsd } = await readSettings(db);
+    if ((await spentInLastDay(db)) >= spendingCapUsd) {
+      return { refusal: { error: `The spending cap has been reached: $${spendingCapUsd.toFixed(2)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap", status: 429 } };
+    }
+  }
+  const secrets = secretValues(config, env);
+  if ("missing" in secrets) {
+    return { refusal: { error: missingSecretMessage(config.name, secrets.missing as string), code: "missing_secret", status: 409 } };
+  }
+  const adapter = createAdapter({ provider: config.provider, family: config.family, region: config.region, project: config.project, secrets });
+  if (!adapter) {
+    return { refusal: { error: `The app doesn't support ${FAMILY_NAMES[config.family]} on ${PROVIDER_NAMES[config.provider]}.`, code: "unsupported", status: 409 } };
+  }
+  // On Bedrock the routing is a prefix of the model string sent (llm/index.ts).
+  const geography = MODEL_LIST.regions.find((r) => r.provider === config.provider && r.region === config.region)?.geography;
+  const sentModel = config.provider === "bedrock" ? bedrockModel(config.model, config.routing, geography) : config.model;
+
+  const callId = crypto.randomUUID();
+  const startedAt = new Date().toISOString();
+  const requestSha = await putJson(env.PDFS, await recordedRequest(request));
+  await db
+    .prepare(
+      "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, status, started_at) VALUES (?, ?, ?, ?, ?, 'running', ?)",
+    )
+    .bind(callId, stageId, config.id, requestKey, requestSha, startedAt)
+    .run();
+
+  let answer: CallAnswer;
+  try {
+    const response = await adapter.send({
+      model: sentModel,
+      effort: config.effort ?? undefined,
+      system: request.system,
+      messages: providerMessages(request),
+      maxOutputTokens: request.maxOutputTokens,
+      jsonSchema: request.jsonSchema,
+    });
+    // An answer that isn't valid JSON comes back with its usage like any other, so its cost is counted.
+    const status =
+      response.unexpectedModel !== undefined ? "error"
+      : response.invalidJson !== undefined ? "unparseable"
+      : response.stop === "end" ? "ok"
+      : response.stop === "max_tokens" ? "cut_off"
+      : response.stop === "refusal" ? "refused"
+      : "error";
+    // Unpriced: the tokens are known, the cost isn't (a call of unknown cost, docs/llm.md).
+    const costUsd = priced.kind === "unpriced" ? null : price ? costOf(response.usage, price) : 0;
+    const responseSha = await putJson(env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, raw: response.raw });
+    const error =
+      status === "ok" ? null
+      : response.unexpectedModel !== undefined ? response.unexpectedModel
+      : status === "unparseable" ? response.invalidJson!
+      : status === "cut_off" ? "The answer was cut off."
+      : status === "refused" ? `The model declined${response.stopDetail ? ` (${response.stopDetail})` : ""}.`
+      : "The answer ended unexpectedly.";
     await db
       .prepare(
-        "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, status, started_at) VALUES (?, ?, ?, ?, ?, 'running', ?)",
+        "UPDATE llm_calls SET status = ?, error = ?, error_kind = ?, response_model = ?, response_sha256 = ?, input_tokens = ?, output_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, cost_usd = ?, price_json = ?, finished_at = ? WHERE id = ?",
       )
-      .bind(callId, sid, config.id, requestKey, requestSha, startedAt)
+      .bind(
+        status,
+        error,
+        response.unexpectedModel !== undefined ? "unexpected_model" : null,
+        response.model,
+        responseSha,
+        response.usage.inputTokens,
+        response.usage.outputTokens,
+        response.usage.cacheReadTokens,
+        response.usage.cacheWriteTokens,
+        costUsd,
+        price ? JSON.stringify({ ...price, asOf: MODEL_LIST.asOf, ...(priced.kind === "priced" && priced.borrowedFrom ? { borrowedFrom: priced.borrowedFrom } : {}) }) : null,
+        new Date().toISOString(),
+        callId,
+      )
       .run();
-
-    let answer: CallAnswer;
-    try {
-      const response = await adapter.send({
-        model: sentModel,
-        effort: config.effort ?? undefined,
-        system: request.system,
-        messages: providerMessages(request),
-        maxOutputTokens: request.maxOutputTokens,
-        jsonSchema: request.jsonSchema,
-      });
-      // An answer that isn't valid JSON comes back with its usage like any other, so its cost is counted.
-      const status =
-        response.unexpectedModel !== undefined ? "error"
-        : response.invalidJson !== undefined ? "unparseable"
-        : response.stop === "end" ? "ok"
-        : response.stop === "max_tokens" ? "cut_off"
-        : response.stop === "refusal" ? "refused"
-        : "error";
-      // Unpriced: the tokens are known, the cost isn't (a call of unknown cost, docs/llm.md).
-      const costUsd = priced.kind === "unpriced" ? null : price ? costOf(response.usage, price) : 0;
-      const responseSha = await putJson(c.env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, raw: response.raw });
-      const error =
-        status === "ok" ? null
-        : response.unexpectedModel !== undefined ? response.unexpectedModel
-        : status === "unparseable" ? response.invalidJson!
-        : status === "cut_off" ? "The answer was cut off."
-        : status === "refused" ? `The model declined${response.stopDetail ? ` (${response.stopDetail})` : ""}.`
-        : "The answer ended unexpectedly.";
-      await db
-        .prepare(
-          "UPDATE llm_calls SET status = ?, error = ?, error_kind = ?, response_model = ?, response_sha256 = ?, input_tokens = ?, output_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, cost_usd = ?, price_json = ?, finished_at = ? WHERE id = ?",
-        )
-        .bind(
-          status,
-          error,
-          response.unexpectedModel !== undefined ? "unexpected_model" : null,
-          response.model,
-          responseSha,
-          response.usage.inputTokens,
-          response.usage.outputTokens,
-          response.usage.cacheReadTokens,
-          response.usage.cacheWriteTokens,
-          costUsd,
-          price ? JSON.stringify({ ...price, asOf: MODEL_LIST.asOf, ...(priced.kind === "priced" && priced.borrowedFrom ? { borrowedFrom: priced.borrowedFrom } : {}) }) : null,
-          new Date().toISOString(),
-          callId,
-        )
-        .run();
-      answer = { callId, cached: false, status, text: response.text, json: response.json ?? null, error, usage: response.usage, costUsd };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      // No usable response, so no token counts and no cost. With an HTTP error status, the provider refused the call
-      // and didn't bill it, and `auth` without one failed before anything was sent; otherwise it may have been billed
-      // (docs/llm.md, "Calling the providers").
-      const kind = err instanceof LlmError ? err.kind : "unknown";
-      const httpStatus = err instanceof LlmError ? (err.status ?? null) : null;
-      await db
-        .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = ?, http_status = ?, finished_at = ? WHERE id = ?")
-        .bind(message, kind, httpStatus, new Date().toISOString(), callId)
-        .run();
-      answer = { callId, cached: false, status: "error", text: null, json: null, error: message, usage: null, costUsd: null };
-    }
-    return c.json(answer);
-  });
+    answer = { callId, cached: false, status, text: response.text, json: response.json ?? null, error, usage: response.usage, costUsd };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // No usable response, so no token counts and no cost. With an HTTP error status, the provider refused the call
+    // and didn't bill it, and `auth` without one failed before anything was sent; otherwise it may have been billed
+    // (docs/llm.md, "Calling the providers").
+    const kind = err instanceof LlmError ? err.kind : "unknown";
+    const httpStatus = err instanceof LlmError ? (err.status ?? null) : null;
+    await db
+      .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = ?, http_status = ?, finished_at = ? WHERE id = ?")
+      .bind(message, kind, httpStatus, new Date().toISOString(), callId)
+      .run();
+    answer = { callId, cached: false, status: "error", text: null, json: null, error: message, usage: null, costUsd: null };
+  }
+  return answer;
 }
 
 // The name of a new config: the one given, or else its default name ("Claude Opus 5.5 (Bedrock) · high"), the first

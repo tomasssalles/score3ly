@@ -64,6 +64,10 @@ const data: CostData = {
     ["extract-old", "opus-2", local("2026-10-21T09:00"), 1],
     ["layout-1", "opus-1", local("2026-10-23T08:00"), 5], // after the range
   ],
+  tests: [
+    [local("2026-10-21T10:00"), 0.02, 2],
+    [local("2026-10-23T10:00"), 0.5, 1], // after the range
+  ],
   stages: [
     { id: "layout-1", step: "layout", projectId: "p1", inRecipe: true, kept: true },
     { id: "extract-1", step: "extract", projectId: "p1", inRecipe: true, kept: true },
@@ -159,6 +163,12 @@ test("the call status: split and filtered by status; calls of unknown cost have 
   const failed = costView(data, range, "day", null, { status: { grouping: "success", hidden: ["ok"] } });
   assert.equal(failed.filtered, 3);
   assert.equal(failed.unknown, 3);
+});
+
+test("the configs' test requests: summed in the range, apart from the chart and the table, whatever the filters", () => {
+  const view = costView(data, range, "day", null, { status: { grouping: "success", hidden: ["ok"] } });
+  assert.deepEqual(view.tests, { usd: 0.02, calls: 2 });
+  assert.equal(view.total, costView(data, range, "day", null, {}).total);
 });
 
 test("the average per page: a PDF's projects are one score, its pages counted once; every score weighs the same", () => {

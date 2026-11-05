@@ -158,6 +158,13 @@ test("HTTP errors become typed errors that say whether to retry", async () => {
   }
 });
 
+// Found 2026-11-06, with the first test request: an HTTP error's message was the SDK's, the status followed by the
+// provider's whole JSON body ('401 {"type":"error","error":{...},"request_id":...}'), shown as such to the user.
+test("an HTTP error's message is the provider's own, after the status", async () => {
+  const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch([], [], 401), maxRetries: 0 });
+  await assert.rejects(provider.send(request), (err: unknown) => err instanceof LlmError && err.message === "The provider answered 401: nope");
+});
+
 test("failures without an HTTP status say what went wrong", async () => {
   const cases: [string, typeof fetch, string][] = [
     ["no connection", (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch, "network"],

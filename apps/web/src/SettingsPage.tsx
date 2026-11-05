@@ -27,6 +27,7 @@ import { cacheUsage, pruneNow } from "./imageCache";
 import { ChevronDownIcon, MoreIcon, PlusIcon } from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
+import { TestConfigDialog } from "./TestConfigDialog";
 import { MODE_LABELS, MODES } from "./pipeline";
 import { CHOICES, setThemeChoice, themeChoice } from "./themes";
 
@@ -310,6 +311,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
   const [creating, setCreating] = useState<{ options: ModelOptions; secretNames: string[]; from: ModelConfig | null } | null>(null);
   const [renaming, setRenaming] = useState<ModelConfig | null>(null);
   const [deleting, setDeleting] = useState<ModelConfig | null>(null);
+  const [testing, setTesting] = useState<ModelConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   function openForm(from: ModelConfig | null) {
     setError(null);
@@ -319,8 +321,9 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
     );
   }
   // A config's actions (docs/llm.md, "Managing model configs"): no Edit. Delete isn't offered for the default (it can't
-  // be deleted until another config is the default).
+  // be deleted until another config is the default). Test only for real providers, and configs the app supports.
   const actions = (config: ModelConfig) => [
+    ...(config.provider !== "fake" && config.provider !== "fake-dev" && !config.unsupported ? [[{ label: "Test", onSelect: () => setTesting(config) }]] : []),
     [
       { label: "Rename", onSelect: () => setRenaming(config) },
       { label: "Clone", onSelect: () => openForm(config) },
@@ -359,6 +362,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
           onCancel={() => setRenaming(null)}
         />
       )}
+      {testing && <TestConfigDialog config={testing} onDone={() => setTesting(null)} />}
       {deleting && (
         <ConfirmDialog
           danger

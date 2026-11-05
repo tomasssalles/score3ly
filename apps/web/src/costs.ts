@@ -285,6 +285,7 @@ export type CostView = {
   total: number; // in the range, before filters
   filtered: number; // in the range, after filters
   unknown: number; // the paid calls of unknown cost in the range, after filters
+  tests: { usd: number; calls: number }; // the configs' test requests in the range: no filter applies
 };
 
 export function costView(data: CostData, range: { start: number; end: number }, granularity: Granularity, split: Split, filters: Filters): CostView {
@@ -317,6 +318,10 @@ export function costView(data: CostData, range: { start: number; end: number }, 
   for (const [stage, config, t, calls] of data.unknown) {
     if (t >= range.start && t < range.end && tests.every((test) => test(stage, config))) unknown += calls;
   }
+  const tested = { usd: 0, calls: 0 };
+  for (const [t, usd, calls] of data.tests ?? []) {
+    if (t >= range.start && t < range.end) (tested.usd += usd), (tested.calls += calls);
+  }
   const sorted = [...byGroup.values()].sort((a, b) => b.usd - a.usd || a.group.label.localeCompare(b.group.label));
   const shown = sorted.length > MAX_SERIES + 1 ? sorted.slice(0, MAX_SERIES) : sorted;
   const rest = sorted.slice(shown.length);
@@ -330,7 +335,7 @@ export function costView(data: CostData, range: { start: number; end: number }, 
     series.push({ key: "all", label: "All" });
     values.push(buckets.map(() => 0));
   }
-  return { buckets, series, values, rows: sorted.map((e) => ({ ...e.group, usd: e.usd })), total, filtered, unknown };
+  return { buckets, series, values, rows: sorted.map((e) => ({ ...e.group, usd: e.usd })), total, filtered, unknown, tests: tested };
 }
 
 // The last bucket that starts at or before `t`.

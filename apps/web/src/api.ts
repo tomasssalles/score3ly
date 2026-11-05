@@ -349,6 +349,8 @@ export type CostData = {
   // outcome: the calls' status as the costs view tells them apart (costs.ts, STATUSES)
   points: [stageId: string, configId: string, t: number, usd: number, outcome: string][];
   unknown: [stageId: string, configId: string, t: number, calls: number][];
+  // The configs' test requests, apart from the rest: [start of the quarter of an hour in ms, US dollars, calls].
+  tests: [t: number, usd: number, calls: number][];
   stages: { id: string; step: string; projectId: string; inRecipe: boolean; kept: boolean }[];
   // Every project, for the average per page too: whether its pipeline ran to its end, what it cost in all, the pages
   // its `rasterize` stages selected.
@@ -603,6 +605,20 @@ async function refusedOr(response: Response): Promise<Response> {
 export async function renameModelConfig(id: string, name: string): Promise<ModelConfig> {
   const response = await fetch(`/api/model-configs/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
   return (await refusedOr(response)).json();
+}
+
+// A config's test (docs/llm.md, "The settings page"): the call's answer, the colour the model saw, and how long it took.
+export type TestResult = {
+  status: "ok" | "cut_off" | "refused" | "unparseable" | "error";
+  error: string | null;
+  answer: string | null;
+  costUsd: number | null;
+  durationMs: number;
+};
+
+// Sends a config's test request; refusals before anything is sent (a missing secret, the spending cap) throw.
+export async function testModelConfig(id: string): Promise<TestResult> {
+  return (await refusedOr(await fetch(`/api/model-configs/${id}/test`, { method: "POST" }))).json();
 }
 
 // Deletes a model config; the default is refused.

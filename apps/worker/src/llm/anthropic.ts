@@ -156,17 +156,24 @@ export function fromMessage(message: Message): Omit<LlmResponse, "json"> {
 }
 
 // The SDK's typed errors, most specific first.
+// An HTTP error in words: the status and the provider's own message, not the SDK's, which is the whole JSON body.
+function httpMessage(err: InstanceType<typeof Anthropic.APIError>): string {
+  const body = err.error as { error?: { message?: unknown }; message?: unknown } | undefined;
+  const message = typeof body?.error?.message === "string" ? body.error.message : typeof body?.message === "string" ? body.message : null;
+  return message ? `The provider answered ${err.status}: ${message}` : err.message;
+}
+
 function toLlmError(err: unknown): LlmError {
   // On Vertex AI, a failure to get a token (e.g. a refused service account) comes wrapped as a connection error.
   if (err instanceof Anthropic.APIConnectionError && err.cause instanceof LlmError) return err.cause;
   if (err instanceof Anthropic.APIConnectionTimeoutError) return new LlmError("timeout", err.message);
   if (err instanceof Anthropic.APIConnectionError) return new LlmError("network", err.message);
   if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-    return new LlmError("auth", err.message, err.status);
+    return new LlmError("auth", httpMessage(err), err.status);
   }
-  if (err instanceof Anthropic.RateLimitError) return new LlmError("rate_limit", err.message, err.status);
+  if (err instanceof Anthropic.RateLimitError) return new LlmError("rate_limit", httpMessage(err), err.status);
   if (err instanceof Anthropic.APIError && typeof err.status === "number") {
-    return new LlmError(kindForStatus(err.status), err.message, err.status);
+    return new LlmError(kindForStatus(err.status), httpMessage(err), err.status);
   }
   if (err instanceof Anthropic.APIUserAbortError) return new LlmError("aborted", "The request was aborted.");
   // The stream's own errors (events out of order, a stream that ended without a message) and broken JSON in it.

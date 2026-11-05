@@ -671,3 +671,68 @@ test("renaming a config: its name only, unique ignoring case among the configs t
   assert.equal((await send(`/api/model-configs/${a.id}`, undefined, "DELETE")).status, 204);
   assert.equal((await rename(a.id, "Again")).status, 404); // a deleted config isn't renamed
 });
+
+// A config's test (docs/llm.md, "The settings page").
+
+// An answer from Anthropic's API, as a stream of server-sent events.
+function anthropicAnswer(text: string): Response {
+  const events = [
+    { type: "message_start", message: { id: "m", type: "message", role: "assistant", model: "claude-opus-5-5", content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 80, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } },
+    { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
+    { type: "content_block_delta", index: 0, delta: { type: "text_delta", text } },
+    { type: "content_block_stop", index: 0 },
+    { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 20 } },
+    { type: "message_stop" },
+  ];
+  return new Response(events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join(""), { status: 200, headers: { "content-type": "text/event-stream" } });
+}
+
+test("a config's test is a real request, sent every time, recorded without a stage, counted towards the cap", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const fake = await modelConfig();
+  assert.equal((await send(`/api/model-configs/${fake.id}/test`)).status, 400); // fake providers need no test
+
+  const opus = await modelConfig({ provider: "anthropic", modelId: "claude-opus-5-5", pricing: { kind: "list" }, secrets: { apiKey: "TEST_ANTHROPIC_KEY" }, name: "Opus" });
+  const missing = await send(`/api/model-configs/${opus.id}/test`);
+  assert.equal(missing.status, 409);
+  assert.equal((await json(missing)).code, "missing_secret");
+
+  (env as unknown as Record<string, string>).TEST_ANTHROPIC_KEY = "sk-test";
+  const realFetch = globalThis.fetch;
+  const sent: unknown[] = [];
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    sent.push(JSON.parse(String(init?.body)));
+    return anthropicAnswer('{"colour":"black"}');
+  }) as typeof fetch;
+  try {
+    for (let i = 0; i < 2; i++) {
+      const response = await send(`/api/model-configs/${opus.id}/test`);
+      assert.equal(response.status, 200, await response.clone().text());
+      const answer = await json(response);
+      assert.equal(answer.status, "ok");
+      assert.equal(answer.answer, "black");
+      assert.equal(answer.cached, false);
+      assert.ok((answer.costUsd as number) > 0);
+      assert.equal(typeof answer.durationMs, "number");
+    }
+  } finally {
+    globalThis.fetch = realFetch;
+    delete (env as unknown as Record<string, string>).TEST_ANTHROPIC_KEY;
+  }
+  assert.equal(sent.length, 2); // never served from the record
+  const body = sent[0] as { messages: { content: { type: string }[] }[]; output_config?: unknown };
+  assert.deepEqual(body.messages[0].content.map((c) => c.type), ["image", "text"]);
+  const calls = (await env.DB.prepare("SELECT stage_id, status, cost_usd FROM llm_calls WHERE model_config_id = ?").bind(opus.id).all()).results;
+  assert.equal(calls.length, 2);
+  for (const call of calls) assert.equal(call.stage_id, null);
+
+  // Counted towards the cap: once it is reached, the test is refused like a stage's call.
+  await send("/api/settings/spendingCapUsd", { value: 0.0001 }, "PUT");
+  const capped = await send(`/api/model-configs/${opus.id}/test`);
+  assert.equal(capped.status, 429);
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+
+  // Deleted configs aren't tested.
+  assert.equal((await send(`/api/model-configs/${opus.id}`, undefined, "DELETE")).status, 204);
+  assert.equal((await send(`/api/model-configs/${opus.id}/test`)).status, 409);
+});

@@ -32,8 +32,9 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const zombie = new Date(Date.now() - ZOMBIE_MS).toISOString();
     // The calls the view counts: those with a cost, and those of unknown cost.
-    const counted = `SELECT c.id FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.pricing_kind <> 'free' AND (c.cost_usd > 0 OR (${UNKNOWN_COST}))`;
-    const [points, unknown, stages, projects, configs, projectCosts, rasterized] = await db.batch([
+    // Not the configs' test requests (no stage): they are summed apart, below.
+    const counted = `SELECT c.id FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND (c.cost_usd > 0 OR (${UNKNOWN_COST}))`;
+    const [points, unknown, tests, stages, projects, configs, projectCosts, rasterized] = await db.batch([
       db
         .prepare(
           `SELECT c.stage_id AS stage, c.model_config_id AS config,
@@ -41,7 +42,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
              SUM(c.cost_usd) AS usd,
              CASE WHEN c.error_kind = 'unexpected_model' THEN 'wrong_model' WHEN c.status = 'error' THEN 'unexpected_stop' ELSE c.status END AS outcome
            FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
-           WHERE m.pricing_kind <> 'free' AND c.cost_usd > 0
+           WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND c.cost_usd > 0
            GROUP BY c.stage_id, c.model_config_id, t, outcome
            ORDER BY t`,
         ),
@@ -51,11 +52,19 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
              (CAST(strftime('%s', c.started_at) AS INTEGER) / ${BUCKET_SECONDS}) * ${BUCKET_SECONDS} AS t,
              COUNT(*) AS n
            FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
-           WHERE m.pricing_kind <> 'free' AND ${UNKNOWN_COST}
+           WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND ${UNKNOWN_COST}
            GROUP BY c.stage_id, c.model_config_id, t
            ORDER BY t`,
         )
         .bind(zombie),
+      // The configs' test requests, apart from the rest (docs/statistics.md, "The costs view"): their paid cost per
+      // quarter of an hour, free configs left out.
+      db.prepare(
+        `SELECT (CAST(strftime('%s', c.started_at) AS INTEGER) / ${BUCKET_SECONDS}) * ${BUCKET_SECONDS} AS t, SUM(c.cost_usd) AS usd, COUNT(*) AS n
+         FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
+         WHERE c.stage_id IS NULL AND m.pricing_kind <> 'free' AND c.cost_usd > 0
+         GROUP BY t ORDER BY t`,
+      ),
       // Kept: the stage is in a pipeline (its project's, deleted or not); else replaced or stopped.
       db
         .prepare(
@@ -101,6 +110,8 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
       points: (points.results as Point[]).map((p) => [p.stage, p.config, p.t * 1000, p.usd, p.outcome]),
       // [stage, config, start of the quarter of an hour in ms, number of calls of unknown cost]
       unknown: (unknown.results as Unknown[]).map((u) => [u.stage, u.config, u.t * 1000, u.n]),
+      // [start of the quarter of an hour in ms, US dollars, number of calls]: the configs' test requests
+      tests: (tests.results as { t: number; usd: number; n: number }[]).map((t) => [t.t * 1000, t.usd, t.n]),
       stages: (stages.results as Stage[]).map((s) => ({ id: s.id, step: s.step, projectId: s.project, inRecipe: s.in_recipe === 1, kept: s.kept === 1 })),
       projects: (projects.results as ProjectRow[]).map((p) => ({
         id: p.id,

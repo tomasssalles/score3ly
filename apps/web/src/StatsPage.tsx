@@ -222,6 +222,7 @@ function Costs({ data }: { data: CostData }) {
         </table>
         {view.rows.length === 0 && <p className="costs-empty">{view.total > 0 ? "The filters hide everything spent in this time range." : "Nothing was spent in this time range."}</p>}
         <UnknownCosts calls={view.unknown} />
+        <TestCosts usd={view.tests.usd} calls={view.tests.calls} />
       </section>
     </>
   );
@@ -245,6 +246,30 @@ function UnknownCosts({ calls }: { calls: number }) {
         <p className="settings-hint stat-about">
           These calls were made and may be charged, but their token counts are unknown. The reason could be a network error, a malformed response, or
           the app having been closed while the call was waiting.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// The model configs' test requests in the time range (docs/statistics.md, "The costs view"): apart from the chart, the
+// table and the filters, like the calls of unknown cost, since they belong to no stage or project.
+function TestCosts({ usd, calls }: { usd: number; calls: number }) {
+  const [open, setOpen] = useState(false);
+  const title = "Test requests";
+  return (
+    <div className="costs-unknown costs-tests">
+      <div className="costs-unknown-line">
+        <span>{title}</span>
+        <button type="button" className="icon-button stat-info" aria-expanded={open} aria-label={`About: ${title}`} title={`About: ${title}`} onClick={() => setOpen(!open)}>
+          <InfoIcon />
+        </button>
+        <span className="costs-amount">{calls === 0 ? "–" : dollars(usd)}</span>
+      </div>
+      {open && (
+        <p className="settings-hint stat-about">
+          What the model configs' tests cost in this time range ({calls} {calls === 1 ? "request" : "requests"}), from Settings. They belong to no
+          project, so they aren't in the chart or the table, and the filters don't apply to them. They count towards the spending cap.
         </p>
       )}
     </div>

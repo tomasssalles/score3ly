@@ -3476,6 +3476,12 @@ textarea.field-input {
   font-size: 13px;
 }
 
+/* The test requests: right under the calls of unknown cost, without a line of their own. */
+.costs-unknown.costs-tests {
+  margin-top: 0;
+  border-top: none;
+}
+
 .costs-unknown-line {
   display: flex;
   align-items: center;
@@ -3982,4 +3988,17 @@ textarea.field-input {
 input:focus::placeholder,
 textarea:focus::placeholder {
   color: transparent;
+}
+
+/* A model config's test: its answer, green when it worked, red when it didn't (docs/llm.md, "The settings page"). */
+.test-result:empty {
+  display: none;
+}
+
+.test-result.ok {
+  color: var(--green);
+}
+
+.test-result.failed {
+  color: var(--danger);
 }
