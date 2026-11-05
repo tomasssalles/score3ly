@@ -155,6 +155,11 @@ For testing and debugging: run stages as if nothing were cached, without our own
 
 `docs/llm.md`, "The list of models and prices": with each model's name for people in the list (2026-11-05), the statistics could group and filter calls by the actual model ("Claude Opus 5.5"), whatever the provider and config, next to the grouping by config (`docs/statistics.md`). A config the user added has no name for people: its model string stands in.
 
+### Stories for the model configs in the manual tests
+`#next-release` `#manual-test`
+
+`docs/manual-tests.md`: stories for managing model configs, once rename, delete and clone are built: creating configs of every kind (a listed model on each provider, Bedrock's routings, an unlisted model priced as a listed one, unpriced, free tier), the form's pickers following each other, the confirmations, the default name and an edited one, "Make default"; renaming, deleting (the default refused), cloning (with "Delete the original", the offers to rename instead, an unsupported config's clone); "Change config" on stages; a config no longer supported after a new list (its stages refused, its marks), and a config added by hand converted (the fake files of `apps/worker/model-list` edited for the test). With the fake providers and dummy secret names.
+
 ### Settings page, the model configs
 `#next-release`
 

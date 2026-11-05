@@ -79,7 +79,7 @@ function pick(...changes: Partial<FormState>[]): FormState {
   return changes.reduce<FormState>((form, change) => settled(OPTIONS, { ...form, ...change }), EMPTY_FORM);
 }
 
-test("every picker starts on its first entry: a listed model's first place and routing, its own price; the secrets' first names", () => {
+test("the pickers start on their first entry: a listed model's first place and routing, its own price; the secrets not chosen yet", () => {
   const anthropic = pick({ provider: "anthropic" }, { model: { kind: "listed", id: "opus" } });
   assert.deepEqual([anthropic.region, anthropic.routing, anthropic.pricing], ["", null, "list"]);
   assert.deepEqual(priceAt(OPTIONS, anthropic), P(4));
@@ -88,15 +88,17 @@ test("every picker starts on its first entry: a listed model's first place and r
   assert.deepEqual(routingsOf(OPTIONS, bedrock), [{ routing: "global" }, { routing: "geographic", geography: "EU" }]);
   assert.deepEqual([bedrock.region, bedrock.routing, bedrock.effort], ["eu-central-1", "global", null]);
   assert.deepEqual(priceAt(OPTIONS, settled(OPTIONS, { ...bedrock, routing: "geographic" })), P(4.4));
-  assert.equal(missing(OPTIONS, bedrock), "It needs a secret, and none is set yet (Secrets, below)."); // no secrets to pick from
-  const keys = settled(OPTIONS, bedrock, ["A_KEY", "B_KEY"]);
-  assert.deepEqual(keys.secrets, { apiKey: "A_KEY" });
+  assert.deepEqual(bedrock.secrets, {});
+  assert.equal(missing(OPTIONS, bedrock), "The secret for the API key isn't chosen yet.");
+  const keys = settled(OPTIONS, { ...bedrock, secrets: { apiKey: "A_KEY" } });
   assert.equal(missing(OPTIONS, keys), null);
-  assert.deepEqual(settled(OPTIONS, { ...keys, secretSet: 1 }, ["A_KEY", "B_KEY"]).secrets, { accessKeyId: "A_KEY", secretAccessKey: "A_KEY" });
+  const pair = settled(OPTIONS, { ...keys, secretSet: 1 });
+  assert.deepEqual(pair.secrets, {});
+  assert.equal(missing(OPTIONS, settled(OPTIONS, { ...pair, secrets: { accessKeyId: "ID" } })), "The secret for the Secret access key isn't chosen yet.");
 });
 
 test("model and region filter each other: a model not served at the region moves it to the model's first", () => {
-  const atUs = pick({ provider: "bedrock" }, { model: { kind: "added", string: "x", family: null }, pricing: "unpriced" }, { region: "us-east-1" });
+  const atUs = pick({ provider: "bedrock" }, { model: { kind: "added", string: "x", family: null } }, { region: "us-east-1" });
   assert.equal(atUs.region, "us-east-1");
   const bedrock = modelsOf(OPTIONS, "bedrock");
   assert.deepEqual(
@@ -112,16 +114,20 @@ test("model and region filter each other: a model not served at the region moves
   assert.deepEqual([fable.region, fable.routing], ["us-east-1", "in-region"]);
 });
 
-test("a model added by hand: its first family, priced as the first listed model of it, that one's places; unpriced, every place", () => {
+test("a model added by hand: its first family, every place of the provider, priced as a listed model of its family priced there, not chosen yet", () => {
   const added = pick({ provider: "bedrock" }, { model: { kind: "added", string: " anthropic.claude-opus-6 ", family: null } });
   assert.equal(added.model?.kind === "added" && added.model.family, "claude");
-  assert.deepEqual([added.pricing, added.reference, added.region, added.routing], ["as", "opus", "eu-central-1", "global"]);
-  assert.deepEqual(regionsOf(OPTIONS, added), ["eu-central-1"]);
-  assert.deepEqual(regionsOf(OPTIONS, settled(OPTIONS, { ...added, pricing: "unpriced" })), ["eu-central-1", "us-east-1"]);
-  // Priced as Fable instead: its place.
-  const fable = settled(OPTIONS, { ...added, reference: "fable", region: null, routing: null });
-  assert.deepEqual([fable.reference, fable.region, fable.routing], ["fable", "us-east-1", "in-region"]);
-  const ready = settled(OPTIONS, { ...added, secrets: { apiKey: "BEDROCK_KEY" }, effort: "max" });
+  assert.deepEqual([added.pricing, added.reference, added.region, added.routing], ["as", null, "eu-central-1", "global"]);
+  assert.deepEqual(regionsOf(OPTIONS, added), ["eu-central-1", "us-east-1"]);
+  assert.deepEqual(referencesOf(OPTIONS, added).map((m) => m.id), ["opus"]);
+  assert.equal(missing(OPTIONS, settled(OPTIONS, { ...added, secrets: { apiKey: "K" } })), "The model it is priced as isn't chosen yet.");
+  // Opus picked; then another region where Opus has no price: the model priced as is dropped, and only Fable is offered there.
+  const opus = settled(OPTIONS, { ...added, reference: "opus" });
+  const us = settled(OPTIONS, { ...opus, region: "us-east-1", routing: null });
+  assert.deepEqual([us.reference, us.routing], [null, "global"]);
+  assert.deepEqual(referencesOf(OPTIONS, us).map((m) => m.id), []); // Fable has a price there routed in-region only
+  assert.deepEqual(referencesOf(OPTIONS, settled(OPTIONS, { ...us, routing: "in-region" })).map((m) => m.id), ["fable"]);
+  const ready = settled(OPTIONS, { ...opus, secrets: { apiKey: "BEDROCK_KEY" }, effort: "max" });
   assert.equal(missing(OPTIONS, ready), null);
   assert.deepEqual(requestOf(ready), {
     provider: "bedrock",

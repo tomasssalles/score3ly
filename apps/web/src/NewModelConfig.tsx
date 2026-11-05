@@ -40,7 +40,7 @@ const FIELD_LABELS: Record<string, string> = {
 // A picker without a value (docs/style.md, "Pickers").
 const NONE = "—";
 
-const ADD_BY_HAND = "Unlisted model, by the exact identifier the provider's API expects";
+const ADD_BY_HAND = "Unlisted model";
 
 export function NewModelConfig({
   options,
@@ -56,13 +56,13 @@ export function NewModelConfig({
   onCancel: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [form, setFormRaw] = useState<FormState>(() => initialForm(options, secretNames));
+  const [form, setFormRaw] = useState<FormState>(() => initialForm(options));
   const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const setForm = (change: Partial<FormState>) => {
     setError(null);
-    setFormRaw((f) => settled(options, { ...f, ...change }, secretNames));
+    setFormRaw((f) => settled(options, { ...f, ...change }));
   };
 
   useEffect(() => {
@@ -114,6 +114,7 @@ export function NewModelConfig({
   const modelHeadings = kept.map((i) => allHeadings[i]);
   const modelLabel = listed?.name ?? (form.model?.kind === "added" ? ADD_BY_HAND : NONE);
   const addedFamily = form.model?.kind === "added" ? form.model.family : null;
+  const references = referencesOf(options, form);
 
   return (
     <dialog
@@ -142,7 +143,7 @@ export function NewModelConfig({
                 current: p.id === form.provider,
                 onSelect: () => {
                   setError(null);
-                  setFormRaw((f) => (f.provider === p.id ? f : withProvider(options, f, p.id, secretNames)));
+                  setFormRaw((f) => (f.provider === p.id ? f : withProvider(options, f, p.id)));
                 },
               })),
             ]}
@@ -264,7 +265,12 @@ export function NewModelConfig({
                   value={form.secrets[field] ?? NONE}
                   label={FIELD_LABELS[field] ?? field}
                   fitted
-                  groups={[secretNames.map((n) => ({ label: n, current: form.secrets[field] === n, onSelect: () => setForm({ secrets: { ...form.secrets, [field]: n } }) }))]}
+                  groups={[
+                    [
+                      { label: NONE, current: !form.secrets[field], onSelect: () => setForm({ secrets: Object.fromEntries(Object.entries(form.secrets).filter(([f]) => f !== field)) }) },
+                      ...secretNames.map((n) => ({ label: n, current: form.secrets[field] === n, onSelect: () => setForm({ secrets: { ...form.secrets, [field]: n } }) })),
+                    ],
+                  ]}
                 />
               </PickerField>
             ))}
@@ -289,17 +295,29 @@ export function NewModelConfig({
                   label="Priced as"
                   info="Its calls are counted at the prices of the model picked below, which may differ from this model's. Once the app's list of models has this model, its own prices are used from then on."
                 />
-                {form.pricing === "as" && (
-                  <div className="model-config-field pricing-reference">
-                    <Picker
-                      value={options.models.find((m) => m.id === form.reference)?.name ?? NONE}
-                      label="Priced as"
-                      fitted
-                      groups={[referencesOf(options, form).map((m) => ({ label: m.name, current: m.id === form.reference, onSelect: () => setForm({ reference: m.id }) }))]}
-                    />
-                    {price && <p className="field-hint">{pricesText(price)}</p>}
-                  </div>
-                )}
+                <div className="model-config-field pricing-reference">
+                  <Picker
+                    value={options.models.find((m) => m.id === form.reference)?.name ?? NONE}
+                    label="Priced as"
+                    fitted
+                    groups={[
+                      [
+                        { label: NONE, current: form.reference === null, onSelect: () => setForm({ reference: null }) },
+                        ...references.map((m) => ({ label: m.name, current: m.id === form.reference, onSelect: () => setForm({ pricing: "as", reference: m.id }) })),
+                      ],
+                    ]}
+                  />
+                  {price ? (
+                    <p className="field-hint">{pricesText(price)}</p>
+                  ) : (
+                    references.length === 0 && (
+                      <p className="field-hint">
+                        No {family?.name ?? ""} model of the app's list has a price on {provider!.name}
+                        {form.region ? ` in ${form.region}` : ""}.
+                      </p>
+                    )
+                  )}
+                </div>
                 <PricingChoice
                   checked={form.pricing === "unpriced"}
                   onCheck={() => setForm({ pricing: "unpriced" })}

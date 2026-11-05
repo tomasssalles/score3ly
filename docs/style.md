@@ -133,6 +133,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 - **Every entry is a real value** (decided 2026-11-05): no entry is a label or a hint.
 - **A picker always shows a value:** the default where there is one, preselected (rather than an entry called "Default"); else the first entry. Never "Pick one", "Select an entry", "Choose a model": dry, imperative, and obvious on a picker.
 - **None (a null value) is a dash, "—",** shown and picked like any other entry (an effort left to the model).
+- **"Not chosen yet," sparingly** (decided 2026-11-05): where there is no obvious default, none isn't a value that makes sense, and preselecting the first entry would be a guess the user may not notice (a secret's name), or where the picker may have no valid entry at all depending on other choices (the model a model added by hand is priced as), the dash stands for "not chosen yet", and the form's main action checks on submit that a real value was chosen, saying which field isn't ("The secret for the API key isn't chosen yet.").
 - **What is picked is said by a label** above or before the picker ("Model", "Run mode") where it isn't clear.
 
 **The project picker** turns into a filter field when opened: typing filters, the arrow keys move, Enter picks, Escape closes. Each entry has the name and muted facts (when it was opened, the file name).

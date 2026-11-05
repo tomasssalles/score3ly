@@ -57,18 +57,14 @@ export function defaultModel(options: ModelOptions, provider: Provider): FormMod
 }
 
 // The form as it opens: the first provider, with its model.
-export function initialForm(options: ModelOptions, secretNames: string[] = []): FormState {
+export function initialForm(options: ModelOptions): FormState {
   const provider = options.providers[0]?.id ?? null;
-  return provider ? settled(options, { ...EMPTY_FORM, provider, model: defaultModel(options, provider) }, secretNames) : EMPTY_FORM;
+  return provider ? settled(options, { ...EMPTY_FORM, provider, model: defaultModel(options, provider) }) : EMPTY_FORM;
 }
 
 // Another provider: the form starts over with its model, keeping the name typed and "Make default".
-export function withProvider(options: ModelOptions, form: FormState, provider: Provider, secretNames: string[] = []): FormState {
-  return settled(
-    options,
-    { ...EMPTY_FORM, name: form.name, nameEdited: form.nameEdited, makeDefault: form.makeDefault, provider, model: defaultModel(options, provider) },
-    secretNames,
-  );
+export function withProvider(options: ModelOptions, form: FormState, provider: Provider): FormState {
+  return settled(options, { ...EMPTY_FORM, name: form.name, nameEdited: form.nameEdited, makeDefault: form.makeDefault, provider, model: defaultModel(options, provider) });
 }
 
 export function providerOf(options: ModelOptions, form: FormState): ProviderOption | null {
@@ -103,18 +99,14 @@ export function servedAtRegion(model: ModelOption, provider: Provider, region: s
   return region === null || (model.providers[provider]?.places.some((p) => p.region === region) ?? false);
 }
 
-// The places the form may pick: a listed model's where it has a price; a model added by hand priced as a listed one,
-// that one's; otherwise every place of the provider.
+// The places the form may pick: a listed model's where it has a price; for a model added by hand, every place of the
+// provider (the model it is priced as is then picked among those priced there).
 export function placesOf(options: ModelOptions, form: FormState): (Place & { geography?: string })[] {
   const provider = providerOf(options, form);
   if (!provider) return [];
   const withGeography = (p: Place) => provider.places.find((q) => samePlace(p, q)) ?? p;
   const listed = listedModel(options, form);
   if (listed) return (listed.providers[provider.id]?.places ?? []).map(withGeography);
-  if (form.model?.kind === "added" && form.pricing === "as" && form.reference) {
-    const reference = options.models.find((m) => m.id === form.reference);
-    return (reference?.providers[provider.id]?.places ?? []).map(withGeography);
-  }
   return provider.places;
 }
 
@@ -159,11 +151,11 @@ export function priceAt(options: ModelOptions, form: FormState) {
   return model.providers[form.provider]?.places.find((p) => samePlace(p, { region: form.region!, routing: form.routing }))?.price ?? null;
 }
 
-// After a change, what no longer fits is dropped, and every picker without a value gets its first entry (docs/style.md,
-// "Pickers"): the family, the region, the routing, the model priced as, each secret (from `secretNames`); the pricing of
-// a listed model is its own, of a model added by hand "Priced as" at first. The effort stays empty (the model's own
-// default, shown as "—") unless picked.
-export function settled(options: ModelOptions, form: FormState, secretNames: string[] = []): FormState {
+// After a change, what no longer fits is dropped, and the pickers that start on their first entry get it (docs/style.md,
+// "Pickers"): the family, the region, the routing; the pricing of a listed model is its own, of a model added by hand
+// "Priced as" at first. The effort stays "—" (the model's own default) unless picked. The secrets and the model priced as
+// have no sensible first entry: they stay "—", not chosen yet, until the user picks them (`missing` says so).
+export function settled(options: ModelOptions, form: FormState): FormState {
   let next = { ...form };
   const provider = providerOf(options, next);
   if (!provider) return { ...EMPTY_FORM, name: next.name, nameEdited: next.nameEdited, makeDefault: next.makeDefault };
@@ -185,22 +177,12 @@ export function settled(options: ModelOptions, form: FormState, secretNames: str
   // A reference that isn't priced at the place any more.
   const references = referencesOf(options, next);
   if (next.reference !== null && !references.some((m) => m.id === next.reference)) next.reference = null;
-  if (next.pricing === "as" && next.reference === null && references.length > 0) next.reference = references[0].id;
-  // A reference changes the places offered: settle them again on its.
-  if (next.pricing === "as" && next.reference !== null && next.region !== null && !regionsOf(options, next).includes(next.region)) {
-    return settled(options, { ...next, region: null, routing: null }, secretNames);
-  }
   // The effort and the secrets follow the family.
   const family = familyOption(options, next);
   if (next.effort !== null && !(family?.efforts ?? []).includes(next.effort)) next.effort = null;
   const sets = family?.secrets ?? [[]];
   if (next.secretSet >= sets.length) next.secretSet = 0;
-  next.secrets = Object.fromEntries(
-    sets[next.secretSet].flatMap((field) => {
-      const name = next.secrets[field] ?? secretNames[0];
-      return name ? [[field, name]] : [];
-    }),
-  );
+  next.secrets = Object.fromEntries(Object.entries(next.secrets).filter(([field]) => sets[next.secretSet].includes(field)));
   if (provider.id !== "vertex") next.project = "";
   return next;
 }
@@ -214,20 +196,27 @@ export function defaultName(options: ModelOptions, form: FormState): string | nu
   return `${model} (${provider.name})${form.effort ? ` · ${form.effort}` : ""}`;
 }
 
+export const SECRET_LABELS: Record<string, string> = {
+  apiKey: "API key",
+  serviceAccount: "Service account",
+  accessKeyId: "Access key ID",
+  secretAccessKey: "Secret access key",
+};
+
 // What is still missing, as a sentence, or null when the config can be created.
 export function missing(options: ModelOptions, form: FormState): string | null {
   const provider = providerOf(options, form);
-  if (!provider) return "Pick a provider.";
-  if (!form.model) return "Pick a model.";
-  if (form.model.kind === "added" && form.model.string.trim() === "") return "Enter the model's string.";
-  if (form.model.kind === "added" && form.model.family === null) return "Pick the model's family.";
-  if (form.region === null) return "Pick a region.";
-  if (routingsOf(options, form).length > 0 && form.routing === null) return "Pick a routing.";
+  if (!provider) return "The provider isn't chosen yet.";
+  if (!form.model) return "The model isn't chosen yet.";
+  if (form.model.kind === "added" && form.model.string.trim() === "") return "The model identifier is still empty.";
+  if (form.model.kind === "added" && form.model.family === null) return "The model's family isn't chosen yet.";
+  if (form.region === null) return "The region isn't chosen yet.";
+  if (routingsOf(options, form).length > 0 && form.routing === null) return "The routing isn't chosen yet.";
   const family = familyOption(options, form);
-  const fields = family?.secrets[form.secretSet] ?? [];
-  if (fields.some((field) => !form.secrets[field])) return "It needs a secret, and none is set yet (Secrets, below).";
-  if (form.pricing === null) return "Pick how its calls are priced.";
-  if (form.pricing === "as" && form.reference === null) return "Pick the model it is priced as.";
+  const unset = (family?.secrets[form.secretSet] ?? []).find((field) => !form.secrets[field]);
+  if (unset) return `The secret for the ${SECRET_LABELS[unset] ?? unset} isn't chosen yet.`;
+  if (form.pricing === null) return "The pricing isn't chosen yet.";
+  if (form.pricing === "as" && form.reference === null) return "The model it is priced as isn't chosen yet.";
   return null;
 }
 
