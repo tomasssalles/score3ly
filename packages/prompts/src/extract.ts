@@ -4,6 +4,24 @@
 // stretches to fill, the piece's staves and voices so far, what the previous system left open, and what `analyze`
 // saw, as hints. Code checks the answer as soon as it arrives (@score3ly/notation).
 
+import {
+  ACCENT_DYNAMICS,
+  ACCIDENTALS,
+  ARTICULATIONS,
+  CLEFS,
+  FINGERS,
+  GRACES,
+  GRADED_DYNAMICS,
+  JUMPS,
+  NAVIGATION_SIGNS,
+  NOTE_VALUES,
+  ORNAMENTS,
+  OTHER_MARKS,
+  PEDAL,
+  STEMS,
+  TRILL_SPAN,
+} from "@score3ly/notation/symbolic";
+
 // Raise whenever the texts or the schema change. The format itself has its own version (LENS_VERSION).
 export const EXTRACT_PROMPT_VERSION = 4;
 
@@ -19,42 +37,49 @@ export function extractImageLabels(stretches: number, previous: boolean, next: b
   ];
 }
 
+// A command as the prompt shows it, `\name`, and a list of them.
+const cmd = (name: string) => `\`\\${name}\``;
+const cmds = (names: readonly string[], separator = " ") => names.map(cmd).join(separator);
+
+// The symbolic format, as every music stage's prompt describes it. Its closed lists of tokens come from the parser's
+// (@score3ly/notation/symbolic), so the two can't drift apart (docs/notation.md, "The token list"); a test checks
+// that every command shown is one the parser knows, and that every one it knows is shown.
 export const MUSIC = `## The music of a voice
 
 Each voice of each stretch is one string: LilyPond with these differences. Write only what is listed here: the parser rejects anything else. Spaces are as in LilyPond (\`<c' e'>4\`, \`c'4-.\\=1(\` and \`c'4 -. \\=1(\` are all fine). Quoted text runs to its closing quote, spaces included; \`\\"\` is a quote inside it.
 
 ### Notes, rests, chords
 - **Note:** letter, octave, duration: \`g'4.\`. Octaves are absolute (LilyPond's absolute mode): \`c'\` is middle C, \`c''\` the C above, \`c\` the C below, \`c,\` the one below that. Name the note from its place on the staff and the current clef.
-- **Accidentals are printed symbols, never part of the name** (no \`fis\`, \`bes\`). Write each printed accidental as a token right before its note: \`\\sharp\`, \`\\flat\`, \`\\natural\`, \`\\doublesharp\`, \`\\doubleflat\`. Write exactly the accidentals printed, courtesy ones included (without their parentheses), and none that aren't: a G that sounds G♭ because of the key signature or an earlier accidental is written \`g\`. Code works out the sounding pitch.
-- **Durations:** \`1 2 4 8 16 32 64 128 \\breve\`, with dots. Every note and rest has its own; never leave one out.
+- **Accidentals are printed symbols, never part of the name** (no \`fis\`, \`bes\`). Write each printed accidental as a token right before its note: ${cmds(ACCIDENTALS, ", ")}. Write exactly the accidentals printed, courtesy ones included (without their parentheses), and none that aren't: a G that sounds G♭ because of the key signature or an earlier accidental is written \`g\`. Code works out the sounding pitch.
+- **Durations:** \`${NOTE_VALUES.join(" ")}\`, with dots. Every note and rest has its own; never leave one out.
 - **Rests:** \`r4\` printed, \`s4\` invisible (the voice has nothing there and no rest is printed). A whole-measure rest has the measure's duration (\`R1\` in 4/4, \`R2.\` in 3/4); a multi-measure rest adds the count (\`R1*12\`), and then every voice of the stretch is the same multi-measure rest.
 - **Chords:** \`<c' \\flat e' g'>4\`, the duration after \`>\`. Inside the brackets, after a note, only that note's own marks: its fingering and its curves (\`<c'\\=1( e'\\=2(>4\`).
 
 ### Marks, after the note, rest or chord they belong to
 - **Curves:** every tie, slur and phrasing slur is a curve, \`\\=N(\` where it starts and \`\\=N)\` where it ends. A new curve takes any number not open at that moment in its voice; an open curve keeps its number until it ends, also across bar lines and systems (close the curves the request lists as open with their numbers). Never \`~\`, \`(\` or \`\\(\`. Curves are on notes and chords, never on rests.
-- **Articulations:** \`-.\` (staccato) \`-!\` (staccatissimo) \`->\` (accent) \`-^\` (marcato) \`--\` (tenuto) \`-_\` (portato) \`\\fermata\`
-- **Ornaments:** \`\\trill\` \`\\mordent\` \`\\prall\` \`\\turn\`; a trill line \`\\startTrillSpan\` … \`\\stopTrillSpan\`
-- **Other:** \`\\arpeggio\` \`\\glissando\` \`\\laissezVibrer\` (a tie to nothing, "let ring")
-- **Fingering:** \`-1\` to \`-5\`
-- **Dynamics:** \`\\ppp\` … \`\\fff\`, \`\\sf\` \`\\sfz\` \`\\fz\` \`\\fp\` \`\\sfp\` \`\\rfz\`; hairpins \`\\<\` \`\\>\`, ended by \`\\!\` or the next dynamic. A dynamic or hairpin printed between the two staves of a braced instrument (piano, harp, organ): write it in a voice of the upper staff, below it with \`_\` (\`c'4_\\p\`); it applies to both staves. Every other dynamic applies to its own staff. Dynamics in words ("cresc.", "dim.", "p dolce") are quoted text, as printed.
+- **Articulations:** ${Object.entries(ARTICULATIONS).map(([sign, name]) => `\`-${sign}\` (${name})`).join(" ")} \`\\fermata\`
+- **Ornaments:** ${cmds(ORNAMENTS)}; a trill line ${cmds(TRILL_SPAN, " … ")}
+- **Other:** ${cmds(OTHER_MARKS)} (a tie to nothing, "let ring")
+- **Fingering:** \`-${FINGERS[0]}\` to \`-${FINGERS[FINGERS.length - 1]}\`
+- **Dynamics:** ${cmd(GRADED_DYNAMICS[0])} … ${cmd(GRADED_DYNAMICS[GRADED_DYNAMICS.length - 1])}, ${cmds(ACCENT_DYNAMICS)}; hairpins \`\\<\` \`\\>\`, ended by \`\\!\` or the next dynamic. A dynamic or hairpin printed between the two staves of a braced instrument (piano, harp, organ): write it in a voice of the upper staff, below it with \`_\` (\`c'4_\\p\`); it applies to both staves. Every other dynamic applies to its own staff. Dynamics in words ("cresc.", "dim.", "p dolce") are quoted text, as printed.
 - **Beams:** \`[\` after the first note, \`]\` after the last
 - **Tremolo on one note:** on its duration, \`c'4:32\`
-- **Pedal:** \`\\sustainOn\` \`\\sustainOff\` \`\\unaCorda\` \`\\treCorde\`
-- **Navigation:** a jump instruction as quoted text, exactly one of \`"D.C."\`, \`"D.C. al Fine"\`, \`"D.C. al Coda"\`, \`"D.S."\`, \`"D.S. al Fine"\`, \`"D.S. al Coda"\`, \`"To Coda"\`. A printed instruction not on the list: the closest one, and a format issue naming the printed text
+- **Pedal:** ${cmds(PEDAL)}
+- **Navigation:** a jump instruction as quoted text, exactly one of ${JUMPS.map((j) => `\`"${j}"\``).join(", ")}. A printed instruction not on the list: the closest one, and a format issue naming the printed text
 - **Text:** \`^"dolce"\` above, \`_"rit."\` below, \`-"…"\` either. Placement prefixes (\`-\`, \`^\`, \`_\`) are allowed on every mark.
 
 ### Between notes, where they are printed
 - **Pauses:** \`\\breathe\` (a breath mark), \`\\caesura\` (a full stop of the music, //): \`c4 \\breathe d4\`
-- **Navigation signs:** \`\\segnoMark\`, \`\\codaMark\`, \`\\fine\` where the sign or "Fine" is printed
+- **Navigation signs:** ${cmds(NAVIGATION_SIGNS, ", ")} where the sign or "Fine" is printed
 - **Tempo marks:** \`\\tempo\` as in LilyPond, where the mark is printed, with its text as printed, its metronome mark, or both: \`\\tempo "Allegro" 4 = 132\`, \`\\tempo 4. = 60\`, \`\\tempo 4 = 120-132\` (a range), \`\\tempo "Andante"\`, \`\\tempo "a tempo"\`. Words such as "ca." or "M.M." go in the text; the metronome mark never does (not \`\\tempo "Allegro ♩ = 132"\`). Gradual changes ("rit.", "accel.") aren't tempo marks: quoted text. An equation at a change of metre (♩ = ♩.) can't be written: quoted text, and a format issue. Where the same mark is printed above several staves (an orchestral score), write it on each of them.
 
 ### Commands, before the notes they apply to
-- \`\\clef\` with \`treble\`, \`bass\`, \`alto\`, \`tenor\`, \`soprano\`, \`mezzosoprano\`, \`baritone\`, \`varbaritone\`, \`subbass\`, \`french\`, and octave suffixes in quotes (\`\\clef "treble_8"\`, \`"bass^8"\`, \`_15\`, \`^15\`). A clef change is always written here, also at the start of a stretch; the clefs at the system's start are in the JSON.
+- \`\\clef\` with ${CLEFS.map((c) => `\`${c}\``).join(", ")}, and octave suffixes in quotes (\`\\clef "treble_8"\`, \`"bass^8"\`, \`_15\`, \`^15\`). A clef change is always written here, also at the start of a stretch; the clefs at the system's start are in the JSON.
 - \`\\ottava #1\` (8va), \`#-1\` (8vb), \`#2\` (15ma), \`#-2\` (15mb); \`\\ottava #0\` ends it. Write the notes where they are printed under the line; code transposes them.
 - \`\\change Staff = "3"\`: the following notes are on staff 3 (the staff's number in the piece), until the next change.
-- \`\\stemUp\` \`\\stemDown\` \`\\stemNeutral\`, only where the stem direction separates voices or hands.
+- ${cmds(STEMS)}, only where the stem direction separates voices or hands.
 - \`\\tuplet 3/2 { … }\` (not nested), \`\\repeat tremolo 4 { c'16 e'16 }\` (two alternating notes)
-- \`\\grace\`, \`\\acciaccatura\`, \`\\appoggiatura\`, before one note or \`{ … }\`
+- ${cmds(GRACES, ", ")}, before one note or \`{ … }\`
 
 **Clef, ottava, pedal, breath marks, caesuras, navigation and tempo marks belong to the staff:** write them in the voice they are printed at, in their place above; they apply to every voice on that staff (a caesura and navigation to every staff).
 

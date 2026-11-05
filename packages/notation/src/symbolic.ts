@@ -7,32 +7,43 @@
 // Raise whenever the format changes: what the prompt describes, what the parser accepts.
 export const LENS_VERSION = 3;
 
-export const ACCIDENTALS = ["flat", "sharp", "natural", "doubleflat", "doublesharp"] as const;
+// The closed lists of tokens below are what the parser accepts, and also what `extract`'s prompt lists
+// (@score3ly/prompts, MUSIC, built from them): the two can't drift apart. Their order is the prompt's.
+
+export const ACCIDENTALS = ["sharp", "flat", "natural", "doublesharp", "doubleflat"] as const;
 export type Accidental = (typeof ACCIDENTALS)[number];
 
-export const DYNAMICS = ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff", "sf", "sfz", "fz", "fp", "sfp", "rfz"] as const;
+// Note values as written, longest first; dots after them.
+export const NOTE_VALUES = ["1", "2", "4", "8", "16", "32", "64", "128", "\\breve"] as const;
+
+// Dynamics from softest to loudest (the prompt names the first and the last), then the accents.
+export const GRADED_DYNAMICS = ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"] as const;
+export const ACCENT_DYNAMICS = ["sf", "sfz", "fz", "fp", "sfp", "rfz"] as const;
+export const DYNAMICS = [...GRADED_DYNAMICS, ...ACCENT_DYNAMICS] as const;
+
+export const ORNAMENTS = ["trill", "mordent", "prall", "turn"] as const;
+export const TRILL_SPAN = ["startTrillSpan", "stopTrillSpan"] as const;
+export const OTHER_MARKS = ["arpeggio", "glissando", "laissezVibrer"] as const;
+export const PEDAL = ["sustainOn", "sustainOff", "unaCorda", "treCorde"] as const;
+export const FINGERS = [1, 2, 3, 4, 5] as const;
 
 // Marks after the note, rest or chord they belong to, by their command's name.
-export const POST_COMMANDS = [
-  ...DYNAMICS,
-  "fermata",
-  "trill",
-  "mordent",
-  "prall",
-  "turn",
-  "arpeggio",
-  "glissando",
-  "laissezVibrer",
-  "startTrillSpan",
-  "stopTrillSpan",
-  "sustainOn",
-  "sustainOff",
-  "unaCorda",
-  "treCorde",
-] as const;
+export const POST_COMMANDS = [...DYNAMICS, "fermata", ...ORNAMENTS, ...OTHER_MARKS, ...TRILL_SPAN, ...PEDAL] as const;
 
-// Events of their own, between notes, at their point in time.
-export const EVENT_COMMANDS = ["breathe", "caesura", "segnoMark", "codaMark", "fine"] as const;
+// Events of their own, between notes, at their point in time: the pauses, then the navigation signs.
+export const PAUSES = ["breathe", "caesura"] as const;
+export const NAVIGATION_SIGNS = ["segnoMark", "codaMark", "fine"] as const;
+export const EVENT_COMMANDS = [...PAUSES, ...NAVIGATION_SIGNS] as const;
+
+export const STEMS = ["stemUp", "stemDown", "stemNeutral"] as const;
+export const GRACES = ["grace", "acciaccatura", "appoggiatura"] as const;
+
+// The commands that take arguments, each read by its own rule.
+export const COMMANDS_WITH_ARGUMENTS = ["clef", "tempo", "ottava", "change", "tuplet", "repeat"] as const;
+
+// Every command word the format has (\name), for the prompt's test: whatever the prompt shows is one of these, and each
+// of these is in the prompt.
+export const COMMAND_WORDS: readonly string[] = [...POST_COMMANDS, ...ACCIDENTALS, ...EVENT_COMMANDS, ...STEMS, ...GRACES, ...COMMANDS_WITH_ARGUMENTS, "breve"];
 
 // LilyPond's clefs (decided, §6), with the synonyms code normalizes.
 export const CLEFS = ["treble", "bass", "alto", "tenor", "soprano", "mezzosoprano", "baritone", "varbaritone", "subbass", "french"] as const;
@@ -43,7 +54,7 @@ const CLEF_SUFFIXES = ["_8", "^8", "_15", "^15"];
 export const JUMPS = ["D.C.", "D.C. al Fine", "D.C. al Coda", "D.S.", "D.S. al Fine", "D.S. al Coda", "To Coda"] as const;
 
 // The articulations written with a placement prefix: `-.` `-!` `->` `-^` `--` `-_`.
-const ARTICULATIONS: Record<string, string> = { ".": "staccato", "!": "staccatissimo", ">": "accent", "^": "marcato", "-": "tenuto", _: "portato" };
+export const ARTICULATIONS: Record<string, string> = { ".": "staccato", "!": "staccatissimo", ">": "accent", "^": "marcato", "-": "tenuto", _: "portato" };
 
 export type Placement = "-" | "^" | "_" | null;
 
@@ -117,7 +128,8 @@ type Located = Token & { at: number };
 
 class LexError extends Error {}
 
-const DURATION = /^(\\breve|128|64|32|16|8|4|2|1)(\.*)/;
+// The note values, the longest text first ("128" before "1").
+const DURATION = new RegExp(`^(${[...NOTE_VALUES].sort((a, b) => b.length - a.length).map((v) => v.replace("\\", "\\\\")).join("|")})(\\.*)`);
 const TREMOLO = /^:(8|16|32|64|128)/;
 
 function duration(text: string, i: number): { duration: Duration | null; length: number } {
@@ -194,11 +206,11 @@ function command(text: string, i: number, placement: Placement): { token: Token;
   if ((EVENT_COMMANDS as readonly string[]).includes(name)) {
     return { token: { t: "event", name: name as (typeof EVENT_COMMANDS)[number] }, length: j - i };
   }
-  if (name === "stemUp" || name === "stemDown" || name === "stemNeutral") {
+  if ((STEMS as readonly string[]).includes(name)) {
     const direction = name === "stemUp" ? "up" : name === "stemDown" ? "down" : "neutral";
     return { token: { t: "stem", direction }, length: j - i };
   }
-  if (name === "grace" || name === "acciaccatura" || name === "appoggiatura") return { token: { t: "grace", kind: name }, length: j - i };
+  if ((GRACES as readonly string[]).includes(name)) return { token: { t: "grace", kind: name as (typeof GRACES)[number] }, length: j - i };
   if (name === "clef") {
     j = skipSpace(text, j);
     let raw: string;
@@ -282,7 +294,7 @@ function prefixed(text: string, i: number): { token: Token; length: number } {
   if (next in ARTICULATIONS) {
     return { token: { t: "mark", mark: { kind: "articulation", name: ARTICULATIONS[next], placement } }, length: 2 };
   }
-  if (/[1-5]/.test(next) && !/\d/.test(text[i + 2] ?? "")) {
+  if ((FINGERS as readonly number[]).includes(Number(next)) && !/\d/.test(text[i + 2] ?? "")) {
     return { token: { t: "mark", mark: { kind: "fingering", finger: Number(next), placement } }, length: 2 };
   }
   if (next === '"') {
