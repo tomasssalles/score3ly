@@ -109,6 +109,14 @@ export function resolvedModel(row: Pick<ModelConfigRow, "provider" | "model_id" 
   };
 }
 
+// The model a config uses, for grouping and filtering the statistics by model, whatever the provider (docs/statistics.md):
+// a listed model by its id, named as the list names it; a model added by hand by its string, the same model on every
+// provider that spells it alike.
+export function modelGroupOf(row: Pick<ModelConfigRow, "model_id" | "model_string">, list: ModelList = MODEL_LIST): { modelKey: string; modelLabel: string } {
+  if (row.model_id) return { modelKey: row.model_id, modelLabel: modelById(list, row.model_id)?.name ?? row.model_id };
+  return { modelKey: `string:${row.model_string ?? ""}`, modelLabel: row.model_string ?? "" };
+}
+
 export function unsupportedOf(row: ModelConfigRow, pricing: Pricing = pricingOf(row), list: ModelList = MODEL_LIST): string | null {
   return unsupportedReason(list, { provider: row.provider, model: configModel(row), place: { region: row.region, routing: row.routing }, pricing });
 }

@@ -79,16 +79,19 @@ const REASONS: Record<string, string> = {
   interrupted: "Interrupted",
 };
 
-// The calls in a time range, of one config or all (null), how many failed, and the reasons, the most frequent first.
+// The calls in a time range, of one config, of one model's configs (`model:` and its key, whatever the provider) or all
+// (null), how many failed, and the reasons, the most frequent first.
 export function failuresIn(
   data: FailureData,
   range: { start: number; end: number },
-  configId: string | null,
+  pick: string | null,
 ): { calls: number; failed: number; reasons: { key: string; label: string; calls: number }[] } {
+  const modelOf = new Map(data.configs.map((m) => [m.id, `model:${m.modelKey}`]));
+  const counts = (config: string) => pick === null || config === pick || modelOf.get(config) === pick;
   let calls = 0;
   const reasons = new Map<string, number>();
   for (const [config, t, reason, n] of data.points) {
-    if (t < range.start || t >= range.end || (configId !== null && config !== configId)) continue;
+    if (t < range.start || t >= range.end || !counts(config)) continue;
     calls += n;
     if (reason !== "ok") reasons.set(reason, (reasons.get(reason) ?? 0) + n);
   }

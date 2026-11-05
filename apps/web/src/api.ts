@@ -399,6 +399,9 @@ export type CostData = {
     name: string | null;
     provider: Provider;
     model: string;
+    // The model, whatever the provider (docs/statistics.md): a listed model's id, or "string:" and a model added by hand.
+    modelKey: string;
+    modelLabel: string;
     family: Family;
     modelName: string | null;
     effort: ModelConfig["effort"];
@@ -428,7 +431,7 @@ export async function fetchProjectStats(): Promise<ProjectStats> {
 // reason ("ok" for one that succeeded), and the configs they were made with.
 export type FailureData = {
   points: [configId: string, t: number, reason: string, calls: number][];
-  configs: { id: string; name: string | null; model: string; createdAt: string; deletedAt: string | null }[];
+  configs: { id: string; name: string | null; model: string; modelKey: string; modelLabel: string; createdAt: string; deletedAt: string | null }[];
 };
 
 export async function fetchFailures(): Promise<FailureData> {
@@ -459,7 +462,7 @@ export type RunTimeData = {
     items: { whole: number; page: number; system: number };
   }[];
   items: [stageId: string, item: string, durationMs: number, calls: number, callsCached: number, images: number, imagesCached: number][];
-  configs: { id: string; name: string | null; model: string; createdAt: string; deletedAt: string | null }[];
+  configs: { id: string; name: string | null; model: string; modelKey: string; modelLabel: string; createdAt: string; deletedAt: string | null }[];
 };
 
 export async function fetchRunTimes(): Promise<RunTimeData> {

@@ -37,7 +37,7 @@ export function Picker<T extends string>({
 }: {
   label: string;
   value: T;
-  options: { id: T; label: string; short?: string; note?: string }[];
+  options: { id: T; label: string; short?: string; note?: string; group?: number }[]; // a new group: a line before it
   onChange: (id: T) => void;
   className?: string;
 }) {
@@ -57,7 +57,13 @@ export function Picker<T extends string>({
         </>
       }
       label={label}
-      groups={[options.map((o) => ({ label: o.label, note: o.note, key: o.id, current: o.id === value, onSelect: () => onChange(o.id) }))]}
+      groups={options.reduce<{ group: number; items: { label: string; note?: string; key: T; current: boolean; onSelect: () => void }[] }[]>((groups, o) => {
+        const item = { label: o.label, note: o.note, key: o.id, current: o.id === value, onSelect: () => onChange(o.id) };
+        const last = groups[groups.length - 1];
+        if (last && last.group === (o.group ?? 0)) last.items.push(item);
+        else groups.push({ group: o.group ?? 0, items: [item] });
+        return groups;
+      }, []).map((g) => g.items)}
     />
   );
 }

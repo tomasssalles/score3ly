@@ -36,10 +36,10 @@ const value = (text: string, note?: string) => (
 
 function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityData }) {
   const [out, setOut] = useState<Set<string>>(new Set()); // the projects taken out
-  const [split, setSplit] = useState<"none" | "config">("none");
+  const [split, setSplit] = useState<"none" | "config" | "model">("none");
   const selected = useMemo(() => new Set(data.projects.filter((p) => !out.has(p.id)).map((p) => p.id)), [data, out]);
   const project = useMemo(() => perProject(data, selected, activity), [data, selected, activity]);
-  const rows = useMemo(() => stepTimes(data, selected, split === "config"), [data, selected, split]);
+  const rows = useMemo(() => stepTimes(data, selected, split), [data, selected, split]);
   const estimate = estimatePerPage(rows, data.recipe);
   const total = data.projects.length;
 
@@ -84,6 +84,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
                 options={[
                   { id: "none", label: "No split", short: "–" },
                   { id: "config", label: "Model config" },
+                  { id: "model", label: "Model" },
                 ]}
                 onChange={setSplit}
               />

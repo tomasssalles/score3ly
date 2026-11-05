@@ -139,6 +139,7 @@ export const GROUPINGS: Record<Dimension, { id: string; label: string; short?: s
   ],
   config: [
     { id: "config", ...NONE },
+    { id: "model", label: "Model" },
     { id: "provider", label: "Provider" },
     { id: "family", label: "Model family" },
   ],
@@ -232,6 +233,8 @@ export function grouper(data: CostData, dimension: Dimension, grouping: string, 
   const providers = Object.keys(PROVIDERS);
   return (_stageId, configId) => {
     const m = configs.get(configId)!;
+    // The model, whatever the provider and config: Claude Opus 5.5 on Bedrock and on Anthropic together.
+    if (grouping === "model") return { key: `model:${m.modelKey}`, label: m.modelLabel };
     if (grouping === "provider") return { key: m.provider, label: PROVIDERS[m.provider] ?? m.provider, rank: rankIn(providers, m.provider) };
     if (grouping === "family") {
       const family = FAMILIES[m.family] ?? m.family;

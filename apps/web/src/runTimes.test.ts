@@ -51,8 +51,8 @@ const data: RunTimeData = {
     ["xa", "p2/s1", 8000, 1, 0, 6, 6],
   ],
   configs: [
-    { id: "opus", name: "Opus EU", model: "claude-opus-5-5", createdAt: "2026-10-01", deletedAt: null },
-    { id: "sonnet", name: null, model: "claude-sonnet-5-5", createdAt: "2026-10-01", deletedAt: "2026-10-25T00:00:00.000Z" },
+    { id: "opus", name: "Opus EU", model: "claude-opus-5-5", modelKey: "claude-opus-5-5", modelLabel: "Claude Opus 5.5", createdAt: "2026-10-01", deletedAt: null },
+    { id: "sonnet", name: null, model: "claude-sonnet-5-5", modelKey: "claude-opus-5-5", modelLabel: "Claude Opus 5.5", createdAt: "2026-10-01", deletedAt: "2026-10-25T00:00:00.000Z" },
   ],
 };
 
@@ -73,7 +73,7 @@ test("per project: the average time from creation to the last finish, and the av
 });
 
 test("work time per page: from the items that really ran, times the items of each kind per page, per project, then averaged", () => {
-  const rows = new Map(stepTimes(data, new Set(["a", "b"]), false).map((r) => [r.step, r.ms]));
+  const rows = new Map(stepTimes(data, new Set(["a", "b"]), "none").map((r) => [r.step, r.ms]));
   assert.equal(rows.get("rasterize"), 2000); // only the image made; one item per page
   assert.equal(rows.get("layout"), 4000);
   // a: 20000 per system, 6 systems in 2 pages, the whole score 20 ms in 2 pages; b: 5000 per system, 2 in 1 page, 20 ms.
@@ -83,14 +83,14 @@ test("work time per page: from the items that really ran, times the items of eac
   assert.equal(rows.get("review"), null); // no data
   assert.equal(rows.get("fix_layout"), 1_800_000); // an hour of active time over 2 pages; b's isn't finished: left out
   // The estimate adds up the recipe's steps, nothing else (no manual steps, no Apply review here).
-  assert.equal(estimatePerPage(stepTimes(data, new Set(["a", "b"]), false), data.recipe), 2000 + 4000 + rows.get("extract")!);
+  assert.equal(estimatePerPage(stepTimes(data, new Set(["a", "b"]), "none"), data.recipe), 2000 + 4000 + rows.get("extract")!);
   // A step of the recipe without data, or nothing selected: no estimate.
-  assert.equal(estimatePerPage(stepTimes(data, new Set(["a", "b"]), false), [...data.recipe, "review"]), null);
-  assert.equal(estimatePerPage(stepTimes(data, new Set(), false), data.recipe), null);
+  assert.equal(estimatePerPage(stepTimes(data, new Set(["a", "b"]), "none"), [...data.recipe, "review"]), null);
+  assert.equal(estimatePerPage(stepTimes(data, new Set(), "none"), data.recipe), null);
 });
 
 test("work time per page split by model config, for the LLM steps only", () => {
-  const rows = stepTimes(data, new Set(["a", "b"]), true);
+  const rows = stepTimes(data, new Set(["a", "b"]), "config");
   const extract = rows.find((r) => r.step === "extract")!;
   assert.deepEqual(
     extract.configs.map((c) => [c.label, c.note, Math.round(c.ms!)]),
@@ -101,4 +101,13 @@ test("work time per page split by model config, for the LLM steps only", () => {
 
 test("durations, short", () => {
   assert.deepEqual([0, 3, 30, 400, 12_000, 100_000, 120_000, 19_200_000, 3 * 86_400_000 + 4 * 3_600_000].map(duration), ["0 s", "0.01 s", "0.03 s", "0.4 s", "12 s", "1 min 40 s", "2 min", "5 h 20 min", "3 d 4 h"]);
+});
+
+test("work time per page split by model: the configs of one model together", () => {
+  // Both configs say they use Claude Opus 5.5 here: one row for the two, over both projects.
+  const extract = stepTimes(data, new Set(["a", "b"]), "model").find((r) => r.step === "extract")!;
+  assert.deepEqual(
+    extract.configs.map((c) => [c.label, c.note, Math.round(c.ms!)]),
+    [["Claude Opus 5.5", undefined, Math.round(((20000 * 6) / 2 + 20 / 2 + (5000 * 2 + 20)) / 2)]],
+  );
 });

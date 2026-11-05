@@ -6,7 +6,7 @@
 
 import type { Hono } from "hono";
 import { BUCKET_SECONDS } from "./costs.ts";
-import { resolvedModel, type ModelConfigRow } from "./llmRoutes.ts";
+import { modelGroupOf, resolvedModel, type ModelConfigRow } from "./llmRoutes.ts";
 
 const ZOMBIE_MS = 15 * 60 * 1000;
 
@@ -41,7 +41,7 @@ export function failureRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json({
       // [config, start of the quarter of an hour in ms, reason, number of calls]
       points: (points.results as Point[]).map((p) => [p.config, p.t * 1000, p.reason, p.n]),
-      configs: (configs.results as ConfigRow[]).map((m) => ({ id: m.id, name: m.name, model: resolvedModel(m).model, createdAt: m.created_at, deletedAt: m.deleted_at })),
+      configs: (configs.results as ConfigRow[]).map((m) => ({ id: m.id, name: m.name, model: resolvedModel(m).model, ...modelGroupOf(m), createdAt: m.created_at, deletedAt: m.deleted_at })),
     });
   });
 }

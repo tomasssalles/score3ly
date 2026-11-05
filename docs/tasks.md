@@ -128,11 +128,6 @@ For testing and debugging: run stages as if nothing were cached, without our own
 
 `docs/llm.md`, "No longer supported": when a config is no longer supported, a hint where the app still supports its model, from the list: the same model on the same provider in other regions or routings ("The app still supports Claude Opus 4 on Bedrock in eu-central-1, …"), else on other providers ("… on Vertex AI and Anthropic"), else other models of the family on the same provider. Shown in the stage's failure and on the settings card, and useful in the clone form. Not hard with the list's lookups (`placesOf`, `modelsOf`); the wording and how much to list are the work.
 
-### Statistics by model
-`#optional`
-
-`docs/llm.md`, "The list of models and prices": with each model's name for people in the list (2026-11-05), the statistics could group and filter calls by the actual model ("Claude Opus 5.5"), whatever the provider and config, next to the grouping by config (`docs/statistics.md`). A config the user added has no name for people: its model string stands in.
-
 ### Verify the prompt and schema of `layout`
 `#owner` `#next-release`
 

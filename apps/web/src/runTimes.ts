@@ -108,22 +108,31 @@ function perPageOverProjects(data: RunTimeData, stages: RunTimeData["stages"]): 
 
 export type StepRow = { step: string; label: string; manual: boolean; ms: number | null; configs: { id: string; label: string; note?: string; ms: number | null }[] };
 
-// Each step's work time per page over the selected projects' stages, in the pipeline's order; with `byConfig`, also per
-// model config for the LLM steps (the other steps have no config).
-export function stepTimes(data: RunTimeData, selected: Set<string>, byConfig: boolean): StepRow[] {
+// Each step's work time per page over the selected projects' stages, in the pipeline's order; split by model config
+// or by model (whatever the provider), also per config or model for the LLM steps (the other steps have none).
+export function stepTimes(data: RunTimeData, selected: Set<string>, split: "none" | "config" | "model"): StepRow[] {
   const configs = new Map(data.configs.map((m) => [m.id, m]));
+  // A stage's group: its config, or its config's model.
+  const groupOf = (configId: string): { id: string; label: string; note?: string } => {
+    const m = configs.get(configId);
+    if (split === "model") return m ? { id: `model:${m.modelKey}`, label: m.modelLabel } : { id: configId, label: configId };
+    return { id: configId, label: m ? (m.name ?? m.model) : configId, note: endedNote(m?.deletedAt ?? null) };
+  };
   return STEPS.map((step) => {
     const stages = data.stages.filter((s) => s.step === step && selected.has(s.projectId));
-    const ids = byConfig && LLM.has(step) ? [...new Set(stages.map((s) => s.configId).filter((id): id is string => id !== null))] : [];
+    const groups = new Map<string, { id: string; label: string; note?: string }>();
+    if (split !== "none" && LLM.has(step)) {
+      for (const s of stages) if (s.configId !== null) groups.set(groupOf(s.configId).id, groupOf(s.configId));
+    }
     return {
       step,
       label: stepTitle(step),
       manual: MANUAL.has(step),
       ms: perPageOverProjects(data, stages),
-      configs: ids.map((id) => {
-        const m = configs.get(id);
-        return { id, label: m ? (m.name ?? m.model) : id, note: endedNote(m?.deletedAt ?? null), ms: perPageOverProjects(data, stages.filter((s) => s.configId === id)) };
-      }),
+      configs: [...groups.values()].map((g) => ({
+        ...g,
+        ms: perPageOverProjects(data, stages.filter((s) => s.configId !== null && groupOf(s.configId).id === g.id)),
+      })),
     };
   });
 }

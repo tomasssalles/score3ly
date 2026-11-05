@@ -60,13 +60,21 @@ test("failed calls: counted in the range, for all configs or one, the reasons th
       ["opus", local("2026-10-21T10:00"), "overloaded", 2],
       ["gemini", local("2026-10-21T10:00"), "ok", 4],
       ["gemini", local("2026-10-22T10:00"), "rate_limit", 3],
+      ["opus-eu", local("2026-10-22T10:00"), "server", 1],
     ],
-    configs: [],
+    configs: [
+      { id: "opus", name: "Opus", model: "claude-opus-5-5", modelKey: "claude-opus-5-5", modelLabel: "Claude Opus 5.5", createdAt: "", deletedAt: null },
+      { id: "opus-eu", name: "Opus EU", model: "anthropic.claude-opus-5-5", modelKey: "claude-opus-5-5", modelLabel: "Claude Opus 5.5", createdAt: "", deletedAt: null },
+      { id: "gemini", name: "Gemini", model: "gemini-3.1-pro", modelKey: "gemini-3-1-pro", modelLabel: "Gemini 3.1 Pro", createdAt: "", deletedAt: null },
+    ],
   };
   const range = { start: local("2026-10-20T00:00"), end: local("2026-10-23T00:00") };
   const all = failuresIn(failures, range, null);
-  assert.deepEqual([all.calls, all.failed], [20, 6]);
-  assert.deepEqual(all.reasons.map((r) => [r.label, r.calls]), [["Rate limited", 3], ["Overloaded", 2], ["Cut off", 1]]);
+  assert.deepEqual([all.calls, all.failed], [21, 7]);
+  assert.deepEqual(all.reasons.map((r) => [r.label, r.calls]), [["Rate limited", 3], ["Overloaded", 2], ["Cut off", 1], ["Server error", 1]]);
   const opus = failuresIn(failures, range, "opus");
   assert.deepEqual([opus.calls, opus.failed], [13, 3]);
+  // A model: every config of it, whatever the provider.
+  const model = failuresIn(failures, range, "model:claude-opus-5-5");
+  assert.deepEqual([model.calls, model.failed], [14, 4]);
 });

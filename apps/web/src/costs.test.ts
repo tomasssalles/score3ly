@@ -79,9 +79,9 @@ const data: CostData = {
     { id: "p2", name: "Sonata", pdfSha256: "aa", pdfFilename: "Sonata.pdf", createdAt: "2026-09-01T00:00:00Z", deletedAt: "2026-10-23T00:00:00Z", finished: true, costUsd: 0, pages: [] },
   ],
   configs: [
-    { id: "opus-1", name: "Opus EU", provider: "bedrock", model: "anthropic.claude-opus-5-5", family: "claude", modelName: "Claude Opus 5.5", effort: "high", createdAt: "", deletedAt: "2026-10-21T05:00:00Z" },
-    { id: "opus-2", name: "Opus EU", provider: "bedrock", model: "anthropic.claude-opus-5-5", family: "claude", modelName: "Claude Opus 5.5", effort: "xhigh", createdAt: "", deletedAt: null },
-    { id: "sonnet", name: null, provider: "anthropic", model: "claude-sonnet-5-5", family: "claude", modelName: "Claude Sonnet 5.5", effort: null, createdAt: "", deletedAt: null },
+    { id: "opus-1", name: "Opus EU", provider: "bedrock", model: "anthropic.claude-opus-5-5", family: "claude", modelName: "Claude Opus 5.5", modelKey: "claude-opus-5-5", modelLabel: "Claude Opus 5.5", effort: "high", createdAt: "", deletedAt: "2026-10-21T05:00:00Z" },
+    { id: "opus-2", name: "Opus EU", provider: "bedrock", model: "anthropic.claude-opus-5-5", family: "claude", modelName: "Claude Opus 5.5", modelKey: "claude-opus-5-5", modelLabel: "Claude Opus 5.5", effort: "xhigh", createdAt: "", deletedAt: null },
+    { id: "sonnet", name: null, provider: "anthropic", model: "claude-sonnet-5-5", family: "claude", modelName: "Claude Sonnet 5.5", modelKey: "claude-sonnet-5-5", modelLabel: "Claude Sonnet 5.5", effort: null, createdAt: "", deletedAt: null },
   ],
 };
 const range = { start: local("2026-10-20T00:00"), end: local("2026-10-23T00:00") };
@@ -193,4 +193,11 @@ test("the average per page: a PDF's projects are one score, its pages counted on
   assert.deepEqual(createdBefore(more, "30d", now), ["old"]);
   assert.deepEqual(createdBefore(more, "12m", now), []);
   assert.deepEqual(unfinished(more), ["wip"]);
+});
+
+test("grouped by model: the configs of one model together, whatever the provider and effort", () => {
+  const view = costView(data, range, "day", { dimension: "config", grouping: "model", byName: false }, {});
+  assert.deepEqual(view.rows.map((r) => [r.label, r.usd]), [["Claude Opus 5.5", 7], ["Claude Sonnet 5.5", 0.5]]);
+  const opusOnly = costView(data, range, "day", null, { config: { grouping: "model", hidden: ["model:claude-sonnet-5-5"] } });
+  assert.equal(opusOnly.filtered, 7);
 });

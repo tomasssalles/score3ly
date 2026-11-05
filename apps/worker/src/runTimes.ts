@@ -11,7 +11,7 @@ import type { Hono } from "hono";
 import { parsePages } from "@score3ly/core";
 import { manualQuarters } from "./activeTime.ts";
 import { RECIPE } from "./pipeline.ts";
-import { resolvedModel, type ModelConfigRow } from "./llmRoutes.ts";
+import { modelGroupOf, resolvedModel, type ModelConfigRow } from "./llmRoutes.ts";
 
 const MANUAL = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"];
 
@@ -100,7 +100,7 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
       items: (items.results as ItemRow[]).map((i) => [i.stage_id, i.item, i.duration_ms, i.calls, i.calls_cached, i.images, i.images_cached]),
       configs: (configs.results as ConfigRow[])
         .filter((m) => usedConfigs.has(m.id))
-        .map((m) => ({ id: m.id, name: m.name, model: resolvedModel(m).model, createdAt: m.created_at, deletedAt: m.deleted_at })),
+        .map((m) => ({ id: m.id, name: m.name, model: resolvedModel(m).model, ...modelGroupOf(m), createdAt: m.created_at, deletedAt: m.deleted_at })),
     });
   });
 }

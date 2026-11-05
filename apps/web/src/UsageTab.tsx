@@ -182,8 +182,12 @@ function Failures({ data }: { data: FailureData }) {
   const first = data.points.length ? data.points[0][1] : null;
   const view = failuresIn(data, rangeOf(rangeId, now, first), configId === ALL ? null : configId);
   const share = view.calls ? Math.round((view.failed / view.calls) * 100) : 0;
-  // Newest first; a deleted or edited config marked with the day it ended, as in the costs.
-  const configs = [...data.configs].reverse().map((m) => ({ id: m.id, label: m.name ?? m.model, note: endedNote(m.deletedAt) }));
+  // The models first (each with every config of it, whatever the provider), by name; then the configs, newest first, a
+  // deleted or edited config marked with the day it ended, as in the costs.
+  const models = [...new Map(data.configs.map((m) => [`model:${m.modelKey}`, m.modelLabel]))]
+    .sort(([, a], [, b]) => a.localeCompare(b))
+    .map(([id, label]) => ({ id, label, group: 1 }));
+  const configs = [...data.configs].reverse().map((m) => ({ id: m.id, label: m.name ?? m.model, note: endedNote(m.deletedAt), group: 2 }));
 
   return (
     <section className="stats-section">
@@ -192,7 +196,7 @@ function Failures({ data }: { data: FailureData }) {
         right={
           <>
             <Picker label="Time range" value={rangeId} options={RANGES} onChange={setRangeId} />
-            <Picker label="Model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...configs]} onChange={setConfigId} className="project-select" />
+            <Picker label="Model or model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...models, ...configs]} onChange={setConfigId} className="project-select" />
             <span className="stat-value">
               <span className="stat-amount">{view.failed}</span>
               <span className="stat-note">{view.calls ? `of ${view.calls === 1 ? "1 call" : `${view.calls} calls`} (${share}%)` : "no calls"}</span>

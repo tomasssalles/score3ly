@@ -14,7 +14,7 @@
 
 import type { Hono } from "hono";
 import { parsePages } from "@score3ly/core";
-import { readSettings, resolvedModel, spentInLastDay, type ModelConfigRow } from "./llmRoutes.ts";
+import { modelGroupOf, readSettings, resolvedModel, spentInLastDay, type ModelConfigRow } from "./llmRoutes.ts";
 
 export const BUCKET_SECONDS = 15 * 60;
 
@@ -129,6 +129,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
         name: m.name,
         provider: m.provider,
         ...(({ model, family, modelName }) => ({ model, family, modelName }))(resolvedModel(m)),
+        ...modelGroupOf(m),
         effort: m.effort,
         createdAt: m.created_at,
         deletedAt: m.deleted_at,
