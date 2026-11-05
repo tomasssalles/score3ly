@@ -6,8 +6,8 @@ A suite of behavioural tests for trying the app by hand: short scripts, each tel
 - **Stories, not isolated cases.** A story starts from the state the earlier ones left, unless it says otherwise, and runs straight through. A step is an action (→) and what should happen (✓). When a ✓ fails, note it (story, step, what happened) and go on if you can; a broken state rarely makes the rest of a story useless.
 - **Single device for now.** Everything here runs on one computer, locally, with the fake models. **Multi-device tests wait for a real deployment** (§16, "Deployment"): they are listed at the end ("Waiting for a deployment"), so they aren't forgotten.
 - **Sized for a person.** Each story says roughly how long it takes. Not every story runs before every release:
-  - **The smoke run** (about an hour, before every commit that reaches `main`, §11): story 1, and the steps marked ★ in stories 3 and 4.
-  - **The full run** (about 6 hours, split over several evenings; before showing the app to anyone, and before a version goes up by a minor or a major): every story.
+  - **The smoke run** (about an hour, before every commit that reaches `main`, §11): story 1, and the steps marked ★ in stories 3, 4 and 10.
+  - **The full run** (about 7 hours, split over several evenings; before showing the app to anyone, and before a version goes up by a minor or a major): every story.
   - **In between:** the stories that touch what changed (each story lists the areas it covers).
 - **Expected results come from the docs.** Where the docs and the app disagree, either can be wrong (CLAUDE.md): note it, don't decide on the spot.
 - **What is worth automating** is noted at the end of each story: a test that keeps failing, or that is boring and mechanical, belongs in the unit tests or the screenshot script.
@@ -36,6 +36,11 @@ To start again from nothing: stop the Worker, delete `apps/worker/.wrangler/manu
 | `schumann_kinderscenen_first_edition.orig.pdf` | 22 crooked colour scans, 13 MB: the big old book. |
 | `schumann_kinderscenen_first_edition_p3.orig.pdf` | 1 colour page: a quick second PDF. |
 
+**Secrets:** the Worker reads them from `apps/worker/.dev.vars` (not committed; move a real one aside first), and the config form offers their names. Dummy ones, for story 10 and "No key":
+```
+printf 'DUMMY_ANTHROPIC_KEY=x\nDUMMY_AWS_KEY_ID=x\nDUMMY_AWS_SECRET=x\n' > apps/worker/.dev.vars
+```
+
 **Model configs.** A new database has "Fake model" (free, the default). The others could be made on the settings page ("+" on "Model configs"), but `curl` is quicker for these; the default is picked on the settings page ("Default model config for new LLM stages"), which the stories call "make … the default":
 ```
 W=http://localhost:8787/api
@@ -54,7 +59,7 @@ curl -s $W/model-configs | grep -o '"id":"[^"]*","name":"[^"]*"'            # th
 
 **What the fake model answers** (so that its output isn't mistaken for bugs): `layout` two systems on every page, three bar lines each (so four stretches); `analyze` empty metadata and observations; `extract` a whole-measure rest in 4/4 in every stretch, a voice per staff, a made-up doubt on every system and a format issue on the first; `review` a correction on system 1 and another answer chosen for the first issue of system 2; `apply_review` applies the issues of a window that starts on an odd system (a C in the first voice) and reverts those of an even one with a made-up reason, but always applies a person's answers.
 
-**Known gaps** (not bugs; their tasks are in §15): leaving a running project for another page of the app or another project aborts the run ("Keep a run going while another page of the app is open"); nothing checks the project's version yet ("Optimistic locking"); model configs can't be made or edited in the app; the fake model always applies a person's answers in Apply review, so a human review that stops the stage (`docs/stages/music.md`, "A resolved issue") can't be tried here.
+**Known gaps** (not bugs; their tasks are in §15): leaving a running project for another page of the app or another project aborts the run ("Keep a run going while another page of the app is open"); nothing checks the project's version yet ("Optimistic locking"); the fake model always applies a person's answers in Apply review, so a human review that stops the stage (`docs/stages/music.md`, "A resolved issue") can't be tried here.
 
 ## Story 1: The first score
 
@@ -236,6 +241,30 @@ Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new 
 6. → Delete a project. ✓ The text says "was deleted", without "from the remote storage"; a refused deletion doesn't mention another device.
 7. → Quit, start again. ✓ The projects, settings and the frame's theme are still there.
 
+## Story 10: The model configs
+
+*A user who sets up their models: configs of every kind, made, renamed, cloned and deleted, and a new list of models arriving with a new version of the app.* About 45 minutes (the ★ steps about 10). Covers: `docs/llm.md`, "Supported models, prices and the config form" (the form, the pricing kinds, the settings page, "No longer supported", the conversion of configs added by hand), "Change config" on stages. Needs the dummy secrets of the setup (`.dev.vars`). Whatever these configs are made with, only those on the fake providers are run: the others would fail at the provider (the keys are dummies).
+
+1. ★ → Settings → "+" on the line of "Model configs". ✓ "New model config": Provider "Anthropic", Model "Claude Opus 5.5", Effort "—", the API key's secret "—"; Name prefilled, muted, "Claude Opus 5.5 (Anthropic)"; "Create config" disabled, the line above the buttons saying "The secret for the API key isn't chosen yet." → Effort "high". ✓ The name follows: "Claude Opus 5.5 (Anthropic) · high". → Pick `DUMMY_ANTHROPIC_KEY`, Create config. ✓ No confirmation; the dialog closes, the new card at the end of the list with its four prices per million tokens; Default unchanged.
+2. → "+" again, the same values, Create config. ✓ Before anything else: "This config already exists, with this name: …", the form open. → Type the name "Opus". ✓ The name in normal text from now on; the provider and effort no longer change it. → Create config. ✓ "Are you sure?" offering to rename the existing config to "Opus" instead, "Rename config". → Confirm. ✓ Only one card, now named "Opus".
+3. → "+", Provider "Bedrock". ✓ Model back to Claude Opus 5.5, a Region (the first of the list), a Routing among those the region offers ("Global", "Geographic (EU)", "In-region" as it allows), Credentials "API key" or "Access key ID and Secret access key", Pricing with Opus's four prices at that place. → Region `eu-central-1`, each routing in turn. ✓ The prices change with the routing (global cheaper); the name stays "Claude Opus 5.5 (Bedrock)". → Model "Claude Fable 5.1". ✓ Only the regions where Fable has a price, the region and routing reset to the first that fit where they no longer did. → Back to Opus, `eu-central-1`, "Geographic (EU)"; Credentials "Access key ID and Secret access key", pick `DUMMY_AWS_KEY_ID` and `DUMMY_AWS_SECRET`; tick "Free tier", Create config. ✓ The free tier's confirmation ("Its calls will cost $0.00 and won't count towards the spending cap. …"). → Cancel, choose the listed prices again, Create config. ✓ Made, no confirmation, its card with the geographic prices.
+4. → "+", Provider "Fake (dev)", Model "Unlisted model". ✓ The identifier field ("Model identifier, exactly as Fake (dev)'s API expects it"), Family "Fake" with "The only family the app supports on Fake (dev).", Pricing "Priced as" with its picker on "—", "Unpriced", "Free tier", each with its "i". → Identifier `fake-next`, "Priced as", leave the picker on "—". ✓ "Create config" disabled, saying the model it is priced as isn't chosen yet. → Pick "Fake model". ✓ Its four (made-up) prices. → Create config. ✓ The "priced as" confirmation. → Confirm. ✓ A card "fake-next (Fake (dev))", "(priced as Fake model)" after its prices.
+5. → Again with `fake-next` on Fake (dev), "Unpriced", name "Next unpriced". ✓ The stronger confirmation (the spending cap can't limit it, the costs won't include it). → Confirm. ✓ The card says "Unpriced: its calls' costs are unknown". → Again with `fake-next`, "Free tier", name "Next free". ✓ Made after the free tier's confirmation; the card says "Free tier".
+6. → "+", Provider "Fake", "Unlisted model", identifier `fake`. ✓ Refused when created: "Fake model is in the app's list: pick it there", the form open.
+7. → "Opus"'s "⋮". ✓ Rename, Clone, Delete (alone, red). → The default's "⋮" ("Fake model"). ✓ No Delete. → Rename "Opus" to "fake model" (another config's name in other capitals). ✓ Refused in the dialog. → "Opus 5.5". ✓ Renamed.
+8. → Clone "Opus 5.5". ✓ "Clone model config", every value the original's, its name "Opus 5.5" in normal text, the line about names being unique, "Delete the original, "Opus 5.5"" unticked. → Create config at once. ✓ The offer to rename "Opus 5.5" to itself is not made: "This config already exists, with this name: "Opus 5.5"." → Effort "max", name "Opus max", tick "Delete the original". ✓ The confirmation ""Opus 5.5" will be deleted. This action cannot be undone.". → Confirm. ✓ "Opus max" at the end, "Opus 5.5" gone.
+9. → Clone "Opus max", change nothing but the name ("Opus again"), tick "Delete the original". ✓ The offer to rename "Opus max" to "Opus again" instead of deleting it. → Confirm. ✓ One card, "Opus again".
+10. → Clone the default ("Fake model"), effort "low", tick "Delete the original". ✓ "Make default" ticked and greyed out. → Create config (confirm). ✓ The clone is the default (its badge, the settings' default row), "Fake model" gone. → Make the clone's name "Fake model" again (Rename). ✓ Allowed: the name is free.
+11. ★ → Delete "Opus again". ✓ "Are you sure?", the text about stages that ran with it and those that haven't, "Delete config". → Confirm. ✓ Gone.
+12. ★ → New project from Kinderscenen p3, Manual mode. Layout's "⋮" → "Change config". ✓ The model configs offered, the default first picked; none deleted. → "fake-next (Fake (dev))" with "Apply to the remaining stages planned in this pipeline" ticked, Save. ✓ Every LLM card shows it. → Run through Layout. ✓ It runs (the fake answers any model string); its details show costs, from Fake model's made-up prices.
+13. → A new list of models, as a new version of the app brings one: in `apps/worker/model-list/fake-dev.json`, add the model `{"id": "fake-next", "name": "Fake Next", "family": "fake", "string": "fake-next"}` and a price for it (copy the `fake` price, change `model` to `fake-next` and the input to `2`); run `npm run model-list -w apps/worker`. ✓ Its report lists "Model added: Fake Next (fake-next)". → Let the Worker reload (restart it if it doesn't), reload the settings page. ✓ The priced-as config and "Next unpriced" are now plain listed configs, with Fake Next's own prices and no "priced as" or "Unpriced" mark; their names unchanged; "Next free" still "Free tier". → "+": Fake (dev)'s models now include "Fake Next"; "Unlisted model" with `fake-next` is refused like step 6 ("Fake Next is in the app's list: pick it there").
+14. → Run Analyze in the project of step 12. ✓ Its details: costs from Fake Next's own prices (input $2 per million tokens); Layout's details unchanged (a call keeps the prices it was recorded with).
+15. → Fake Next leaves the list: remove its model and price from `fake-dev.json` again, run the script (✓ "Model retired: Fake Next (fake-next)"), let the Worker reload, reload the page. ✓ The configs on Fake Next show the red "No longer supported" badge; "Next free" (added by hand, free) is still usable. → The default picker. ✓ They aren't offered. → Back to the project: ✓ the planned LLM cards show "… (no longer supported)" in red; Run says the stage can't run (its model config "… uses Fake Next on Fake (dev), which the app no longer supports"); "Change config" shows it as the current one but doesn't offer it otherwise, Save refused until another is picked. Layout's and Analyze's cards (done) show the name with the mark, not in red. → Pick "Fake model" for the remaining stages, Run to the end. ✓ Runs.
+16. → Clone a config on Fake Next. ✓ Its model first in the picker, "(no longer supported)"; "Create config" disabled, saying the app no longer supports Fake Next on Fake (dev). → Pick "Fake model". ✓ Allowed again. → Cancel.
+17. → Put the files back: `git checkout apps/worker/model-list apps/worker/src/llm/modelList.ts`, let the Worker reload. ✓ The configs on Fake Next stay "No longer supported" (the list in git never had the model, so they name it by its id, `fake-next`); everything else as before step 13.
+
+*Worth automating:* the form's pickers following each other and its refusals (pure functions in `configForm.ts`, mostly tested already); the conversion and the marks after a new list (a Worker test with two lists).
+
 ## While going through the stories
 
 Things to watch all along, rather than steps of their own:
@@ -253,6 +282,6 @@ Multi-device tests, and tests on real phones and other browsers, wait until the 
 - **Real phones** (§15, "Test the installed app on a real Android phone and an iPhone", "Try the editors with touch and on a real phone", "Try a run on a real phone that goes to sleep or to another app"): the wake lock, the system's back gesture, memory for large scans.
 - **Firefox and Safari** (§15, "Try the page images in Firefox, Safari and on phones").
 - **Cloudflare Access** in front of the app, and the secrets in the dashboard.
-- **Real models:** a short story with a real key and a cheap model, once the model configs can be made in the app.
+- **Real models:** a short story with a real key and a cheap model (and the configs' Test button, once built).
 
-Also still to add, once built: the model configs' form (Setup, story 5), the format gap report (Settings, "Developer").
+Also still to add, once built: the format gap report (Settings, "Developer").
