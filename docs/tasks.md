@@ -553,10 +553,10 @@ Every combination of model family and provider the first release supports gets a
 
 §5.8: an answer that was paid for is lost when the tab is closed or a phone suspends the page mid-call (accepted). Some day, perhaps: the Worker finishes the call and stores the answer on its own (a Durable Object or Workflow), so resuming finds it.
 
-### Remove the undici override
+### Moderate advisories in electron-builder's dependencies
 `#security`
 
-In the root `package.json`, once Miniflare (Wrangler's) depends on undici 7.30.1 or later: it pins an exact version, and 7.29.1 had advisories that `npm audit` reported as high (GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c). The override also covers `@electron/get` (Electron's). Check with `npm view miniflare@<version> dependencies.undici`; without the override, `npm audit` must stay clean.
+`npm audit` (2026-11-06) reports 6 moderate ones: `minimatch` 7.0.0 to 11.0.0 (GHSA-g3hv-75wg-m249, a denial of service by globs), through `@electron/universal`, `app-builder-lib`, `dmg-builder` and `electron-builder`. Only used when packaging the desktop app, never at run time. `npm audit fix --force` would downgrade electron-builder to 24.13.3, a breaking change: wait for electron-builder to update its dependencies instead, or override `minimatch` in the root `package.json` if it doesn't.
 
 ### A run mode between Auto and Manual
 `#optional`
