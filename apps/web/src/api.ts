@@ -523,3 +523,58 @@ export async function reserveIssueNumbers(project: Project, count: number, known
   for (const issue of known) above = Math.max(above, issue.id);
   return ((await (await send(`/api/projects/${project.id}/issue-numbers`, { count, above })).json()) as { first: number }).first;
 }
+
+// What the new config form's pickers offer (apps/worker/src/llmRoutes.ts, `modelOptions`; docs/llm.md).
+export type Routing = "global" | "geographic" | "in-region";
+export type Place = { region: string; routing: Routing | null };
+export type ModelPrice = { input: number; output: number; cacheRead: number; cacheWrite: number };
+export type ModelOptions = {
+  asOf: string;
+  mock: boolean;
+  providers: {
+    id: Provider;
+    name: string;
+    families: { id: Family; name: string; efforts: NonNullable<ModelConfig["effort"]>[]; secrets: string[][] }[];
+    places: (Place & { geography?: string })[];
+  }[];
+  models: {
+    id: string;
+    name: string;
+    family: Family;
+    providers: Partial<Record<Provider, { string: string; places: (Place & { price: ModelPrice })[] }>>;
+  }[];
+};
+
+export async function fetchModelOptions(): Promise<ModelOptions> {
+  return (await checked(await fetch("/api/models"))).json();
+}
+
+// The names of the Worker's secrets (never their values), for the secret pickers.
+export async function fetchSecretNames(): Promise<string[]> {
+  return ((await (await checked(await fetch("/api/secrets"))).json()) as { names: string[] }).names;
+}
+
+// What a new model config is made of (the Worker's `configProblem` checks it).
+export type NewModelConfig = {
+  name?: string;
+  provider: Provider;
+  modelId?: string;
+  modelString?: string;
+  family?: Family;
+  effort: ModelConfig["effort"];
+  region: string;
+  routing: Routing | null;
+  project?: string;
+  secrets: Record<string, string>;
+  pricing: ModelConfig["pricing"];
+};
+
+// Creates a model config. A refusal comes back as an Error with the Worker's message, to show in the form.
+export async function createModelConfig(body: NewModelConfig): Promise<ModelConfig> {
+  const response = await fetch("/api/model-configs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!response.ok) {
+    const message = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
+    throw new Error(message ?? `HTTP ${response.status}`);
+  }
+  return response.json();
+}

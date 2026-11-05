@@ -1,6 +1,6 @@
 // How a model config's prices are shown (docs/llm.md, "Configs").
 
-import type { ModelConfig } from "./api";
+import type { ModelConfig, ModelPrice } from "./api";
 
 // A price per million tokens: whole dollars without cents ("$4"), else at least the cents ("$0.20", "$0.001").
 export function dollars(amount: number): string {
@@ -16,7 +16,11 @@ export function pricingText(config: ModelConfig): string {
   if (price.kind === "free") return "Free tier";
   if (price.kind === "unpriced") return "Unpriced: its calls' costs are unknown";
   if (price.kind === "missing") return "No price in the app's list";
-  const p = price.price;
-  const text = `${dollars(p.input)} input, ${dollars(p.output)} output, ${dollars(p.cacheRead)} cache read, ${dollars(p.cacheWrite)} cache write, per million tokens`;
+  const text = pricesText(price.price);
   return price.borrowedFrom ? `${text} (priced as ${price.borrowedFrom})` : text;
+}
+
+// The four prices of a model, per million tokens.
+export function pricesText(p: ModelPrice): string {
+  return `${dollars(p.input)} input, ${dollars(p.output)} output, ${dollars(p.cacheRead)} cache read, ${dollars(p.cacheWrite)} cache write, per million tokens`;
 }

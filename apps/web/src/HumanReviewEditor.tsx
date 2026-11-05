@@ -11,6 +11,7 @@ import type { Box } from "@score3ly/notation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { fetchJsonContent, putContent, recordOutputs, reserveIssueNumbers, type Project } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
+import { Info } from "./Info";
 import { AnswerTags, Choices, ISSUE_CLASS_LABELS, SystemRendering, useRemembered } from "./ExtractionView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
 import { jsonBytes } from "./finishFixMetadata";
@@ -31,7 +32,7 @@ import {
   writeAnswer,
   type StoredHumanReview,
 } from "./humanReview";
-import { BoxIcon, ChevronDownIcon, CollapseIcon, ExpandIcon, HandIcon, InfoIcon, LinkIcon, MoreIcon, UnlinkIcon } from "./icons";
+import { BoxIcon, ChevronDownIcon, CollapseIcon, ExpandIcon, HandIcon, LinkIcon, MoreIcon, UnlinkIcon } from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Picker } from "./fieldList";
 import { NO_TEXT } from "./humanReview";
@@ -810,19 +811,6 @@ function OwnIssuePanel({
         />
       )}
     </aside>
-  );
-}
-
-// An "i" that shows its text below the line it is on, and hides it again (as a choice's reason does).
-function Info({ label, children }: { label: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button type="button" className="reason-toggle" aria-expanded={open} aria-label={label} title={label} onClick={() => setOpen(!open)}>
-        <InfoIcon />
-      </button>
-      {open && <span className="info-text">{children}</span>}
-    </>
   );
 }
 

@@ -158,7 +158,7 @@ For testing and debugging: run stages as if nothing were cached, without our own
 ### Settings page, the model configs
 `#next-release`
 
-§7.2, §10: creating, renaming, cloning and deleting configs (no editing: `docs/llm.md`, "Managing model configs"), choosing the default with its rule, the free-tier mark. Today the page has one row per setting (the run mode for new projects, the spending cap), its label (with a short hint where needed) left and its control right, and below them "Model configs", read-only: a card per config with its name (else its model), badges for the default and free tier, its provider, model and effort, its plain values and its secrets by the Worker secret's name.
+§7.2, §10: creating, renaming, cloning and deleting configs (no editing: `docs/llm.md`, "Managing model configs"), choosing the default with its rule, the free-tier mark. **Creating is built** (2026-11-05, `docs/llm.md`, "The create form, built"); left: rename and delete in each card's "⋮" (with a Worker endpoint for renaming), then clone (the create form opened from a config, "Delete the original", the duplicate checks and their offers, a clone of an unsupported config not saved until its model is supported). Today the page has one row per setting (the run mode for new projects, the spending cap), its label (with a short hint where needed) left and its control right, and below them "Model configs", read-only: a card per config with its name (else its model), badges for the default and free tier, its provider, model and effort, its plain values and its secrets by the Worker secret's name.
 
 ### Verify the prompt and schema of `layout`
 `#owner` `#next-release`

@@ -1533,6 +1533,63 @@ body {
   font: 600 16px var(--sans);
 }
 
+/* A section's heading with its "+" on the same line (Model configs). */
+.settings-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.settings-section-head h3 {
+  margin: 0;
+}
+
+/* The new model config form: longer than a screen on a phone, so it scrolls; its lists open inside it. */
+dialog.app-dialog.config-form {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.config-form .dropdown-list {
+  max-height: 40vh;
+}
+
+.pricing-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+}
+
+.pricing-choice .field-check {
+  margin-top: 0;
+}
+
+.field .field-check input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+.pricing-reference {
+  margin: 0 0 4px 26px;
+}
+
+.config-default {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.config-default input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 .settings-text {
   margin: 0 0 12px;
   max-width: 60ch;

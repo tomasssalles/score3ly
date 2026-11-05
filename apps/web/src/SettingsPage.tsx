@@ -4,14 +4,25 @@
 // and the image cache's size limit (§8.5).
 
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { fetchModelConfigs, fetchSettings, openSecretsFile, putSetting, type ModelConfig, type Settings } from "./api";
+import {
+  fetchModelConfigs,
+  fetchModelOptions,
+  fetchSecretNames,
+  fetchSettings,
+  openSecretsFile,
+  putSetting,
+  type ModelConfig,
+  type ModelOptions,
+  type Settings,
+} from "./api";
+import { NewModelConfig } from "./NewModelConfig";
 import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { CACHE_LIMITS_MB, cacheLimitMb, formatSize, setCacheLimitMb } from "./cacheLru";
 import { useHost } from "./host";
 import { pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
-import { ChevronDownIcon } from "./icons";
+import { ChevronDownIcon, PlusIcon } from "./icons";
 import { MODE_LABELS, MODES } from "./pipeline";
 import { CHOICES, setThemeChoice, themeChoice } from "./themes";
 
@@ -88,7 +99,16 @@ export function SettingsPage() {
           </dd>
         </dl>
       )}
-      {settings && configs && <ModelConfigs configs={configs} defaultId={settings.defaultModelConfigId} />}
+      {settings && configs && (
+        <ModelConfigs
+          configs={configs}
+          defaultId={settings.defaultModelConfigId}
+          onCreated={(config) => {
+            setConfigs((list) => [...(list ?? []), config]);
+            fetchSettings().then(setSettings, () => {});
+          }}
+        />
+      )}
       <Secrets />
       <section className="settings-section">
         {/* The desktop app is the only device: its settings are all this computer's. */}
@@ -208,6 +228,13 @@ function DefaultConfigPicker({
   );
 }
 
+// Where the secrets are set, under the new config form's secret pickers (the Secrets section below says more).
+const SECRETS_HINTS: Record<"cloudflare" | "desktop" | "local", string> = {
+  cloudflare: "The Worker's secrets, by name: set in the Cloudflare dashboard or with wrangler secret put (Secrets, below).",
+  desktop: "The secrets file's names: open it with \"Open the secrets file\" (Secrets, below).",
+  local: "The names in secrets.env, in the server's data folder (Secrets, below).",
+};
+
 // Where the secrets the model configs name are set (docs/desktop.md, "Secrets"): in the desktop app, a file the server
 // opens in the system's editor; on a computer without it, the same file; on Cloudflare, the Worker's secrets.
 function Secrets() {
@@ -273,11 +300,44 @@ const FIELD_LABELS: Record<string, string> = {
 // The model configs (docs/llm.md), as stored: each with its name, whether it is the default and on a free tier, its
 // provider, model (its name for people where it is listed) and effort, where its requests go (a region, a routing, a
 // project), how it is priced, and its secrets by the name of the Worker secret, never a value.
-function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultId: string | null }) {
+function ModelConfigs({
+  configs,
+  defaultId,
+  onCreated,
+}: {
+  configs: ModelConfig[];
+  defaultId: string | null;
+  onCreated: (config: ModelConfig) => void;
+}) {
   const host = useHost();
+  // The new config form, with what its pickers offer, once loaded.
+  const [creating, setCreating] = useState<{ options: ModelOptions; secretNames: string[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  function openForm() {
+    setError(null);
+    Promise.all([fetchModelOptions(), fetchSecretNames()]).then(
+      ([options, secretNames]) => setCreating({ options, secretNames }),
+      () => setError("The models couldn't be loaded."),
+    );
+  }
   return (
     <section className="settings-section">
-      <h3>Model configs</h3>
+      <div className="settings-section-head">
+        <h3>Model configs</h3>
+        <button type="button" className="icon-button" aria-label="New model config" title="New model config" onClick={openForm}>
+          <PlusIcon />
+        </button>
+      </div>
+      {error && <p className="settings-error">{error}</p>}
+      {creating && (
+        <NewModelConfig
+          options={creating.options}
+          secretNames={creating.secretNames}
+          secretsHint={SECRETS_HINTS[host ?? "cloudflare"]}
+          onCreated={onCreated}
+          onCancel={() => setCreating(null)}
+        />
+      )}
       {configs.length === 0 && <p>No model configs yet.</p>}
       <ul className="model-configs">
         {configs.map((config) => (
