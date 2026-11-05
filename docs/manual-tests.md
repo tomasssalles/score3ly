@@ -59,7 +59,7 @@ curl -s $W/model-configs | grep -o '"id":"[^"]*","name":"[^"]*"'            # th
 
 **What the fake model answers** (so that its output isn't mistaken for bugs): `layout` two systems on every page, three bar lines each (so four stretches); `analyze` empty metadata and observations; `extract` a whole-measure rest in 4/4 in every stretch, a voice per staff, a made-up doubt on every system and a format issue on the first; `review` a correction on system 1 and another answer chosen for the first issue of system 2; `apply_review` applies the issues of a window that starts on an odd system (a C in the first voice) and reverts those of an even one with a made-up reason, but always applies a person's answers.
 
-**Known gaps** (not bugs; their tasks are in §15): leaving a running project for another page of the app or another project aborts the run ("Keep a run going while another page of the app is open"); nothing checks the project's version yet ("Optimistic locking"); the fake model always applies a person's answers in Apply review, so a human review that stops the stage (`docs/stages/music.md`, "A resolved issue") can't be tried here.
+**Known gaps** (not bugs; their tasks are in §15): leaving a running project for another page of the app or another project aborts the run ("Keep a run going while another page of the app is open"); the fake model always applies a person's answers in Apply review, so a human review that stops the stage (`docs/stages/music.md`, "A resolved issue") can't be tried here.
 
 ## Story 1: The first score
 
@@ -196,7 +196,7 @@ Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new 
 3. → Rename to something long (about 150 characters). ✓ Shortened in the middle in the panel and the picker, on one line.
    → New project from a PDF with a long file name, as downloaded from IMSLP (copy any PDF to e.g. `IMSLP971706-PMLP2799-Schumann_Kinderscenen_leichte_Stu-cke_fu-r_das_Pianoforte.pdf`). ✓ A project with that name (without ".pdf"). Once more: the same name with " (1)".
 4. → The picker: type part of a name, part of the PDF's file name. ✓ Both filter; most recently opened first. → Open a project from it, then use back and forward. ✓ The URL follows; back returns to the previous project; going back doesn't mark it as opened (its place in the list stays).
-5. → Open two tabs on two different projects. ✓ Each keeps its own; a reload keeps it.
+5. → Open two tabs on two different projects. ✓ Each keeps its own; a reload keeps it. → Two tabs on the same project: rename it in one, then in the other (still showing the old name). ✓ The second is refused with "Changed elsewhere"; Reload shows the first tab's name, and renaming there works. The same with "Change config" on a stage in one tab and then in the other.
 6. → "Delete project" on a finished one. ✓ The dialog: the full name, the text of `docs/database.md`, "Deleting a project", "Delete project" disabled. → Paste the name. ✓ Doesn't count. → Type it with one letter in another case. ✓ Still disabled. → Type it exactly, delete. ✓ The screen saying "<name>" was deleted from this device and from the remote storage; URL `#/`; back doesn't return to it; a reload shows the empty app; gone from the picker.
 7. → If no other project uses that PDF: pick it again. ✓ No known-PDF dialog; a new project with the same name; with the same configs it runs every stage from scratch (with "Fake (priced)" as default it costs again; in Costs, a second spend).
 

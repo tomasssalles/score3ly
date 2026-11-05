@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { leavesProject, runningProject } from "./leaveGuard";
-import { ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, type PdfLookup, type Project } from "./api";
+import { ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type PdfLookup, type Project } from "./api";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { Header } from "./Header";
 import { useEditionWindow, useHost } from "./host";
@@ -70,6 +70,15 @@ export function App() {
 
   useEffect(() => {
     refresh();
+  }, []);
+
+  // A change refused because the project changed on another device or in another tab (optimistic locking,
+  // docs/database.md): the page offers to reload, which shows the project as it is now.
+  const [stale, setStale] = useState(false);
+  useEffect(() => {
+    const show = () => setStale(true);
+    window.addEventListener(STALE_EVENT, show);
+    return () => window.removeEventListener(STALE_EVENT, show);
   }, []);
 
   // Opening anything else ends the message about a deleted project.
@@ -175,7 +184,9 @@ export function App() {
                 await renameProject(current, name);
               } catch (err) {
                 throw new Error(
-                  err instanceof ApiError && err.status === 409
+                  err instanceof ApiError && err.stale
+                    ? "The project was changed elsewhere: reload first."
+                    : err instanceof ApiError && err.status === 409
                     ? "A project with that name already exists. Names must be unique (case-insensitive)."
                     : `Renaming failed: ${err}`,
                 );
@@ -199,6 +210,17 @@ export function App() {
               refresh();
             }}
             onCancel={() => setDeleting(false)}
+          />
+        )}
+        {stale && (
+          <ConfirmDialog
+            title="Changed elsewhere"
+            text={[
+              "This project was changed on another device or in another tab since this page loaded it, so your last change wasn't made. Reload to see the project as it is now, then make the change again.",
+            ]}
+            confirmLabel="Reload"
+            onConfirm={() => window.location.reload()}
+            onCancel={() => setStale(false)}
           />
         )}
         {leaving && (

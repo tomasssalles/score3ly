@@ -485,9 +485,6 @@ On a computer, a run should go on while its tab is in the background: the page k
 
 `fix_layout` hasn't been tried with touch at all, `fix_skew` only through Chromium's emulation of touch at phone size.
 
-### Optimistic locking
-§4: `projects.version` exists, but no request checks it yet. Two devices running or changing the same pipeline at once aren't guarded against, except that a running stage can't be started again.
-
 ### Images for the LLMs
 They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk by our own code to Claude's limits (`packages/imaging/src/scale.ts`; 2576 px on the long edge, 4784 visual tokens):
 - **5 MB per image on Bedrock and Vertex AI** (10 MB on Anthropic's API, 32 MB per request): check with the first real calls whether a colour scan at 2576 px stays under it as PNG, and what to do if not (grayscale, or a smaller limit for that provider). `layout` doesn't check its requests' size yet (§6).

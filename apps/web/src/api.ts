@@ -41,20 +41,49 @@ export type ApiOutput = {
   recipe: unknown;
 };
 
-// A failed request. `status` is the HTTP status, so callers can react to e.g. 409 (conflict).
+// A failed request. `status` is the HTTP status, so callers can react to e.g. 409 (conflict); `code` the Worker's
+// code for it, where it gives one.
 export class ApiError extends Error {
   readonly status: number;
+  readonly code: string | null;
 
-  constructor(status: number) {
+  constructor(status: number, code: string | null = null) {
     super(`HTTP ${status}`);
     this.status = status;
+    this.code = code;
+  }
+
+  // The project changed elsewhere since this page read it (optimistic locking): the change was refused.
+  get stale(): boolean {
+    return this.code === "stale_version";
   }
 }
 
+// Fired when the Worker refused a change because the project changed elsewhere; the app offers to reload.
+export const STALE_EVENT = "score3ly:stale-project";
+
 async function checked(response: Response): Promise<Response> {
   if (!response.ok) {
-    throw new ApiError(response.status);
+    const code = response.status === 409 ? (((await response.clone().json().catch(() => null)) as { code?: string } | null)?.code ?? null) : null;
+    if (code === "stale_version") window.dispatchEvent(new Event(STALE_EVENT));
+    throw new ApiError(response.status, code);
   }
+  return response;
+}
+
+// Optimistic locking (docs/database.md, "Optimistic locking"): the last version of each project this page saw, sent
+// with every request about the project and taken from every answer. The Worker checks it on a person's changes.
+const VERSION_HEADER = "X-Project-Version";
+const versions = new Map<string, string>();
+
+async function projectFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const id = /^\/api\/projects\/([^/?]+)/.exec(url)?.[1];
+  const headers = new Headers(init.headers);
+  const known = id ? versions.get(id) : undefined;
+  if (known !== undefined) headers.set(VERSION_HEADER, known);
+  const response = await fetch(url, { ...init, headers });
+  const current = response.headers.get(VERSION_HEADER);
+  if (id && current !== null && response.ok) versions.set(id, current);
   return response;
 }
 
@@ -108,12 +137,12 @@ export async function createProject(pdf: File, sha256: string, alreadyStored: bo
 }
 
 export async function markOpened(project: Project): Promise<void> {
-  await checked(await fetch(`/api/projects/${project.id}/opened`, { method: "POST" }));
+  await checked(await projectFetch(`/api/projects/${project.id}/opened`, { method: "POST" }));
 }
 
 // Renames a project. Fails with status 409 if another project already has that name (ignoring case).
 export async function renameProject(project: Project, name: string): Promise<Project> {
-  const response = await fetch(`/api/projects/${project.id}`, {
+  const response = await projectFetch(`/api/projects/${project.id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
@@ -128,7 +157,7 @@ export async function deleteProject(project: Project): Promise<{ pdfUnused: bool
 }
 
 export async function setRunMode(project: Project, runMode: RunMode): Promise<Project> {
-  const response = await fetch(`/api/projects/${project.id}`, {
+  const response = await projectFetch(`/api/projects/${project.id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ runMode }),
@@ -138,7 +167,7 @@ export async function setRunMode(project: Project, runMode: RunMode): Promise<Pr
 
 // The project's stages in order, with their outputs.
 export async function fetchPipeline(project: Project): Promise<ApiPipeline> {
-  return (await checked(await fetch(`/api/projects/${project.id}/pipeline`))).json();
+  return (await checked(await projectFetch(`/api/projects/${project.id}/pipeline`))).json();
 }
 
 // Running stages (the browser does the work, the Worker records it; apps/worker/src/pipeline.ts).
@@ -149,7 +178,7 @@ function stageUrl(project: Project, stageId: string, action: string): string {
 
 async function send(url: string, body?: unknown, method = "POST"): Promise<Response> {
   return checked(
-    await fetch(url, {
+    await projectFetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -253,7 +282,7 @@ export async function dropStage(project: Project, stageId: string): Promise<ApiP
 
 // Dismisses the card of a dropped stage.
 export async function dismissDropped(project: Project, id: number): Promise<ApiPipeline> {
-  return (await checked(await fetch(`/api/projects/${project.id}/dropped/${id}`, { method: "DELETE" }))).json();
+  return (await checked(await projectFetch(`/api/projects/${project.id}/dropped/${id}`, { method: "DELETE" }))).json();
 }
 
 // A carried manual stage whose turn has come: kept if `inputIds` (what it would read now) hold what it read, else

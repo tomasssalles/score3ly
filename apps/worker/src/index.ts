@@ -9,6 +9,7 @@ import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 import { fingerprintRoutes } from "./fingerprints.ts";
 import { llmRoutes, readSettings, convertAddedConfigs } from "./llmRoutes.ts";
 import { defaultForNewStages, newPipeline, pipelineRoutes } from "./pipeline.ts";
+import { versionRoutes } from "./versions.ts";
 
 export type { Project, RunMode } from "@score3ly/core";
 import type { Project, RunMode } from "@score3ly/core";
@@ -52,6 +53,9 @@ async function getProject(db: D1Database, id: string): Promise<Project | null> {
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
+
+// Optimistic locking: before the project's routes, so that a stale change is refused before anything happens.
+versionRoutes(app);
 
 // Before anything reads model configs: those added by hand whose string a new list of models has become listed ones
 // (docs/llm.md, "Configs"); once per list, then nothing.

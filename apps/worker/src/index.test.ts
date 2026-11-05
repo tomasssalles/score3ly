@@ -1585,3 +1585,70 @@ test("activity: the quarters of an hour in which a call ran or anything was reco
     ["2026-10-20T08:00", "2026-10-20T10:00", "2026-10-20T10:15", "2026-10-20T10:30", "2026-10-20T12:00", "2026-10-21T09:45"],
   );
 });
+
+// Optimistic locking (docs/database.md, "Optimistic locking").
+
+async function versionOf(projectId: string): Promise<string> {
+  return (await app.request(`/api/projects/${projectId}/pipeline`, {}, env)).headers.get("X-Project-Version")!;
+}
+
+function withVersion(projectId: string, stageId: string, action: string, version: string, body?: unknown, method = "POST") {
+  return app.request(
+    `/api/projects/${projectId}/stages/${stageId}/${action}`,
+    {
+      method,
+      headers: { "Content-Type": "application/json", "X-Project-Version": version },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    },
+    env,
+  );
+}
+
+test("a person's change is refused when the project changed since the browser read it; a run's own requests aren't checked", async () => {
+  const { project, skew } = await analyzedProject("versions.pdf");
+  const v0 = await versionOf(project.id);
+  const layout = (await pipelineOf(project.id))[3];
+
+  // Another device changes the config: the version goes up, and says so.
+  const first = await withVersion(project.id, layout.id, "config", v0, { config: { rounds: 2 } }, "PUT");
+  assert.equal(first.status, 200);
+  const v1 = first.headers.get("X-Project-Version")!;
+  assert.equal(Number(v1), Number(v0) + 1);
+
+  // This device, still on v0, is refused, and told the current version; nothing changes.
+  const stale = await withVersion(project.id, layout.id, "config", v0, { config: { rounds: 3 } }, "PUT");
+  assert.equal(stale.status, 409);
+  assert.equal(((await stale.json()) as { code: string }).code, "stale_version");
+  assert.equal(stale.headers.get("X-Project-Version"), v1);
+  assert.equal(((await pipelineOf(project.id))[3].config as { rounds: number }).rounds, 2);
+
+  // Without the header, nothing is checked (scripts, tests).
+  assert.equal((await call(project.id, layout.id, "config", { config: { rounds: 3 } }, "PUT")).status, 200);
+
+  // A manual stage: adding it, its saves and its Finish are a person's: checked and raised.
+  let v = await versionOf(project.id);
+  const added = await withVersion(project.id, skew.id, "fix", v, { step: "fix_skew", stepVersion: 1, pageCount: 2, inputIds: [] });
+  assert.equal(added.status, 200);
+  const { stageId: fix } = (await added.json()) as { stageId: string };
+  v = added.headers.get("X-Project-Version")!;
+  const sha = await putContent('{"lines":[]}');
+  const saved = await withVersion(project.id, fix, "outputs", v, { outputs: [{ item: "p1", type: "lines", contentSha256: sha }] });
+  assert.equal(saved.status, 200);
+  assert.equal((await withVersion(project.id, fix, "outputs", v, { outputs: [{ item: "p2", type: "lines", contentSha256: sha }] })).status, 409); // the other device's save
+  v = saved.headers.get("X-Project-Version")!;
+  assert.equal((await withVersion(project.id, fix, "finish", v, { status: "done" })).status, 204);
+
+  // A running stage's requests are the run's: neither checked nor raised, whatever version they carry.
+  const next = (await pipelineOf(project.id)).find((s) => s.status === "planned")!;
+  v = await versionOf(project.id);
+  assert.equal((await withVersion(project.id, next.id, "start", "0", { stepVersion: 1, config: { modelConfigId: "fake-model" }, modelConfigId: "fake-model", stageKey: RECIPE_KEY(9), pageCount: 2, inputIds: [] })).status, 200);
+  assert.equal(await versionOf(project.id), v);
+
+  // Renaming and the run mode, on the project itself.
+  const rename = (version: string, name: string) =>
+    app.request(`/api/projects/${project.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", "X-Project-Version": version }, body: JSON.stringify({ name }) }, env);
+  assert.equal((await rename(String(Number(v) - 1), "Elsewhere")).status, 409);
+  const renamed = await rename(v, "Here");
+  assert.equal(renamed.status, 200);
+  assert.equal(renamed.headers.get("X-Project-Version"), String(Number(v) + 1));
+});

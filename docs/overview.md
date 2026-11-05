@@ -235,7 +235,7 @@ In `docs/desktop.md`. In short: an optional desktop app, *cadenza*, wraps the sa
   - **last opened:** set by a dedicated request when the project is opened, so listing projects doesn't touch it.
 
   Both start equal to the creation time, so sorting needs no special case for "never".
-- Concurrent edits from two devices are prevented by optimistic locking: each project has a version number, and stale writes are rejected with a reload prompt.
+- Concurrent edits from two devices are prevented by optimistic locking: each project has a version number, and stale writes are rejected with a reload prompt (built: `docs/database.md`, "Optimistic locking").
 
 ## 5. The pipeline model
 
