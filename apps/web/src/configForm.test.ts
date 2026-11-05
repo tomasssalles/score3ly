@@ -79,23 +79,26 @@ function pick(...changes: Partial<FormState>[]): FormState {
   return changes.reduce<FormState>((form, change) => settled(OPTIONS, { ...form, ...change }), EMPTY_FORM);
 }
 
-test("a listed model: its places only, a provider without regions picks its one place, its own price", () => {
+test("every picker starts on its first entry: a listed model's first place and routing, its own price; the secrets' first names", () => {
   const anthropic = pick({ provider: "anthropic" }, { model: { kind: "listed", id: "opus" } });
   assert.deepEqual([anthropic.region, anthropic.routing, anthropic.pricing], ["", null, "list"]);
   assert.deepEqual(priceAt(OPTIONS, anthropic), P(4));
   const bedrock = pick({ provider: "bedrock" }, { model: { kind: "listed", id: "opus" } });
   assert.deepEqual(regionsOf(OPTIONS, bedrock), ["eu-central-1"]);
-  assert.equal(bedrock.region, "eu-central-1"); // the only region with its price: picked
   assert.deepEqual(routingsOf(OPTIONS, bedrock), [{ routing: "global" }, { routing: "geographic", geography: "EU" }]);
-  assert.equal(missing(OPTIONS, bedrock), "Pick a routing.");
-  const routed = settled(OPTIONS, { ...bedrock, routing: "geographic" });
-  assert.deepEqual(priceAt(OPTIONS, routed), P(4.4));
-  assert.equal(missing(OPTIONS, routed), "Pick the secrets.");
+  assert.deepEqual([bedrock.region, bedrock.routing, bedrock.effort], ["eu-central-1", "global", null]);
+  assert.deepEqual(priceAt(OPTIONS, settled(OPTIONS, { ...bedrock, routing: "geographic" })), P(4.4));
+  assert.equal(missing(OPTIONS, bedrock), "It needs a secret, and none is set yet (Secrets, below)."); // no secrets to pick from
+  const keys = settled(OPTIONS, bedrock, ["A_KEY", "B_KEY"]);
+  assert.deepEqual(keys.secrets, { apiKey: "A_KEY" });
+  assert.equal(missing(OPTIONS, keys), null);
+  assert.deepEqual(settled(OPTIONS, { ...keys, secretSet: 1 }, ["A_KEY", "B_KEY"]).secrets, { accessKeyId: "A_KEY", secretAccessKey: "A_KEY" });
 });
 
-test("model and region filter each other: a model not served at the region clears it", () => {
-  const atUs = pick({ provider: "bedrock" }, { model: { kind: "added", string: "x", family: null } }, { region: "us-east-1" });
-  const bedrock = OPTIONS.models.filter((m) => modelsOf(OPTIONS, "bedrock").includes(m));
+test("model and region filter each other: a model not served at the region moves it to the model's first", () => {
+  const atUs = pick({ provider: "bedrock" }, { model: { kind: "added", string: "x", family: null }, pricing: "unpriced" }, { region: "us-east-1" });
+  assert.equal(atUs.region, "us-east-1");
+  const bedrock = modelsOf(OPTIONS, "bedrock");
   assert.deepEqual(
     bedrock.map((m) => [m.id, servedAtRegion(m, "bedrock", atUs.region)]),
     [
@@ -104,24 +107,21 @@ test("model and region filter each other: a model not served at the region clear
     ],
   );
   const opus = settled(OPTIONS, { ...atUs, model: { kind: "listed", id: "opus" } });
-  assert.equal(opus.region, "eu-central-1"); // us-east-1 dropped, the only region left picked
+  assert.deepEqual([opus.region, opus.routing], ["eu-central-1", "global"]);
   const fable = settled(OPTIONS, { ...atUs, model: { kind: "listed", id: "fable" } });
   assert.deepEqual([fable.region, fable.routing], ["us-east-1", "in-region"]);
 });
 
-test("a model added by hand: its family (picked when the provider has one), every region, priced as a listed one of its family", () => {
+test("a model added by hand: its first family, priced as the first listed model of it, that one's places; unpriced, every place", () => {
   const added = pick({ provider: "bedrock" }, { model: { kind: "added", string: " anthropic.claude-opus-6 ", family: null } });
   assert.equal(added.model?.kind === "added" && added.model.family, "claude");
-  assert.deepEqual(regionsOf(OPTIONS, added), ["eu-central-1", "us-east-1"]);
-  assert.equal(added.pricing, null);
-  // Priced as Opus: only Opus's places.
-  const as = settled(OPTIONS, { ...added, pricing: "as", reference: "opus" });
-  assert.deepEqual(regionsOf(OPTIONS, as), ["eu-central-1"]);
-  assert.deepEqual(
-    referencesOf(OPTIONS, as).map((m) => m.id),
-    ["opus"],
-  );
-  const ready = settled(OPTIONS, { ...as, routing: "global", secrets: { apiKey: "BEDROCK_KEY" }, effort: "max" });
+  assert.deepEqual([added.pricing, added.reference, added.region, added.routing], ["as", "opus", "eu-central-1", "global"]);
+  assert.deepEqual(regionsOf(OPTIONS, added), ["eu-central-1"]);
+  assert.deepEqual(regionsOf(OPTIONS, settled(OPTIONS, { ...added, pricing: "unpriced" })), ["eu-central-1", "us-east-1"]);
+  // Priced as Fable instead: its place.
+  const fable = settled(OPTIONS, { ...added, reference: "fable", region: null, routing: null });
+  assert.deepEqual([fable.reference, fable.region, fable.routing], ["fable", "us-east-1", "in-region"]);
+  const ready = settled(OPTIONS, { ...added, secrets: { apiKey: "BEDROCK_KEY" }, effort: "max" });
   assert.equal(missing(OPTIONS, ready), null);
   assert.deepEqual(requestOf(ready), {
     provider: "bedrock",
@@ -135,10 +135,9 @@ test("a model added by hand: its family (picked when the provider has one), ever
   });
   assert.equal(defaultName(OPTIONS, ready), "anthropic.claude-opus-6 (Bedrock) · max");
   assert.match(confirmationOf(OPTIONS, ready) ?? "", /use Claude Opus 5\.5's prices/);
-  // On Vertex AI, two families: none picked for it.
+  // On Vertex AI, two families: the first, Claude.
   const vertex = pick({ provider: "vertex" }, { model: { kind: "added", string: "gemini-x", family: null } });
-  assert.equal(vertex.model?.kind === "added" && vertex.model.family, null);
-  assert.equal(missing(OPTIONS, vertex), "Pick the model's family.");
+  assert.equal(vertex.model?.kind === "added" && vertex.model.family, "claude");
 });
 
 test("what follows the family: efforts and secrets; another provider starts over, keeping the name and Make default", () => {

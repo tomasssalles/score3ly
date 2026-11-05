@@ -130,6 +130,10 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 **The "⋮" menu** (one component, `DropdownMenu`, for every menu): opens under its button, closes on a pick, on Escape and on a click elsewhere, and works with the arrow keys. Items are groups separated by lines, the most used first. Only what applies now is listed. A destructive item comes last, alone in its group, in red. Items open a dialog when they need more input or a confirmation.
 
 **Pickers** (the run mode, a theme, a page, a system, a kind of field): the app's own small dropdown, not the browser's native select: it looks the same everywhere and can show items dimmed and not selectable. **Pick, don't type,** wherever the valid values are known: a picker can't hold an invalid value.
+- **Every entry is a real value** (decided 2026-11-05): no entry is a label or a hint.
+- **A picker always shows a value:** the default where there is one, preselected (rather than an entry called "Default"); else the first entry. Never "Pick one", "Select an entry", "Choose a model": dry, imperative, and obvious on a picker.
+- **None (a null value) is a dash, "—",** shown and picked like any other entry (an effort left to the model).
+- **What is picked is said by a label** above or before the picker ("Model", "Run mode") where it isn't clear.
 
 **The project picker** turns into a filter field when opened: typing filters, the arrow keys move, Enter picks, Escape closes. Each entry has the name and muted facts (when it was opened, the file name).
 

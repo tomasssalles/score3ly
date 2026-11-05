@@ -37,6 +37,9 @@ const FIELD_LABELS: Record<string, string> = {
   secretAccessKey: "Secret access key",
 };
 
+// A picker without a value (docs/style.md, "Pickers").
+const NONE = "—";
+
 const ADD_BY_HAND = "Unlisted model, by the exact identifier the provider's API expects";
 
 export function NewModelConfig({
@@ -53,13 +56,13 @@ export function NewModelConfig({
   onCancel: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [form, setFormRaw] = useState<FormState>(() => initialForm(options));
+  const [form, setFormRaw] = useState<FormState>(() => initialForm(options, secretNames));
   const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const setForm = (change: Partial<FormState>) => {
     setError(null);
-    setFormRaw((f) => settled(options, { ...f, ...change }));
+    setFormRaw((f) => settled(options, { ...f, ...change }, secretNames));
   };
 
   useEffect(() => {
@@ -109,7 +112,7 @@ export function NewModelConfig({
   const kept = allGroups.map((g, i) => i).filter((i) => allGroups[i].length > 0);
   const modelGroups = kept.map((i) => allGroups[i]);
   const modelHeadings = kept.map((i) => allHeadings[i]);
-  const modelLabel = listed?.name ?? (form.model?.kind === "added" ? ADD_BY_HAND : "Pick one");
+  const modelLabel = listed?.name ?? (form.model?.kind === "added" ? ADD_BY_HAND : NONE);
   const addedFamily = form.model?.kind === "added" ? form.model.family : null;
 
   return (
@@ -130,7 +133,7 @@ export function NewModelConfig({
 
         <PickerField label="Provider">
           <Picker
-            value={provider?.name ?? "Pick one"}
+            value={provider?.name ?? NONE}
             label="Provider"
             fitted
             groups={[
@@ -139,7 +142,7 @@ export function NewModelConfig({
                 current: p.id === form.provider,
                 onSelect: () => {
                   setError(null);
-                  setFormRaw((f) => (f.provider === p.id ? f : withProvider(options, f, p.id)));
+                  setFormRaw((f) => (f.provider === p.id ? f : withProvider(options, f, p.id, secretNames)));
                 },
               })),
             ]}
@@ -165,7 +168,7 @@ export function NewModelConfig({
             </label>
             <PickerField label="Family">
               <Picker
-                value={provider!.families.find((f) => f.id === addedFamily)?.name ?? "Pick one"}
+                value={provider!.families.find((f) => f.id === addedFamily)?.name ?? NONE}
                 label="Family"
                 fitted
                 groups={[
@@ -186,7 +189,7 @@ export function NewModelConfig({
         {provider && form.model && hasRegions(options, form) && (
           <PickerField label={provider.id === "vertex" ? "Location" : "Region"}>
             <Picker
-              value={form.region ?? "Pick one"}
+              value={form.region ?? NONE}
               label="Region"
               fitted
               groups={[regionsOf(options, form).map((r) => ({ label: r, current: r === form.region, onSelect: () => setForm({ region: r, routing: null }) }))]}
@@ -199,7 +202,7 @@ export function NewModelConfig({
             <Picker
               value={(() => {
                 const r = routingsOf(options, form).find((x) => x.routing === form.routing);
-                return r ? routingLabel(r.routing, r.geography) : "Pick one";
+                return r ? routingLabel(r.routing, r.geography) : NONE;
               })()}
               label="Routing"
               fitted
@@ -217,12 +220,14 @@ export function NewModelConfig({
         {family && (
           <PickerField label="Effort">
             <Picker
-              value={form.effort ?? "Default"}
+              value={form.effort ?? NONE}
               label="Effort"
               fitted
               groups={[
-                [{ label: "Default", current: form.effort === null, onSelect: () => setForm({ effort: null }) }],
-                family.efforts.map((e) => ({ label: e, current: form.effort === e, onSelect: () => setForm({ effort: e }) })),
+                [
+                  { label: NONE, current: form.effort === null, onSelect: () => setForm({ effort: null }) },
+                  ...family.efforts.map((e) => ({ label: e, current: form.effort === e, onSelect: () => setForm({ effort: e }) })),
+                ],
               ]}
             />
           </PickerField>
@@ -256,7 +261,7 @@ export function NewModelConfig({
             {family.secrets[form.secretSet].map((field) => (
               <PickerField key={field} label={FIELD_LABELS[field] ?? field}>
                 <Picker
-                  value={form.secrets[field] ?? (secretNames.length > 0 ? "Pick a secret" : "No secrets are set")}
+                  value={form.secrets[field] ?? NONE}
                   label={FIELD_LABELS[field] ?? field}
                   fitted
                   groups={[secretNames.map((n) => ({ label: n, current: form.secrets[field] === n, onSelect: () => setForm({ secrets: { ...form.secrets, [field]: n } }) }))]}
@@ -287,7 +292,7 @@ export function NewModelConfig({
                 {form.pricing === "as" && (
                   <div className="model-config-field pricing-reference">
                     <Picker
-                      value={options.models.find((m) => m.id === form.reference)?.name ?? "Pick one"}
+                      value={options.models.find((m) => m.id === form.reference)?.name ?? NONE}
                       label="Priced as"
                       fitted
                       groups={[referencesOf(options, form).map((m) => ({ label: m.name, current: m.id === form.reference, onSelect: () => setForm({ reference: m.id }) }))]}
