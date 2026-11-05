@@ -248,6 +248,8 @@ test("settings: checked, with defaults", async () => {
   assert.equal((await send("/api/settings/spendingCapUsd", { value: -1 }, "PUT")).status, 400);
   assert.equal((await send("/api/settings/nothing", { value: 1 }, "PUT")).status, 400);
   assert.equal((await send("/api/settings/defaultModelConfigId", { value: "missing" }, "PUT")).status, 404);
+  // There is always a default: it can't be removed.
+  assert.equal((await send("/api/settings/defaultModelConfigId", { value: null }, "PUT")).status, 400);
   const settings = await json(await send("/api/settings/spendingCapUsd", { value: 1.5 }, "PUT"));
   assert.equal(settings.spendingCapUsd, 1.5);
 });
@@ -470,7 +472,7 @@ test("a stage whose model config was deleted can't start, says why, and its card
   form.append("pdf", new File([pdf], "deleted.pdf"));
   form.append("sha256", [...digest].map((b) => b.toString(16).padStart(2, "0")).join(""));
   const project = await json<{ id: string }>(await app.request("/api/projects", { method: "POST", body: form }, env));
-  await send("/api/settings/defaultModelConfigId", { value: null }, "PUT");
+  await send("/api/settings/defaultModelConfigId", { value: (await modelConfig({ name: "Another" })).id }, "PUT");
   assert.equal((await send(`/api/model-configs/${config.id}`, undefined, "DELETE")).status, 204);
   const { stages } = await json<{ stages: { id: string; modelConfig: unknown }[] }>(await app.request(`/api/projects/${project.id}/pipeline`, {}, env));
   // The pipeline says so for every stage that names it, so that the card shows it.

@@ -69,7 +69,7 @@ export function ConfigDialog({
               <div className="field model-config-field">
                 <span>{field.label}</span>
                 <Picker
-                  value={modelConfigLabel(context.modelConfigs.find((c) => c.id === texts[field.key])) ?? "Pick one"}
+                  value={modelConfigLabel(context.modelConfigs.find((c) => c.id === texts[field.key])) ?? "—"}
                   label={field.label}
                   fitted
                   groups={[

@@ -211,7 +211,7 @@ function DefaultConfigPicker({
       buttonClassName="mode-button"
       icon={
         <>
-          <FittedText className="config-picker-name" text={configs === null ? "Loading…" : current ? current.name : "None"} lines={1} />
+          <FittedText className="config-picker-name" text={configs === null ? "Loading…" : current ? current.name : "—"} lines={1} />
           <ChevronDownIcon />
         </>
       }

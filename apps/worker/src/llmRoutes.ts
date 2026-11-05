@@ -164,7 +164,8 @@ export async function readSettings(db: D1Database): Promise<Settings> {
 }
 
 function settingProblem(key: string, value: unknown): string | null {
-  if (key === "defaultModelConfigId") return value === null || typeof value === "string" ? null : "expected a model config id or null";
+  // There is always a default (docs/llm.md, "Which config a stage uses"): it can be changed, never removed.
+  if (key === "defaultModelConfigId") return typeof value === "string" ? null : "expected a model config id";
   if (key === "spendingCapUsd") {
     // There is always a cap: it can be changed, never removed.
     return typeof value === "number" && Number.isFinite(value) && value > 0 ? null : "expected an amount in US dollars above 0";
@@ -520,7 +521,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const body = await c.req.json().catch(() => null);
     const problem = body && "value" in body ? settingProblem(key, body.value) : "expected a 'value'";
     if (problem) return c.json({ error: problem }, 400);
-    if (key === "defaultModelConfigId" && body.value !== null) {
+    if (key === "defaultModelConfigId") {
       const exists = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(body.value).first<ModelConfigRow>();
       if (!exists) return c.json({ error: "no such model config" }, 404);
       if (unsupportedOf(exists)) return c.json({ error: `"${exists.name}" ${unsupportedOf(exists)}: it can't be the default` }, 400);
