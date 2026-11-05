@@ -568,7 +568,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
         ? touchProject(db, pid, now)
         : db.prepare("UPDATE stages SET heartbeat_at = ? WHERE id = ?").bind(now, sid),
     );
-    // A manual stage's save, counted in its quarter of an hour: its active time, for the statistics (migration 0022).
+    // A manual stage's save, counted in its quarter of an hour: its active time, for the statistics .
     if (wip) {
       const quarter = Math.floor(Date.parse(now) / QUARTER_MS) * QUARTER_MS;
       statements.push(
@@ -912,7 +912,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   });
 }
 
-// How long an item took and what it found in the caches (migration 0021), as the browser measures it.
+// How long an item took and what it found in the caches , as the browser measures it.
 type Timing = { durationMs: number; calls: number; callsCached: number; images: number; imagesCached: number };
 
 function isTiming(t: unknown): t is Timing {

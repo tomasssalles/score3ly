@@ -3,7 +3,7 @@
 // final pipeline (for Effort, which counts only its stages); the stages created in them that started (manual ones too,
 // with their active quarters, activeTime.ts, and the stage each replaced by being edited), with their step, model
 // config, page count, whether they are the recipe's and still in a pipeline (not replaced or stopped), and how many
-// items of each kind they have (for the items per page: a page, a system, the whole score); and every item of an automatic stage that was timed (migration 0021), with
+// items of each kind they have (for the items per page: a page, a system, the whole score); and every item of an automatic stage that was timed , with
 // what it found in the caches. Unfinished projects are left out: their times would look shorter than they will
 // be. The browser filters by project and averages, so a change of selection needs no request.
 

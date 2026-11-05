@@ -45,7 +45,7 @@ Built: `packages/imaging/src/pdfPages.ts` (`openPdf`, `pageImage`), tested on th
    - **On the card of a stage running on this device** that makes such an image: "Some images differ from the ones the stored results were made from (probably on another device, or before a recent update); boxes or answers may not fit them.", with the same parenthesis as above in the desktop app.
    - **"Close" is silent.**
 
-**Built** (`packages/imaging/src/fingerprint.ts`; `apps/web/src/pageImages.ts`, `ImagesDiffer.tsx`; `apps/worker/src/fingerprints.ts`, migration 0016 adds the version, the thumbnail's size and the time):
+**Built** (`packages/imaging/src/fingerprint.ts`; `apps/web/src/pageImages.ts`, `ImagesDiffer.tsx`; `apps/worker/src/fingerprints.ts`):
 - **The fingerprint:** the size, the SHA-256 of the raw RGBA pixels as decoded (an image stored as gray as it reads back), and a grayscale thumbnail of at most 64×64 (area averaging, each pixel the average of a tile); "close" is a mean difference below 1 gray level and no thumbnail pixel more than 4 apart. A version (`FINGERPRINT_VERSION`): only fingerprints of the same version are compared.
 - **Made with every image,** in the page image worker, and kept next to it in the device's cache (an image cached without one gets it computed from its PNG when needed).
 - **Stored** (`POST /api/fingerprints`, one per recipe key, the first stays) by what computes a stored result from images: every image of an LLM request that was paid for (`ask`: `layout`'s, `analyze`'s and `extract`'s), `skew_analysis`'s page images, and the images `fix_skew` and `fix_layout` save a change on.

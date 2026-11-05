@@ -1,5 +1,5 @@
 // Active time, for the statistics (docs/statistics.md, "Active time"): counted in quarters of an hour, which fit every
-// time zone. A manual stage is active in the quarters in which it was saved (migration 0022), and in a quarter without
+// time zone. A manual stage is active in the quarters in which it was saved , and in a quarter without
 // a save between two such quarters: 15 minutes without a save is still work (reading, thinking), longer is a break.
 // Only manual stages are filled so: elsewhere, events are dense while work happens.
 

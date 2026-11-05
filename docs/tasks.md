@@ -67,14 +67,6 @@ Right before the first release tag (§11, "Branches and releases"): go through t
 
 Once, right before the first release tag: every story of `docs/manual-tests.md`, the full run, not only the smoke run. What fails becomes a bug task; what the stories got wrong is fixed in them.
 
-### Squash the migrations into one
-`#next-release`
-
-While no data needs keeping (CLAUDE.md, "Existing data"), replace the migrations in `apps/worker/migrations` with one, `0001_initial.sql`: the schema as it stands, plus the rows a new database starts with (the fake model config as the default, the settings' defaults). **With the CHECKs `model_configs` couldn't get by ALTER TABLE** (migration 0027, `docs/llm.md`, "Configs"): a listed model or a model string, never both; a family exactly with a model string; a reference only when priced from the list and only for a model string; a routing exactly on Bedrock; a project only on Vertex AI; the provider, family, routing and pricing kind among their values. Kept as a migration, not a schema file of its own, so Wrangler, the desktop app's runner (`apps/desktop/src/d1.ts`) and the tests' setups work as they are; later changes are 0002 onwards, once real data needs keeping.
-- **How:** take the schema from a database the current migrations made (SQLite's dump of the schema), then check that a database made from the new file has the same tables, columns, indexes and starting rows as one made from the old chain.
-- **What goes with it:** the tests of single migrations (the projects given new stages, the configs named, the default model config, the recipe marks); the test setups that seed old rows before a given migration are simplified.
-- **Afterwards:** every local database (the project owner's, the sessions', the desktop app's) is made anew: their migration history no longer matches.
-
 ### The costs view: the order of long lists
 `#decision`
 

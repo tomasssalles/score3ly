@@ -6,7 +6,7 @@
 // A manual step's time per page is its finished stages' active time (a quarter of an hour for each quarter in which it
 // was saved, and for a single quarter between two of those: apps/worker/src/activeTime.ts), over their pages.
 //
-// A step's work time per page comes from the items that really ran (migration 0021): an LLM step's items whose answers
+// A step's work time per page comes from the items that really ran : an LLM step's items whose answers
 // were all asked anew, `rasterize`'s items whose image was made, every item of the other steps. Items are of three
 // kinds: a page, a system, the whole score. Per page, a step takes for each kind the average time of an item times the
 // items of that kind per page, counted in its finished stages (so a step that works system by system is scaled by the

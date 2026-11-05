@@ -313,7 +313,7 @@ export type ModelConfig = {
   deletedAt: string | null; // a deleted config is never used again
 };
 
-// `defaultModelConfigId` is never null once the database is set up (migration 0014; the Worker refuses to remove it);
+// `defaultModelConfigId` is never null once the database is set up (the Worker refuses to remove it);
 // null only as a guard against a database edited by hand.
 export type Settings = { defaultModelConfigId: string | null; spendingCapUsd: number; newProjectRunMode: RunMode };
 

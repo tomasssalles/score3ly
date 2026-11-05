@@ -11,18 +11,18 @@
 // so every run gives the same data. What it holds:
 // - model configs on every provider: Opus on Anthropic's API, Sonnet, Haiku on Vertex AI, Gemini marked free tier,
 //   Fable (deleted after a trial), Opus on Bedrock in the EU edited once (two rows, one superseding the other), and
-//   the fake model of migration 0014;
+//   the fake model of the initial migration;
 // - 19 projects from June to today, with a quiet summer gap; two on the same PDF; three deleted, one of whose names
 //   is used again; a whole volume rasterized and left;
 // - stages kept in a pipeline, replaced by a re-run (another config, a fix before them), stopped, failed, and
 //   manual stages between them, one of them edited once (two rows, the second replacing the first), and a Fix MEI
 //   worked on over several evenings; calls that failed (with their kind and HTTP status), were cut off or couldn't be
 //   parsed, and their retries;
-// - an output for every item of an automatic stage, with its timing (migration 0021): how long it took, from its
+// - an output for every item of an automatic stage, with its timing : how long it took, from its
 //   calls and some work around them, and what it found in the caches (a re-run's pages that didn't change answered
 //   from the record, the page images of a PDF already rasterized found on the device); none for deleted projects,
 //   whose outputs deletion removes;
-// - every manual stage's saves, counted per quarter of an hour (migration 0022), in sessions with short pauses.
+// - every manual stage's saves, counted per quarter of an hour , in sessions with short pauses.
 // Rows only, no R2 content: the outputs' content keys are made up. Opening a seeded project shows its pipeline, not
 // its artifacts.
 
@@ -49,8 +49,8 @@ function random(): number {
 const between = (min: number, max: number) => min + random() * (max - min);
 const int = (min: number, max: number) => Math.floor(between(min, max + 1));
 const chance = (p: number) => random() < p;
-const hex = (n: number) => Array.from({ length: n }, () => Math.floor(random() * 16).toString(16)).join("");
-const uuid = () => `${hex(8)}-${hex(4)}-4${hex(3)}-${hex(4)}-${hex(12)}`;
+const hex = (n: number) => Array.from({ length: n }, => Math.floor(random() * 16).toString(16)).join("");
+const uuid = => `${hex(8)}-${hex(4)}-4${hex(3)}-${hex(4)}-${hex(12)}`;
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -73,7 +73,7 @@ function insert(table: string, row: Record<string, unknown>) {
   list.push(`INSERT INTO ${table} (${Object.keys(row).join(", ")}) VALUES (${Object.values(row).map(sql).join(", ")});`);
 }
 
-// An item's output, with its timing (migration 0021). Deleted projects have none: deletion removes them.
+// An item's output, with its timing . Deleted projects have none: deletion removes them.
 type Timing = { ms: number; calls?: number; callsCached?: number; images?: number; imagesCached?: number };
 function output(p: { deleted: string | null }, stageId: string, item: string, type: string, end: number, timing: Timing | null) {
   if (p.deleted) return;
@@ -99,7 +99,7 @@ const PRICES: Record<string, Price> = {
 type Config = { id: string; family: keyof typeof PRICES | "gemini" | "fake"; responseModel: string; effort: string | null; free: boolean };
 const EFFORT_OUTPUT: Record<string, number> = { low: 0.4, medium: 0.7, high: 1, xhigh: 1.5, max: 2.2 };
 
-// A model config as migration 0027 stores it: a listed model (`modelId`) or one added by hand (`modelString` with its
+// A model config as the database stores it: a listed model (`modelId`) or one added by hand (`modelString` with its
 // family), its region and routing, and its pricing.
 function config(row: { id: string; name: string; provider: string; modelId?: string; modelString?: string; family?: string; effort: string | null; region?: string; routing?: string; project?: string; secrets?: object; free?: boolean; created: string; deleted?: string }, family: Config["family"], responseModel: string): Config {
   insert("model_configs", {
@@ -122,7 +122,7 @@ function config(row: { id: string; name: string; provider: string; modelId?: str
   return { id: row.id, family, responseModel, effort: row.effort, free: !!row.free };
 }
 
-const FAKE: Config = { id: "fake-model", family: "fake", responseModel: "fake", effort: null, free: true }; // migration 0014
+const FAKE: Config = { id: "fake-model", family: "fake", responseModel: "fake", effort: null, free: true }; // in the initial migration
 const OPUS = config({ id: "cfg-opus", name: "Opus", provider: "anthropic", modelId: "claude-opus-5-5", effort: "high", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-06-04T19:12:00" }, "opus", "claude-opus-5-5");
 const SONNET = config({ id: "cfg-sonnet", name: "Sonnet", provider: "anthropic", modelId: "claude-sonnet-5-5", effort: "medium", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-06-10T20:03:00" }, "sonnet", "claude-sonnet-5-5");
 const HAIKU = config({ id: "cfg-haiku", name: "Haiku (Vertex)", provider: "vertex", modelId: "claude-haiku-5-5", effort: "low", region: "europe-west1", project: "score3ly", secrets: { serviceAccount: "VERTEX_SERVICE_ACCOUNT" }, created: "2026-06-20T10:40:00" }, "haiku", "claude-haiku-5-5");
@@ -192,7 +192,7 @@ function call(stageId: string, cfg: Config, t: number, tokens: Tokens, deleted: 
 
 // Tokens of one request, before the effort scales the output (thinking included).
 const LAYOUT_ROUND = (round: number): Tokens => ({ input: int(1800, 2600), output: int(1200, 2400), cacheRead: round === 1 ? 0 : int(3800, 5200) * (round - 1), cacheWrite: round === 1 ? int(3600, 4800) : int(1800, 2600) });
-const ANALYZE_PAGE = (): Tokens => ({ input: int(1400, 2200), output: int(1800, 3200), cacheRead: int(2400, 2600), cacheWrite: 0 });
+const ANALYZE_PAGE =: Tokens => ({ input: int(1400, 2200), output: int(1800, 3200), cacheRead: int(2400, 2600), cacheWrite: 0 });
 const ANALYZE_SCORE = (pages: number): Tokens => ({ input: 2400 + pages * int(500, 800), output: int(2500, 4500), cacheRead: 0, cacheWrite: 0 });
 const EXTRACT_SYSTEM = (staves: number): Tokens => ({ input: int(6000, 9500) * (staves / 2), output: int(2600, 6500) * (staves / 2), cacheRead: int(5200, 6400), cacheWrite: 0 });
 
@@ -238,22 +238,22 @@ function stageRowWithId(id: string, p: Project, step: string, cfg: Config | null
 // inputs changed only in part): no call, a moment's work.
 function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, start: number, opts: { inPipeline?: boolean; stopAfter?: number; failAt?: number; cached?: number } = {}): Stage {
   const id = uuid();
-  type Item = { item: string; type: string; images: number; requests: () => Tokens[] };
+  type Item = { item: string; type: string; images: number; requests: => Tokens[] };
   const items: Item[] = [];
   const pages = Array.from({ length: p.pages }, (_, i) => `p${i + 1}`);
   if (step === "layout") {
     for (const item of pages) {
       const rounds = random() < 0.55 ? 1 : random() < 0.8 ? 2 : 3;
-      items.push({ item, type: "layout", images: 2 * rounds, requests: () => Array.from({ length: rounds }, (_, r) => LAYOUT_ROUND(r + 1)) });
+      items.push({ item, type: "layout", images: 2 * rounds, requests: => Array.from({ length: rounds }, (_, r) => LAYOUT_ROUND(r + 1)) });
     }
   }
   if (step === "analyze") {
-    for (const item of pages) items.push({ item, type: "analysis", images: 3, requests: () => [ANALYZE_PAGE()] });
-    items.push({ item: "", type: "metadata", images: p.pages, requests: () => [ANALYZE_SCORE(p.pages)] });
+    for (const item of pages) items.push({ item, type: "analysis", images: 3, requests: => [ANALYZE_PAGE()] });
+    items.push({ item: "", type: "metadata", images: p.pages, requests: => [ANALYZE_SCORE(p.pages)] });
   }
   if (step === "extract") {
     p.systems.forEach((n, page) => {
-      for (let s = 0; s < n; s++) items.push({ item: `p${page + 1}/s${s + 1}`, type: "extraction", images: 12, requests: () => [EXTRACT_SYSTEM(p.staves)] });
+      for (let s = 0; s < n; s++) items.push({ item: `p${page + 1}/s${s + 1}`, type: "extraction", images: 12, requests: => [EXTRACT_SYSTEM(p.staves)] });
     });
   }
   let t = start;
@@ -386,7 +386,7 @@ function front(p: Project, cfg: Config, t: number, fixes: { skew?: boolean; layo
   return t;
 }
 
-const pdf = () => hex(64);
+const pdf = => hex(64);
 
 // ---- Five months of use ----
 

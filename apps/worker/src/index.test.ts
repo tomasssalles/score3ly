@@ -11,50 +11,14 @@ import { defaultName, firstFreeName } from "./names.ts";
 const workerDir = join(import.meta.dirname, "..");
 let platform: Awaited<ReturnType<typeof getPlatformProxy<Env>>>;
 let env: Env;
-// The projects as migration 0002 converted them from the old schema.
-let migratedRows: Record<string, unknown>[];
-// The pipelines migrations 0004 and 0006 gave them.
-let migratedPipelines: Record<string, unknown>[];
-let migratedPlanned: Record<string, unknown>[];
-// The stages as migration 0019 marked them: the recipe's, or added by the user.
-let migratedInRecipe: Record<string, unknown>[];
 
 before(async () => {
   platform = await getPlatformProxy<Env>({ configPath: join(workerDir, "wrangler.jsonc"), persist: false });
   env = platform.env;
   const migrationsDir = join(workerDir, "migrations");
   for (const file of readdirSync(migrationsDir).sort()) {
-    if (file.startsWith("0002_")) {
-      // Projects created before names existed.
-      await env.DB.exec(
-        withoutComments(`
-          INSERT INTO projects VALUES ('p1', 'aa', 'Sonata.pdf', '2026-10-01T00:00:00.000Z');
-          INSERT INTO projects VALUES ('p2', 'aa', 'sonata.PDF', '2026-10-02T00:00:00.000Z');
-          INSERT INTO projects VALUES ('p3', 'bb', ' Etude ', '2026-10-03T00:00:00.000Z');
-          INSERT INTO projects VALUES ('p4', 'cc', '.pdf', '2026-10-04T00:00:00.000Z');
-        `),
-      );
-    }
-    if (file.startsWith("0019_")) {
-      // A manual stage added before the mark existed.
-      await env.DB.exec(
-        "INSERT INTO stages (id, created_in, step, status, created_at) VALUES ('fix-p1', 'p1', 'fix_skew', 'wip', '2026-10-05T00:00:00.000Z');",
-      );
-    }
     await env.DB.exec(withoutComments(readFileSync(join(migrationsDir, file), "utf8")));
   }
-  migratedInRecipe = (await env.DB.prepare("SELECT step, in_recipe FROM stages WHERE created_in = 'p1' ORDER BY created_at, step").all()).results;
-  migratedRows = (await env.DB.prepare("SELECT * FROM projects ORDER BY id").all()).results;
-  migratedPipelines = (
-    await env.DB.prepare(
-      "SELECT e.project_id, e.position, s.id AS stage_id, s.step, s.status, o.id AS output_id, o.item, o.type, o.content_sha256 FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id JOIN outputs o ON o.stage_id = s.id ORDER BY e.project_id",
-    ).all()
-  ).results;
-  migratedPlanned = (
-    await env.DB.prepare(
-      "SELECT e.project_id, e.position, s.step, s.status, s.config_json, s.model_config_id FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.position >= 2 ORDER BY e.project_id, e.position",
-    ).all()
-  ).results;
 });
 
 beforeEach(async () => {
@@ -235,47 +199,6 @@ test("a request without a PDF or with a malformed hash is rejected", async () =>
   assert.equal((await postProject({ pdf, sha256: sha256.toUpperCase() })).status, 400);
   assert.equal((await postProject({ pdf, sha256: "../" + sha256 })).status, 400);
   assert.deepEqual(await projectRows(), []);
-});
-
-test("migration 0002 names existing projects after their file and numbers repeats", () => {
-  assert.deepEqual(
-    migratedRows.map((row) => [row.id, row.name, row.created_at, row.last_modified_at, row.last_opened_at]),
-    [
-      ["p1", "Sonata", "2026-10-01T00:00:00.000Z", "2026-10-01T00:00:00.000Z", "2026-10-01T00:00:00.000Z"],
-      ["p2", "sonata (1)", "2026-10-02T00:00:00.000Z", "2026-10-02T00:00:00.000Z", "2026-10-02T00:00:00.000Z"],
-      ["p3", "Etude", "2026-10-03T00:00:00.000Z", "2026-10-03T00:00:00.000Z", "2026-10-03T00:00:00.000Z"],
-      ["p4", "Untitled", "2026-10-04T00:00:00.000Z", "2026-10-04T00:00:00.000Z", "2026-10-04T00:00:00.000Z"],
-    ],
-  );
-});
-
-test("migration 0004 gives existing projects their Ingest stage, with the PDF as its output", () => {
-  assert.deepEqual(
-    migratedPipelines.map((row) => [row.project_id, row.position, row.step, row.status, row.item, row.type, row.content_sha256]),
-    [
-      ["p1", 1, "ingest", "done", "", "pdf", "aa"],
-      ["p2", 1, "ingest", "done", "", "pdf", "aa"],
-      ["p3", 1, "ingest", "done", "", "pdf", "bb"],
-      ["p4", 1, "ingest", "done", "", "pdf", "cc"],
-    ],
-  );
-  assert.equal(new Set(migratedPipelines.map((row) => row.stage_id)).size, 4);
-});
-
-test("migrations 0006, 0007, 0010, 0011, 0013, 0015 and 0023 give existing projects the recipe's planned stages; 0026 their LLM stages the default model config", () => {
-  const fake = '{"modelConfigId":"fake-model"}';
-  assert.deepEqual(
-    migratedPlanned.map((row) => [row.project_id, row.position, row.step, row.status, row.config_json, row.model_config_id]),
-    ["p1", "p2", "p3", "p4"].flatMap((id) => [
-      [id, 2, "rasterize", "planned", null, null],
-      [id, 3, "skew_analysis", "planned", null, null],
-      [id, 4, "layout", "planned", fake, "fake-model"],
-      [id, 5, "analyze", "planned", fake, "fake-model"],
-      [id, 6, "extract", "planned", fake, "fake-model"],
-      [id, 7, "review", "planned", fake, "fake-model"],
-      [id, 8, "engrave", "planned", null, null],
-    ]),
-  );
 });
 
 test("content is stored under its hash, and served as it was sent", async () => {
@@ -1237,13 +1160,6 @@ test("a human review: added after a done Apply review with its own, finished, ed
   assert.deepEqual(await steps(), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "build_mei", "engrave"]);
 });
 
-test("migration 0019 marks existing stages as the recipe's, unless their step is manual", () => {
-  assert.deepEqual(
-    migratedInRecipe.map((r) => [r.step, r.in_recipe]),
-    [["analyze", 1], ["engrave", 1], ["extract", 1], ["ingest", 1], ["layout", 1], ["rasterize", 1], ["review", 1], ["skew_analysis", 1], ["fix_skew", 0]],
-  );
-});
-
 async function inRecipe(stageId: string): Promise<number | undefined> {
   return (await env.DB.prepare("SELECT in_recipe FROM stages WHERE id = ?").bind(stageId).first<{ in_recipe: number }>())?.in_recipe;
 }
@@ -1304,10 +1220,8 @@ test("issue numbers continue above the largest the caller already knows of", asy
   assert.equal(bad.status, 400);
 });
 
-// (Running 0014 again, which kept a default already chosen, is no longer possible since 0027 changed the columns.)
-test("migration 0014 adds the fake model config as the default, and 0027 converts it", async () => {
+test("a new database has the fake model config as the default", async () => {
   const config = await env.DB.prepare("SELECT name, provider, model_id, model_string, pricing_kind FROM model_configs WHERE id = 'fake-model'").first();
-  // As migration 0027 converted it: the listed fake model, free.
   assert.deepEqual(config, { name: "Fake model", provider: "fake", model_id: "fake", model_string: null, pricing_kind: "free" });
   const setting = async () => (await env.DB.prepare("SELECT value_json FROM settings WHERE key = 'defaultModelConfigId'").first())?.value_json;
   assert.equal(await setting(), '"fake-model"');
@@ -1349,7 +1263,7 @@ test("deleting a project: gone from every list, its name free, what only it used
   const bRasterize = (await pipelineOf(b.id))[1];
   const reused = await call(b.id, bRasterize.id, "start", { stepVersion: 1, config: {}, stageKey: RECIPE_KEY(4), pageCount: 1, inputIds: [] });
   assert.equal(((await reused.json()) as { reused: boolean }).reused, true);
-  await env.DB.prepare("INSERT INTO image_fingerprints (recipe_key, pdf_sha256, width, height, pixels_sha256, thumbnail) VALUES (?, ?, 1, 1, ?, '')")
+  await env.DB.prepare("INSERT INTO image_fingerprints (recipe_key, pdf_sha256, width, height, pixels_sha256, thumbnail, thumbnail_width, thumbnail_height, created_at) VALUES (?, ?, 1, 1, ?, '', 1, 1, '')")
     .bind(RECIPE_KEY(1), pdf, RECIPE_KEY(2))
     .run();
 
