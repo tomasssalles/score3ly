@@ -120,7 +120,8 @@ export function toParams(request: LlmRequest): MessageCreateParamsBase {
       }),
     })),
     ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
-  };
+    ...(request.adaptiveThinking ? { thinking: { type: "adaptive" } } : {}),
+  } as MessageCreateParamsBase;
 }
 
 export function fromMessage(message: Message): Omit<LlmResponse, "json"> {

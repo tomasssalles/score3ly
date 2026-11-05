@@ -68,7 +68,14 @@ export type ModelEntry = {
   family: Family;
   strings: Partial<Record<Provider, string>>; // the model string as each provider spells it; missing: not offered
   retired?: true; // left the list: kept so that what refers to it still shows, never used for new calls
+  efforts?: Effort[]; // the effort levels the model takes ([] for none); missing: all of its family's
+  thinking?: "adaptive"; // the model thinks only when asked: the adapter asks for adaptive thinking
 };
+
+// The effort levels a listed model takes, or a model added by hand (null): its family's.
+export function effortsOf(family: Family, model: ModelEntry | null): Effort[] {
+  return model?.efforts ?? EFFORTS[family];
+}
 
 export type PriceEntry = Place & {
   model: string; // a ModelEntry's id
@@ -223,6 +230,9 @@ export function listProblems(list: ModelList): string[] {
   for (const m of list.models) {
     if (ids.has(m.id)) problems.push(`Model ${m.id} is listed twice.`);
     ids.add(m.id);
+    for (const effort of m.efforts ?? []) {
+      if (!EFFORTS[m.family].includes(effort)) problems.push(`Model ${m.id}: ${FAMILY_NAMES[m.family]} has no effort "${effort}".`);
+    }
     for (const provider of Object.keys(m.strings) as Provider[]) {
       if (!supportedFamilies(provider).includes(m.family))
         problems.push(

@@ -3,6 +3,7 @@
 // uses, as a TypeScript module (modelList.ts), and what changed since the previous one, to spot-check. Pure functions:
 // scripts/generate-model-list.ts reads and writes the files.
 
+import type { Effort } from "./types.ts";
 import { listProblems, PROVIDERS, type Family, type ModelEntry, type ModelList, type PriceEntry, type Provider, type RegionEntry, type Routing } from "./models.ts";
 
 // One provider's file (model-list/schema.json).
@@ -11,7 +12,7 @@ export type ProviderFile = {
   collectedAt: string;
   mock?: boolean;
   sources: { url: string; note?: string }[];
-  models: { id: string; name: string; family: Family; string: string }[];
+  models: { id: string; name: string; family: Family; string: string; efforts?: Effort[]; thinking?: "adaptive" }[];
   regions: { region: string; routings: Routing[] | null; geography?: string }[];
   prices: { model: string; region: string; routing: Routing | null; input: number; output: number; cacheRead: number; cacheWrite: number; source: string }[];
 };
@@ -31,11 +32,25 @@ export function buildModelList(files: ProviderFile[], previous: ModelList | null
   for (const file of ordered) {
     for (const m of file.models) {
       const entry = models.get(m.id);
-      if (!entry) models.set(m.id, { id: m.id, name: m.name, family: m.family, strings: { [file.provider]: m.string } });
-      else {
+      if (!entry) {
+        models.set(m.id, {
+          id: m.id,
+          name: m.name,
+          family: m.family,
+          strings: { [file.provider]: m.string },
+          ...(m.efforts ? { efforts: m.efforts } : {}),
+          ...(m.thinking ? { thinking: m.thinking } : {}),
+        });
+      } else {
         if (entry.name !== m.name) problems.push(`Model ${m.id} is called "${entry.name}" in one file and "${m.name}" in ${file.provider}'s.`);
         if (entry.family !== m.family) problems.push(`Model ${m.id} is ${entry.family} in one file and ${m.family} in ${file.provider}'s.`);
         if (entry.strings[file.provider] !== undefined) problems.push(`Model ${m.id} is listed twice in ${file.provider}'s file.`);
+        // A model's efforts and thinking are the model's, not the provider's: a file that says nothing takes another's.
+        if (m.efforts) {
+          if (entry.efforts && entry.efforts.join() !== m.efforts.join()) problems.push(`Model ${m.id} takes other efforts in ${file.provider}'s file.`);
+          entry.efforts = m.efforts;
+        }
+        if (m.thinking) entry.thinking = m.thinking;
         entry.strings[file.provider] = m.string;
       }
     }

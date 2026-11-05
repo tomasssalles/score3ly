@@ -1,0 +1,24 @@
+{
+  "description": "The Claude models the app lists, kept by hand (docs/llm.md, \"The list of models and prices: code, generated\"): the 4.x and 5.x generations (decided 2026-11-06). The id is the app's, the same on every provider (Anthropic's own model ID); efforts are the levels the model takes in output_config.effort ([] for none: the config's effort is then only \"—\"); thinking \"adaptive\" where the adapter must ask for adaptive thinking, which the model doesn't do unasked. From Anthropic's documentation (the claude-api reference, \"Thinking & Effort\", 2026-11-06). A model a provider's sources list that isn't here stops the gathering: decide first whether it belongs.",
+  "models": {
+    "claude-fable-5-1": { "name": "Claude Fable 5.1", "efforts": ["low", "medium", "high", "xhigh", "max"] },
+    "claude-mythos-5-1": { "name": "Claude Mythos 5.1", "efforts": ["low", "medium", "high", "xhigh", "max"] },
+    "claude-fable-5": { "name": "Claude Fable 5", "efforts": ["low", "medium", "high", "xhigh", "max"] },
+    "claude-mythos-5": { "name": "Claude Mythos 5", "efforts": ["low", "medium", "high", "xhigh", "max"] },
+    "claude-opus-5-5": { "name": "Claude Opus 5.5", "efforts": ["low", "medium", "high", "xhigh", "max"] },
+    "claude-opus-5": { "name": "Claude Opus 5", "efforts": ["low", "medium", "high", "xhigh", "max"] },
+    "claude-opus-4-8": { "name": "Claude Opus 4.8", "efforts": ["low", "medium", "high", "xhigh", "max"], "thinking": "adaptive" },
+    "claude-opus-4-7": { "name": "Claude Opus 4.7", "efforts": ["low", "medium", "high", "xhigh", "max"], "thinking": "adaptive" },
+    "claude-opus-4-6": { "name": "Claude Opus 4.6", "efforts": ["low", "medium", "high", "max"], "thinking": "adaptive" },
+    "claude-opus-4-5": { "name": "Claude Opus 4.5", "efforts": ["low", "medium", "high"] },
+    "claude-opus-4-1": { "name": "Claude Opus 4.1", "efforts": [] },
+    "claude-opus-4": { "name": "Claude Opus 4", "efforts": [] },
+    "claude-sonnet-5-5": { "name": "Claude Sonnet 5.5", "efforts": ["low", "medium", "high", "xhigh", "max"] },
+    "claude-sonnet-5": { "name": "Claude Sonnet 5", "efforts": ["low", "medium", "high", "xhigh", "max"] },
+    "claude-sonnet-4-6": { "name": "Claude Sonnet 4.6", "efforts": ["low", "medium", "high", "max"], "thinking": "adaptive" },
+    "claude-sonnet-4-5": { "name": "Claude Sonnet 4.5", "efforts": [] },
+    "claude-sonnet-4": { "name": "Claude Sonnet 4", "efforts": [] },
+    "claude-haiku-5-5": { "name": "Claude Haiku 5.5", "efforts": ["low", "medium", "high", "xhigh", "max"] },
+    "claude-haiku-4-5": { "name": "Claude Haiku 4.5", "efforts": [] }
+  }
+}

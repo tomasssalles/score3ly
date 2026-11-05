@@ -30,6 +30,9 @@ export type LlmRequest = {
   messages: LlmMessage[];
   maxOutputTokens?: number;
   effort?: Effort; // left out: the provider's default
+  // Ask for adaptive thinking: for the models that think only when asked (the list's `thinking`). Others think by
+  // themselves, or take no thinking setting the adapter knows.
+  adaptiveThinking?: true;
   // A JSON schema the answer must follow (the provider's schema-constrained output, §7.2). The answer is then
   // parsed into `json`, or `invalidJson` says why it couldn't be; checking it further (e.g. with Zod) is up to the
   // caller.

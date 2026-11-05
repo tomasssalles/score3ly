@@ -15,7 +15,14 @@ export const MODEL_LIST: ModelList = {
         "anthropic": "claude-opus-5-5",
         "bedrock": "anthropic.claude-opus-5-5",
         "vertex": "claude-opus-5-5"
-      }
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
     },
     {
       "id": "claude-sonnet-5-5",
@@ -25,7 +32,14 @@ export const MODEL_LIST: ModelList = {
         "anthropic": "claude-sonnet-5-5",
         "bedrock": "anthropic.claude-sonnet-5-5",
         "vertex": "claude-sonnet-5-5"
-      }
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
     },
     {
       "id": "claude-haiku-5-5",
@@ -35,7 +49,14 @@ export const MODEL_LIST: ModelList = {
         "anthropic": "claude-haiku-5-5",
         "bedrock": "anthropic.claude-haiku-5-5",
         "vertex": "claude-haiku-5-5"
-      }
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
     },
     {
       "id": "claude-fable-5-1",
@@ -44,7 +65,130 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-fable-5-1",
         "bedrock": "anthropic.claude-fable-5-1"
-      }
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-mythos-5-1",
+      "name": "Claude Mythos 5.1",
+      "family": "claude",
+      "strings": {
+        "bedrock": "anthropic.claude-mythos-5-1"
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-fable-5",
+      "name": "Claude Fable 5",
+      "family": "claude",
+      "strings": {
+        "bedrock": "anthropic.claude-fable-5"
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-mythos-5",
+      "name": "Claude Mythos 5",
+      "family": "claude",
+      "strings": {
+        "bedrock": "anthropic.claude-mythos-5"
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-opus-5",
+      "name": "Claude Opus 5",
+      "family": "claude",
+      "strings": {
+        "bedrock": "anthropic.claude-opus-5"
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-opus-4-8",
+      "name": "Claude Opus 4.8",
+      "family": "claude",
+      "strings": {
+        "bedrock": "anthropic.claude-opus-4-8"
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "thinking": "adaptive"
+    },
+    {
+      "id": "claude-opus-4-7",
+      "name": "Claude Opus 4.7",
+      "family": "claude",
+      "strings": {
+        "bedrock": "anthropic.claude-opus-4-7"
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "thinking": "adaptive"
+    },
+    {
+      "id": "claude-sonnet-5",
+      "name": "Claude Sonnet 5",
+      "family": "claude",
+      "strings": {
+        "bedrock": "anthropic.claude-sonnet-5"
+      },
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "name": "Claude Haiku 4.5",
+      "family": "claude",
+      "strings": {
+        "bedrock": "anthropic.claude-haiku-4-5"
+      },
+      "efforts": []
     },
     {
       "id": "gemini-3-1-pro",
@@ -411,291 +555,159 @@ export const MODEL_LIST: ModelList = {
       }
     },
     {
-      "model": "claude-opus-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "eu-central-1",
+      "region": "af-south-1",
       "routing": "global",
       "price": {
-        "input": 4,
-        "output": 20,
-        "cacheRead": 0.2,
-        "cacheWrite": 5
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
       }
     },
     {
-      "model": "claude-opus-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "eu-central-1",
-      "routing": "geographic",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
+      "region": "ap-northeast-1",
       "routing": "global",
       "price": {
-        "input": 4,
-        "output": 20,
-        "cacheRead": 0.2,
-        "cacheWrite": 5
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
       }
     },
     {
-      "model": "claude-opus-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "geographic",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "bedrock",
-      "region": "us-east-1",
+      "region": "ap-northeast-2",
       "routing": "global",
       "price": {
-        "input": 4,
-        "output": 20,
-        "cacheRead": 0.2,
-        "cacheWrite": 5
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
       }
     },
     {
-      "model": "claude-opus-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "geographic",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "bedrock",
-      "region": "eu-central-1",
+      "region": "ap-northeast-3",
       "routing": "global",
       "price": {
-        "input": 2,
-        "output": 10,
-        "cacheRead": 0.2,
-        "cacheWrite": 2.5
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
       }
     },
     {
-      "model": "claude-sonnet-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "eu-central-1",
-      "routing": "geographic",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
+      "region": "ap-south-1",
       "routing": "global",
       "price": {
-        "input": 2,
-        "output": 10,
-        "cacheRead": 0.2,
-        "cacheWrite": 2.5
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
       }
     },
     {
-      "model": "claude-sonnet-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "geographic",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "bedrock",
-      "region": "us-east-1",
+      "region": "ap-south-2",
       "routing": "global",
       "price": {
-        "input": 2,
-        "output": 10,
-        "cacheRead": 0.2,
-        "cacheWrite": 2.5
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
       }
     },
     {
-      "model": "claude-sonnet-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "geographic",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "bedrock",
-      "region": "eu-central-1",
+      "region": "ap-southeast-1",
       "routing": "global",
       "price": {
-        "input": 0.1,
-        "output": 0.5,
-        "cacheRead": 0.01,
-        "cacheWrite": 0.125
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
       }
     },
     {
-      "model": "claude-haiku-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "eu-central-1",
-      "routing": "geographic",
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
+      "region": "ap-southeast-2",
       "routing": "global",
       "price": {
-        "input": 0.1,
-        "output": 0.5,
-        "cacheRead": 0.01,
-        "cacheWrite": 0.125
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
       }
     },
     {
-      "model": "claude-haiku-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "geographic",
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "bedrock",
-      "region": "us-east-1",
+      "region": "ap-southeast-3",
       "routing": "global",
       "price": {
-        "input": 0.1,
-        "output": 0.5,
-        "cacheRead": 0.01,
-        "cacheWrite": 0.125
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
       }
     },
     {
-      "model": "claude-haiku-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "us-east-1",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "ca-central-1",
       "routing": "geographic",
       "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
       }
     },
     {
-      "model": "claude-haiku-5-5",
+      "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
+      "region": "ca-west-1",
+      "routing": "global",
       "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
       }
     },
     {
@@ -713,7 +725,115 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5-1",
       "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
       "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "sa-east-1",
       "routing": "global",
       "price": {
         "input": 10,
@@ -756,6 +876,5634 @@ export const MODEL_LIST: ModelList = {
         "output": 55,
         "cacheRead": 0.275,
         "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-mythos-5-1",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-mythos-5-1",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-mythos-5-1",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-mythos-5-1",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-mythos-5-1",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-mythos-5-1",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-mythos-5-1",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-mythos-5-1",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-mythos-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-mythos-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "in-region",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "in-region",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "in-region",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "in-region",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "in-region",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "in-region",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "in-region",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "in-region",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "in-region",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "in-region",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "in-region",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "in-region",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "in-region",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "in-region",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
       }
     },
     {

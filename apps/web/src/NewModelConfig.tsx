@@ -7,6 +7,7 @@ import { createModelConfig, deleteModelConfig, putSetting, renameModelConfig, Wo
 import {
   confirmationOf,
   defaultName,
+  effortsOf,
   familyOption,
   formFromConfig,
   initialForm,
@@ -83,6 +84,7 @@ export function NewModelConfig({
   const provider = providerOf(options, form);
   const family = familyOption(options, form);
   const listed = listedModel(options, form);
+  const efforts = effortsOf(options, form);
   const problem = missing(options, form);
   const name = defaultName(options, form);
   const price = priceAt(options, form);
@@ -291,19 +293,22 @@ export function NewModelConfig({
         )}
 
         {family && (
-          <PickerField label="Effort">
-            <Picker
-              value={form.effort ?? NONE}
-              label="Effort"
-              fitted
-              groups={[
-                [
-                  { label: NONE, current: form.effort === null, onSelect: () => setForm({ effort: null }) },
-                  ...family.efforts.map((e) => ({ label: e, current: form.effort === e, onSelect: () => setForm({ effort: e }) })),
-                ],
-              ]}
-            />
-          </PickerField>
+          <>
+            <PickerField label="Effort">
+              <Picker
+                value={form.effort ?? NONE}
+                label="Effort"
+                fitted
+                groups={[
+                  [
+                    { label: NONE, current: form.effort === null, onSelect: () => setForm({ effort: null }) },
+                    ...efforts.map((e) => ({ label: e, current: form.effort === e, onSelect: () => setForm({ effort: e }) })),
+                  ],
+                ]}
+              />
+            </PickerField>
+            {efforts.length === 0 && <p className="field-hint">{listed?.name ?? "This model"} takes no effort level: it runs as it is.</p>}
+          </>
         )}
 
         {provider?.id === "vertex" && family && (

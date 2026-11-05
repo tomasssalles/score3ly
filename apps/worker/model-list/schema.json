@@ -49,7 +49,16 @@
           },
           "name": { "description": "The model's name for people, e.g. \"Claude Opus 5.5\".", "type": "string", "minLength": 1 },
           "family": { "enum": ["claude", "gemini", "fake"] },
-          "string": { "description": "The model string as this provider spells it.", "type": "string", "minLength": 1 }
+          "string": { "description": "The model string as this provider spells it.", "type": "string", "minLength": 1 },
+          "efforts": {
+            "description": "The effort levels the model takes ([] for none). Left out: all of its family's.",
+            "type": "array",
+            "items": { "enum": ["low", "medium", "high", "xhigh", "max"] }
+          },
+          "thinking": {
+            "description": "\"adaptive\": the model thinks only when asked to, so the adapter asks for adaptive thinking.",
+            "enum": ["adaptive"]
+          }
         }
       }
     },

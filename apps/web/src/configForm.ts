@@ -146,6 +146,11 @@ export function familyOf(options: ModelOptions, form: FormState): Family | null 
   return listedModel(options, form)?.family ?? pinnedModel(form)?.family ?? null;
 }
 
+// The effort levels the form offers: a listed model's own (none for some), else its family's.
+export function effortsOf(options: ModelOptions, form: FormState): Effort[] {
+  return listedModel(options, form)?.efforts ?? familyOption(options, form)?.efforts ?? [];
+}
+
 export function familyOption(options: ModelOptions, form: FormState) {
   const family = familyOf(options, form);
   return providerOf(options, form)?.families.find((f) => f.id === family) ?? null;
@@ -248,9 +253,9 @@ export function settled(options: ModelOptions, form: FormState): FormState {
   // A reference that isn't priced at the place any more.
   const references = referencesOf(options, next);
   if (next.reference !== null && !references.some((m) => m.id === next.reference) && next.reference !== next.pinned?.reference) next.reference = null;
-  // The effort and the secrets follow the family.
+  // The effort follows the model, the secrets the family.
   const family = familyOption(options, next);
-  if (next.effort !== null && !(family?.efforts ?? []).includes(next.effort)) next.effort = null;
+  if (next.effort !== null && !effortsOf(options, next).includes(next.effort)) next.effort = null;
   const sets = family?.secrets ?? [[]];
   if (next.secretSet >= sets.length) next.secretSet = 0;
   next.secrets = Object.fromEntries(Object.entries(next.secrets).filter(([field]) => sets[next.secretSet].includes(field)));

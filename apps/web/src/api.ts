@@ -545,6 +545,7 @@ export type ModelOptions = {
     id: string;
     name: string;
     family: Family;
+    efforts: NonNullable<ModelConfig["effort"]>[]; // the levels the model takes ([] for none)
     providers: Partial<Record<Provider, { string: string; places: (Place & { price: ModelPrice })[] }>>;
   }[];
 };

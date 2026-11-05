@@ -11,6 +11,7 @@ import { adapterFor, supportedFamilies } from "./llm/adapters.ts";
 import {
   configBaseName,
   EFFORTS,
+  effortsOf,
   FAMILY_NAMES,
   listedPrice,
   modelById,
@@ -206,8 +207,11 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
     modelFamily = family as Family;
   }
   if (!adapterFor(p, modelFamily)) return `The app doesn't support ${FAMILY_NAMES[modelFamily]} on ${PROVIDER_NAMES[p]}`;
-  if (effort !== undefined && effort !== null && !EFFORTS[modelFamily].includes(effort as Effort)) {
-    return `'effort' must be one of ${EFFORTS[modelFamily].join(", ")}`;
+  const efforts = effortsOf(modelFamily, typeof modelId === "string" ? modelById(list, modelId) : null);
+  if (effort !== undefined && effort !== null && !efforts.includes(effort as Effort)) {
+    return efforts.length === 0
+      ? `${modelById(list, modelId as string)?.name ?? "This model"} takes no effort level: leave 'effort' out`
+      : `'effort' must be one of ${efforts.join(", ")}`;
   }
   // Where: one of the provider's places in the list.
   if (region !== undefined && typeof region !== "string") return "'region' must be text";
@@ -460,6 +464,7 @@ export type ModelOptions = {
     id: string;
     name: string;
     family: Family;
+    efforts: Effort[]; // the levels the model takes ([] for none)
     providers: Partial<Record<Provider, { string: string; places: (Place & { price: Price })[] }>>;
   }[];
 };
@@ -487,6 +492,7 @@ export function modelOptions(list: ModelList = MODEL_LIST): ModelOptions {
         id: m.id,
         name: m.name,
         family: m.family,
+        efforts: effortsOf(m.family, m),
         providers: Object.fromEntries(
           PROVIDERS.filter((p) => m.strings[p] !== undefined)
             .map((p) => [p, { string: m.strings[p]!, places: list.prices.filter((x) => x.model === m.id && x.provider === p).map((x) => ({ region: x.region, routing: x.routing, price: x.price })) }] as const)
@@ -800,6 +806,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
     const response = await adapter.send({
       model: sentModel,
       effort: config.effort ?? undefined,
+      ...(row.model_id && modelById(MODEL_LIST, row.model_id)?.thinking === "adaptive" ? { adaptiveThinking: true as const } : {}),
       system: request.system,
       messages: providerMessages(request),
       maxOutputTokens: request.maxOutputTokens,

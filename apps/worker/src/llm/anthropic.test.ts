@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Message } from "@anthropic-ai/sdk/resources/messages";
-import { anthropicProvider, fromMessage } from "./anthropic.ts";
+import { anthropicProvider, fromMessage, toParams } from "./anthropic.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 
 type Captured = { url: string; headers: Headers; body: any };
@@ -201,4 +201,9 @@ test("a refusal says so, with its category", () => {
   assert.equal(response.stop, "refusal");
   assert.equal(response.stopDetail, "cyber");
   assert.equal(response.text, "");
+});
+
+test("adaptive thinking is asked for only where the request says so", () => {
+  assert.deepEqual(toParams({ ...request, adaptiveThinking: true }).thinking, { type: "adaptive" });
+  assert.equal(toParams(request).thinking, undefined);
 });

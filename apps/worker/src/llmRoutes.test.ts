@@ -609,13 +609,19 @@ test("the pickers' options: providers with their families, efforts, secrets and 
     ],
     models: [
       { id: "big", name: "Claude Big", family: "claude", strings: { anthropic: "claude-big", bedrock: "anthropic.claude-big" } },
+      { id: "plain", name: "Claude Plain", family: "claude", strings: { bedrock: "anthropic.claude-plain" }, efforts: [] },
       { id: "old", name: "Claude Old", family: "claude", strings: { anthropic: "claude-old" }, retired: true },
     ],
-    prices: [{ model: "big", provider: "bedrock", region: "eu-west-1", routing: "in-region", price: P }],
+    prices: [
+      { model: "big", provider: "bedrock", region: "eu-west-1", routing: "in-region", price: P },
+      { model: "plain", provider: "bedrock", region: "eu-west-1", routing: "global", price: P },
+    ],
   });
   assert.equal(own.mock, false);
   assert.deepEqual(own.models, [
-    { id: "big", name: "Claude Big", family: "claude", providers: { bedrock: { string: "anthropic.claude-big", places: [{ region: "eu-west-1", routing: "in-region", price: P }] } } },
+    // A model takes its family's efforts unless the list says otherwise: Claude Plain takes none.
+    { id: "big", name: "Claude Big", family: "claude", efforts: ["low", "medium", "high", "xhigh", "max"], providers: { bedrock: { string: "anthropic.claude-big", places: [{ region: "eu-west-1", routing: "in-region", price: P }] } } },
+    { id: "plain", name: "Claude Plain", family: "claude", efforts: [], providers: { bedrock: { string: "anthropic.claude-plain", places: [{ region: "eu-west-1", routing: "global", price: P }] } } },
   ]);
   assert.deepEqual(own.providers.find((p) => p.id === "bedrock")!.places, [
     { region: "eu-west-1", routing: "global" },
@@ -735,4 +741,14 @@ test("a config's test is a real request, sent every time, recorded without a sta
   // Deleted configs aren't tested.
   assert.equal((await send(`/api/model-configs/${opus.id}`, undefined, "DELETE")).status, 204);
   assert.equal((await send(`/api/model-configs/${opus.id}/test`)).status, 409);
+});
+
+test("a listed model that takes no effort level gets none; one that thinks only when asked is asked", async () => {
+  const haiku = configBody({ provider: "bedrock", modelId: "claude-haiku-4-5", region: "eu-central-1", routing: "global", pricing: { kind: "list" }, secrets: { apiKey: "K" }, name: "Haiku 4.5" });
+  const refused = await send("/api/model-configs", haiku);
+  assert.equal(refused.status, 400);
+  assert.match((await json(refused)).error as string, /Claude Haiku 4.5 takes no effort level/);
+  assert.equal((await send("/api/model-configs", { ...haiku, effort: null })).status, 201);
+  const options = await json<ModelOptions>(await app.request("/api/models", {}, env));
+  assert.deepEqual(options.models.find((m) => m.id === "claude-haiku-4-5")!.efforts, []);
 });

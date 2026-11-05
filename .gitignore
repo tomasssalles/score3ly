@@ -17,3 +17,6 @@ release/
 !/testset/*.ly
 !/testset/*.musicxml
 !/testset/*.mei
+
+# The list of models and prices: the whole downloads of step 1 (apps/worker/model-list/gather/README.md); only excerpts are committed.
+/apps/worker/model-list/gather/downloads/

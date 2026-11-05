@@ -4,6 +4,7 @@ import type { ModelConfig, ModelOptions } from "./api";
 import {
   confirmationOf,
   defaultModel,
+  effortsOf,
   familyOf,
   formFromConfig,
   initialForm,
@@ -56,6 +57,7 @@ const OPTIONS: ModelOptions = {
       id: "opus",
       name: "Claude Opus 5.5",
       family: "claude",
+      efforts: ["low", "medium", "high", "xhigh", "max"],
       providers: {
         anthropic: { string: "claude-opus-5-5", places: [{ region: "", routing: null, price: P(4) }] },
         bedrock: {
@@ -71,6 +73,7 @@ const OPTIONS: ModelOptions = {
       id: "fable",
       name: "Claude Fable 5.1",
       family: "claude",
+      efforts: ["low", "medium", "high", "xhigh", "max"],
       providers: { bedrock: { string: "anthropic.claude-fable-5-1", places: [{ region: "us-east-1", routing: "in-region", price: P(10) }] } },
     },
   ],
@@ -182,7 +185,7 @@ test("the form opens on the first provider with its model: Opus 5.5 where offere
   assert.deepEqual([form.provider, form.model, form.region], ["anthropic", { kind: "listed", id: "opus" }, ""]);
   const withGemini: ModelOptions = {
     ...OPTIONS,
-    models: [...OPTIONS.models, { id: "gemini-3-1-pro", name: "Gemini 3.1 Pro", family: "gemini", providers: { vertex: { string: "gemini-3.1-pro", places: [{ region: "global", routing: null, price: P(2) }] } } }],
+    models: [...OPTIONS.models, { id: "gemini-3-1-pro", name: "Gemini 3.1 Pro", family: "gemini", efforts: ["low", "medium", "high"], providers: { vertex: { string: "gemini-3.1-pro", places: [{ region: "global", routing: null, price: P(2) }] } } }],
   };
   assert.deepEqual(defaultModel({ ...OPTIONS, models: OPTIONS.models.map((m) => (m.id === "opus" ? { ...m, id: "claude-opus-5-5" } : m)) }, "bedrock"), { kind: "listed", id: "claude-opus-5-5" });
   assert.deepEqual(defaultModel(withGemini, "vertex"), { kind: "listed", id: "gemini-3-1-pro" });
@@ -258,4 +261,14 @@ test("a clone of a config the app no longer supports keeps its values in the pic
   assert.deepEqual([added.pricing, added.reference], ["as", "opus"]);
   assert.equal(missing(OPTIONS, added), "The app has no price for Claude Opus 5.5 on Bedrock in us-east-1 (global routing) any more.");
   assert.equal(missing(OPTIONS, settled(OPTIONS, { ...added, pricing: "unpriced" })), null);
+});
+
+test("a listed model that takes no effort level offers only the dash, and drops an effort picked before", () => {
+  const haiku = { id: "haiku-4-5", name: "Claude Haiku 4.5", family: "claude" as const, efforts: [], providers: { anthropic: { string: "claude-haiku-4-5", places: [{ region: "", routing: null, price: P(1) }] } } };
+  const options: ModelOptions = { ...OPTIONS, models: [...OPTIONS.models, haiku] };
+  const opus = withProvider(options, { ...initialForm(options), effort: "high" }, "anthropic");
+  assert.deepEqual(effortsOf(options, opus), ["low", "medium", "high", "xhigh", "max"]);
+  const form = settled(options, { ...opus, effort: "high", model: { kind: "listed", id: "haiku-4-5" } });
+  assert.deepEqual(effortsOf(options, form), []);
+  assert.equal(form.effort, null);
 });
