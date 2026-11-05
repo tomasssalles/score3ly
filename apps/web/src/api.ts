@@ -467,7 +467,7 @@ export type LlmAnswer = {
   costUsd: number | null;
 };
 
-// A call the Worker refused to make: `code` says why (e.g. "spending_cap", "no_price", "missing_secret").
+// A call the Worker refused to make: `code` says why (e.g. "spending_cap", "unsupported_model_config", "missing_secret").
 export class LlmRefused extends Error {
   readonly code: string;
 
