@@ -4,11 +4,13 @@
 // - Claude's prices are Anthropic's list prices (2026-10); on Bedrock, global routing at those prices and geographic
 //   or in-region routing at 10% more, as AWS's price list has them for Opus 5.5 (2026-11-04); on Vertex AI, `global`
 //   at the list prices and other locations at 10% more. Which regions serve which model is a sample, not checked.
+// - Bedrock's regions, their routings and geographies are Anthropic's page "Claude in Amazon Bedrock" (2026-11-04);
+//   Vertex AI's locations are a sample, not checked.
 // - Gemini's strings and prices are made up in the right range: not Google's.
 // - The fake models: free ("fake") and with made-up prices ("fake-dev"), as before.
 
 import type { Price } from "./prices.ts";
-import type { ModelList, PriceEntry, Provider, Routing } from "./models.ts";
+import type { ModelList, PriceEntry, Provider, RegionEntry, Routing } from "./models.ts";
 
 // Cache writes are 1.25 × the input price (Claude's 5-minute cache); Gemini's implicit caching has no write price.
 function claude(input: number, output: number, cacheRead: number): Price {
@@ -35,32 +37,14 @@ const FABLE = claude(10, 50, 0.25);
 const GEMINI_PRO = gemini(2, 12, 0.2);
 const GEMINI_FLASH = gemini(0.5, 3, 0.05);
 
-function at(
-  model: string,
-  provider: Provider,
-  region: string,
-  routing: Routing | null,
-  price: Price,
-): PriceEntry {
+function at(model: string, provider: Provider, region: string, routing: Routing | null, price: Price): PriceEntry {
   return { model, provider, region, routing, price };
 }
 
 // Bedrock in a few regions: global at the list price; geographic and in-region (where the region has them) at 10% more.
-function bedrock(
-  model: string,
-  price: Price,
-  regions: [string, Routing[]][],
-): PriceEntry[] {
+function bedrock(model: string, price: Price, regions: [string, Routing[]][]): PriceEntry[] {
   return regions.flatMap(([region, routings]) =>
-    routings.map((routing) =>
-      at(
-        model,
-        "bedrock",
-        region,
-        routing,
-        routing === "global" ? price : regional(price),
-      ),
-    ),
+    routings.map((routing) => at(model, "bedrock", region, routing, routing === "global" ? price : regional(price))),
   );
 }
 
@@ -70,9 +54,63 @@ const EU_AND_US: [string, Routing[]][] = [
   ["us-east-1", ["global", "geographic", "in-region"]],
 ];
 
+// Bedrock's regions: region, geography (for geographic routing), whether in-region routing is offered.
+const BEDROCK_REGIONS: [string, string | null, boolean][] = [
+  ["af-south-1", null, false],
+  ["ap-northeast-1", "JP", true],
+  ["ap-northeast-2", null, false],
+  ["ap-northeast-3", "JP", false],
+  ["ap-south-1", null, false],
+  ["ap-south-2", null, false],
+  ["ap-southeast-1", null, false],
+  ["ap-southeast-2", "AU", false],
+  ["ap-southeast-3", null, false],
+  ["ap-southeast-4", "AU", true],
+  ["ca-central-1", "US", false],
+  ["ca-west-1", null, false],
+  ["eu-central-1", "EU", false],
+  ["eu-central-2", "EU", false],
+  ["eu-north-1", "EU", true],
+  ["eu-south-1", "EU", false],
+  ["eu-south-2", "EU", false],
+  ["eu-west-1", "EU", true],
+  ["eu-west-2", "EU", false],
+  ["eu-west-3", "EU", false],
+  ["il-central-1", null, false],
+  ["me-central-1", null, false],
+  ["sa-east-1", null, false],
+  ["us-east-1", "US", true],
+  ["us-east-2", "US", true],
+  ["us-west-1", "US", false],
+  ["us-west-2", "US", true],
+];
+
+const REGIONS: RegionEntry[] = [
+  { provider: "anthropic", region: "", routings: null },
+  ...BEDROCK_REGIONS.map(
+    ([region, geography, inRegion]): RegionEntry => ({
+      provider: "bedrock",
+      region,
+      routings: [
+        "global",
+        ...(geography ? (["geographic"] as const) : []),
+        ...(inRegion ? (["in-region"] as const) : []),
+      ],
+      ...(geography ? { geography } : {}),
+    }),
+  ),
+  { provider: "ai-studio", region: "", routings: null },
+  ...["global", "eu", "us", "europe-west1", "europe-west4", "us-central1", "us-east5"].map(
+    (region): RegionEntry => ({ provider: "vertex", region, routings: null }),
+  ),
+  { provider: "fake", region: "", routings: null },
+  { provider: "fake-dev", region: "", routings: null },
+];
+
 export const MOCK_MODEL_LIST: ModelList = {
   asOf: "2026-11-05",
   mock: true,
+  regions: REGIONS,
   models: [
     {
       id: "claude-opus-5-5",

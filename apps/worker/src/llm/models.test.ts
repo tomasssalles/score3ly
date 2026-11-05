@@ -10,11 +10,11 @@ import {
   placesOf,
   placesOfProvider,
   priceOfConfig,
-  REGIONS,
   resolveModel,
   type ModelList,
 } from "./models.ts";
 import { MOCK_MODEL_LIST } from "./modelList.mock.ts";
+import { adapterFor, supportedFamilies } from "./adapters.ts";
 import { MODEL_LIST } from "./modelList.ts";
 
 const P = (input: number) => ({
@@ -27,6 +27,13 @@ const P = (input: number) => ({
 // A list of the tests' own: a model on two providers, one on Bedrock only in one place, a retired one.
 const LIST: ModelList = {
   asOf: "2026-01-01",
+  regions: [
+    { provider: "anthropic", region: "", routings: null },
+    { provider: "bedrock", region: "eu-west-1", routings: ["global", "geographic", "in-region"], geography: "EU" },
+    { provider: "bedrock", region: "us-east-1", routings: ["global"] },
+    { provider: "ai-studio", region: "", routings: null },
+    { provider: "vertex", region: "europe-west1", routings: null },
+  ],
   models: [
     {
       id: "big",
@@ -122,14 +129,8 @@ test("a model's string depends on the provider", () => {
   assert.equal(modelString(LIST, "big", "bedrock"), "anthropic.claude-big");
   assert.equal(modelString(LIST, "big", "vertex"), null);
   assert.equal(modelString(LIST, "nope", "anthropic"), null);
-  assert.equal(
-    modelByString(LIST, "bedrock", "anthropic.claude-small")?.id,
-    "small",
-  );
-  assert.equal(
-    modelByString(LIST, "anthropic", "anthropic.claude-small"),
-    null,
-  );
+  assert.equal(modelByString(LIST, "bedrock", "anthropic.claude-small")?.id, "small");
+  assert.equal(modelByString(LIST, "anthropic", "anthropic.claude-small"), null);
 });
 
 test("a price is found by model, provider, region and routing", () => {
@@ -187,10 +188,7 @@ test("a config's model: listed, added by the user, retired, or not offered", () 
       retired: false,
     },
   );
-  assert.equal(
-    resolveModel(LIST, "anthropic", { modelId: "old" })?.retired,
-    true,
-  );
+  assert.equal(resolveModel(LIST, "anthropic", { modelId: "old" })?.retired, true);
   assert.equal(resolveModel(LIST, "vertex", { modelId: "big" }), null);
   assert.equal(resolveModel(LIST, "anthropic", { modelId: "gone" }), null);
 });
@@ -264,55 +262,53 @@ test("a config's price: its own, borrowed, free, unpriced or missing", () => {
 });
 
 test("default names: the model's name, the provider, the effort", () => {
+  assert.equal(configBaseName(LIST, "bedrock", { modelId: "big" }, "high"), "Claude Big (Bedrock) · high");
+  assert.equal(configBaseName(LIST, "ai-studio", { modelId: "gem" }, null), "Gemini Gem (AI Studio)");
   assert.equal(
-    configBaseName(LIST, "bedrock", { modelId: "big" }, "high"),
-    "Claude Big (Bedrock) · high",
-  );
-  assert.equal(
-    configBaseName(LIST, "ai-studio", { modelId: "gem" }, null),
-    "Gemini Gem (AI Studio)",
-  );
-  assert.equal(
-    configBaseName(
-      LIST,
-      "bedrock",
-      { modelString: "anthropic.claude-new", family: "claude" },
-      "max",
-    ),
+    configBaseName(LIST, "bedrock", { modelString: "anthropic.claude-new", family: "claude" }, "max"),
     "anthropic.claude-new (Bedrock) · max",
   );
   assert.equal(
-    configBaseName(
-      MODEL_LIST,
-      "bedrock",
-      { modelId: "claude-opus-5-5" },
-      "high",
-    ),
+    configBaseName(MODEL_LIST, "bedrock", { modelId: "claude-opus-5-5" }, "high"),
     "Claude Opus 5.5 (Bedrock) · high",
   );
 });
 
-test("Bedrock's regions offer global routing everywhere, and the others where AWS has them", () => {
-  assert.equal(REGIONS.bedrock.length, 27);
-  assert.ok(REGIONS.bedrock.every((r) => r.routings?.[0] === "global"));
+test("a provider's places come from the list's regions", () => {
+  assert.deepEqual(placesOfProvider(LIST, "bedrock"), [
+    EU_GLOBAL,
+    { region: "eu-west-1", routing: "geographic" },
+    EU_IN_REGION,
+    { region: "us-east-1", routing: "global" },
+  ]);
+  assert.deepEqual(placesOfProvider(LIST, "anthropic"), [NOWHERE]);
+  assert.deepEqual(placesOfProvider(LIST, "fake"), []);
+  // The mock has Bedrock's regions as Anthropic's page lists them.
+  const bedrock = MOCK_MODEL_LIST.regions.filter((r) => r.provider === "bedrock");
+  assert.equal(bedrock.length, 27);
   assert.deepEqual(
-    REGIONS.bedrock.find((r) => r.region === "eu-west-1"),
-    {
-      region: "eu-west-1",
-      routings: ["global", "geographic", "in-region"],
-      geography: "EU",
-    },
+    bedrock.find((r) => r.region === "il-central-1"),
+    { provider: "bedrock", region: "il-central-1", routings: ["global"] },
   );
-  assert.deepEqual(
-    REGIONS.bedrock.find((r) => r.region === "il-central-1"),
-    { region: "il-central-1", routings: ["global"] },
-  );
-  assert.deepEqual(placesOfProvider("anthropic"), [NOWHERE]);
+});
+
+test("the supported pairs of provider and family are the adapters'", () => {
+  assert.deepEqual(supportedFamilies("vertex"), ["claude", "gemini"]);
+  assert.deepEqual(supportedFamilies("bedrock"), ["claude"]);
+  assert.equal(adapterFor("vertex", "gemini"), "google-vertex");
+  assert.equal(adapterFor("bedrock", "gemini"), null);
 });
 
 test("the list's problems are found", () => {
   const broken: ModelList = {
     asOf: "2026-01-01",
+    regions: [
+      { provider: "anthropic", region: "", routings: null },
+      { provider: "anthropic", region: "", routings: null },
+      { provider: "vertex", region: "global", routings: ["global"] },
+      { provider: "bedrock", region: "eu-west-1", routings: null },
+      { provider: "bedrock", region: "us-east-1", routings: ["global", "geographic"] },
+    ],
     models: [
       { id: "a", name: "A", family: "gemini", strings: { bedrock: "x" } },
       {
@@ -355,13 +351,17 @@ test("the list's problems are found", () => {
     ],
   };
   assert.deepEqual(listProblems(broken), [
-    "Model a: Bedrock doesn't serve Gemini.",
+    "Model a: the app doesn't support Gemini on Bedrock.",
     "Model a is listed twice.",
     "Models a and b have the same string on Anthropic: y.",
+    'Region "" on Anthropic is listed twice.',
+    "Region global on Vertex AI has routings, which only Bedrock has.",
+    "Region eu-west-1 on Bedrock has no routings.",
+    "Region us-east-1 on Bedrock routes geographically, but has no geography.",
     "Two prices for b on Anthropic.",
     "A price for c on Anthropic, a model not in the list.",
     "A price for b on Bedrock in mars-1 (global), but the model has no string there.",
-    "A price for b on Bedrock in mars-1 (global), a place the provider doesn't have.",
+    "A price for b on Bedrock in mars-1 (global), a place not in the list's regions.",
     "A price for b on Bedrock in mars-1 (global) isn't a number of dollars.",
     "Model a has a string on Bedrock but no price there.",
     "Model a has a string on Anthropic but no price there.",
