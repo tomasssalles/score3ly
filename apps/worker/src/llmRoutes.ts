@@ -442,7 +442,74 @@ export async function spentInLastDay(db: D1Database, now = Date.now()): Promise<
   return row?.spent ?? 0;
 }
 
+// What the config form's pickers need (docs/llm.md, "The settings page"): each provider with its name, the families the
+// app supports there (each with its effort levels and the sets of secrets its adapter takes) and its places; and the
+// listed models that aren't retired, each with its string, places and prices on the providers where the list has a
+// price for it. A model added by hand is offered its provider's places; a listed one only those with its price.
+export type ModelOptions = {
+  asOf: string;
+  mock: boolean;
+  providers: {
+    id: Provider;
+    name: string;
+    families: { id: Family; name: string; efforts: Effort[]; secrets: string[][] }[];
+    places: (Place & { geography?: string })[];
+  }[];
+  models: {
+    id: string;
+    name: string;
+    family: Family;
+    providers: Partial<Record<Provider, { string: string; places: (Place & { price: Price })[] }>>;
+  }[];
+};
+
+export function modelOptions(list: ModelList = MODEL_LIST): ModelOptions {
+  return {
+    asOf: list.asOf,
+    mock: list.mock ?? false,
+    providers: PROVIDERS.map((id) => ({
+      id,
+      name: PROVIDER_NAMES[id],
+      families: supportedFamilies(id).map((family) => ({
+        id: family,
+        name: FAMILY_NAMES[family],
+        efforts: EFFORTS[family],
+        secrets: SECRETS[adapterFor(id, family)!],
+      })),
+      places: list.regions
+        .filter((r) => r.provider === id)
+        .flatMap((r) => (r.routings ?? [null]).map((routing) => ({ region: r.region, routing, ...(r.geography ? { geography: r.geography } : {}) }))),
+    })),
+    models: list.models
+      .filter((m) => !m.retired)
+      .map((m) => ({
+        id: m.id,
+        name: m.name,
+        family: m.family,
+        providers: Object.fromEntries(
+          PROVIDERS.filter((p) => m.strings[p] !== undefined)
+            .map((p) => [p, { string: m.strings[p]!, places: list.prices.filter((x) => x.model === m.id && x.provider === p).map((x) => ({ region: x.region, routing: x.routing, price: x.price })) }] as const)
+            .filter(([, offer]) => offer.places.length > 0),
+        ),
+      }))
+      .filter((m) => Object.keys(m.providers).length > 0),
+  };
+}
+
+// The names of the Worker's secrets (its text values: D1, R2 and the assets are bindings, not text), sorted, for the
+// form's secret pickers (§10: the app knows only their names). Never a value.
+export function secretNames(env: Env): string[] {
+  return Object.entries(env as unknown as Record<string, unknown>)
+    .filter(([, value]) => typeof value === "string")
+    .map(([name]) => name)
+    .sort();
+}
+
 export function llmRoutes(app: Hono<{ Bindings: Env }>) {
+  app.get("/api/models", (c) => c.json(modelOptions()));
+
+  app.get("/api/secrets", (c) => c.json({ names: secretNames(c.env) }));
+
   // When the list of models and prices was collected (llm/modelList.ts), for the About page.
   app.get("/api/prices", (c) => c.json({ asOf: MODEL_LIST.asOf, mock: MODEL_LIST.mock ?? false }));
 

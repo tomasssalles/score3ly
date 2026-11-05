@@ -6,7 +6,7 @@ import { getPlatformProxy } from "wrangler";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList } from "./llm/models.ts";
-import { convertAddedConfigs, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
+import { convertAddedConfigs, modelOptions, secretNames, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
 
 // The LLM endpoints against Wrangler's local R2 and D1, kept in memory, with the fake provider (llm/fake.ts).
@@ -605,4 +605,51 @@ test("configs added by hand become listed ones when a new list has their string:
   ]);
   assert.equal(unsupportedOf(rows[3], undefined, list), null);
   assert.equal(unsupportedOf(rows[0], undefined, list), "uses Claude Opus 6 on Bedrock in us-east-1 (global routing), which the app no longer supports");
+});
+
+test("the pickers' options: providers with their families, efforts, secrets and places; listed models where they have prices", async () => {
+  const options = await json<ModelOptions>(await app.request("/api/models", {}, env));
+  assert.deepEqual(options, modelOptions(MODEL_LIST));
+  assert.equal(options.asOf, MODEL_LIST.asOf);
+  const vertex = options.providers.find((p) => p.id === "vertex")!;
+  assert.equal(vertex.name, "Vertex AI");
+  assert.deepEqual(
+    vertex.families.map((f) => [f.id, f.efforts.length, f.secrets]),
+    [
+      ["claude", 5, [["serviceAccount"]]],
+      ["gemini", 3, [["serviceAccount"]]],
+    ],
+  );
+  const bedrock = options.providers.find((p) => p.id === "bedrock")!;
+  assert.deepEqual(bedrock.families[0].secrets, [["apiKey"], ["accessKeyId", "secretAccessKey"]]);
+  assert.deepEqual(bedrock.places.find((p) => p.region === "eu-west-1" && p.routing === "geographic"), { region: "eu-west-1", routing: "geographic", geography: "EU" });
+
+  // A list of the test's own: a retired model is left out, and a model only where it has prices.
+  const P = { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 };
+  const own = modelOptions({
+    asOf: "2026-01-01",
+    regions: [
+      { provider: "anthropic", region: "", routings: null },
+      { provider: "bedrock", region: "eu-west-1", routings: ["global", "in-region"] },
+    ],
+    models: [
+      { id: "big", name: "Claude Big", family: "claude", strings: { anthropic: "claude-big", bedrock: "anthropic.claude-big" } },
+      { id: "old", name: "Claude Old", family: "claude", strings: { anthropic: "claude-old" }, retired: true },
+    ],
+    prices: [{ model: "big", provider: "bedrock", region: "eu-west-1", routing: "in-region", price: P }],
+  });
+  assert.equal(own.mock, false);
+  assert.deepEqual(own.models, [
+    { id: "big", name: "Claude Big", family: "claude", providers: { bedrock: { string: "anthropic.claude-big", places: [{ region: "eu-west-1", routing: "in-region", price: P }] } } },
+  ]);
+  assert.deepEqual(own.providers.find((p) => p.id === "bedrock")!.places, [
+    { region: "eu-west-1", routing: "global" },
+    { region: "eu-west-1", routing: "in-region" },
+  ]);
+});
+
+test("the secrets' names: the Worker's text values, sorted, never a value; not its bindings", async () => {
+  assert.deepEqual(secretNames({ ZED: "z", ANTHROPIC_KEY: "secret", DB: env.DB, PDFS: env.PDFS } as unknown as Env), ["ANTHROPIC_KEY", "ZED"]);
+  const answer = await json<{ names: string[] }>(await app.request("/api/secrets", {}, { ...env, GEMINI_KEY: "secret" } as Env));
+  assert.deepEqual(answer, { names: ["GEMINI_KEY"] });
 });
