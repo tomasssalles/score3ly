@@ -37,11 +37,19 @@ const project: Project = {
 const opus: ModelConfig = {
   id: "mc1",
   name: "Opus in the EU",
-  provider: "anthropic-bedrock",
+  provider: "bedrock",
+  modelId: "claude-opus-5-5",
+  modelString: null,
   model: "anthropic.claude-opus-5-5",
+  family: "claude",
+  modelName: "Claude Opus 5.5",
+  retired: false,
   effort: "high",
-  params: { region: "eu-central-1" },
+  region: "eu-central-1",
+  routing: "geographic",
+  project: null,
   secrets: { accessKeyId: "BEDROCK_KEY_ID", secretAccessKey: "BEDROCK_SECRET" },
+  pricing: { kind: "list", reference: null },
   freeTier: false,
   createdAt: "",
   deletedAt: null,
@@ -60,7 +68,7 @@ test("the report has every stage, its config and its model config without secret
   });
   assert.deepEqual(report.original, { fileName: "Sonata.pdf", sha256: "aa" });
   assert.deepEqual(report.stages.map((s) => [s.position, s.step, s.seconds]), [[1, "ingest", 12.3], [2, "layout", 12.3], [3, "engrave", 12.3]]);
-  assert.deepEqual(report.stages[1].modelConfig, { name: "Opus in the EU", provider: "anthropic-bedrock", model: "anthropic.claude-opus-5-5", effort: "high", region: "eu-central-1", freeTier: false });
+  assert.deepEqual(report.stages[1].modelConfig, { name: "Opus in the EU", provider: "bedrock", model: "anthropic.claude-opus-5-5", effort: "high", region: "eu-central-1", freeTier: false });
   assert.equal(report.stages[1].result, "4 systems");
   assert.equal(report.totalCostUsd, 0.12);
   assert.ok(!JSON.stringify(report).includes("BEDROCK"));

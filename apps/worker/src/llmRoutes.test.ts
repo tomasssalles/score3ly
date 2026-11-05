@@ -4,7 +4,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getPlatformProxy } from "wrangler";
 import app from "./index.ts";
-import { costOf, priceOf } from "./llm/prices.ts";
+import { costOf } from "./llm/prices.ts";
+import { listedPrice } from "./llm/models.ts";
+import { MODEL_LIST } from "./llm/modelList.ts";
 
 // The LLM endpoints against Wrangler's local R2 and D1, kept in memory, with the fake provider (llm/fake.ts).
 const workerDir = join(import.meta.dirname, "..");
@@ -31,7 +33,9 @@ before(async () => {
     }
     await env.DB.exec(withoutComments(readFileSync(join(migrationsDir, file), "utf8")));
   }
-  migratedNames = (await env.DB.prepare("SELECT id, name FROM model_configs WHERE id LIKE 'm%' ORDER BY id").all()).results;
+  migratedNames = (
+    await env.DB.prepare("SELECT id, name, provider, model_id, model_string, family, pricing_kind FROM model_configs WHERE id LIKE 'm%' ORDER BY id").all()
+  ).results;
 });
 
 beforeEach(async () => {
@@ -60,10 +64,26 @@ async function json<T = Record<string, unknown>>(response: Response): Promise<T>
   return (await response.json()) as T;
 }
 
-// The fake provider for development by default: it has made-up prices, so costs and the cap can be tested.
-async function modelConfig(fields: Record<string, unknown> = {}): Promise<Record<string, string>> {
-  const response = await send("/api/model-configs", { provider: "fake-dev", model: "fake-model", effort: "high", ...fields });
-  assert.equal(response.status, 201);
+// The fake provider for development by default: "fake-model", a model added by hand priced as the listed fake model,
+// whose prices on "fake-dev" are made up, so costs and the cap can be tested. `model` is a model string added by hand,
+// `freeTier` the pricing "free".
+function configBody(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  const { model, freeTier, ...rest } = fields;
+  const body: Record<string, unknown> = {
+    provider: "fake-dev",
+    modelString: model ?? "fake-model",
+    family: "fake",
+    effort: "high",
+    pricing: freeTier ? { kind: "free" } : { kind: "list", reference: "fake" },
+    ...rest,
+  };
+  if (body.modelId) delete body.modelString, delete body.family;
+  return body;
+}
+
+async function modelConfig(fields: Record<string, unknown> = {}): Promise<Record<string, any>> {
+  const response = await send("/api/model-configs", configBody(fields));
+  assert.equal(response.status, 201, await response.clone().text());
   return json(response);
 }
 
@@ -125,60 +145,94 @@ async function calls() {
   return (await env.DB.prepare("SELECT * FROM llm_calls ORDER BY started_at").all<Record<string, unknown>>()).results;
 }
 
-test("prices: Claude's list prices, Bedrock's names included; unknown models have none", () => {
-  assert.deepEqual(priceOf("anthropic", "claude-opus-5-5"), { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 });
-  assert.deepEqual(priceOf("anthropic-bedrock", "eu.anthropic.claude-opus-5-5"), priceOf("anthropic", "claude-opus-5-5"));
-  assert.deepEqual(priceOf("anthropic-bedrock", "anthropic.claude-sonnet-5-5"), priceOf("anthropic", "claude-sonnet-5-5"));
-  assert.equal(priceOf("anthropic", "claude-unknown"), null);
-  assert.equal(priceOf("google", "gemini-3-pro"), null);
-  const price = priceOf("anthropic", "claude-opus-5-5")!;
+test("prices come from the list; a cost is tokens times prices", () => {
+  const price = listedPrice(MODEL_LIST, "claude-opus-5-5", "anthropic", { region: "", routing: null })!;
+  assert.deepEqual(price, { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 });
   // 10,000 in, 2,000 out, 1,000 cache reads, 1,000 cache writes.
   assert.equal(costOf({ inputTokens: 10_000, outputTokens: 2_000, cacheReadTokens: 1_000, cacheWriteTokens: 1_000 }, price), 0.0852);
 });
 
-test("model configs: checked per provider, never edited, deleted by marking", async () => {
-  assert.equal((await send("/api/model-configs", { provider: "anthropic", model: "claude-opus-5-5" })).status, 400); // no secret
-  assert.equal(
-    (await send("/api/model-configs", { provider: "anthropic-bedrock", model: "x", secrets: { apiKey: "BEDROCK_KEY" } })).status,
-    400, // no region
+test("model configs: a listed model or one added by hand, at a place of its provider, priced; never edited, deleted by marking", async () => {
+  const refused = async (body: Record<string, unknown>, pattern: RegExp) => {
+    const response = await send("/api/model-configs", body);
+    assert.equal(response.status, 400, JSON.stringify(body));
+    assert.match((await json<{ error: string }>(response)).error, pattern);
+  };
+  const opus = { provider: "anthropic", modelId: "claude-opus-5-5", pricing: { kind: "list" }, secrets: { apiKey: "ANTHROPIC_KEY" } };
+  await refused({ ...opus, secrets: undefined }, /'secrets' must name apiKey/);
+  await refused({ ...opus, modelString: "claude-opus-5-5", family: "claude" }, /not both/);
+  await refused({ ...opus, modelId: "claude-opus-9" }, /a model of the list/);
+  await refused({ ...opus, provider: "ai-studio" }, /isn't offered on AI Studio/);
+  await refused({ ...opus, region: "eu-central-1" }, /no region eu-central-1/);
+  await refused({ ...opus, pricing: { kind: "list", reference: "claude-sonnet-5-5" } }, /priced as itself/);
+  await refused({ ...opus, pricing: { kind: "cheap" } }, /'pricing'/);
+  await refused({ ...opus, project: "p" }, /Vertex AI only/);
+  await refused({ ...opus, effort: "extreme" }, /'effort'/);
+  // Bedrock: a region and a routing the list has, and a price there.
+  const bedrock = { provider: "bedrock", modelId: "claude-opus-5-5", pricing: { kind: "list" }, secrets: { apiKey: "BEDROCK_KEY" } };
+  await refused(bedrock, /no region ""/);
+  await refused({ ...bedrock, region: "eu-central-1", routing: "in-region" }, /no region eu-central-1 with in-region routing/);
+  await refused({ ...bedrock, modelId: "claude-fable-5-1", region: "eu-central-1", routing: "geographic" }, /no price for this model there/);
+  // A model added by hand: a family the app supports on the provider, priced as a listed model of that family.
+  const added = { provider: "bedrock", modelString: "anthropic.claude-opus-6", family: "claude", region: "eu-central-1", routing: "global", secrets: { apiKey: "K" } };
+  await refused({ ...added, family: "gemini", pricing: { kind: "unpriced" } }, /one the app supports on Bedrock: Claude/);
+  await refused({ ...added, pricing: { kind: "list" } }, /'reference' must be one/);
+  await refused({ ...added, pricing: { kind: "list", reference: "gemini-3-1-pro" } }, /a Claude model/);
+  await refused({ ...added, pricing: { kind: "unpriced", reference: "claude-opus-5-5" } }, /only a config priced from the list/);
+
+  const eu = await modelConfig({ ...bedrock, region: "eu-central-1", routing: "geographic", secrets: { accessKeyId: "AWS_KEY_ID", secretAccessKey: "AWS_SECRET" } });
+  assert.deepEqual(
+    { model: eu.model, family: eu.family, modelName: eu.modelName, region: eu.region, routing: eu.routing, pricing: eu.pricing, name: eu.name },
+    {
+      model: "anthropic.claude-opus-5-5",
+      family: "claude",
+      modelName: "Claude Opus 5.5",
+      region: "eu-central-1",
+      routing: "geographic",
+      pricing: { kind: "list", reference: null },
+      name: "Claude Opus 5.5 (Bedrock) · high",
+    },
   );
-  const bedrock = await modelConfig({
-    provider: "anthropic-bedrock",
-    model: "eu.anthropic.claude-opus-5-5",
-    params: { region: "eu-central-1" },
-    secrets: { accessKeyId: "AWS_KEY_ID", secretAccessKey: "AWS_SECRET" },
-  });
-  assert.deepEqual(bedrock.secrets, { accessKeyId: "AWS_KEY_ID", secretAccessKey: "AWS_SECRET" });
+  assert.deepEqual(eu.secrets, { accessKeyId: "AWS_KEY_ID", secretAccessKey: "AWS_SECRET" });
+  const opus6 = await modelConfig({ ...added, pricing: { kind: "list", reference: "claude-opus-5-5" }, effort: null });
+  assert.deepEqual([opus6.modelId, opus6.modelString, opus6.family, opus6.name], [null, "anthropic.claude-opus-6", "claude", "anthropic.claude-opus-6 (Bedrock)"]);
+  assert.equal((await modelConfig({ ...added, pricing: { kind: "unpriced" }, name: "Unpriced" })).pricing.kind, "unpriced");
   // No editing (docs/llm.md, "Managing model configs").
-  assert.equal((await send(`/api/model-configs/${bedrock.id}`, { provider: "fake", model: "fake-model" }, "PUT")).status, 404);
-  assert.equal((await send(`/api/model-configs/${bedrock.id}`, undefined, "DELETE")).status, 204);
-  assert.equal((await send(`/api/model-configs/${bedrock.id}`, undefined, "DELETE")).status, 404);
+  assert.equal((await send(`/api/model-configs/${eu.id}`, configBody(), "PUT")).status, 404);
+  for (const id of [opus6.id, (await json<{ id: string; name: string }[]>(await app.request("/api/model-configs", {}, env))).find((c) => c.name === "Unpriced")!.id]) {
+    assert.equal((await send(`/api/model-configs/${id}`, undefined, "DELETE")).status, 204);
+  }
+  assert.equal((await send(`/api/model-configs/${eu.id}`, undefined, "DELETE")).status, 204);
+  assert.equal((await send(`/api/model-configs/${eu.id}`, undefined, "DELETE")).status, 404);
   assert.deepEqual(await json(await app.request("/api/model-configs", {}, env)), []);
   // A deleted config can still be read: stages and calls refer to it.
-  assert.equal((await app.request(`/api/model-configs/${bedrock.id}`, {}, env)).status, 200);
+  assert.equal((await app.request(`/api/model-configs/${eu.id}`, {}, env)).status, 200);
 });
 
-test("model configs are named: the name given, else the model and effort, numbered when taken; a name taken is refused", async () => {
-  assert.equal((await modelConfig()).name, "fake-model · high");
-  assert.equal((await modelConfig()).name, "fake-model · high (1)");
-  assert.equal((await modelConfig({ effort: null })).name, "fake-model");
+test("model configs are named: the name given, else the model, its provider and effort, numbered when taken; a name taken is refused", async () => {
+  assert.equal((await modelConfig()).name, "fake-model (Fake (dev)) · high");
+  assert.equal((await modelConfig()).name, "fake-model (Fake (dev)) · high (1)");
+  assert.equal((await modelConfig({ effort: null })).name, "fake-model (Fake (dev))");
+  assert.equal((await modelConfig({ modelId: "fake", pricing: { kind: "list" } })).name, "Fake model (Fake (dev)) · high");
   assert.equal((await modelConfig({ name: "  Opus 5.5  " })).name, "Opus 5.5");
-  const taken = await send("/api/model-configs", { provider: "fake-dev", model: "fake-model", name: "opus 5.5" });
+  const taken = await send("/api/model-configs", configBody({ name: "opus 5.5" }));
   assert.equal(taken.status, 409);
   assert.match((await json<{ error: string }>(taken)).error, /already exists/);
-  assert.equal((await send("/api/model-configs", { provider: "fake-dev", model: "fake-model", name: "x".repeat(201) })).status, 400);
+  assert.equal((await send("/api/model-configs", configBody({ name: "x".repeat(201) }))).status, 400);
   // A deleted config's name is free again.
   const opus = (await json<{ id: string; name: string }[]>(await app.request("/api/model-configs", {}, env))).find((c) => c.name === "Opus 5.5")!;
   assert.equal((await send(`/api/model-configs/${opus.id}`, undefined, "DELETE")).status, 204);
   assert.equal((await modelConfig({ name: "Opus 5.5" })).name, "Opus 5.5");
 });
 
-test("migration 0024 names the configs that had none, numbering repeats among those not deleted", () => {
+test("migration 0024 names the configs that had none, numbering repeats among those not deleted; 0027 converts them", () => {
+  // 0027: an old model string is kept as a model added by hand, with its family; the free-tier mark is the pricing.
+  const converted = { provider: "fake-dev", model_id: null, model_string: "fake-model", family: "fake", pricing_kind: "unpriced" };
   assert.deepEqual(migratedNames, [
-    { id: "m1", name: "fake-model · high" },
-    { id: "m2", name: "fake-model · high (1)" },
-    { id: "m3", name: "fake-model" },
-    { id: "m4", name: "fake-model · high" },
+    { id: "m1", name: "fake-model · high", ...converted },
+    { id: "m2", name: "fake-model · high (1)", ...converted },
+    { id: "m3", name: "fake-model", ...converted },
+    { id: "m4", name: "fake-model · high", ...converted },
   ]);
 });
 
@@ -208,7 +262,8 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   assert.equal(rows[0].status, "ok");
   assert.equal(rows[0].cost_usd, first.costUsd);
   assert.equal(rows[0].response_model, "fake-model");
-  assert.deepEqual(JSON.parse(rows[0].price_json as string), { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25, asOf: "2026-10-06" });
+  // The prices it was billed at, borrowed from the listed fake model.
+  assert.deepEqual(JSON.parse(rows[0].price_json as string), { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25, asOf: MODEL_LIST.asOf, borrowedFrom: "fake" });
   // The request is recorded without the image, which is replaced by its recipe key and hash.
   const recorded = await (await app.request(`/api/content/${rows[0].request_sha256}`, {}, env)).text();
   assert.ok(!recorded.includes(PNG) && recorded.includes('"sha256"') && recorded.includes(RECIPE_KEY));
@@ -217,7 +272,7 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   const { stages } = await json<{ stages: Record<string, unknown>[] }>(
     await app.request(`/api/projects/${stage.projectId}/pipeline`, {}, env),
   );
-  assert.deepEqual(stages[1].modelConfig, { name: "fake-model · high", model: "fake-model", deleted: false });
+  assert.deepEqual(stages[1].modelConfig, { name: "fake-model (Fake (dev)) · high", model: "fake-model", deleted: false });
   assert.equal(stages[1].costUsd, first.costUsd);
 
   // The same request again, from another stage with another config of the same model: served, nothing paid.
@@ -314,7 +369,7 @@ test("free-tier configs are always allowed: without a spending cap, and without 
   const free = await runningStage((await modelConfig({ freeTier: true })).id);
   assert.equal((await json(await call(free))).status, "ok");
   const unpriced = await runningStage(
-    (await modelConfig({ freeTier: true, provider: "google", model: "gemini-x", secrets: { apiKey: "NO_SUCH_SECRET" } })).id,
+    (await modelConfig({ freeTier: true, provider: "ai-studio", model: "gemini-x", family: "gemini", secrets: { apiKey: "NO_SUCH_SECRET" } })).id,
   );
   // It gets as far as the secrets: nothing about money stops it.
   assert.equal((await json(await call(unpriced))).code, "missing_secret");
@@ -327,20 +382,43 @@ test("a call needs a running stage with a model config, a price, and the config'
   await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
   const without = await runningStage(null);
   assert.equal((await json(await call(without))).code, "no_model_config");
-  const unpriced = await runningStage((await modelConfig({ provider: "google", model: "gemini-x", secrets: { apiKey: "GEMINI_KEY" } })).id);
-  assert.equal((await json(await call(unpriced))).code, "no_price");
+  // A listed model at a place the list (no longer) has a price for.
+  await env.DB.prepare(
+    "INSERT INTO model_configs (id, name, provider, model_id, region, routing, secrets_json, pricing_kind, created_at) VALUES ('no-price', 'Fable EU', 'bedrock', 'claude-fable-5-1', 'eu-central-1', 'geographic', '{\"apiKey\":\"K\"}', 'list', '2026-10-01')",
+  ).run();
+  const noPrice = await json(await call(await runningStage("no-price")));
+  assert.equal(noPrice.code, "no_price");
+  assert.match(noPrice.error as string, /no price for "Fable EU" there/);
+  // A listed model the list doesn't have at all.
+  await env.DB.prepare(
+    "INSERT INTO model_configs (id, name, provider, model_id, secrets_json, pricing_kind, created_at) VALUES ('gone', 'Gone', 'anthropic', 'claude-gone', '{\"apiKey\":\"K\"}', 'list', '2026-10-01')",
+  ).run();
+  assert.equal((await json(await call(await runningStage("gone")))).code, "unknown_model");
   const unset = await runningStage(
-    (await modelConfig({ provider: "anthropic", model: "claude-opus-5-5", secrets: { apiKey: "NO_SUCH_SECRET" } })).id,
+    (await modelConfig({ provider: "anthropic", modelId: "claude-opus-5-5", pricing: { kind: "list" }, secrets: { apiKey: "NO_SUCH_SECRET" } })).id,
   );
   const missing = await json(await call(unset));
   assert.equal(missing.code, "missing_secret");
   // Said so that the user knows what to do: which config, which secret, where secrets are set.
   assert.equal(
     missing.error,
-    'The model config "claude-opus-5-5 · high" needs the secret NO_SUCH_SECRET, which isn\'t set. Set it where the app\'s secrets are kept (Settings, "Secrets"), then retry.',
+    'The model config "Claude Opus 5.5 (Anthropic) · high" needs the secret NO_SUCH_SECRET, which isn\'t set. Set it where the app\'s secrets are kept (Settings, "Secrets"), then retry.',
   );
   assert.equal((await calls()).length, 0);
   assert.equal((await call(without, { messages: [] })).status, 400);
+});
+
+test("unpriced calls are made and recorded with their tokens but no cost, and the spending cap doesn't stop them", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 0.0001 }, "PUT");
+  await call(await runningStage((await modelConfig()).id)); // reaches the cap
+  const unpriced = await runningStage((await modelConfig({ name: "Unpriced", pricing: { kind: "unpriced" } })).id);
+  const answer = await json(await call(unpriced, request("Unpriced question")));
+  assert.equal(answer.status, "ok");
+  assert.equal(answer.costUsd, null);
+  const row = (await calls()).find((r) => r.id === answer.callId)!;
+  assert.ok((row.input_tokens as number) > 0);
+  assert.equal(row.cost_usd, null);
+  assert.equal(row.price_json, null);
 });
 
 test("a stage whose model config was deleted can't start, says why, and its card can show it", async () => {

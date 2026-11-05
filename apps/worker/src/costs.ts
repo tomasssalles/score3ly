@@ -14,24 +14,25 @@
 
 import type { Hono } from "hono";
 import { parsePages } from "@score3ly/core";
-import { readSettings, spentInLastDay } from "./llmRoutes.ts";
+import { readSettings, resolvedModel, spentInLastDay, type ModelConfigRow } from "./llmRoutes.ts";
 
 export const BUCKET_SECONDS = 15 * 60;
 
 // A call still running after this long will never answer: its cost is unknown. One that started later may still.
 const ZOMBIE_MS = 15 * 60 * 1000;
 
-// A call of unknown cost: no tokens, and neither an HTTP error status (the provider's refusal, which isn't billed) nor an
-// `auth` error without a status (the credentials failed before anything was sent).
-const UNKNOWN_COST = `c.input_tokens IS NULL AND (c.http_status IS NULL OR c.http_status < 400) AND (c.error_kind IS NOT 'auth' OR c.http_status IS NOT NULL)
-  AND (c.status <> 'running' OR c.started_at < ?)`;
+// A call of unknown cost: an unpriced config's call with its tokens (docs/llm.md, "Models the user adds"); or no tokens,
+// and neither an HTTP error status (the provider's refusal, which isn't billed) nor an `auth` error without a status
+// (the credentials failed before anything was sent).
+const UNKNOWN_COST = `((m.pricing_kind = 'unpriced' AND c.input_tokens IS NOT NULL) OR (c.input_tokens IS NULL AND (c.http_status IS NULL OR c.http_status < 400) AND (c.error_kind IS NOT 'auth' OR c.http_status IS NOT NULL)
+  AND (c.status <> 'running' OR c.started_at < ?)))`;
 
 export function costRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/costs", async (c) => {
     const db = c.env.DB;
     const zombie = new Date(Date.now() - ZOMBIE_MS).toISOString();
     // The calls the view counts: those with a cost, and those of unknown cost.
-    const counted = `SELECT c.id FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.free_tier = 0 AND (c.cost_usd > 0 OR (${UNKNOWN_COST}))`;
+    const counted = `SELECT c.id FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.pricing_kind <> 'free' AND (c.cost_usd > 0 OR (${UNKNOWN_COST}))`;
     const [points, unknown, stages, projects, configs, projectCosts, rasterized] = await db.batch([
       db
         .prepare(
@@ -40,7 +41,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
              SUM(c.cost_usd) AS usd,
              CASE WHEN c.error_kind = 'unexpected_model' THEN 'wrong_model' WHEN c.status = 'error' THEN 'unexpected_stop' ELSE c.status END AS outcome
            FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
-           WHERE m.free_tier = 0 AND c.cost_usd > 0
+           WHERE m.pricing_kind <> 'free' AND c.cost_usd > 0
            GROUP BY c.stage_id, c.model_config_id, t, outcome
            ORDER BY t`,
         ),
@@ -50,7 +51,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
              (CAST(strftime('%s', c.started_at) AS INTEGER) / ${BUCKET_SECONDS}) * ${BUCKET_SECONDS} AS t,
              COUNT(*) AS n
            FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
-           WHERE m.free_tier = 0 AND ${UNKNOWN_COST}
+           WHERE m.pricing_kind <> 'free' AND ${UNKNOWN_COST}
            GROUP BY c.stage_id, c.model_config_id, t
            ORDER BY t`,
         )
@@ -70,7 +71,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
          FROM projects p ORDER BY p.created_at`,
       ),
       db
-        .prepare(`SELECT id, name, provider, model, effort, created_at, deleted_at FROM model_configs WHERE id IN (SELECT model_config_id FROM llm_calls WHERE id IN (${counted}))`)
+        .prepare(`SELECT id, name, provider, model_id, model_string, family, effort, created_at, deleted_at FROM model_configs WHERE id IN (SELECT model_config_id FROM llm_calls WHERE id IN (${counted}))`)
         .bind(zombie),
       db.prepare("SELECT s.created_in AS project, SUM(c.cost_usd) AS usd FROM llm_calls c JOIN stages s ON s.id = c.stage_id GROUP BY s.created_in"),
       // The pages a `rasterize` stage ran on are written out in its config ("1-12, 15").
@@ -91,7 +92,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
     type Unknown = { stage: string; config: string; t: number; n: number };
     type Stage = { id: string; step: string; project: string; in_recipe: number; kept: number };
     type ProjectRow = { id: string; name: string; pdf_sha256: string; pdf_filename: string; created_at: string; deleted_at: string | null; finished: number | null };
-    type ConfigRow = { id: string; name: string | null; provider: string; model: string; effort: string | null; created_at: string; deleted_at: string | null };
+    type ConfigRow = Pick<ModelConfigRow, "id" | "name" | "provider" | "model_id" | "model_string" | "family" | "effort" | "created_at" | "deleted_at">;
     return c.json({
       capUsd: spendingCapUsd,
       spentLastDayUsd: spent,
@@ -116,7 +117,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
         id: m.id,
         name: m.name,
         provider: m.provider,
-        model: m.model,
+        ...(({ model, family, modelName }) => ({ model, family, modelName }))(resolvedModel(m)),
         effort: m.effort,
         createdAt: m.created_at,
         deletedAt: m.deleted_at,

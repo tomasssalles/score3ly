@@ -6,6 +6,7 @@
 
 import type { Hono } from "hono";
 import { BUCKET_SECONDS } from "./costs.ts";
+import { resolvedModel, type ModelConfigRow } from "./llmRoutes.ts";
 
 const ZOMBIE_MS = 15 * 60 * 1000;
 
@@ -32,15 +33,15 @@ export function failureRoutes(app: Hono<{ Bindings: Env }>) {
         )
         .bind(zombie),
       db.prepare(
-        "SELECT id, name, model, created_at, deleted_at FROM model_configs WHERE provider <> 'fake' AND id IN (SELECT DISTINCT model_config_id FROM llm_calls) ORDER BY created_at",
+        "SELECT id, name, provider, model_id, model_string, family, created_at, deleted_at FROM model_configs WHERE provider <> 'fake' AND id IN (SELECT DISTINCT model_config_id FROM llm_calls) ORDER BY created_at",
       ),
     ]);
     type Point = { config: string; t: number; reason: string; n: number };
-    type ConfigRow = { id: string; name: string | null; model: string; created_at: string; deleted_at: string | null };
+    type ConfigRow = Pick<ModelConfigRow, "id" | "name" | "provider" | "model_id" | "model_string" | "family" | "created_at" | "deleted_at">;
     return c.json({
       // [config, start of the quarter of an hour in ms, reason, number of calls]
       points: (points.results as Point[]).map((p) => [p.config, p.t * 1000, p.reason, p.n]),
-      configs: (configs.results as ConfigRow[]).map((m) => ({ id: m.id, name: m.name, model: m.model, createdAt: m.created_at, deletedAt: m.deleted_at })),
+      configs: (configs.results as ConfigRow[]).map((m) => ({ id: m.id, name: m.name, model: resolvedModel(m).model, createdAt: m.created_at, deletedAt: m.deleted_at })),
     });
   });
 }

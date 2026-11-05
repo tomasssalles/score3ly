@@ -11,6 +11,7 @@ import type { Hono } from "hono";
 import { parsePages } from "@score3ly/core";
 import { manualQuarters } from "./activeTime.ts";
 import { RECIPE } from "./pipeline.ts";
+import { resolvedModel, type ModelConfigRow } from "./llmRoutes.ts";
 
 const MANUAL = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"];
 
@@ -40,7 +41,7 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
          FROM outputs o JOIN stages s ON s.id = o.stage_id
          WHERE o.duration_ms IS NOT NULL AND s.created_in IN (${finished}) AND s.step NOT IN (${manual})`,
       ),
-      db.prepare("SELECT id, name, model, created_at, deleted_at FROM model_configs ORDER BY created_at"),
+      db.prepare("SELECT id, name, provider, model_id, model_string, family, created_at, deleted_at FROM model_configs ORDER BY created_at"),
       db.prepare(`SELECT project_id, stage_id FROM pipeline_entries WHERE project_id IN (${finished}) ORDER BY project_id, position`),
       db.prepare(`SELECT m.stage_id, m.quarter FROM manual_saves m JOIN stages s ON s.id = m.stage_id WHERE s.created_in IN (${finished})`),
     ]);
@@ -65,7 +66,7 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
       systems: number;
     };
     type ItemRow = { stage_id: string; item: string; duration_ms: number; calls: number; calls_cached: number; images: number; images_cached: number };
-    type ConfigRow = { id: string; name: string | null; model: string; created_at: string; deleted_at: string | null };
+    type ConfigRow = Pick<ModelConfigRow, "id" | "name" | "provider" | "model_id" | "model_string" | "family" | "created_at" | "deleted_at">;
     const usedConfigs = new Set((stages.results as StageRow[]).map((s) => s.config));
     return c.json({
       // The recipe's steps but Ingest: the estimate for a new score needs data for each.
@@ -99,7 +100,7 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
       items: (items.results as ItemRow[]).map((i) => [i.stage_id, i.item, i.duration_ms, i.calls, i.calls_cached, i.images, i.images_cached]),
       configs: (configs.results as ConfigRow[])
         .filter((m) => usedConfigs.has(m.id))
-        .map((m) => ({ id: m.id, name: m.name, model: m.model, createdAt: m.created_at, deletedAt: m.deleted_at })),
+        .map((m) => ({ id: m.id, name: m.name, model: resolvedModel(m).model, createdAt: m.created_at, deletedAt: m.deleted_at })),
     });
   });
 }

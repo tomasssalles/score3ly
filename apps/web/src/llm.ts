@@ -25,21 +25,12 @@ export function modelKey(config: ModelConfig): { provider: string; model: string
   return { provider: config.provider, model: config.model, effort: config.effort };
 }
 
-// The largest image to send, by the model config's provider (not its model string, which the app doesn't interpret,
-// §7.2): Claude on any of its three providers sees at most 2576 px and about 3.75 megapixels (Opus 4.7 and later;
-// older Claude models shrink further on their own). Gemini's limits aren't checked yet: Claude's are used for it
-// too, and for the fake provider.
-export function imageLimit(config: ModelConfig): SizeLimit {
-  switch (config.provider) {
-    case "anthropic":
-    case "anthropic-vertex":
-    case "anthropic-bedrock":
-    case "google":
-    case "google-vertex":
-    case "fake":
-    case "fake-dev":
-      return CLAUDE_IMAGE_LIMIT;
-  }
+// The largest image to send, by the model's family (not its model string, which the app doesn't interpret, §7.2):
+// Claude on any of its three providers sees at most 2576 px and about 3.75 megapixels (Opus 4.7 and later; older
+// Claude models shrink further on their own). Gemini's limits aren't checked yet: Claude's are used for it too, and for
+// the fake models.
+export function imageLimit(_config: ModelConfig): SizeLimit {
+  return CLAUDE_IMAGE_LIMIT;
 }
 
 // What a provider accepts in one request (docs/stages/analyze.md): images are sent inline, as base64. Claude's API:
@@ -57,18 +48,9 @@ const MB = 1024 * 1024;
 
 export function requestLimits(config: ModelConfig): RequestLimits {
   const many = { above: 20, limit: { maxLongEdge: 2000, maxPixels: CLAUDE_IMAGE_LIMIT.maxPixels } };
-  switch (config.provider) {
-    case "anthropic":
-    case "fake":
-    case "fake-dev":
-      return { maxRequestBytes: 32 * MB, maxImageBytes: 10 * MB, manyImages: many };
-    case "anthropic-vertex":
-    case "anthropic-bedrock":
-      return { maxRequestBytes: 20 * MB, maxImageBytes: 5 * MB, manyImages: many };
-    case "google":
-    case "google-vertex":
-      return { maxRequestBytes: 20 * MB, maxImageBytes: 7 * MB, manyImages: null };
-  }
+  if (config.family === "gemini") return { maxRequestBytes: 20 * MB, maxImageBytes: 7 * MB, manyImages: null };
+  if (config.provider === "bedrock" || config.provider === "vertex") return { maxRequestBytes: 20 * MB, maxImageBytes: 5 * MB, manyImages: many };
+  return { maxRequestBytes: 32 * MB, maxImageBytes: 10 * MB, manyImages: many };
 }
 
 // The image limit for a request with `count` images: smaller when there are many (above).

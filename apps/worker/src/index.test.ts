@@ -590,7 +590,7 @@ async function startRasterize(projectId: string, stageKey = KEY) {
 
 test("an LLM stage names its model config from its creation: the default then, kept through changes, a copy, a stop", async () => {
   await env.DB.prepare(
-    "INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('opus-new', 'Opus for new stages', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')",
+    "INSERT OR IGNORE INTO model_configs (id, name, provider, model_id, pricing_kind, created_at) VALUES ('opus-new', 'Opus for new stages', 'anthropic', 'claude-opus-5-5', 'list', '2026-10-01')",
   ).run();
   const before = await createdProject("before.pdf");
   await app.request("/api/settings/defaultModelConfigId", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: "opus-new" }) }, env);
@@ -627,7 +627,7 @@ test("an LLM stage names its model config from its creation: the default then, k
 
 test("a model config applied to the remaining stages: only the LLM stages after, only their model config", async () => {
   await env.DB.prepare(
-    "INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('other-model', 'Other model', 'fake-dev', 'fake-model', 1, '2026-10-01')",
+    "INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('other-model', 'Other model', 'fake-dev', 'fake-model', 'fake', 'free', '2026-10-01')",
   ).run();
   const project = await createdProject("apply.pdf");
   const at = async (i: number) => (await pipelineOf(project.id))[i];
@@ -1304,16 +1304,13 @@ test("issue numbers continue above the largest the caller already knows of", asy
   assert.equal(bad.status, 400);
 });
 
-test("migration 0014 adds the fake model config as the default, once, and keeps a default already chosen", async () => {
-  const config = await env.DB.prepare("SELECT name, provider, model, free_tier FROM model_configs WHERE id = 'fake-model'").first();
-  assert.deepEqual(config, { name: "Fake model", provider: "fake", model: "fake", free_tier: 1 });
+// (Running 0014 again, which kept a default already chosen, is no longer possible since 0027 changed the columns.)
+test("migration 0014 adds the fake model config as the default, and 0027 converts it", async () => {
+  const config = await env.DB.prepare("SELECT name, provider, model_id, model_string, pricing_kind FROM model_configs WHERE id = 'fake-model'").first();
+  // As migration 0027 converted it: the listed fake model, free.
+  assert.deepEqual(config, { name: "Fake model", provider: "fake", model_id: "fake", model_string: null, pricing_kind: "free" });
   const setting = async () => (await env.DB.prepare("SELECT value_json FROM settings WHERE key = 'defaultModelConfigId'").first())?.value_json;
   assert.equal(await setting(), '"fake-model"');
-  // Run again with another default: nothing changes.
-  await env.DB.prepare("UPDATE settings SET value_json = '\"other\"' WHERE key = 'defaultModelConfigId'").run();
-  await env.DB.exec(withoutComments(readFileSync(join(workerDir, "migrations", "0014_fake_model_config.sql"), "utf8")));
-  assert.equal(await setting(), '"other"');
-  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM model_configs WHERE provider = 'fake'").first())?.n, 1);
 });
 
 // Deleting a project (docs/database.md, "Deleting a project").
@@ -1402,8 +1399,8 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
   await createdProject("free.pdf"); // nothing spent: listed for the average per page all the same
   const layout = (await pipelineOf(project.id))[3];
   await env.DB.batch([
-    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
-    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('free', 'Gemini (free)', 'google', 'gemini', 1, '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_id, pricing_kind, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 'list', '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('free', 'Gemini (free)', 'ai-studio', 'gemini', 'gemini', 'free', '2026-10-01')"),
     // A replaced stage: no longer in any pipeline.
     env.DB.prepare("INSERT INTO stages (id, created_in, step, status, in_recipe, created_at) VALUES ('old-layout', ?, 'layout', 'done', 1, '2026-10-01')").bind(project.id),
   ]);
@@ -1456,7 +1453,7 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
 test("the costs: each point carries its calls' status, an error with a cost told apart by its kind", async () => {
   const project = await createdProject("statuses.pdf");
   const layout = (await pipelineOf(project.id))[3];
-  await env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')").run();
+  await env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_id, pricing_kind, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 'list', '2026-10-01')").run();
   const at = new Date().toISOString();
   const rows: [string, string, string | null][] = [
     ["a", "ok", null],
@@ -1482,8 +1479,9 @@ test("the costs: paid calls of unknown cost counted per stage, config and quarte
   const project = await createdProject("unknown.pdf");
   const layout = (await pipelineOf(project.id))[3];
   await env.DB.batch([
-    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
-    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('free', 'Gemini (free)', 'google', 'gemini', 1, '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_id, pricing_kind, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 'list', '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('free', 'Gemini (free)', 'ai-studio', 'gemini', 'gemini', 'free', '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('unpriced', 'New Opus', 'anthropic', 'claude-opus-6', 'claude', 'unpriced', '2026-10-01')"),
     env.DB.prepare("INSERT INTO stages (id, created_in, step, status, in_recipe, created_at) VALUES ('lost-layout', ?, 'layout', 'failed', 1, '2026-10-01')").bind(project.id),
   ]);
   const quarter = Math.floor(Date.now() / 900_000) * 900_000;
@@ -1498,6 +1496,7 @@ test("the costs: paid calls of unknown cost counted per stage, config and quarte
     ["bad-key", layout.id, "paid", "error", null, null, ago(60)], // credentials failed before sending: left out
     ["answered", layout.id, "paid", "ok", 100, null, ago(60)], // known cost: left out
     ["free", layout.id, "free", "error", null, null, ago(60)], // free tier: left out
+    ["unpriced", layout.id, "unpriced", "ok", 100, null, ago(60)], // tokens known, no price: counted
   ];
   await env.DB.batch(
     rows.map(([id, stage, config, status, tokens, http, startedAt]) =>
@@ -1516,11 +1515,11 @@ test("the costs: paid calls of unknown cost counted per stage, config and quarte
   const counted = costs.unknown.map(([stage, config, t, n]) => [stage, config, minutes(t), n]);
   const hourAgo = minutes(Math.floor((Date.now() - 3_600_000) / 900_000) * 900_000);
   const twentyAgo = minutes(Math.floor((Date.now() - 1_200_000) / 900_000) * 900_000);
-  assert.deepEqual(counted, [[layout.id, "paid", hourAgo, 2], ["lost-layout", "paid", twentyAgo, 1]]);
+  assert.deepEqual(counted, [[layout.id, "paid", hourAgo, 2], [layout.id, "unpriced", hourAgo, 1], ["lost-layout", "paid", twentyAgo, 1]]);
   // The stages and configs they refer to come along, although nothing was paid.
   assert.deepEqual(costs.points, []);
   assert.deepEqual(costs.stages.map((s) => s.id).sort(), [layout.id, "lost-layout"].sort());
-  assert.deepEqual(costs.configs.map((m) => m.id), ["paid"]);
+  assert.deepEqual(costs.configs.map((m) => m.id).sort(), ["paid", "unpriced"]);
 });
 
 test("project stats: every project, deleted or finished, and the distinct pages of done rasterize stages per PDF", async () => {
@@ -1552,8 +1551,8 @@ test("failures: every call per config, quarter of an hour and reason; the shippe
   const project = await createdProject("failures.pdf");
   const layout = (await pipelineOf(project.id))[3];
   await env.DB.batch([
-    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
-    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('try', 'Try', 'fake', 'fake-error', 1, '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_id, pricing_kind, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 'list', '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('try', 'Try', 'fake', 'fake-error', 'fake', 'free', '2026-10-01')"),
   ]);
   const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
   const quarter = (minutes: number) => Math.floor((Date.now() - minutes * 60_000) / 900_000) * 900_000;
@@ -1656,7 +1655,7 @@ test("activity: the quarters of an hour in which a call ran or anything was reco
   const project = await createdProject("activity.pdf");
   const layout = (await pipelineOf(project.id))[3];
   await env.DB.batch([
-    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model, free_tier, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 0, '2026-10-01')"),
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_id, pricing_kind, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', 'list', '2026-10-01')"),
     env.DB.prepare("UPDATE projects SET created_at = '2026-10-20T08:01:00.000Z' WHERE id = ?").bind(project.id),
     env.DB.prepare("UPDATE stages SET started_at = '2026-10-20T10:05:00.000Z', heartbeat_at = '2026-10-20T12:00:00.000Z' WHERE id = ?").bind(layout.id),
     // A call over three quarters, and one that never ended: only where it started.

@@ -5,61 +5,123 @@
 
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
-import { createProvider, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS, type ProviderConfig, type ProviderId } from "./llm/index.ts";
-import { costOf, PRICES_AS_OF, priceOf } from "./llm/prices.ts";
+import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
+import { costOf } from "./llm/prices.ts";
+import { adapterFor, supportedFamilies } from "./llm/adapters.ts";
+import {
+  configBaseName,
+  EFFORTS,
+  FAMILY_NAMES,
+  listedPrice,
+  modelById,
+  placesOfProvider,
+  priceOfConfig,
+  PROVIDER_NAMES,
+  PROVIDERS,
+  resolveModel,
+  samePlace,
+  type ConfigModel,
+  type Family,
+  type ModelList,
+  type Place,
+  type Pricing,
+  type Provider,
+  type Routing,
+} from "./llm/models.ts";
+import { MODEL_LIST } from "./llm/modelList.ts";
 import { firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 
-const PROVIDERS: ProviderId[] = ["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "google-vertex", "fake", "fake-dev"];
-const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
-
-// Each provider's fields: which are secrets (the name of a Worker secret is stored, never its value) and which are
-// plain values. Bedrock takes an API key or an access key pair.
-const FIELDS: Record<ProviderId, { secrets: string[][]; params: string[]; optionalParams: string[] }> = {
-  anthropic: { secrets: [["apiKey"]], params: [], optionalParams: [] },
-  "anthropic-vertex": { secrets: [["serviceAccount"]], params: ["region"], optionalParams: ["projectId"] },
-  "anthropic-bedrock": { secrets: [["apiKey"], ["accessKeyId", "secretAccessKey"]], params: ["region"], optionalParams: [] },
-  google: { secrets: [["apiKey"]], params: [], optionalParams: [] },
-  "google-vertex": { secrets: [["serviceAccount"]], params: ["region"], optionalParams: ["projectId"] },
-  fake: { secrets: [[]], params: [], optionalParams: [] },
-  "fake-dev": { secrets: [[]], params: [], optionalParams: [] },
+// The secrets each adapter needs, by field (the name of a Worker secret is stored, never its value): one set of them.
+// Bedrock takes an API key or an access key pair.
+const SECRETS: Record<string, string[][]> = {
+  anthropic: [["apiKey"]],
+  "anthropic-vertex": [["serviceAccount"]],
+  "anthropic-bedrock": [["apiKey"], ["accessKeyId", "secretAccessKey"]],
+  google: [["apiKey"]],
+  "google-vertex": [["serviceAccount"]],
+  fake: [[]],
+  "fake-dev": [[]],
 };
 
+// A model config (docs/llm.md, "Configs"), as stored, with what the list says about its model (`model`, `family`,
+// `modelName`, `retired`) for the browser.
 export type ModelConfig = {
   id: string;
   name: string; // required and unique, ignoring case, among the configs that aren't deleted (docs/llm.md)
-  provider: ProviderId;
-  model: string;
+  provider: Provider;
+  modelId: string | null; // a listed model
+  modelString: string | null; // or a model the user added, with its family
+  model: string; // the model's string on the provider ("" for a listed model the list doesn't have any more)
+  family: Family;
+  modelName: string | null; // the listed model's name for people
+  retired: boolean; // the listed model left the list: not used for new calls
   effort: Effort | null;
-  params: Record<string, string>; // plain values, e.g. a region: not part of any cache key
+  region: string; // "" for providers without regions: not part of any cache key
+  routing: Routing | null; // Bedrock only
+  project: string | null; // Vertex AI only
   secrets: Record<string, string>; // field → name of a Worker secret: not part of any cache key
-  freeTier: boolean;
+  pricing: Pricing;
+  freeTier: boolean; // pricing "free": its calls cost nothing and don't count towards the spending cap
   createdAt: string;
   deletedAt: string | null; // a deleted config is never used again: a stage that names one can't start
 };
 
-type ModelConfigRow = {
+export type ModelConfigRow = {
   id: string;
   name: string;
-  provider: ProviderId;
-  model: string;
+  provider: Provider;
+  model_id: string | null;
+  model_string: string | null;
+  family: Family | null;
   effort: Effort | null;
-  params_json: string;
+  region: string;
+  routing: Routing | null;
+  project: string | null;
   secrets_json: string;
-  free_tier: number;
+  pricing_kind: Pricing["kind"];
+  pricing_reference: string | null;
   created_at: string;
   deleted_at: string | null;
 };
 
-function toModelConfig(row: ModelConfigRow): ModelConfig {
+function configModel(row: Pick<ModelConfigRow, "model_id" | "model_string" | "family">): ConfigModel {
+  return row.model_id !== null ? { modelId: row.model_id } : { modelString: row.model_string!, family: row.family! };
+}
+
+// A stored config's model as the list resolves it: its string and family, or for a listed model the list no longer
+// has, its id and no family it can be called with.
+export function resolvedModel(row: Pick<ModelConfigRow, "provider" | "model_id" | "model_string" | "family">, list: ModelList = MODEL_LIST) {
+  const resolved = resolveModel(list, row.provider, configModel(row));
+  const entry = row.model_id ? modelById(list, row.model_id) : null;
+  return {
+    model: resolved?.string ?? "",
+    family: resolved?.family ?? entry?.family ?? row.family ?? "fake",
+    modelName: resolved?.name ?? entry?.name ?? null,
+    retired: resolved?.retired ?? true,
+    known: resolved !== null,
+  };
+}
+
+export function toModelConfig(row: ModelConfigRow): ModelConfig {
+  const { model, family, modelName, retired } = resolvedModel(row);
+  const pricing: Pricing = row.pricing_kind === "list" ? { kind: "list", reference: row.pricing_reference } : { kind: row.pricing_kind };
   return {
     id: row.id,
     name: row.name,
     provider: row.provider,
-    model: row.model,
+    modelId: row.model_id,
+    modelString: row.model_string,
+    model,
+    family,
+    modelName,
+    retired,
     effort: row.effort,
-    params: JSON.parse(row.params_json),
+    region: row.region,
+    routing: row.routing,
+    project: row.project,
     secrets: JSON.parse(row.secrets_json),
-    freeTier: row.free_tier === 1,
+    pricing,
+    freeTier: pricing.kind === "free",
     createdAt: row.created_at,
     deletedAt: row.deleted_at,
   };
@@ -90,32 +152,69 @@ function settingProblem(key: string, value: unknown): string | null {
   return "no such setting";
 }
 
-// What a model config's body must be. Returns the problem, or null.
-function configProblem(body: Record<string, unknown> | null): string | null {
+// What a model config's body must be (docs/llm.md, "Configs"). Returns the problem, or null.
+export function configProblem(body: Record<string, unknown> | null, list: ModelList = MODEL_LIST): string | null {
   if (!body) return "expected a JSON body";
-  const { name, provider, model, effort, params, secrets, freeTier } = body;
+  const { name, provider, modelId, modelString, family, effort, region, routing, project, secrets, pricing } = body;
   if (name !== undefined && name !== null && typeof name !== "string") return "'name' must be text";
   if (typeof name === "string" && name.trim().length > MAX_NAME_LENGTH) return `'name' must be at most ${MAX_NAME_LENGTH} characters`;
-  if (!PROVIDERS.includes(provider as ProviderId)) return `'provider' must be one of ${PROVIDERS.join(", ")}`;
-  if (typeof model !== "string" || model.trim() === "") return "'model' must be the provider's model name";
-  if (effort !== undefined && effort !== null && !EFFORTS.includes(effort as Effort)) {
-    return `'effort' must be one of ${EFFORTS.join(", ")}`;
+  if (!PROVIDERS.includes(provider as Provider)) return `'provider' must be one of ${PROVIDERS.join(", ")}`;
+  const p = provider as Provider;
+  // The model: a listed one, or one the user adds with its family; never both.
+  let modelFamily: Family;
+  if (modelId !== undefined && modelId !== null) {
+    if (modelString !== undefined && modelString !== null) return "give either 'modelId' or 'modelString', not both";
+    const entry = typeof modelId === "string" ? modelById(list, modelId) : null;
+    if (!entry) return "'modelId' must be a model of the list";
+    if (entry.retired) return `${entry.name} is no longer supported`;
+    if (entry.strings[p] === undefined) return `${entry.name} isn't offered on ${PROVIDER_NAMES[p]}`;
+    if (family !== undefined && family !== null) return "a listed model's family comes from the list: leave 'family' out";
+    modelFamily = entry.family;
+  } else {
+    if (typeof modelString !== "string" || modelString.trim() === "") return "expected 'modelId', or 'modelString' with 'family'";
+    if (!supportedFamilies(p).includes(family as Family)) {
+      return `'family' must be one the app supports on ${PROVIDER_NAMES[p]}: ${supportedFamilies(p).map((f) => FAMILY_NAMES[f]).join(", ")}`;
+    }
+    modelFamily = family as Family;
   }
-  if (freeTier !== undefined && typeof freeTier !== "boolean") return "'freeTier' must be true or false";
-  const fields = FIELDS[provider as ProviderId];
+  if (!adapterFor(p, modelFamily)) return `The app doesn't support ${FAMILY_NAMES[modelFamily]} on ${PROVIDER_NAMES[p]}`;
+  if (effort !== undefined && effort !== null && !EFFORTS[modelFamily].includes(effort as Effort)) {
+    return `'effort' must be one of ${EFFORTS[modelFamily].join(", ")}`;
+  }
+  // Where: one of the provider's places in the list.
+  if (region !== undefined && typeof region !== "string") return "'region' must be text";
+  if (routing !== undefined && routing !== null && !["global", "geographic", "in-region"].includes(routing as string)) {
+    return "'routing' must be global, geographic or in-region";
+  }
+  const place: Place = { region: (region as string | undefined) ?? "", routing: (routing as Routing | null | undefined) ?? null };
+  if (!placesOfProvider(list, p).some((other) => samePlace(other, place))) {
+    return `${PROVIDER_NAMES[p]} has no region ${place.region || '""'}${place.routing ? ` with ${place.routing} routing` : ""} in the list`;
+  }
+  if (project !== undefined && project !== null && (p !== "vertex" || typeof project !== "string")) return "'project' is for Vertex AI only";
+  // The secrets: one of the adapter's sets.
   const isStrings = (v: unknown) =>
     v === undefined || (v !== null && typeof v === "object" && Object.values(v).every((x) => typeof x === "string"));
-  if (!isStrings(params) || !isStrings(secrets)) return "'params' and 'secrets' must map names to text";
-  const p = (params ?? {}) as Record<string, string>;
-  const s = (secrets ?? {}) as Record<string, string>;
-  const missing = fields.params.find((f) => !p[f]);
-  if (missing) return `'params' needs '${missing}'`;
-  const extra = Object.keys(p).find((f) => !fields.params.includes(f) && !fields.optionalParams.includes(f));
-  if (extra) return `'params' has no '${extra}' for ${provider}`;
-  const keys = Object.keys(s).sort().join(",");
-  if (!fields.secrets.some((set) => [...set].sort().join(",") === keys)) {
-    return `'secrets' must name ${fields.secrets.map((set) => set.join(" and ") || "nothing").join(", or ")} for ${provider}`;
+  if (!isStrings(secrets)) return "'secrets' must map names to text";
+  const keys = Object.keys((secrets ?? {}) as Record<string, string>).sort().join(",");
+  const sets = SECRETS[adapterFor(p, modelFamily)!];
+  if (!sets.some((set) => [...set].sort().join(",") === keys)) {
+    return `'secrets' must name ${sets.map((set) => set.join(" and ") || "nothing").join(", or ")} for ${PROVIDER_NAMES[p]}`;
   }
+  // The pricing: from the list (as its own model, or a model the user added as a listed one), free or unpriced.
+  const pr = pricing as Partial<Pricing & { reference: unknown }> | undefined;
+  if (!pr || !["list", "free", "unpriced"].includes(pr.kind as string)) return "'pricing' must be {kind: list, free or unpriced}";
+  if (pr.kind === "list") {
+    const reference = pr.reference ?? null;
+    if (modelId) {
+      if (reference !== null) return "a listed model is priced as itself: leave 'reference' out";
+      if (!listedPrice(list, modelId as string, p, place)) return "the list has no price for this model there: pick another region, or price it as free or unpriced";
+    } else {
+      const entry = typeof reference === "string" ? modelById(list, reference) : null;
+      if (!entry) return "a model you add is priced from the list as one of its models: 'reference' must be one";
+      if (entry.family !== modelFamily) return `'reference' must be a ${FAMILY_NAMES[modelFamily]} model`;
+      if (!listedPrice(list, entry.id, p, place)) return `the list has no price for ${entry.name} there: pick another region or another model`;
+    }
+  } else if (pr.reference !== undefined && pr.reference !== null) return "only a config priced from the list has a 'reference'";
   return null;
 }
 
@@ -134,15 +233,15 @@ export function missingSecretMessage(configName: string, secretName: string): st
   return `The model config "${configName}" needs the secret ${secretName}, which isn't set. Set it where the app's secrets are kept (Settings, "Secrets"), then retry.`;
 }
 
-// The provider's config, with the secrets' values from the Worker's environment. Null names a missing secret.
-function providerConfig(config: ModelConfig, env: Env): ProviderConfig | { missing: string } {
+// The secrets' values from the Worker's environment, or the name of a missing one.
+function secretValues(config: ModelConfig, env: Env): Record<string, string> | { missing: string } {
   const values: Record<string, string> = {};
   for (const [field, secretName] of Object.entries(config.secrets)) {
     const value = (env as unknown as Record<string, unknown>)[secretName];
     if (typeof value !== "string" || value === "") return { missing: secretName };
     values[field] = value;
   }
-  return { provider: config.provider, ...config.params, ...values } as ProviderConfig;
+  return values;
 }
 
 // A request as the browser sends it. Each image is named by its recipe key (§5.2, "Only recipes, never pixels, in
@@ -255,11 +354,11 @@ export type CallAnswer = {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // What the spending cap counts (docs/llm.md, "Spending cap"): the costs of the calls started in the last 24 hours,
-// free-tier configs left out, deleted projects included.
+// free-tier configs left out (unpriced calls have no cost to count), deleted projects included.
 export async function spentInLastDay(db: D1Database, now = Date.now()): Promise<number> {
   const row = await db
     .prepare(
-      "SELECT COALESCE(SUM(c.cost_usd), 0) AS spent FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.free_tier = 0 AND c.started_at >= ?",
+      "SELECT COALESCE(SUM(c.cost_usd), 0) AS spent FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.pricing_kind <> 'free' AND c.started_at >= ?",
     )
     .bind(new Date(now - DAY_MS).toISOString())
     .first<{ spent: number }>();
@@ -267,8 +366,8 @@ export async function spentInLastDay(db: D1Database, now = Date.now()): Promise<
 }
 
 export function llmRoutes(app: Hono<{ Bindings: Env }>) {
-  // When the price table was collected (llm/prices.ts), for the About page.
-  app.get("/api/prices", (c) => c.json({ asOf: PRICES_AS_OF }));
+  // When the list of models and prices was collected (llm/modelList.ts), for the About page.
+  app.get("/api/prices", (c) => c.json({ asOf: MODEL_LIST.asOf, mock: MODEL_LIST.mock ?? false }));
 
   app.get("/api/settings", async (c) => c.json(await readSettings(c.env.DB)));
 
@@ -371,8 +470,13 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (row.deleted_at) return c.json({ error: deletedWhileRunningMessage(row.name), code: "deleted_model_config" }, 409);
     const config = toModelConfig(row);
 
+    // A listed model the list doesn't have at all can't be called (a model that left the list is kept, retired).
+    if (!resolvedModel(row).known) {
+      return c.json({ error: `The model of "${config.name}" isn't in the app's list of models.`, code: "unknown_model" }, 409);
+    }
+
     // The request key: the exact request, images by their recipe keys, with the model's provider, model and effort.
-    // Not the config's id, parameters or secrets: they don't change the answer (§5.2).
+    // Not the config's id, region, routing, project or secrets: they don't change the answer (§5.2).
     const requestKey = await keyOf({
       provider: config.provider,
       model: config.model,
@@ -415,15 +519,25 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       return c.json({ imagesNeeded: true });
     }
 
-    // Then what a paid call needs: a price, a spending cap, room under it, and the secrets.
-    const price = priceOf(config.provider, config.model);
-    if (!config.freeTier) {
-      if (!price) {
-        return c.json(
-          { error: `No price is known for ${config.model}: the spending cap couldn't count it. Mark the config as free tier, or add the price.`, code: "no_price" },
-          409,
-        );
-      }
+    // A retired model isn't used for new calls; answers already recorded were served above (docs/llm.md, "Models").
+    if (config.retired) {
+      return c.json(
+        { error: `The model of "${config.name}", ${config.modelName ?? config.model}, is no longer supported. Pick another config with "Change config" in the stage's ⋮.`, code: "retired_model" },
+        409,
+      );
+    }
+
+    // Then what a priced call needs: a price, room under the spending cap, and the secrets. Free and unpriced calls
+    // don't count towards the cap (docs/llm.md, "Models the user adds").
+    const priced = priceOfConfig(MODEL_LIST, { provider: config.provider, model: configModel(row), place: { region: config.region, routing: config.routing }, pricing: config.pricing });
+    if (priced.kind === "missing") {
+      return c.json(
+        { error: `The app has no price for "${config.name}" there: the spending cap couldn't count its calls. Clone it in another region, or priced as free or unpriced.`, code: "no_price" },
+        409,
+      );
+    }
+    const price = priced.kind === "priced" ? priced.price : null;
+    if (price) {
       const { spendingCapUsd } = await readSettings(db);
       if ((await spentInLastDay(db)) >= spendingCapUsd) {
         return c.json(
@@ -432,10 +546,17 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         );
       }
     }
-    const providerSettings = providerConfig(config, c.env);
-    if ("missing" in providerSettings) {
-      return c.json({ error: missingSecretMessage(config.name, providerSettings.missing), code: "missing_secret" }, 409);
+    const secrets = secretValues(config, c.env);
+    if ("missing" in secrets) {
+      return c.json({ error: missingSecretMessage(config.name, secrets.missing as string), code: "missing_secret" }, 409);
     }
+    const adapter = createAdapter({ provider: config.provider, family: config.family, region: config.region, project: config.project, secrets });
+    if (!adapter) {
+      return c.json({ error: `The app doesn't support ${FAMILY_NAMES[config.family]} on ${PROVIDER_NAMES[config.provider]}.`, code: "unsupported" }, 409);
+    }
+    // On Bedrock the routing is a prefix of the model string sent (llm/index.ts).
+    const geography = MODEL_LIST.regions.find((r) => r.provider === config.provider && r.region === config.region)?.geography;
+    const sentModel = config.provider === "bedrock" ? bedrockModel(config.model, config.routing, geography) : config.model;
 
     const callId = crypto.randomUUID();
     const startedAt = new Date().toISOString();
@@ -449,8 +570,8 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
 
     let answer: CallAnswer;
     try {
-      const response = await createProvider(providerSettings).send({
-        model: config.model,
+      const response = await adapter.send({
+        model: sentModel,
         effort: config.effort ?? undefined,
         system: request.system,
         messages: providerMessages(request),
@@ -465,7 +586,8 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         : response.stop === "max_tokens" ? "cut_off"
         : response.stop === "refusal" ? "refused"
         : "error";
-      const costUsd = config.freeTier || !price ? 0 : costOf(response.usage, price);
+      // Unpriced: the tokens are known, the cost isn't (a call of unknown cost, docs/llm.md).
+      const costUsd = priced.kind === "unpriced" ? null : price ? costOf(response.usage, price) : 0;
       const responseSha = await putJson(c.env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, raw: response.raw });
       const error =
         status === "ok" ? null
@@ -489,7 +611,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
           response.usage.cacheReadTokens,
           response.usage.cacheWriteTokens,
           costUsd,
-          config.freeTier || !price ? null : JSON.stringify({ ...price, asOf: PRICES_AS_OF }),
+          price ? JSON.stringify({ ...price, asOf: MODEL_LIST.asOf, ...(priced.kind === "priced" && priced.borrowedFrom ? { borrowedFrom: priced.borrowedFrom } : {}) }) : null,
           new Date().toISOString(),
           callId,
         )
@@ -512,35 +634,38 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   });
 }
 
-// The name a config gets when none is given: its model and effort ("claude-opus-5-5 · high"), the model alone without
-// an effort; numbered like project names when taken (docs/llm.md, "Model configs").
-export function generatedConfigName(model: string, effort: string | null): string {
-  return effort ? `${model} · ${effort}` : model;
-}
-
-// The name of a new config: the one given, or else one made from its model and effort, the first free one. A given name
-// that another config has (ignoring case) is refused: null.
+// The name of a new config: the one given, or else its default name ("Claude Opus 5.5 (Bedrock) · high"), the first
+// free one, numbered like project names (docs/llm.md, "Configs"). A given name that another config has (ignoring case)
+// is refused: null.
 async function configName(db: D1Database, body: Record<string, unknown>): Promise<string | null> {
   const { results } = await db.prepare("SELECT name FROM model_configs WHERE deleted_at IS NULL").all<{ name: string }>();
   const taken = results.map((row) => row.name);
   const given = typeof body.name === "string" ? body.name.trim() : "";
   if (given) return taken.some((name) => name.toLowerCase() === given.toLowerCase()) ? null : given;
-  const base = generatedConfigName((body.model as string).trim(), (body.effort as string | undefined) ?? null);
+  const model: ConfigModel = body.modelId ? { modelId: body.modelId as string } : { modelString: (body.modelString as string).trim(), family: body.family as Family };
+  const base = configBaseName(MODEL_LIST, body.provider as Provider, model, (body.effort as Effort | undefined) ?? null);
   return firstFreeName(base.slice(0, MAX_NAME_LENGTH).trim(), taken);
 }
 
 const NAME_TAKEN = "A model config with that name already exists. Names must be unique (case-insensitive).";
 
 function newConfigRow(body: Record<string, unknown>, name: string): ModelConfigRow {
+  const pricing = body.pricing as Pricing & { reference?: string | null };
+  const listed = typeof body.modelId === "string" && body.modelId !== "";
   return {
     id: crypto.randomUUID(),
     name,
-    provider: body.provider as ProviderId,
-    model: (body.model as string).trim(),
+    provider: body.provider as Provider,
+    model_id: listed ? (body.modelId as string) : null,
+    model_string: listed ? null : (body.modelString as string).trim(),
+    family: listed ? null : (body.family as Family),
     effort: (body.effort as Effort | undefined) ?? null,
-    params_json: JSON.stringify(body.params ?? {}),
+    region: (body.region as string | undefined) ?? "",
+    routing: (body.routing as Routing | undefined) ?? null,
+    project: (body.project as string | undefined) || null,
     secrets_json: JSON.stringify(body.secrets ?? {}),
-    free_tier: body.freeTier === true ? 1 : 0,
+    pricing_kind: pricing.kind,
+    pricing_reference: pricing.kind === "list" ? (pricing.reference ?? null) : null,
     created_at: new Date().toISOString(),
     deleted_at: null,
   };
@@ -549,7 +674,22 @@ function newConfigRow(body: Record<string, unknown>, name: string): ModelConfigR
 function insertConfig(db: D1Database, row: ModelConfigRow): D1PreparedStatement {
   return db
     .prepare(
-      "INSERT INTO model_configs (id, name, provider, model, effort, params_json, secrets_json, free_tier, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO model_configs (id, name, provider, model_id, model_string, family, effort, region, routing, project, secrets_json, pricing_kind, pricing_reference, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
-    .bind(row.id, row.name, row.provider, row.model, row.effort, row.params_json, row.secrets_json, row.free_tier, row.created_at);
+    .bind(
+      row.id,
+      row.name,
+      row.provider,
+      row.model_id,
+      row.model_string,
+      row.family,
+      row.effort,
+      row.region,
+      row.routing,
+      row.project,
+      row.secrets_json,
+      row.pricing_kind,
+      row.pricing_reference,
+      row.created_at,
+    );
 }

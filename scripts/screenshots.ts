@@ -206,7 +206,7 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   await page.waitForTimeout(1500); // saved
 
   // A stage that failed: the layout with a model config that fails on purpose.
-  const failing = await api<{ id: string }>("/model-configs", { name: "Failing model", provider: "fake", model: "fake-error" });
+  const failing = await api<{ id: string }>("/model-configs", { name: "Failing model", provider: "fake", modelString: "fake-error", family: "fake", pricing: { kind: "free" } });
   const failed = await newProject(page, PDF);
   const layout = (await pipelineOf(failed)).find((s) => s.step === "layout")!;
   await api(`/projects/${failed}/stages/${layout.id}/config`, { config: { modelConfigId: failing.id } }, "PUT");

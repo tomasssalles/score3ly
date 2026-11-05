@@ -172,13 +172,12 @@ const STEPS = ["layout", "analyze", "extract", "review", "apply_review"];
 // The fake provider that ships with the app costs nothing, so it never shows here; the one for development does.
 const PROVIDERS: Record<string, string> = {
   anthropic: "Anthropic",
-  "anthropic-vertex": "Vertex AI",
-  "anthropic-bedrock": "AWS Bedrock",
-  google: "Google AI Studio",
-  "google-vertex": "Vertex AI",
+  bedrock: "Bedrock",
+  "ai-studio": "AI Studio",
+  vertex: "Vertex AI",
   "fake-dev": "Fake (dev)",
 };
-const FAMILIES: Record<string, string> = { anthropic: "Claude", "anthropic-vertex": "Claude", "anthropic-bedrock": "Claude", google: "Gemini", "google-vertex": "Gemini", "fake-dev": "Fake" };
+const FAMILIES: Record<string, string> = { claude: "Claude", gemini: "Gemini", fake: "Fake" };
 const FAMILY_ORDER = ["Claude", "Gemini", "Fake"];
 
 // A call's status as the costs view tells them apart (the Worker's `outcome`), in the order listed.
@@ -235,7 +234,7 @@ export function grouper(data: CostData, dimension: Dimension, grouping: string, 
     const m = configs.get(configId)!;
     if (grouping === "provider") return { key: m.provider, label: PROVIDERS[m.provider] ?? m.provider, rank: rankIn(providers, m.provider) };
     if (grouping === "family") {
-      const family = FAMILIES[m.provider] ?? m.provider;
+      const family = FAMILIES[m.family] ?? m.family;
       return { key: family, label: family, rank: rankIn(FAMILY_ORDER, family) };
     }
     const name = m.name ?? m.model;

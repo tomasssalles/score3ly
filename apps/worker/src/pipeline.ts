@@ -4,7 +4,8 @@
 
 import type { Hono } from "hono";
 import { QUARTER_MS } from "./activeTime.ts";
-import { deletedConfigMessage, readSettings } from "./llmRoutes.ts";
+import { deletedConfigMessage, readSettings, resolvedModel } from "./llmRoutes.ts";
+import type { Family, Provider } from "./llm/models.ts";
 
 export type Pipeline = { stages: Stage[]; dropped: Dropped[] };
 
@@ -123,7 +124,10 @@ type StageRow = {
   heartbeat_at: string | null;
   finished_at: string | null;
   mc_name?: string;
-  mc_model?: string | null;
+  mc_provider?: Provider | null;
+  mc_model_id?: string | null;
+  mc_model_string?: string | null;
+  mc_family?: Family | null;
   mc_deleted_at?: string | null;
   cost_usd?: number | null;
   carried?: number;
@@ -267,7 +271,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
   const [stages, outputs, dropped] = await db.batch([
     db
       .prepare(
-        "SELECT s.*, e.carried, m.name AS mc_name, m.model AS mc_model, m.deleted_at AS mc_deleted_at, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
+        "SELECT s.*, e.carried, m.name AS mc_name, m.provider AS mc_provider, m.model_id AS mc_model_id, m.model_string AS mc_model_string, m.family AS mc_family, m.deleted_at AS mc_deleted_at, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
       )
       .bind(projectId),
     db
@@ -294,7 +298,11 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
       startedAt: row.started_at,
       heartbeatAt: row.heartbeat_at,
       finishedAt: row.finished_at,
-      modelConfig: row.mc_model ? { name: row.mc_name ?? row.mc_model, model: row.mc_model, deleted: Boolean(row.mc_deleted_at) } : null,
+      modelConfig: row.mc_provider
+        ? (({ model }) => ({ name: row.mc_name ?? model, model, deleted: Boolean(row.mc_deleted_at) }))(
+            resolvedModel({ provider: row.mc_provider, model_id: row.mc_model_id ?? null, model_string: row.mc_model_string ?? null, family: row.mc_family ?? null }),
+          )
+        : null,
       costUsd: row.cost_usd ?? null,
       carried: row.carried === 1,
       inRecipe: row.in_recipe === 1,

@@ -248,14 +248,22 @@ function Secrets() {
 }
 
 const PROVIDERS: Record<ModelConfig["provider"], string> = {
-  anthropic: "Anthropic API",
-  "anthropic-vertex": "Claude on Google Vertex AI",
-  "anthropic-bedrock": "Claude on AWS Bedrock",
-  google: "Google Gemini API",
-  "google-vertex": "Gemini on Google Vertex AI",
+  anthropic: "Anthropic",
+  bedrock: "Bedrock",
+  "ai-studio": "AI Studio",
+  vertex: "Vertex AI",
   fake: "Fake (no network, no costs, for trying the app)",
   "fake-dev": "Fake with costs (for development)",
 };
+
+const ROUTINGS: Record<NonNullable<ModelConfig["routing"]>, string> = { global: "Global", geographic: "Geographic", "in-region": "In-region" };
+
+// How a config is priced (docs/llm.md, "Configs").
+function pricingText(config: ModelConfig): string {
+  if (config.pricing.kind === "free") return "Free tier";
+  if (config.pricing.kind === "unpriced") return "Unpriced";
+  return config.pricing.reference ? `Priced as ${config.pricing.reference}` : "From the app's list";
+}
 
 // The providers' fields by name (the Worker's FIELDS); one it doesn't know is shown as stored.
 const FIELD_LABELS: Record<string, string> = {
@@ -267,9 +275,9 @@ const FIELD_LABELS: Record<string, string> = {
   projectId: "Project",
 };
 
-// The model configs (docs/llm.md), as stored: each with its name (else its model), whether it is the default and
-// on a free tier, its provider, model and effort, its plain values (a region, a project) and its secrets by the name
-// of the Worker secret, never a value.
+// The model configs (docs/llm.md), as stored: each with its name, whether it is the default and on a free tier, its
+// provider, model (its name for people where it is listed) and effort, where its requests go (a region, a routing, a
+// project), how it is priced, and its secrets by the name of the Worker secret, never a value.
 function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultId: string | null }) {
   const host = useHost();
   return (
@@ -288,12 +296,22 @@ function ModelConfigs({ configs, defaultId }: { configs: ModelConfig[]; defaultI
               <dt>Provider</dt>
               <dd>{PROVIDERS[config.provider] ?? config.provider}</dd>
               <dt>Model</dt>
-              <dd className="mono">{config.model}</dd>
+              <dd>
+                {config.modelName ?? <span className="mono">{config.model}</span>}
+                {config.retired && <span className="model-config-hint"> (no longer supported)</span>}
+              </dd>
               <dt>Effort</dt>
               <dd>{config.effort ?? "the model's default"}</dd>
-              {Object.entries(config.params).map(([key, value]) => (
-                <Fact key={`p-${key}`} label={key} value={value} />
-              ))}
+              {config.region && <Fact label="region" value={config.region} />}
+              {config.routing && (
+                <>
+                  <dt>Routing</dt>
+                  <dd>{ROUTINGS[config.routing]}</dd>
+                </>
+              )}
+              {config.project && <Fact label="projectId" value={config.project} />}
+              <dt>Pricing</dt>
+              <dd>{pricingText(config)}</dd>
               {Object.entries(config.secrets).map(([field, secret]) => (
                 <Fact key={`s-${field}`} label={field} value={secret} hint={host === "cloudflare" ? "Worker secret" : "Secret"} />
               ))}

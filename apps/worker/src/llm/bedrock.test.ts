@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { bedrockClaudeProvider } from "./anthropic.ts";
-import { createProvider } from "./index.ts";
+import { bedrockModel, createAdapter, createProvider } from "./index.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 
 type Call = { url: string; headers: Headers; body: any };
@@ -75,13 +75,26 @@ test("with an access key pair: the request is signed (AWS Signature V4) for the 
   assert.match(calls[0].url, /^https:\/\/bedrock-mantle\.eu-west-1\.api\.aws\//);
 });
 
-test("the model check compares the answer's model with the string as given", async () => {
-  // An inference profile asked for, the bare model ID in the answer: an error, until a real answer shows otherwise.
-  const provider = createProvider(
-    { provider: "anthropic-bedrock", region: "eu-central-1", apiKey: "k" },
-    { fetch: fakeBedrock([], "anthropic.claude-opus-5-5") },
-  );
-  assert.match((await provider.send(request)).unexpectedModel ?? "", /but anthropic\.claude-opus-5-5 answered/);
+test("the model check takes the answer's model with or without the routing's prefix, and nothing else", async () => {
+  // An inference profile asked for ("eu."), the bare model ID in the answer: the same model.
+  const bare = createProvider({ provider: "anthropic-bedrock", region: "eu-central-1", apiKey: "k" }, { fetch: fakeBedrock([], "anthropic.claude-opus-5-5") });
+  assert.equal((await bare.send(request)).unexpectedModel, undefined);
+  const other = createProvider({ provider: "anthropic-bedrock", region: "eu-central-1", apiKey: "k" }, { fetch: fakeBedrock([], "anthropic.claude-sonnet-5-5") });
+  assert.match((await other.send(request)).unexpectedModel ?? "", /but anthropic\.claude-sonnet-5-5 answered/);
+});
+
+test("the routing becomes the model string's prefix", () => {
+  assert.equal(bedrockModel("anthropic.claude-opus-5-5", "global", "EU"), "global.anthropic.claude-opus-5-5");
+  assert.equal(bedrockModel("anthropic.claude-opus-5-5", "geographic", "EU"), "eu.anthropic.claude-opus-5-5");
+  assert.equal(bedrockModel("anthropic.claude-opus-5-5", "in-region", "EU"), "anthropic.claude-opus-5-5");
+});
+
+test("an adapter for each supported pair, none for the others", () => {
+  const secrets = { apiKey: "k" };
+  assert.equal(createAdapter({ provider: "bedrock", family: "claude", region: "eu-west-1", project: null, secrets })?.id, "anthropic-bedrock");
+  assert.equal(createAdapter({ provider: "ai-studio", family: "gemini", region: "", project: null, secrets })?.id, "google");
+  assert.equal(createAdapter({ provider: "fake-dev", family: "fake", region: "", project: null, secrets: {} })?.id, "fake-dev");
+  assert.equal(createAdapter({ provider: "bedrock", family: "gemini", region: "eu-west-1", project: null, secrets }), null);
 });
 
 test("Bedrock needs an API key or a whole key pair, not both nor neither", () => {

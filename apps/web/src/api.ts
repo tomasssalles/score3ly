@@ -280,15 +280,27 @@ export async function fetchTextContent(sha256: string): Promise<string> {
 
 // LLM calls (apps/worker/src/llmRoutes.ts, docs/llm.md).
 
+export type Provider = "anthropic" | "bedrock" | "ai-studio" | "vertex" | "fake" | "fake-dev";
+export type Family = "claude" | "gemini" | "fake";
+
+// A model config (docs/llm.md, "Configs"), with what the list of models says about its model.
 export type ModelConfig = {
   id: string;
   name: string; // required and unique (docs/llm.md, "Model configs")
-  provider: "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "google-vertex" | "fake" | "fake-dev";
-  model: string;
+  provider: Provider;
+  modelId: string | null; // a listed model
+  modelString: string | null; // or a model added by hand
+  model: string; // the model's string on the provider
+  family: Family;
+  modelName: string | null; // a listed model's name for people
+  retired: boolean;
   effort: "low" | "medium" | "high" | "xhigh" | "max" | null;
-  params: Record<string, string>;
+  region: string; // "" where the provider has no regions
+  routing: "global" | "geographic" | "in-region" | null; // Bedrock only
+  project: string | null; // Vertex AI only
   secrets: Record<string, string>; // field → name of a Worker secret
-  freeTier: boolean;
+  pricing: { kind: "list"; reference: string | null } | { kind: "free" } | { kind: "unpriced" };
+  freeTier: boolean; // pricing "free"
   createdAt: string;
   deletedAt: string | null; // a deleted config is never used again
 };
@@ -341,7 +353,17 @@ export type CostData = {
     costUsd: number;
     pages: number[];
   }[];
-  configs: { id: string; name: string | null; provider: ModelConfig["provider"]; model: string; effort: ModelConfig["effort"]; createdAt: string; deletedAt: string | null }[];
+  configs: {
+    id: string;
+    name: string | null;
+    provider: Provider;
+    model: string;
+    family: Family;
+    modelName: string | null;
+    effort: ModelConfig["effort"];
+    createdAt: string;
+    deletedAt: string | null;
+  }[];
 };
 
 // When the app was in use (apps/worker/src/activity.ts): the quarters of an hour with any activity, per project.

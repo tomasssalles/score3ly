@@ -75,9 +75,9 @@ const data: CostData = {
     { id: "p2", name: "Sonata", pdfSha256: "aa", pdfFilename: "Sonata.pdf", createdAt: "2026-09-01T00:00:00Z", deletedAt: "2026-10-23T00:00:00Z", finished: true, costUsd: 0, pages: [] },
   ],
   configs: [
-    { id: "opus-1", name: "Opus EU", provider: "anthropic-bedrock", model: "anthropic.claude-opus-5-5", effort: "high", createdAt: "", deletedAt: "2026-10-21T05:00:00Z" },
-    { id: "opus-2", name: "Opus EU", provider: "anthropic-bedrock", model: "anthropic.claude-opus-5-5", effort: "xhigh", createdAt: "", deletedAt: null },
-    { id: "sonnet", name: null, provider: "anthropic", model: "claude-sonnet-5-5", effort: null, createdAt: "", deletedAt: null },
+    { id: "opus-1", name: "Opus EU", provider: "bedrock", model: "anthropic.claude-opus-5-5", family: "claude", modelName: "Claude Opus 5.5", effort: "high", createdAt: "", deletedAt: "2026-10-21T05:00:00Z" },
+    { id: "opus-2", name: "Opus EU", provider: "bedrock", model: "anthropic.claude-opus-5-5", family: "claude", modelName: "Claude Opus 5.5", effort: "xhigh", createdAt: "", deletedAt: null },
+    { id: "sonnet", name: null, provider: "anthropic", model: "claude-sonnet-5-5", family: "claude", modelName: "Claude Sonnet 5.5", effort: null, createdAt: "", deletedAt: null },
   ],
 };
 const range = { start: local("2026-10-20T00:00"), end: local("2026-10-23T00:00") };
@@ -131,7 +131,7 @@ test("groupings: deleted projects marked with the day they were deleted, edited 
   assert.equal(configs("x", "sonnet").label, "claude-sonnet-5-5");
   const byName = costView(data, range, "day", { dimension: "config", grouping: "config", byName: true }, {});
   assert.deepEqual(byName.rows.map((g) => [g.label, g.usd]), [["Opus EU", 7], ["claude-sonnet-5-5", 0.5]]);
-  assert.equal(grouper(data, "config", "provider")("x", "opus-2").label, "AWS Bedrock");
+  assert.equal(grouper(data, "config", "provider")("x", "opus-2").label, "Bedrock");
   assert.equal(grouper(data, "config", "family")("x", "sonnet").label, "Claude");
 });
 

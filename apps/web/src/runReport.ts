@@ -64,7 +64,7 @@ export function runReport(input: ReportInput): RunReport {
       status: s.status,
       config: s.config,
       modelConfig: mc
-        ? { name: mc.name, provider: mc.provider, model: mc.model, effort: mc.effort, region: mc.params.region ?? null, freeTier: mc.freeTier }
+        ? { name: mc.name, provider: mc.provider, model: mc.model, effort: mc.effort, region: mc.region || null, freeTier: mc.freeTier }
         : null,
       pageCount: s.pageCount,
       startedAt: s.startedAt,
