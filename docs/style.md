@@ -170,6 +170,8 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 **Toggles that change what a view shows** (the score beside the MEI, the boxes over the crops, rendered or raw music) are icon buttons at the view's top, remembered per device.
 
+**Fields** (decided 2026-11-05): **a placeholder vanishes as soon as the field is entered** (it says what goes there, as "Other" or "Clarification" in Human review, and is never a value to keep). **A value the app proposes and the user may change** (a model config's default name) is a real value, prefilled, muted while it is the app's and following what it is made from, in normal text once the user edits it, and then left alone.
+
 **Hints and empty states** are muted text: one line under a toolbar ("Boxes tight around each system…"), one sentence where there is nothing to show ("No metadata was found on the pages."). They say what to do or why it's empty, never "Error" or "Nothing here".
 
 ## Feedback and notifications

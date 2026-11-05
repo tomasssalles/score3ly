@@ -6,8 +6,8 @@ import { createModelConfig, putSetting, type ModelConfig, type ModelOptions } fr
 import {
   confirmationOf,
   defaultName,
-  EMPTY_FORM,
   familyOption,
+  initialForm,
   hasRegions,
   listedModel,
   missing,
@@ -21,6 +21,7 @@ import {
   routingsOf,
   servedAtRegion,
   settled,
+  withProvider,
   type FormState,
 } from "./configForm";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -36,7 +37,7 @@ const FIELD_LABELS: Record<string, string> = {
   secretAccessKey: "Secret access key",
 };
 
-const ADD_BY_HAND = "Another model, by its string";
+const ADD_BY_HAND = "Unlisted model, by the exact identifier the provider's API expects";
 
 export function NewModelConfig({
   options,
@@ -52,7 +53,7 @@ export function NewModelConfig({
   onCancel: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [form, setFormRaw] = useState<FormState>(EMPTY_FORM);
+  const [form, setFormRaw] = useState<FormState>(() => initialForm(options));
   const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -104,11 +105,12 @@ export function NewModelConfig({
     elsewhere.map((m) => ({ label: m.name, current: false, onSelect: () => setForm({ model: { kind: "listed", id: m.id }, region: null, routing: null }) })),
     [{ label: ADD_BY_HAND, current: form.model?.kind === "added", onSelect: () => setForm({ model: { kind: "added", string: "", family: null } }) }],
   ];
-  const allHeadings = ["", `Not in ${form.region}`, "Not in the app's list"];
+  const allHeadings = ["", `Not in ${form.region}`, ""];
   const kept = allGroups.map((g, i) => i).filter((i) => allGroups[i].length > 0);
   const modelGroups = kept.map((i) => allGroups[i]);
   const modelHeadings = kept.map((i) => allHeadings[i]);
   const modelLabel = listed?.name ?? (form.model?.kind === "added" ? ADD_BY_HAND : "Pick one");
+  const addedFamily = form.model?.kind === "added" ? form.model.family : null;
 
   return (
     <dialog
@@ -131,7 +133,16 @@ export function NewModelConfig({
             value={provider?.name ?? "Pick one"}
             label="Provider"
             fitted
-            groups={[options.providers.map((p) => ({ label: p.name, current: p.id === form.provider, onSelect: () => setForm({ provider: p.id }) }))]}
+            groups={[
+              options.providers.map((p) => ({
+                label: p.name,
+                current: p.id === form.provider,
+                onSelect: () => {
+                  setError(null);
+                  setFormRaw((f) => (f.provider === p.id ? f : withProvider(options, f, p.id)));
+                },
+              })),
+            ]}
           />
         </PickerField>
 
@@ -144,7 +155,7 @@ export function NewModelConfig({
         {form.model?.kind === "added" && (
           <>
             <label className="field">
-              Model string, as {provider!.name} spells it
+              Model identifier, exactly as {provider!.name}'s API expects it
               <input
                 autoComplete="off"
                 spellCheck={false}
@@ -152,21 +163,22 @@ export function NewModelConfig({
                 onChange={(e) => setForm({ model: { kind: "added", string: e.target.value, family: form.model?.kind === "added" ? form.model.family : null } })}
               />
             </label>
-            {provider!.families.length > 1 && (
-              <PickerField label="Family">
-                <Picker
-                  value={provider!.families.find((f) => f.id === (form.model?.kind === "added" ? form.model.family : null))?.name ?? "Pick one"}
-                  label="Family"
-                  fitted
-                  groups={[
-                    provider!.families.map((f) => ({
-                      label: f.name,
-                      current: form.model?.kind === "added" && form.model.family === f.id,
-                      onSelect: () => setForm({ model: { kind: "added", string: form.model?.kind === "added" ? form.model.string : "", family: f.id } }),
-                    })),
-                  ]}
-                />
-              </PickerField>
+            <PickerField label="Family">
+              <Picker
+                value={provider!.families.find((f) => f.id === addedFamily)?.name ?? "Pick one"}
+                label="Family"
+                fitted
+                groups={[
+                  provider!.families.map((f) => ({
+                    label: f.name,
+                    current: addedFamily === f.id,
+                    onSelect: () => setForm({ model: { kind: "added", string: form.model?.kind === "added" ? form.model.string : "", family: f.id } }),
+                  })),
+                ]}
+              />
+            </PickerField>
+            {provider!.families.length === 1 && (
+              <p className="field-hint">The only family the app supports on {provider!.name}.</p>
             )}
           </>
         )}
@@ -269,7 +281,7 @@ export function NewModelConfig({
                 <PricingChoice
                   checked={form.pricing === "as"}
                   onCheck={() => setForm({ pricing: "as" })}
-                  label="Priced as a model of the app's list"
+                  label="Priced as"
                   info="Its calls are counted at the prices of the model picked below, which may differ from this model's. Once the app's list of models has this model, its own prices are used from then on."
                 />
                 {form.pricing === "as" && (
@@ -302,9 +314,15 @@ export function NewModelConfig({
 
         <label className="field">
           Name
-          <input autoComplete="off" spellCheck={false} placeholder={name ?? ""} value={form.name} onChange={(e) => setForm({ name: e.target.value })} />
+          <input
+            className={form.nameEdited ? undefined : "default-value"}
+            autoComplete="off"
+            spellCheck={false}
+            value={form.nameEdited ? form.name : (name ?? "")}
+            onChange={(e) => setForm({ name: e.target.value, nameEdited: true })}
+          />
         </label>
-        <p className="field-hint">Left empty, it is named after its model, provider and effort{name ? `: "${name}"` : ""}.</p>
+        <p className="field-hint">A default name based on the provider, model and effort level will be used, unless you edit the name directly.</p>
 
         <label className="field-check config-default">
           <input type="checkbox" checked={form.makeDefault} onChange={(e) => setForm({ makeDefault: e.target.checked })} />

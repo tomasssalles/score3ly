@@ -1555,6 +1555,11 @@ dialog.app-dialog.config-form {
   max-height: 40vh;
 }
 
+/* A value the form fills in by itself (a config's default name): muted until the user edits it. */
+.field input.default-value {
+  color: var(--muted);
+}
+
 .pricing-choice {
   display: flex;
   flex-wrap: wrap;
@@ -3957,4 +3962,11 @@ textarea.field-input {
 
 .human-review-panes > [hidden] {
   display: none;
+}
+
+/* A placeholder vanishes as soon as the field is entered (docs/style.md, "Fields"): it says what goes there, it is never
+   a value to keep. */
+input:focus::placeholder,
+textarea:focus::placeholder {
+  color: transparent;
 }

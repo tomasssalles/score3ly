@@ -25,7 +25,8 @@ export type FormState = {
   secrets: Record<string, string>;
   pricing: FormPricing | null;
   reference: string | null;
-  name: string;
+  name: string; // what the user typed, once `nameEdited`; until then the default name stands in
+  nameEdited: boolean;
   makeDefault: boolean;
 };
 
@@ -41,8 +42,30 @@ export const EMPTY_FORM: FormState = {
   pricing: null,
   reference: null,
   name: "",
+  nameEdited: false,
   makeDefault: false,
 };
+
+// The model a provider starts with: Claude Opus 5.5 where it is offered, else Gemini 3.1 Pro, else the first listed one,
+// else an unlisted one (decided 2026-11-05).
+const PREFERRED_MODELS = ["claude-opus-5-5", "gemini-3-1-pro"];
+
+export function defaultModel(options: ModelOptions, provider: Provider): FormModel {
+  const listed = modelsOf(options, provider);
+  const id = PREFERRED_MODELS.find((m) => listed.some((x) => x.id === m)) ?? listed[0]?.id;
+  return id ? { kind: "listed", id } : { kind: "added", string: "", family: null };
+}
+
+// The form as it opens: the first provider, with its model.
+export function initialForm(options: ModelOptions): FormState {
+  const provider = options.providers[0]?.id ?? null;
+  return provider ? settled(options, { ...EMPTY_FORM, provider, model: defaultModel(options, provider) }) : EMPTY_FORM;
+}
+
+// Another provider: the form starts over with its model, keeping the name typed and "Make default".
+export function withProvider(options: ModelOptions, form: FormState, provider: Provider): FormState {
+  return settled(options, { ...EMPTY_FORM, name: form.name, nameEdited: form.nameEdited, makeDefault: form.makeDefault, provider, model: defaultModel(options, provider) });
+}
 
 export function providerOf(options: ModelOptions, form: FormState): ProviderOption | null {
   return options.providers.find((p) => p.id === form.provider) ?? null;
@@ -137,7 +160,7 @@ export function priceAt(options: ModelOptions, form: FormState) {
 export function settled(options: ModelOptions, form: FormState): FormState {
   let next = { ...form };
   const provider = providerOf(options, next);
-  if (!provider) return { ...EMPTY_FORM, name: next.name, makeDefault: next.makeDefault };
+  if (!provider) return { ...EMPTY_FORM, name: next.name, nameEdited: next.nameEdited, makeDefault: next.makeDefault };
   if (next.model?.kind === "added" && next.model.family === null && provider.families.length === 1) {
     next.model = { ...next.model, family: provider.families[0].id };
   }
@@ -195,7 +218,7 @@ export function missing(options: ModelOptions, form: FormState): string | null {
 export function requestOf(form: FormState): NewModelConfig {
   const model = form.model!;
   return {
-    ...(form.name.trim() ? { name: form.name.trim() } : {}),
+    ...(form.nameEdited && form.name.trim() ? { name: form.name.trim() } : {}),
     provider: form.provider!,
     ...(model.kind === "listed" ? { modelId: model.id } : { modelString: model.string.trim(), family: model.family! }),
     effort: form.effort,

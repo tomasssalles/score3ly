@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import type { ModelOptions } from "./api";
 import {
   confirmationOf,
+  defaultModel,
+  initialForm,
+  withProvider,
   defaultName,
   EMPTY_FORM,
   missing,
@@ -143,16 +146,16 @@ test("what follows the family: efforts and secrets; another provider starts over
   assert.equal(form.effort, null); // Gemini has no max
   const keys = pick({ provider: "bedrock" }, { model: { kind: "listed", id: "opus" } }, { secretSet: 1, secrets: { accessKeyId: "ID", apiKey: "K" } });
   assert.deepEqual(keys.secrets, { accessKeyId: "ID" });
-  const other = settled(OPTIONS, { ...keys, name: "Mine", makeDefault: true, provider: "anthropic" });
+  const other = withProvider(OPTIONS, { ...keys, name: "Mine", makeDefault: true }, "anthropic");
   assert.deepEqual([other.model, other.name, other.makeDefault, other.secrets], [{ kind: "listed", id: "opus" }, "Mine", true, {}]);
 });
 
-test("a listed model's request, named after its model, provider and effort unless a name is given", () => {
+test("a listed model's request, named after its model, provider and effort unless a name is typed", () => {
   const form = pick({ provider: "anthropic" }, { model: { kind: "listed", id: "opus" } }, { secrets: { apiKey: "ANTHROPIC_KEY" }, effort: "high" });
   assert.equal(missing(OPTIONS, form), null);
   assert.equal(defaultName(OPTIONS, form), "Claude Opus 5.5 (Anthropic) · high");
   assert.equal(confirmationOf(OPTIONS, form), null);
-  assert.deepEqual(requestOf({ ...form, name: "  Opus  " }), {
+  assert.deepEqual(requestOf({ ...form, name: "  Opus  ", nameEdited: true }), {
     name: "Opus",
     provider: "anthropic",
     modelId: "opus",
@@ -165,4 +168,26 @@ test("a listed model's request, named after its model, provider and effort unles
   const free = settled(OPTIONS, { ...form, pricing: "free" });
   assert.deepEqual(requestOf(free).pricing, { kind: "free" });
   assert.match(confirmationOf(OPTIONS, free) ?? "", /cost \$0\.00/);
+});
+
+test("the form opens on the first provider with its model: Opus 5.5 where offered, else Gemini 3.1 Pro, else the first", () => {
+  const form = initialForm(OPTIONS);
+  assert.deepEqual([form.provider, form.model, form.region], ["anthropic", { kind: "listed", id: "opus" }, ""]);
+  const withGemini: ModelOptions = {
+    ...OPTIONS,
+    models: [...OPTIONS.models, { id: "gemini-3-1-pro", name: "Gemini 3.1 Pro", family: "gemini", providers: { vertex: { string: "gemini-3.1-pro", places: [{ region: "global", routing: null, price: P(2) }] } } }],
+  };
+  assert.deepEqual(defaultModel({ ...OPTIONS, models: OPTIONS.models.map((m) => (m.id === "opus" ? { ...m, id: "claude-opus-5-5" } : m)) }, "bedrock"), { kind: "listed", id: "claude-opus-5-5" });
+  assert.deepEqual(defaultModel(withGemini, "vertex"), { kind: "listed", id: "gemini-3-1-pro" });
+  assert.deepEqual(defaultModel(OPTIONS, "bedrock"), { kind: "listed", id: "opus" }); // the first listed
+  assert.deepEqual(defaultModel(OPTIONS, "vertex"), { kind: "added", string: "", family: null }); // none listed
+  // Another provider starts over with its own model, keeping the name typed and Make default.
+  const other = withProvider(OPTIONS, { ...form, name: "Mine", nameEdited: true, makeDefault: true, effort: "high" }, "bedrock");
+  assert.deepEqual([other.model, other.effort, other.name, other.nameEdited, other.makeDefault], [{ kind: "listed", id: "opus" }, null, "Mine", true, true]);
+});
+
+test("the default name stands in until the name is edited; an edited name is sent as it is", () => {
+  const form = pick({ provider: "anthropic" }, { model: { kind: "listed", id: "opus" } }, { secrets: { apiKey: "K" }, name: "stale" });
+  assert.equal("name" in requestOf(form), false); // not edited: the Worker names it (and numbers it)
+  assert.equal(requestOf({ ...form, name: " Opus ", nameEdited: true }).name, "Opus");
 });
