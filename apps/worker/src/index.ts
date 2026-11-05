@@ -7,7 +7,7 @@ import { runTimeRoutes } from "./runTimes.ts";
 import { deleteProject } from "./deletion.ts";
 import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 import { fingerprintRoutes } from "./fingerprints.ts";
-import { llmRoutes, readSettings } from "./llmRoutes.ts";
+import { llmRoutes, readSettings, convertAddedConfigs } from "./llmRoutes.ts";
 import { defaultForNewStages, newPipeline, pipelineRoutes } from "./pipeline.ts";
 
 export type { Project, RunMode } from "@score3ly/core";
@@ -52,6 +52,13 @@ async function getProject(db: D1Database, id: string): Promise<Project | null> {
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
+
+// Before anything reads model configs: those added by hand whose string a new list of models has become listed ones
+// (docs/llm.md, "Configs"); once per list, then nothing.
+app.use("/api/*", async (c, next) => {
+  await convertAddedConfigs(c.env.DB);
+  await next();
+});
 
 // Which host serves the app (docs/desktop.md, "What differs in the app"): here Cloudflare. The desktop version's server
 // answers this itself ("desktop" in Electron, "local" as a plain local server), so the web bundle stays the same and

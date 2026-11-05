@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { getPlatformProxy } from "wrangler";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
-import { listedPrice } from "./llm/models.ts";
+import { listedPrice, type ModelList } from "./llm/models.ts";
+import { convertAddedConfigs, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
 
 // The LLM endpoints against Wrangler's local R2 and D1, kept in memory, with the fake provider (llm/fake.ts).
@@ -181,6 +182,8 @@ test("model configs: a listed model or one added by hand, at a place of its prov
   await refused({ ...added, pricing: { kind: "list" } }, /'reference' must be one/);
   await refused({ ...added, pricing: { kind: "list", reference: "gemini-3-1-pro" } }, /a Claude model/);
   await refused({ ...added, pricing: { kind: "unpriced", reference: "claude-opus-5-5" } }, /only a config priced from the list/);
+  // A string the list has for the provider is picked from the list, not added by hand.
+  await refused({ ...added, modelString: "anthropic.claude-opus-5-5", pricing: { kind: "unpriced" } }, /Claude Opus 5\.5 is in the app's list: pick it there/);
 
   const eu = await modelConfig({ ...bedrock, region: "eu-central-1", routing: "geographic", secrets: { accessKeyId: "AWS_KEY_ID", secretAccessKey: "AWS_SECRET" } });
   assert.deepEqual(
@@ -567,4 +570,39 @@ test("requests are keyed by the images' recipe keys: a cached call is found befo
   const bad = request();
   delete (bad.messages[0].content[0] as { recipeKey?: string }).recipeKey;
   assert.equal((await call(stage, bad)).status, 400);
+});
+
+test("configs added by hand become listed ones when a new list has their string: priced from it, free staying free", async () => {
+  const insert = (id: string, region: string, pricing: string, reference: string | null) =>
+    env.DB.prepare(
+      "INSERT INTO model_configs (id, name, provider, model_string, family, region, routing, secrets_json, pricing_kind, pricing_reference, created_at) VALUES (?, ?, 'bedrock', 'anthropic.claude-opus-6', 'claude', ?, 'global', '{}', ?, ?, '2026-10-01')",
+    )
+      .bind(id, id, region, pricing, reference)
+      .run();
+  await insert("priced-as", "eu-central-1", "list", "claude-opus-5-5");
+  await insert("unpriced", "eu-central-1", "unpriced", null);
+  await insert("free", "eu-central-1", "free", null);
+  await insert("elsewhere", "us-east-1", "unpriced", null); // the new list has no price there
+  await env.DB.prepare(
+    "INSERT INTO model_configs (id, name, provider, model_string, family, region, secrets_json, pricing_kind, created_at) VALUES ('other', 'other', 'anthropic', 'claude-opus-7', 'claude', '', '{}', 'unpriced', '2026-10-01')",
+  ).run();
+  const opus6 = { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 };
+  const list: ModelList = {
+    ...MODEL_LIST,
+    models: [...MODEL_LIST.models, { id: "claude-opus-6", name: "Claude Opus 6", family: "claude", strings: { bedrock: "anthropic.claude-opus-6" } }],
+    prices: [...MODEL_LIST.prices, { model: "claude-opus-6", provider: "bedrock", region: "eu-central-1", routing: "global", price: opus6 }],
+  };
+  assert.equal(await convertAddedConfigs(env.DB, list), 4);
+  assert.equal(await convertAddedConfigs(env.DB, list), 0); // once per list
+  const rows = (await env.DB.prepare("SELECT * FROM model_configs ORDER BY id").all<ModelConfigRow>()).results;
+  const shape = (r: ModelConfigRow) => [r.id, r.name, r.model_id, r.model_string, r.family, r.pricing_kind, r.pricing_reference];
+  assert.deepEqual(rows.map(shape), [
+    ["elsewhere", "elsewhere", "claude-opus-6", null, null, "list", null],
+    ["free", "free", "claude-opus-6", null, null, "free", null],
+    ["other", "other", null, "claude-opus-7", "claude", "unpriced", null],
+    ["priced-as", "priced-as", "claude-opus-6", null, null, "list", null],
+    ["unpriced", "unpriced", "claude-opus-6", null, null, "list", null],
+  ]);
+  assert.equal(unsupportedOf(rows[3], undefined, list), null);
+  assert.equal(unsupportedOf(rows[0], undefined, list), "uses Claude Opus 6 on Bedrock in us-east-1 (global routing), which the app no longer supports");
 });

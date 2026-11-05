@@ -14,6 +14,8 @@ import {
   FAMILY_NAMES,
   listedPrice,
   modelById,
+  modelByString,
+  placesOf,
   placesOfProvider,
   priceOfConfig,
   unsupportedReason,
@@ -190,6 +192,13 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
     modelFamily = entry.family;
   } else {
     if (typeof modelString !== "string" || modelString.trim() === "") return "expected 'modelId', or 'modelString' with 'family'";
+    // A string the list has for this provider is a listed model: picked from the list, never added by hand.
+    const listed = modelByString(list, p, modelString.trim());
+    if (listed) {
+      return placesOf(list, listed.id, p).length > 0
+        ? `${listed.name} is in the app's list: pick it there`
+        : `The app no longer supports ${listed.name} on ${PROVIDER_NAMES[p]}`;
+    }
     if (!supportedFamilies(p).includes(family as Family)) {
       return `'family' must be one the app supports on ${PROVIDER_NAMES[p]}: ${supportedFamilies(p).map((f) => FAMILY_NAMES[f]).join(", ")}`;
     }
@@ -237,6 +246,49 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
     }
   } else if (pr.reference !== undefined && pr.reference !== null) return "only a config priced from the list has a 'reference'";
   return null;
+}
+
+// Configs added by hand become listed ones when a new list of models has their string for their provider
+// (docs/llm.md, "Configs"): the model id replaces the string and family; "priced as" another model and "unpriced"
+// become the model's own price, "free" stays free (the user's free tier, not a guess). Where the list has no price at
+// the config's place, the converted config is no longer supported, as any listed one there. Names don't change. Done
+// once per list (the Worker has no start-up hook: the first request after a new list does it, and the database keeps
+// which list it was done for). Returns how many configs were converted.
+let convertedFor: string | null = null;
+
+export async function listKey(list: ModelList): Promise<string> {
+  return sha256Hex(new TextEncoder().encode(JSON.stringify(list.models.map((m) => [m.id, m.strings]))));
+}
+
+export async function convertAddedConfigs(db: D1Database, list: ModelList = MODEL_LIST): Promise<number> {
+  const key = await listKey(list);
+  if (convertedFor === key) return 0;
+  const done = await db.prepare("SELECT value_json FROM settings WHERE key = 'modelListConvertedFor'").first<{ value_json: string }>();
+  let converted = 0;
+  if (!done || JSON.parse(done.value_json) !== key) {
+    const { results } = await db
+      .prepare("SELECT id, provider, model_string, pricing_kind FROM model_configs WHERE model_string IS NOT NULL")
+      .all<{ id: string; provider: Provider; model_string: string; pricing_kind: Pricing["kind"] }>();
+    const statements: D1PreparedStatement[] = [];
+    for (const row of results) {
+      const entry = modelByString(list, row.provider, row.model_string);
+      if (!entry) continue;
+      statements.push(
+        db
+          .prepare("UPDATE model_configs SET model_id = ?, model_string = NULL, family = NULL, pricing_kind = ?, pricing_reference = NULL WHERE id = ?")
+          .bind(entry.id, row.pricing_kind === "free" ? "free" : "list", row.id),
+      );
+    }
+    statements.push(
+      db
+        .prepare("INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES ('modelListConvertedFor', ?, ?)")
+        .bind(JSON.stringify(key), new Date().toISOString()),
+    );
+    await db.batch(statements);
+    converted = statements.length - 1;
+  }
+  convertedFor = key;
+  return converted;
 }
 
 // Why a stage can't run with its model config, said so that the user knows what to do (docs/llm.md, "A missing key" and

@@ -139,7 +139,6 @@ For testing and debugging: run stages as if nothing were cached, without our own
   - **Vertex AI:** which locations (`global`, multi-regions such as `eu`, regions) serve which models, and their prices.
   - **Gemini's current models and prices** on Google AI Studio, from Google's own pricing page (third-party pages disagree).
   - **Model strings on Vertex AI** (with or without an `@` version) for the current models.
-  - **Converting configs added by hand** (proposed 2026-11-05, to decide; the docs disagree): `docs/llm.md`'s "Models the user adds" says the real price replaces the borrowed one (or none), "Configs" that the pricing kind stays as the user set it. Proposed: "priced as" becomes the model's own price, "unpriced" becomes priced, "free" stays free (the user's free tier, not a guess). A config whose string the list now has but not at its place keeps what it had (borrowed or unpriced) and converts once there is a price there. When: the first time the configs are read after the list's date changed (a Worker has no start-up hook; the Worker stores the list date it last converted for). Names aren't changed: only the user renames.
 
 ### Stages from the record with a config that can't be used
 `#optional` `#decision`
