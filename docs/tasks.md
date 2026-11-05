@@ -139,6 +139,7 @@ For testing and debugging: run stages as if nothing were cached, without our own
   - **Vertex AI:** which locations (`global`, multi-regions such as `eu`, regions) serve which models, and their prices.
   - **Gemini's current models and prices** on Google AI Studio, from Google's own pricing page (third-party pages disagree).
   - **Model strings on Vertex AI** (with or without an `@` version) for the current models.
+  - **Retired models** (a model that left the list, kept in it marked retired, 2026-11-05): its configs keep showing wherever they appear (stage cards, call records, costs, statistics), but are no longer used for new calls. To decide: how they are marked (on the settings page's cards, in the pickers, on the cards of stages that name them; perhaps like a deleted config, in red with " (retired)" where a stage still has to start with it); whether a stage naming one is refused before it starts, like a deleted config, or whether its calls served from the record still run; whether a retired config is offered in "Change config" (probably not); and, since the default may be retired by a new version of the app, how the user is told to act at once (a notice when the app opens, or on every page, until another default is picked), and what new LLM stages get meanwhile.
 
 ### Statistics by model
 `#optional`
