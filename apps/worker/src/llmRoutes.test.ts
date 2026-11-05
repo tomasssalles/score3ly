@@ -216,18 +216,18 @@ test("model configs: a listed model or one added by hand, at a place of its prov
 
 test("model configs are named: the name given, else the model, its provider and effort, numbered when taken; a name taken is refused", async () => {
   assert.equal((await modelConfig()).name, "fake-model (Fake (dev)) · high");
-  assert.equal((await modelConfig()).name, "fake-model (Fake (dev)) · high (1)");
+  assert.equal((await modelConfig({ pricing: { kind: "unpriced" } })).name, "fake-model (Fake (dev)) · high (1)");
   assert.equal((await modelConfig({ effort: null })).name, "fake-model (Fake (dev))");
   assert.equal((await modelConfig({ modelId: "fake", pricing: { kind: "list" } })).name, "Fake model (Fake (dev)) · high");
-  assert.equal((await modelConfig({ name: "  Opus 5.5  " })).name, "Opus 5.5");
-  const taken = await send("/api/model-configs", configBody({ name: "opus 5.5" }));
+  assert.equal((await modelConfig({ name: "  Opus 5.5  ", model: "fake-opus" })).name, "Opus 5.5");
+  const taken = await send("/api/model-configs", configBody({ name: "opus 5.5", model: "fake-other" }));
   assert.equal(taken.status, 409);
   assert.match((await json<{ error: string }>(taken)).error, /already exists/);
   assert.equal((await send("/api/model-configs", configBody({ name: "x".repeat(201) }))).status, 400);
   // A deleted config's name is free again.
   const opus = (await json<{ id: string; name: string }[]>(await app.request("/api/model-configs", {}, env))).find((c) => c.name === "Opus 5.5")!;
   assert.equal((await send(`/api/model-configs/${opus.id}`, undefined, "DELETE")).status, 204);
-  assert.equal((await modelConfig({ name: "Opus 5.5" })).name, "Opus 5.5");
+  assert.equal((await modelConfig({ name: "Opus 5.5", model: "fake-opus" })).name, "Opus 5.5");
 });
 
 test("migration 0024 names the configs that had none, numbering repeats among those not deleted; 0027 converts them", () => {
@@ -283,7 +283,7 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   assert.equal(stages[1].costUsd, first.costUsd);
 
   // The same request again, from another stage with another config of the same model: served, nothing paid.
-  const other = await runningStage((await modelConfig({ name: "Same model, other config" })).id);
+  const other = await runningStage((await modelConfig({ name: "Same model, other config", pricing: { kind: "unpriced" } })).id);
   const second = await json(await call(other));
   assert.equal(second.cached, true);
   assert.equal(second.callId, first.callId);
@@ -472,7 +472,7 @@ test("a stage whose model config was deleted can't start, says why, and its card
   form.append("pdf", new File([pdf], "deleted.pdf"));
   form.append("sha256", [...digest].map((b) => b.toString(16).padStart(2, "0")).join(""));
   const project = await json<{ id: string }>(await app.request("/api/projects", { method: "POST", body: form }, env));
-  await send("/api/settings/defaultModelConfigId", { value: (await modelConfig({ name: "Another" })).id }, "PUT");
+  await send("/api/settings/defaultModelConfigId", { value: (await modelConfig({ name: "Another", model: "fake-another" })).id }, "PUT");
   assert.equal((await send(`/api/model-configs/${config.id}`, undefined, "DELETE")).status, 204);
   const { stages } = await json<{ stages: { id: string; modelConfig: unknown }[] }>(await app.request(`/api/projects/${project.id}/pipeline`, {}, env));
   // The pipeline says so for every stage that names it, so that the card shows it.
@@ -506,7 +506,7 @@ test("a model config deleted while its stage runs: the next request is refused, 
 
 test("the default model config can't be deleted until another is the default", async () => {
   const first = await modelConfig({ name: "First" });
-  const second = await modelConfig({ name: "Second" });
+  const second = await modelConfig({ name: "Second", model: "fake-second" });
   await send("/api/settings/defaultModelConfigId", { value: first.id }, "PUT");
   const refused = await send(`/api/model-configs/${first.id}`, undefined, "DELETE");
   assert.equal(refused.status, 409);
@@ -654,4 +654,47 @@ test("the secrets' names: the Worker's text values, sorted, never a value; not i
   assert.deepEqual(secretNames({ ZED: "z", ANTHROPIC_KEY: "secret", DB: env.DB, PDFS: env.PDFS } as unknown as Env), ["ANTHROPIC_KEY", "ZED"]);
   const answer = await json<{ names: string[] }>(await app.request("/api/secrets", {}, { ...env, GEMINI_KEY: "secret" } as Env));
   assert.deepEqual(answer, { names: ["GEMINI_KEY"] });
+});
+
+test("a config with exactly the same values as another isn't created: the other is named, to offer renaming it", async () => {
+  const first = await modelConfig({ name: "Claude" });
+  const again = await send("/api/model-configs", configBody({ name: "Opus 5.5" }));
+  assert.equal(again.status, 409);
+  assert.deepEqual(await json(again), {
+    error: 'A config with these settings already exists: "Claude".',
+    code: "same_values",
+    config: { id: first.id, name: "Claude" },
+  });
+  // Another effort is another config; the same secrets in another order are the same.
+  assert.equal((await send("/api/model-configs", configBody({ effort: "low" }))).status, 201);
+  const keys = { provider: "bedrock", modelId: "claude-opus-5-5", region: "eu-central-1", routing: "global", pricing: { kind: "list" } };
+  await modelConfig({ ...keys, secrets: { accessKeyId: "ID", secretAccessKey: "SECRET" } });
+  assert.equal((await send("/api/model-configs", configBody({ ...keys, secrets: { secretAccessKey: "SECRET", accessKeyId: "ID" } }))).status, 409);
+});
+
+test("a clone may replace its original: the original deleted, and the clone the default if the original was", async () => {
+  const original = await modelConfig({ name: "Claude" });
+  await send("/api/settings/defaultModelConfigId", { value: original.id }, "PUT");
+  const clone = await modelConfig({ name: "Opus 5.5", effort: "max", replaces: original.id });
+  assert.ok((await json(await app.request(`/api/model-configs/${original.id}`, {}, env))).deletedAt);
+  assert.equal((await json(await app.request("/api/settings", {}, env))).defaultModelConfigId, clone.id);
+  // A deleted original can't be replaced again.
+  assert.equal((await send("/api/model-configs", configBody({ effort: "low", replaces: original.id }))).status, 404);
+  // Its name is free again, its values too.
+  assert.equal((await modelConfig({ name: "Claude" })).name, "Claude");
+});
+
+test("renaming a config: its name only, unique ignoring case among the configs that aren't deleted, its own case free", async () => {
+  const a = await modelConfig({ name: "Claude" });
+  await modelConfig({ name: "Other", effort: "low" });
+  const rename = (id: string, name: unknown) => send(`/api/model-configs/${id}`, { name }, "PATCH");
+  assert.equal((await rename(a.id, "  ")).status, 400);
+  assert.equal((await rename(a.id, "x".repeat(201))).status, 400);
+  assert.equal((await rename(a.id, "other")).status, 409);
+  assert.equal((await rename("nope", "X")).status, 404);
+  assert.equal((await json(await rename(a.id, "CLAUDE"))).name, "CLAUDE");
+  const renamed = await json(await rename(a.id, " Opus 5.5 "));
+  assert.deepEqual([renamed.name, renamed.effort], ["Opus 5.5", "high"]);
+  assert.equal((await send(`/api/model-configs/${a.id}`, undefined, "DELETE")).status, 204);
+  assert.equal((await rename(a.id, "Again")).status, 404); // a deleted config isn't renamed
 });

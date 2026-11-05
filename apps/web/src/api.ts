@@ -571,12 +571,41 @@ export type NewModelConfig = {
   pricing: ModelConfig["pricing"];
 };
 
-// Creates a model config. A refusal comes back as an Error with the Worker's message, to show in the form.
-export async function createModelConfig(body: NewModelConfig): Promise<ModelConfig> {
+// Creates a model config, or clones one (`replaces`: the original, deleted with it). A refusal comes back as a
+// WorkerRefusal with the Worker's message, to show in the form, and for a config with the same values as another,
+// "same_values" and that config.
+export async function createModelConfig(body: NewModelConfig & { replaces?: string }): Promise<ModelConfig> {
   const response = await fetch("/api/model-configs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  if (!response.ok) {
-    const message = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
-    throw new Error(message ?? `HTTP ${response.status}`);
+  return (await refusedOr(response)).json();
+}
+
+// A refusal from the Worker, with its message and, where it has one, its code and what it names (the config with the
+// same values, "same_values").
+export class WorkerRefusal extends Error {
+  readonly status: number;
+  readonly code: string | null;
+  readonly config: { id: string; name: string } | null;
+
+  constructor(status: number, body: { error?: string; code?: string; config?: { id: string; name: string } } | null) {
+    super(body?.error ?? `HTTP ${status}`);
+    this.status = status;
+    this.code = body?.code ?? null;
+    this.config = body?.config ?? null;
   }
-  return response.json();
+}
+
+async function refusedOr(response: Response): Promise<Response> {
+  if (!response.ok) throw new WorkerRefusal(response.status, await response.json().catch(() => null));
+  return response;
+}
+
+// Renames a model config; a taken name is refused (WorkerRefusal with the Worker's message).
+export async function renameModelConfig(id: string, name: string): Promise<ModelConfig> {
+  const response = await fetch(`/api/model-configs/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+  return (await refusedOr(response)).json();
+}
+
+// Deletes a model config; the default is refused.
+export async function deleteModelConfig(id: string): Promise<void> {
+  await refusedOr(await fetch(`/api/model-configs/${id}`, { method: "DELETE" }));
 }

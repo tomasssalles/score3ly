@@ -546,15 +546,62 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     return row ? c.json(toModelConfig(row)) : c.json({ error: "no such model config" }, 404);
   });
 
+  // Creates a config, or clones one: `replaces` names the original to delete with it ("Delete the original"; the clone
+  // becomes the default if the original was). A config with exactly the same values as one that isn't deleted isn't
+  // created (docs/llm.md, "Managing model configs"): 409 with `code` "same_values" and that config, so the browser can
+  // offer to rename it instead.
   app.post("/api/model-configs", async (c) => {
+    const db = c.env.DB;
     const body = await c.req.json().catch(() => null);
     const problem = configProblem(body);
     if (problem) return c.json({ error: problem }, 400);
-    const name = await configName(c.env.DB, body);
+    if (body.replaces !== undefined && typeof body.replaces !== "string") return c.json({ error: "'replaces' must be a model config's id" }, 400);
+    const original =
+      typeof body.replaces === "string"
+        ? await db.prepare("SELECT id, name FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(body.replaces).first<{ id: string; name: string }>()
+        : null;
+    if (typeof body.replaces === "string" && !original) return c.json({ error: "the config to replace doesn't exist" }, 404);
+    const draft = newConfigRow(body, "");
+    const same = (await db.prepare("SELECT * FROM model_configs WHERE deleted_at IS NULL").all<ModelConfigRow>()).results.find((row) => sameValues(row, draft));
+    if (same) {
+      return c.json({ error: `A config with these settings already exists: "${same.name}".`, code: "same_values", config: { id: same.id, name: same.name } }, 409);
+    }
+    const name = await configName(db, body);
     if (name === null) return c.json({ error: NAME_TAKEN }, 409);
-    const row = newConfigRow(body, name);
-    await insertConfig(c.env.DB, row).run();
+    const row = { ...draft, name };
+    const statements = [insertConfig(db, row)];
+    if (original) {
+      statements.push(db.prepare("UPDATE model_configs SET deleted_at = ? WHERE id = ?").bind(row.created_at, original.id));
+      const { defaultModelConfigId } = await readSettings(db);
+      if (defaultModelConfigId === original.id) {
+        statements.push(
+          db.prepare("INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES ('defaultModelConfigId', ?, ?)").bind(JSON.stringify(row.id), row.created_at),
+        );
+      }
+    }
+    await db.batch(statements);
     return c.json(toModelConfig(row), 201);
+  });
+
+  // Renames a config: the only change a config's row takes besides its deletion (docs/llm.md, "Managing model configs").
+  // The name is required and unique, ignoring case, among the configs that aren't deleted; changing only its case is
+  // allowed.
+  app.patch("/api/model-configs/:id", async (c) => {
+    const db = c.env.DB;
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => null);
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    if (!name) return c.json({ error: "expected a 'name'" }, 400);
+    if (name.length > MAX_NAME_LENGTH) return c.json({ error: `'name' must be at most ${MAX_NAME_LENGTH} characters` }, 400);
+    const row = await db.prepare("SELECT * FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(id).first<ModelConfigRow>();
+    if (!row) return c.json({ error: "no such model config" }, 404);
+    const taken = await db
+      .prepare("SELECT id FROM model_configs WHERE deleted_at IS NULL AND id <> ? AND name = ? COLLATE NOCASE")
+      .bind(id, name)
+      .first();
+    if (taken) return c.json({ error: NAME_TAKEN }, 409);
+    await db.prepare("UPDATE model_configs SET name = ? WHERE id = ?").bind(name, id).run();
+    return c.json(toModelConfig({ ...row, name }));
   });
 
   app.delete("/api/model-configs/:id", async (c) => {
@@ -782,6 +829,12 @@ async function configName(db: D1Database, body: Record<string, unknown>): Promis
 
 const NAME_TAKEN = "A model config with that name already exists. Names must be unique (case-insensitive).";
 
+// Whether two configs do exactly the same: everything but their ids, names and dates.
+function sameValues(a: ModelConfigRow, b: ModelConfigRow): boolean {
+  const keys = ["provider", "model_id", "model_string", "family", "effort", "region", "routing", "project", "pricing_kind", "pricing_reference"] as const;
+  return keys.every((k) => (a[k] ?? null) === (b[k] ?? null)) && canonicalJson(JSON.parse(a.secrets_json)) === canonicalJson(JSON.parse(b.secrets_json));
+}
+
 function newConfigRow(body: Record<string, unknown>, name: string): ModelConfigRow {
   const pricing = body.pricing as Pricing & { reference?: string | null };
   const listed = typeof body.modelId === "string" && body.modelId !== "";
@@ -796,7 +849,7 @@ function newConfigRow(body: Record<string, unknown>, name: string): ModelConfigR
     region: (body.region as string | undefined) ?? "",
     routing: (body.routing as Routing | undefined) ?? null,
     project: (body.project as string | undefined) || null,
-    secrets_json: JSON.stringify(body.secrets ?? {}),
+    secrets_json: canonicalJson(body.secrets ?? {}),
     pricing_kind: pricing.kind,
     pricing_reference: pricing.kind === "list" ? (pricing.reference ?? null) : null,
     created_at: new Date().toISOString(),

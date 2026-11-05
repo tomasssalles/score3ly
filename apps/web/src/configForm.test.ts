@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ModelOptions } from "./api";
+import type { ModelConfig, ModelOptions } from "./api";
 import {
   confirmationOf,
   defaultModel,
+  familyOf,
+  formFromConfig,
   initialForm,
   withProvider,
   defaultName,
@@ -195,4 +197,65 @@ test("the default name stands in until the name is edited; an edited name is sen
   const form = pick({ provider: "anthropic" }, { model: { kind: "listed", id: "opus" } }, { secrets: { apiKey: "K" }, name: "stale" });
   assert.equal("name" in requestOf(form), false); // not edited: the Worker names it (and numbers it)
   assert.equal(requestOf({ ...form, name: " Opus ", nameEdited: true }).name, "Opus");
+});
+
+// A config as the Worker sends it, for a clone.
+function config(fields: Partial<ModelConfig>): ModelConfig {
+  return {
+    id: "c1",
+    name: "Opus EU",
+    provider: "bedrock",
+    modelId: "opus",
+    modelString: null,
+    model: "anthropic.claude-opus-5-5",
+    family: "claude",
+    modelName: "Claude Opus 5.5",
+    unsupported: null,
+    effort: "high",
+    region: "eu-central-1",
+    routing: "geographic",
+    project: null,
+    secrets: { secretAccessKey: "SECRET", accessKeyId: "ID" },
+    pricing: { kind: "list", reference: null },
+    price: { kind: "priced", price: P(4.4), borrowedFrom: null },
+    freeTier: false,
+    createdAt: "",
+    deletedAt: null,
+    ...fields,
+  };
+}
+
+test("a clone starts from the original's values, its name as typed text, its secrets' set found", () => {
+  const form = formFromConfig(OPTIONS, config({}));
+  assert.deepEqual(
+    [form.provider, form.model, form.region, form.routing, form.effort, form.secretSet, form.secrets, form.pricing, form.name, form.nameEdited],
+    ["bedrock", { kind: "listed", id: "opus" }, "eu-central-1", "geographic", "high", 1, { secretAccessKey: "SECRET", accessKeyId: "ID" }, "list", "Opus EU", true],
+  );
+  assert.equal(missing(OPTIONS, form), null);
+  assert.equal(requestOf(form).name, "Opus EU");
+});
+
+test("a clone of a config the app no longer supports keeps its values in the pickers, and can't be saved as it is", () => {
+  // A listed model the list no longer has: its model, family and place stay.
+  const retired = formFromConfig(OPTIONS, config({ modelId: "opus-4", modelName: "Claude Opus 4", unsupported: "uses Claude Opus 4 …", region: "us-east-1", routing: "global" }));
+  assert.deepEqual([retired.model, retired.region, retired.routing], [{ kind: "listed", id: "opus-4" }, "us-east-1", "global"]);
+  assert.equal(familyOf(OPTIONS, retired), "claude");
+  assert.deepEqual(regionsOf(OPTIONS, retired), ["us-east-1"]);
+  assert.equal(missing(OPTIONS, retired), "The app no longer supports Claude Opus 4 on Bedrock in us-east-1 (global routing).");
+  // Another model: the original's place goes where the new one has no price.
+  const opus = settled(OPTIONS, { ...retired, model: { kind: "listed", id: "opus" } });
+  assert.deepEqual([opus.region, opus.routing], ["eu-central-1", "global"]);
+  assert.equal(missing(OPTIONS, opus), null);
+  // A listed model at a place it no longer has a price for: that place stays offered, as well as its own.
+  const place = formFromConfig(OPTIONS, config({ region: "us-east-1", routing: "global" }));
+  assert.deepEqual(regionsOf(OPTIONS, place), ["eu-central-1", "us-east-1"]);
+  assert.match(missing(OPTIONS, place) ?? "", /no longer supports Claude Opus 5\.5 on Bedrock in us-east-1/);
+  // A model added by hand priced as a model without a price there any more: that model stays picked.
+  const added = formFromConfig(
+    OPTIONS,
+    config({ modelId: null, modelString: "anthropic.claude-opus-6", model: "anthropic.claude-opus-6", modelName: null, region: "us-east-1", routing: "global", pricing: { kind: "list", reference: "opus" }, price: { kind: "missing" } }),
+  );
+  assert.deepEqual([added.pricing, added.reference], ["as", "opus"]);
+  assert.equal(missing(OPTIONS, added), "The app has no price for Claude Opus 5.5 on Bedrock in us-east-1 (global routing) any more.");
+  assert.equal(missing(OPTIONS, settled(OPTIONS, { ...added, pricing: "unpriced" })), null);
 });

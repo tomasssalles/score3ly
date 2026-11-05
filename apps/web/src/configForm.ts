@@ -1,6 +1,6 @@
-// The new model config form's logic (docs/llm.md, "The settings page"): what each picker offers given the others, the
-// default name it would get, what is still missing, and the request it makes. Pure, so the dialog (NewModelConfig.tsx)
-// only shows it.
+// The model config form's logic (docs/llm.md, "The settings page"), for a new config and for a clone: what each picker
+// offers given the others, the default name it would get, what is still missing, and the request it makes. Pure, so the
+// dialog (NewModelConfig.tsx) only shows it.
 
 import type { Family, ModelConfig, ModelOptions, NewModelConfig, Place, Provider, Routing } from "./api";
 
@@ -28,7 +28,24 @@ export type FormState = {
   name: string; // what the user typed, once `nameEdited`; until then the default name stands in
   nameEdited: boolean;
   makeDefault: boolean;
+  deleteOriginal: boolean; // a clone: the original is deleted with it
+  // A clone's original values that a new config couldn't have (a model, a place or a model priced as that the app no
+  // longer supports): the pickers hold them, exceptionally, until the user picks another (docs/llm.md, "Clone").
+  pinned: Pinned | null;
 };
+
+export type Pinned = {
+  model: FormModel;
+  family: Family;
+  modelName: string | null;
+  region: string;
+  routing: Routing | null;
+  reference: string | null;
+  referenceName: string | null;
+};
+
+const sameModel = (a: FormModel | null, b: FormModel | null) =>
+  a !== null && b !== null && a.kind === b.kind && (a.kind === "listed" ? a.id === (b as { id: string }).id : a.string === (b as { string: string }).string);
 
 export const EMPTY_FORM: FormState = {
   provider: null,
@@ -44,6 +61,8 @@ export const EMPTY_FORM: FormState = {
   name: "",
   nameEdited: false,
   makeDefault: false,
+  deleteOriginal: false,
+  pinned: null,
 };
 
 // The model a provider starts with: Claude Opus 5.5 where it is offered, else Gemini 3.1 Pro, else the first listed one,
@@ -62,9 +81,49 @@ export function initialForm(options: ModelOptions): FormState {
   return provider ? settled(options, { ...EMPTY_FORM, provider, model: defaultModel(options, provider) }) : EMPTY_FORM;
 }
 
-// Another provider: the form starts over with its model, keeping the name typed and "Make default".
+// Another provider: the form starts over with its model, keeping the name typed, "Make default" and "Delete the
+// original".
 export function withProvider(options: ModelOptions, form: FormState, provider: Provider): FormState {
-  return settled(options, { ...EMPTY_FORM, name: form.name, nameEdited: form.nameEdited, makeDefault: form.makeDefault, provider, model: defaultModel(options, provider) });
+  const kept = { name: form.name, nameEdited: form.nameEdited, makeDefault: form.makeDefault, deleteOriginal: form.deleteOriginal };
+  return settled(options, { ...EMPTY_FORM, ...kept, provider, model: defaultModel(options, provider) });
+}
+
+// A clone's form: the original's values, its name as typed text (decided 2026-11-05), and what the app no longer
+// supports pinned so that the pickers can show it.
+export function formFromConfig(options: ModelOptions, config: ModelConfig): FormState {
+  const model: FormModel = config.modelId ? { kind: "listed", id: config.modelId } : { kind: "added", string: config.modelString ?? config.model, family: config.family };
+  const provider = options.providers.find((p) => p.id === config.provider);
+  const sets = provider?.families.find((f) => f.id === config.family)?.secrets ?? [[]];
+  const keys = Object.keys(config.secrets).sort().join(",");
+  const secretSet = Math.max(0, sets.findIndex((set) => [...set].sort().join(",") === keys));
+  const pricing: FormPricing =
+    config.pricing.kind === "list" ? (config.pricing.reference ? "as" : "list") : config.pricing.kind;
+  const reference = config.pricing.kind === "list" ? config.pricing.reference : null;
+  const form: FormState = {
+    ...EMPTY_FORM,
+    provider: config.provider,
+    model,
+    region: config.region,
+    routing: config.routing,
+    effort: config.effort,
+    project: config.project ?? "",
+    secretSet,
+    secrets: { ...config.secrets },
+    pricing,
+    reference,
+    name: config.name,
+    nameEdited: true,
+    pinned: {
+      model,
+      family: config.family,
+      modelName: config.modelName,
+      region: config.region,
+      routing: config.routing,
+      reference,
+      referenceName: config.price.kind === "priced" ? config.price.borrowedFrom : (options.models.find((m) => m.id === reference)?.name ?? reference),
+    },
+  };
+  return settled(options, form);
 }
 
 export function providerOf(options: ModelOptions, form: FormState): ProviderOption | null {
@@ -76,10 +135,15 @@ export function listedModel(options: ModelOptions, form: FormState): ModelOption
   return model?.kind === "listed" ? (options.models.find((m) => m.id === model.id) ?? null) : null;
 }
 
+// A clone's listed model that the app's list no longer has at all: kept in the pickers, with its name.
+export function pinnedModel(form: FormState): Pinned | null {
+  return form.pinned && sameModel(form.model, form.pinned.model) ? form.pinned : null;
+}
+
 // The model's family: a listed model's, or the one picked for a model added by hand.
 export function familyOf(options: ModelOptions, form: FormState): Family | null {
   if (form.model?.kind === "added") return form.model.family;
-  return listedModel(options, form)?.family ?? null;
+  return listedModel(options, form)?.family ?? pinnedModel(form)?.family ?? null;
 }
 
 export function familyOption(options: ModelOptions, form: FormState) {
@@ -106,8 +170,13 @@ export function placesOf(options: ModelOptions, form: FormState): (Place & { geo
   if (!provider) return [];
   const withGeography = (p: Place) => provider.places.find((q) => samePlace(p, q)) ?? p;
   const listed = listedModel(options, form);
-  if (listed) return (listed.providers[provider.id]?.places ?? []).map(withGeography);
-  return provider.places;
+  const places = listed || form.model?.kind === "listed" ? (listed?.providers[provider.id]?.places ?? []).map(withGeography) : provider.places;
+  // A clone's original place, kept while its model is the original's, even where the app no longer supports it.
+  const pinned = pinnedModel(form);
+  if (pinned && !places.some((p) => samePlace(p, pinned))) {
+    return [...places, provider.places.find((p) => samePlace(p, pinned)) ?? { region: pinned.region, routing: pinned.routing }];
+  }
+  return places;
 }
 
 // The regions to pick from, in order, each once.
@@ -162,7 +231,9 @@ export function settled(options: ModelOptions, form: FormState): FormState {
   if (next.model?.kind === "added" && next.model.family === null && provider.families.length > 0) {
     next.model = { ...next.model, family: provider.families[0].id };
   }
-  if (next.model?.kind === "listed" && !modelsOf(options, provider.id).some((m) => m.id === (next.model as { id: string }).id)) next.model = null;
+  if (next.model?.kind === "listed" && !modelsOf(options, provider.id).some((m) => m.id === (next.model as { id: string }).id) && !pinnedModel(next)) {
+    next.model = null;
+  }
   // Pricing: a listed model at its own price or free; a model added by hand priced as another, unpriced or free.
   if (next.model?.kind === "listed" && next.pricing !== "free") next.pricing = "list";
   if (next.model?.kind === "added" && (next.pricing === "list" || next.pricing === null)) next.pricing = "as";
@@ -176,7 +247,7 @@ export function settled(options: ModelOptions, form: FormState): FormState {
   if (next.routing === null && routings.length > 0) next.routing = routings[0];
   // A reference that isn't priced at the place any more.
   const references = referencesOf(options, next);
-  if (next.reference !== null && !references.some((m) => m.id === next.reference)) next.reference = null;
+  if (next.reference !== null && !references.some((m) => m.id === next.reference) && next.reference !== next.pinned?.reference) next.reference = null;
   // The effort and the secrets follow the family.
   const family = familyOption(options, next);
   if (next.effort !== null && !(family?.efforts ?? []).includes(next.effort)) next.effort = null;
@@ -191,7 +262,7 @@ export function settled(options: ModelOptions, form: FormState): FormState {
 // numbering.
 export function defaultName(options: ModelOptions, form: FormState): string | null {
   const provider = providerOf(options, form);
-  const model = listedModel(options, form)?.name ?? (form.model?.kind === "added" ? form.model.string.trim() : "");
+  const model = listedModel(options, form)?.name ?? pinnedModel(form)?.modelName ?? (form.model?.kind === "added" ? form.model.string.trim() : "");
   if (!provider || !model) return null;
   return `${model} (${provider.name})${form.effort ? ` · ${form.effort}` : ""}`;
 }
@@ -217,11 +288,21 @@ export function missing(options: ModelOptions, form: FormState): string | null {
   if (unset) return `The secret for the ${SECRET_LABELS[unset] ?? unset} isn't chosen yet.`;
   if (form.pricing === null) return "The pricing isn't chosen yet.";
   if (form.pricing === "as" && form.reference === null) return "The model it is priced as isn't chosen yet.";
+  // A clone of a config the app no longer supports, as it was: not saved until it is supported (docs/llm.md, "Clone").
+  const where = `${provider.name}${form.region ? ` in ${form.region}` : ""}${form.routing ? ` (${form.routing} routing)` : ""}`;
+  if (form.model.kind === "listed" && priceAt(options, form) === null) {
+    return `The app no longer supports ${listedModel(options, form)?.name ?? pinnedModel(form)?.modelName ?? form.model.id} on ${where}.`;
+  }
+  if (form.pricing === "as" && priceAt(options, form) === null) {
+    const reference = options.models.find((m) => m.id === form.reference)?.name ?? form.pinned?.referenceName ?? form.reference;
+    return `The app has no price for ${reference} on ${where} any more.`;
+  }
   return null;
 }
 
 // The request that creates it (the Worker checks it again).
 export function requestOf(form: FormState): NewModelConfig {
+  // (The clone's `replaces` is added by the dialog, which knows the original.)
   const model = form.model!;
   return {
     ...(form.nameEdited && form.name.trim() ? { name: form.name.trim() } : {}),
@@ -248,4 +329,26 @@ export function confirmationOf(options: ModelOptions, form: FormState): string |
   if (form.pricing === "unpriced") return "The spending cap can't limit this model's calls, and the costs won't include them. Check your charges with the provider.";
   if (form.pricing === "free") return "Its calls will cost $0.00 and won't count towards the spending cap. Only for a model your account really doesn't pay for.";
   return null;
+}
+
+// The config that already has exactly the values the form would create, if any (the Worker refuses a second one,
+// docs/llm.md, "Managing model configs"): found before anything is asked, so that renaming it can be offered first.
+export function sameValues(configs: ModelConfig[], request: NewModelConfig): ModelConfig | null {
+  const secrets = (s: Record<string, string>) => JSON.stringify(Object.entries(s).sort(([a], [b]) => a.localeCompare(b)));
+  const reference = (p: ModelConfig["pricing"]) => (p.kind === "list" ? p.reference : null);
+  return (
+    configs.find(
+      (c) =>
+        c.provider === request.provider &&
+        (c.modelId ?? null) === (request.modelId ?? null) &&
+        (c.modelId ? true : c.modelString === request.modelString && c.family === request.family) &&
+        c.effort === request.effort &&
+        c.region === request.region &&
+        c.routing === request.routing &&
+        (c.project ?? null) === (request.project ?? null) &&
+        secrets(c.secrets) === secrets(request.secrets) &&
+        c.pricing.kind === request.pricing.kind &&
+        reference(c.pricing) === reference(request.pricing),
+    ) ?? null
+  );
 }

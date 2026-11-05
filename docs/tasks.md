@@ -50,9 +50,8 @@ A documented, step-by-step list of behavioural tests for trying the app by hand 
 A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a script of many actions in a row (the project owner's brief: no clean slate per case, stories of what a user might do, sized for a person), a smoke run of about 45 minutes and a full run of about 5 hours, with the fake models and `curl` for the configs the app can't make yet. Left to do:
 - **The project owner reviews it** and runs it once; the expected results come from the docs and may be wrong where the docs are.
 - **Multi-device tests wait for a real deployment** (§16, "Deployment"): listed at the end of the file, to be written as stories then, with real phones, Firefox and Safari.
-- **Stories to add** once built: the model configs' form, the format gap report. (`apply_review` and further reviews: in stories 1 and 3, 2026-11-02; `human_review`: in stories 2 and 3, 2026-11-04.)
+- **Stories to add** once built: the format gap report; the model configs' form, rename, delete and clone are built (2026-11-05): "Stories for the model configs in the manual tests". (`apply_review` and further reviews: in stories 1 and 3, 2026-11-02; `human_review`: in stories 2 and 3, 2026-11-04.)
 - **The setup becomes a test environment** once those exist ("Build the test environments"), so the stories start with one command.
-- **Found while writing it** (each a task of its own): "Model configs for stages, and managing them".
 
 ### Clean up the codebase
 
@@ -75,14 +74,6 @@ While no data needs keeping (CLAUDE.md, "Existing data"), replace the migrations
 - **How:** take the schema from a database the current migrations made (SQLite's dump of the schema), then check that a database made from the new file has the same tables, columns, indexes and starting rows as one made from the old chain.
 - **What goes with it:** the tests of single migrations (the projects given new stages, the configs named, the default model config, the recipe marks); the test setups that seed old rows before a given migration are simplified.
 - **Afterwards:** every local database (the project owner's, the sessions', the desktop app's) is made anew: their migration history no longer matches.
-
-### Model configs for stages, and managing them
-`#next-release`
-
-Decided 2026-11-02: `docs/llm.md`, "Which config a stage uses" and "Managing model configs". To build:
-- **Built 2026-11-02:** every LLM stage names its config from its creation, the cards show it on planned and ready stages (a deleted one marked), and "Change config" picks it, with "Apply to the remaining stages planned in this pipeline" ("Which config a stage uses"). Stages added later go through the same `newStageConfig` (further reviews and their `apply_review` do, 2026-11-02; `human_review`'s `apply_review` must too).
-- **The settings page:** "Make default" in the create and clone forms, none in the cards' "⋮"; Rename, Clone (with "Delete the original" and the duplicate checks with their rename offers) and Delete on each config, no Edit. Part of "Settings page, the model configs".
-- **Rename and clone** in the Worker: a request that changes only the name (unique, like a new config's), and clone as a create, with the original deleted when "Delete the original" is ticked (the editing endpoint is gone, 2026-11-02).
 
 ### The costs view: the order of long lists
 `#decision`
@@ -158,12 +149,7 @@ For testing and debugging: run stages as if nothing were cached, without our own
 ### Stories for the model configs in the manual tests
 `#next-release` `#manual-test`
 
-`docs/manual-tests.md`: stories for managing model configs, once rename, delete and clone are built: creating configs of every kind (a listed model on each provider, Bedrock's routings, an unlisted model priced as a listed one, unpriced, free tier), the form's pickers following each other, the confirmations, the default name and an edited one, "Make default"; renaming, deleting (the default refused), cloning (with "Delete the original", the offers to rename instead, an unsupported config's clone); "Change config" on stages; a config no longer supported after a new list (its stages refused, its marks), and a config added by hand converted (the fake files of `apps/worker/model-list` edited for the test). With the fake providers and dummy secret names.
-
-### Settings page, the model configs
-`#next-release`
-
-§7.2, §10: creating, renaming, cloning and deleting configs (no editing: `docs/llm.md`, "Managing model configs"), choosing the default with its rule, the free-tier mark. **Creating is built** (2026-11-05, `docs/llm.md`, "The create form, built"); left: rename and delete in each card's "⋮" (with a Worker endpoint for renaming), then clone (the create form opened from a config, "Delete the original", the duplicate checks and their offers, a clone of an unsupported config not saved until its model is supported). Today the page has one row per setting (the run mode for new projects, the spending cap), its label (with a short hint where needed) left and its control right, and below them "Model configs", read-only: a card per config with its name (else its model), badges for the default and free tier, its provider, model and effort, its plain values and its secrets by the Worker secret's name.
+`docs/manual-tests.md`: stories for managing model configs (rename, delete and clone built 2026-11-05): creating configs of every kind (a listed model on each provider, Bedrock's routings, an unlisted model priced as a listed one, unpriced, free tier), the form's pickers following each other, the confirmations, the default name and an edited one, "Make default"; renaming, deleting (the default refused), cloning (with "Delete the original", the offers to rename instead, an unsupported config's clone); "Change config" on stages; a config no longer supported after a new list (its stages refused, its marks), and a config added by hand converted (the fake files of `apps/worker/model-list` edited for the test). With the fake providers and dummy secret names.
 
 ### Verify the prompt and schema of `layout`
 `#owner` `#next-release`

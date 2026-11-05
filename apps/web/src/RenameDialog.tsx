@@ -1,21 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { ApiError, renameProject, type Project } from "./api";
 import { CloseIcon } from "./icons";
 import { MAX_NAME_LENGTH, nameProblem } from "./names";
 
-// Renames a project. The name must stay unique (ignoring case); the Worker refuses a taken one.
+// Renames something whose name must stay unique, ignoring case (a project, a model config): `save` is the request, and
+// its refusal (a taken name) is shown in the dialog, which stays open (docs/style.md, "Dialogs").
 export function RenameDialog({
-  project,
-  onRenamed,
+  title,
+  current,
+  save,
+  onDone,
   onCancel,
 }: {
-  project: Project;
-  onRenamed: (project: Project) => void;
+  title: string;
+  current: string;
+  save: (name: string) => Promise<void>;
+  onDone: () => void;
   onCancel: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState(project.name);
+  const [name, setName] = useState(current);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,25 +28,22 @@ export function RenameDialog({
     input.current?.select();
   }, []);
 
-  const problem = nameProblem(name, project.name);
+  const problem = nameProblem(name, current);
   // An empty or unchanged name only disables saving; the other problems are worth saying.
-  const shownProblem = problem !== null && name.trim() !== "" && name.trim() !== project.name ? problem : null;
+  const shownProblem = problem !== null && name.trim() !== "" && name.trim() !== current ? problem : null;
 
-  async function save(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (problem !== null || saving) return;
     setSaving(true);
     setError(null);
     try {
-      onRenamed(await renameProject(project, name.trim()));
+      await save(name.trim());
+      onDone();
       // Closing (rather than just disappearing) puts the focus back where it was, on the actions button.
       dialog.current?.close();
     } catch (err) {
-      setError(
-        err instanceof ApiError && err.status === 409
-          ? "A project with that name already exists. Names must be unique (case-insensitive)."
-          : `Renaming failed: ${err}`,
-      );
+      setError(err instanceof Error ? err.message : String(err));
       setSaving(false);
     }
   }
@@ -57,9 +58,9 @@ export function RenameDialog({
       // A click on the backdrop lands on the dialog element itself.
       onClick={(e) => e.target === dialog.current && dialog.current.close()}
     >
-      <form onSubmit={save}>
+      <form onSubmit={submit}>
         <div className="dialog-head">
-          <h2 id="rename-title">Rename project</h2>
+          <h2 id="rename-title">{title}</h2>
           <button type="button" className="dialog-close" aria-label="Cancel" onClick={() => dialog.current?.close()}>
             <CloseIcon />
           </button>

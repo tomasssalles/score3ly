@@ -9,7 +9,9 @@ import {
   fetchModelOptions,
   fetchSecretNames,
   fetchSettings,
+  deleteModelConfig,
   openSecretsFile,
+  renameModelConfig,
   putSetting,
   type ModelConfig,
   type ModelOptions,
@@ -22,7 +24,9 @@ import { CACHE_LIMITS_MB, cacheLimitMb, formatSize, setCacheLimitMb } from "./ca
 import { useHost } from "./host";
 import { pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
-import { ChevronDownIcon, PlusIcon } from "./icons";
+import { ChevronDownIcon, MoreIcon, PlusIcon } from "./icons";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { RenameDialog } from "./RenameDialog";
 import { MODE_LABELS, MODES } from "./pipeline";
 import { CHOICES, setThemeChoice, themeChoice } from "./themes";
 
@@ -103,8 +107,8 @@ export function SettingsPage() {
         <ModelConfigs
           configs={configs}
           defaultId={settings.defaultModelConfigId}
-          onCreated={(config) => {
-            setConfigs((list) => [...(list ?? []), config]);
+          onChanged={() => {
+            fetchModelConfigs().then(setConfigs, () => setError("The model configs couldn't be loaded."));
             fetchSettings().then(setSettings, () => {});
           }}
         />
@@ -300,31 +304,34 @@ const FIELD_LABELS: Record<string, string> = {
 // The model configs (docs/llm.md), as stored: each with its name, whether it is the default and on a free tier, its
 // provider, model (its name for people where it is listed) and effort, where its requests go (a region, a routing, a
 // project), how it is priced, and its secrets by the name of the Worker secret, never a value.
-function ModelConfigs({
-  configs,
-  defaultId,
-  onCreated,
-}: {
-  configs: ModelConfig[];
-  defaultId: string | null;
-  onCreated: (config: ModelConfig) => void;
-}) {
+function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[]; defaultId: string | null; onChanged: () => void }) {
   const host = useHost();
-  // The new config form, with what its pickers offer, once loaded.
-  const [creating, setCreating] = useState<{ options: ModelOptions; secretNames: string[] } | null>(null);
+  // The config form, with what its pickers offer, once loaded: a new config, or a clone of `from`.
+  const [creating, setCreating] = useState<{ options: ModelOptions; secretNames: string[]; from: ModelConfig | null } | null>(null);
+  const [renaming, setRenaming] = useState<ModelConfig | null>(null);
+  const [deleting, setDeleting] = useState<ModelConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
-  function openForm() {
+  function openForm(from: ModelConfig | null) {
     setError(null);
     Promise.all([fetchModelOptions(), fetchSecretNames()]).then(
-      ([options, secretNames]) => setCreating({ options, secretNames }),
+      ([options, secretNames]) => setCreating({ options, secretNames, from }),
       () => setError("The models couldn't be loaded."),
     );
   }
+  // A config's actions (docs/llm.md, "Managing model configs"): no Edit. Delete isn't offered for the default (it can't
+  // be deleted until another config is the default).
+  const actions = (config: ModelConfig) => [
+    [
+      { label: "Rename", onSelect: () => setRenaming(config) },
+      { label: "Clone", onSelect: () => openForm(config) },
+    ],
+    ...(config.id === defaultId ? [] : [[{ label: "Delete", danger: true, onSelect: () => setDeleting(config) }]]),
+  ];
   return (
     <section className="settings-section">
       <div className="settings-section-head">
         <h3>Model configs</h3>
-        <button type="button" className="icon-button" aria-label="New model config" title="New model config" onClick={openForm}>
+        <button type="button" className="icon-button" aria-label="New model config" title="New model config" onClick={() => openForm(null)}>
           <PlusIcon />
         </button>
       </div>
@@ -334,20 +341,54 @@ function ModelConfigs({
           options={creating.options}
           secretNames={creating.secretNames}
           secretsHint={SECRETS_HINTS[host ?? "cloudflare"]}
-          onCreated={onCreated}
+          configs={configs}
+          from={creating.from}
+          isDefault={creating.from !== null && creating.from.id === defaultId}
+          onCreated={onChanged}
           onCancel={() => setCreating(null)}
+        />
+      )}
+      {renaming && (
+        <RenameDialog
+          title="Rename model config"
+          current={renaming.name}
+          save={async (name) => {
+            await renameModelConfig(renaming.id, name);
+          }}
+          onDone={onChanged}
+          onCancel={() => setRenaming(null)}
+        />
+      )}
+      {deleting && (
+        <ConfirmDialog
+          danger
+          title="Are you sure?"
+          text={[
+            `The model config "${deleting.name}" will be deleted. Stages that ran with it keep showing it; stages that haven't can't start with it until another config is picked for them.`,
+            "This action cannot be undone.",
+          ]}
+          confirmLabel="Delete config"
+          onConfirm={() => {
+            const config = deleting;
+            setDeleting(null);
+            deleteModelConfig(config.id).then(onChanged, (err) => setError(err instanceof Error ? err.message : String(err)));
+          }}
+          onCancel={() => setDeleting(null)}
         />
       )}
       {configs.length === 0 && <p>No model configs yet.</p>}
       <ul className="model-configs">
         {configs.map((config) => (
           <li key={config.id} className="model-config">
-            <p className="model-config-name">
-              {config.name}
-              {config.id === defaultId && <span className="badge">Default</span>}
-              {config.freeTier && <span className="badge muted">Free tier</span>}
-              {config.unsupported && <span className="badge danger">No longer supported</span>}
-            </p>
+            <div className="model-config-head">
+              <p className="model-config-name">
+                {config.name}
+                {config.id === defaultId && <span className="badge">Default</span>}
+                {config.freeTier && <span className="badge muted">Free tier</span>}
+                {config.unsupported && <span className="badge danger">No longer supported</span>}
+              </p>
+              <DropdownMenu icon={<MoreIcon />} label={`${config.name}: actions`} groups={actions(config)} />
+            </div>
             <dl className="model-config-facts">
               <dt>Provider</dt>
               <dd>{PROVIDERS[config.provider] ?? config.provider}</dd>

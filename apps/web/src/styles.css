@@ -1617,6 +1617,19 @@ dialog.app-dialog.config-form {
   background: var(--raised);
 }
 
+/* A config card's name and badges, with its "⋮" at the right. */
+.model-config-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -6px -8px 2px 0;
+}
+
+.model-config-head .model-config-name {
+  padding-top: 6px;
+}
+
 .page-view .model-config-name {
   margin: 0 0 8px;
   color: var(--fg);

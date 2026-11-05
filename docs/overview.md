@@ -599,7 +599,7 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [x] Manual stages: add, finish, edit, drop (§5.4, §5.8)
 - [x] LLM calls through the Worker: the providers' adapters, call records, the cache, costs, the spending cap (§7.2, §10)
 - [x] Settings page: run mode, default model config, spending cap, model configs read-only
-- [ ] Model configs: supported models and prices in the code, the configs' new columns, and the config form (§7.2; `docs/llm.md`)
+- [x] Model configs: supported models and prices in the code, the configs' new columns, and the config form (§7.2; `docs/llm.md`)
 - [x] Delete a project (§4)
 - [x] Statistics page (§10; docs/statistics.md)
 

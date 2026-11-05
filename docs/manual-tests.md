@@ -36,21 +36,21 @@ To start again from nothing: stop the Worker, delete `apps/worker/.wrangler/manu
 | `schumann_kinderscenen_first_edition.orig.pdf` | 22 crooked colour scans, 13 MB: the big old book. |
 | `schumann_kinderscenen_first_edition_p3.orig.pdf` | 1 colour page: a quick second PDF. |
 
-**Model configs.** A new database has "Fake model" (free, the default). The settings page can't make configs yet (§15, "Settings page, the model configs"), so the others are made with `curl`; the default is picked on the settings page ("Default model config for new LLM stages"), which the stories call "make … the default":
+**Model configs.** A new database has "Fake model" (free, the default). The others could be made on the settings page ("+" on "Model configs"), but `curl` is quicker for these; the default is picked on the settings page ("Default model config for new LLM stages"), which the stories call "make … the default":
 ```
 W=http://localhost:8787/api
 mk() { curl -s -X POST $W/model-configs -H 'content-type: application/json' -d "$1"; echo; }
-mk '{"provider":"fake-dev","model":"fake-model","name":"Fake (priced)"}'      # made-up prices: for the costs and the cap
-mk '{"provider":"fake","model":"fake-error","name":"Fails: server"}'
-mk '{"provider":"fake","model":"fake-refusal","name":"Fails: refusal"}'
-mk '{"provider":"fake","model":"fake-cut-off","name":"Fails: cut off"}'
-mk '{"provider":"fake","model":"fake-unparseable","name":"Fails: not JSON"}'
-mk '{"provider":"fake","model":"fake-other-model","name":"Fails: other model"}'
-mk '{"provider":"anthropic","model":"claude-opus-5-5","name":"No key","secrets":{"apiKey":"NOT_SET"}}'
-mk '{"provider":"anthropic","model":"claude-made-up-9","name":"No price","secrets":{"apiKey":"NOT_SET"}}'
+F='"family":"fake","pricing":{"kind":"free"}'
+mk '{"provider":"fake-dev","modelString":"fake-model","family":"fake","pricing":{"kind":"list","reference":"fake"},"name":"Fake (priced)"}'  # made-up prices: for the costs and the cap
+mk '{"provider":"fake","modelString":"fake-error",'"$F"',"name":"Fails: server"}'
+mk '{"provider":"fake","modelString":"fake-refusal",'"$F"',"name":"Fails: refusal"}'
+mk '{"provider":"fake","modelString":"fake-cut-off",'"$F"',"name":"Fails: cut off"}'
+mk '{"provider":"fake","modelString":"fake-unparseable",'"$F"',"name":"Fails: not JSON"}'
+mk '{"provider":"fake","modelString":"fake-other-model",'"$F"',"name":"Fails: other model"}'
+mk '{"provider":"anthropic","modelId":"claude-opus-5-5","pricing":{"kind":"list"},"name":"No key","secrets":{"apiKey":"NOT_SET"}}'
 curl -s $W/model-configs | grep -o '"id":"[^"]*","name":"[^"]*"'            # the ids
 ```
-Neither "No key" nor "No price" reaches the network: the Worker refuses them first (docs/llm.md, "Errors the stage acts on").
+"No key" doesn't reach the network: the Worker refuses it first (docs/llm.md, "Errors the stage acts on"). (A config without a price can't be made any more: the Worker refuses it when it is created.)
 
 **What the fake model answers** (so that its output isn't mistaken for bugs): `layout` two systems on every page, three bar lines each (so four stretches); `analyze` empty metadata and observations; `extract` a whole-measure rest in 4/4 in every stretch, a voice per staff, a made-up doubt on every system and a format issue on the first; `review` a correction on system 1 and another answer chosen for the first issue of system 2; `apply_review` applies the issues of a window that starts on an odd system (a C in the first voice) and reverts those of an even one with a made-up reason, but always applies a person's answers.
 
@@ -157,7 +157,7 @@ Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new 
 *Models that fail, a user who stops, a tab that closes mid-run.* About 40 minutes (the ★ steps about 15). Covers: failures and Retry, Stop, interrupted runs, the errors the Worker acts on.
 
 1. ★ → Make "Fails: server" the default. New project from Kinderscenen p3, Auto, Run. ✓ Rasterize and Skew detection run; Layout fails: red border, the error on the card, "Layout failed" in red in the head, Run reads **Retry** with a circular arrow, the pipeline stops. → Retry. ✓ It fails again the same way.
-2. → For each of "Fails: refusal", "Fails: cut off", "Fails: not JSON", "Fails: other model", "No key", "No price": Layout's "⋮" → "Change config", pick it, tick "Apply to the remaining stages planned in this pipeline", Save (confirm), Run. ✓ Each fails with a message that says what happened (refused, cut off, not JSON, another model answered, the secret `NOT_SET` missing with where secrets are set, no price for the model), never a blank or only technical error. The cards after it show the picked config.
+2. → For each of "Fails: refusal", "Fails: cut off", "Fails: not JSON", "Fails: other model", "No key": Layout's "⋮" → "Change config", pick it, tick "Apply to the remaining stages planned in this pipeline", Save (confirm), Run. ✓ Each fails with a message that says what happened (refused, cut off, not JSON, another model answered, the secret `NOT_SET` missing with where secrets are set), never a blank or only technical error. The cards after it show the picked config.
 3. → "Change config" on Layout: "Fake model", with the box ticked; Run. ✓ Layout runs and the pipeline goes on to the end, every LLM stage on "Fake model". A Retry alone would have kept the failing config: a stage keeps the config it was given.
    → Delete a config that planned stages name (`curl -X DELETE $W/model-configs/<id>`). ✓ Their cards show it with " (deleted)", in red where the stage still has to start with it; Run says "Layout" can't run: its model config, "…", was deleted; "Change config" shows it as the current one, Save refused until another is picked.
 4. ★ → New project from Bendel, Run, and press Stop in the head while Rasterize is halfway. ✓ The stage leaves the pipeline, a planned Rasterize is ready again, nothing is lost but its partial work. → Run. ✓ It starts from the beginning (page images found in the device cache go faster).

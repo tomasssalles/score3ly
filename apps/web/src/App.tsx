@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { leavesProject, runningProject } from "./leaveGuard";
-import { createProject, listProjects, lookUpPdf, markOpened, type PdfLookup, type Project } from "./api";
+import { ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, type PdfLookup, type Project } from "./api";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { Header } from "./Header";
 import { useEditionWindow, useHost } from "./host";
@@ -168,8 +168,20 @@ export function App() {
         {error && <p className="error-banner">{error}</p>}
         {renaming && current && (
           <RenameDialog
-            project={current}
-            onRenamed={() => {
+            title="Rename project"
+            current={current.name}
+            save={async (name) => {
+              try {
+                await renameProject(current, name);
+              } catch (err) {
+                throw new Error(
+                  err instanceof ApiError && err.status === 409
+                    ? "A project with that name already exists. Names must be unique (case-insensitive)."
+                    : `Renaming failed: ${err}`,
+                );
+              }
+            }}
+            onDone={() => {
               setRenaming(false);
               refresh();
             }}
