@@ -477,11 +477,15 @@ export type ModelOptions = {
   }[];
 };
 
+const OFFERED = PROVIDERS.filter((p) => p !== "fake-dev");
+
 export function modelOptions(list: ModelList = MODEL_LIST): ModelOptions {
   return {
     asOf: list.asOf,
     mock: list.mock ?? false,
-    providers: PROVIDERS.map((id) => ({
+    // "fake-dev" (made-up prices, for developing the costs and the cap) isn't offered: only the API makes its configs
+    // (docs/llm.md, "Calling the providers").
+    providers: OFFERED.map((id) => ({
       id,
       name: PROVIDER_NAMES[id],
       families: supportedFamilies(id).map((family) => ({
@@ -502,7 +506,7 @@ export function modelOptions(list: ModelList = MODEL_LIST): ModelOptions {
         family: m.family,
         efforts: effortsOf(m.family, m),
         providers: Object.fromEntries(
-          PROVIDERS.filter((p) => m.strings[p] !== undefined)
+          OFFERED.filter((p) => m.strings[p] !== undefined)
             .map((p) => [p, { string: m.strings[p]!, places: list.prices.filter((x) => x.model === m.id && x.provider === p).map((x) => ({ region: x.region, routing: x.routing, price: x.price })) }] as const)
             .filter(([, offer]) => offer.places.length > 0),
         ),

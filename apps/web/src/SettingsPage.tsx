@@ -326,7 +326,8 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
     ...(config.provider !== "fake" && config.provider !== "fake-dev" && !config.unsupported ? [[{ label: "Test", onSelect: () => setTesting(config) }]] : []),
     [
       { label: "Rename", onSelect: () => setRenaming(config) },
-      { label: "Clone", onSelect: () => openForm(config) },
+      // Not for the provider the form doesn't offer (Fake with costs, made through the API only).
+      ...(config.provider === "fake-dev" ? [] : [{ label: "Clone", onSelect: () => openForm(config) }]),
     ],
     ...(config.id === defaultId ? [] : [[{ label: "Delete", danger: true, onSelect: () => setDeleting(config) }]]),
   ];

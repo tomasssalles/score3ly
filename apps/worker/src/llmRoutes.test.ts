@@ -586,6 +586,10 @@ test("the pickers' options: providers with their families, efforts, secrets and 
   const options = await json<ModelOptions>(await app.request("/api/models", {}, env));
   assert.deepEqual(options, modelOptions(MODEL_LIST));
   assert.equal(options.asOf, MODEL_LIST.asOf);
+  // Fake with costs is for development: not offered, nor its prices; its configs are made through the API only.
+  assert.deepEqual(options.providers.map((p) => p.id), ["anthropic", "bedrock", "ai-studio", "vertex", "fake"]);
+  assert.ok(options.models.every((m) => !("fake-dev" in m.providers)));
+  assert.equal((await send("/api/model-configs", configBody())).status, 201);
   const vertex = options.providers.find((p) => p.id === "vertex")!;
   assert.equal(vertex.name, "Vertex AI");
   assert.deepEqual(
