@@ -232,6 +232,7 @@ From the most local to the most interrupting; always the most local one that the
 - **Names are never cut at the end:** they wrap over up to three lines, and only when even that isn't enough are they shortened in the middle ("villa-lobos_bach…prelude.orig (1)"), because names on the same PDF differ at the end. The full name is one hover or one tap away. The browser can only cut text at the end, so one component (`FittedText`) measures and shortens.
 - **A shortened text is always shortened in the middle** (decided 2026-11-02), wherever it has one line only: buttons, pickers (the project picker, the default model config's), text fields shown in a line, cards: "A much long…Frankfurt", never "A much longer con…". With `FittedText` and `lines={1}`, never CSS's `text-overflow: ellipsis`, which cuts at the end.
 - **Messages speak about the work, not about the user:** "The fake provider failed, as asked", "A project with that name already exists. Names must be unique (case-insensitive)." Never "You did…", never "Oops".
+- **"Region", never "place"** (decided 2026-11-06), for where a model config's requests go: "region" alone is good enough, also where a routing goes with it ("No price at this region"). "Place" in the code (`Place`: a region and a routing) stays out of what the user reads; a place in the music (the observations' places on the page) is another thing and keeps its word.
 - **Say what the app can't know as a possibility,** not as a fact: "boxes or answers may not fit it", "probably on another device".
 
 ## Icons

@@ -32,7 +32,7 @@ export function TestConfigDialog({ config, onDone }: { config: ModelConfig; onDo
         </button>
       </div>
       <p className="dialog-text">
-        Sends {model} a small image and a question about it, with this config's place, effort and secrets, to show that they work before a long run. It
+        Sends {model} a small image and a question about it, with this config's {config.region ? "region, " : ""}effort and secrets, to show that they work before a long run. It
         costs real money, usually less than a cent, and counts towards the spending cap.
       </p>
       <p className={`dialog-text test-result ${state.kind === "done" && state.result.status === "ok" ? "ok" : state.kind === "idle" || state.kind === "sending" ? "" : "failed"}`} role="status">

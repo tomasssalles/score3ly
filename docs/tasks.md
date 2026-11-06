@@ -28,6 +28,11 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 ## The tasks
 
+### Check the models' effort levels and thinking
+`#next` `#owner`
+
+`apps/worker/model-list/gather/claude-models.json`, kept by hand (2026-11-06) from Anthropic's API reference ("Thinking & Effort"): which effort levels each Claude 4.x and 5.x model takes (none for Haiku 4.5, Opus 4.1, Opus 4, Sonnet 4.5 and Sonnet 4; low to high for Opus 4.5; no xhigh for Opus 4.6 and Sonnet 4.6), and which must be asked for adaptive thinking (Opus 4.6, 4.7 and 4.8, Sonnet 4.6). The project owner checks them against Anthropic's documentation. Claude reminds them of this task until it is done.
+
 ### Move the tasks to GitHub issues
 `#next-release`
 
