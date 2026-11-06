@@ -31,7 +31,7 @@
     "protobufjs": false,
     "core-js@3.51.0": true,
     "electron-winstaller@5.4.0": true,
-    "workerd@1.20261019.1": true
+    "workerd@1.20261023.1": true
   },
   "devDependencies": {
     "playwright": "^1.56.1"
