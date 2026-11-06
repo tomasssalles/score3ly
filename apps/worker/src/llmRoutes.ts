@@ -651,7 +651,11 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (row.provider === "fake" || row.provider === "fake-dev") return c.json({ error: "Only configs of real providers can be tested." }, 400);
     const startedAt = Date.now();
     const sent = await sendCall(c.env, row, TEST_REQUEST, `test:${crypto.randomUUID()}`, null);
-    if ("refusal" in sent) return c.json({ error: sent.refusal.error, code: sent.refusal.code }, sent.refusal.status);
+    if ("refusal" in sent) {
+      // A test is never served from the record: the cap's note about calls already paid for doesn't apply.
+      const error = sent.refusal.code === "spending_cap" ? sent.refusal.error.replace(" Calls already paid for are still served.", "") : sent.refusal.error;
+      return c.json({ error, code: sent.refusal.code }, sent.refusal.status);
+    }
     const colour = (sent.json as { colour?: unknown } | null)?.colour;
     return c.json({ ...sent, answer: typeof colour === "string" ? colour : null, durationMs: Date.now() - startedAt });
   });

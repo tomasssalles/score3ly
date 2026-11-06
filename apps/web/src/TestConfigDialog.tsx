@@ -32,11 +32,12 @@ export function TestConfigDialog({ config, onDone }: { config: ModelConfig; onDo
         </button>
       </div>
       <p className="dialog-text">
-        Sends {model} a small image and a question about it, with this config's {config.region ? "region, " : ""}effort and secrets, to show that they work before a long run. It
-        costs real money, usually less than a cent, and counts towards the spending cap.
+        Sends {model} a small image and a question about it, with this config's {config.region ? "region, " : ""}effort and secrets, to check that everything
+        works.
+        {config.price.kind !== "free" && " It usually costs less than a cent, but real money nevertheless, and counts towards the spending cap."}
       </p>
       <p className={`dialog-text test-result ${state.kind === "done" && state.result.status === "ok" ? "ok" : state.kind === "idle" || state.kind === "sending" ? "" : "failed"}`} role="status">
-        {state.kind === "sending" && "Waiting for the answer…"}
+        {state.kind === "sending" && "Waiting for the response…"}
         {state.kind === "refused" && state.error}
         {state.kind === "done" && resultText(state.result, model, config)}
       </p>
@@ -45,7 +46,7 @@ export function TestConfigDialog({ config, onDone }: { config: ModelConfig; onDo
           Close
         </button>
         <button type="button" className="button-primary" disabled={state.kind === "sending"} onClick={() => void send()}>
-          {state.kind === "idle" || state.kind === "sending" ? "Send test" : "Send again"}
+          {state.kind === "idle" || state.kind === "sending" ? "Send request" : "Send again"}
         </button>
       </div>
     </dialog>

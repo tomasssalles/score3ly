@@ -736,6 +736,7 @@ test("a config's test is a real request, sent every time, recorded without a sta
   await send("/api/settings/spendingCapUsd", { value: 0.0001 }, "PUT");
   const capped = await send(`/api/model-configs/${opus.id}/test`);
   assert.equal(capped.status, 429);
+  assert.equal((await json(capped)).error, "The spending cap has been reached: $0.00 within 24 hours."); // a test is never served from the record
   await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
 
   // Deleted configs aren't tested.
