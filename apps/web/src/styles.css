@@ -3697,6 +3697,12 @@ textarea.field-input {
   overflow-y: auto;
 }
 
+/* The failed calls' picker sits at the right of the page: its menu opens leftwards, so it stays in the window. */
+.failed-calls-select .dropdown-list {
+  left: auto;
+  right: 0;
+}
+
 /* A note after a name in a list or a picker, e.g. "(deleted 12 Sep 2026)". */
 .menu-note {
   color: var(--muted);

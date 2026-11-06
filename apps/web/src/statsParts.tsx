@@ -34,14 +34,24 @@ export function Picker<T extends string>({
   options,
   onChange,
   className = "",
+  headings,
 }: {
   label: string;
   value: T;
   options: { id: T; label: string; short?: string; note?: string; group?: number }[]; // a new group: a line before it
+  headings?: Record<number, string>; // a heading above a group, by its number
   onChange: (id: T) => void;
   className?: string;
 }) {
   const current = options.find((o) => o.id === value);
+  // Consecutive options of the same group number form a group of the menu.
+  const grouped = options.reduce<{ group: number; items: { label: string; note?: string; key: T; current: boolean; onSelect: () => void }[] }[]>((groups, o) => {
+    const item = { label: o.label, note: o.note, key: o.id, current: o.id === value, onSelect: () => onChange(o.id) };
+    const last = groups[groups.length - 1];
+    if (last && last.group === (o.group ?? 0)) last.items.push(item);
+    else groups.push({ group: o.group ?? 0, items: [item] });
+    return groups;
+  }, []);
   return (
     <DropdownMenu
       className={`mode-picker ${className}`}
@@ -57,13 +67,8 @@ export function Picker<T extends string>({
         </>
       }
       label={label}
-      groups={options.reduce<{ group: number; items: { label: string; note?: string; key: T; current: boolean; onSelect: () => void }[] }[]>((groups, o) => {
-        const item = { label: o.label, note: o.note, key: o.id, current: o.id === value, onSelect: () => onChange(o.id) };
-        const last = groups[groups.length - 1];
-        if (last && last.group === (o.group ?? 0)) last.items.push(item);
-        else groups.push({ group: o.group ?? 0, items: [item] });
-        return groups;
-      }, []).map((g) => g.items)}
+      groups={grouped.map((g) => g.items)}
+      headings={headings ? grouped.map((g) => headings[g.group] ?? "") : undefined}
     />
   );
 }

@@ -196,7 +196,7 @@ function Failures({ data }: { data: FailureData }) {
         right={
           <>
             <Picker label="Time range" value={rangeId} options={RANGES} onChange={setRangeId} />
-            <Picker label="Model or model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...models, ...configs]} onChange={setConfigId} className="project-select" />
+            <Picker label="Model or model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...models, ...configs]} onChange={setConfigId} className="project-select failed-calls-select" headings={{ 1: "Config groups by model", 2: "Individual configs" }} />
             <span className="stat-value">
               <span className="stat-amount">{view.failed}</span>
               <span className="stat-note">{view.calls ? `of ${view.calls === 1 ? "1 call" : `${view.calls} calls`} (${share}%)` : "no calls"}</span>
