@@ -1638,11 +1638,18 @@ test("a person's change is refused when the project changed since the browser re
   v = saved.headers.get("X-Project-Version")!;
   assert.equal((await withVersion(project.id, fix, "finish", v, { status: "done" })).status, 204);
 
-  // A running stage's requests are the run's: neither checked nor raised, whatever version they carry.
+  // A run's start and end raise the version without checking it (whatever version they carry), so a page that hasn't
+  // seen them can't change the pipeline on an old view; its outputs neither check nor raise it.
   const next = (await pipelineOf(project.id)).find((s) => s.status === "planned")!;
   v = await versionOf(project.id);
   assert.equal((await withVersion(project.id, next.id, "start", "0", { stepVersion: 1, config: { modelConfigId: "fake-model" }, modelConfigId: "fake-model", stageKey: RECIPE_KEY(9), pageCount: 2, inputIds: [] })).status, 200);
+  assert.equal(Number(await versionOf(project.id)), Number(v) + 1);
+  v = await versionOf(project.id);
+  assert.equal((await withVersion(project.id, next.id, "outputs", "0", { outputs: [{ item: "p1", type: "layout", contentSha256: sha }] })).status, 200);
   assert.equal(await versionOf(project.id), v);
+  assert.equal((await withVersion(project.id, next.id, "finish", "0", { status: "done" })).status, 204);
+  assert.equal(Number(await versionOf(project.id)), Number(v) + 1);
+  v = await versionOf(project.id);
 
   // Renaming and the run mode, on the project itself.
   const rename = (version: string, name: string) =>

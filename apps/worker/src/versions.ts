@@ -5,9 +5,11 @@
 // X-Project-Version header, and every answer about a project carries the current one in the same header. A request
 // without the header isn't checked (scripts, tests, the manual tests' curl commands).
 //
-// Not checked and not raised: what the browser does by itself while a stage runs (start, outputs, heartbeats, the end,
-// the LLM calls), which the pipeline's own rules already guard (a running stage can't start again or be changed). A
-// carried manual stage kept or dropped at its turn raises it without a check: it changes the pipeline, but nobody asked.
+// Raised but not checked: what changes the pipeline without a person asking, so that a page that hasn't seen it can't
+// make a change based on what it no longer is (a stage's start and end, a carried manual stage kept or dropped at its
+// turn). Not checked, because it isn't a person's change made on a view that may be stale: the run goes on by itself,
+// and the pipeline's own rules guard it (a running stage can't start again or be changed). Neither: a running stage's
+// outputs, heartbeats and LLM calls, which change nothing another page could act on.
 
 import type { Context, Hono, Next } from "hono";
 
@@ -28,11 +30,13 @@ async function whatOf(db: D1Database, method: string, rest: string[]): Promise<W
   if (method === "PUT" && action === "config") return "checked";
   if (method !== "POST") return null;
   if (["fix", "review", "human-review", "edit", "drop", "stop"].includes(action)) return "checked";
-  if (action === "resolve") return "raised";
-  // A manual stage's saves and its Finish are a person's; a running stage's outputs and end aren't.
+  // A stage's start, and a carried manual stage kept or dropped at its turn: the pipeline changes, but nobody asked.
+  if (action === "start" || action === "resolve") return "raised";
+  // A manual stage's saves and its Finish are a person's: checked. A running stage's end changes the pipeline: raised.
+  // Its outputs change nothing another page could act on: neither.
   if (action === "outputs" || action === "finish") {
     const stage = await db.prepare("SELECT status FROM stages WHERE id = ?").bind(sid).first<{ status: string }>();
-    return stage?.status === "wip" ? "checked" : null;
+    return stage?.status === "wip" ? "checked" : action === "finish" ? "raised" : null;
   }
   return null;
 }
