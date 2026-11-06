@@ -118,6 +118,11 @@ For testing and debugging: run stages as if nothing were cached, without our own
   - **Gemini's current models and prices** on Google AI Studio, from Google's own pricing page (third-party pages disagree).
   - **Model strings on Vertex AI** (with or without an `@` version) for the current models.
 
+### A config whose effort its model no longer takes
+`#optional`
+
+`docs/llm.md`, "Models": each listed model's effort levels come from the list of models (`gather/claude-models.json`). If a new list takes a level away from a model, the configs that use it with that level aren't marked "No longer supported", as a model without a price at their region is; the provider would refuse the call. Treat it the same way (`unsupportedReason` in `apps/worker/src/llm/models.ts`), if it ever happens.
+
 ### Stages from the record with a config that can't be used
 `#optional` `#decision`
 
@@ -486,7 +491,7 @@ They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk b
 - **Gemini's limits:** what Gemini said about them is in §6 (`analyze`), to check against Google's documentation when we use it. `imageLimit` gives Gemini Claude's limits for now; each provider's adapter should declare its own.
 
 ### LLM calls, what is left
-Checking Bedrock's and Vertex AI's prices against those in the list of models (`llm/modelList.ts`, the mock until the list is generated).
+Checking Bedrock's and Vertex AI's prices against those in the list of models (`llm/modelList.ts`): Bedrock's are gathered from AWS's price list (2026-11-05), Vertex AI's are still the mock until they are gathered.
 
 ### Model configs per kind of work
 `#optional`
