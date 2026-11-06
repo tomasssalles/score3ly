@@ -1462,16 +1462,19 @@ body {
   stroke: none;
 }
 
-/* Pages from the menu */
-.page-view {
-  flex: 1; /* the whole height, so that a menu opened near the top isn't cut off */
+/* Pages from the menu: the whole width scrolls, the page is a column in the middle. */
+.page-scroll {
+  flex: 1;
   min-height: 0;
+  overflow-y: auto;
+}
+
+.page-view {
   width: 100%;
   max-width: 680px;
   box-sizing: border-box;
   margin: 0 auto;
   padding: 32px 16px;
-  overflow-y: auto;
 }
 
 .page-view h2 {

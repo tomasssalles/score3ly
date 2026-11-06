@@ -116,11 +116,12 @@ export function ProjectView({
   const pipeline: Pipeline = stored ? toPipeline(mode, stored, local) : { mode, stages: [], dropped: [] };
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   // The panel scrolls to the current stage on opening the project, when an Auto run starts, and whenever
-  // another stage becomes the current one (in both modes).
+  // another stage becomes the current one (in both modes), and when the last stage is done, to show the downloads.
   const [scrollRequest, setScrollRequest] = useState(0);
   const scroll = () => setScrollRequest((n) => n + 1);
   const progress = progressOf(pipeline);
   const currentId = currentStage(pipeline)?.id;
+  const allDone = pipelineState(pipeline)?.kind === "done";
 
   useEffect(() => {
     fetchPipeline(project).then(setStored, (err) => setError(`Loading the pipeline failed: ${err}`));
@@ -150,7 +151,7 @@ export function ProjectView({
 
   useEffect(() => {
     scroll();
-  }, [currentId]);
+  }, [currentId, allDone]);
 
   // While this device runs a stage, closing or reloading the tab asks first: the run stops, and an LLM answer still
   // on its way is lost, although it is paid for. Browsers show their own text, not ours.

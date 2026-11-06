@@ -48,9 +48,11 @@ export function PipelinePanel({
   const firstScroll = useRef(true);
 
   useEffect(() => {
-    const card = list.current?.querySelector(`[data-stage-id="${currentId}"]`);
     // Jump on opening the project, glide afterwards.
-    card?.scrollIntoView({ block: "center", behavior: firstScroll.current ? "instant" : "smooth" });
+    const behavior = firstScroll.current ? "instant" : "smooth";
+    // All done: to the bottom, where the downloads are; otherwise the current stage, centred.
+    if (state?.kind === "done") list.current?.scrollIntoView({ block: "end", behavior });
+    else list.current?.querySelector(`[data-stage-id="${currentId}"]`)?.scrollIntoView({ block: "center", behavior });
     firstScroll.current = false;
     // Only a new request scrolls.
   }, [scrollRequest]);
