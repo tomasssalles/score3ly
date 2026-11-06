@@ -644,7 +644,6 @@ export async function renameModelConfig(id: string, name: string): Promise<Model
 export type TestResult = {
   status: "ok" | "cut_off" | "refused" | "unparseable" | "error";
   error: string | null;
-  answer: string | null;
   costUsd: number | null;
   durationMs: number;
 };

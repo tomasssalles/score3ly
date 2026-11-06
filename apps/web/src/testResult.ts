@@ -9,7 +9,5 @@ export function resultText(result: TestResult, model: string, config: Pick<Model
     config.price.kind === "free" ? "$0.00 (free tier)"
     : result.costUsd === null ? "unknown (unpriced)"
     : dollars(result.costUsd);
-  // The answer is the JSON's `colour`: missing only if the provider let the model answer outside the schema.
-  const answer = result.answer ? `with "${result.answer}"` : "without the answer asked for";
-  return `Success: ${model} responded ${answer} in ${seconds}. Cost: ${cost}.`;
+  return `Success: ${model} responded in the requested format in ${seconds}. Cost: ${cost}.`;
 }

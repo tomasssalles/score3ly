@@ -656,8 +656,15 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       const error = sent.refusal.code === "spending_cap" ? sent.refusal.error.replace(" Calls already paid for are still served.", "") : sent.refusal.error;
       return c.json({ error, code: sent.refusal.code }, sent.refusal.status);
     }
-    const colour = (sent.json as { colour?: unknown } | null)?.colour;
-    return c.json({ ...sent, answer: typeof colour === "string" ? colour : null, durationMs: Date.now() - startedAt });
+    const durationMs = Date.now() - startedAt;
+    // An answer outside the schema fails the test, as a stage couldn't use it either: recorded as unusable, like a
+    // stage's (§5.2), and said with what came back.
+    if (sent.status === "ok" && typeof (sent.json as { colour?: unknown } | null)?.colour !== "string") {
+      const error = `The response has an OK status and is valid JSON, but doesn't follow the schema the request asked for. Requested schema: {"colour": string}. Response: ${(sent.text ?? "").slice(0, 200)}`;
+      await c.env.DB.prepare("UPDATE llm_calls SET status = 'unparseable', error = ? WHERE id = ?").bind(error, sent.callId).run();
+      return c.json({ ...sent, status: "unparseable", error, durationMs });
+    }
+    return c.json({ ...sent, durationMs });
   });
 
   // An answer that is valid JSON but that the stage can't use (e.g. LilyPond inside it that doesn't parse, or boxes

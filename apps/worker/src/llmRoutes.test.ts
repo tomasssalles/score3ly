@@ -716,7 +716,6 @@ test("a config's test is a real request, sent every time, recorded without a sta
       assert.equal(response.status, 200, await response.clone().text());
       const answer = await json(response);
       assert.equal(answer.status, "ok");
-      assert.equal(answer.answer, "black");
       assert.equal(answer.cached, false);
       assert.ok((answer.costUsd as number) > 0);
       assert.equal(typeof answer.durationMs, "number");
@@ -731,6 +730,19 @@ test("a config's test is a real request, sent every time, recorded without a sta
   const calls = (await env.DB.prepare("SELECT stage_id, status, cost_usd FROM llm_calls WHERE model_config_id = ?").bind(opus.id).all()).results;
   assert.equal(calls.length, 2);
   for (const call of calls) assert.equal(call.stage_id, null);
+
+  // An answer outside the schema fails the test, and is recorded as unusable.
+  globalThis.fetch = (async () => anthropicAnswer('{"color":"black"}')) as typeof fetch;
+  (env as unknown as Record<string, string>).TEST_ANTHROPIC_KEY = "sk-test";
+  try {
+    const off = await json(await send(`/api/model-configs/${opus.id}/test`));
+    assert.equal(off.status, "unparseable");
+    assert.match(off.error as string, /doesn't follow the schema the request asked for\. Requested schema: \{"colour": string\}\. Response: \{"color":"black"\}$/);
+  } finally {
+    globalThis.fetch = realFetch;
+    delete (env as unknown as Record<string, string>).TEST_ANTHROPIC_KEY;
+  }
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM llm_calls WHERE model_config_id = ? AND status = 'unparseable'").bind(opus.id).first<{ n: number }>())!.n, 1);
 
   // Counted towards the cap: once it is reached, the test is refused like a stage's call.
   await send("/api/settings/spendingCapUsd", { value: 0.0001 }, "PUT");
