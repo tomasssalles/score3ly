@@ -1,0 +1,59 @@
+{"url":"https://cloud.google.com/vertex-ai/generative-ai/pricing?hl=en","fetched":"2026-11-06","note":"of the Standard tabs, the rows of the Gemini models the app lists: model, type, region, the short-context price and cached-input cells, per million tokens"}
+{"model":"Gemini 4 Argon*through November 30, 2026","type":"Input (text, image, video, audio)","region":"Global","price":"$2.00","cached":"$0.10"}
+{"model":"Gemini 4 Argon*through November 30, 2026","type":"Input (text, image, video, audio)","region":"Non-global","price":"$2.20","cached":"$0.11"}
+{"model":"Gemini 4 Argon*through November 30, 2026","type":"Text output (response and reasoning)","region":"Global","price":"$10.00","cached":"$10.00"}
+{"model":"Gemini 4 Argon*through November 30, 2026","type":"Text output (response and reasoning)","region":"Non-global","price":"$11.00","cached":"$11.00"}
+{"model":"Gemini 4 Argon(Starting December 1, 2026),Gemini 4 Argon Cyber Permissive","type":"Input (text, image, video, audio)","region":"Global","price":"$4.00","cached":"$0.20"}
+{"model":"Gemini 4 Argon(Starting December 1, 2026),Gemini 4 Argon Cyber Permissive","type":"Input (text, image, video, audio)","region":"Non-global","price":"$4.40","cached":"$0.22"}
+{"model":"Gemini 4 Argon(Starting December 1, 2026),Gemini 4 Argon Cyber Permissive","type":"Text output (response and reasoning)","region":"Global","price":"$20.00","cached":"$20.00"}
+{"model":"Gemini 4 Argon(Starting December 1, 2026),Gemini 4 Argon Cyber Permissive","type":"Text output (response and reasoning)","region":"Non-global","price":"$22.00","cached":"$22.00"}
+{"model":"Gemini 3.1 Pro Preview","type":"Input (text, image, video, audio)","region":"Global","price":"$2.00","cached":"$0.20"}
+{"model":"Gemini 3.1 Pro Preview","type":"Text output (response and reasoning)","region":"Global","price":"$12.00","cached":"N/A"}
+{"model":"Gemini 3.8 Flash*through December 31, 2026","type":"Input (text, image, video, audio)","region":"Global","price":"$0.75","cached":"$0.075"}
+{"model":"Gemini 3.8 Flash*through December 31, 2026","type":"Input (text, image, video, audio)","region":"Non-global","price":"$0.825","cached":"$0.0825"}
+{"model":"Gemini 3.8 Flash*through December 31, 2026","type":"Text output (response and reasoning)","region":"Global","price":"$3.75","cached":"N/A"}
+{"model":"Gemini 3.8 Flash*through December 31, 2026","type":"Text output (response and reasoning)","region":"Non-global","price":"$4.125","cached":"N/A"}
+{"model":"Gemini 3.8 FlashStarting January 1, 2027","type":"Input (text, image, video, audio)","region":"Global","price":"$1.50","cached":"$0.15"}
+{"model":"Gemini 3.8 FlashStarting January 1, 2027","type":"Input (text, image, video, audio)","region":"Non-global","price":"$1.65","cached":"$0.165"}
+{"model":"Gemini 3.8 FlashStarting January 1, 2027","type":"Text output (response and reasoning)","region":"Global","price":"$7.50","cached":"N/A"}
+{"model":"Gemini 3.8 FlashStarting January 1, 2027","type":"Text output (response and reasoning)","region":"Non-global","price":"$8.25","cached":"N/A"}
+{"model":"Gemini 3.7 Flash *through December 31, 2026","type":"Input (text, image, video, audio)","region":"Global","price":"$0.75","cached":"$0.075"}
+{"model":"Gemini 3.7 Flash *through December 31, 2026","type":"Input (text, image, video, audio)","region":"Non-global","price":"$0.825","cached":"$0.0825"}
+{"model":"Gemini 3.7 Flash *through December 31, 2026","type":"Text output (response and reasoning)","region":"Global","price":"$3.75","cached":"N/A"}
+{"model":"Gemini 3.7 Flash *through December 31, 2026","type":"Text output (response and reasoning)","region":"Non-global","price":"$4.125","cached":"N/A"}
+{"model":"Gemini 3.7 Flashstarting January 1, 2027","type":"Input (text, image, video, audio)","region":"Global","price":"$1.50","cached":"$0.15"}
+{"model":"Gemini 3.7 Flashstarting January 1, 2027","type":"Input (text, image, video, audio)","region":"Non-global","price":"$1.65","cached":"$0.165"}
+{"model":"Gemini 3.7 Flashstarting January 1, 2027","type":"Text output (response and reasoning)","region":"Global","price":"$7.50","cached":"N/A"}
+{"model":"Gemini 3.7 Flashstarting January 1, 2027","type":"Text output (response and reasoning)","region":"Non-global","price":"$8.25","cached":"N/A"}
+{"model":"Gemini 3.6 Flash *through December 31, 2026","type":"Input (text, image, video, audio)","region":"Global","price":"$0.75","cached":"$0.075"}
+{"model":"Gemini 3.6 Flash *through December 31, 2026","type":"Input (text, image, video, audio)","region":"Non-global","price":"$0.825","cached":"$0.0825"}
+{"model":"Gemini 3.6 Flash *through December 31, 2026","type":"Text output (response and reasoning)","region":"Global","price":"$3.75","cached":"N/A"}
+{"model":"Gemini 3.6 Flash *through December 31, 2026","type":"Text output (response and reasoning)","region":"Non-global","price":"$4.125","cached":"N/A"}
+{"model":"Gemini 3.6 Flashstarting January 1, 2027","type":"Input (text, image, video, audio)","region":"Global","price":"$1.50","cached":"$0.15"}
+{"model":"Gemini 3.6 Flashstarting January 1, 2027","type":"Input (text, image, video, audio)","region":"Non-global","price":"$1.65","cached":"$0.165"}
+{"model":"Gemini 3.6 Flashstarting January 1, 2027","type":"Text output (response and reasoning)","region":"Global","price":"$7.50","cached":"N/A"}
+{"model":"Gemini 3.6 Flashstarting January 1, 2027","type":"Text output (response and reasoning)","region":"Non-global","price":"$8.25","cached":"N/A"}
+{"model":"Gemini 3 Flash Preview","type":"Input (text, image, video)","region":"Global","price":"$0.50","cached":"$0.05"}
+{"model":"Gemini 3 Flash Preview","type":"Input (audio)","region":"Global","price":"$1.00","cached":"$0.10"}
+{"model":"Gemini 3.5 Flash","type":"Input (text, image, video, audio)","region":"Global","price":"$1.50","cached":"$0.15"}
+{"model":"Gemini 3.5 Flash","type":"Input (text, image, video, audio)","region":"Non-global*","price":"$1.65","cached":"$0.165"}
+{"model":"Gemini 3.5 Flash","type":"Text output (response and reasoning)","region":"Global","price":"$9.00","cached":"N/A"}
+{"model":"Gemini 3.5 Flash","type":"Text output (response and reasoning)","region":"Non-global*","price":"$9.90","cached":"N/A"}
+{"model":"Gemini 3.5 Flash-Lite","type":"Input (text, image, video, audio)","region":"Global","price":"$0.30","cached":"$0.03"}
+{"model":"Gemini 3.5 Flash-Lite","type":"Input (text, image, video, audio)","region":"Non-global*","price":"$0.33","cached":"$0.033"}
+{"model":"Gemini 3.5 Flash-Lite","type":"Text output (response and reasoning)","region":"Global","price":"$2.50","cached":"N/A"}
+{"model":"Gemini 3.5 Flash-Lite","type":"Text output (response and reasoning)","region":"Non-global*","price":"$2.75","cached":"N/A"}
+{"model":"Gemini 3.1 Flash-Lite","type":"Input (text, image, video)","region":"Global","price":"$0.25","cached":"$0.025"}
+{"model":"Gemini 3.1 Flash-Lite","type":"Input (text, image, video)","region":"Non-global*","price":"$0.275","cached":"$0.0275"}
+{"model":"Gemini 3.1 Flash-Lite","type":"Input (audio)","region":"Global","price":"$0.50","cached":"$0.05"}
+{"model":"Gemini 3.1 Flash-Lite","type":"Input (audio)","region":"Non-global*","price":"$0.55","cached":"$0.055"}
+{"model":"Gemini 3.1 Flash-Lite","type":"Text output (response and reasoning)","region":"Global","price":"$1.50","cached":"N/A"}
+{"model":"Gemini 3.1 Flash-Lite","type":"Text output (response and reasoning)","region":"Non-global*","price":"$1.65","cached":"N/A"}
+{"model":"Gemini 2.5 Pro","type":"Input (text, image, video, audio)","region":"","price":"$1.25","cached":"$0.125"}
+{"model":"Gemini 2.5 Pro","type":"Text output (response and reasoning)","region":"","price":"$10.00","cached":"N/A"}
+{"model":"Gemini 2.5 Flash","type":"Input (text, image, video)","region":"","price":"$0.30","cached":"$0.03"}
+{"model":"Gemini 2.5 Flash","type":"Audio Input","region":"","price":"$1.00","cached":"$0.10"}
+{"model":"Gemini 2.5 Flash","type":"Text output (response and reasoning)","region":"","price":"$2.50","cached":"N/A"}
+{"model":"Gemini 2.5 Flash Lite","type":"Input (text, image, video)","region":"","price":"$0.10","cached":"$0.01"}
+{"model":"Gemini 2.5 Flash Lite","type":"Audio Input","region":"","price":"$0.30","cached":"$0.03"}
+{"model":"Gemini 2.5 Flash Lite","type":"Text output (response and reasoning)","region":"","price":"$0.40","cached":"N/A"}

@@ -25,6 +25,7 @@ Everything that is still to do about score3ly is a task, and every task is in th
 - `#experiment`: measuring something, usually on the test set with a real model, to decide on evidence.
 - `#format`: something the lens or the MEI can't express yet (`docs/notation.md`, "Issues": format issues show what is missing).
 - `#docs`: documentation for users or developers.
+- `#date`: due on or after a day, which its name starts with (`### 2026-12-01: …`), so that `grep "#date"` and the names say what comes up when.
 
 ## The tasks
 
@@ -90,13 +91,67 @@ Proposed by the project owner (2026-10-29). Arbitrary tags on projects, added by
 
 Proposed by the project owner (2026-10-29). A toggle on each project, set by the user when satisfied with the result: a much clearer signal than the finished pipeline the statistics use today (Run times, the average cost per page's "unfinished pipeline"), which says nothing about whether the result still needs work. To decide: whether the statistics then use the mark instead of the finished pipeline, or both (e.g. the mark where it is set).
 
-### Generate the shipped price list
-`#next` `#next-release` `#owner` `#research`
+### Reuse Google's access tokens between calls
+`#next-release`
 
-`docs/llm.md`, "Supported models, prices and the config form", "The list of models and prices: code, generated" (decided 2026-11-03 and 2026-11-05): the app's list of supported models, their regions and prices, a TypeScript module, generated from the providers' published price lists at release time, in two steps, its result spot-checked before the release; never run by the app. The first thing to build of the model configs. **To be done in a local session** (the project owner's decision). Found 2026-11-04: AWS's price list for Bedrock downloads without credentials (`pricing.us-east-1.amazonaws.com`); Google's Cloud Billing Catalog API (`cloudbilling.googleapis.com`) refuses unauthenticated callers (403), so it needs an API key restricted to the Cloud Billing API, or the project owner's own credentials (`gcloud auth application-default login`), which they want to try locally first. Whatever the script needs comes from a local `.env`, never from the repository.
-- **What to find out:** which files or APIs (AWS's public price list JSON files for Bedrock; Google's Cloud Billing catalog for Vertex AI and Gemini, which needs credentials; Anthropic's and Google AI Studio's pages), and how their entries map to the module's models (id, name for people, family, a model string per provider), regions (per provider; on Bedrock with their routings and geography) and prices (model, provider, region, routing, four prices per million tokens in US dollars). The open questions of "Decide the model configs" about regions, routing and prices are answered on the way.
-- **Bedrock: gathered** (2026-11-05, `apps/worker/model-list/gather/bedrock.ts` and its excerpts; the steps in `gather/README.md`): 12 models (the 4.x and 5.x on the Messages API endpoint), 27 regions, 496 prices. **Still to gather:** Anthropic, Vertex AI and Google AI Studio, each replacing its mock file the same way.
-- **The two steps** (decided 2026-11-05, `docs/llm.md`): the gathering per provider (a Markdown script of steps for the project owner, parsing code that may change from release to release, one JSON file per provider in a stable schema, committed) and the generation of the module from those files (one stable script, with the retired models and the report of changes). **Built** (2026-11-05): the JSON schema (`apps/worker/model-list/schema.json`), the generating script (`npm run model-list -w apps/worker`) and mock files for every provider. **To build:** the gathering, provider by provider, with its Markdown script of steps; each provider's mock file is replaced by the real one, with excerpts of its sources (`docs/llm.md`, "In two steps").
+On Vertex AI (Claude and Gemini), each call first signs a JWT with the service account's key and exchanges it at Google's token endpoint for an access token (`apps/worker/src/llm/googleServiceAccount.ts`), about 100–300 ms. The token is good for an hour and `tokenSource` caches it, but `createAdapter` runs for every LLM request (`apps/worker/src/llmRoutes.ts`), each time with a new `tokenSource`, so the cache is never used. Keep the token sources at module level, keyed by the service account (its client email and key), so that a token is reused: always on the desktop, and on Cloudflare for as long as the isolate lives.
+
+### Measure the Worker's CPU time per LLM request
+`#research` `#next-release`
+
+The Workers free plan allows 10 ms of CPU time per request; waiting for the provider doesn't count, but everything the Worker does with the request does: parsing the JSON with the images in base64, the cache key, writing the call record to R2, building the provider's request (and on Bedrock with an access key pair, signing it, which hashes the whole body), reading the answer. `review` sends the whole score with every call. `wrangler dev` doesn't enforce the limit, so it can only be measured on a deployed Worker (its CPU time per request in the dashboard's metrics or Workers Logs): a large `extract` and a `review` call on a long score, cached and not. If it is over, or close, fix what the measurement shows to be expensive (discussed 2026-11-06).
+- **What the Worker does with an image today** (`apps/worker/src/llmRoutes.ts`): it parses the request with the image in base64, decodes it (`atob`) and hashes its bytes (`sha256Hex`) for the call record only, then hands the base64 to the adapter, which writes it into the provider's JSON body. Parsing the request once and writing the provider's body once can't be avoided; both are native string handling, roughly linear in megabytes.
+- **Candidate fix 1: the browser sends each image's hash** with the image, so the Worker neither decodes nor hashes it. The browser has the bytes and hashes them for nothing (in a Web Worker). The only downside: the Worker records a hash it hasn't checked, so a bug in the browser could record a hash that doesn't match the bytes sent. The hash is only kept for checking the image later, never part of a key (keys use recipe keys), and the browser is trusted with far more anyway (it makes the images and runs every stage).
+- **Candidate fix 2: answers in one piece instead of streamed.** The adapters stream (`messages.stream(…).finalMessage()`; `docs/llm.md`: "so long answers don't hit timeouts"), so a long answer arrives as thousands of small events, each parsed apart in JavaScript, which may cost as much as the request. One response is one parse. Downsides: Anthropic's SDK may refuse a request without streaming when its expected duration is long (a large maximum of output tokens; to check); a connection silent for minutes risks being cut by something in between. Nothing is lost for progress: partial answers aren't shown.
+- **Strong candidate if the others aren't enough: the browser builds the provider's exact body** (the project owner, 2026-11-06), and the Worker adds the credentials and sends the bytes on without parsing them, so its CPU time per request hardly depends on the request's size. The costs:
+  - **The adapters are split:** building the request (each provider's format, cache marks, thinking, the schema's dialect) moves to the browser; reading the answer (tokens, cost, stop reason) stays in the Worker, which records the cost. The Worker's API is no longer the same for every provider.
+  - **No SDK for sending:** Anthropic's SDK takes the neutral parameters, not a finished body, so the Worker sends with a plain `fetch`, and on Bedrock with an access key pair signs the request itself (e.g. `aws4fetch`).
+  - **The key and the request can disagree:** today the Worker computes the request key and the call record from the very request it translates and sends, so they agree by construction. Without parsing the body, the browser sends the key and the request for the record beside it, and nothing checks them against each other: a bug that sent one body under another request's key would store the wrong answer under that key, served from the cache from then on. It is a matter of bugs, not security: each instance belongs to one person behind Cloudflare Access, and the Worker already trusts the browser's recipe keys for the images.
+- **Not a fix: images as binary parts instead of base64.** Every provider wants base64 in its JSON body, so the Worker would have to encode them, which costs more than passing the browser's base64 through.
+- **Ruled out** (the project owner, 2026-11-06): the paid Workers plan ($5/month, 30 s of CPU time by default), since it breaks "runs on free tiers" for every instance; sending each image once through the providers' Files APIs and naming it in later calls (a feature per provider, uploads that expire, Bedrock and Vertex AI different); preferring Bedrock API keys to key pairs to save the signing's hash of the body (small, and nothing for other providers); calling the providers from the browser (the keys would reach it).
+- **Not a problem:** the RSA signature of Vertex AI's token exchange (native, well under a millisecond; `docs/llm.md`, "Authentication stays in the Worker's own code").
+
+### Safe storage of the secrets in cadenza
+`#decision` `#security`
+
+`docs/desktop.md`: the desktop app keeps the secrets in plain text in `secrets.env` in its data folder, mode 600, as `~/.aws/credentials` and gcloud's credentials are kept. That protects them from other users, not from other programs running as the same user, nor from backups or syncing of the data folder. Think about storing them safely, by whichever means: the operating system's keychain (Electron's `safeStorage`), an encrypted file, or something else. Most ways mean the user can no longer edit the file in a text editor, so the app would need a form for the keys (see "Entering the LLM keys in the app").
+
+### Spot-check the collected prices
+`#owner` `#next-release`
+
+The prices the gathering collected for all four providers (`apps/worker/model-list/<provider>.json`, from the excerpts in `gather/sources/<provider>/`; `docs/llm.md`, "The list of models and prices: code, generated"), checked by the project owner against the providers' own pages before the first release: a sample of models, regions and routings per provider, and anything that looks odd (a price far from its siblings, a model missing where it should be).
+- **Vertex AI, against Google's billing catalog too:** a few prices looked up by hand with the commands in `gather/README.md` ("Cross-checking with Google's billing catalog, by hand"; the catalog has only Opus 5.5 and Sonnet 5.5 of the Claude models). Already compared (2026-11-06): every Claude model's `global` price matches Anthropic's own list; Opus 5.5 at `eu` and Gemini 4 Argon, global and regional, match the catalog.
+- **Left out on Vertex AI for slips on Google's pages** (2026-11-06; the gathering prints them): Fable 5 and Opus 5.5 at `us`, Sonnet 4.6 at us-east5 and europe-west1 (a row missing, an output row labelled input, two input rows), and Gemini 3 Flash Preview everywhere (no output price). If the pages are fixed, gather again; if they aren't, decide whether to take those prices from the catalog by hand. Also left out, no price on Google's page: the Mythos models, Opus 4.1, Opus 4 and Sonnet 4.
+
+### 2026-12-01: Gemini 4 Argon's new prices on AI Studio
+`#date` `#owner`
+
+Google's pricing page announces new prices for Gemini 4 Argon on AI Studio from 2026-12-01: $4 input, $20 output, $0.20 cache read, per million tokens (now $2, $10, $0.10). The list has the prices valid on the day of the gathering (2026-11-06; `apps/worker/model-list/gather/README.md`, "Google AI Studio"), so from 2026-12-01 its calls are counted at the old ones. On that day or after, gather AI Studio again (`node model-list/gather/ai-studio.ts --download`, then `npm run model-list -w apps/worker`), and make a release with the new list.
+
+### 2027-01-01: Gemini 3.8 Flash's new prices on AI Studio
+`#date` `#owner`
+
+Google's pricing page announces new prices for Gemini 3.8 Flash on AI Studio from 2027-01-01: $1.50 input, $7.50 output, $0.15 cache read, per million tokens (now $0.75, $3.75, $0.075). The list has the prices valid on the day of the gathering (2026-11-06; `apps/worker/model-list/gather/README.md`, "Google AI Studio"), so from 2027-01-01 its calls are counted at the old ones. On that day or after, gather AI Studio again (`node model-list/gather/ai-studio.ts --download`, then `npm run model-list -w apps/worker`), and make a release with the new list.
+
+### 2027-01-01: Gemini 3.6 Flash's new prices on AI Studio
+`#date` `#owner`
+
+Google's pricing page announces new prices for Gemini 3.6 Flash on AI Studio from 2027-01-01: $1.50 input, $7.50 output, $0.15 cache read, per million tokens (now $0.75, $3.75, $0.075). The list has the prices valid on the day of the gathering (2026-11-06; `apps/worker/model-list/gather/README.md`, "Google AI Studio"), so from 2027-01-01 its calls are counted at the old ones. On that day or after, gather AI Studio again (`node model-list/gather/ai-studio.ts --download`, then `npm run model-list -w apps/worker`), and make a release with the new list.
+
+### Try Gemini 4 Argon
+`#owner` `#experiment`
+
+The config form prefers Gemini 3.1 Pro Preview among the Gemini models (`PREFERRED_MODELS` in `apps/web/src/configForm.ts`), the one the project owner has tried. Gemini 4 Argon is newer, not a preview, and cheaper on AI Studio ($2 input and $10 output per million tokens until 2026-11-30, against $2 and $12). Try it on the stages, and make it the preferred Gemini if it does at least as well.
+
+### Test the thinking levels of Gemini 3.7 Flash, 3.5 Flash, 3.1 Flash-Lite and 2.5
+`#owner` `#manual-test`
+
+`apps/worker/model-list/gather/gemini-models.json` gives these models the three levels low, medium and high, without a real call to back them:
+- **Gemini 3.1 Flash-Lite:** assumed. It isn't in the table of Google's page "Gemini thinking" ("Controlling thinking"), and its model page only shows `thinking_level="high"`.
+- **Gemini 2.5 Pro, 2.5 Flash and 2.5 Flash-Lite:** from that table, but these models used to want a token budget instead of a level, and the app has never sent them one.
+- **Gemini 3.7 Flash and 3.5 Flash:** assumed (2026-11-06). Only Vertex AI offers them, so they aren't on AI Studio's pages; tested on Vertex AI.
+
+For each, make a model config on AI Studio (Vertex AI for the last two) with each effort and press Test (`docs/llm.md`, the paragraph on Test); remove a level that is refused from `gemini-models.json`, or the model if it refuses them all.
 
 ### Do our prompts reach long-context prices?
 `#research`
@@ -111,12 +166,9 @@ For testing and debugging: run stages as if nothing were cached, without our own
 ### Decide the model configs
 `#decision` `#research` `#next-release`
 
-`docs/llm.md`, "Supported models, prices and the config form": the plan is decided (2026-11-05): providers and families, the list of models and prices in the code, the configs' columns, the pricing kinds, the default names, the settings page. Then build the first round (built 2026-11-05: the list's types, lookups and a mock list, `apps/worker/src/llm/models.ts`; the four providers with their families in the adapters, the configs' new columns, pricing at call time from the list): the list ("Generate the shipped price list"), the form, adding a model (priced as another model, unpriced or free tier, never a typed price), the price label on the cards, the Test button (built 2026-11-06).
+`docs/llm.md`, "Supported models, prices and the config form": the plan is decided (2026-11-05): providers and families, the list of models and prices in the code, the configs' columns, the pricing kinds, the default names, the settings page. Then build the first round (built 2026-11-05: the list's types, lookups and a mock list, `apps/worker/src/llm/models.ts`; the four providers with their families in the adapters, the configs' new columns, pricing at call time from the list): the list (gathered 2026-11-05 and 2026-11-06), the form, adding a model (priced as another model, unpriced or free tier, never a typed price), the price label on the cards, the Test button (built 2026-11-06).
 - **Still to settle or research:**
   - **The routing on Bedrock's Messages API endpoint:** a request goes to a regional URL (`bedrock-mantle.{region}.api.aws`), with a model string such as `anthropic.claude-opus-5-5`; how it asks for global or geographic routing (EU, US, JP, AU) isn't documented on Anthropic's page. On Bedrock's older integration it is a prefix on the model ID (`global.`, `eu.`, none for in-region; AWS's pages on cross-region inference), so probably the same here. A test call ("Make the first real request on Bedrock").
-  - **Vertex AI:** which locations (`global`, multi-regions such as `eu`, regions) serve which models, and their prices.
-  - **Gemini's current models and prices** on Google AI Studio, from Google's own pricing page (third-party pages disagree).
-  - **Model strings on Vertex AI** (with or without an `@` version) for the current models.
 
 ### A config whose effort its model no longer takes
 `#optional`
@@ -339,7 +391,7 @@ The root `README.md`; the owner wants it written properly, today it is the devel
 ### Help
 `#docs` `#next-release`
 
-Write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10), and it recommends a model (§7.2). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
+Write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10; a service account's key file is set from the file, `wrangler secret put NAME < key.json`), and it recommends a model (§7.2). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
 - **Wording to use, here and in the README** (the project owner's, 2026-11-03): *you can drop a stage you added.* That is every manual stage and every extra review; a new project already comes with a standard review, which you didn't add, so you can't drop it. *Reviews, by a model or by you, are added from an Apply review stage.*
 - **Runs in the background** (decided 2026-11-03): on a computer, a run goes on while the app's tab or window is in the background (another tab, another window, minimized), in the browser and in the desktop app; only closing it stops the run (and asks first). On a phone, a run only goes on while the app is open and in front: switching apps or locking the screen stops it, and nothing can warn first (the screen is kept on while it runs). **Run picks up where it stopped,** in about a second: what was done is kept, so after an interruption, Run again.
 
@@ -490,9 +542,6 @@ They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk b
 - **5 MB per image on Bedrock and Vertex AI** (10 MB on Anthropic's API, 32 MB per request): check with the first real calls whether a colour scan at 2576 px stays under it as PNG, and what to do if not (grayscale, or a smaller limit for that provider). `layout` doesn't check its requests' size yet (§6).
 - **Gemini's limits:** what Gemini said about them is in §6 (`analyze`), to check against Google's documentation when we use it. `imageLimit` gives Gemini Claude's limits for now; each provider's adapter should declare its own.
 
-### LLM calls, what is left
-Checking Bedrock's and Vertex AI's prices against those in the list of models (`llm/modelList.ts`): Bedrock's are gathered from AWS's price list (2026-11-05), Vertex AI's are still the mock until they are gathered.
-
 ### Model configs per kind of work
 `#optional`
 
@@ -501,7 +550,7 @@ Checking Bedrock's and Vertex AI's prices against those in the list of models (`
 ### Set up Claude on Vertex AI
 `#next-release` `#owner`
 
-`docs/llm.md`, "Calling the providers": a service account, enabling Claude for the project ("score3ly", with its €30 monthly cap and the Vertex AI API enabled), a key file, the first real call, and checking whether Opus 5.5 is offered on Vertex AI at all (not in Europe: checked 2026-10-09, §10).
+`docs/llm.md`, "Calling the providers": a service account, enabling Claude for the project ("score3ly", with its €30 monthly cap and the Vertex AI API enabled), a key file, the first real call, Opus 5.5 is priced at `global` and `eu` on Google's pricing page (2026-11-06; it wasn't in Europe on 2026-10-09, §10).
 
 ### Check Bedrock's model name on the first real call
 `docs/llm.md`, "Calling the providers": whether the answer names the model with the same string that was asked (an inference profile may come back as the bare model ID). Since 2026-11-05 the app adds the routing's prefix itself (`bedrockModel`), and the sanity check takes the answer's model with or without it; the first real call shows which, and whether the prefix is right on the Messages API endpoint at all.

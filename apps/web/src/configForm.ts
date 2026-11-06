@@ -67,7 +67,7 @@ export const EMPTY_FORM: FormState = {
 
 // The model a provider starts with: Claude Opus 5.5 where it is offered, else Gemini 3.1 Pro, else the first listed one,
 // else an unlisted one (decided 2026-11-05).
-const PREFERRED_MODELS = ["claude-opus-5-5", "gemini-3-1-pro"];
+const PREFERRED_MODELS = ["claude-opus-5-5", "gemini-3-1-pro-preview"];
 
 export function defaultModel(options: ModelOptions, provider: Provider): FormModel {
   const listed = modelsOf(options, provider);

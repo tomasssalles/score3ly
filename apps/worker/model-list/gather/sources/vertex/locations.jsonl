@@ -1,0 +1,33 @@
+{"url":"https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations?hl=en","fetched":"2026-11-06","note":"every Gemini model of \"Google model endpoint locations\", with the locations marked as supported"}
+{"name":"Gemini 4 Argon","string":"gemini-4-argon","locations":["global","us","eu","europe-west2","asia-southeast1"]}
+{"name":"Gemini 4 Argon Cyber Permissive","string":"gemini-4-argon-cyber-permissive","locations":["global","us"]}
+{"name":"Gemini 3.8 Live","string":"gemini-3.8-live","locations":["us","eu","us-central1"]}
+{"name":"Gemini 3.8 Flash Cyber","string":"gemini-3.8-flash-cyber","locations":["global","us"]}
+{"name":"Gemini 3.8 Flash","string":"gemini-3.8-flash","locations":["global","us","eu"]}
+{"name":"Gemini Omni 1.2 Flash","string":"gemini-omni-1.2-flash","locations":["global"]}
+{"name":"Gemini Omni 1.1 Flash preview","string":"gemini-omni-1.1-flash-preview","locations":["global"]}
+{"name":"Gemini 3.7 Flash","string":"gemini-3.7-flash","locations":["global","us","eu"]}
+{"name":"Gemini 3.6 Flash","string":"gemini-3.6-flash","locations":["global","us","eu"]}
+{"name":"Gemini 3.5 Flash-Lite","string":"gemini-3.5-flash-lite","locations":["global","us","eu","asia-south1"]}
+{"name":"Gemini Omni Flash preview","string":"gemini-omni-flash-preview","locations":["global"]}
+{"name":"Gemini 3.1 Flash-Lite Image (Nano Banana 2 Lite)","string":"gemini-3.1-flash-lite-image","locations":["global"]}
+{"name":"Gemini 3 Pro Image","string":"gemini-3-pro-image","locations":["global"]}
+{"name":"Gemini Nano Banana 2.1","string":"gemini-nano-banana-2.1","locations":["global"]}
+{"name":"Gemini 3.1 Flash Image","string":"gemini-3.1-flash-image","locations":["global","us","eu"]}
+{"name":"Gemini 3.5 Flash","string":"gemini-3.5-flash","locations":["global","us","eu","northamerica-northeast1","europe-west2","europe-west3","asia-south1","asia-southeast1","asia-northeast1","australia-southeast1"]}
+{"name":"Gemini 3.1 Flash-Lite","string":"gemini-3.1-flash-lite","locations":["global","us","eu"]}
+{"name":"Gemini 3.1 Pro preview","string":"gemini-3.1-pro-preview","locations":["global"]}
+{"name":"Gemini 3 Flash preview","string":"gemini-3-flash-preview","locations":["global"]}
+{"name":"Gemini 2.5 Pro","string":"gemini-2.5-pro","locations":["global","us-west1","us-west4","us-central1","us-east1","us-east4","us-east5","us-south1","northamerica-northeast1","europe-west1","europe-west4","europe-north1","europe-central2","europe-west8","europe-southwest1","europe-west9","asia-northeast1"]}
+{"name":"Gemini 2.5 Flash Image","string":"gemini-2.5-flash-image","locations":["global","us-west1","us-west4","us-central1","us-east1","us-east4","us-east5","us-south1","europe-west1","europe-west4","europe-north1","europe-central2","europe-west8","europe-southwest1"]}
+{"name":"Gemini 2.5 Flash","string":"gemini-2.5-flash","locations":["global","us-west1","us-west4","us-central1","us-east1","us-east4","us-east5","us-south1","northamerica-northeast1","southamerica-east1","europe-west2","europe-west1","europe-west4","europe-west3","europe-north1","europe-central2","europe-west8","europe-southwest1","europe-west9","asia-south1","asia-southeast1","asia-northeast1","australia-southeast1","asia-northeast3"]}
+{"name":"Gemini 2.5 Flash-Lite","string":"gemini-2.5-flash-lite","locations":["global","us-west1","us-west4","us-central1","us-east1","us-east4","us-east5","us-south1","europe-west1","europe-west4","europe-north1","europe-central2","europe-west8","europe-southwest1","europe-west9"]}
+{"name":"Gemini 2.5 Flash with Gemini Live API native audio","string":"gemini-live-2.5-flash-native-audio","locations":["us-west1","us-west4","us-central1","us-east1","us-east4","us-east5","us-south1","europe-west1","europe-west4","europe-north1","europe-central2","europe-west8","europe-southwest1"]}
+{"name":"Gemini 3.8 Flash TTS","string":"gemini-3.8-flash-tts","locations":["global","us","eu"]}
+{"name":"Gemini 3.8 Flash-Lite TTS","string":"gemini-3.8-flash-lite-tts","locations":["global","us","eu"]}
+{"name":"Gemini Robotics ER 2 preview","string":"gemini-robotics-er-2-preview","locations":["global"]}
+{"name":"Gemini Embedding 2","string":"gemini-embedding-2","locations":["global","us","eu"]}
+{"name":"Gemini Embedding","string":"gemini-embedding-001","locations":["us-west1","us-west4","us-central1","us-east1","us-east4","us-east5","us-south1","northamerica-northeast1","southamerica-east1","europe-west2","europe-west1","europe-west4","europe-west6","europe-west3","europe-north1","europe-central2","europe-west8","europe-southwest1","europe-west9","asia-south1","asia-southeast1","asia-east2","asia-east1","asia-northeast1","australia-southeast1","asia-northeast3","me-west1","me-central1","me-central2"]}
+{"name":"Gemini 2.5 Pro TTS","string":"gemini-2.5-pro-tts","locations":["global","us-west1","us-west4","us-central1","us-east1","us-east4","us-east5","us-south1","europe-west1","europe-west4","europe-north1","europe-central2","europe-southwest1"]}
+{"name":"Gemini 2.5 Flash TTS","string":"gemini-2.5-flash-tts","locations":["global","us-west1","us-west4","us-central1","us-east1","us-east4","us-east5","us-south1","northamerica-northeast1","europe-west1","europe-west4","europe-north1","europe-central2","europe-southwest1"]}
+{"name":"Gemini 2.5 Flash Lite Preview TTS preview","string":"gemini-2.5-flash-lite-preview-tts","locations":["global","us-west1","us-west4","us-central1","us-east1","us-east4","us-east5","us-south1","northamerica-northeast1","europe-west1","europe-west4","europe-north1","europe-central2","europe-southwest1"]}

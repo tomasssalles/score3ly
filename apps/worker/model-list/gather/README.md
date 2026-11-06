@@ -29,6 +29,58 @@ Run this before a release that should carry new models or prices; never from the
 
 A model gets a price at a region and routing only where all four prices (input, output, cache read, cache write) are there.
 
-## Anthropic, Vertex AI, Google AI Studio
+## Anthropic
 
-Still mock files (`"mock": true`), to gather the same way. Vertex AI and Gemini prices come from Google's Cloud Billing Catalog API, which needs credentials (an API key restricted to it, or `gcloud auth application-default login`), from a local `.env`, never from the repository. Anthropic's and AI Studio's prices are on their pricing pages.
+`node model-list/gather/anthropic.ts --download` (done 2026-11-06). Its sources, both Anthropic's pages in their Markdown versions (the URL with `.md`):
+
+- **"Pricing"** (`platform.claude.com/docs/en/about-claude/pricing.md`), the table "Model pricing": per model, named for people, its base input, 5-minute cache write, cache hit and output prices. Haiku 5.5's row for prompts over 100,000 tokens is left out (short-context prices only).
+- **"Model deprecations"** (`platform.claude.com/docs/en/about-claude/model-deprecations.md`), the table of every model's API name and state. The API name is the model string, dated for the older models (`claude-sonnet-4-5-20250929`), which is also what the answer names, so the adapter's model check holds; without the date it is the app's id. Retired models aren't listed (Opus 4.1, Opus 4 and Sonnet 4 are, on Anthropic's API, though the pricing table still has them); deprecated ones are, until they retire.
+
+A model in the pricing table that isn't in `claude-models.json`, or isn't in the table of states, stops the gathering.
+
+## Google AI Studio
+
+`node model-list/gather/ai-studio.ts --download` (done 2026-11-06). Its source is Google's page "Gemini Developer API pricing" in its Markdown version (`ai.google.dev/gemini-api/docs/pricing.md.txt`): one section per model, its model strings, and of its "Standard" tab the paid tier's input, output and context caching prices. Within a price cell:
+
+- **Dated prices** ("$2.00 through November 30, 2026", "$4.00 starting December 1, 2026"): the one valid on the day of the gathering is taken, and the later ones are printed, to be noted in `docs/tasks.md` (decided 2026-11-06).
+- **Left out:** prices for prompts over 200k tokens (short-context prices only), audio input, and the storage price of explicit caching (only implicit caching is used, which has no write price: cache write is 0). The free tier is left out too: it is a config's pricing kind.
+
+`gemini-models.json` is kept by hand, like `claude-models.json`: the Gemini models the app lists, keyed by their string (the same on Vertex AI), with the app's id, the name and the efforts (from Google's page "Gemini thinking"), and the other models of this page and of Vertex AI's locations page, ignored. A model section in neither list stops the gathering, as does a price line the parsing doesn't understand, or a cell without exactly one price valid on the day.
+
+## Vertex AI
+
+`node model-list/gather/vertex.ts --download` (done 2026-11-06). Its sources are public pages, no credentials; Google's are fetched in English (`?hl=en`), since Google localizes them by where they are fetched from:
+
+- **Anthropic's page "Claude Models on Google Cloud (Google managed)"** (`platform.claude.com/docs/en/build-with-claude/claude-models-on-google-cloud/google-managed.md`), the offering the app's adapter uses (`AnthropicVertex`; the other, "Anthropic managed", is `claude.googleapis.com`), the table "API model IDs": each Claude model's string on Vertex AI, with an `@` date for the models before 4.6 (`claude-opus-4-5@20251101`).
+- **Google's page "Partner Models Pricing"** (`cloud.google.com/model-garden/partner-models/pricing`): the Claude prices, one tab per location (`global`, the multi-regions `us` and `eu`, and the regions us-east5, europe-west1, asia-southeast1, asia-east1). A model is served where its tab prices it. Of each, the short-context column (≤ 200K tokens, ≤ 100K for Haiku 5.5) of Input, Output, 5m Cache Write and Cache Hit.
+- **Google's page "Vertex AI pricing"** (`cloud.google.com/vertex-ai/generative-ai/pricing`), its "Standard" tabs: the Gemini prices, input, output and cached input, short context, "Global" and "Non-global" (Gemini 2.5: one price everywhere). **Dated prices** (an introductory or promotional one "through December 31, 2026", the standard one "starting January 1, 2027"): **the standard one is taken** (decided 2026-11-06), which is what Google's billing catalog charges (the promotions are paid back as credits); it keeps the spending cap on the safe side, and no `#date` task is needed. Audio input is left out; implicit caching has no write price (cache write 0).
+- **Google's page "Vertex AI locations"** (`cloud.google.com/vertex-ai/generative-ai/docs/learn/locations`), in HTML (the Markdown version has lost the marks): the section "Google model endpoint locations", which locations serve each Gemini model, and its string.
+
+**Slips on Google's pages are left out, not guessed:** a model at a location whose table doesn't have exactly one price of each kind (a row missing, an output row labelled input, a row twice), a model without prices, and a model on Anthropic's page without a price on Google's (the Mythos models, Opus 4.1, Opus 4, Sonnet 4) are printed at the end, for the spot-check. A model on the locations page in neither list of `gemini-models.json` stops the gathering, as does a model on Anthropic's page that isn't in `claude-models.json`. `gemini-models.json` marks with `onlyOn` the models only one of AI Studio and Vertex AI offers.
+
+### Cross-checking with Google's billing catalog, by hand
+
+Google's Cloud Billing Catalog API has what Vertex AI bills, but not everything the gathering needs: of the Claude models only Opus 5.5 and Sonnet 5.5, no locations for Gemini, and SKU names without a pattern. So it isn't read by the script; a few prices are checked against it by hand (in the spot-check, `docs/tasks.md`). It needs credentials, but no billing account. Once:
+
+```bash
+gcloud services enable cloudbilling.googleapis.com --project score3ly
+gcloud auth application-default set-quota-project score3ly
+```
+
+Then download Vertex AI's SKUs (service `C7E2-9256-1C43`, about 10,000) and look prices up by a pattern on their descriptions, in US dollars per million tokens:
+
+```bash
+TOKEN=$(gcloud auth application-default print-access-token)
+URL=https://cloudbilling.googleapis.com/v1/services/C7E2-9256-1C43/skus
+PAGE=""; while :; do
+  R=$(curl -s -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: score3ly" "$URL?pageSize=5000&pageToken=$PAGE")
+  echo "$R" | jq -c '.skus[]'
+  PAGE=$(echo "$R" | jq -r '.nextPageToken // ""'); [ -z "$PAGE" ] && break
+done > /tmp/vertex-skus.jsonl
+
+price() { jq -r --arg p "$1" 'select(.description | test($p)) | "\(.description): $\(.pricingInfo[0].pricingExpression.tieredRates[0].unitPrice | ((.units | tonumber) + .nanos / 1e9) * 1e6)"' /tmp/vertex-skus.jsonl | sort; }
+price 'Opus 5 5 .* eu .* from 0 '
+price '^Gemini 4 Argon (Global|Regional) Text (Input|Output) - Online'
+```
+
+A "Regional" Gemini SKU is the "Non-global" price.

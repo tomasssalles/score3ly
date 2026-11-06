@@ -1,0 +1,197 @@
+{"url":"https://cloud.google.com/model-garden/partner-models/pricing?hl=en","fetched":"2026-11-06","note":"per location tab, the Claude models' short-context Input, Output, 5m Cache Write and Cache Hit, per million tokens"}
+{"tab":"Global","model":"Claude Haiku 5.5","type":"Input","usd":0.1}
+{"tab":"Global","model":"Claude Haiku 5.5","type":"Output","usd":0.5}
+{"tab":"Global","model":"Claude Haiku 5.5","type":"5m Cache Write","usd":0.125}
+{"tab":"Global","model":"Claude Haiku 5.5","type":"Cache Hit","usd":0.01}
+{"tab":"Global","model":"Claude Sonnet 5.5","type":"Input","usd":2}
+{"tab":"Global","model":"Claude Sonnet 5.5","type":"Output","usd":10}
+{"tab":"Global","model":"Claude Sonnet 5.5","type":"5m Cache Write","usd":2.5}
+{"tab":"Global","model":"Claude Sonnet 5.5","type":"Cache Hit","usd":0.1}
+{"tab":"Global","model":"Claude Opus 5.5","type":"Input","usd":4}
+{"tab":"Global","model":"Claude Opus 5.5","type":"Output","usd":20}
+{"tab":"Global","model":"Claude Opus 5.5","type":"5m Cache Write","usd":5}
+{"tab":"Global","model":"Claude Opus 5.5","type":"Cache Hit","usd":0.2}
+{"tab":"Global","model":"Claude Opus 5","type":"Input","usd":5}
+{"tab":"Global","model":"Claude Opus 5","type":"Output","usd":25}
+{"tab":"Global","model":"Claude Opus 5","type":"5m Cache Write","usd":6.25}
+{"tab":"Global","model":"Claude Opus 5","type":"Cache Hit","usd":0.5}
+{"tab":"Global","model":"Claude Sonnet 5","type":"Input","usd":2}
+{"tab":"Global","model":"Claude Sonnet 5","type":"Output","usd":10}
+{"tab":"Global","model":"Claude Sonnet 5","type":"5m Cache Write","usd":2.5}
+{"tab":"Global","model":"Claude Sonnet 5","type":"Cache Hit","usd":0.2}
+{"tab":"Global","model":"Claude Fable 5.1","type":"Input","usd":10}
+{"tab":"Global","model":"Claude Fable 5.1","type":"Output","usd":50}
+{"tab":"Global","model":"Claude Fable 5.1","type":"5m Cache Write","usd":12.5}
+{"tab":"Global","model":"Claude Fable 5.1","type":"Cache Hit","usd":0.25}
+{"tab":"Global","model":"Claude Fable 5","type":"Input","usd":10}
+{"tab":"Global","model":"Claude Fable 5","type":"Output","usd":50}
+{"tab":"Global","model":"Claude Fable 5","type":"5m Cache Write","usd":12.5}
+{"tab":"Global","model":"Claude Fable 5","type":"Cache Hit","usd":1}
+{"tab":"Global","model":"Claude Opus 4.8","type":"Input","usd":5}
+{"tab":"Global","model":"Claude Opus 4.8","type":"Output","usd":25}
+{"tab":"Global","model":"Claude Opus 4.8","type":"5m Cache Write","usd":6.25}
+{"tab":"Global","model":"Claude Opus 4.8","type":"Cache Hit","usd":0.5}
+{"tab":"Global","model":"Claude Opus 4.7","type":"Input","usd":5}
+{"tab":"Global","model":"Claude Opus 4.7","type":"Output","usd":25}
+{"tab":"Global","model":"Claude Opus 4.7","type":"5m Cache Write","usd":6.25}
+{"tab":"Global","model":"Claude Opus 4.7","type":"Cache Hit","usd":0.5}
+{"tab":"Global","model":"Claude Opus 4.6","type":"Input","usd":5}
+{"tab":"Global","model":"Claude Opus 4.6","type":"Output","usd":25}
+{"tab":"Global","model":"Claude Opus 4.6","type":"5m Cache Write","usd":6.25}
+{"tab":"Global","model":"Claude Opus 4.6","type":"Cache Hit","usd":0.5}
+{"tab":"Global","model":"Claude Opus 4.5","type":"Input","usd":5}
+{"tab":"Global","model":"Claude Opus 4.5","type":"Output","usd":25}
+{"tab":"Global","model":"Claude Opus 4.5","type":"5m Cache Write","usd":6.25}
+{"tab":"Global","model":"Claude Opus 4.5","type":"Cache Hit","usd":0.5}
+{"tab":"Global","model":"Claude Sonnet 4.6","type":"Input","usd":3}
+{"tab":"Global","model":"Claude Sonnet 4.6","type":"Output","usd":15}
+{"tab":"Global","model":"Claude Sonnet 4.6","type":"5m Cache Write","usd":3.75}
+{"tab":"Global","model":"Claude Sonnet 4.6","type":"Cache Hit","usd":0.3}
+{"tab":"Global","model":"Claude Sonnet 4.5","type":"Input","usd":3}
+{"tab":"Global","model":"Claude Sonnet 4.5","type":"Output","usd":15}
+{"tab":"Global","model":"Claude Sonnet 4.5","type":"5m Cache Write","usd":3.75}
+{"tab":"Global","model":"Claude Sonnet 4.5","type":"Cache Hit","usd":0.3}
+{"tab":"Global","model":"Claude Haiku 4.5","type":"Input","usd":1}
+{"tab":"Global","model":"Claude Haiku 4.5","type":"Output","usd":5}
+{"tab":"Global","model":"Claude Haiku 4.5","type":"5m Cache Write","usd":1.25}
+{"tab":"Global","model":"Claude Haiku 4.5","type":"Cache Hit","usd":0.1}
+{"tab":"US Multi-Region (US)","model":"Claude Haiku 5.5","type":"Input","usd":0.11}
+{"tab":"US Multi-Region (US)","model":"Claude Haiku 5.5","type":"Output","usd":0.55}
+{"tab":"US Multi-Region (US)","model":"Claude Haiku 5.5","type":"5m Cache Write","usd":0.1375}
+{"tab":"US Multi-Region (US)","model":"Claude Haiku 5.5","type":"Cache Hit","usd":0.011}
+{"tab":"US Multi-Region (US)","model":"Claude Sonnet 5.5","type":"Input","usd":2.2}
+{"tab":"US Multi-Region (US)","model":"Claude Sonnet 5.5","type":"Output","usd":11}
+{"tab":"US Multi-Region (US)","model":"Claude Sonnet 5.5","type":"5m Cache Write","usd":2.75}
+{"tab":"US Multi-Region (US)","model":"Claude Sonnet 5.5","type":"Cache Hit","usd":0.11}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 5.5","type":"Input","usd":4.4}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 5.5","type":"Output","usd":22}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 5.5","type":"Cache Hit","usd":0.22}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 5","type":"Input","usd":5.5}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 5","type":"Output","usd":27.5}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 5","type":"5m Cache Write","usd":6.875}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 5","type":"Cache Hit","usd":0.55}
+{"tab":"US Multi-Region (US)","model":"Claude Sonnet 5","type":"Input","usd":2.2}
+{"tab":"US Multi-Region (US)","model":"Claude Sonnet 5","type":"Output","usd":11}
+{"tab":"US Multi-Region (US)","model":"Claude Sonnet 5","type":"5m Cache Write","usd":2.75}
+{"tab":"US Multi-Region (US)","model":"Claude Sonnet 5","type":"Cache Hit","usd":0.22}
+{"tab":"US Multi-Region (US)","model":"Claude Fable 5.1","type":"Input","usd":11}
+{"tab":"US Multi-Region (US)","model":"Claude Fable 5.1","type":"Output","usd":55}
+{"tab":"US Multi-Region (US)","model":"Claude Fable 5.1","type":"5m Cache Write","usd":13.75}
+{"tab":"US Multi-Region (US)","model":"Claude Fable 5.1","type":"Cache Hit","usd":0.275}
+{"tab":"US Multi-Region (US)","model":"Claude Fable 5","type":"Input","usd":11}
+{"tab":"US Multi-Region (US)","model":"Claude Fable 5","type":"Input","usd":11}
+{"tab":"US Multi-Region (US)","model":"Claude Fable 5","type":"5m Cache Write","usd":13.75}
+{"tab":"US Multi-Region (US)","model":"Claude Fable 5","type":"Cache Hit","usd":1.1}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 4.8","type":"Input","usd":5.5}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 4.8","type":"Output","usd":27.5}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 4.8","type":"5m Cache Write","usd":6.875}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 4.8","type":"Cache Hit","usd":0.55}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 4.7","type":"Input","usd":5.5}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 4.7","type":"Output","usd":27.5}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 4.7","type":"5m Cache Write","usd":6.875}
+{"tab":"US Multi-Region (US)","model":"Claude Opus 4.7","type":"Cache Hit","usd":0.55}
+{"tab":"EU Multi-Region (EU)","model":"Claude Haiku 5.5","type":"Input","usd":0.11}
+{"tab":"EU Multi-Region (EU)","model":"Claude Haiku 5.5","type":"Output","usd":0.55}
+{"tab":"EU Multi-Region (EU)","model":"Claude Haiku 5.5","type":"5m Cache Write","usd":0.1375}
+{"tab":"EU Multi-Region (EU)","model":"Claude Haiku 5.5","type":"Cache Hit","usd":0.011}
+{"tab":"EU Multi-Region (EU)","model":"Claude Sonnet 5.5","type":"Input","usd":2.2}
+{"tab":"EU Multi-Region (EU)","model":"Claude Sonnet 5.5","type":"Output","usd":11}
+{"tab":"EU Multi-Region (EU)","model":"Claude Sonnet 5.5","type":"5m Cache Write","usd":2.75}
+{"tab":"EU Multi-Region (EU)","model":"Claude Sonnet 5.5","type":"Cache Hit","usd":0.11}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 5.5","type":"Input","usd":4.4}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 5.5","type":"Output","usd":22}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 5.5","type":"5m Cache Write","usd":5.5}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 5.5","type":"Cache Hit","usd":0.22}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 5","type":"Input","usd":5.5}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 5","type":"Output","usd":27.5}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 5","type":"5m Cache Write","usd":6.875}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 5","type":"Cache Hit","usd":0.55}
+{"tab":"EU Multi-Region (EU)","model":"Claude Sonnet 5","type":"Input","usd":2.2}
+{"tab":"EU Multi-Region (EU)","model":"Claude Sonnet 5","type":"Output","usd":11}
+{"tab":"EU Multi-Region (EU)","model":"Claude Sonnet 5","type":"5m Cache Write","usd":2.75}
+{"tab":"EU Multi-Region (EU)","model":"Claude Sonnet 5","type":"Cache Hit","usd":0.22}
+{"tab":"EU Multi-Region (EU)","model":"Claude Fable 5.1","type":"Input","usd":11}
+{"tab":"EU Multi-Region (EU)","model":"Claude Fable 5.1","type":"Output","usd":55}
+{"tab":"EU Multi-Region (EU)","model":"Claude Fable 5.1","type":"5m Cache Write","usd":13.75}
+{"tab":"EU Multi-Region (EU)","model":"Claude Fable 5.1","type":"Cache Hit","usd":0.275}
+{"tab":"EU Multi-Region (EU)","model":"Claude Fable 5","type":"Input","usd":11}
+{"tab":"EU Multi-Region (EU)","model":"Claude Fable 5","type":"Output","usd":55}
+{"tab":"EU Multi-Region (EU)","model":"Claude Fable 5","type":"5m Cache Write","usd":13.75}
+{"tab":"EU Multi-Region (EU)","model":"Claude Fable 5","type":"Cache Hit","usd":1.1}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 4.8","type":"Input","usd":5.5}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 4.8","type":"Output","usd":27.5}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 4.8","type":"5m Cache Write","usd":6.875}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 4.8","type":"Cache Hit","usd":0.55}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 4.7","type":"Input","usd":5.5}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 4.7","type":"Output","usd":27.5}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 4.7","type":"5m Cache Write","usd":6.875}
+{"tab":"EU Multi-Region (EU)","model":"Claude Opus 4.7","type":"Cache Hit","usd":0.55}
+{"tab":"us-east5","model":"Claude Opus 4.6","type":"Input","usd":5.5}
+{"tab":"us-east5","model":"Claude Opus 4.6","type":"Output","usd":27.5}
+{"tab":"us-east5","model":"Claude Opus 4.6","type":"5m Cache Write","usd":6.875}
+{"tab":"us-east5","model":"Claude Opus 4.6","type":"Cache Hit","usd":0.55}
+{"tab":"us-east5","model":"Claude Opus 4.5","type":"Input","usd":5.5}
+{"tab":"us-east5","model":"Claude Opus 4.5","type":"Output","usd":27.5}
+{"tab":"us-east5","model":"Claude Opus 4.5","type":"5m Cache Write","usd":6.875}
+{"tab":"us-east5","model":"Claude Opus 4.5","type":"Cache Hit","usd":0.55}
+{"tab":"us-east5","model":"Claude Sonnet 4.6","type":"Input","usd":3.3}
+{"tab":"us-east5","model":"Claude Sonnet 4.6","type":"Output","usd":16.5}
+{"tab":"us-east5","model":"Claude Sonnet 4.6","type":"5m Cache Write","usd":4.13}
+{"tab":"us-east5","model":"Claude Sonnet 4.6","type":"Cache Hit","usd":0.33}
+{"tab":"us-east5","model":"Claude Sonnet 4.6","type":"Input","usd":6.6}
+{"tab":"us-east5","model":"Claude Sonnet 4.6","type":"Output","usd":24.75}
+{"tab":"us-east5","model":"Claude Sonnet 4.5","type":"Input","usd":3.3}
+{"tab":"us-east5","model":"Claude Sonnet 4.5","type":"Output","usd":16.5}
+{"tab":"us-east5","model":"Claude Sonnet 4.5","type":"5m Cache Write","usd":4.13}
+{"tab":"us-east5","model":"Claude Sonnet 4.5","type":"Cache Hit","usd":0.33}
+{"tab":"us-east5","model":"Claude Haiku 4.5","type":"Input","usd":1.1}
+{"tab":"us-east5","model":"Claude Haiku 4.5","type":"Output","usd":5.5}
+{"tab":"us-east5","model":"Claude Haiku 4.5","type":"5m Cache Write","usd":1.375}
+{"tab":"us-east5","model":"Claude Haiku 4.5","type":"Cache Hit","usd":0.11}
+{"tab":"europe-west 1","model":"Claude Haiku 5.5","type":"Input","usd":0.11}
+{"tab":"europe-west 1","model":"Claude Haiku 5.5","type":"Output","usd":0.55}
+{"tab":"europe-west 1","model":"Claude Haiku 5.5","type":"5m Cache Write","usd":0.1375}
+{"tab":"europe-west 1","model":"Claude Haiku 5.5","type":"Cache Hit","usd":0.011}
+{"tab":"europe-west 1","model":"Claude Opus 4.6","type":"Input","usd":5.5}
+{"tab":"europe-west 1","model":"Claude Opus 4.6","type":"Output","usd":27.5}
+{"tab":"europe-west 1","model":"Claude Opus 4.6","type":"5m Cache Write","usd":6.875}
+{"tab":"europe-west 1","model":"Claude Opus 4.6","type":"Cache Hit","usd":0.55}
+{"tab":"europe-west 1","model":"Claude Opus 4.5","type":"Input","usd":5.5}
+{"tab":"europe-west 1","model":"Claude Opus 4.5","type":"Output","usd":27.5}
+{"tab":"europe-west 1","model":"Claude Opus 4.5","type":"5m Cache Write","usd":6.875}
+{"tab":"europe-west 1","model":"Claude Opus 4.5","type":"Cache Hit","usd":0.55}
+{"tab":"europe-west 1","model":"Claude Sonnet 4.6","type":"Input","usd":3.3}
+{"tab":"europe-west 1","model":"Claude Sonnet 4.6","type":"Output","usd":16.5}
+{"tab":"europe-west 1","model":"Claude Sonnet 4.6","type":"Cache Hit","usd":0.33}
+{"tab":"europe-west 1","model":"Claude Sonnet 4.5","type":"Input","usd":3.3}
+{"tab":"europe-west 1","model":"Claude Sonnet 4.5","type":"Output","usd":16.5}
+{"tab":"europe-west 1","model":"Claude Sonnet 4.5","type":"5m Cache Write","usd":4.13}
+{"tab":"europe-west 1","model":"Claude Sonnet 4.5","type":"Cache Hit","usd":0.33}
+{"tab":"europe-west 1","model":"Claude Haiku 4.5","type":"Input","usd":1.1}
+{"tab":"europe-west 1","model":"Claude Haiku 4.5","type":"Output","usd":5.5}
+{"tab":"europe-west 1","model":"Claude Haiku 4.5","type":"5m Cache Write","usd":1.375}
+{"tab":"europe-west 1","model":"Claude Haiku 4.5","type":"Cache Hit","usd":0.11}
+{"tab":"asia-southeast1","model":"Claude Haiku 5.5","type":"Input","usd":0.11}
+{"tab":"asia-southeast1","model":"Claude Haiku 5.5","type":"Output","usd":0.55}
+{"tab":"asia-southeast1","model":"Claude Haiku 5.5","type":"5m Cache Write","usd":0.1375}
+{"tab":"asia-southeast1","model":"Claude Haiku 5.5","type":"Cache Hit","usd":0.011}
+{"tab":"asia-southeast1","model":"Claude Opus 4.6","type":"Input","usd":5.5}
+{"tab":"asia-southeast1","model":"Claude Opus 4.6","type":"Output","usd":27.5}
+{"tab":"asia-southeast1","model":"Claude Opus 4.6","type":"5m Cache Write","usd":6.875}
+{"tab":"asia-southeast1","model":"Claude Opus 4.6","type":"Cache Hit","usd":0.55}
+{"tab":"asia-southeast1","model":"Claude Opus 4.5","type":"Input","usd":5.5}
+{"tab":"asia-southeast1","model":"Claude Opus 4.5","type":"Output","usd":27.5}
+{"tab":"asia-southeast1","model":"Claude Opus 4.5","type":"5m Cache Write","usd":6.875}
+{"tab":"asia-southeast1","model":"Claude Opus 4.5","type":"Cache Hit","usd":0.55}
+{"tab":"asia-southeast1","model":"Claude Sonnet 4.6","type":"Input","usd":3.3}
+{"tab":"asia-southeast1","model":"Claude Sonnet 4.6","type":"Output","usd":16.5}
+{"tab":"asia-southeast1","model":"Claude Sonnet 4.6","type":"5m Cache Write","usd":4.13}
+{"tab":"asia-southeast1","model":"Claude Sonnet 4.6","type":"Cache Hit","usd":0.33}
+{"tab":"asia-southeast1","model":"Claude Sonnet 4.5","type":"Input","usd":3.3}
+{"tab":"asia-southeast1","model":"Claude Sonnet 4.5","type":"Output","usd":16.5}
+{"tab":"asia-southeast1","model":"Claude Sonnet 4.5","type":"5m Cache Write","usd":4.13}
+{"tab":"asia-southeast1","model":"Claude Sonnet 4.5","type":"Cache Hit","usd":0.33}
+{"tab":"asia-east1","model":"Claude Haiku 4.5","type":"Input","usd":1.1}
+{"tab":"asia-east1","model":"Claude Haiku 4.5","type":"Output","usd":5.5}
+{"tab":"asia-east1","model":"Claude Haiku 4.5","type":"5m Cache Write","usd":1.375}
+{"tab":"asia-east1","model":"Claude Haiku 4.5","type":"Cache Hit","usd":0.11}
