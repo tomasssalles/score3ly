@@ -17,6 +17,8 @@ let env: Env;
 before(async () => {
   platform = await getPlatformProxy<Env>({ configPath: join(workerDir, "wrangler.jsonc"), persist: false });
   env = platform.env;
+  // The fake provider with costs is for development: offered with DEV_PROVIDERS (most tests use it).
+  (env as unknown as Record<string, string>).DEV_PROVIDERS = "true";
   const migrationsDir = join(workerDir, "migrations");
   for (const file of readdirSync(migrationsDir).sort()) {
     await env.DB.exec(withoutComments(readFileSync(join(migrationsDir, file), "utf8")));
@@ -584,12 +586,21 @@ test("configs added by hand become listed ones when a new list has their string:
 
 test("the pickers' options: providers with their families, efforts, secrets and places; listed models where they have prices", async () => {
   const options = await json<ModelOptions>(await app.request("/api/models", {}, env));
-  assert.deepEqual(options, modelOptions(MODEL_LIST));
+  assert.deepEqual(options, modelOptions(MODEL_LIST, true));
   assert.equal(options.asOf, MODEL_LIST.asOf);
-  // Fake with costs is for development: not offered, nor its prices; its configs are made through the API only.
-  assert.deepEqual(options.providers.map((p) => p.id), ["anthropic", "bedrock", "ai-studio", "vertex", "fake"]);
-  assert.ok(options.models.every((m) => !("fake-dev" in m.providers)));
-  assert.equal((await send("/api/model-configs", configBody())).status, 201);
+  // Fake with costs is for development: offered only with DEV_PROVIDERS, and refused without it; a setting, not a
+  // secret.
+  assert.deepEqual(options.providers.map((p) => p.id), ["anthropic", "bedrock", "ai-studio", "vertex", "fake", "fake-dev"]);
+  assert.ok(!secretNames(env).includes("DEV_PROVIDERS"));
+  delete (env as unknown as Record<string, string>).DEV_PROVIDERS;
+  try {
+    const plain = await json<ModelOptions>(await app.request("/api/models", {}, env));
+    assert.deepEqual(plain.providers.map((p) => p.id), ["anthropic", "bedrock", "ai-studio", "vertex", "fake"]);
+    assert.ok(plain.models.every((m) => !("fake-dev" in m.providers)));
+    assert.equal((await send("/api/model-configs", configBody())).status, 400);
+  } finally {
+    (env as unknown as Record<string, string>).DEV_PROVIDERS = "true";
+  }
   const vertex = options.providers.find((p) => p.id === "vertex")!;
   assert.equal(vertex.name, "Vertex AI");
   assert.deepEqual(

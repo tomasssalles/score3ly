@@ -477,15 +477,14 @@ export type ModelOptions = {
   }[];
 };
 
-const OFFERED = PROVIDERS.filter((p) => p !== "fake-dev");
-
-export function modelOptions(list: ModelList = MODEL_LIST): ModelOptions {
+export function modelOptions(list: ModelList = MODEL_LIST, dev = false): ModelOptions {
+  const offered = PROVIDERS.filter((p) => dev || p !== "fake-dev");
   return {
     asOf: list.asOf,
     mock: list.mock ?? false,
-    // "fake-dev" (made-up prices, for developing the costs and the cap) isn't offered: only the API makes its configs
-    // (docs/llm.md, "Calling the providers").
-    providers: OFFERED.map((id) => ({
+    // "fake-dev" (made-up prices, for developing the costs and the cap) only where the Worker offers the providers for
+    // development (docs/llm.md, "Calling the providers").
+    providers: offered.map((id) => ({
       id,
       name: PROVIDER_NAMES[id],
       families: supportedFamilies(id).map((family) => ({
@@ -506,7 +505,7 @@ export function modelOptions(list: ModelList = MODEL_LIST): ModelOptions {
         family: m.family,
         efforts: effortsOf(m.family, m),
         providers: Object.fromEntries(
-          OFFERED.filter((p) => m.strings[p] !== undefined)
+          offered.filter((p) => m.strings[p] !== undefined)
             .map((p) => [p, { string: m.strings[p]!, places: list.prices.filter((x) => x.model === m.id && x.provider === p).map((x) => ({ region: x.region, routing: x.routing, price: x.price })) }] as const)
             .filter(([, offer]) => offer.places.length > 0),
         ),
@@ -517,15 +516,28 @@ export function modelOptions(list: ModelList = MODEL_LIST): ModelOptions {
 
 // The names of the Worker's secrets (its text values: D1, R2 and the assets are bindings, not text), sorted, for the
 // form's secret pickers (§10: the app knows only their names). Never a value.
+// The Worker's text values that are settings, not secrets (docs/llm.md, "Model configs"): every one the app reads is
+// listed here, and left out of the secrets' names a config picks from. Any other text value is taken to be a secret.
+export const NOT_SECRETS = [
+  "DEV_PROVIDERS", // "true": the providers for development are offered too (Fake with costs)
+] as const;
+
+// Whether the providers for development are offered: `wrangler dev --var DEV_PROVIDERS:true`, or the desktop server's
+// --dev-providers.
+export function devProviders(env: Env): boolean {
+  const value = (env as unknown as Record<string, unknown>).DEV_PROVIDERS;
+  return value === "true" || value === "1";
+}
+
 export function secretNames(env: Env): string[] {
   return Object.entries(env as unknown as Record<string, unknown>)
-    .filter(([, value]) => typeof value === "string")
+    .filter(([name, value]) => typeof value === "string" && !(NOT_SECRETS as readonly string[]).includes(name))
     .map(([name]) => name)
     .sort();
 }
 
 export function llmRoutes(app: Hono<{ Bindings: Env }>) {
-  app.get("/api/models", (c) => c.json(modelOptions()));
+  app.get("/api/models", (c) => c.json(modelOptions(MODEL_LIST, devProviders(c.env))));
 
   app.get("/api/secrets", (c) => c.json({ names: secretNames(c.env) }));
 
@@ -573,6 +585,9 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const body = await c.req.json().catch(() => null);
     const problem = configProblem(body);
     if (problem) return c.json({ error: problem }, 400);
+    if (body.provider === "fake-dev" && !devProviders(c.env)) {
+      return c.json({ error: "Fake with costs is a provider for development: start the Worker with DEV_PROVIDERS=true to use it." }, 400);
+    }
     if (body.replaces !== undefined && typeof body.replaces !== "string") return c.json({ error: "'replaces' must be a model config's id" }, 400);
     const original =
       typeof body.replaces === "string"

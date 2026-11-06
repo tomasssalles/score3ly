@@ -316,7 +316,11 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
   function openForm(from: ModelConfig | null) {
     setError(null);
     Promise.all([fetchModelOptions(), fetchSecretNames()]).then(
-      ([options, secretNames]) => setCreating({ options, secretNames, from }),
+      ([options, secretNames]) =>
+        // A provider for development the Worker doesn't offer now (DEV_PROVIDERS, docs/llm.md): the form can't show it.
+        from && !options.providers.some((p) => p.id === from.provider)
+          ? setError(`"${from.name}" uses a provider this app doesn't offer now, so it can't be cloned.`)
+          : setCreating({ options, secretNames, from }),
       () => setError("The models couldn't be loaded."),
     );
   }
@@ -326,8 +330,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
     ...(config.provider !== "fake" && config.provider !== "fake-dev" && !config.unsupported ? [[{ label: "Test", onSelect: () => setTesting(config) }]] : []),
     [
       { label: "Rename", onSelect: () => setRenaming(config) },
-      // Not for the provider the form doesn't offer (Fake with costs, made through the API only).
-      ...(config.provider === "fake-dev" ? [] : [{ label: "Clone", onSelect: () => openForm(config) }]),
+      { label: "Clone", onSelect: () => openForm(config) },
     ],
     ...(config.id === defaultId ? [] : [[{ label: "Delete", danger: true, onSelect: () => setDeleting(config) }]]),
   ];

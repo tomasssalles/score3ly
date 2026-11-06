@@ -24,6 +24,7 @@ export type ServerOptions = {
   port?: number; // 0 (the default) picks a free one
   openSecretsFile?: (path: string) => void; // Electron: opens the file in the system's editor
   setWindowTheme?: (theme: WindowTheme) => void; // Electron: the window's frame in the app's theme, or the system's
+  devProviders?: boolean; // the providers for development offered too (the Worker's DEV_PROVIDERS, docs/llm.md)
 };
 
 export type RunningServer = { url: string; secretsPath: string; close: () => Promise<void> };
@@ -91,7 +92,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       }
     }
     // The secrets are the environment's other values, as a Worker's are.
-    const env = { ...secrets.read(), DB: db, PDFS: files } as unknown as Env;
+    const env = { ...secrets.read(), ...(options.devProviders ? { DEV_PROVIDERS: "true" } : {}), DB: db, PDFS: files } as unknown as Env;
     return worker.fetch(request, env, ctx as unknown as ExecutionContext);
   };
 
@@ -112,7 +113,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   };
 }
 
-// Run alone, for development: `node dist/server.js [--data <folder>] [--port <port>]`, as a plain local server.
+// Run alone, for development: `node dist/server.js [--data <folder>] [--port <port>] [--dev-providers]`, as a plain
+// local server.
 function argument(name: string): string | undefined {
   const i = process.argv.indexOf(name);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -127,6 +129,7 @@ if (process.argv[1] && /server\.(js|ts)$/.test(process.argv[1]) && !process.vers
     migrationsDir: join(here, "migrations"),
     host: "local",
     port: Number(argument("--port") ?? 8790),
+    devProviders: process.argv.includes("--dev-providers"),
   }).then(
     ({ url, secretsPath }) => console.log(`score3ly at ${url}\ndata in ${dataDir}\nsecrets in ${secretsPath}`),
     (err) => {

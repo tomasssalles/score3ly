@@ -175,6 +175,8 @@ if (!app.requestSingleInstanceLock()) {
       host: "desktop",
       openSecretsFile: (path) => void shell.openPath(path),
       setWindowTheme,
+      // `npm run desktop -- --dev-providers`: the providers for development offered too (docs/llm.md).
+      devProviders: process.argv.includes("--dev-providers"),
     });
     createWindow(server.url);
     // macOS: clicking the dock icon with no window open opens one.
