@@ -61,6 +61,8 @@ Built: `apps/worker/src/llm/`. One small request and response shape for every pr
 | `extract` | the same |
 | `apply_review` | "too many parameters with union types (18 …; limit: 16)" |
 
+(The table is the first probe, before the changes under "Being tried" below: `analyze` and `apply_review` are accepted now.)
+
 **What the grammar is.** Constrained decoding: Anthropic compiles the schema into a grammar, rules describing every text that is valid JSON for it, and while the model writes, masks out at each step the tokens that would break the rules; so the answer is guaranteed to follow the schema, not just likely to. A schema `{"type":"object","properties":{"at":{"enum":["start","end"]}},"required":["at"]}` becomes roughly
 
 ```
@@ -87,7 +89,7 @@ and every object, property, array, enum and `anyOf` adds rules. The grammar is c
 
 The leaning (Claude's recommendation, not decided): 1, chosen explicitly per request rather than by catching the error; 2 for `apply_review`.
 
-**Being tried** (2026-11-07, on branch `claude/friendly-curie-wb7w4w`, not merged): option 2 for `analyze`, its answer flat (`docs/stages/analyze.md`, "The answer's shape"). The page schema: 2.3 KB, 8 objects, 7 enums, 4 nullable fields (was 7.3 KB, 31, 30, 5). Probed (2026-11-07, Sonnet 5.5): **the page schema is accepted,** with room (also without enums or `anyOf`, and its halves alone). **The whole score's, at first 4.7 KB, 16, 15, 7, was still refused,** but only just: accepted without its additions, and accepted with `$defs` (which made no difference on the old schemas). So corrections and additions became one list (`edits`), holding the observations once: now 3.1 KB, 10 objects, 10 enums, 4 nullable fields (was 13.8 KB, 55, 52, 10), to probe again: `npm run llm:probe-schemas -w apps/worker -- claude-sonnet-5-5 analyze`. And for `apply_review`, its texts with no value "" instead of null (`docs/stages/music.md`, `apply_review`): 4 properties with unions instead of 18 (the limit is 16); `npm run llm:probe-schemas -w apps/worker -- claude-sonnet-5-5 apply_review`.
+**Being tried** (2026-11-07, on branch `claude/friendly-curie-wb7w4w`, not merged): option 2 for `analyze`, its answer flat (`docs/stages/analyze.md`, "The answer's shape"). The page schema: 2.3 KB, 8 objects, 7 enums, 4 nullable fields (was 7.3 KB, 31, 30, 5). Probed (2026-11-07, Sonnet 5.5): **the page schema is accepted,** with room (also without enums or `anyOf`, and its halves alone). **The whole score's, at first 4.7 KB, 16, 15, 7, was still refused,** but only just: accepted without its additions, and accepted with `$defs` (which made no difference on the old schemas). So corrections and additions became one list (`edits`), holding the observations once: now 3.1 KB, 10 objects, 10 enums, 4 nullable fields (was 13.8 KB, 55, 52, 10), **accepted** by the probe, and `analyze` (both calls) ran in the app on Claude (2026-11-07). And for `apply_review`, its texts with no value "" instead of null (`docs/stages/music.md`, `apply_review`): 4 properties with unions instead of 18 (the limit is 16): **accepted** by the probe (2026-11-07); not yet run in the app (the run stopped at `extract`). **`extract` is still refused** ("compiled grammar is too large"), in the app too.
 
 ## Model configs
 - **A model config** is a stored, named combination of provider, model, thinking effort and the provider's authentication. The user can keep several. They live in D1 and are managed in the settings: created, renamed, cloned and deleted, never edited ("Managing model configs", below).
