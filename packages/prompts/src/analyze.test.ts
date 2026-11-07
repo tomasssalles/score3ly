@@ -171,6 +171,17 @@ const full: AnalyzeContext = {
   ]),
 };
 
+// Corrections (with their item's page, from the context) and additions (with the id "") as the model writes them.
+const edits = (corrections: object, additions: object) => {
+  const corrected = flatLists(corrections) as unknown as { systems: { id: string }[]; items: { id: string }[] };
+  const added = flatLists(additions) as { systems: object[]; items: object[] };
+  const page = (item: { id: string }) => ({ ...item, page: full.items!.get(item.id)?.page ?? 2 });
+  return {
+    systems: [...corrected.systems.map(page), ...added.systems.map((item) => ({ id: "", ...item }))],
+    items: [...corrected.items.map(page), ...added.items.map((item) => ({ id: "", ...item }))],
+  };
+};
+
 const score = (overrides: Record<string, unknown> = {}) => {
   const { metadata, corrections, additions, ...rest } = overrides;
   return {
@@ -181,9 +192,8 @@ const score = (overrides: Record<string, unknown> = {}) => {
         pieces: [{ title: "Von fremden Ländern und Menschen", system: 1, confidence: "high", page: 1 }],
       },
     ),
-    corrections: flatLists(corrections ?? emptyLists()),
+    edits: edits(corrections ?? emptyLists(), additions ?? emptyLists()),
     removals: [],
-    additions: flatLists(additions ?? emptyLists()),
     score: [{ kind: "style", text: "romantic", places: [], confidence: "medium" }],
     ...rest,
   };
@@ -206,6 +216,12 @@ test("corrections and removals name items that exist, corrections in their own l
   assert.match(problem(checkScoreAnswer(corrected("changes", { id: "p2-2", ...change(1) }), full)), /system 1 isn't on page 2/);
   assert.ok(!("problem" in checkScoreAnswer(score({ removals: ["p2-1"] }), full)));
   assert.match(problem(checkScoreAnswer(score({ removals: ["p1-1"] }), full)), /p1-1, which doesn't exist/);
+});
+
+test("a correction is on its item's page", () => {
+  const answer = score({ corrections: { ...emptyLists(), changes: [{ id: "p2-2", ...change(6) }] } });
+  (answer.edits.items[0] as unknown as { page: number }).page = 1;
+  assert.match(problem(checkScoreAnswer(answer, full)), /the item p2-2 is on page 1, but the item is on page 2/);
 });
 
 test("a correction that moves an item to another list is its removal and an addition on its page", () => {

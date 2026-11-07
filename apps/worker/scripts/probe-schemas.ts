@@ -82,7 +82,6 @@ const variants: [string, Schema][] = [
   ["analyze score, $defs", withDefs(score)],
   ["analyze score, no enums", withoutEnums(score)],
   ["analyze score, no anyOf", withoutAnyOf(score)],
-  ["analyze score, without additions", only(score, ["metadata", "corrections", "removals", "score"])],
 ];
 
 const [model = "claude-sonnet-5-5", prefix = ""] = process.argv.slice(2);

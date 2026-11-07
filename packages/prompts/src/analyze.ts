@@ -162,7 +162,7 @@ export const ANALYZE_SCORE_SYSTEM = `${SHARED}
 
 You see the whole score: every page with its layout drawn on it (in gray, small), and what was found on each page when it was analysed on its own, without the others. Combine them, resolving conflicts, and add what only the whole shows:
 - metadata: one item per thing, from the pages' candidates, in the same categories. Where pages disagree, take the best reading: a title legible on the cover is better than the same title faded on a later page, which must not replace it, but a legible reading replaces an unsure one. Give each item the page it was read on and your confidence in it. Several titles may all be right (a title in two languages, a subtitle). Pieces or movements: each with the system where it starts.
-- the pages' observations: every system and every item has an id. Don't repeat the ones that are right. Give corrections (the id and the whole system or item as it should be: a misread kind, a wrong place, a confidence that the other pages raise or lower), removals (the ids of those that are wrong or duplicated), and additions (systems or items a page missed, with their page; places on that page). Corrections and additions each have systems and items, as a page's observations do. An item open at a page's edge stays open: don't join it to its other part on the next page. If you correct a system's number of staves, correct every staff named on it too.
+- the pages' observations: every system and every item has an id. Don't repeat the ones that are right. Give edits and removals. Edits have systems and items, as a page's observations do, each with an id and a page: a correction is one with its id and page, and the whole system or item as it should be (a misread kind, a wrong place, a confidence that the other pages raise or lower); an addition, a system or item a page missed, has the id "" and its page (places on that page). Removals are the ids of those that are wrong or duplicated. An item open at a page's edge stays open: don't join it to its other part on the next page. If you correct a system's number of staves, correct every staff named on it too.
 - observations about the whole score ("score"), one item per thing, each with its kind: instrumentation (which staves are which instrument, and where that changes, e.g. "systems 12-20 add a third staff, probably a voice: lyrics below it"), style, form, recurringMaterial (a theme that returns, a passage repeated note for note, with its places: a note hard to read in one place may be clear in another), and note (for the transcription: anything a person transcribing one system at a time should know about the rest). Only recurringMaterial has places; the others have none (an empty list).`;
 
 export const ANALYZE_SCORE_TEXT = `These were the results of the pages, one by one (JSON; every metadata item has the page it was found on, every system and observation item its id). Combine them, looking at the pages above where you need to.`;
@@ -384,9 +384,8 @@ export const ANALYZE_PAGE_SCHEMA = object({
 
 export const ANALYZE_SCORE_SCHEMA = object({
   metadata: metadataSchema({ page: int }),
-  corrections: pageObservationsSchema({ id: str }),
+  edits: pageObservationsSchema({ id: str, page: int }),
   removals: { type: "array", items: str },
-  additions: pageObservationsSchema({ page: int }),
   score: list({ kind: { type: "string", enum: SCORE_KINDS }, text: str, places: { type: "array", items: place }, confidence }),
 });
 
@@ -394,9 +393,10 @@ export const ANALYZE_SCORE_SCHEMA = object({
 export type FlatPageAnswer = { metadata: FlatMetadataItem[]; observations: FlatPageObservations };
 export type FlatScoreAnswer = {
   metadata: (FlatMetadataItem & { page: number })[];
-  corrections: FlatPageObservations<{ id: string }>;
+  // Corrections (an item's id and its page) and additions (the id "" and a page) in one, so the schema has the
+  // observations once (docs/llm.md, "Claude's limit on schemas").
+  edits: FlatPageObservations<{ id: string; page: number }>;
   removals: string[];
-  additions: FlatPageObservations<{ page: number }>;
   score: FlatScoreItem[];
 };
 
@@ -579,8 +579,9 @@ export function checkPageAnswer(json: unknown, context: AnalyzeContext): PageAns
   return problem ? { problem } : answer;
 }
 
-// The whole score's answer, checked: the expected shape, each item what its kind needs, corrections and removals of
-// items that exist (a system's correction a system), every place on its item's page, every page among the pages.
+// The whole score's answer, checked: the expected shape, each item what its kind needs, corrections (edits with an
+// id) and removals of items that exist (a system's correction a system), on the item's own page, additions (edits
+// with the id "") on one of the pages, every place on its item's page, every page among the pages.
 // A correction that moves an item to another list (a direction that is a change) becomes its removal and an addition
 // on its page. Whether the staves agree is checked on the pages as corrected (stavesProblem).
 // Returns the reason it can't be used, or the answer in its lists.
@@ -592,9 +593,21 @@ export function checkScoreAnswer(json: unknown, context: AnalyzeContext): ScoreA
   const metadata = nestedMetadata(flat.metadata);
   if ("problem" in metadata) return metadata;
   const removals = [...flat.removals];
-  const corrected: FlatPageObservations<{ id: string }> = { systems: flat.corrections.systems, items: [] };
-  const added: FlatPageObservations<{ page: number }> = { systems: flat.additions.systems, items: [...flat.additions.items] };
-  for (const item of flat.corrections.items) {
+  const corrections: FlatPageObservations<{ id: string }> = { systems: [], items: [] };
+  const added: FlatPageObservations<{ page: number }> = { systems: [], items: [] };
+  for (const kind of ["systems", "items"] as const) {
+    for (const { id, page, ...rest } of flat.edits[kind] as ({ id: string; page: number } & object)[]) {
+      if (id === "") {
+        (added[kind] as object[]).push({ page, ...rest });
+        continue;
+      }
+      const original = items.get(id);
+      if (original && original.page !== page) return { problem: `a correction of the item ${id} is on page ${page}, but the item is on page ${original.page}` };
+      (corrections[kind] as object[]).push({ id, ...rest });
+    }
+  }
+  const corrected: FlatPageObservations<{ id: string }> = { systems: corrections.systems, items: [] };
+  for (const item of corrections.items) {
     const nested = nestedObservation(item);
     if ("problem" in nested) return nested;
     const original = items.get(item.id);
@@ -604,11 +617,11 @@ export function checkScoreAnswer(json: unknown, context: AnalyzeContext): ScoreA
       added.items.push({ page: original.page, ...rest });
     } else corrected.items.push(item);
   }
-  const corrections = nestedObservations(corrected);
-  if ("problem" in corrections) return corrections;
+  const nestedCorrections = nestedObservations(corrected);
+  if ("problem" in nestedCorrections) return nestedCorrections;
   const additions = nestedObservations(added);
   if ("problem" in additions) return additions;
-  const answer: ScoreAnswer = { metadata, corrections, removals, additions, score: nestedScore(flat.score) };
+  const answer: ScoreAnswer = { metadata, corrections: nestedCorrections, removals, additions, score: nestedScore(flat.score) };
   for (const list of PAGE_LISTS) {
     for (const { id } of answer.corrections[list]) {
       const item = items.get(id);
