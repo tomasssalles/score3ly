@@ -5,12 +5,21 @@ import {
   ANALYZE_SCORE_SCHEMA,
   checkPageAnswer,
   checkScoreAnswer,
+  flatMetadata,
+  flatObservations,
   PAGE_LISTS,
   TEXT_FIELDS,
   withIds,
   type AnalyzeContext,
+  type Metadata,
+  type PageAnswer,
   type PageObservations,
+  type ScoreAnswer,
 } from "./analyze.ts";
+
+// The answers are written here in their lists, as the code uses them, and turned flat, as the model writes them.
+const flatLists = (o: object) => flatObservations(o as PageObservations<object>);
+const flatMeta = (m: object) => flatMetadata(m as Metadata<object>);
 
 const emptyMetadata = () => ({
   titles: [],
@@ -38,8 +47,8 @@ const observations = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const page = (overrides: Record<string, unknown> = {}) => ({
-  metadata: { ...emptyMetadata(), titles: [{ text: "Kinderscenen", type: "main", confidence: "high" }] },
-  observations: observations(overrides),
+  metadata: flatMeta({ ...emptyMetadata(), titles: [{ text: "Kinderscenen", type: "main", confidence: "high" }] }),
+  observations: flatLists(observations(overrides)),
 });
 
 // Systems 5 and 6 are on page 2, with 4 bar lines each.
@@ -82,8 +91,9 @@ test("a staff k/n names a system whose staves are reported, n of them", () => {
   const clef = (system: number, of: number) =>
     page({ changes: [{ kind: "clef", text: "bass", place: at(system, "start"), staff: { number: 1, of }, confidence: "high" }] });
   assert.match(problem(checkPageAnswer(clef(5, 3), context)), /staff 1\/3 of system 5, which has 2 staves/);
-  const unreported = { ...page(), observations: { ...observations(), systems: [observations().systems[0]], ottavas: [] } };
-  unreported.observations.changes = clef(6, 2).observations.changes;
+  const unreported = page({ systems: [observations().systems[0]], ottavas: [], changes: [
+    { kind: "clef", text: "bass", place: at(6, "start"), staff: { number: 1, of: 2 }, confidence: "high" },
+  ] });
   assert.match(problem(checkPageAnswer(unreported, context)), /system 6, whose staves aren't reported/);
   // An ottava through the whole page is on every system of the page.
   const through = page({ ottavas: [{ text: "8va", staff: { number: 1, of: 2 }, start: null, end: null, confidence: "high" }] });
@@ -99,11 +109,44 @@ test("a spanning item may be open at either end, or both", () => {
 });
 
 test("an answer of the wrong form can't be used", () => {
-  const wrongKind = checkPageAnswer(page({ specialBarLines: [{ kind: "single", place: at(6, "barLine", 4), confidence: "high" }] }), context);
-  assert.match(problem(wrongKind), /specialBarLines\[0\]\.kind isn't one of/);
-  const noConfidence = checkPageAnswer(page({ notes: [{ text: "x" }] }), context);
-  assert.match(problem(noConfidence), /notes\[0\]\.confidence/);
+  const item = (fields: object) => {
+    const answer = page({ changes: [], ottavas: [], specialBarLines: [], endings: [], notes: [] });
+    return { ...answer, observations: { ...answer.observations, items: [fields] } };
+  };
+  const single = { kind: "singleBarLine", text: "", staff: null, start: at(6, "barLine", 4), end: null, confidence: "high" };
+  assert.match(problem(checkPageAnswer(item(single), context)), /observations\.items\[0\]\.kind isn't one of/);
+  const noConfidence = { kind: "note", text: "x", staff: null, start: null, end: null };
+  assert.match(problem(checkPageAnswer(item(noConfidence), context)), /observations\.items\[0\]\.confidence/);
   assert.ok("problem" in checkPageAnswer({ metadata: {} }, context));
+});
+
+test("each item has what its kind needs", () => {
+  const flat = (kind: string, fields: object = {}) => {
+    const answer = page();
+    const item = { kind, text: "x", staff: null, start: null, end: null, confidence: "high", ...fields };
+    return { ...answer, observations: { ...answer.observations, items: [item] } };
+  };
+  assert.match(problem(checkPageAnswer(flat("key"), context)), /a key change has no place/);
+  assert.match(problem(checkPageAnswer(flat("endRepeat"), context)), /an? endRepeat bar line has no place/);
+  assert.match(problem(checkPageAnswer(flat("direction"), context)), /"x" has no place/);
+  assert.match(problem(checkPageAnswer(flat("ottava", { start: at(5, "stretch", 1) }), context)), /ottava "x" has no staff/);
+  // What a kind doesn't use is dropped.
+  const note = checkPageAnswer(flat("note", { staff: { number: 1, of: 2 }, start: at(5, "start") }), context) as PageAnswer;
+  assert.deepEqual(note.observations.notes, [{ text: "x", confidence: "high" }]);
+  // Each kind goes in its list.
+  const answer = checkPageAnswer(page(), context) as PageAnswer;
+  assert.deepEqual(answer.observations, observations());
+  assert.deepEqual(answer.metadata, { ...emptyMetadata(), titles: [{ text: "Kinderscenen", type: "main", confidence: "high" }] });
+});
+
+test("a piece needs its system, and the other metadata's systems are dropped", () => {
+  const meta = (items: object[]) => ({ ...page(), metadata: items });
+  const piece = { category: "piece", text: "No. 1", system: null, confidence: "high" };
+  assert.match(problem(checkPageAnswer(meta([piece]), context)), /the piece "No. 1" has no system/);
+  const composer = { category: "composer", text: "R. Schumann", system: 5, confidence: "high" };
+  const checked = checkPageAnswer(meta([composer, { ...piece, system: 5 }]), context) as PageAnswer;
+  assert.deepEqual(checked.metadata.people, [{ name: "R. Schumann", role: "composer", confidence: "high" }]);
+  assert.deepEqual(checked.metadata.pieces, [{ title: "No. 1", system: 5, confidence: "high" }]);
 });
 
 test("a page's items are numbered through its lists", () => {
@@ -128,18 +171,23 @@ const full: AnalyzeContext = {
   ]),
 };
 
-const score = (overrides: Record<string, unknown> = {}) => ({
-  metadata: {
-    ...emptyMetadata(),
-    titles: [{ text: "Kinderscenen", type: "main", confidence: "high", page: 1 }],
-    pieces: [{ title: "Von fremden Ländern und Menschen", system: 1, confidence: "high", page: 1 }],
-  },
-  corrections: emptyLists(),
-  removals: [],
-  additions: emptyLists(),
-  score: { instrumentation: [], style: [{ text: "romantic", confidence: "medium" }], form: [], recurringMaterial: [], notesForTranscription: [] },
-  ...overrides,
-});
+const score = (overrides: Record<string, unknown> = {}) => {
+  const { metadata, corrections, additions, ...rest } = overrides;
+  return {
+    metadata: flatMeta(
+      metadata ?? {
+        ...emptyMetadata(),
+        titles: [{ text: "Kinderscenen", type: "main", confidence: "high", page: 1 }],
+        pieces: [{ title: "Von fremden Ländern und Menschen", system: 1, confidence: "high", page: 1 }],
+      },
+    ),
+    corrections: flatLists(corrections ?? emptyLists()),
+    removals: [],
+    additions: flatLists(additions ?? emptyLists()),
+    score: [{ kind: "style", text: "romantic", places: [], confidence: "medium" }],
+    ...rest,
+  };
+};
 const change = (system: number, extra = {}) => ({ kind: "key", text: "D major", place: at(system, "start"), staff: null, confidence: "high", ...extra });
 
 test("the whole score's answer names pages among the pages, and pieces start at systems that exist", () => {
@@ -154,10 +202,34 @@ test("corrections and removals name items that exist, corrections in their own l
   const corrected = (list: string, item: object) => score({ corrections: { ...emptyLists(), [list]: [item] } });
   assert.ok(!("problem" in checkScoreAnswer(corrected("changes", { id: "p2-2", ...change(6) }), full)));
   assert.match(problem(checkScoreAnswer(corrected("changes", { id: "p2-9", ...change(6) }), full)), /p2-9, which doesn't exist/);
-  assert.match(problem(checkScoreAnswer(corrected("directions", { id: "p2-2", text: "Fine", place: at(6, "end"), confidence: "high" }), full)), /one of the changes/);
+  assert.match(problem(checkScoreAnswer(corrected("systems", { id: "p2-2", system: 6, staves: 2, instruments: [], confidence: "high" }), full)), /one of the changes/);
   assert.match(problem(checkScoreAnswer(corrected("changes", { id: "p2-2", ...change(1) }), full)), /system 1 isn't on page 2/);
   assert.ok(!("problem" in checkScoreAnswer(score({ removals: ["p2-1"] }), full)));
   assert.match(problem(checkScoreAnswer(score({ removals: ["p1-1"] }), full)), /p1-1, which doesn't exist/);
+});
+
+test("a correction that moves an item to another list is its removal and an addition on its page", () => {
+  const fine = { id: "p2-2", text: "Fine", place: at(6, "end"), confidence: "high" };
+  const checked = checkScoreAnswer(score({ corrections: { ...emptyLists(), directions: [fine] } }), full) as ScoreAnswer;
+  assert.deepEqual(checked.removals, ["p2-2"]);
+  assert.deepEqual(checked.corrections.directions, []);
+  assert.deepEqual(checked.additions.directions, [{ page: 2, text: "Fine", place: at(6, "end"), confidence: "high" }]);
+});
+
+test("the whole score's items go in their lists, places only for recurring material", () => {
+  const items = [
+    { kind: "instrumentation", text: "piano", places: [at(1, "start")], confidence: "high" },
+    { kind: "recurringMaterial", text: "the theme", places: [at(1, "stretch", 1), at(5, "stretch", 2)], confidence: "medium" },
+    { kind: "note", text: "two voices throughout", places: [], confidence: "high" },
+  ];
+  const checked = checkScoreAnswer(score({ score: items }), full) as ScoreAnswer;
+  assert.deepEqual(checked.score, {
+    instrumentation: [{ text: "piano", confidence: "high" }],
+    style: [],
+    form: [],
+    recurringMaterial: [{ description: "the theme", places: [at(1, "stretch", 1), at(5, "stretch", 2)], confidence: "medium" }],
+    notesForTranscription: [{ text: "two voices throughout", confidence: "high" }],
+  });
 });
 
 test("additions are on one of the pages, their places on that page", () => {

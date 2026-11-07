@@ -87,6 +87,8 @@ and every object, property, array, enum and `anyOf` adds rules. The grammar is c
 
 The leaning (Claude's recommendation, not decided): 1, chosen explicitly per request rather than by catching the error; 2 for `apply_review`.
 
+**Being tried** (2026-11-07, on branch `claude/friendly-curie-wb7w4w`, not merged): option 2 for `analyze`, its answer flat (`docs/stages/analyze.md`, "The answer's shape"). The page schema: 2.3 KB, 8 objects, 7 enums, 4 nullable fields (was 7.3 KB, 31, 30, 5); the whole score's: 4.7 KB, 16, 15, 7 (was 13.8 KB, 55, 52, 10). Not yet probed: `npm run llm:probe-schemas -w apps/worker -- claude-sonnet-5-5 analyze` says whether Anthropic takes them.
+
 ## Model configs
 - **A model config** is a stored, named combination of provider, model, thinking effort and the provider's authentication. The user can keep several. They live in D1 and are managed in the settings: created, renamed, cloned and deleted, never edited ("Managing model configs", below).
 - **The model is the provider's own string** (to be replaced by picking from the supported models, see "Supported models, prices and the config form" below), entered as the provider spells it (`claude-opus-5-5` on Anthropic's API, an `anthropic.`-prefixed ID or an `eu.` inference profile on Bedrock, ...). The app doesn't translate between providers' names, and the sanity check compares the answer's model with that string as it is ("Calling the providers").

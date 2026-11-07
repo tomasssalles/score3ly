@@ -4,7 +4,7 @@
 // are named by the labels drawn on the pages: "system 17, bar line 4", "system 17, stretch 2", "system 17, end".
 
 // Raise whenever the texts, the schemas or the checks change.
-export const ANALYZE_PROMPT_VERSION = 5;
+export const ANALYZE_PROMPT_VERSION = 6;
 
 export const ANALYZE_PAGE_MAX_OUTPUT_TOKENS = 16_000;
 export const ANALYZE_SCORE_MAX_OUTPUT_TOKENS = 32_000;
@@ -90,6 +90,8 @@ export type ScoreObservations<Extra = object> = {
 };
 export const SCORE_LISTS: (keyof ScoreObservations)[] = ["instrumentation", "style", "form", "recurringMaterial", "notesForTranscription"];
 
+type Problem = { problem: string };
+
 export type PageAnswer = { metadata: PageMetadata; observations: PageObservations };
 
 // The whole score's answer: the merged metadata, the pages' items corrected (by id: replaced, keeping their page),
@@ -121,25 +123,26 @@ Give "number" 0 for "start" and "end". Read the numbers from the labels; don't c
 
 A staff is named by its position in its system: staff k of n, numbered from the top, where n is the number of staves you give for that system ("number": 2, "of": 3 for the middle staff of three).
 
-Metadata fields, each as printed (keep the page's language and spelling):
-- titles, each with its type: main, subtitle, alternative (another title of the same work), translated (the title in another language, e.g. "Kinderscenen / Scènes d'enfants");
-- people, each with a role (composer, arranger, editor, lyricist, librettist, translator, other). Where the printed role says more than the role does, or for "other", add it after the name in parentheses, as printed ("H. Germer (Fingersatz)", "J. Schmidt (Stecher)");
-- pieces or movements, each with its title or number as printed and the system where it starts;
-- catalogue numbers (e.g. "Op. 15", "BWV 846", "No. 3"), dedications, instrumentation as printed (e.g. "für Klavier zu vier Händen");
-- composition dates: when or where the work was written, as printed (e.g. "komponiert 1838", "Wien, im März 1825"); rarely printed;
-- the edition: publishers, places, dates of the edition (of its publication or printing, not of the composition), plate numbers (e.g. "E. 1234 B."), and other notices (copyright, printer).
+Metadata: what is printed about the work and the edition, as one list of items, each with its category, its text as printed (keep the page's language and spelling), a system, and your confidence. Report each thing as you come to it, in any order. The categories:
+- titles: mainTitle, subtitle, alternativeTitle (another title of the same work), translatedTitle (the title in another language, e.g. "Kinderscenen / Scènes d'enfants");
+- people, by role: composer, arranger, editor, lyricist, librettist, translator, otherPerson; the text is the name. Where the printed role says more than the category does, or for otherPerson, add it after the name in parentheses, as printed ("H. Germer (Fingersatz)", "J. Schmidt (Stecher)");
+- piece: a piece or movement, its title or number as printed. The only category with a system: the one where the piece starts. Every other category has system null;
+- catalogueNumber (e.g. "Op. 15", "BWV 846", "No. 3"), dedication, instrumentation as printed (e.g. "für Klavier zu vier Händen");
+- compositionDate: when or where the work was written, as printed (e.g. "komponiert 1838", "Wien, im März 1825"); rarely printed;
+- the edition: publisher, editionPlace, editionDate (of its publication or printing, not of the composition), plateNumber (e.g. "E. 1234 B."), and notice (copyright, printer, anything else).
 
 Give every item, metadata and observations alike, free texts too, your confidence in it: "high" when it is clearly legible or clearly right, "medium" when it is a reasonable guess (partly legible, an unusual spelling, a judgment you are unsure of), "low" when you are very unsure (stained, faded, cut off).
 
 Observations of a page, for the later transcription. They are a bird's-eye view for someone who will transcribe one system at a time: close is useful, exact is better.
 - systems: for every system on the page, its number of staves, and the probable instrument of each staff, top to bottom (e.g. "piano right hand", "violin", "voice");
-- changes: every clef, key signature and time signature at the start of the page's first system, and every change of them, or of tempo, with its place. A clef belongs to one staff: give it; for the others, give the staff only when the change is on one staff only, else null;
-- ottavas (8va, 8vb, 15ma, …): the sign as printed, its staff, and where it starts and ends;
-- special bar lines only: double, final, start repeat, end repeat, start and end repeat together, dashed; at the start, at a bar line or at the end of a system, never in a stretch. Not the ordinary single bar lines;
-- endings (the brackets "1." and "2." of a repeat, or "1.-3."): their numbers as printed, where each starts and ends;
-- directions such as "D.C. al Fine", "Fine", "D.S.", a segno, a coda sign, with their place;
-- notes: anything else that will help to transcribe the music: voices per staff, the texture, large-scale dynamics, a melody that repeats on the page, cross-staff writing, ossias, lyrics. Brief, one note per thing.
-Ottavas and endings can run on beyond the page: give their start as null when it is before this page, their end as null when it is after it, both null when one runs through the whole page. Report each thing once, where it is printed: don't join or link items to each other (a repeat is its bar lines and its endings).`;
+- items: everything else, as one list, each item as you come to it, in any order. Every item has a kind, a text, a staff, a start, an end and your confidence; a field the kind doesn't use is null (the text empty). The kinds:
+  - clef, key, time, tempo, otherChange: every clef, key signature and time signature at the start of the page's first system, and every change of them, or of tempo. Text: what it is ("bass clef", "G major", "3/4", "Allegro"); start: its place. A clef belongs to one staff: give it; for the others, give the staff only when the change is on one staff only, else null;
+  - ottava (8va, 8vb, 15ma, …): text: the sign as printed; staff: its staff; start and end: where it starts and ends;
+  - doubleBarLine, finalBarLine, startRepeat, endRepeat, startEndRepeat (start and end repeat together), dashedBarLine: special bar lines only, not the ordinary single ones. Start: its place, at the start, at a bar line or at the end of a system, never in a stretch;
+  - ending (the brackets "1." and "2." of a repeat, or "1.-3."): text: its numbers as printed; start and end: where it starts and ends;
+  - direction, such as "D.C. al Fine", "Fine", "D.S.", a segno, a coda sign: text: as printed; start: its place;
+  - note: anything else that will help to transcribe the music: voices per staff, the texture, large-scale dynamics, a melody that repeats on the page, cross-staff writing, ossias, lyrics. Text only, brief, one note per thing.
+An item at one place gives it as its start, and its end is null. Ottavas and endings can run on beyond the page: give their start as null when it is before this page, their end as null when it is after it, both null when one runs through the whole page. Report each thing once, where it is printed: don't join or link items to each other (a repeat is its bar lines and its endings).`;
 
 export const ANALYZE_PAGE_SYSTEM = `${SHARED}
 
@@ -158,11 +161,189 @@ export function analyzePageText(page: number, systems: number[]): string {
 export const ANALYZE_SCORE_SYSTEM = `${SHARED}
 
 You see the whole score: every page with its layout drawn on it (in gray, small), and what was found on each page when it was analysed on its own, without the others. Combine them, resolving conflicts, and add what only the whole shows:
-- metadata: one entry per thing, from the pages' candidates. Where pages disagree, take the best reading: a title legible on the cover is better than the same title faded on a later page, which must not replace it, but a legible reading replaces an unsure one. Give each entry the page it was read on and your confidence in it. Several titles may all be right (a title in two languages, a subtitle). Pieces or movements: in order, each with the system where it starts.
-- the pages' observations: every item has an id. Don't repeat the items that are right. Give corrections (the item's id and the whole item as it should be: a misread kind, a wrong place, a confidence that the other pages raise or lower), removals (the ids of items that are wrong or duplicated), and additions (items a page missed, with their page; places on that page). An item open at a page's edge stays open: don't join it to its other part on the next page. If you correct a system's number of staves, correct every staff named on it too.
-- observations about the whole score: the instrumentation (which staves are which instrument, and where that changes, e.g. "systems 12-20 add a third staff, probably a voice: lyrics below it"), the style, the form, music that recurs (a theme that returns, a passage repeated note for note, with its places: a note hard to read in one place may be clear in another), and notes for the transcription: anything a person transcribing one system at a time should know about the rest. One item per thing.`;
+- metadata: one item per thing, from the pages' candidates, in the same categories. Where pages disagree, take the best reading: a title legible on the cover is better than the same title faded on a later page, which must not replace it, but a legible reading replaces an unsure one. Give each item the page it was read on and your confidence in it. Several titles may all be right (a title in two languages, a subtitle). Pieces or movements: each with the system where it starts.
+- the pages' observations: every system and every item has an id. Don't repeat the ones that are right. Give corrections (the id and the whole system or item as it should be: a misread kind, a wrong place, a confidence that the other pages raise or lower), removals (the ids of those that are wrong or duplicated), and additions (systems or items a page missed, with their page; places on that page). Corrections and additions each have systems and items, as a page's observations do. An item open at a page's edge stays open: don't join it to its other part on the next page. If you correct a system's number of staves, correct every staff named on it too.
+- observations about the whole score ("score"), one item per thing, each with its kind: instrumentation (which staves are which instrument, and where that changes, e.g. "systems 12-20 add a third staff, probably a voice: lyrics below it"), style, form, recurringMaterial (a theme that returns, a passage repeated note for note, with its places: a note hard to read in one place may be clear in another), and note (for the transcription: anything a person transcribing one system at a time should know about the rest). Only recurringMaterial has places; the others have none (an empty list).`;
 
-export const ANALYZE_SCORE_TEXT = `These were the results of the pages, one by one (JSON; every metadata item has the page it was found on, every observation item its id). Combine them, looking at the pages above where you need to.`;
+export const ANALYZE_SCORE_TEXT = `These were the results of the pages, one by one (JSON; every metadata item has the page it was found on, every system and observation item its id). Combine them, looking at the pages above where you need to.`;
+
+// What the model answers is flat (docs/stages/analyze.md, "The answer's shape"): the metadata one list of items, each
+// with its category, and the observations besides the systems one list of items, each with its kind, so the model
+// reports each thing as it comes to it, and the schema stays small enough for Anthropic's constrained output
+// (docs/llm.md, "Claude's limit on schemas"). Code turns it into the lists above at once (checkPageAnswer,
+// checkScoreAnswer), and back for the whole score's request (flatMetadata, flatObservations).
+
+// Each metadata category, and where it goes in Metadata.
+const TITLE_CATEGORIES = { mainTitle: "main", subtitle: "subtitle", alternativeTitle: "alternative", translatedTitle: "translated" } as const;
+const PERSON_CATEGORIES = {
+  composer: "composer",
+  arranger: "arranger",
+  editor: "editor",
+  lyricist: "lyricist",
+  librettist: "librettist",
+  translator: "translator",
+  otherPerson: "other",
+} as const;
+const TEXT_CATEGORIES = {
+  catalogueNumber: "catalogueNumbers",
+  dedication: "dedications",
+  instrumentation: "instrumentation",
+  compositionDate: "compositionDates",
+  publisher: "publishers",
+  editionPlace: "places",
+  editionDate: "dates",
+  plateNumber: "plateNumbers",
+  notice: "notices",
+} as const;
+export const METADATA_CATEGORIES = [
+  ...Object.keys(TITLE_CATEGORIES),
+  ...Object.keys(PERSON_CATEGORIES),
+  "piece",
+  ...Object.keys(TEXT_CATEGORIES),
+] as MetadataCategory[];
+export type MetadataCategory = keyof typeof TITLE_CATEGORIES | keyof typeof PERSON_CATEGORIES | "piece" | keyof typeof TEXT_CATEGORIES;
+export type FlatMetadataItem = { category: MetadataCategory; text: string; system: number | null; confidence: Confidence };
+
+// Each kind of observation item, and the list it goes in.
+const CHANGE_ITEM_KINDS = { clef: "clef", key: "key", time: "time", tempo: "tempo", otherChange: "other" } as const;
+const BAR_LINE_ITEM_KINDS = {
+  doubleBarLine: "double",
+  finalBarLine: "final",
+  startRepeat: "startRepeat",
+  endRepeat: "endRepeat",
+  startEndRepeat: "startEndRepeat",
+  dashedBarLine: "dashed",
+} as const;
+export type ObservationKind = keyof typeof CHANGE_ITEM_KINDS | "ottava" | keyof typeof BAR_LINE_ITEM_KINDS | "ending" | "direction" | "note";
+export const OBSERVATION_KINDS = [
+  ...Object.keys(CHANGE_ITEM_KINDS),
+  "ottava",
+  ...Object.keys(BAR_LINE_ITEM_KINDS),
+  "ending",
+  "direction",
+  "note",
+] as ObservationKind[];
+// An item at one place has it as its start, and its end null; a field its kind doesn't use is null, the text "".
+export type FlatObservation = {
+  kind: ObservationKind;
+  text: string;
+  staff: Staff | null;
+  start: Place | null;
+  end: Place | null;
+  confidence: Confidence;
+};
+export type FlatPageObservations<Extra = object> = { systems: (SystemItem & Extra)[]; items: (FlatObservation & Extra)[] };
+
+const SCORE_ITEM_KINDS = {
+  instrumentation: "instrumentation",
+  style: "style",
+  form: "form",
+  recurringMaterial: "recurringMaterial",
+  note: "notesForTranscription",
+} as const;
+export const SCORE_KINDS = Object.keys(SCORE_ITEM_KINDS) as (keyof typeof SCORE_ITEM_KINDS)[];
+export type FlatScoreItem = { kind: (typeof SCORE_KINDS)[number]; text: string; places: Place[]; confidence: Confidence };
+
+const keyOfValue = <T extends Record<string, string>>(map: T, value: string) => Object.keys(map).find((k) => map[k] === value) as keyof T;
+
+// The metadata as the model writes it, every item with its `Extra` (a page).
+export function flatMetadata<Extra extends object>(metadata: Metadata<Extra>): (FlatMetadataItem & Extra)[] {
+  type Any = { confidence: Confidence } & Record<string, unknown>;
+  const item = (category: MetadataCategory, text: string, system: number | null, { confidence, ...extra }: Any) =>
+    ({ category, text, system, ...extra, confidence }) as FlatMetadataItem & Extra;
+  return [
+    ...metadata.titles.map(({ text, type, ...rest }) => item(keyOfValue(TITLE_CATEGORIES, type), text, null, rest as Any)),
+    ...metadata.people.map(({ name, role, ...rest }) => item(keyOfValue(PERSON_CATEGORIES, role), name, null, rest as Any)),
+    ...metadata.pieces.map(({ title, system, ...rest }) => item("piece", title, system, rest as Any)),
+    ...TEXT_FIELDS.flatMap((field) =>
+      metadata[field].map(({ text, ...rest }) => item(keyOfValue(TEXT_CATEGORIES, field), text, null, rest as Any)),
+    ),
+  ];
+}
+
+// The metadata as the model wrote it, in its lists; a piece needs its system, the other categories' systems are
+// dropped.
+export function nestedMetadata<Extra extends object>(items: (FlatMetadataItem & Extra)[]): Metadata<Extra> | Problem {
+  const metadata = { titles: [], people: [], pieces: [], ...Object.fromEntries(TEXT_FIELDS.map((f) => [f, []])) } as unknown as Record<string, object[]>;
+  for (const { category, text, system, ...rest } of items) {
+    if (category in TITLE_CATEGORIES) metadata.titles.push({ text, type: TITLE_CATEGORIES[category as keyof typeof TITLE_CATEGORIES], ...rest });
+    else if (category in PERSON_CATEGORIES) metadata.people.push({ name: text, role: PERSON_CATEGORIES[category as keyof typeof PERSON_CATEGORIES], ...rest });
+    else if (category === "piece") {
+      if (system === null) return { problem: `the piece "${text}" has no system` };
+      metadata.pieces.push({ title: text, system, ...rest });
+    } else metadata[TEXT_CATEGORIES[category as keyof typeof TEXT_CATEGORIES]].push({ text, ...rest });
+  }
+  return metadata as unknown as Metadata<Extra>;
+}
+
+// The observations as the model writes them, every system and item with its `Extra` (an id, a page), in the order of
+// the lists.
+export function flatObservations<Extra extends object>(o: PageObservations<Extra>): FlatPageObservations<Extra> {
+  type Any = { confidence: Confidence } & Record<string, unknown>;
+  const item = (kind: ObservationKind, text: string, staff: Staff | null, start: Place | null, end: Place | null, rest: Any) => {
+    const { confidence, ...extra } = rest;
+    return { ...extra, kind, text, staff, start, end, confidence } as FlatObservation & Extra;
+  };
+  return {
+    systems: o.systems,
+    items: [
+      ...o.changes.map(({ kind, text, place, staff, ...rest }) => item(keyOfValue(CHANGE_ITEM_KINDS, kind), text, staff, place, null, rest as Any)),
+      ...o.ottavas.map(({ text, staff, start, end, ...rest }) => item("ottava", text, staff, start, end, rest as Any)),
+      ...o.specialBarLines.map(({ kind, place, ...rest }) => item(keyOfValue(BAR_LINE_ITEM_KINDS, kind), "", null, place, null, rest as Any)),
+      ...o.endings.map(({ numbers, start, end, ...rest }) => item("ending", numbers, null, start, end, rest as Any)),
+      ...o.directions.map(({ text, place, ...rest }) => item("direction", text, null, place, null, rest as Any)),
+      ...o.notes.map(({ text, ...rest }) => item("note", text, null, null, null, rest as Any)),
+    ],
+  };
+}
+
+// An item as the model wrote it, in its list: an ottava needs its staff, a change, a bar line and a direction their
+// place (its start); the fields its kind doesn't use are dropped.
+export function nestedObservation(flat: FlatObservation & object): { list: PageList; item: object } | Problem {
+  const { kind, text, staff, start, end, ...rest } = flat;
+  if (kind in CHANGE_ITEM_KINDS) {
+    const change = CHANGE_ITEM_KINDS[kind as keyof typeof CHANGE_ITEM_KINDS];
+    if (!start) return { problem: `a ${change} change has no place` };
+    return { list: "changes", item: { kind: change, text, place: start, staff, ...rest } };
+  }
+  if (kind in BAR_LINE_ITEM_KINDS) {
+    const barLine = BAR_LINE_ITEM_KINDS[kind as keyof typeof BAR_LINE_ITEM_KINDS];
+    if (!start) return { problem: `a ${barLine} bar line has no place` };
+    return { list: "specialBarLines", item: { kind: barLine, place: start, ...rest } };
+  }
+  switch (kind) {
+    case "ottava":
+      if (!staff) return { problem: `the ottava "${text}" has no staff` };
+      return { list: "ottavas", item: { text, staff, start, end, ...rest } };
+    case "ending":
+      return { list: "endings", item: { numbers: text, start, end, ...rest } };
+    case "direction":
+      if (!start) return { problem: `"${text}" has no place` };
+      return { list: "directions", item: { text, place: start, ...rest } };
+    default:
+      return { list: "notes", item: { text, ...rest } };
+  }
+}
+
+export function nestedObservations<Extra extends object>(o: FlatPageObservations<Extra>): PageObservations<Extra> | Problem {
+  const lists = Object.fromEntries(PAGE_LISTS.map((list) => [list, [] as object[]])) as Record<PageList, object[]>;
+  lists.systems.push(...o.systems);
+  for (const flat of o.items) {
+    const nested = nestedObservation(flat);
+    if ("problem" in nested) return nested;
+    lists[nested.list].push(nested.item);
+  }
+  return lists as unknown as PageObservations<Extra>;
+}
+
+function nestedScore(items: FlatScoreItem[]): ScoreObservations {
+  const lists = Object.fromEntries(SCORE_LISTS.map((list) => [list, [] as object[]])) as Record<keyof ScoreObservations, object[]>;
+  for (const { kind, text, places, confidence } of items) {
+    if (kind === "recurringMaterial") lists.recurringMaterial.push({ description: text, places, confidence });
+    else lists[SCORE_ITEM_KINDS[kind]].push({ text, confidence });
+  }
+  return lists as unknown as ScoreObservations;
+}
 
 const confidence = { type: "string", enum: [...CONFIDENCES] };
 const str = { type: "string" };
@@ -172,61 +353,52 @@ function object(properties: Record<string, unknown>) {
   return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
 }
 
+const nullable = (schema: object) => ({ anyOf: [schema, { type: "null" }] });
 const place = object({ system: int, at: { type: "string", enum: [...PLACE_KINDS] }, number: int });
-const openPlace = { anyOf: [place, { type: "null" }] };
 const staff = object({ number: int, of: int });
 const list = (properties: Record<string, unknown>) => ({ type: "array", items: object(properties) });
 
-function metadataSchema(withPage: boolean) {
-  const extra = withPage ? { page: int } : {};
-  const fields = (properties: Record<string, unknown>) => list({ ...properties, ...extra });
-  return object({
-    titles: fields({ text: str, type: { type: "string", enum: [...TITLE_TYPES] }, confidence }),
-    people: fields({ name: str, role: { type: "string", enum: [...ROLES] }, confidence }),
-    pieces: fields({ title: str, system: int, confidence }),
-    ...Object.fromEntries(TEXT_FIELDS.map((field) => [field, fields({ text: str, confidence })])),
-  });
-}
+const metadataSchema = (extra: Record<string, unknown> = {}) =>
+  list({ category: { type: "string", enum: METADATA_CATEGORIES }, text: str, system: nullable(int), ...extra, confidence });
 
-// The page's lists, each item with `extra` (an id, a page).
+// The page's systems and items, each with `extra` (an id, a page).
 function pageObservationsSchema(extra: Record<string, unknown> = {}) {
-  const items = (properties: Record<string, unknown>) => list({ ...extra, ...properties, confidence });
   return object({
-    systems: items({ system: int, staves: int, instruments: { type: "array", items: str } }),
-    changes: items({
-      kind: { type: "string", enum: [...CHANGE_KINDS] },
+    systems: list({ ...extra, system: int, staves: int, instruments: { type: "array", items: str }, confidence }),
+    items: list({
+      ...extra,
+      kind: { type: "string", enum: OBSERVATION_KINDS },
       text: str,
-      place,
-      staff: { anyOf: [staff, { type: "null" }] },
+      staff: nullable(staff),
+      start: nullable(place),
+      end: nullable(place),
+      confidence,
     }),
-    ottavas: items({ text: str, staff, start: openPlace, end: openPlace }),
-    specialBarLines: items({ kind: { type: "string", enum: [...SPECIAL_BAR_LINES] }, place }),
-    endings: items({ numbers: str, start: openPlace, end: openPlace }),
-    directions: items({ text: str, place }),
-    notes: items({ text: str }),
   });
 }
 
 export const ANALYZE_PAGE_SCHEMA = object({
-  metadata: metadataSchema(false),
+  metadata: metadataSchema(),
   observations: pageObservationsSchema(),
 });
 
-const text = list({ text: str, confidence });
-
 export const ANALYZE_SCORE_SCHEMA = object({
-  metadata: metadataSchema(true),
+  metadata: metadataSchema({ page: int }),
   corrections: pageObservationsSchema({ id: str }),
   removals: { type: "array", items: str },
   additions: pageObservationsSchema({ page: int }),
-  score: object({
-    instrumentation: text,
-    style: text,
-    form: text,
-    recurringMaterial: list({ description: str, places: { type: "array", items: place }, confidence }),
-    notesForTranscription: text,
-  }),
+  score: list({ kind: { type: "string", enum: SCORE_KINDS }, text: str, places: { type: "array", items: place }, confidence }),
 });
+
+// The answers as the model writes them.
+export type FlatPageAnswer = { metadata: FlatMetadataItem[]; observations: FlatPageObservations };
+export type FlatScoreAnswer = {
+  metadata: (FlatMetadataItem & { page: number })[];
+  corrections: FlatPageObservations<{ id: string }>;
+  removals: string[];
+  additions: FlatPageObservations<{ page: number }>;
+  score: FlatScoreItem[];
+};
 
 // What the checks need to know: the systems that can be named (by number) with their number of bar lines and their
 // page; for the whole score also the pages, and the pages' items by id.
@@ -236,7 +408,6 @@ export type AnalyzeContext = {
   items?: Map<string, { list: PageList; page: number }>;
 };
 
-type Problem = { problem: string };
 
 const placeName = (p: Place) =>
   p.at === "start" || p.at === "end" ? `the ${p.at} of system ${p.system}` : `system ${p.system}, ${p.at === "barLine" ? "bar line" : "stretch"} ${p.number}`;
@@ -389,13 +560,18 @@ function metadataProblem(metadata: Metadata<{ page?: number }>, context: Analyze
   return null;
 }
 
-// A page's answer, checked: the expected shape, every place on the page (the context's systems are the page's), and
-// its staves.
-// Returns the reason it can't be used, or the answer.
+// A page's answer, checked: the expected shape, each item what its kind needs, every place on the page (the
+// context's systems are the page's), and its staves.
+// Returns the reason it can't be used, or the answer in its lists.
 export function checkPageAnswer(json: unknown, context: AnalyzeContext): PageAnswer | Problem {
   const shape = shapeProblem(json, ANALYZE_PAGE_SCHEMA, "");
   if (shape) return { problem: `the answer doesn't have the expected form: ${shape}` };
-  const answer = normalized(json as PageAnswer);
+  const flat = normalized(json as FlatPageAnswer);
+  const metadata = nestedMetadata(flat.metadata);
+  if ("problem" in metadata) return metadata;
+  const observations = nestedObservations(flat.observations);
+  if ("problem" in observations) return observations;
+  const answer: PageAnswer = { metadata, observations };
   const problem =
     observationsProblem(answer.observations, () => null, context) ??
     stavesProblem(answer.observations, [...context.systems.keys()]) ??
@@ -403,14 +579,36 @@ export function checkPageAnswer(json: unknown, context: AnalyzeContext): PageAns
   return problem ? { problem } : answer;
 }
 
-// The whole score's answer, checked: the expected shape, corrections and removals of items that exist (a correction
-// in the item's own list), every place on its item's page, every page among the pages. Whether the staves agree is
-// checked on the pages as corrected (stavesProblem).
+// The whole score's answer, checked: the expected shape, each item what its kind needs, corrections and removals of
+// items that exist (a system's correction a system), every place on its item's page, every page among the pages.
+// A correction that moves an item to another list (a direction that is a change) becomes its removal and an addition
+// on its page. Whether the staves agree is checked on the pages as corrected (stavesProblem).
+// Returns the reason it can't be used, or the answer in its lists.
 export function checkScoreAnswer(json: unknown, context: AnalyzeContext): ScoreAnswer | Problem {
   const shape = shapeProblem(json, ANALYZE_SCORE_SCHEMA, "");
   if (shape) return { problem: `the answer doesn't have the expected form: ${shape}` };
-  const answer = normalized(json as ScoreAnswer);
-  const items = context.items ?? new Map();
+  const flat = normalized(json as FlatScoreAnswer);
+  const items = context.items ?? new Map<string, { list: PageList; page: number }>();
+  const metadata = nestedMetadata(flat.metadata);
+  if ("problem" in metadata) return metadata;
+  const removals = [...flat.removals];
+  const corrected: FlatPageObservations<{ id: string }> = { systems: flat.corrections.systems, items: [] };
+  const added: FlatPageObservations<{ page: number }> = { systems: flat.additions.systems, items: [...flat.additions.items] };
+  for (const item of flat.corrections.items) {
+    const nested = nestedObservation(item);
+    if ("problem" in nested) return nested;
+    const original = items.get(item.id);
+    if (original && original.list !== "systems" && original.list !== nested.list) {
+      const { id, ...rest } = item;
+      removals.push(id);
+      added.items.push({ page: original.page, ...rest });
+    } else corrected.items.push(item);
+  }
+  const corrections = nestedObservations(corrected);
+  if ("problem" in corrections) return corrections;
+  const additions = nestedObservations(added);
+  if ("problem" in additions) return additions;
+  const answer: ScoreAnswer = { metadata, corrections, removals, additions, score: nestedScore(flat.score) };
   for (const list of PAGE_LISTS) {
     for (const { id } of answer.corrections[list]) {
       const item = items.get(id);

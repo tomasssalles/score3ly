@@ -18,16 +18,18 @@ const emptyMetadata = {
   notices: [],
 };
 
-test("the whole-score call reads every page's metadata items with their page", () => {
+test("the whole-score call reads every page's results flat, metadata items with their page, observations with their ids", () => {
   const page: PageAnalysis = {
     page: 3,
     systems: [5, 6],
     metadata: { ...emptyMetadata, titles: [{ text: "Träumerei", type: "main", confidence: "medium" }] },
     observations: { ...noObservations(), notes: [{ text: "Two voices", confidence: "high" }] },
   };
-  const [result] = pageResultsForScore([page]) as { metadata: { titles: unknown[] }; observations: { notes: unknown[] } }[];
-  assert.deepEqual(result.metadata.titles, [{ text: "Träumerei", type: "main", confidence: "medium", page: 3 }]);
-  assert.deepEqual(result.observations.notes, [{ id: "p3-1", text: "Two voices", confidence: "high" }]);
+  const [result] = pageResultsForScore([page]) as { metadata: unknown[]; observations: { items: unknown[] } }[];
+  assert.deepEqual(result.metadata, [{ category: "mainTitle", text: "Träumerei", system: null, page: 3, confidence: "medium" }]);
+  assert.deepEqual(result.observations.items, [
+    { id: "p3-1", kind: "note", text: "Two voices", staff: null, start: null, end: null, confidence: "high" },
+  ]);
 });
 
 const noObservations = <Extra = object>(): PageObservations<Extra> => ({

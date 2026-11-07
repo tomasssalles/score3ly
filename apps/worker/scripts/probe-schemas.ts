@@ -67,28 +67,22 @@ const only = (s: Schema, keys: string[]): Schema => ({
 });
 
 const page = copy(ANALYZE_PAGE_SCHEMA);
-const observations = page.properties.observations;
-const lists = Object.keys(observations.properties);
+const score = copy(ANALYZE_SCORE_SCHEMA);
 const variants: [string, Schema][] = [
   ["layout", copy(LAYOUT_SCHEMA)],
   ["review", copy(REVIEW_SCHEMA)],
   ["apply_review", copy(APPLY_REVIEW_SCHEMA)],
   ["extract", copy(EXTRACT_SCHEMA)],
-  ["analyze score", copy(ANALYZE_SCORE_SCHEMA)],
-  ["analyze score, no enums, no anyOf", withoutAnyOf(withoutEnums(ANALYZE_SCORE_SCHEMA))],
   ["analyze page", page],
-  ["analyze page, $defs", withDefs(page)],
   ["analyze page, no enums", withoutEnums(page)],
   ["analyze page, no anyOf", withoutAnyOf(page)],
-  ["analyze page, no enums, no anyOf", withoutAnyOf(withoutEnums(page))],
   ["analyze page, metadata only", only(page, ["metadata"])],
   ["analyze page, observations only", only(page, ["observations"])],
-  ["analyze page, observations, no enums", withoutEnums(observations)],
-  ["analyze page, observations, no anyOf", withoutAnyOf(observations)],
-  ...lists.map((k): [string, Schema] => [`analyze page, observations: ${k} only`, only(observations, [k])]),
-  ...lists
-    .slice(1)
-    .map((_, i): [string, Schema] => [`analyze page, observations: first ${i + 2} lists`, only(observations, lists.slice(0, i + 2))]),
+  ["analyze score", score],
+  ["analyze score, $defs", withDefs(score)],
+  ["analyze score, no enums", withoutEnums(score)],
+  ["analyze score, no anyOf", withoutAnyOf(score)],
+  ["analyze score, without additions", only(score, ["metadata", "corrections", "removals", "score"])],
 ];
 
 const [model = "claude-sonnet-5-5", prefix = ""] = process.argv.slice(2);

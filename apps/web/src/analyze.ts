@@ -1,6 +1,8 @@
 // The `analyze` step (docs/stages/analyze.md): what doesn't need the browser or the model. Its runner is runAnalyze.ts.
 
 import {
+  flatMetadata,
+  flatObservations,
   PAGE_LISTS,
   SCORE_LISTS,
   withIds,
@@ -52,16 +54,18 @@ export function analyzeStageKey(input: {
   return keyOf({ step: "analyze", version: ANALYZE_VERSION, ...input });
 }
 
-// The pages' results as the whole-score call reads them: every metadata item with the page it was found on, every
-// observation item with its id.
+// The pages' results as the whole-score call reads them, flat as the model writes them: every metadata item with the
+// page it was found on, every system and observation item with its id.
 export function pageResultsForScore(pages: PageAnalysis[]): unknown {
   return pages.map(({ page, systems, metadata, observations }) => ({
     page,
     systems,
-    metadata: Object.fromEntries(
-      Object.entries(metadata).map(([field, items]) => [field, (items as object[]).map((item) => ({ ...item, page }))]),
+    metadata: flatMetadata(
+      Object.fromEntries(
+        Object.entries(metadata).map(([field, items]) => [field, (items as object[]).map((item) => ({ ...item, page }))]),
+      ) as ScoreMetadata,
     ),
-    observations: withIds(page, observations),
+    observations: flatObservations(withIds(page, observations)),
   }));
 }
 
