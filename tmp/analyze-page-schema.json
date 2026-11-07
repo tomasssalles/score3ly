@@ -1,0 +1,816 @@
+{
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "titles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "main",
+                  "subtitle",
+                  "alternative",
+                  "translated"
+                ]
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "type",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "composer",
+                  "arranger",
+                  "editor",
+                  "lyricist",
+                  "librettist",
+                  "translator",
+                  "other"
+                ]
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "role",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "pieces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "system": {
+                "type": "integer"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "title",
+              "system",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "catalogueNumbers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "dedications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "instrumentation": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "compositionDates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "publishers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "places": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "dates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "plateNumbers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "notices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "titles",
+        "people",
+        "pieces",
+        "catalogueNumbers",
+        "dedications",
+        "instrumentation",
+        "compositionDates",
+        "publishers",
+        "places",
+        "dates",
+        "plateNumbers",
+        "notices"
+      ],
+      "additionalProperties": false
+    },
+    "observations": {
+      "type": "object",
+      "properties": {
+        "systems": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "system": {
+                "type": "integer"
+              },
+              "staves": {
+                "type": "integer"
+              },
+              "instruments": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "system",
+              "staves",
+              "instruments",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "clef",
+                  "key",
+                  "time",
+                  "tempo",
+                  "other"
+                ]
+              },
+              "text": {
+                "type": "string"
+              },
+              "place": {
+                "type": "object",
+                "properties": {
+                  "system": {
+                    "type": "integer"
+                  },
+                  "at": {
+                    "type": "string",
+                    "enum": [
+                      "start",
+                      "barLine",
+                      "stretch",
+                      "end"
+                    ]
+                  },
+                  "number": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "system",
+                  "at",
+                  "number"
+                ],
+                "additionalProperties": false
+              },
+              "staff": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "number": {
+                        "type": "integer"
+                      },
+                      "of": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "number",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "text",
+              "place",
+              "staff",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "ottavas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "staff": {
+                "type": "object",
+                "properties": {
+                  "number": {
+                    "type": "integer"
+                  },
+                  "of": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "number",
+                  "of"
+                ],
+                "additionalProperties": false
+              },
+              "start": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "system": {
+                        "type": "integer"
+                      },
+                      "at": {
+                        "type": "string",
+                        "enum": [
+                          "start",
+                          "barLine",
+                          "stretch",
+                          "end"
+                        ]
+                      },
+                      "number": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "system",
+                      "at",
+                      "number"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "end": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "system": {
+                        "type": "integer"
+                      },
+                      "at": {
+                        "type": "string",
+                        "enum": [
+                          "start",
+                          "barLine",
+                          "stretch",
+                          "end"
+                        ]
+                      },
+                      "number": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "system",
+                      "at",
+                      "number"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "staff",
+              "start",
+              "end",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "specialBarLines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "double",
+                  "final",
+                  "startRepeat",
+                  "endRepeat",
+                  "startEndRepeat",
+                  "dashed"
+                ]
+              },
+              "place": {
+                "type": "object",
+                "properties": {
+                  "system": {
+                    "type": "integer"
+                  },
+                  "at": {
+                    "type": "string",
+                    "enum": [
+                      "start",
+                      "barLine",
+                      "stretch",
+                      "end"
+                    ]
+                  },
+                  "number": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "system",
+                  "at",
+                  "number"
+                ],
+                "additionalProperties": false
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "place",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "endings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "numbers": {
+                "type": "string"
+              },
+              "start": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "system": {
+                        "type": "integer"
+                      },
+                      "at": {
+                        "type": "string",
+                        "enum": [
+                          "start",
+                          "barLine",
+                          "stretch",
+                          "end"
+                        ]
+                      },
+                      "number": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "system",
+                      "at",
+                      "number"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "end": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "system": {
+                        "type": "integer"
+                      },
+                      "at": {
+                        "type": "string",
+                        "enum": [
+                          "start",
+                          "barLine",
+                          "stretch",
+                          "end"
+                        ]
+                      },
+                      "number": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "system",
+                      "at",
+                      "number"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "numbers",
+              "start",
+              "end",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "directions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "place": {
+                "type": "object",
+                "properties": {
+                  "system": {
+                    "type": "integer"
+                  },
+                  "at": {
+                    "type": "string",
+                    "enum": [
+                      "start",
+                      "barLine",
+                      "stretch",
+                      "end"
+                    ]
+                  },
+                  "number": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "system",
+                  "at",
+                  "number"
+                ],
+                "additionalProperties": false
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "place",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "systems",
+        "changes",
+        "ottavas",
+        "specialBarLines",
+        "endings",
+        "directions",
+        "notes"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "metadata",
+    "observations"
+  ],
+  "additionalProperties": false
+}
