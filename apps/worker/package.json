@@ -9,6 +9,7 @@
     "migrate:local": "wrangler d1 migrations apply score3ly --local",
     "test": "node --test \"src/**/*.test.ts\"",
     "llm:try": "node scripts/try-llm.ts",
+    "llm:probe-schemas": "node scripts/probe-schemas.ts",
     "model-list": "node scripts/generate-model-list.ts"
   },
   "dependencies": {

@@ -29,6 +29,11 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 ## The tasks
 
+### Decide how Claude's schemas fit
+`#decision` `#next-release` `#bug`
+
+Anthropic refuses the JSON schemas of `analyze` (both calls), `extract` and `apply_review` for schema-constrained output, so no run on Claude gets past `layout` (`docs/llm.md`, "Claude's limit on schemas": the problem, what the grammar is, the probes, the options and the leaning). Decide among the options there, then build it; re-run `npm run llm:probe-schemas -w apps/worker` afterwards, and once more whenever a schema grows. The "Try the app with …" tasks for Claude wait for it.
+
 ### Move the tasks to GitHub issues
 `#next-release`
 
@@ -573,12 +578,12 @@ Gemini on Vertex AI is built (2026-11-03, `docs/llm.md`), not yet tried with a r
 ### Try the app with Claude on Anthropic's API
 `#next-release` `#owner` `#manual-test`
 
-Every combination of model family and provider the first release supports gets a run of its own (decided 2026-11-03: Claude on Anthropic's API and Bedrock, and on Vertex AI unless it is removed, "Remove Claude on Vertex AI from the first release"; Gemini on Google AI Studio and Vertex AI); the big comparison of results is "Try the app with Opus 5.5 in Europe on Bedrock" and "… Gemini 3.1 Pro on Vertex AI". This one checks that the provider works end to end, on a short score (a few pages): every LLM stage runs; prompt caching shows in the calls' cache reads (Claude's marks, Gemini's implicit caching); costs match the provider's prices (the list of models, `llm/modelList.ts`); a wrong or missing key fails with a clear message; the images aren't too large for the provider; the region is the one configured. Needs an Anthropic API key as a Worker secret. Anthropic's API has no EU processing (§10, "Data residency").
+Every combination of model family and provider the first release supports gets a run of its own (decided 2026-11-03: Claude on Anthropic's API and Bedrock, and on Vertex AI unless it is removed, "Remove Claude on Vertex AI from the first release"; Gemini on Google AI Studio and Vertex AI); the big comparison of results is "Try the app with Opus 5.5 in Europe on Bedrock" and "… Gemini 3.1 Pro on Vertex AI". This one checks that the provider works end to end, on a short score (a few pages): every LLM stage runs; prompt caching shows in the calls' cache reads (Claude's marks, Gemini's implicit caching); costs match the provider's prices (the list of models, `llm/modelList.ts`); a wrong or missing key fails with a clear message; the images aren't too large for the provider; the region is the one configured. Needs an Anthropic API key as a Worker secret. Anthropic's API has no EU processing (§10, "Data residency"). Done so far (2026-11-07): a config's Test, and `layout` with Opus 5.5, without errors; `analyze` failed on page 1 with Anthropic's "compiled grammar is too large" (400).
 
 ### Try the app with Gemini on Google AI Studio
 `#next-release` `#owner` `#manual-test`
 
-Every combination of model family and provider the first release supports gets a run of its own (decided 2026-11-03: Claude on Anthropic's API and Bedrock, and on Vertex AI unless it is removed, "Remove Claude on Vertex AI from the first release"; Gemini on Google AI Studio and Vertex AI); the big comparison of results is "Try the app with Opus 5.5 in Europe on Bedrock" and "… Gemini 3.1 Pro on Vertex AI". This one checks that the provider works end to end, on a short score (a few pages): every LLM stage runs; prompt caching shows in the calls' cache reads (Claude's marks, Gemini's implicit caching); costs match the provider's prices (the list of models, `llm/modelList.ts`); a wrong or missing key fails with a clear message; the images aren't too large for the provider; the region is the one configured. Needs a Gemini API key as a Worker secret; on the free tier, Google may use the inputs (§10), so a score where that is acceptable.
+Every combination of model family and provider the first release supports gets a run of its own (decided 2026-11-03: Claude on Anthropic's API and Bedrock, and on Vertex AI unless it is removed, "Remove Claude on Vertex AI from the first release"; Gemini on Google AI Studio and Vertex AI); the big comparison of results is "Try the app with Opus 5.5 in Europe on Bedrock" and "… Gemini 3.1 Pro on Vertex AI". This one checks that the provider works end to end, on a short score (a few pages): every LLM stage runs; prompt caching shows in the calls' cache reads (Claude's marks, Gemini's implicit caching); costs match the provider's prices (the list of models, `llm/modelList.ts`); a wrong or missing key fails with a clear message; the images aren't too large for the provider; the region is the one configured. Needs a Gemini API key as a Worker secret; on the free tier, Google may use the inputs (§10), so a score where that is acceptable. Done so far (2026-11-07): a config's Test, and `layout` with Gemini 3.8 Flash, without errors (but poor results: rough boxes, and no bar lines at all, the model claiming the edition had none).
 
 ### Extra reviews after a change, and "for every stage after it"
 `#decision` `#next-release`
