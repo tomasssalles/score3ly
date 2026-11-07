@@ -11,7 +11,7 @@
 import { MUSIC } from "./extract.ts";
 
 // Raise whenever the texts or the schema change.
-export const APPLY_REVIEW_PROMPT_VERSION = 3;
+export const APPLY_REVIEW_PROMPT_VERSION = 4;
 
 export const APPLY_REVIEW_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -36,12 +36,13 @@ For each issue to apply, change the transcription so that it says what the chose
 
 ## Your answer: only what changes
 Each unit you name is replaced whole by what you write; whatever you don't name stays as it is. Copy nothing that doesn't change.
-- **voices:** a voice of a stretch, \`{ "system", "stretch", "voice", "staff", "description", "music", "reason" }\`: its music replaced whole. **music** null removes the voice from the stretch (e.g. a voice that isn't printed). A voice that isn't in the stretch yet is added. **description:** null for a voice that exists; a short description for a voice that is new in the piece.
+**A text with no value is the empty string ""** in your answer, never null: where the score has null for a text (a printedNumber, a label, a key or a time in changes, a staff's time, an ending's label, a description), you write "". The only text that can be null is a voice's **music**.
+- **voices:** a voice of a stretch, \`{ "system", "stretch", "voice", "staff", "description", "music", "reason" }\`: its music replaced whole. **music** null removes the voice from the stretch (e.g. a voice that isn't printed). A voice that isn't in the stretch yet is added. **description:** "" for a voice that exists; a short description for a voice that is new in the piece.
 - **stretches:** the other fields of a stretch, \`{ "system", "stretch", "class", "kind", "printedNumber", "measureNumber", "changes", "ending", "rightBarLine", "reason" }\`, all of them replaced (its voices stay). Merging two stretches into one measure is the second's class going from "new" to "continues"; splitting is the reverse.
-- **systems:** the fields of a system, \`{ "system", "startRepeat", "staves", "groups", "lastMeasureContinues", "reason" }\`, all of them replaced (its stretches stay). In **staves**, description is null for a staff that exists.
-- **reason:** null for a change under the boxes of the issues it applies; for a change outside them, why it is needed ("the slur of issue 12 now ends here").
-- **choices:** the issues you can't apply as given. Only when it truly can't be done: the answer doesn't fit the transcription (the slur is to end on a G the measure doesn't have), two chosen answers conflict (one makes a note a quarter, another a dotted quarter), the format can't express it, or the answer is too vague to act on. Then leave the transcription as it is for that issue, and write \`{ "issue": 12, "key": "a", "newAnswer": null, "reason": "…" }\` with **key** the issue's **applied** answer (the one the transcription has now), **newAnswer** null, and **reason** what makes it impossible, written for a musician who reads it in the app and for the next reviewer, so that it isn't asked again: "The reviewer asked for these two changes, but they're incompatible: …". Disagreeing with an answer is never a reason.
-  - **An issue whose applied is null** (nothing is known of what the transcription has there): choose the answer that says what the transcription has, by its **key** (never the chosen one); if none of the answers says it, **key** null and **newAnswer** a short text that does, about the page and never mentioning the transcription ("On the E of the next measure").
+- **systems:** the fields of a system, \`{ "system", "startRepeat", "staves", "groups", "lastMeasureContinues", "reason" }\`, all of them replaced (its stretches stay). In **staves**, description is "" for a staff that exists.
+- **reason:** "" for a change under the boxes of the issues it applies; for a change outside them, why it is needed ("the slur of issue 12 now ends here").
+- **choices:** the issues you can't apply as given. Only when it truly can't be done: the answer doesn't fit the transcription (the slur is to end on a G the measure doesn't have), two chosen answers conflict (one makes a note a quarter, another a dotted quarter), the format can't express it, or the answer is too vague to act on. Then leave the transcription as it is for that issue, and write \`{ "issue": 12, "key": "a", "newAnswer": "", "reason": "…" }\` with **key** the issue's **applied** answer (the one the transcription has now), **newAnswer** "", and **reason** what makes it impossible, written for a musician who reads it in the app and for the next reviewer, so that it isn't asked again: "The reviewer asked for these two changes, but they're incompatible: …". Disagreeing with an answer is never a reason.
+  - **An issue whose applied is null** (nothing is known of what the transcription has there): choose the answer that says what the transcription has, by its **key** (never the chosen one); if none of the answers says it, **key** "" and **newAnswer** a short text that does, about the page and never mentioning the transcription ("On the E of the next measure").
   - **A resolved issue** (a person's answer) is reverted the same way when it truly can't be applied: the stage then stops and shows your reason, so that the person can answer again.
 - Every issue to apply that you don't name in **choices** counts as applied: make sure the transcription then says what its chosen answer says.
 
@@ -74,7 +75,7 @@ function object(properties: Record<string, unknown>) {
 export const APPLY_REVIEW_SCHEMA = object({
   voices: {
     type: "array",
-    items: object({ system: int, stretch: int, voice: int, staff: int, description: nullable(str), music: nullable(str), reason: nullable(str) }),
+    items: object({ system: int, stretch: int, voice: int, staff: int, description: str, music: nullable(str), reason: str }),
   },
   stretches: {
     type: "array",
@@ -83,12 +84,12 @@ export const APPLY_REVIEW_SCHEMA = object({
       stretch: int,
       class: enumOf(["none", "new", "continues"]),
       kind: nullable(enumOf(["normal", "incomplete", "unmeasured"])),
-      printedNumber: nullable(str),
+      printedNumber: str,
       measureNumber: nullable(int),
-      changes: { type: "array", items: object({ staff: int, key: nullable(str), time: nullable(str) }) },
-      ending: nullable(object({ startsHere: bool, endsHere: bool, label: nullable(str) })),
+      changes: { type: "array", items: object({ staff: int, key: str, time: str }) },
+      ending: nullable(object({ startsHere: bool, endsHere: bool, label: str })),
       rightBarLine: enumOf(["single", "double", "final", "startRepeat", "endRepeat", "bothRepeats", "dashed", "none"]),
-      reason: nullable(str),
+      reason: str,
     }),
   },
   systems: {
@@ -98,20 +99,20 @@ export const APPLY_REVIEW_SCHEMA = object({
       startRepeat: bool,
       staves: {
         type: "array",
-        items: object({ staff: int, description: nullable(str), label: nullable(str), clef: str, key: str, time: nullable(str) }),
+        items: object({ staff: int, description: str, label: str, clef: str, key: str, time: str }),
       },
       groups: {
         type: "array",
-        items: object({ staves: { type: "array", items: int }, symbol: enumOf(["brace", "bracket", "bracketsq", "line"]), label: nullable(str) }),
+        items: object({ staves: { type: "array", items: int }, symbol: enumOf(["brace", "bracket", "bracketsq", "line"]), label: str }),
       },
       lastMeasureContinues: bool,
-      reason: nullable(str),
+      reason: str,
     }),
   },
-  choices: { type: "array", items: object({ issue: int, key: nullable(str), newAnswer: nullable(str), reason: str }) },
+  choices: { type: "array", items: object({ issue: int, key: str, newAnswer: str, reason: str }) },
 });
 
-// The answer, as the schema has it.
+// The answer, as the code uses it: the model writes "" for a text with no value, which nullsForEmpty makes null.
 export type ApplyVoiceUnit = {
   system: number;
   stretch: number;
@@ -143,3 +144,33 @@ export type ApplySystemUnit = {
 };
 export type ApplyRevert = { issue: number; key: string | null; newAnswer: string | null; reason: string };
 export type ApplyReviewAnswer = { voices: ApplyVoiceUnit[]; stretches: ApplyStretchUnit[]; systems: ApplySystemUnit[]; choices: ApplyRevert[] };
+
+// The answer as the schema has it, its texts with no value "" (all but a voice's music, where null removes the voice
+// and "" is an empty voice), with those texts null, as the code uses them. Whatever isn't of the expected form is left
+// as it is, for the checks.
+export function nullsForEmpty(json: unknown): unknown {
+  const orNull = (o: unknown, keys: string[]) => {
+    if (typeof o !== "object" || o === null) return o;
+    const copy = { ...(o as Record<string, unknown>) };
+    for (const k of keys) if (copy[k] === "") copy[k] = null;
+    return copy;
+  };
+  const each = (list: unknown, f: (o: unknown) => unknown) => (Array.isArray(list) ? list.map(f) : list);
+  if (typeof json !== "object" || json === null) return json;
+  const a = json as Record<string, unknown>;
+  return {
+    ...a,
+    voices: each(a.voices, (v) => orNull(v, ["description", "reason"])),
+    stretches: each(a.stretches, (u) => {
+      const s = orNull(u, ["printedNumber", "reason"]) as Record<string, unknown>;
+      if (typeof s !== "object" || s === null) return s;
+      return { ...s, changes: each(s.changes, (c) => orNull(c, ["key", "time"])), ending: orNull(s.ending, ["label"]) };
+    }),
+    systems: each(a.systems, (u) => {
+      const s = orNull(u, ["reason"]) as Record<string, unknown>;
+      if (typeof s !== "object" || s === null) return s;
+      return { ...s, staves: each(s.staves, (t) => orNull(t, ["description", "label", "time"])), groups: each(s.groups, (g) => orNull(g, ["label"])) };
+    }),
+    choices: each(a.choices, (c) => orNull(c, ["key", "newAnswer"])),
+  };
+}

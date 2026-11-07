@@ -11,7 +11,7 @@
 
 import { canonicalJson, keyOf } from "@score3ly/core";
 import { checkSystem, type CheckedSystem, type LensStretch, type LensSystem, type ScoreState, type StretchPlace } from "@score3ly/notation";
-import type { ApplyReviewAnswer, ApplyStretchUnit, ApplySystemUnit, ApplyVoiceUnit } from "@score3ly/prompts";
+import { nullsForEmpty, type ApplyReviewAnswer, type ApplyStretchUnit, type ApplySystemUnit, type ApplyVoiceUnit } from "@score3ly/prompts";
 import type { StoredIssue, StoredWarning } from "./extract.ts";
 import { placesOf, systemsOf, type PlacedSystem } from "./review.ts";
 
@@ -108,7 +108,7 @@ export type ApplyContext = {
 // unusable, as in `extract`. Otherwise the patch as stored: a description the model left out (null) where the voice
 // or staff had one is kept, so that the unit replaces only what the model meant to change.
 export function checkPatch(json: unknown, ctx: ApplyContext): Pick<StoredApplyCall, "voices" | "stretches" | "systems" | "choices"> | { problem: string } {
-  const answer = json as ApplyReviewAnswer;
+  const answer = nullsForEmpty(json) as ApplyReviewAnswer;
   if (
     typeof answer !== "object" ||
     answer === null ||

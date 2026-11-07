@@ -152,6 +152,50 @@ test("a patch is checked: only the systems the call may change, each unit once, 
   assert.equal(first.voices[0].description, "melody");
 });
 
+test("the model's empty texts are null in the patch, but an empty voice's music stays an empty voice", () => {
+  const issues = new Map([issue(1, [on(2)])].map((i) => [i.id, i]));
+  const ctx: ApplyContext = { window: [2], allowed: [1, 2, 3], answers: answers(), toApply: [1], issues };
+  const patch = checkPatch(
+    {
+      voices: [{ system: 2, stretch: 1, voice: 1, staff: 1, description: "", music: "", reason: "" }],
+      stretches: [
+        {
+          system: 2,
+          stretch: 1,
+          class: "new",
+          kind: "normal",
+          printedNumber: "",
+          measureNumber: 2,
+          changes: [{ staff: 1, key: "2f", time: "" }],
+          ending: { startsHere: true, endsHere: true, label: "" },
+          rightBarLine: "single",
+          reason: "",
+        },
+      ],
+      systems: [
+        {
+          system: 2,
+          startRepeat: false,
+          staves: [{ staff: 1, description: "", label: "", clef: "treble", key: "0", time: "" }],
+          groups: [{ staves: [1], symbol: "brace", label: "" }],
+          lastMeasureContinues: false,
+          reason: "",
+        },
+      ],
+      choices: [{ issue: 1, key: "a", newAnswer: "", reason: "Impossible." }],
+    },
+    ctx,
+  );
+  assert.ok(!("problem" in patch));
+  assert.deepEqual(patch.voices[0], { system: 2, stretch: 1, voice: 1, staff: 1, description: null, music: "", reason: null });
+  const stretch = patch.stretches[0];
+  assert.deepEqual([stretch.printedNumber, stretch.changes[0].time, stretch.ending!.label, stretch.reason], [null, null, null, null]);
+  assert.equal(stretch.changes[0].key, "2f");
+  const system = patch.systems[0];
+  assert.deepEqual([system.staves[0].label, system.staves[0].time, system.groups[0].label, system.reason], [null, null, null, null]);
+  assert.deepEqual(patch.choices, [{ issue: 1, key: "a", reason: "Impossible." }]);
+});
+
 test("the systems are checked again in order: a patch that breaks a later system is found", () => {
   const ok = checkAll(answers(), toCheck, pieceStart);
   assert.ok(!("system" in ok));
