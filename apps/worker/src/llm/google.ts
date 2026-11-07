@@ -166,8 +166,10 @@ export class VertexGeminiProvider implements LlmProvider {
 
   constructor(options: { serviceAccount: string; region: string; projectId?: string; fetch?: Fetch }) {
     const account = parseServiceAccount(options.serviceAccount);
-    this.#fetch = options.fetch ?? fetch;
-    this.#auth = tokenSource(account, this.#fetch);
+    // Wrapped, so that `this.#fetch(…)` doesn't call fetch as a method of this object, which the Workers runtime refuses.
+    const fetchFn = options.fetch ?? fetch;
+    this.#fetch = (input, init) => fetchFn(input, init);
+    this.#auth = tokenSource(account, fetchFn);
     this.#location = options.region;
     this.#projectId = options.projectId ?? account.projectId;
   }

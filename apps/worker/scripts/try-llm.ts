@@ -5,7 +5,7 @@
 //   VERTEX_SERVICE_ACCOUNT=key.json VERTEX_REGION=eu \
 //                         npm run llm:try -w apps/worker -- anthropic-vertex claude-opus-5-5 page.png "How many systems?"
 //   VERTEX_SERVICE_ACCOUNT=key.json VERTEX_REGION=global \
-//                         npm run llm:try -w apps/worker -- google-vertex gemini-3.1-pro page.png "How many systems?"
+//                         npm run llm:try -w apps/worker -- google-vertex gemini-3.1-pro-preview page.png "How many systems?"
 //
 //   BEDROCK_API_KEY=... BEDROCK_REGION=eu-central-1 \
 //                         npm run llm:try -w apps/worker -- anthropic-bedrock eu.anthropic.claude-opus-5-5 page.png "..."

@@ -243,6 +243,26 @@ test("Gemini on Vertex AI: the global endpoint and the multi-regions; another pr
   assert.match(calls.find((c) => c.url.includes("aiplatform"))!.url, /^https:\/\/aiplatform\.googleapis\.com\/v1\/projects\/other\/locations\/global\//);
 });
 
+// The Workers runtime's `fetch` refuses to be called as a method of another object ("Illegal invocation"); Node's
+// doesn't mind, so a fake has to check it.
+function strictFetch(inner: typeof fetch): typeof fetch {
+  return function (this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+    if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation: function called with incorrect `this` reference.");
+    return inner(input, init);
+  } as typeof fetch;
+}
+
+test("Gemini on Vertex AI: fetch is called as a plain function, as the Workers runtime requires", async () => {
+  const { json } = await makeAccount();
+  const calls: Call[] = [];
+  const provider = createProvider(
+    { provider: "google-vertex", serviceAccount: json, region: "eu" },
+    { fetch: strictFetch(fakeVertexGemini(calls, geminiReply)) },
+  );
+  const response = await provider.send({ model: "gemini-4-argon", messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] });
+  assert.equal(response.text, '{"systems":6}');
+});
+
 test("Gemini on Vertex AI: an HTTP error is a typed error with Vertex's message", async () => {
   const { json } = await makeAccount();
   const provider = createProvider(

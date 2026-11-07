@@ -507,7 +507,7 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
 - **LLM calls are the residency gap.** For EU processing:
   - Gemini and Claude are both available in EU regions through Google Vertex AI. Claude is also available through AWS Bedrock.
   - The plain provider APIs give no such guarantee. Anthropic's API can pin where inference runs (`inference_geo`), but only to the US or "global", not the EU.
-  - Built: Claude through Vertex AI and through Bedrock, and Gemini through Vertex AI (§7.2; Gemini 2026-11-03). Opus 5.5 is offered in the EU on Bedrock and on Vertex AI's `eu` multi-region (Google's pricing page, 2026-11-06; on 2026-10-09 it wasn't on Vertex AI in Europe); Anthropic's API has no EU option.
+  - Built: Claude through Vertex AI and through Bedrock, and Gemini through Vertex AI (§7.2; Gemini 2026-11-03). Opus 5.5 is offered in the EU on Bedrock and on Vertex AI's `eu` multi-region (Google's pricing page, 2026-11-06), but Claude on Vertex AI couldn't be made to answer (the project's quota for it is 0, and raising it was refused) and is probably left out of the first release (`docs/llm.md`); Anthropic's API has no EU option.
   - On Google AI Studio's free tier, inputs may be used to improve Google's products.
 
   Document the choice per provider in the config.
