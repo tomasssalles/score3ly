@@ -608,6 +608,11 @@ OpenRouter as a fifth provider (discussed 2026-11-06 and 2026-11-08): one API ke
 5. ✓ **The settings card** (done 2026-11-08; `ProviderPricing` in `SettingsPage.tsx`, `rangeText` in `pricing.ts`, `/api/model-configs/<id>/price-range`, kept a day in the Worker's memory): the four prices as ranges among those who run the model, read from the endpoints API, **with the fee included**, and "(including OpenRouter's 5.5% fee on credit purchases; the price depends on who runs the model)"; "Priced per call by OpenRouter, plus its 5.5% fee on credit purchases" while the range isn't there or can't be read.
 6. ✓ **Tests** with a fake `fetch` (done 2026-11-08). **Left, by the project owner, with real requests and a real credit purchase:** that a call's reported `cost` agrees with its tokens × the price of the provider that ran it; that the fee is added on top of a purchase (so that cost × (1 + fee) is what the call really cost), and how much it was; that the card's range with the fee matches what calls cost; whether the answer names the model by its id or its dated slug; that the input tokens are right (the cached ones taken out of `prompt_tokens`).
 
+### Squash the migrations again
+`#next-release`
+
+`docs/database.md`: the migrations were squashed into `0001_initial.sql` on 2026-11-06, while no data needed keeping; since then `0002_openrouter.sql` and `0003_openrouter_free_tier.sql` rebuilt `model_configs` twice for OpenRouter's column and CHECKs. Before the release, while there is still no data to keep (CLAUDE.md, "Existing data"): fold them into `0001_initial.sql` (the `account` column, the pricing kind `provider` and the CHECKs as `0003` has them), delete `0002` and `0003`, and say in `docs/database.md` when it was done. Local databases (Wrangler's `.wrangler/state`, the desktop app's data folder) then need to be made anew, since their `d1_migrations` table names migrations that no longer exist: say so to the project owner when it is done. The tests apply every file in `migrations/` and need no change.
+
 ### OpenRouter's prices in the config form
 `#optional`
 
