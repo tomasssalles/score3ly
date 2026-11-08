@@ -7,13 +7,18 @@
 //   VERTEX_SERVICE_ACCOUNT=key.json VERTEX_REGION=global \
 //                         npm run llm:try -w apps/worker -- google-vertex gemini-3.1-pro-preview page.png "How many systems?"
 //
+//   OPENROUTER_API_KEY=... OPENROUTER_REGION=eu \
+//                         npm run llm:try -w apps/worker -- openrouter anthropic/claude-opus-5.5 page.png "..."
+//
 //   BEDROCK_API_KEY=... BEDROCK_REGION=eu-central-1 \
 //                         npm run llm:try -w apps/worker -- anthropic-bedrock eu.anthropic.claude-opus-5-5 page.png "..."
 //
 // For Vertex AI (Claude or Gemini), VERTEX_SERVICE_ACCOUNT is the path of a service account's key file (JSON), VERTEX_REGION the region
 // ("eu" if left out), and VERTEX_PROJECT the project (the key file's if left out). For Bedrock, BEDROCK_API_KEY is a
 // Bedrock API key, or else AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY an access key pair; BEDROCK_REGION is the
-// region ("eu-central-1" if left out). The model is the provider's own string for it.
+// region ("eu-central-1" if left out). For OpenRouter, OPENROUTER_REGION "eu" sends to its EU host (a Business account),
+// everywhere if left out; the answer's reported cost and who ran it are printed with the usage. The model is the
+// provider's own string for it.
 //
 // Add --json to ask for {"answer": string} through the provider's schema-constrained output.
 
@@ -29,10 +34,10 @@ if (
   !model ||
   !imagePath ||
   !prompt ||
-  !["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "google-vertex"].includes(provider)
+  !["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "google-vertex", "openrouter"].includes(provider)
 ) {
   console.error(
-    "Usage: try-llm.ts <anthropic|anthropic-vertex|anthropic-bedrock|google|google-vertex> <model> <image> <prompt> [--json]",
+    "Usage: try-llm.ts <anthropic|anthropic-vertex|anthropic-bedrock|google|google-vertex|openrouter> <model> <image> <prompt> [--json]",
   );
   process.exit(1);
 }
@@ -56,6 +61,8 @@ const config: ProviderConfig =
       ? { provider, apiKey: required("GEMINI_API_KEY") }
       : provider === "anthropic-bedrock"
         ? bedrockConfig()
+        : provider === "openrouter"
+          ? { provider, apiKey: required("OPENROUTER_API_KEY"), region: process.env.OPENROUTER_REGION ?? "" }
         : {
             provider: provider as "anthropic-vertex" | "google-vertex",
             serviceAccount: readFileSync(userPath(required("VERTEX_SERVICE_ACCOUNT")), "utf8"),
@@ -115,5 +122,9 @@ console.log(json ? JSON.stringify(response.json, null, 2) : response.text);
 console.error(
   `\n${response.model}, ${response.stop}${response.stopDetail ? ` (${response.stopDetail})` : ""}, ` +
     `${((Date.now() - started) / 1000).toFixed(1)}s, ` +
-    `${response.usage.inputTokens} tokens in, ${response.usage.outputTokens} out`,
+    `${response.usage.inputTokens} tokens in, ${response.usage.outputTokens} out` +
+    `, ${response.usage.cacheReadTokens} cache read, ${response.usage.cacheWriteTokens} cache write` +
+    (response.reportedCostUsd !== undefined ? `, reported cost $${response.reportedCostUsd}` : "") +
+    (response.servedBy ? `, served by ${response.servedBy}` : "") +
+    (response.unexpectedModel ? `\n${response.unexpectedModel}` : ""),
 );
