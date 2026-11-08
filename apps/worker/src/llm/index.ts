@@ -4,6 +4,7 @@
 import { anthropicProvider, bedrockClaudeProvider, vertexClaudeProvider } from "./anthropic.ts";
 import { FakeProvider } from "./fake.ts";
 import { GoogleProvider, VertexGeminiProvider } from "./google.ts";
+import { OpenRouterProvider } from "./openrouter.ts";
 import type { Fetch, LlmProvider } from "./types.ts";
 import { adapterFor } from "./adapters.ts";
 import type { Family, Provider, Routing } from "./models.ts";
@@ -17,6 +18,7 @@ export type ProviderConfig =
   | { provider: "anthropic-bedrock"; region: string; accessKeyId: string; secretAccessKey: string }
   | { provider: "google"; apiKey: string }
   | { provider: "google-vertex"; serviceAccount: string; region: string; projectId?: string }
+  | { provider: "openrouter"; apiKey: string; region: string }
   | { provider: "fake" | "fake-dev" };
 
 export function createProvider(config: ProviderConfig, options: { fetch?: Fetch } = {}): LlmProvider {
@@ -31,6 +33,8 @@ export function createProvider(config: ProviderConfig, options: { fetch?: Fetch 
       return new GoogleProvider({ apiKey: config.apiKey, fetch: options.fetch });
     case "google-vertex":
       return new VertexGeminiProvider({ ...config, fetch: options.fetch });
+    case "openrouter":
+      return new OpenRouterProvider({ ...config, fetch: options.fetch });
     case "fake":
     case "fake-dev":
       return new FakeProvider(config.provider);
@@ -56,6 +60,7 @@ export function createAdapter(settings: AdapterSettings, options: { fetch?: Fetc
   const config =
     adapter === "anthropic" || adapter === "google" ? { provider: adapter, apiKey: secrets.apiKey! }
     : adapter === "anthropic-bedrock" ? { provider: adapter, region, ...secrets }
+    : adapter === "openrouter" ? { provider: adapter, region, apiKey: secrets.apiKey! }
     : adapter === "anthropic-vertex" || adapter === "google-vertex" ? { provider: adapter, serviceAccount: secrets.serviceAccount!, ...where }
     : { provider: adapter };
   return createProvider(config as ProviderConfig, options);

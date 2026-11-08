@@ -601,7 +601,7 @@ OpenRouter as a fifth provider (discussed 2026-11-06 and 2026-11-08): one API ke
 - **Structured outputs are decided per provider:** send `provider: {require_parameters: true}`, so only providers that support `response_format` serve the call (not a pin). Claude's `cache_control` marks pass through, with sticky routing to the same provider to keep cache hits. Effort: `reasoning.effort` (`low` to `max`).
 
 **The plan:**
-1. **The adapter:** Chat Completions with images, `response_format` (`json_schema`), `reasoning.effort`, `cache_control`, `require_parameters`; reads tokens, cache reads and writes and `cost`, and records the provider that served the call. The model check accepts the id or its canonical slug.
+1. ✓ **The adapter** (done 2026-11-08, `apps/worker/src/llm/openrouter.ts`, non-streaming): Chat Completions with images, `response_format` (`json_schema`), `reasoning.effort`, `cache_control`, `require_parameters`; reads tokens, cache reads and writes and `cost`, and records the provider that served the call. The model check accepts the id or its canonical slug.
 2. **The config:** provider OpenRouter, an API key, an account type (Standard or Business: the fee), and a region only for Business (global or EU).
 3. **The pricing kind "priced by the provider":** cost = reported `cost` × (1 + fee); an answer without one is a call of unknown cost.
 4. **The list without prices:** a gathering of both hosts' models APIs (ids, efforts, which models the EU serves), mapped onto `claude-models.json` and `gemini-models.json`; a listed model is supported where OpenRouter offers it.

@@ -4,7 +4,7 @@
 
 // "fake" answers without network, for trying the app without paying (fake.ts): it ships with the app and costs
 // nothing. "fake-dev" is the same with made-up prices, for developing and testing the costs and the spending cap.
-export type ProviderId = "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "google-vertex" | "fake" | "fake-dev";
+export type ProviderId = "anthropic" | "anthropic-vertex" | "anthropic-bedrock" | "google" | "google-vertex" | "openrouter" | "fake" | "fake-dev";
 
 export type LlmImage = {
   mediaType: "image/png" | "image/jpeg" | "image/webp";
@@ -62,6 +62,10 @@ export type LlmResponse = {
   stop: "end" | "max_tokens" | "refusal" | "other";
   stopDetail?: string; // the provider's reason, e.g. a refusal's category
   usage: LlmUsage;
+  // What the provider says the call cost, in US dollars, where it says (OpenRouter's `usage.cost`, in credits): the
+  // cost of a config "priced by the provider" (llmRoutes.ts).
+  reportedCostUsd?: number;
+  servedBy?: string; // who ran the model, where the provider routes between several (OpenRouter's `provider`)
   raw: unknown; // the provider's whole response, for the call record (§5.2)
 };
 
