@@ -1,5 +1,6 @@
 // OpenRouter (docs/llm.md, "Calling the providers"): one API key for Claude, Gemini and others, through its
-// OpenAI-compatible Chat Completions API, with a plain `fetch` (no SDK). The model matters, not who serves it
+// OpenAI-compatible Chat Completions API, with a plain `fetch` (no SDK), streamed (server-sent events) so that a long
+// answer keeps the connection busy, as the other adapters do; the whole answer is put together at the end. The model matters, not who serves it
 // (decided 2026-11-08): OpenRouter may send a call to any provider that runs the model, but never to another model
 // (we never send its model fallbacks, `models`), which the model check confirms. Each answer reports what it cost
 // (`usage.cost`, in US dollars of credits): the app's cost for the call is that plus OpenRouter's fee on credits
@@ -34,6 +35,7 @@ function toPart(content: LlmContent): Part {
 export function toBody(request: LlmRequest): Record<string, unknown> {
   return {
     model: request.model,
+    stream: true,
     messages: [
       ...(request.system ? [{ role: "system", content: request.system }] : []),
       ...request.messages.map((m) => ({ role: m.role, content: m.content.map(toPart) })),
@@ -102,6 +104,59 @@ export function fromCompletion(completion: Completion, request: LlmRequest): Llm
   return request.jsonSchema ? withJson(response) : response;
 }
 
+type Chunk = {
+  model?: string;
+  provider?: string;
+  choices?: { delta?: { content?: string | null; refusal?: string | null }; finish_reason?: string | null; native_finish_reason?: string | null }[];
+  usage?: Completion["usage"];
+  error?: Completion["error"];
+};
+
+// The streamed answer (server-sent events: "data: {chunk}" lines, ": …" comments while OpenRouter waits, "data: [DONE]"
+// at the end) put together as one completion: the text of the deltas, the last finish reason, and the usage, which
+// comes in the last chunk. An error after the stream began comes as a chunk of its own.
+export function fromStream(text: string): Completion {
+  let model: string | undefined;
+  let provider: string | undefined;
+  let content = "";
+  let refusal: string | null = null;
+  let finish: string | null = null;
+  let nativeFinish: string | null = null;
+  let usage: Completion["usage"];
+  let chunks = 0;
+  for (const line of text.split("\n")) {
+    if (!line.startsWith("data:")) continue;
+    const data = line.slice(5).trim();
+    if (data === "" || data === "[DONE]") continue;
+    let chunk: Chunk;
+    try {
+      chunk = JSON.parse(data) as Chunk;
+    } catch {
+      throw new LlmError("unreadable_response", `A chunk of OpenRouter's answer isn't JSON: ${data.slice(0, 200)}`);
+    }
+    chunks++;
+    if (chunk.error) {
+      const status = typeof chunk.error.code === "number" ? chunk.error.code : undefined;
+      throw new LlmError(status ? kindForStatus(status) : "server", `OpenRouter: ${chunk.error.message ?? "an error"}`, status);
+    }
+    model = chunk.model ?? model;
+    provider = chunk.provider ?? provider;
+    const choice = chunk.choices?.[0];
+    content += choice?.delta?.content ?? "";
+    refusal = choice?.delta?.refusal ?? refusal;
+    finish = choice?.finish_reason ?? finish;
+    nativeFinish = choice?.native_finish_reason ?? nativeFinish;
+    if (chunk.usage) usage = chunk.usage;
+  }
+  if (chunks === 0) throw new LlmError("unreadable_response", `OpenRouter's answer has no chunks: ${text.slice(0, 200)}`);
+  return {
+    model,
+    provider,
+    choices: [{ message: { content, refusal }, finish_reason: finish, native_finish_reason: nativeFinish }],
+    usage,
+  };
+}
+
 export class OpenRouterProvider implements LlmProvider {
   readonly id = "openrouter" as const;
   readonly #apiKey: string;
@@ -130,22 +185,24 @@ export class OpenRouterProvider implements LlmProvider {
       if (err instanceof DOMException && err.name === "AbortError") throw new LlmError("aborted", "The request was aborted.");
       throw new LlmError("network", String(err));
     }
-    const text = await res.text().catch(() => "");
-    let body: Completion;
+    let text: string;
     try {
-      body = JSON.parse(text) as Completion;
-    } catch {
-      if (!res.ok) throw new LlmError(kindForStatus(res.status), `OpenRouter answered ${res.status}: ${text.slice(0, 300)}`, res.status);
-      throw new LlmError("unreadable_response", `OpenRouter's answer isn't JSON: ${text.slice(0, 200)}`);
+      text = await res.text();
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw new LlmError("aborted", "The request was aborted.");
+      throw new LlmError("unreadable_response", `OpenRouter's answer was cut off: ${String(err)}`);
     }
-    if (!res.ok) throw new LlmError(kindForStatus(res.status), `OpenRouter answered ${res.status}: ${body.error?.message ?? text.slice(0, 300)}`, res.status);
-    // An error after the request was accepted comes with a 200 and no choices.
-    if (body.error && !body.choices?.length) {
-      const status = typeof body.error.code === "number" ? body.error.code : undefined;
-      throw new LlmError(status ? kindForStatus(status) : "server", `OpenRouter: ${body.error.message ?? "an error"}`, status);
+    // A refusal before anything was streamed: a plain JSON error with its HTTP status.
+    if (!res.ok) {
+      let message = text.slice(0, 300);
+      try {
+        message = (JSON.parse(text) as Completion).error?.message ?? message;
+      } catch {
+        // not JSON: the text as it is
+      }
+      throw new LlmError(kindForStatus(res.status), `OpenRouter answered ${res.status}: ${message}`, res.status);
     }
-    if (!body.choices?.length) throw new LlmError("unreadable_response", `OpenRouter's answer has no choices: ${text.slice(0, 200)}`);
-    return fromCompletion(body, request);
+    return fromCompletion(fromStream(text), request);
   }
 }
 

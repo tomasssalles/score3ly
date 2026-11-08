@@ -6,11 +6,31 @@ import { LlmError, type LlmRequest } from "./types.ts";
 
 type Call = { url: string; headers: Headers; body: any };
 
-// OpenRouter's Chat Completions, faked: one answer, or an HTTP error.
+// A completion as OpenRouter streams it: a comment while it waits, the text in two deltas, the finish reason, the
+// usage in the last chunk, then [DONE]. An error after the stream began is a chunk of its own.
+function sse(answer: any): string {
+  const events: unknown[] = [];
+  if (answer.error) events.push({ error: answer.error });
+  else {
+    const choice = answer.choices[0];
+    const content: string = choice.message.content ?? "";
+    const half = Math.ceil(content.length / 2);
+    const base = { id: answer.id, model: answer.model, provider: answer.provider };
+    events.push({ ...base, choices: [{ delta: { role: "assistant", content: content.slice(0, half) }, finish_reason: null }] });
+    events.push({ ...base, choices: [{ delta: { content: content.slice(half) }, finish_reason: null }] });
+    events.push({ ...base, choices: [{ delta: {}, finish_reason: choice.finish_reason, native_finish_reason: choice.native_finish_reason }] });
+    events.push({ ...base, choices: [], usage: answer.usage });
+  }
+  return [": OPENROUTER PROCESSING", "", ...events.flatMap((e) => [`data: ${JSON.stringify(e)}`, ""]), "data: [DONE]", ""].join("\n");
+}
+
+// OpenRouter's Chat Completions, faked: one streamed answer, or an HTTP error (plain JSON).
 function fakeOpenRouter(calls: Call[], answer: unknown, status = 200): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     calls.push({ url: String(input), headers: new Headers(init?.headers), body: JSON.parse(String(init?.body)) });
-    return new Response(JSON.stringify(answer), { status, headers: { "content-type": "application/json" } });
+    return status === 200
+      ? new Response(sse(answer), { headers: { "content-type": "text/event-stream" } })
+      : new Response(JSON.stringify(answer), { status, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
 }
 
@@ -54,6 +74,7 @@ test("the request: Chat Completions with the key, the system prompt, images as d
   assert.equal(call.url, "https://openrouter.ai/api/v1/chat/completions");
   assert.equal(call.headers.get("authorization"), "Bearer or-key");
   assert.equal(call.body.model, MODEL);
+  assert.equal(call.body.stream, true);
   assert.deepEqual(call.body.messages[0], { role: "system", content: "Read the page." });
   assert.deepEqual(call.body.messages[1].content, [
     { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" }, cache_control: { type: "ephemeral" } },
@@ -72,7 +93,7 @@ test("the EU region goes to eu.openrouter.ai", async () => {
   assert.equal(calls[0].url, "https://eu.openrouter.ai/api/v1/chat/completions");
 });
 
-test("the answer: text and JSON, tokens without the cached ones, the reported cost and who served it", async () => {
+test("the answer, put together from the stream: text and JSON, tokens without the cached ones, the reported cost and who served it", async () => {
   const response = await provider([], completion()).send(request);
   assert.equal(response.provider, "openrouter");
   assert.equal(response.stop, "end");
