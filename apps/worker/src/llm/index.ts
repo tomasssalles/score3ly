@@ -14,7 +14,6 @@ export type ProviderConfig =
   | { provider: "anthropic"; apiKey: string }
   | { provider: "anthropic-vertex"; serviceAccount: string; region: string; projectId?: string }
   | { provider: "anthropic-bedrock"; region: string; apiKey: string }
-  | { provider: "anthropic-bedrock"; region: string; accessKeyId: string; secretAccessKey: string }
   | { provider: "google"; apiKey: string }
   | { provider: "google-vertex"; serviceAccount: string; region: string; projectId?: string }
   | { provider: "fake" | "fake-dev" };

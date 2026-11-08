@@ -570,7 +570,7 @@ export type ModelOptions = {
   providers: {
     id: Provider;
     name: string;
-    families: { id: Family; name: string; efforts: NonNullable<ModelConfig["effort"]>[]; secrets: string[][] }[];
+    families: { id: Family; name: string; efforts: NonNullable<ModelConfig["effort"]>[]; secrets: string[] }[];
     places: (Place & { geography?: string })[];
   }[];
   models: {

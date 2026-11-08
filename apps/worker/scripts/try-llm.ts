@@ -12,7 +12,7 @@
 //
 // For Vertex AI (Claude or Gemini), VERTEX_SERVICE_ACCOUNT is the path of a service account's key file (JSON), VERTEX_REGION the region
 // ("eu" if left out), and VERTEX_PROJECT the project (the key file's if left out). For Bedrock, BEDROCK_API_KEY is a
-// Bedrock API key, or else AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY an access key pair; BEDROCK_REGION is the
+// Bedrock API key; BEDROCK_REGION is the
 // region ("eu-central-1" if left out). The model is the provider's own string for it.
 //
 // Add --json to ask for {"answer": string} through the provider's schema-constrained output.
@@ -76,14 +76,7 @@ if (!mediaType) {
 
 function bedrockConfig(): ProviderConfig {
   const region = process.env.BEDROCK_REGION ?? "eu-central-1";
-  const apiKey = process.env.BEDROCK_API_KEY;
-  if (apiKey) return { provider: "anthropic-bedrock", region, apiKey };
-  return {
-    provider: "anthropic-bedrock",
-    region,
-    accessKeyId: required("AWS_ACCESS_KEY_ID"),
-    secretAccessKey: required("AWS_SECRET_ACCESS_KEY"),
-  };
+  return { provider: "anthropic-bedrock", region, apiKey: required("BEDROCK_API_KEY") };
 }
 
 const imageFile = userPath(imagePath);

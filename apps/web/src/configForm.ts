@@ -21,7 +21,6 @@ export type FormState = {
   routing: Routing | null;
   effort: Effort | null; // null: the model's default
   project: string;
-  secretSet: number; // which of the adapter's sets of secrets (Bedrock: an API key, or an access key pair)
   secrets: Record<string, string>;
   pricing: FormPricing | null;
   reference: string | null;
@@ -54,7 +53,6 @@ export const EMPTY_FORM: FormState = {
   routing: null,
   effort: null,
   project: "",
-  secretSet: 0,
   secrets: {},
   pricing: null,
   reference: null,
@@ -92,10 +90,6 @@ export function withProvider(options: ModelOptions, form: FormState, provider: P
 // supports pinned so that the pickers can show it.
 export function formFromConfig(options: ModelOptions, config: ModelConfig): FormState {
   const model: FormModel = config.modelId ? { kind: "listed", id: config.modelId } : { kind: "added", string: config.modelString ?? config.model, family: config.family };
-  const provider = options.providers.find((p) => p.id === config.provider);
-  const sets = provider?.families.find((f) => f.id === config.family)?.secrets ?? [[]];
-  const keys = Object.keys(config.secrets).sort().join(",");
-  const secretSet = Math.max(0, sets.findIndex((set) => [...set].sort().join(",") === keys));
   const pricing: FormPricing =
     config.pricing.kind === "list" ? (config.pricing.reference ? "as" : "list") : config.pricing.kind;
   const reference = config.pricing.kind === "list" ? config.pricing.reference : null;
@@ -107,7 +101,6 @@ export function formFromConfig(options: ModelOptions, config: ModelConfig): Form
     routing: config.routing,
     effort: config.effort,
     project: config.project ?? "",
-    secretSet,
     secrets: { ...config.secrets },
     pricing,
     reference,
@@ -256,9 +249,8 @@ export function settled(options: ModelOptions, form: FormState): FormState {
   // The effort follows the model, the secrets the family.
   const family = familyOption(options, next);
   if (next.effort !== null && !effortsOf(options, next).includes(next.effort)) next.effort = null;
-  const sets = family?.secrets ?? [[]];
-  if (next.secretSet >= sets.length) next.secretSet = 0;
-  next.secrets = Object.fromEntries(Object.entries(next.secrets).filter(([field]) => sets[next.secretSet].includes(field)));
+  const fields = family?.secrets ?? [];
+  next.secrets = Object.fromEntries(Object.entries(next.secrets).filter(([field]) => fields.includes(field)));
   if (provider.id !== "vertex") next.project = "";
   return next;
 }
@@ -275,8 +267,6 @@ export function defaultName(options: ModelOptions, form: FormState): string | nu
 export const SECRET_LABELS: Record<string, string> = {
   apiKey: "API key",
   serviceAccount: "Service account",
-  accessKeyId: "Access key ID",
-  secretAccessKey: "Secret access key",
 };
 
 // What is still missing, as a sentence, or null when the config can be created.
@@ -289,7 +279,7 @@ export function missing(options: ModelOptions, form: FormState): string | null {
   if (form.region === null) return "The region isn't chosen yet.";
   if (routingsOf(options, form).length > 0 && form.routing === null) return "The routing isn't chosen yet.";
   const family = familyOption(options, form);
-  const unset = (family?.secrets[form.secretSet] ?? []).find((field) => !form.secrets[field]);
+  const unset = (family?.secrets ?? []).find((field) => !form.secrets[field]);
   if (unset) return `The secret for the ${SECRET_LABELS[unset] ?? unset} isn't chosen yet.`;
   if (form.pricing === null) return "The pricing isn't chosen yet.";
   if (form.pricing === "as" && form.reference === null) return "The model it is priced as isn't chosen yet.";

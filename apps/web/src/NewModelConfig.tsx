@@ -38,8 +38,6 @@ import { pricesText } from "./pricing";
 const FIELD_LABELS: Record<string, string> = {
   apiKey: "API key",
   serviceAccount: "Service account",
-  accessKeyId: "Access key ID",
-  secretAccessKey: "Secret access key",
 };
 
 // A picker without a value (docs/style.md, "Pickers").
@@ -318,25 +316,9 @@ export function NewModelConfig({
           </label>
         )}
 
-        {family && family.secrets[0].length > 0 && (
+        {family && family.secrets.length > 0 && (
           <>
-            {family.secrets.length > 1 && (
-              <PickerField label="Credentials">
-                <Picker
-                  value={family.secrets[form.secretSet].map((f) => FIELD_LABELS[f] ?? f).join(" and ")}
-                  label="Credentials"
-                  fitted
-                  groups={[
-                    family.secrets.map((set, i) => ({
-                      label: set.map((f) => FIELD_LABELS[f] ?? f).join(" and "),
-                      current: i === form.secretSet,
-                      onSelect: () => setForm({ secretSet: i, secrets: {} }),
-                    })),
-                  ]}
-                />
-              </PickerField>
-            )}
-            {family.secrets[form.secretSet].map((field) => (
+            {family.secrets.map((field) => (
               <PickerField key={field} label={FIELD_LABELS[field] ?? field}>
                 <Picker
                   value={form.secrets[field] ?? NONE}

@@ -35,16 +35,15 @@ import {
 import { MODEL_LIST } from "./llm/modelList.ts";
 import { firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 
-// The secrets each adapter needs, by field (the name of a Worker secret is stored, never its value): one set of them.
-// Bedrock takes an API key or an access key pair.
-const SECRETS: Record<string, string[][]> = {
-  anthropic: [["apiKey"]],
-  "anthropic-vertex": [["serviceAccount"]],
-  "anthropic-bedrock": [["apiKey"], ["accessKeyId", "secretAccessKey"]],
-  google: [["apiKey"]],
-  "google-vertex": [["serviceAccount"]],
-  fake: [[]],
-  "fake-dev": [[]],
+// The secrets each adapter needs, by field (the name of a Worker secret is stored, never its value).
+const SECRETS: Record<string, string[]> = {
+  anthropic: ["apiKey"],
+  "anthropic-vertex": ["serviceAccount"],
+  "anthropic-bedrock": ["apiKey"],
+  google: ["apiKey"],
+  "google-vertex": ["serviceAccount"],
+  fake: [],
+  "fake-dev": [],
 };
 
 // A model config (docs/llm.md, "Configs"), as stored, with what the list says about its model (`model`, `family`,
@@ -235,15 +234,13 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
     return `The app doesn't support ${modelById(list, modelId)!.name} on ${PROVIDER_NAMES[p]} there: pick another region`;
   }
   if (project !== undefined && project !== null && (p !== "vertex" || typeof project !== "string")) return "'project' is for Vertex AI only";
-  // The secrets: one of the adapter's sets.
+  // The secrets: exactly the adapter's.
   const isStrings = (v: unknown) =>
     v === undefined || (v !== null && typeof v === "object" && Object.values(v).every((x) => typeof x === "string"));
   if (!isStrings(secrets)) return "'secrets' must map names to text";
   const keys = Object.keys((secrets ?? {}) as Record<string, string>).sort().join(",");
-  const sets = SECRETS[adapterFor(p, modelFamily)!];
-  if (!sets.some((set) => [...set].sort().join(",") === keys)) {
-    return `'secrets' must name ${sets.map((set) => set.join(" and ") || "nothing").join(", or ")} for ${PROVIDER_NAMES[p]}`;
-  }
+  const fields = SECRETS[adapterFor(p, modelFamily)!];
+  if ([...fields].sort().join(",") !== keys) return `'secrets' must name ${fields.join(" and ") || "nothing"} for ${PROVIDER_NAMES[p]}`;
   // The pricing: from the list (as its own model, or a model the user added as a listed one), free or unpriced.
   const pr = pricing as Partial<Pricing & { reference: unknown }> | undefined;
   if (!pr || !["list", "free", "unpriced"].includes(pr.kind as string)) return "'pricing' must be {kind: list, free or unpriced}";
@@ -465,7 +462,7 @@ export type ModelOptions = {
   providers: {
     id: Provider;
     name: string;
-    families: { id: Family; name: string; efforts: Effort[]; secrets: string[][] }[];
+    families: { id: Family; name: string; efforts: Effort[]; secrets: string[] }[];
     places: (Place & { geography?: string })[];
   }[];
   models: {

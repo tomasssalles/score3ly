@@ -75,29 +75,13 @@ export function vertexClaudeProvider(options: {
 }
 
 // Amazon Bedrock, through `bedrock-runtime` (InvokeModel; not the Messages API endpoint, "Mantle": docs/llm.md, "Calling
-// the providers"), with either a Bedrock API key or an AWS access key pair (requests are then signed with AWS Signature
-// V4). `region` is the region requests are sent to, e.g. "eu-central-1". The model is Bedrock's ID for it, with the
-// routing's prefix where there is one (an inference profile, `bedrockModel`).
-export function bedrockClaudeProvider(options: {
-  region: string;
-  apiKey?: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
-  fetch?: Fetch;
-  maxRetries?: number;
-}): ClaudeProvider {
-  const { region, apiKey, accessKeyId, secretAccessKey } = options;
-  const keyPair = accessKeyId !== undefined || secretAccessKey !== undefined;
-  const oneWay = (apiKey !== undefined) !== keyPair; // an API key or a key pair, not both nor neither
-  if (!oneWay || (keyPair && (!accessKeyId || !secretAccessKey))) {
-    throw new LlmError("auth", "Bedrock needs either an API key or an access key pair (key ID and secret), not both.");
-  }
-  // Explicit credentials only: the client would otherwise look for them in the environment and AWS's files.
-  const common = { awsRegion: region, fetch: options.fetch, maxRetries: options.maxRetries };
-  const client =
-    apiKey !== undefined
-      ? new AnthropicBedrock({ ...common, apiKey })
-      : new AnthropicBedrock({ ...common, awsAccessKey: accessKeyId!, awsSecretKey: secretAccessKey! });
+// the providers"), with a Bedrock API key (sent as a bearer token; AWS access key pairs aren't supported, decided
+// 2026-11-08). `region` is the region requests are sent to, e.g. "eu-central-1". The model is Bedrock's ID for it, with
+// the routing's prefix where there is one (an inference profile, `bedrockModel`).
+export function bedrockClaudeProvider(options: { region: string; apiKey: string; fetch?: Fetch; maxRetries?: number }): ClaudeProvider {
+  // Without a key, the client would sign the request with whatever AWS credentials it finds in the environment.
+  if (!options.apiKey) throw new LlmError("auth", "Bedrock needs an API key.");
+  const client = new AnthropicBedrock({ awsRegion: options.region, apiKey: options.apiKey, fetch: options.fetch, maxRetries: options.maxRetries });
   return new ClaudeProvider("anthropic-bedrock", client);
 }
 
