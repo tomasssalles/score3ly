@@ -5,7 +5,7 @@
 
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
-import { fetchPriceRange } from "./llm/openrouter.ts";
+import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import { costOf, type Price } from "./llm/prices.ts";
 import { adapterFor, supportedFamilies } from "./llm/adapters.ts";
@@ -285,7 +285,10 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
   // The pricing: by the provider where it reports each call's cost, and only there; otherwise from the list (as its own
   // model, or a model the user added as a listed one), free or unpriced.
   const pr = pricing as Partial<Pricing & { reference: unknown }> | undefined;
-  if (byProvider) return pr?.kind === "provider" ? null : `'pricing' must be {kind: provider} for ${PROVIDER_NAMES[p]}: each answer says what it cost`;
+  // There, the free-tier mark too (decided 2026-11-08): a model the user's account doesn't pay for.
+  if (byProvider) {
+    return pr?.kind === "provider" || pr?.kind === "free" ? null : `'pricing' must be {kind: provider or free} for ${PROVIDER_NAMES[p]}: each answer says what it cost`;
+  }
   if (!pr || !["list", "free", "unpriced"].includes(pr.kind as string)) return "'pricing' must be {kind: list, free or unpriced}";
   if (pr.kind === "list") {
     const reference = pr.reference ?? null;
@@ -868,7 +871,9 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
   const price = priced.kind === "priced" ? priced.price : null;
   if (price || priced.kind === "provider") {
     const { spendingCapUsd } = await readSettings(db);
-    if ((await spentInLastDay(db)) >= spendingCapUsd) {
+    // A model the provider itself lists as free (OpenRouter's ":free" models: all its prices 0) costs nothing, so the
+    // cap doesn't stop it (decided 2026-11-08); its calls are still recorded at what they report.
+    if ((await spentInLastDay(db)) >= spendingCapUsd && !(priced.kind === "provider" && (await freeOnOpenRouter(config.model, config.region)))) {
       return { refusal: { error: `The spending cap has been reached: $${spendingCapUsd.toFixed(2)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap", status: 429 } };
     }
   }
@@ -944,7 +949,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
         response.usage.cacheWriteTokens,
         costUsd,
         price ? JSON.stringify({ ...price, asOf: MODEL_LIST.asOf, ...(priced.kind === "priced" && priced.borrowedFrom ? { borrowedFrom: priced.borrowedFrom } : {}) })
-        : priced.kind === "provider" ? JSON.stringify({ reportedUsd: response.reportedCostUsd ?? null, fee, account: row.account })
+        : priced.kind === "provider" || (priced.kind === "free" && row.account) ? JSON.stringify({ reportedUsd: response.reportedCostUsd ?? null, fee, account: row.account })
         : null,
         new Date().toISOString(),
         callId,

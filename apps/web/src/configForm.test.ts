@@ -319,6 +319,9 @@ test("OpenRouter: priced by the provider, a Standard account at first, the EU on
   // A model added by hand is priced by the provider too; another provider has no account.
   const added = step(standard, { model: { kind: "added", string: "anthropic/claude-opus-6", family: "claude" } });
   assert.equal(added.pricing, "provider");
+  // The free-tier mark is kept; priced by the provider otherwise.
+  const free = step(standard, { pricing: "free" });
+  assert.deepEqual([free.pricing, requestOf(free).pricing], ["free", { kind: "free" }]);
   const bedrock = step(standard, { provider: "bedrock", model: { kind: "listed", id: "opus" } });
   assert.deepEqual([bedrock.pricing, bedrock.account], ["list", null]);
 });

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createProvider } from "./index.ts";
-import { fetchPriceRange, priceRange } from "./openrouter.ts";
+import { fetchPriceRange, freeOnOpenRouter, priceRange } from "./openrouter.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 
 type Call = { url: string; headers: Headers; body: any };
@@ -145,4 +145,14 @@ test("the price range: lowest and highest per million tokens among the providers
   assert.deepEqual(await fetchPriceRange("anthropic/claude-opus-5.5", "eu", fake, 1000), range);
   await fetchPriceRange("anthropic/claude-opus-5.5", "eu", fake, 2000); // kept
   assert.deepEqual(calls, ["https://eu.openrouter.ai/api/v1/models/anthropic/claude-opus-5.5/endpoints"]);
+});
+
+test("a model OpenRouter lists as free: all its prices 0; not free where they can't be read", async () => {
+  const answering = (endpoints: unknown) => (async () => new Response(JSON.stringify({ data: { endpoints } }))) as unknown as typeof fetch;
+  assert.equal(await freeOnOpenRouter("google/gemma-4:free", "", answering([{ tag: "chutes", pricing: { prompt: "0", completion: "0" } }]), 1), true);
+  assert.equal(await freeOnOpenRouter("google/gemma-4", "", answering([{ tag: "chutes", pricing: { prompt: "0.0000001", completion: "0" } }]), 1), false);
+  const unreachable = (async () => {
+    throw new TypeError("fetch failed");
+  }) as unknown as typeof fetch;
+  assert.equal(await freeOnOpenRouter("google/gemma-5:free", "", unreachable, 1), false);
 });

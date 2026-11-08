@@ -790,7 +790,8 @@ test("OpenRouter: an account, the EU for Business only, priced by the provider w
   };
   await refused({ account: undefined }, /'account' must be one of standard, business/);
   await refused({ account: "standard", region: "eu" }, /Only a Business account may use OpenRouter in the EU/);
-  await refused({ account: "standard", pricing: { kind: "list" } }, /'pricing' must be \{kind: provider\}/);
+  await refused({ account: "standard", pricing: { kind: "list" } }, /'pricing' must be \{kind: provider or free\}/);
+  await refused({ account: "standard", pricing: { kind: "unpriced" } }, /'pricing' must be \{kind: provider or free\}/);
   await refused({ account: "standard", modelId: "gemini-3-1-pro-preview", region: "eu" }, /Only a Business account|doesn't support Gemini 3.1 Pro Preview on OpenRouter there/);
   await refused({ account: "business", modelId: "gemini-3-1-pro-preview", region: "eu" }, /doesn't support Gemini 3.1 Pro Preview on OpenRouter there/);
   // Priced by the provider elsewhere: never.
@@ -804,6 +805,9 @@ test("OpenRouter: an account, the EU for Business only, priced by the provider w
   ]);
   const eu = await json(await send("/api/model-configs", body({ account: "business", region: "eu", name: "Opus EU" })));
   assert.deepEqual([eu.region, eu.price], ["eu", { kind: "provider", fee: 0.08 }]);
+  // The free-tier mark: its calls cost nothing and don't count towards the cap.
+  const free = await json(await send("/api/model-configs", body({ account: "standard", modelId: "gemini-2-5-flash", pricing: { kind: "free" } })));
+  assert.deepEqual([free.pricing, free.price, free.freeTier], [{ kind: "free" }, { kind: "free" }, true]);
   // A model added by hand is priced by the provider too.
   const added = await json(await send("/api/model-configs", { ...body({ account: "standard" }), modelId: undefined, modelString: "anthropic/claude-opus-6", family: "claude" }));
   assert.deepEqual([added.modelString, added.price], ["anthropic/claude-opus-6", { kind: "provider", fee: 0.055 }]);

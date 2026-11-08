@@ -256,7 +256,8 @@ export function settled(options: ModelOptions, form: FormState): FormState {
   // Pricing: priced by the provider where it reports each call's cost (with an account, Standard at first); else a
   // listed model at its own price or free, a model added by hand priced as another, unpriced or free.
   if (provider.pricedByProvider) {
-    next.pricing = "provider";
+    // Priced by the provider, or the free-tier mark.
+    if (next.pricing !== "free") next.pricing = "provider";
     if (next.account === null) next.account = "standard";
   } else {
     next.account = null;

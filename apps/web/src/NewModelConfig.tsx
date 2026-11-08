@@ -379,17 +379,25 @@ export function NewModelConfig({
           </>
         )}
 
-        {form.model && form.pricing === "provider" && provider && (
+        {form.model && provider?.pricedByProvider && (
           <div className="field">
             <span>Pricing</span>
-            <p className="field-hint">
-              Priced per call by {provider.name}: each call costs what its answer reports, plus the {form.account ? percent(provider.pricedByProvider!.fees[form.account]) : ""} fee
-              on credit purchases. The price of a model can differ between the companies that run it for {provider.name}.
-            </p>
+            <PricingChoice
+              checked={form.pricing === "provider"}
+              onCheck={() => setForm({ pricing: "provider" })}
+              label={`Priced per call by ${provider.name}`}
+              info={`Each call costs what its answer reports, plus the ${form.account ? percent(provider.pricedByProvider.fees[form.account]) : ""} fee on credit purchases. The price of a model can differ between the companies that run it for ${provider.name}. A model ${provider.name} lists as free keeps running after the spending cap is reached.`}
+            />
+            <PricingChoice
+              checked={form.pricing === "free"}
+              onCheck={() => setForm({ pricing: "free" })}
+              label="Free tier"
+              info="For a model your account doesn't pay for: its calls cost $0.00 and don't count towards the spending cap, whatever the provider reports."
+            />
           </div>
         )}
 
-        {form.model && form.pricing !== "provider" && (
+        {form.model && !provider?.pricedByProvider && (
           <div className="field">
             <span>Pricing</span>
             {form.model.kind === "listed" ? (

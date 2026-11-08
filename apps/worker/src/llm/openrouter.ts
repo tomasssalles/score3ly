@@ -233,11 +233,19 @@ export function priceRange(endpoints: { tag?: string; pricing?: EndpointPricing 
   return { input: span("input"), output: span("output"), cacheRead: span("cacheRead"), cacheWrite: span("cacheWrite") };
 }
 
+// Whether OpenRouter lists a model as free where it is sent (all its prices 0, as its ":free" models are): such calls
+// cost nothing, so the spending cap lets them through. Not free where the prices can't be read.
+export async function freeOnOpenRouter(model: string, region: string, fetchFn?: Fetch, now = Date.now()): Promise<boolean> {
+  const range = await fetchPriceRange(model, region, fetchFn, now);
+  return range !== null && Object.values(range).every(([, high]) => high === 0);
+}
+
 // Kept a day per host and model, in the Worker's memory.
 const ranges = new Map<string, { at: number; range: PriceRange | null }>();
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export async function fetchPriceRange(model: string, region: string, fetchFn: Fetch = (input, init) => fetch(input, init), now = Date.now()): Promise<PriceRange | null> {
+  fetchFn ??= (input, init) => fetch(input, init);
   const key = `${region} ${model}`;
   const kept = ranges.get(key);
   if (kept && now - kept.at < DAY_MS) return kept.range;
