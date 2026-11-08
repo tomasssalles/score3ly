@@ -5,7 +5,7 @@
 
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
-import { createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
+import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import { costOf, type Price } from "./llm/prices.ts";
 import { adapterFor, supportedFamilies } from "./llm/adapters.ts";
 import {
@@ -825,8 +825,9 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
   if (!adapter) {
     return { refusal: { error: `The app doesn't support ${FAMILY_NAMES[config.family]} on ${PROVIDER_NAMES[config.provider]}.`, code: "unsupported", status: 409 } };
   }
-  // On Bedrock, the model string is sent without a routing prefix ("eu.", "global."): Bedrock's Messages API endpoint
-  // refused one (2026-11-08); how it is asked for a routing is open (docs/tasks.md, "Decide the model configs").
+  // On Bedrock the routing is a prefix of the model string sent (llm/index.ts).
+  const geography = MODEL_LIST.regions.find((r) => r.provider === config.provider && r.region === config.region)?.geography;
+  const sentModel = config.provider === "bedrock" ? bedrockModel(config.model, config.routing, geography) : config.model;
 
   const callId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
@@ -841,7 +842,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
   let answer: CallAnswer;
   try {
     const response = await adapter.send({
-      model: config.model,
+      model: sentModel,
       effort: config.effort ?? undefined,
       ...(row.model_id && modelById(MODEL_LIST, row.model_id)?.thinking === "adaptive" ? { adaptiveThinking: true as const } : {}),
       system: request.system,

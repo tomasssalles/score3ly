@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { AnthropicBedrockMantle } from "@anthropic-ai/bedrock-sdk";
+import { AnthropicBedrock } from "@anthropic-ai/bedrock-sdk";
 import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
 import type { ContentBlockParam, Message, MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages";
 import {
@@ -21,9 +21,9 @@ const DEFAULT_MAX_OUTPUT_TOKENS = 64_000;
 // call fails: no fallback to another model.
 export class ClaudeProvider implements LlmProvider {
   readonly id: "anthropic" | "anthropic-vertex" | "anthropic-bedrock";
-  readonly #client: Anthropic | AnthropicVertex | AnthropicBedrockMantle;
+  readonly #client: Anthropic | AnthropicVertex | AnthropicBedrock;
 
-  constructor(id: ClaudeProvider["id"], client: Anthropic | AnthropicVertex | AnthropicBedrockMantle) {
+  constructor(id: ClaudeProvider["id"], client: Anthropic | AnthropicVertex | AnthropicBedrock) {
     this.id = id;
     this.#client = client;
   }
@@ -74,9 +74,10 @@ export function vertexClaudeProvider(options: {
   return new ClaudeProvider("anthropic-vertex", client);
 }
 
-// Amazon Bedrock, through its Messages API endpoint ("Mantle"), with either a Bedrock API key or an AWS access key
-// pair (requests are then signed with AWS Signature V4). `region` is where requests are processed, e.g.
-// "eu-central-1". The model is Bedrock's own ID for it, as the user enters it.
+// Amazon Bedrock, through `bedrock-runtime` (InvokeModel; not the Messages API endpoint, "Mantle": docs/llm.md, "Calling
+// the providers"), with either a Bedrock API key or an AWS access key pair (requests are then signed with AWS Signature
+// V4). `region` is the region requests are sent to, e.g. "eu-central-1". The model is Bedrock's ID for it, with the
+// routing's prefix where there is one (an inference profile, `bedrockModel`).
 export function bedrockClaudeProvider(options: {
   region: string;
   apiKey?: string;
@@ -91,13 +92,12 @@ export function bedrockClaudeProvider(options: {
   if (!oneWay || (keyPair && (!accessKeyId || !secretAccessKey))) {
     throw new LlmError("auth", "Bedrock needs either an API key or an access key pair (key ID and secret), not both.");
   }
-  const client = new AnthropicBedrockMantle({
-    awsRegion: region,
-    // Explicit credentials only: the client would otherwise look for them in the environment and AWS's files.
-    ...(apiKey !== undefined ? { apiKey } : { awsAccessKey: accessKeyId, awsSecretAccessKey: secretAccessKey }),
-    fetch: options.fetch,
-    maxRetries: options.maxRetries,
-  });
+  // Explicit credentials only: the client would otherwise look for them in the environment and AWS's files.
+  const common = { awsRegion: region, fetch: options.fetch, maxRetries: options.maxRetries };
+  const client =
+    apiKey !== undefined
+      ? new AnthropicBedrock({ ...common, apiKey })
+      : new AnthropicBedrock({ ...common, awsAccessKey: accessKeyId!, awsSecretKey: secretAccessKey! });
   return new ClaudeProvider("anthropic-bedrock", client);
 }
 

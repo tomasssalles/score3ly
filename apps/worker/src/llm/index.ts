@@ -6,7 +6,7 @@ import { FakeProvider } from "./fake.ts";
 import { GoogleProvider, VertexGeminiProvider } from "./google.ts";
 import type { Fetch, LlmProvider } from "./types.ts";
 import { adapterFor } from "./adapters.ts";
-import type { Family, Provider } from "./models.ts";
+import type { Family, Provider, Routing } from "./models.ts";
 
 export * from "./types.ts";
 
@@ -59,4 +59,13 @@ export function createAdapter(settings: AdapterSettings, options: { fetch?: Fetc
     : adapter === "anthropic-vertex" || adapter === "google-vertex" ? { provider: adapter, serviceAccount: secrets.serviceAccount!, ...where }
     : { provider: adapter };
   return createProvider(config as ProviderConfig, options);
+}
+
+// The model string Bedrock is sent for a routing: on `bedrock-runtime`, global and geographic routing go through AWS's
+// inference profiles, named by the model ID with a prefix, "global." or the geography's ("eu.", "us.", "jp.", "au.");
+// in-region routing sends the model ID alone (Anthropic's page "Claude on Amazon Bedrock (Opus 4.6 and earlier)").
+export function bedrockModel(model: string, routing: Routing | null, geography: string | undefined): string {
+  if (routing === "global") return `global.${model}`;
+  if (routing === "geographic" && geography) return `${geography.toLowerCase()}.${model}`;
+  return model;
 }
