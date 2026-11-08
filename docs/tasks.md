@@ -618,10 +618,28 @@ The current rule and its reasons (`docs/overview.md` §5.5, "Extra reviews are d
 ### OpenRouter support and testing
 `#optional`
 
-OpenRouter as a fifth provider (discussed 2026-11-06): one API key and one OpenAI-compatible API (`/api/v1/chat/completions`, a plain `fetch`, no SDK) for Claude, Gemini and other families, with images (`image_url`), schema-constrained output (`response_format` with `json_schema`), reasoning effort (`reasoning`), Claude's cache marks (`cache_control`) passed through, and each answer's tokens, cached tokens and `cost` in its usage. Why: Claude in the EU without the hyperscalers' setup (Vertex AI refused the project's quota for Claude, 2026-11-06).
-- **EU residency:** `https://eu.openrouter.ai/api/v1` decrypts and serves in Europe (EU/EEA, UK, Switzerland), and fails rather than leaving it; a data-region guardrail can enforce it. Business plan only: no contract, no minimum, an 8% fee on credit purchases (5.5% otherwise, per third parties). In the EU, its list (2026-11-06) has Claude Opus, Sonnet and Haiku 5.5 and the 4.5 to 4.8 models (through Bedrock and Google), but of Gemini only 3.1 and 3.5 Flash-Lite. Account and billing data may be kept in the US (a DPA with the EU's standard contractual clauses).
-- **Prices:** the providers' own, without markup (in the EU their regional prices), plus the fee on credits: Opus 5.5 in the EU about $4.75 input and $23.76 output per million tokens, against $4.40 and $22 on Bedrock directly. Its public models API lists every model's prices (the EU domain only the models served there), for a gathering script.
-- **To check with real calls:** how well its translation keeps the effort levels and the schema for Claude; pinning the provider and turning off fallbacks (provider routing), so that the chosen model on the chosen platform answers or the call fails; its prompt and data policies per request (`zdr`, `data_collection: "deny"`); whether its `cost` agrees with the list's.
+OpenRouter as a fifth provider (discussed 2026-11-06 and 2026-11-08): one API key and one OpenAI-compatible API (`/api/v1/chat/completions`, a plain `fetch`, no SDK) for Claude, Gemini and other families. Why: Claude in the EU without the hyperscalers' setup.
+
+**Decided by the project owner (2026-11-08):**
+- **The model matters, not who serves it:** no pinning of the provider behind OpenRouter; its fallbacks between providers of the same model are fine. Never its model fallbacks (`models`), so only the model asked can answer, which the adapter's check confirms.
+- **Every OpenRouter config is "priced by the provider"** (a new pricing kind), listed models and models added by hand alike: each call's cost is the one OpenRouter reports, plus the fee. Not "unpriced", nor priced as another model.
+- **The settings card can't show the price beforehand:** to be designed (below).
+
+**Found in its docs and API (2026-11-08):**
+- **Cost in every answer:** `usage.cost`, in credits (US dollars), the total charged, always included (the old `usage: {include: true}` is deprecated and does nothing); also `prompt_tokens_details.cached_tokens` (cache reads) and `cache_write_tokens` (Claude), `completion_tokens_details.reasoning_tokens`.
+- **The fee:** 5.5% (Standard) or 8% (Business), on credit purchases, not on inference; inference at the providers' prices without markup. Whether the fee is added to a purchase or taken out of it isn't said outright; the terms refund unused credits apart from the "platform fees", so probably added: a call's cost × 1.055 (or 1.08). Third parties mention a $0.80 minimum per purchase, not on OpenRouter's own pages any more.
+- **Prices differ by provider:** Opus 5.5 on the global host: $4 / $20 per million tokens (input / output) on the global endpoints (Bedrock, Vertex, Azure, Anthropic, Claude on AWS), $4.40 / $22 on the regional ones, $8 / $40 on Anthropic's `fast` tier (only when asked for: tier endpoints aren't in the normal routing). OpenRouter picks by cost and speed, so a global call may be served regionally; the reported `cost` follows. `/api/v1/models/<id>/endpoints` lists every provider's prices; `/api/v1/models` one price per model (the lowest).
+- **EU:** `https://eu.openrouter.ai/api/v1`, Business only, the same key; fails rather than leaving the EU (EU/EEA, UK, Switzerland); some account data stays in the US. Its own models API (69 models, 2026-11-08) with EU prices (Opus 5.5 $4.40 / $22): Claude Opus, Sonnet and Haiku 5.5, Opus 5, Fable 5, Sonnet 5, the 4.5 to 4.8 models; of Gemini only 3.5 and 3.1 Flash-Lite.
+- **Model names:** `anthropic/claude-opus-5.5`, with a dated `canonical_slug` (`anthropic/claude-opus-5.5-20260921`). The models API also gives each model's `reasoning.supported_efforts`, so a model added by hand can get its efforts from it.
+- **Structured outputs are decided per provider:** send `provider: {require_parameters: true}`, so only providers that support `response_format` serve the call (not a pin). Claude's `cache_control` marks pass through, with sticky routing to the same provider to keep cache hits. Effort: `reasoning.effort` (`low` to `max`).
+
+**The plan:**
+1. **The adapter:** Chat Completions with images, `response_format` (`json_schema`), `reasoning.effort`, `cache_control`, `require_parameters`; reads tokens, cache reads and writes and `cost`, and records the provider that served the call. The model check accepts the id or its canonical slug.
+2. **The config:** provider OpenRouter, an API key, an account type (Standard or Business: the fee), and a region only for Business (global or EU).
+3. **The pricing kind "priced by the provider":** cost = reported `cost` × (1 + fee); an answer without one is a call of unknown cost.
+4. **The list without prices:** a gathering of both hosts' models APIs (ids, efforts, which models the EU serves), mapped onto `claude-models.json` and `gemini-models.json`; a listed model is supported where OpenRouter offers it.
+5. **The settings card:** "Priced per call by OpenRouter, plus its fee on credit purchases", and where it can be read, the providers' range from the endpoints API, read live by the Worker and kept a day ("$4–4.40 input, $20–22 output per million tokens"), for models added by hand too.
+6. **Tests** with a fake `fetch`, then a real call. **To see on it:** whether the answer names the id or the canonical slug; whether `cost` agrees with tokens × the serving provider's price.
 
 ### Try a run on a real phone that goes to sleep or to another app
 `#manual-test`
