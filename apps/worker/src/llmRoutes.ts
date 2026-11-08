@@ -5,6 +5,7 @@
 
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
+import { fetchPriceRange } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import { costOf, type Price } from "./llm/prices.ts";
 import { adapterFor, supportedFamilies } from "./llm/adapters.ts";
@@ -584,6 +585,16 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/models", (c) => c.json(modelOptions(MODEL_LIST, devProviders(c.env))));
 
   app.get("/api/secrets", (c) => c.json({ names: secretNames(c.env) }));
+
+  // A guide to what a config's model costs where the provider prices each call itself (OpenRouter: docs/llm.md,
+  // "OpenRouter"): the range of its providers' input and output prices, or null.
+  app.get("/api/model-configs/:id/price-range", async (c) => {
+    const row = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(c.req.param("id")).first<ModelConfigRow>();
+    if (!row) return c.json({ error: "no such model config" }, 404);
+    if (row.provider !== "openrouter") return c.json({ range: null });
+    const { model } = resolvedModel(row);
+    return c.json({ range: model ? await fetchPriceRange(model, row.region) : null });
+  });
 
   // When the list of models and prices was collected (llm/modelList.ts), for the About page.
   app.get("/api/prices", (c) => c.json({ asOf: MODEL_LIST.asOf, mock: MODEL_LIST.mock ?? false }));

@@ -4017,3 +4017,9 @@ textarea:focus::placeholder {
 .test-result.failed {
   color: var(--danger);
 }
+
+/* The guide price under an OpenRouter config's pricing (SettingsPage.tsx, PriceRangeHint). */
+.model-config-range {
+  display: block;
+  margin-top: 2px;
+}

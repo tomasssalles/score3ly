@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createProvider } from "./index.ts";
+import { fetchPriceRange, priceRange } from "./openrouter.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 
 type Call = { url: string; headers: Headers; body: any };
@@ -102,4 +103,22 @@ test("errors: an HTTP error by its status, an error after a 200, no key", async 
   await assert.rejects(provider([], { error: { code: 429, message: "slow down" } }, "", 429).send(request), (e: LlmError) => e.kind === "rate_limit");
   await assert.rejects(provider([], { error: { code: 502, message: "upstream" } }).send(request), (e: LlmError) => e.kind === "server" && e.status === 502);
   assert.throws(() => createProvider({ provider: "openrouter", apiKey: "", region: "" }), LlmError);
+});
+
+test("the price range: lowest and highest per million tokens among the providers, without the tiers asked for", async () => {
+  const endpoints = [
+    { tag: "amazon-bedrock", pricing: { prompt: "0.000004", completion: "0.00002" } },
+    { tag: "amazon-bedrock/eu-west-1", pricing: { prompt: "0.0000044", completion: "0.000022" } },
+    { tag: "anthropic/fast", pricing: { prompt: "0.000008", completion: "0.00004" } },
+  ];
+  assert.deepEqual(priceRange(endpoints), { input: [4, 4.4], output: [20, 22] });
+  assert.equal(priceRange([]), null);
+  const calls: string[] = [];
+  const fake = (async (input: RequestInfo | URL) => {
+    calls.push(String(input));
+    return new Response(JSON.stringify({ data: { endpoints } }));
+  }) as typeof fetch;
+  assert.deepEqual(await fetchPriceRange("anthropic/claude-opus-5.5", "eu", fake, 1000), { input: [4, 4.4], output: [20, 22] });
+  await fetchPriceRange("anthropic/claude-opus-5.5", "eu", fake, 2000); // kept
+  assert.deepEqual(calls, ["https://eu.openrouter.ai/api/v1/models/anthropic/claude-opus-5.5/endpoints"]);
 });

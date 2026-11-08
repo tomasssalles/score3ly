@@ -148,3 +148,41 @@ export class OpenRouterProvider implements LlmProvider {
     return fromCompletion(body, request);
   }
 }
+
+// A guide to what a model costs on OpenRouter (docs/llm.md, "OpenRouter"): the lowest and highest input and output
+// prices, US dollars per million tokens, among the providers that run it there (its endpoints API, public), without the
+// tiers only a request asks for (`…/fast`, `…/priority`, …). Null where OpenRouter doesn't have the model or can't be
+// reached. Only a guide: each call costs what its answer says.
+export type PriceRange = { input: [number, number]; output: [number, number] };
+
+const TIERS = new Set(["fast", "priority", "turbo", "flex"]);
+
+export function priceRange(endpoints: { tag?: string; pricing?: { prompt?: string; completion?: string } }[]): PriceRange | null {
+  const perMillion = (v: string | undefined) => (v === undefined ? NaN : Math.round(Number(v) * 1e6 * 1e6) / 1e6);
+  const prices = endpoints
+    .filter((e) => !TIERS.has(e.tag?.split("/").at(-1) ?? ""))
+    .map((e) => [perMillion(e.pricing?.prompt), perMillion(e.pricing?.completion)] as const)
+    .filter(([i, o]) => Number.isFinite(i) && Number.isFinite(o));
+  if (prices.length === 0) return null;
+  const span = (xs: number[]): [number, number] => [Math.min(...xs), Math.max(...xs)];
+  return { input: span(prices.map(([i]) => i)), output: span(prices.map(([, o]) => o)) };
+}
+
+// Kept a day per host and model, in the Worker's memory.
+const ranges = new Map<string, { at: number; range: PriceRange | null }>();
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export async function fetchPriceRange(model: string, region: string, fetchFn: Fetch = (input, init) => fetch(input, init), now = Date.now()): Promise<PriceRange | null> {
+  const key = `${region} ${model}`;
+  const kept = ranges.get(key);
+  if (kept && now - kept.at < DAY_MS) return kept.range;
+  let range: PriceRange | null = null;
+  try {
+    const res = await fetchFn(`${openRouterBase(region)}/models/${model}/endpoints`);
+    if (res.ok) range = priceRange(((await res.json()) as { data?: { endpoints?: [] } }).data?.endpoints ?? []);
+  } catch {
+    return null; // unreachable: not kept, so the next look tries again
+  }
+  ranges.set(key, { at: now, range });
+  return range;
+}

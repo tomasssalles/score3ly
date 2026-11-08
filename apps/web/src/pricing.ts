@@ -21,6 +21,12 @@ export function pricingText(config: ModelConfig): string {
   return price.borrowedFrom ? `${text} (priced as ${price.borrowedFrom})` : text;
 }
 
+// A guide price range: "$4–4.40 input, $20–22 output per million tokens" (one price where both ends are the same).
+export function rangeText(range: { input: [number, number]; output: [number, number] }): string {
+  const span = ([low, high]: [number, number]) => (low === high ? dollars(low) : `${dollars(low)}–${dollars(high).slice(1)}`);
+  return `${span(range.input)} input, ${span(range.output)} output per million tokens`;
+}
+
 // A share as a percentage: 0.055 → "5.5%".
 export function percent(share: number): string {
   return `${Math.round(share * 1000) / 10}%`;

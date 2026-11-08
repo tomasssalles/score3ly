@@ -7,6 +7,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import {
   fetchModelConfigs,
   fetchModelOptions,
+  fetchPriceRange,
   fetchSecretNames,
   fetchSettings,
   deleteModelConfig,
@@ -15,6 +16,7 @@ import {
   putSetting,
   type ModelConfig,
   type ModelOptions,
+  type PriceRange,
   type Settings,
 } from "./api";
 import { NewModelConfig } from "./NewModelConfig";
@@ -22,7 +24,7 @@ import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { CACHE_LIMITS_MB, cacheLimitMb, formatSize, setCacheLimitMb } from "./cacheLru";
 import { useHost } from "./host";
-import { ACCOUNT_NAMES, pricingText } from "./pricing";
+import { ACCOUNT_NAMES, pricingText, rangeText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
 import { ChevronDownIcon, MoreIcon, PlusIcon } from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -408,7 +410,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
               </dd>
               <dt>Effort</dt>
               <dd>{config.effort ?? "Default"}</dd>
-              {config.region && <Fact label="region" value={config.region} />}
+              {config.region && <Fact label="region" value={config.provider === "openrouter" && config.region === "eu" ? "EU" : config.region} />}
               {config.routing && (
                 <>
                   <dt>Routing</dt>
@@ -423,7 +425,10 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
                 </>
               )}
               <dt>Pricing</dt>
-              <dd>{pricingText(config)}</dd>
+              <dd>
+                {pricingText(config)}
+                {config.price.kind === "provider" && <PriceRangeHint configId={config.id} />}
+              </dd>
               {Object.entries(config.secrets).map(([field, secret]) => (
                 <Fact key={`s-${field}`} label={field} value={secret} hint={host === "cloudflare" ? "Worker secret" : "Secret"} />
               ))}
@@ -433,6 +438,20 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
       </ul>
     </section>
   );
+}
+
+// What a model priced by its provider costs among those who run it, read from the provider when the card shows
+// (docs/llm.md, "OpenRouter"): only a guide, each call costs what its answer says. Nothing where it can't be read.
+function PriceRangeHint({ configId }: { configId: string }) {
+  const [range, setRange] = useState<PriceRange | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetchPriceRange(configId).then((r) => live && setRange(r), () => {});
+    return () => {
+      live = false;
+    };
+  }, [configId]);
+  return range ? <span className="field-hint model-config-range">Currently {rangeText(range)}, depending on who runs it.</span> : null;
 }
 
 function Fact({ label, value, hint }: { label: string; value: string; hint?: string }) {

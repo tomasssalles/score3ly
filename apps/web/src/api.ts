@@ -593,6 +593,14 @@ export async function fetchModelOptions(): Promise<ModelOptions> {
   return (await checked(await fetch("/api/models"))).json();
 }
 
+// A guide to what a config's model costs where the provider prices each call itself (OpenRouter): the lowest and
+// highest input and output prices per million tokens among those who run it, or null.
+export type PriceRange = { input: [number, number]; output: [number, number] };
+
+export async function fetchPriceRange(configId: string): Promise<PriceRange | null> {
+  return ((await (await checked(await fetch(`/api/model-configs/${configId}/price-range`))).json()) as { range: PriceRange | null }).range;
+}
+
 // The names of the Worker's secrets (never their values), for the secret pickers.
 export async function fetchSecretNames(): Promise<string[]> {
   return ((await (await checked(await fetch("/api/secrets"))).json()) as { names: string[] }).names;
