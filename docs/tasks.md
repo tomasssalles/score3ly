@@ -608,6 +608,11 @@ OpenRouter as a fifth provider (discussed 2026-11-06 and 2026-11-08): one API ke
 5. ✓ **The settings card** (done 2026-11-08; `ProviderPricing` in `SettingsPage.tsx`, `rangeText` in `pricing.ts`, `/api/model-configs/<id>/price-range`, kept a day in the Worker's memory): the four prices as ranges among those who run the model, read from the endpoints API, **with the fee included**, and "(including OpenRouter's 5.5% fee on credit purchases; the price depends on who runs the model)"; "Priced per call by OpenRouter, plus its 5.5% fee on credit purchases" while the range isn't there or can't be read.
 6. ✓ **Tests** with a fake `fetch` (done 2026-11-08). **Left, by the project owner, with real requests and a real credit purchase:** that a call's reported `cost` agrees with its tokens × the price of the provider that ran it; that the fee is added on top of a purchase (so that cost × (1 + fee) is what the call really cost), and how much it was; that the card's range with the fee matches what calls cost; whether the answer names the model by its id or its dated slug; that the input tokens are right (the cached ones taken out of `prompt_tokens`).
 
+### OpenRouter's prices in the config form
+`#optional`
+
+`docs/llm.md`, "Configs" (priced by the provider): the settings card shows the range of an OpenRouter model's four prices among the providers that run it, with the fee included (`/api/model-configs/<id>/price-range`). The create and clone forms could show the same for the model picked, listed or unlisted (once its identifier is typed), at the form's region and with the fee of the account picked: the Worker's lookup taking a model string and a region instead of a config's id (`fetchPriceRange` in `apps/worker/src/llm/openrouter.ts` already does), and the form asking again when the model, the region or the account changes (debounced while the identifier is typed). An unlisted identifier OpenRouter doesn't know could be said there too ("OpenRouter has no model …"), before the config is saved.
+
 ### Try a run on a real phone that goes to sleep or to another app
 `#manual-test`
 
