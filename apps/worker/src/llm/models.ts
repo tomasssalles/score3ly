@@ -9,8 +9,21 @@ import type { Price } from "./prices.ts";
 import { supportedFamilies } from "./adapters.ts";
 
 // Providers are platforms (decided 2026-11-05); "fake" ships with the app, "fake-dev" is for development (fake.ts).
-export type Provider = "anthropic" | "bedrock" | "ai-studio" | "vertex" | "fake" | "fake-dev";
-export const PROVIDERS: Provider[] = ["anthropic", "bedrock", "ai-studio", "vertex", "fake", "fake-dev"];
+export type Provider = "anthropic" | "bedrock" | "ai-studio" | "vertex" | "openrouter" | "fake" | "fake-dev";
+export const PROVIDERS: Provider[] = ["anthropic", "bedrock", "ai-studio", "vertex", "openrouter", "fake", "fake-dev"];
+
+// Providers whose answers say what each call cost (docs/llm.md, "Priced by the provider"): their configs are priced by
+// the provider, whatever the model, and the list has no prices for them, only where they offer each model.
+export const PRICED_BY_PROVIDER: Provider[] = ["openrouter"];
+
+// An OpenRouter account's plan (docs/llm.md, "OpenRouter"): its fee on credit purchases, added to every call's
+// reported cost; and only Business may route in the EU ("eu.openrouter.ai").
+export type Account = "standard" | "business";
+export const ACCOUNTS: Account[] = ["standard", "business"];
+export const ACCOUNT_FEES: Record<Account, number> = { standard: 0.055, business: 0.08 };
+export const ACCOUNT_NAMES: Record<Account, string> = { standard: "Standard", business: "Business" };
+// The regions only a Business account may use.
+export const BUSINESS_REGIONS = ["eu"];
 
 // As people call them: in the UI and in the default config names.
 export const PROVIDER_NAMES: Record<Provider, string> = {
@@ -18,6 +31,7 @@ export const PROVIDER_NAMES: Record<Provider, string> = {
   bedrock: "Bedrock",
   "ai-studio": "AI Studio",
   vertex: "Vertex AI",
+  openrouter: "OpenRouter",
   fake: "Fake",
   "fake-dev": "Fake (dev)",
 };
@@ -80,7 +94,9 @@ export function effortsOf(family: Family, model: ModelEntry | null): Effort[] {
 export type PriceEntry = Place & {
   model: string; // a ModelEntry's id
   provider: Provider;
-  price: Price; // US dollars per million tokens
+  // US dollars per million tokens; null where the provider prices each call itself (PRICED_BY_PROVIDER): the entry
+  // only says that the model is offered there.
+  price: Price | null;
 };
 
 export type ModelList = {
@@ -110,7 +126,12 @@ export function modelByString(list: ModelList, provider: Provider, string: strin
   return list.models.find((m) => m.strings[provider] === string) ?? null;
 }
 
-// A listed model's price on a provider at a place, or null where the list has none.
+// Whether the list offers a listed model on a provider at a place: with a price, or priced by the provider.
+export function offered(list: ModelList, model: string, provider: Provider, place: Place): boolean {
+  return list.prices.some((p) => p.model === model && p.provider === provider && samePlace(p, place));
+}
+
+// A listed model's price on a provider at a place, or null where the list has none (or the provider prices each call).
 export function listedPrice(list: ModelList, model: string, provider: Provider, place: Place): Price | null {
   return list.prices.find((p) => p.model === model && p.provider === provider && samePlace(p, place))?.price ?? null;
 }
@@ -136,8 +157,9 @@ export function modelsOf(list: ModelList, provider: Provider, place?: Place): Mo
 export type ConfigModel = { modelId: string } | { modelString: string; family: Family };
 
 // How a config is priced (docs/llm.md, "Configs"): from the list, as its own model or as the reference's; free (the
-// free-tier mark); or unpriced.
-export type Pricing = { kind: "list"; reference: string | null } | { kind: "free" } | { kind: "unpriced" };
+// free-tier mark); unpriced; or by the provider, whose answers say what each call cost (PRICED_BY_PROVIDER: every
+// config there, and only there).
+export type Pricing = { kind: "list"; reference: string | null } | { kind: "free" } | { kind: "unpriced" } | { kind: "provider" };
 
 export type PricedConfig = {
   provider: Provider;
@@ -181,11 +203,12 @@ export type ConfigPrice =
   | { kind: "priced"; price: Price; borrowedFrom: string | null }
   | { kind: "free" }
   | { kind: "unpriced" }
+  | { kind: "provider" }
   | { kind: "missing" };
 
 export function priceOfConfig(list: ModelList, config: PricedConfig): ConfigPrice {
   const { pricing } = config;
-  if (pricing.kind === "free" || pricing.kind === "unpriced") return { kind: pricing.kind };
+  if (pricing.kind === "free" || pricing.kind === "unpriced" || pricing.kind === "provider") return { kind: pricing.kind };
   const own = "modelId" in config.model ? config.model.modelId : null;
   const from = pricing.reference ?? own;
   const price = from === null ? null : listedPrice(list, from, config.provider, config.place);
@@ -205,7 +228,10 @@ export function priceOfConfig(list: ModelList, config: PricedConfig): ConfigPric
 export function unsupportedReason(list: ModelList, config: PricedConfig): string | null {
   const where = `${PROVIDER_NAMES[config.provider]}${config.place.region ? ` in ${config.place.region}` : ""}${config.place.routing ? ` (${config.place.routing} routing)` : ""}`;
   if ("modelId" in config.model) {
-    if (listedPrice(list, config.model.modelId, config.provider, config.place)) return null;
+    const supported = PRICED_BY_PROVIDER.includes(config.provider)
+      ? offered(list, config.model.modelId, config.provider, config.place)
+      : listedPrice(list, config.model.modelId, config.provider, config.place) !== null;
+    if (supported) return null;
     const name = modelById(list, config.model.modelId)?.name ?? config.model.modelId;
     return `uses ${name} on ${where}, which the app no longer supports`;
   }
@@ -276,7 +302,9 @@ export function listProblems(list: ModelList): string[] {
       problems.push(`A price for ${where}, but the model has no string there.`);
     if (!placesOfProvider(list, p.provider).some((place) => samePlace(place, p)))
       problems.push(`A price for ${where}, a place not in the list's regions.`);
-    const values = [p.price.input, p.price.output, p.price.cacheRead, p.price.cacheWrite];
+    if ((p.price === null) !== PRICED_BY_PROVIDER.includes(p.provider))
+      problems.push(p.price === null ? `No price for ${where}, a provider the list prices.` : `A price for ${where}, a provider that prices each call itself.`);
+    const values = p.price ? [p.price.input, p.price.output, p.price.cacheRead, p.price.cacheWrite] : [];
     if (values.some((v) => !Number.isFinite(v) || v < 0))
       problems.push(`A price for ${where} isn't a number of dollars.`);
   }

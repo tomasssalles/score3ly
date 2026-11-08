@@ -10,7 +10,7 @@
     "$schema": { "type": "string" },
     "provider": {
       "description": "The provider (a platform), as the app's code names it.",
-      "enum": ["anthropic", "bedrock", "ai-studio", "vertex", "fake", "fake-dev"]
+      "enum": ["anthropic", "bedrock", "ai-studio", "vertex", "openrouter", "fake", "fake-dev"]
     },
     "collectedAt": {
       "description": "The day the information was collected (YYYY-MM-DD). The list's date is the oldest of its files'.",
@@ -85,7 +85,8 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["model", "region", "routing", "input", "output", "cacheRead", "cacheWrite", "source"],
+        "description": "A model's price at a place, or, for a provider that prices each call itself (OpenRouter), without the four numbers: only where it offers the model.",
+        "required": ["model", "region", "routing", "source"],
         "additionalProperties": false,
         "properties": {
           "model": { "description": "A model's id, from this file's models.", "type": "string" },

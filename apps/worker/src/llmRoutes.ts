@@ -9,6 +9,9 @@ import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MA
 import { costOf, type Price } from "./llm/prices.ts";
 import { adapterFor, supportedFamilies } from "./llm/adapters.ts";
 import {
+  ACCOUNT_FEES,
+  ACCOUNTS,
+  BUSINESS_REGIONS,
   configBaseName,
   EFFORTS,
   effortsOf,
@@ -16,14 +19,17 @@ import {
   listedPrice,
   modelById,
   modelByString,
+  offered,
   placesOf,
   placesOfProvider,
   priceOfConfig,
+  PRICED_BY_PROVIDER,
   unsupportedReason,
   PROVIDER_NAMES,
   PROVIDERS,
   resolveModel,
   samePlace,
+  type Account,
   type ConfigModel,
   type Family,
   type ModelList,
@@ -43,6 +49,7 @@ const SECRETS: Record<string, string[][]> = {
   "anthropic-bedrock": [["apiKey"], ["accessKeyId", "secretAccessKey"]],
   google: [["apiKey"]],
   "google-vertex": [["serviceAccount"]],
+  openrouter: [["apiKey"]],
   fake: [[]],
   "fake-dev": [[]],
 };
@@ -65,11 +72,18 @@ export type ModelConfig = {
   region: string; // "" for providers without regions: not part of any cache key
   routing: Routing | null; // Bedrock only
   project: string | null; // Vertex AI only
+  account: Account | null; // OpenRouter only: the plan, which sets the fee on credits and allows the EU
   secrets: Record<string, string>; // field → name of a Worker secret: not part of any cache key
   pricing: Pricing;
   // What its calls cost now, from the list: its prices (perhaps borrowed: the model's name for people), free, unpriced,
-  // or missing (the list has no price there any more).
-  price: { kind: "priced"; price: Price; borrowedFrom: string | null } | { kind: "free" } | { kind: "unpriced" } | { kind: "missing" };
+  // priced by the provider (each answer says; plus `fee`, the share added for the provider's fee on credits), or
+  // missing (the list has no price there any more).
+  price:
+    | { kind: "priced"; price: Price; borrowedFrom: string | null }
+    | { kind: "free" }
+    | { kind: "unpriced" }
+    | { kind: "provider"; fee: number }
+    | { kind: "missing" };
   freeTier: boolean; // pricing "free": its calls cost nothing and don't count towards the spending cap
   createdAt: string;
   deletedAt: string | null; // a deleted config is never used again: a stage that names one can't start
@@ -86,6 +100,7 @@ export type ModelConfigRow = {
   region: string;
   routing: Routing | null;
   project: string | null;
+  account: Account | null;
   secrets_json: string;
   pricing_kind: Pricing["kind"];
   pricing_reference: string | null;
@@ -125,8 +140,22 @@ function pricingOf(row: ModelConfigRow): Pricing {
   return row.pricing_kind === "list" ? { kind: "list", reference: row.pricing_reference } : { kind: row.pricing_kind };
 }
 
+// A call's cost where the provider reports it: what the answer says, raised by the fee on credits (OpenRouter's is
+// charged when credits are bought, on top of them, so a dollar of credits costs 1 + fee); unknown (null) where the
+// answer doesn't say.
+export function providerCost(reportedUsd: number | undefined, fee: number): number | null {
+  return reportedUsd === undefined ? null : Math.round(reportedUsd * (1 + fee) * 1_000_000) / 1_000_000;
+}
+
+// The share a call's reported cost is raised by for the provider's fee on credits (OpenRouter's, by the account's
+// plan), or 0.
+export function feeOf(row: Pick<ModelConfigRow, "account">): number {
+  return row.account ? ACCOUNT_FEES[row.account] : 0;
+}
+
 function configPrice(row: ModelConfigRow, pricing: Pricing, list: ModelList = MODEL_LIST): ModelConfig["price"] {
   const priced = priceOfConfig(list, { provider: row.provider, model: configModel(row), place: { region: row.region, routing: row.routing }, pricing });
+  if (priced.kind === "provider") return { kind: "provider", fee: feeOf(row) };
   if (priced.kind !== "priced") return priced;
   return { ...priced, borrowedFrom: priced.borrowedFrom ? (modelById(list, priced.borrowedFrom)?.name ?? priced.borrowedFrom) : null };
 }
@@ -148,6 +177,7 @@ export function toModelConfig(row: ModelConfigRow): ModelConfig {
     region: row.region,
     routing: row.routing,
     project: row.project,
+    account: row.account ?? null,
     secrets: JSON.parse(row.secrets_json),
     pricing,
     price: configPrice(row, pricing),
@@ -186,7 +216,7 @@ function settingProblem(key: string, value: unknown): string | null {
 // What a model config's body must be (docs/llm.md, "Configs"). Returns the problem, or null.
 export function configProblem(body: Record<string, unknown> | null, list: ModelList = MODEL_LIST): string | null {
   if (!body) return "expected a JSON body";
-  const { name, provider, modelId, modelString, family, effort, region, routing, project, secrets, pricing } = body;
+  const { name, provider, modelId, modelString, family, effort, region, routing, project, account, secrets, pricing } = body;
   if (name !== undefined && name !== null && typeof name !== "string") return "'name' must be text";
   if (typeof name === "string" && name.trim().length > MAX_NAME_LENGTH) return `'name' must be at most ${MAX_NAME_LENGTH} characters`;
   if (!PROVIDERS.includes(provider as Provider)) return `'provider' must be one of ${PROVIDERS.join(", ")}`;
@@ -230,11 +260,18 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
   if (!placesOfProvider(list, p).some((other) => samePlace(other, place))) {
     return `${PROVIDER_NAMES[p]} has no region ${place.region || '""'}${place.routing ? ` with ${place.routing} routing` : ""} in the list`;
   }
-  // A listed model only where the list has its price, however the config is priced: elsewhere the app doesn't support it.
-  if (typeof modelId === "string" && modelId !== "" && !listedPrice(list, modelId, p, place)) {
+  // A listed model only where the list offers it (with its price, or priced by the provider), however the config is
+  // priced: elsewhere the app doesn't support it.
+  const byProvider = PRICED_BY_PROVIDER.includes(p);
+  if (typeof modelId === "string" && modelId !== "" && !(byProvider ? offered(list, modelId, p, place) : listedPrice(list, modelId, p, place))) {
     return `The app doesn't support ${modelById(list, modelId)!.name} on ${PROVIDER_NAMES[p]} there: pick another region`;
   }
   if (project !== undefined && project !== null && (p !== "vertex" || typeof project !== "string")) return "'project' is for Vertex AI only";
+  // OpenRouter's account: its plan sets the fee, and only Business may use the EU.
+  if (p === "openrouter") {
+    if (!ACCOUNTS.includes(account as Account)) return `'account' must be one of ${ACCOUNTS.join(", ")} for ${PROVIDER_NAMES[p]}`;
+    if (BUSINESS_REGIONS.includes(place.region) && account !== "business") return `Only a Business account may use ${PROVIDER_NAMES[p]} in the ${place.region.toUpperCase()}`;
+  } else if (account !== undefined && account !== null) return "'account' is for OpenRouter only";
   // The secrets: one of the adapter's sets.
   const isStrings = (v: unknown) =>
     v === undefined || (v !== null && typeof v === "object" && Object.values(v).every((x) => typeof x === "string"));
@@ -244,8 +281,10 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
   if (!sets.some((set) => [...set].sort().join(",") === keys)) {
     return `'secrets' must name ${sets.map((set) => set.join(" and ") || "nothing").join(", or ")} for ${PROVIDER_NAMES[p]}`;
   }
-  // The pricing: from the list (as its own model, or a model the user added as a listed one), free or unpriced.
+  // The pricing: by the provider where it reports each call's cost, and only there; otherwise from the list (as its own
+  // model, or a model the user added as a listed one), free or unpriced.
   const pr = pricing as Partial<Pricing & { reference: unknown }> | undefined;
+  if (byProvider) return pr?.kind === "provider" ? null : `'pricing' must be {kind: provider} for ${PROVIDER_NAMES[p]}: each answer says what it cost`;
   if (!pr || !["list", "free", "unpriced"].includes(pr.kind as string)) return "'pricing' must be {kind: list, free or unpriced}";
   if (pr.kind === "list") {
     const reference = pr.reference ?? null;
@@ -289,7 +328,7 @@ export async function convertAddedConfigs(db: D1Database, list: ModelList = MODE
       statements.push(
         db
           .prepare("UPDATE model_configs SET model_id = ?, model_string = NULL, family = NULL, pricing_kind = ?, pricing_reference = NULL WHERE id = ?")
-          .bind(entry.id, row.pricing_kind === "free" ? "free" : "list", row.id),
+          .bind(entry.id, row.pricing_kind === "free" || row.pricing_kind === "provider" ? row.pricing_kind : "list", row.id),
       );
     }
     statements.push(
@@ -467,13 +506,17 @@ export type ModelOptions = {
     name: string;
     families: { id: Family; name: string; efforts: Effort[]; secrets: string[][] }[];
     places: (Place & { geography?: string })[];
+    // Priced by the provider (OpenRouter): its configs have an account, whose plan sets the fee (`fees`), and
+    // `businessRegions` are the regions only a Business account may use.
+    pricedByProvider?: { fees: Record<Account, number>; businessRegions: string[] };
   }[];
   models: {
     id: string;
     name: string;
     family: Family;
     efforts: Effort[]; // the levels the model takes ([] for none)
-    providers: Partial<Record<Provider, { string: string; places: (Place & { price: Price })[] }>>;
+    // A place's price is null where the provider prices each call itself.
+    providers: Partial<Record<Provider, { string: string; places: (Place & { price: Price | null })[] }>>;
   }[];
 };
 
@@ -496,6 +539,7 @@ export function modelOptions(list: ModelList = MODEL_LIST, dev = false): ModelOp
       places: list.regions
         .filter((r) => r.provider === id)
         .flatMap((r) => (r.routings ?? [null]).map((routing) => ({ region: r.region, routing, ...(r.geography ? { geography: r.geography } : {}) }))),
+      ...(PRICED_BY_PROVIDER.includes(id) ? { pricedByProvider: { fees: ACCOUNT_FEES, businessRegions: BUSINESS_REGIONS } } : {}),
     })),
     models: list.models
       .filter((m) => !m.retired)
@@ -811,7 +855,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
   const priced = priceOfConfig(MODEL_LIST, { provider: config.provider, model: configModel(row), place: { region: config.region, routing: config.routing }, pricing: config.pricing });
   // (Never "missing": that is an unsupported config, refused above.)
   const price = priced.kind === "priced" ? priced.price : null;
-  if (price) {
+  if (price || priced.kind === "provider") {
     const { spendingCapUsd } = await readSettings(db);
     if ((await spentInLastDay(db)) >= spendingCapUsd) {
       return { refusal: { error: `The spending cap has been reached: $${spendingCapUsd.toFixed(2)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap", status: 429 } };
@@ -858,9 +902,14 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
       : response.stop === "max_tokens" ? "cut_off"
       : response.stop === "refusal" ? "refused"
       : "error";
-    // Unpriced: the tokens are known, the cost isn't (a call of unknown cost, docs/llm.md).
-    const costUsd = priced.kind === "unpriced" ? null : price ? costOf(response.usage, price) : 0;
-    const responseSha = await putJson(env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, raw: response.raw });
+    // Unpriced: the tokens are known, the cost isn't (a call of unknown cost, docs/llm.md). Priced by the provider: what
+    // the answer says it cost, plus the fee on credits; unknown where it doesn't say.
+    const fee = feeOf(row);
+    const costUsd =
+      priced.kind === "unpriced" ? null
+      : priced.kind === "provider" ? providerCost(response.reportedCostUsd, fee)
+      : price ? costOf(response.usage, price) : 0;
+    const responseSha = await putJson(env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, ...(response.servedBy ? { servedBy: response.servedBy } : {}), raw: response.raw });
     const error =
       status === "ok" ? null
       : response.unexpectedModel !== undefined ? response.unexpectedModel
@@ -883,7 +932,9 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
         response.usage.cacheReadTokens,
         response.usage.cacheWriteTokens,
         costUsd,
-        price ? JSON.stringify({ ...price, asOf: MODEL_LIST.asOf, ...(priced.kind === "priced" && priced.borrowedFrom ? { borrowedFrom: priced.borrowedFrom } : {}) }) : null,
+        price ? JSON.stringify({ ...price, asOf: MODEL_LIST.asOf, ...(priced.kind === "priced" && priced.borrowedFrom ? { borrowedFrom: priced.borrowedFrom } : {}) })
+        : priced.kind === "provider" ? JSON.stringify({ reportedUsd: response.reportedCostUsd ?? null, fee, account: row.account })
+        : null,
         new Date().toISOString(),
         callId,
       )
@@ -922,7 +973,7 @@ const NAME_TAKEN = "A model config with that name already exists. Names must be 
 
 // Whether two configs do exactly the same: everything but their ids, names and dates.
 function sameValues(a: ModelConfigRow, b: ModelConfigRow): boolean {
-  const keys = ["provider", "model_id", "model_string", "family", "effort", "region", "routing", "project", "pricing_kind", "pricing_reference"] as const;
+  const keys = ["provider", "model_id", "model_string", "family", "effort", "region", "routing", "project", "account", "pricing_kind", "pricing_reference"] as const;
   return keys.every((k) => (a[k] ?? null) === (b[k] ?? null)) && canonicalJson(JSON.parse(a.secrets_json)) === canonicalJson(JSON.parse(b.secrets_json));
 }
 
@@ -940,6 +991,7 @@ function newConfigRow(body: Record<string, unknown>, name: string): ModelConfigR
     region: (body.region as string | undefined) ?? "",
     routing: (body.routing as Routing | undefined) ?? null,
     project: (body.project as string | undefined) || null,
+    account: (body.account as Account | undefined) ?? null,
     secrets_json: canonicalJson(body.secrets ?? {}),
     pricing_kind: pricing.kind,
     pricing_reference: pricing.kind === "list" ? (pricing.reference ?? null) : null,
@@ -951,7 +1003,7 @@ function newConfigRow(body: Record<string, unknown>, name: string): ModelConfigR
 function insertConfig(db: D1Database, row: ModelConfigRow): D1PreparedStatement {
   return db
     .prepare(
-      "INSERT INTO model_configs (id, name, provider, model_id, model_string, family, effort, region, routing, project, secrets_json, pricing_kind, pricing_reference, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO model_configs (id, name, provider, model_id, model_string, family, effort, region, routing, project, account, secrets_json, pricing_kind, pricing_reference, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(
       row.id,
@@ -964,6 +1016,7 @@ function insertConfig(db: D1Database, row: ModelConfigRow): D1PreparedStatement 
       row.region,
       row.routing,
       row.project,
+      row.account,
       row.secrets_json,
       row.pricing_kind,
       row.pricing_reference,

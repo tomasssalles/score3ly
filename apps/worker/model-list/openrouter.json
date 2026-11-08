@@ -1,0 +1,586 @@
+{
+  "$schema": "./schema.json",
+  "provider": "openrouter",
+  "collectedAt": "2026-11-08",
+  "sources": [
+    {
+      "url": "https://openrouter.ai/api/v1/models",
+      "note": "the models offered everywhere, and on the EU host, https://eu.openrouter.ai/api/v1/models: gather/sources/openrouter/models.txt"
+    }
+  ],
+  "models": [
+    {
+      "id": "claude-fable-5-1",
+      "name": "Claude Fable 5.1",
+      "family": "claude",
+      "string": "anthropic/claude-fable-5.1",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-fable-5",
+      "name": "Claude Fable 5",
+      "family": "claude",
+      "string": "anthropic/claude-fable-5",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-opus-5-5",
+      "name": "Claude Opus 5.5",
+      "family": "claude",
+      "string": "anthropic/claude-opus-5.5",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-opus-5",
+      "name": "Claude Opus 5",
+      "family": "claude",
+      "string": "anthropic/claude-opus-5",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-opus-4-8",
+      "name": "Claude Opus 4.8",
+      "family": "claude",
+      "string": "anthropic/claude-opus-4.8",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "thinking": "adaptive"
+    },
+    {
+      "id": "claude-opus-4-7",
+      "name": "Claude Opus 4.7",
+      "family": "claude",
+      "string": "anthropic/claude-opus-4.7",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "thinking": "adaptive"
+    },
+    {
+      "id": "claude-opus-4-6",
+      "name": "Claude Opus 4.6",
+      "family": "claude",
+      "string": "anthropic/claude-opus-4.6",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "max"
+      ],
+      "thinking": "adaptive"
+    },
+    {
+      "id": "claude-opus-4-5",
+      "name": "Claude Opus 4.5",
+      "family": "claude",
+      "string": "anthropic/claude-opus-4.5",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "claude-opus-4-1",
+      "name": "Claude Opus 4.1",
+      "family": "claude",
+      "string": "anthropic/claude-opus-4.1",
+      "efforts": []
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "name": "Claude Sonnet 5.5",
+      "family": "claude",
+      "string": "anthropic/claude-sonnet-5.5",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-sonnet-5",
+      "name": "Claude Sonnet 5",
+      "family": "claude",
+      "string": "anthropic/claude-sonnet-5",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "name": "Claude Sonnet 4.6",
+      "family": "claude",
+      "string": "anthropic/claude-sonnet-4.6",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "max"
+      ],
+      "thinking": "adaptive"
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "name": "Claude Sonnet 4.5",
+      "family": "claude",
+      "string": "anthropic/claude-sonnet-4.5",
+      "efforts": []
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "name": "Claude Haiku 5.5",
+      "family": "claude",
+      "string": "anthropic/claude-haiku-5.5",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "name": "Claude Haiku 4.5",
+      "family": "claude",
+      "string": "anthropic/claude-haiku-4.5",
+      "efforts": []
+    },
+    {
+      "id": "gemini-4-argon",
+      "name": "Gemini 4 Argon",
+      "family": "gemini",
+      "string": "google/gemini-4-argon",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-3-8-flash",
+      "name": "Gemini 3.8 Flash",
+      "family": "gemini",
+      "string": "google/gemini-3.8-flash",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-3-6-flash",
+      "name": "Gemini 3.6 Flash",
+      "family": "gemini",
+      "string": "google/gemini-3.6-flash",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-3-7-flash",
+      "name": "Gemini 3.7 Flash",
+      "family": "gemini",
+      "string": "google/gemini-3.7-flash",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-3-5-flash",
+      "name": "Gemini 3.5 Flash",
+      "family": "gemini",
+      "string": "google/gemini-3.5-flash",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-3-5-flash-lite",
+      "name": "Gemini 3.5 Flash-Lite",
+      "family": "gemini",
+      "string": "google/gemini-3.5-flash-lite",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-3-1-flash-lite",
+      "name": "Gemini 3.1 Flash-Lite",
+      "family": "gemini",
+      "string": "google/gemini-3.1-flash-lite",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-3-1-pro-preview",
+      "name": "Gemini 3.1 Pro Preview",
+      "family": "gemini",
+      "string": "google/gemini-3.1-pro-preview",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-3-flash-preview",
+      "name": "Gemini 3 Flash Preview",
+      "family": "gemini",
+      "string": "google/gemini-3-flash-preview",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-2-5-pro",
+      "name": "Gemini 2.5 Pro",
+      "family": "gemini",
+      "string": "google/gemini-2.5-pro",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-2-5-flash",
+      "name": "Gemini 2.5 Flash",
+      "family": "gemini",
+      "string": "google/gemini-2.5-flash",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "gemini-2-5-flash-lite",
+      "name": "Gemini 2.5 Flash-Lite",
+      "family": "gemini",
+      "string": "google/gemini-2.5-flash-lite",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "region": "",
+      "routings": null
+    },
+    {
+      "region": "eu",
+      "routings": null
+    }
+  ],
+  "prices": [
+    {
+      "model": "claude-fable-5-1",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-fable-5.1"
+    },
+    {
+      "model": "claude-fable-5",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-fable-5"
+    },
+    {
+      "model": "claude-fable-5",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-fable-5"
+    },
+    {
+      "model": "claude-opus-5-5",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-opus-5.5"
+    },
+    {
+      "model": "claude-opus-5-5",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-opus-5.5"
+    },
+    {
+      "model": "claude-opus-5",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-opus-5"
+    },
+    {
+      "model": "claude-opus-5",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-opus-5"
+    },
+    {
+      "model": "claude-opus-4-8",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-opus-4.8"
+    },
+    {
+      "model": "claude-opus-4-8",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-opus-4.8"
+    },
+    {
+      "model": "claude-opus-4-7",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-opus-4.7"
+    },
+    {
+      "model": "claude-opus-4-7",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-opus-4.7"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-opus-4.6"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-opus-4.6"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-opus-4.5"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-opus-4.5"
+    },
+    {
+      "model": "claude-opus-4-1",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-opus-4.1"
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-sonnet-5.5"
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-sonnet-5.5"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-sonnet-5"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-sonnet-5"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-sonnet-4.6"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-sonnet-4.6"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-sonnet-4.5"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-sonnet-4.5"
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-haiku-5.5"
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-haiku-5.5"
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "region": "",
+      "routing": null,
+      "source": "models API: anthropic/claude-haiku-4.5"
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): anthropic/claude-haiku-4.5"
+    },
+    {
+      "model": "gemini-4-argon",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-4-argon"
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-3.8-flash"
+    },
+    {
+      "model": "gemini-3-6-flash",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-3.6-flash"
+    },
+    {
+      "model": "gemini-3-7-flash",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-3.7-flash"
+    },
+    {
+      "model": "gemini-3-5-flash",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-3.5-flash"
+    },
+    {
+      "model": "gemini-3-5-flash-lite",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-3.5-flash-lite"
+    },
+    {
+      "model": "gemini-3-5-flash-lite",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): google/gemini-3.5-flash-lite"
+    },
+    {
+      "model": "gemini-3-1-flash-lite",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-3.1-flash-lite"
+    },
+    {
+      "model": "gemini-3-1-flash-lite",
+      "region": "eu",
+      "routing": null,
+      "source": "models API (eu): google/gemini-3.1-flash-lite"
+    },
+    {
+      "model": "gemini-3-1-pro-preview",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-3.1-pro-preview"
+    },
+    {
+      "model": "gemini-3-flash-preview",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-3-flash-preview"
+    },
+    {
+      "model": "gemini-2-5-pro",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-2.5-pro"
+    },
+    {
+      "model": "gemini-2-5-flash",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-2.5-flash"
+    },
+    {
+      "model": "gemini-2-5-flash-lite",
+      "region": "",
+      "routing": null,
+      "source": "models API: google/gemini-2.5-flash-lite"
+    }
+  ]
+}

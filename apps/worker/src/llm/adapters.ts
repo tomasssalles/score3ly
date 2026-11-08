@@ -11,6 +11,7 @@ export const ADAPTERS: Record<Provider, Partial<Record<Family, ProviderId>>> = {
   bedrock: { claude: "anthropic-bedrock" },
   "ai-studio": { gemini: "google" },
   vertex: { claude: "anthropic-vertex", gemini: "google-vertex" },
+  openrouter: { claude: "openrouter", gemini: "openrouter" },
   fake: { fake: "fake" },
   "fake-dev": { fake: "fake-dev" },
 };

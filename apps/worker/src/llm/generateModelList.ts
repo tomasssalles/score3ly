@@ -14,7 +14,8 @@ export type ProviderFile = {
   sources: { url: string; note?: string }[];
   models: { id: string; name: string; family: Family; string: string; efforts?: Effort[]; thinking?: "adaptive" }[];
   regions: { region: string; routings: Routing[] | null; geography?: string }[];
-  prices: { model: string; region: string; routing: Routing | null; input: number; output: number; cacheRead: number; cacheWrite: number; source: string }[];
+  // Without the four numbers for a provider that prices each call itself (PRICED_BY_PROVIDER): where it offers the model.
+  prices: { model: string; region: string; routing: Routing | null; input?: number; output?: number; cacheRead?: number; cacheWrite?: number; source: string }[];
 };
 
 // The list from the files, with the previous list's models that no file has any more kept, marked retired. Returns
@@ -61,7 +62,7 @@ export function buildModelList(files: ProviderFile[], previous: ModelList | null
         provider: file.provider,
         region: p.region,
         routing: p.routing,
-        price: { input: p.input, output: p.output, cacheRead: p.cacheRead, cacheWrite: p.cacheWrite },
+        price: p.input === undefined ? null : { input: p.input, output: p.output!, cacheRead: p.cacheRead!, cacheWrite: p.cacheWrite! },
       });
     }
   }
@@ -91,7 +92,7 @@ export const MODEL_LIST: ModelList = ${JSON.stringify(list, null, 2)};
 }
 
 const priceKey = (p: PriceEntry) => `${p.model} on ${p.provider}${p.region ? ` in ${p.region}` : ""}${p.routing ? ` (${p.routing})` : ""}`;
-const priceText = (p: PriceEntry["price"]) => `$${p.input} / $${p.output} / $${p.cacheRead} / $${p.cacheWrite}`;
+const priceText = (p: PriceEntry["price"]) => (p ? `$${p.input} / $${p.output} / $${p.cacheRead} / $${p.cacheWrite}` : "priced by the provider");
 
 // What changed from the previous list to the new one, as lines to spot-check before a release: models added, retired
 // and back, model strings changed, places added and gone, and prices added, gone and changed (input / output / cache
@@ -121,7 +122,7 @@ export function listChanges(previous: ModelList | null, next: ModelList): string
   const newPrices = new Map(next.prices.map((p) => [priceKey(p), p.price]));
   for (const [key, price] of newPrices) {
     const old = oldPrices.get(key);
-    if (!old) lines.push(`Price added: ${key}: ${priceText(price)}`);
+    if (old === undefined) lines.push(`Price added: ${key}: ${priceText(price)}`);
     else if (priceText(old) !== priceText(price)) lines.push(`Price changed: ${key}: ${priceText(old)} → ${priceText(price)}`);
   }
   for (const [key, price] of oldPrices) if (!newPrices.has(key)) lines.push(`Price gone: ${key}: ${priceText(price)}`);

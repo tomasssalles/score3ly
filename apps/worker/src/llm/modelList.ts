@@ -13,7 +13,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-fable-5-1",
         "bedrock": "anthropic.claude-fable-5-1",
-        "vertex": "claude-fable-5-1"
+        "vertex": "claude-fable-5-1",
+        "openrouter": "anthropic/claude-fable-5.1"
       },
       "efforts": [
         "low",
@@ -45,7 +46,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-fable-5",
         "bedrock": "anthropic.claude-fable-5",
-        "vertex": "claude-fable-5"
+        "vertex": "claude-fable-5",
+        "openrouter": "anthropic/claude-fable-5"
       },
       "efforts": [
         "low",
@@ -77,7 +79,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-5-5",
         "bedrock": "anthropic.claude-opus-5-5",
-        "vertex": "claude-opus-5-5"
+        "vertex": "claude-opus-5-5",
+        "openrouter": "anthropic/claude-opus-5.5"
       },
       "efforts": [
         "low",
@@ -94,7 +97,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-5",
         "bedrock": "anthropic.claude-opus-5",
-        "vertex": "claude-opus-5"
+        "vertex": "claude-opus-5",
+        "openrouter": "anthropic/claude-opus-5"
       },
       "efforts": [
         "low",
@@ -111,7 +115,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-4-8",
         "bedrock": "anthropic.claude-opus-4-8",
-        "vertex": "claude-opus-4-8"
+        "vertex": "claude-opus-4-8",
+        "openrouter": "anthropic/claude-opus-4.8"
       },
       "efforts": [
         "low",
@@ -129,7 +134,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-4-7",
         "bedrock": "anthropic.claude-opus-4-7",
-        "vertex": "claude-opus-4-7"
+        "vertex": "claude-opus-4-7",
+        "openrouter": "anthropic/claude-opus-4.7"
       },
       "efforts": [
         "low",
@@ -147,7 +153,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-4-6",
         "bedrock": "anthropic.claude-opus-4-6-v1",
-        "vertex": "claude-opus-4-6"
+        "vertex": "claude-opus-4-6",
+        "openrouter": "anthropic/claude-opus-4.6"
       },
       "efforts": [
         "low",
@@ -164,7 +171,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-4-5-20251101",
         "bedrock": "anthropic.claude-opus-4-5-20251101-v1:0",
-        "vertex": "claude-opus-4-5@20251101"
+        "vertex": "claude-opus-4-5@20251101",
+        "openrouter": "anthropic/claude-opus-4.5"
       },
       "efforts": [
         "low",
@@ -179,7 +187,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-sonnet-5-5",
         "bedrock": "anthropic.claude-sonnet-5-5",
-        "vertex": "claude-sonnet-5-5"
+        "vertex": "claude-sonnet-5-5",
+        "openrouter": "anthropic/claude-sonnet-5.5"
       },
       "efforts": [
         "low",
@@ -196,7 +205,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-sonnet-5",
         "bedrock": "anthropic.claude-sonnet-5",
-        "vertex": "claude-sonnet-5"
+        "vertex": "claude-sonnet-5",
+        "openrouter": "anthropic/claude-sonnet-5"
       },
       "efforts": [
         "low",
@@ -213,7 +223,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-sonnet-4-6",
         "bedrock": "anthropic.claude-sonnet-4-6",
-        "vertex": "claude-sonnet-4-6"
+        "vertex": "claude-sonnet-4-6",
+        "openrouter": "anthropic/claude-sonnet-4.6"
       },
       "efforts": [
         "low",
@@ -230,7 +241,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-sonnet-4-5-20250929",
         "bedrock": "anthropic.claude-sonnet-4-5-20250929-v1:0",
-        "vertex": "claude-sonnet-4-5@20250929"
+        "vertex": "claude-sonnet-4-5@20250929",
+        "openrouter": "anthropic/claude-sonnet-4.5"
       },
       "efforts": []
     },
@@ -241,7 +253,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-haiku-5-5",
         "bedrock": "anthropic.claude-haiku-5-5",
-        "vertex": "claude-haiku-5-5"
+        "vertex": "claude-haiku-5-5",
+        "openrouter": "anthropic/claude-haiku-5.5"
       },
       "efforts": [
         "low",
@@ -258,7 +271,8 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-haiku-4-5-20251001",
         "bedrock": "anthropic.claude-haiku-4-5-20251001-v1:0",
-        "vertex": "claude-haiku-4-5@20251001"
+        "vertex": "claude-haiku-4-5@20251001",
+        "openrouter": "anthropic/claude-haiku-4.5"
       },
       "efforts": []
     },
@@ -267,7 +281,8 @@ export const MODEL_LIST: ModelList = {
       "name": "Claude Opus 4.1",
       "family": "claude",
       "strings": {
-        "bedrock": "anthropic.claude-opus-4-1-20250805-v1:0"
+        "bedrock": "anthropic.claude-opus-4-1-20250805-v1:0",
+        "openrouter": "anthropic/claude-opus-4.1"
       },
       "efforts": []
     },
@@ -286,7 +301,8 @@ export const MODEL_LIST: ModelList = {
       "family": "gemini",
       "strings": {
         "ai-studio": "gemini-4-argon",
-        "vertex": "gemini-4-argon"
+        "vertex": "gemini-4-argon",
+        "openrouter": "google/gemini-4-argon"
       },
       "efforts": [
         "low",
@@ -300,7 +316,8 @@ export const MODEL_LIST: ModelList = {
       "family": "gemini",
       "strings": {
         "ai-studio": "gemini-3.8-flash",
-        "vertex": "gemini-3.8-flash"
+        "vertex": "gemini-3.8-flash",
+        "openrouter": "google/gemini-3.8-flash"
       },
       "efforts": [
         "low",
@@ -314,7 +331,8 @@ export const MODEL_LIST: ModelList = {
       "family": "gemini",
       "strings": {
         "ai-studio": "gemini-3.6-flash",
-        "vertex": "gemini-3.6-flash"
+        "vertex": "gemini-3.6-flash",
+        "openrouter": "google/gemini-3.6-flash"
       },
       "efforts": [
         "low",
@@ -328,7 +346,8 @@ export const MODEL_LIST: ModelList = {
       "family": "gemini",
       "strings": {
         "ai-studio": "gemini-3.5-flash-lite",
-        "vertex": "gemini-3.5-flash-lite"
+        "vertex": "gemini-3.5-flash-lite",
+        "openrouter": "google/gemini-3.5-flash-lite"
       },
       "efforts": [
         "low",
@@ -342,7 +361,8 @@ export const MODEL_LIST: ModelList = {
       "family": "gemini",
       "strings": {
         "ai-studio": "gemini-3.1-flash-lite",
-        "vertex": "gemini-3.1-flash-lite"
+        "vertex": "gemini-3.1-flash-lite",
+        "openrouter": "google/gemini-3.1-flash-lite"
       },
       "efforts": [
         "low",
@@ -356,7 +376,8 @@ export const MODEL_LIST: ModelList = {
       "family": "gemini",
       "strings": {
         "ai-studio": "gemini-3.1-pro-preview",
-        "vertex": "gemini-3.1-pro-preview"
+        "vertex": "gemini-3.1-pro-preview",
+        "openrouter": "google/gemini-3.1-pro-preview"
       },
       "efforts": [
         "low",
@@ -369,7 +390,8 @@ export const MODEL_LIST: ModelList = {
       "name": "Gemini 3 Flash Preview",
       "family": "gemini",
       "strings": {
-        "ai-studio": "gemini-3-flash-preview"
+        "ai-studio": "gemini-3-flash-preview",
+        "openrouter": "google/gemini-3-flash-preview"
       },
       "efforts": [
         "low",
@@ -383,7 +405,8 @@ export const MODEL_LIST: ModelList = {
       "family": "gemini",
       "strings": {
         "ai-studio": "gemini-2.5-pro",
-        "vertex": "gemini-2.5-pro"
+        "vertex": "gemini-2.5-pro",
+        "openrouter": "google/gemini-2.5-pro"
       },
       "efforts": [
         "low",
@@ -397,7 +420,8 @@ export const MODEL_LIST: ModelList = {
       "family": "gemini",
       "strings": {
         "ai-studio": "gemini-2.5-flash",
-        "vertex": "gemini-2.5-flash"
+        "vertex": "gemini-2.5-flash",
+        "openrouter": "google/gemini-2.5-flash"
       },
       "efforts": [
         "low",
@@ -411,7 +435,8 @@ export const MODEL_LIST: ModelList = {
       "family": "gemini",
       "strings": {
         "ai-studio": "gemini-2.5-flash-lite",
-        "vertex": "gemini-2.5-flash-lite"
+        "vertex": "gemini-2.5-flash-lite",
+        "openrouter": "google/gemini-2.5-flash-lite"
       },
       "efforts": [
         "low",
@@ -424,7 +449,8 @@ export const MODEL_LIST: ModelList = {
       "name": "Gemini 3.7 Flash",
       "family": "gemini",
       "strings": {
-        "vertex": "gemini-3.7-flash"
+        "vertex": "gemini-3.7-flash",
+        "openrouter": "google/gemini-3.7-flash"
       },
       "efforts": [
         "low",
@@ -437,7 +463,8 @@ export const MODEL_LIST: ModelList = {
       "name": "Gemini 3.5 Flash",
       "family": "gemini",
       "strings": {
-        "vertex": "gemini-3.5-flash"
+        "vertex": "gemini-3.5-flash",
+        "openrouter": "google/gemini-3.5-flash"
       },
       "efforts": [
         "low",
@@ -915,6 +942,16 @@ export const MODEL_LIST: ModelList = {
     {
       "provider": "vertex",
       "region": "us-west4",
+      "routings": null
+    },
+    {
+      "provider": "openrouter",
+      "region": "",
+      "routings": null
+    },
+    {
+      "provider": "openrouter",
+      "region": "eu",
       "routings": null
     },
     {
@@ -11272,6 +11309,300 @@ export const MODEL_LIST: ModelList = {
         "cacheRead": 0.01,
         "cacheWrite": 0
       }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-opus-4-1",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-4-argon",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-3-8-flash",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-3-6-flash",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-3-7-flash",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-3-5-flash",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-3-5-flash-lite",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-3-5-flash-lite",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-3-1-flash-lite",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-3-1-flash-lite",
+      "provider": "openrouter",
+      "region": "eu",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-3-1-pro-preview",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-3-flash-preview",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-2-5-pro",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-2-5-flash",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
+    },
+    {
+      "model": "gemini-2-5-flash-lite",
+      "provider": "openrouter",
+      "region": "",
+      "routing": null,
+      "price": null
     },
     {
       "model": "fake",

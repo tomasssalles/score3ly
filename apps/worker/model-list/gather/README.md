@@ -29,6 +29,10 @@ Run this before a release that should carry new models or prices; never from the
 
 A model gets a price at a region and routing only where all four prices (input, output, cache read, cache write) are there.
 
+## OpenRouter
+
+`node model-list/gather/openrouter.ts --download` (done 2026-11-08). OpenRouter prices each call itself (its answers say what they cost), so its file has no prices, only where it offers each model: everywhere (region `""`) and in the EU (`"eu"`, its EU host, a Business account). Its sources: **OpenRouter's models API on both hosts** (`openrouter.ai/api/v1/models`, `eu.openrouter.ai/api/v1/models`, public). The excerpt keeps the ids of the `anthropic/` and `google/` models per host. A model of `claude-models.json` or `gemini-models.json` is offered where its OpenRouter id is: the family's prefix and Anthropic's or Google's model ID, with a Claude version's last dash as a dot (`claude-opus-5-5` → `anthropic/claude-opus-5.5`); OpenRouter's other models are left out.
+
 ## Anthropic
 
 `node model-list/gather/anthropic.ts --download` (done 2026-11-06). Its sources, both Anthropic's pages in their Markdown versions (the URL with `.md`):

@@ -602,9 +602,9 @@ OpenRouter as a fifth provider (discussed 2026-11-06 and 2026-11-08): one API ke
 
 **The plan:**
 1. ✓ **The adapter** (done 2026-11-08, `apps/worker/src/llm/openrouter.ts`, non-streaming): Chat Completions with images, `response_format` (`json_schema`), `reasoning.effort`, `cache_control`, `require_parameters`; reads tokens, cache reads and writes and `cost`, and records the provider that served the call. The model check accepts the id or its canonical slug.
-2. **The config:** provider OpenRouter, an API key, an account type (Standard or Business: the fee), and a region only for Business (global or EU).
-3. **The pricing kind "priced by the provider":** cost = reported `cost` × (1 + fee); an answer without one is a call of unknown cost.
-4. **The list without prices:** a gathering of both hosts' models APIs (ids, efforts, which models the EU serves), mapped onto `claude-models.json` and `gemini-models.json`; a listed model is supported where OpenRouter offers it.
+2. ✓ **The config** (done 2026-11-08; the account a column of its own, migration `0002_openrouter.sql`): provider OpenRouter, an API key, an account type (Standard or Business: the fee), and a region only for Business (global or EU).
+3. ✓ **The pricing kind "priced by the provider"** (done 2026-11-08, `providerCost` in `llmRoutes.ts`; the spending cap counts these calls too): cost = reported `cost` × (1 + fee); an answer without one is a call of unknown cost.
+4. ✓ **The list without prices** (done 2026-11-08, `gather/openrouter.ts`: 27 models, 15 in the EU; a list entry without a price says where the model is offered): a gathering of both hosts' models APIs (ids, efforts, which models the EU serves), mapped onto `claude-models.json` and `gemini-models.json`; a listed model is supported where OpenRouter offers it.
 5. **The settings card:** "Priced per call by OpenRouter, plus its fee on credit purchases", and where it can be read, the providers' range from the endpoints API, read live by the Worker and kept a day ("$4–4.40 input, $20–22 output per million tokens"), for models added by hand too.
 6. **Tests** with a fake `fetch`, then a real call. **To see on it:** whether the answer names the id or the canonical slug; whether `cost` agrees with tokens × the serving provider's price.
 

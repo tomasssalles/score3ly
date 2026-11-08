@@ -50,7 +50,7 @@ test("the schema's problems are found, each with its path", () => {
     prices: [{ model: "big", region: "", routing: null, input: -1, output: 20, cacheRead: 0.2, cacheWrite: 5 }],
   };
   assert.deepEqual(schemaProblems(schema, broken), [
-    '$.provider: expected one of "anthropic", "bedrock", "ai-studio", "vertex", "fake", "fake-dev", found "openai"',
+    '$.provider: expected one of "anthropic", "bedrock", "ai-studio", "vertex", "openrouter", "fake", "fake-dev", found "openai"',
     "$.collectedAt: doesn't match ^\\d{4}-\\d{2}-\\d{2}$",
     "$.sources[0]: unexpected extra",
     "$.models[0].id: doesn't match ^[a-z0-9][a-z0-9.-]*$",

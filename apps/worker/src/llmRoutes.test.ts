@@ -6,7 +6,7 @@ import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList } from "./llm/models.ts";
-import { convertAddedConfigs, modelOptions, secretNames, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
+import { convertAddedConfigs, modelOptions, providerCost, secretNames, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
 
 // The LLM endpoints against Wrangler's local R2 and D1, kept in memory, with the fake provider (llm/fake.ts).
@@ -590,12 +590,12 @@ test("the pickers' options: providers with their families, efforts, secrets and 
   assert.equal(options.asOf, MODEL_LIST.asOf);
   // Fake with costs is for development: offered only with DEV_PROVIDERS, and refused without it; a setting, not a
   // secret.
-  assert.deepEqual(options.providers.map((p) => p.id), ["anthropic", "bedrock", "ai-studio", "vertex", "fake", "fake-dev"]);
+  assert.deepEqual(options.providers.map((p) => p.id), ["anthropic", "bedrock", "ai-studio", "vertex", "openrouter", "fake", "fake-dev"]);
   assert.ok(!secretNames(env).includes("DEV_PROVIDERS"));
   delete (env as unknown as Record<string, string>).DEV_PROVIDERS;
   try {
     const plain = await json<ModelOptions>(await app.request("/api/models", {}, env));
-    assert.deepEqual(plain.providers.map((p) => p.id), ["anthropic", "bedrock", "ai-studio", "vertex", "fake"]);
+    assert.deepEqual(plain.providers.map((p) => p.id), ["anthropic", "bedrock", "ai-studio", "vertex", "openrouter", "fake"]);
     assert.ok(plain.models.every((m) => !("fake-dev" in m.providers)));
     assert.equal((await send("/api/model-configs", configBody())).status, 400);
   } finally {
@@ -779,4 +779,47 @@ test("a listed model that takes no effort level gets none; one that thinks only 
   assert.equal((await send("/api/model-configs", { ...haiku, effort: null })).status, 201);
   const options = await json<ModelOptions>(await app.request("/api/models", {}, env));
   assert.deepEqual(options.models.find((m) => m.id === "claude-haiku-4-5")!.efforts, []);
+});
+
+test("OpenRouter: an account, the EU for Business only, priced by the provider with the account's fee", async () => {
+  const body = (fields: Record<string, unknown>) => ({ provider: "openrouter", modelId: "claude-opus-5-5", effort: "high", secrets: { apiKey: "OR_KEY" }, pricing: { kind: "provider" }, ...fields });
+  const refused = async (fields: Record<string, unknown>, pattern: RegExp) => {
+    const response = await send("/api/model-configs", body(fields));
+    assert.equal(response.status, 400);
+    assert.match((await json(response)).error as string, pattern);
+  };
+  await refused({ account: undefined }, /'account' must be one of standard, business/);
+  await refused({ account: "standard", region: "eu" }, /Only a Business account may use OpenRouter in the EU/);
+  await refused({ account: "standard", pricing: { kind: "list" } }, /'pricing' must be \{kind: provider\}/);
+  await refused({ account: "standard", modelId: "gemini-3-1-pro-preview", region: "eu" }, /Only a Business account|doesn't support Gemini 3.1 Pro Preview on OpenRouter there/);
+  await refused({ account: "business", modelId: "gemini-3-1-pro-preview", region: "eu" }, /doesn't support Gemini 3.1 Pro Preview on OpenRouter there/);
+  // Priced by the provider elsewhere: never.
+  const bedrock = { provider: "bedrock", modelId: "claude-opus-5-5", region: "eu-central-1", routing: "global", secrets: { apiKey: "K" } };
+  assert.match((await json(await send("/api/model-configs", { ...bedrock, pricing: { kind: "provider" } }))).error as string, /'pricing' must be \{kind: list, free or unpriced\}/);
+  assert.match((await json(await send("/api/model-configs", { ...bedrock, pricing: { kind: "list" }, account: "business" }))).error as string, /'account' is for OpenRouter only/);
+
+  const standard = await json(await send("/api/model-configs", body({ account: "standard" })));
+  assert.deepEqual([standard.provider, standard.model, standard.region, standard.account, standard.pricing, standard.price, standard.name], [
+    "openrouter", "anthropic/claude-opus-5.5", "", "standard", { kind: "provider" }, { kind: "provider", fee: 0.055 }, "Claude Opus 5.5 (OpenRouter) · high",
+  ]);
+  const eu = await json(await send("/api/model-configs", body({ account: "business", region: "eu", name: "Opus EU" })));
+  assert.deepEqual([eu.region, eu.price], ["eu", { kind: "provider", fee: 0.08 }]);
+  // A model added by hand is priced by the provider too.
+  const added = await json(await send("/api/model-configs", { ...body({ account: "standard" }), modelId: undefined, modelString: "anthropic/claude-opus-6", family: "claude" }));
+  assert.deepEqual([added.modelString, added.price], ["anthropic/claude-opus-6", { kind: "provider", fee: 0.055 }]);
+
+  const options = modelOptions(MODEL_LIST);
+  const openrouter = options.providers.find((p) => p.id === "openrouter")!;
+  assert.deepEqual(openrouter.pricedByProvider, { fees: { standard: 0.055, business: 0.08 }, businessRegions: ["eu"] });
+  assert.deepEqual(openrouter.families.map((f) => f.id), ["claude", "gemini"]);
+  assert.deepEqual(options.models.find((m) => m.id === "claude-opus-5-5")!.providers.openrouter, {
+    string: "anthropic/claude-opus-5.5",
+    places: [{ region: "", routing: null, price: null }, { region: "eu", routing: null, price: null }],
+  });
+});
+
+test("a cost the provider reports, raised by the fee on credits; unknown where it isn't reported", () => {
+  assert.equal(providerCost(0.0042, 0.055), 0.004431);
+  assert.equal(providerCost(1, 0.08), 1.08);
+  assert.equal(providerCost(undefined, 0.055), null);
 });
