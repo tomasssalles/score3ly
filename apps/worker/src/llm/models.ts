@@ -36,7 +36,7 @@ export const EFFORTS: Record<Family, Effort[]> = {
   fake: ["low", "medium", "high", "xhigh", "max"],
 };
 
-// Bedrock's routing, in AWS's terms: global, within the region's geography (an inference profile: EU, US, JP, AU),
+// Bedrock's routing, in AWS's terms: global, within the region's geography (an inference profile: EU, US, JP, AU, …),
 // or in the region only. Empty (null) for every other provider.
 export type Routing = "global" | "geographic" | "in-region";
 

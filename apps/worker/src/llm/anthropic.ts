@@ -38,7 +38,7 @@ export class ClaudeProvider implements LlmProvider {
     const response = { ...fromMessage(message), provider: this.id };
     // A sanity check: the answer must come from the model that was asked. It was paid for all the same. On Bedrock, a
     // routing's prefix ("global.", "eu.", …: an inference profile) may be left out of the answer's model.
-    const asked = this.id === "anthropic-bedrock" ? [request.model, request.model.replace(/^(?:global|eu|us|jp|au|apac)\./, "")] : [request.model];
+    const asked = this.id === "anthropic-bedrock" ? [request.model, request.model.replace(/^[a-z]+(?:-[a-z]+)?\.(?=anthropic\.)/, "")] : [request.model];
     if (!asked.includes(message.model)) return { ...response, unexpectedModel: `Asked ${request.model}, but ${message.model} answered.` };
     return request.jsonSchema ? withJson(response) : response;
   }
