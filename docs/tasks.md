@@ -34,10 +34,14 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 Anthropic refused the JSON schemas of `analyze` (both calls), `extract` and `apply_review` for schema-constrained output (`docs/llm.md`, "Claude's limit on schemas": the problem, what the grammar is, the probes, the options and the leaning). **Done so far** (2026-11-07, on branch `claude/friendly-curie-wb7w4w`, not merged; option 2, schemas redesigned): `analyze`'s answer flat (`docs/stages/analyze.md`, "The answer's shape") and `apply_review`'s texts with no value "" (`docs/stages/music.md`, `apply_review`): both accepted by the probe, and `analyze` ran in the app on Claude. **Left: `extract`,** whose run on Claude fails with "compiled grammar is too large"; then whether to keep the redesign (and merge it) or decide otherwise. Re-run `npm run llm:probe-schemas -w apps/worker` after each change, and once more whenever a schema grows. The "Try the app with …" tasks for Claude wait for it.
 
-### A long error on a stage card widens the cards, not the pipeline panel
+### Long errors overflow sideways: stage cards, the Test dialog, and wherever else
 `#bug` `#next-release`
 
 Found 2026-11-07 (the project owner, with screenshots not yet shared), when a stage failed with Anthropic's refusal of its schema (a long error message): the stage cards get wider, the pipeline panel doesn't, so the panel scrolls horizontally to show the cards from side to side. The panel's head (with the progress bar) doesn't get wider either: scrolled sideways, its right edge shows, with empty space next to it. Probably an unbroken long word or JSON in the message, or a missing `min-width: 0` / wrapping on the card's error text. Expected: the message wraps inside the card, and nothing scrolls sideways. Reproduce in a test first (CLAUDE.md: a bug found by chance), e.g. a screenshot of a failed card with a long error at both widths.
+
+**The same in the config's Test dialog** (found 2026-11-08): an error there overflows the dialog sideways too. And probably elsewhere: any place that shows text the app doesn't control (errors from providers or the Worker, file and project names, model strings, JSON) can hold a long unbroken string. So:
+- **Error messages wrap anywhere when they have to** (e.g. `overflow-wrap: anywhere`, with `min-width: 0` on the flex or grid items around them), even at awkward places: breaking a long word or JSON is better than overflowing. One shared style for every error text, so a new place gets it too; a rule for the style guide (`docs/style.md`).
+- **Check the whole app for it:** every place that shows such text (stage cards and details, the Test dialog, toasts, the other dialogs, the settings and statistics pages, the artifact views), at both widths; the screenshot script with a long error seeded where it can, or a small script of its own.
 
 ### Move the tasks to GitHub issues
 `#next-release`
