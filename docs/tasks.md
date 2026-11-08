@@ -34,15 +34,6 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 Anthropic refused the JSON schemas of `analyze` (both calls), `extract` and `apply_review` for schema-constrained output (`docs/llm.md`, "Claude's limit on schemas": the problem, what the grammar is, the probes, the options and the leaning). **Done so far** (2026-11-07, on branch `claude/friendly-curie-wb7w4w`, not merged; option 2, schemas redesigned): `analyze`'s answer flat (`docs/stages/analyze.md`, "The answer's shape") and `apply_review`'s texts with no value "" (`docs/stages/music.md`, `apply_review`): both accepted by the probe, and `analyze` ran in the app on Claude. **Left: `extract`,** whose run on Claude fails with "compiled grammar is too large"; then whether to keep the redesign (and merge it) or decide otherwise. Re-run `npm run llm:probe-schemas -w apps/worker` after each change, and once more whenever a schema grows. The "Try the app with …" tasks for Claude wait for it.
 
-### Long errors overflow sideways: stage cards, the Test dialog, and wherever else
-`#bug` `#next-release`
-
-Found 2026-11-07 (the project owner, with screenshots not yet shared), when a stage failed with Anthropic's refusal of its schema (a long error message): the stage cards get wider, the pipeline panel doesn't, so the panel scrolls horizontally to show the cards from side to side. The panel's head (with the progress bar) doesn't get wider either: scrolled sideways, its right edge shows, with empty space next to it. Probably an unbroken long word or JSON in the message, or a missing `min-width: 0` / wrapping on the card's error text. Expected: the message wraps inside the card, and nothing scrolls sideways. Reproduce in a test first (CLAUDE.md: a bug found by chance), e.g. a screenshot of a failed card with a long error at both widths.
-
-**The same in the config's Test dialog** (found 2026-11-08): an error there overflows the dialog sideways too. And probably elsewhere: any place that shows text the app doesn't control (errors from providers or the Worker, file and project names, model strings, JSON) can hold a long unbroken string. So:
-- **Error messages wrap anywhere when they have to** (e.g. `overflow-wrap: anywhere`, with `min-width: 0` on the flex or grid items around them), even at awkward places: breaking a long word or JSON is better than overflowing. One shared style for every error text, so a new place gets it too; a rule for the style guide (`docs/style.md`).
-- **Check the whole app for it:** every place that shows such text (stage cards and details, the Test dialog, toasts, the other dialogs, the settings and statistics pages, the artifact views), at both widths; the screenshot script with a long error seeded where it can, or a small script of its own.
-
 ### Move the tasks to GitHub issues
 `#next-release`
 
@@ -176,13 +167,6 @@ For each, make a model config on AI Studio (Vertex AI for the last two) with eac
 `#optional`
 
 For testing and debugging: run stages as if nothing were cached, without our own cache (§5.2) at either level, the stage's key or an item's (an LLM request's record, an image's recipe), so that a stage is reproduced under the same conditions and its calls are really made (and paid for). Set when the app is started, by a special flag or an environment variable (e.g. for `wrangler dev`, the desktop app and the screenshot script), not in the app's settings. To decide on the way: whether the calls made with it on still fill the cache for later runs; whether the providers' own prompt caching stays on (it is a price, not a reuse of answers); and whether the app shows that it is on.
-
-### Decide the model configs
-`#decision` `#research` `#next-release`
-
-`docs/llm.md`, "Supported models, prices and the config form": the plan is decided (2026-11-05): providers and families, the list of models and prices in the code, the configs' columns, the pricing kinds, the default names, the settings page. Then build the first round (built 2026-11-05: the list's types, lookups and a mock list, `apps/worker/src/llm/models.ts`; the four providers with their families in the adapters, the configs' new columns, pricing at call time from the list): the list (gathered 2026-11-05 and 2026-11-06), the form, adding a model (priced as another model, unpriced or free tier, never a typed price), the price label on the cards, the Test button (built 2026-11-06).
-- **Still to settle or research:**
-  - **The routing on Bedrock:** settled by moving to `bedrock-runtime` (2026-11-08, `docs/llm.md`, "Calling the providers"), where it is an inference profile's prefix; left: a real call confirming that a call with `eu.` routing answers and is billed at that routing's price ("Make the first real request on Bedrock").
 
 ### A config whose effort its model no longer takes
 `#optional`
@@ -567,26 +551,12 @@ They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk b
 Decided by the project owner (2026-11-08): nothing untested is released, and Claude on Vertex AI won't be tested before the first release. (AWS access key pairs on Bedrock were to go too, and were removed from the code, then restored the same day: a personal AWS account can't use long-term Bedrock API keys, so access key pairs are what the project owner uses.)
 - **Claude on Vertex AI:** the model was bought, but the project's quota for Claude is 0 and raising it was refused (`docs/llm.md`, "Claude on Google Cloud's Vertex AI"). Take the pair (Vertex AI, Claude) out of `ADAPTERS` (`apps/worker/src/llm/adapters.ts`), so the form doesn't offer it and the Worker refuses it; the Vertex AI gathering stops listing Claude (`gather/vertex.ts`), and the list is gathered again.
 - **What may stay for later:** the adapter's code (`vertexClaudeProvider`, `apps/worker/src/llm/anthropic.ts`) and `llm:try`'s `anthropic-vertex`, with their tests.
-- **The docs follow:** the supported pairs (`docs/llm.md`'s first paragraph, "Calling the providers", `docs/overview.md` §7.2 and §10), Bedrock's credentials (`docs/llm.md`, the task "Make the first real request on Bedrock"), and the manual tests if one uses them (`docs/manual-tests.md`).
-
-### Move Claude on Bedrock to `bedrock-runtime`
-`#next-release` `#next`
-
-Decided by the project owner (2026-11-08): Claude on Bedrock goes through `bedrock-runtime` (`InvokeModel`) instead of the Messages API endpoint ("Mantle", `bedrock-mantle`). AWS's pages recommend `bedrock-runtime` for most work, Mantle only for a few niche things; on `bedrock-runtime` the routing is chosen as documented, by an inference profile's prefix on the model ID (`global.`, `eu.`, …), while Mantle refused `eu.anthropic.claude-haiku-4-5` and documents no way to choose. Anthropic's page on the older integration ("Claude on Amazon Bedrock (Opus 4.6 and earlier)") says Opus 4.7 and later are reachable through `InvokeModel` too, served by the same infrastructure. Anthropic's TypeScript client for it is `AnthropicBedrock`, in the package we already use (`@anthropic-ai/bedrock-sdk`, below 1.0 as that page asks: later majors send an API version the ARN-versioned models refuse); it takes a Bedrock API key (`apiKey`) or an access key pair. Not supported there: automatic prompt caching (a top-level `cache_control`), which we don't use. The work, one commit each:
-- ✓ **The adapter** (done 2026-11-08): `bedrockClaudeProvider` (`apps/worker/src/llm/anthropic.ts`) on `AnthropicBedrock`; the routing's prefix added again to the model string sent (`bedrockModel`, removed 2026-11-08); the tests' fake answers as `bedrock-runtime` does (AWS's event stream, not server-sent events).
-- ✓ **The model strings** (done 2026-11-08; the Mythos models and Opus 4 are no longer listed on Bedrock, their cards differ; a region has one geography, see the gathering's README): the list's Bedrock strings become `bedrock-runtime`'s base model IDs, to which the routing's prefix is added (Haiku 4.5: `anthropic.claude-haiku-4-5-20251001-v1:0`; the newer models' IDs from AWS's list of inference profiles), and which routings each region offers for them; the gathering (`apps/worker/model-list/gather/bedrock.ts`, its README and committed excerpts) reads them from AWS's pages instead of Anthropic's page on Mantle.
-- ✓ **The docs** (done 2026-11-08): `docs/llm.md` ("Calling the providers", the routing, the model strings), the tasks that mention Mantle or the routing ("Decide the model configs", "Check Bedrock's model name on the first real call", "Make the first real request on Bedrock").
-- **A real call** by the project owner, in "Make the first real request on Bedrock": a call with `eu.` routing answers, and is billed at that routing's price.
-
-### Make the first real request on Bedrock
-`#next-release` `#owner`
-
-The project owner's AWS account for Bedrock exists already; it has to make a real request. The steps (`docs/llm.md`, "Calling the providers"): access to Claude Opus 5.5 enabled for the account in an EU region (e.g. `eu-central-1`); credentials, either a Bedrock API key or an access key pair; a Worker secret holding them (`apps/worker/.dev.vars` locally); then one call, e.g. `npm run llm:try -w apps/worker -- anthropic-bedrock <model> <image> "<question>"`, and a model config for the app. Settles on the way that a call with `eu.` (geographic) routing on `bedrock-runtime` answers and is billed at that routing's price (the AWS bill or CloudWatch).
+- **The docs follow:** the supported pairs (`docs/llm.md`'s first paragraph, "Calling the providers", `docs/overview.md` §7.2 and §10), Bedrock's credentials (`docs/llm.md`), and the manual tests if one uses them (`docs/manual-tests.md`).
 
 ### Try the app with Opus 5.5 in Europe on Bedrock
 `#next-release` `#owner` `#manual-test`
 
-After "Make the first real request on Bedrock": run the whole pipeline with Claude Opus 5.5 on Bedrock, processed in the EU only (§10, "Data residency"), on a few scores of the test set (`docs/evaluation.md`), in the web app or the desktop app. Look at the results, the stages' failures and their messages, the statistics (costs against the prices the app uses, the list of models, `llm/modelList.ts`, with Bedrock's regional premium; run times; failed calls), and anything that gets in the way. Feeds the tasks checking the prompts of `layout`, `analyze` and `extract`, and the first release's "Run the pipeline with a real LLM" (§16).
+Run the whole pipeline with Claude Opus 5.5 on Bedrock, processed in the EU only (§10, "Data residency"), on a few scores of the test set (`docs/evaluation.md`), in the web app or the desktop app. Look at the results, the stages' failures and their messages, the statistics (costs against the prices the app uses, the list of models, `llm/modelList.ts`, with Bedrock's regional premium; run times; failed calls), and anything that gets in the way. Feeds the tasks checking the prompts of `layout`, `analyze` and `extract`, and the first release's "Run the pipeline with a real LLM" (§16).
 
 ### Try the app with Gemini 3.1 Pro on Vertex AI
 `#next-release` `#owner` `#manual-test`
