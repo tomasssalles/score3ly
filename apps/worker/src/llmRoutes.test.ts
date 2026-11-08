@@ -171,7 +171,7 @@ test("model configs: a listed model or one added by hand, at a place of its prov
   // A string the list has for the provider is picked from the list, not added by hand.
   await refused({ ...added, modelString: "anthropic.claude-opus-5-5", pricing: { kind: "unpriced" } }, /Claude Opus 5\.5 is in the app's list: pick it there/);
 
-  const eu = await modelConfig({ ...bedrock, region: "eu-central-1", routing: "geographic", secrets: { apiKey: "BEDROCK_KEY" } });
+  const eu = await modelConfig({ ...bedrock, region: "eu-central-1", routing: "geographic", secrets: { accessKeyId: "AWS_KEY_ID", secretAccessKey: "AWS_SECRET" } });
   assert.deepEqual(
     { model: eu.model, family: eu.family, modelName: eu.modelName, region: eu.region, routing: eu.routing, pricing: eu.pricing, name: eu.name },
     {
@@ -184,7 +184,7 @@ test("model configs: a listed model or one added by hand, at a place of its prov
       name: "Claude Opus 5.5 (Bedrock) · high",
     },
   );
-  assert.deepEqual(eu.secrets, { apiKey: "BEDROCK_KEY" });
+  assert.deepEqual(eu.secrets, { accessKeyId: "AWS_KEY_ID", secretAccessKey: "AWS_SECRET" });
   const opus6 = await modelConfig({ ...added, pricing: { kind: "list", reference: "claude-opus-5-5" }, effort: null });
   assert.deepEqual([opus6.modelId, opus6.modelString, opus6.family, opus6.name], [null, "anthropic.claude-opus-6", "claude", "anthropic.claude-opus-6 (Bedrock)"]);
   assert.equal((await modelConfig({ ...added, pricing: { kind: "unpriced" }, name: "Unpriced" })).pricing.kind, "unpriced");
@@ -606,12 +606,12 @@ test("the pickers' options: providers with their families, efforts, secrets and 
   assert.deepEqual(
     vertex.families.map((f) => [f.id, f.efforts.length, f.secrets]),
     [
-      ["claude", 5, ["serviceAccount"]],
-      ["gemini", 3, ["serviceAccount"]],
+      ["claude", 5, [["serviceAccount"]]],
+      ["gemini", 3, [["serviceAccount"]]],
     ],
   );
   const bedrock = options.providers.find((p) => p.id === "bedrock")!;
-  assert.deepEqual(bedrock.families[0].secrets, ["apiKey"]);
+  assert.deepEqual(bedrock.families[0].secrets, [["apiKey"], ["accessKeyId", "secretAccessKey"]]);
   assert.deepEqual(bedrock.places.find((p) => p.region === "eu-west-1" && p.routing === "geographic"), { region: "eu-west-1", routing: "geographic", geography: "EU" });
 
   // A list of the test's own: a retired model is left out, and a model only where it has prices.
@@ -659,8 +659,11 @@ test("a config with exactly the same values as another isn't created: the other 
     code: "same_values",
     config: { id: first.id, name: "Claude" },
   });
-  // Another effort is another config.
+  // Another effort is another config; the same secrets in another order are the same.
   assert.equal((await send("/api/model-configs", configBody({ effort: "low" }))).status, 201);
+  const keys = { provider: "bedrock", modelId: "claude-opus-5-5", region: "eu-central-1", routing: "global", pricing: { kind: "list" } };
+  await modelConfig({ ...keys, secrets: { accessKeyId: "ID", secretAccessKey: "SECRET" } });
+  assert.equal((await send("/api/model-configs", configBody({ ...keys, secrets: { secretAccessKey: "SECRET", accessKeyId: "ID" } }))).status, 409);
 });
 
 test("a clone may replace its original: the original deleted, and the clone the default if the original was", async () => {

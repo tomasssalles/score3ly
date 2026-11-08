@@ -48,7 +48,7 @@ const opus: ModelConfig = {
   region: "eu-central-1",
   routing: "geographic",
   project: null,
-  secrets: { apiKey: "BEDROCK_KEY" },
+  secrets: { accessKeyId: "BEDROCK_KEY_ID", secretAccessKey: "BEDROCK_SECRET" },
   pricing: { kind: "list", reference: null },
   price: { kind: "priced", price: { input: 4.4, output: 22, cacheRead: 0.22, cacheWrite: 5.5 }, borrowedFrom: null },
   freeTier: false,

@@ -24,13 +24,13 @@ import {
 } from "./configForm.ts";
 
 const P = (input: number) => ({ input, output: input * 5, cacheRead: input / 20, cacheWrite: input * 1.25 });
-const CLAUDE = { id: "claude" as const, name: "Claude", efforts: ["low", "medium", "high", "xhigh", "max"] as const, secrets: ["apiKey"] };
+const CLAUDE = { id: "claude" as const, name: "Claude", efforts: ["low", "medium", "high", "xhigh", "max"] as const, secrets: [["apiKey"], ["accessKeyId", "secretAccessKey"]] };
 
 const OPTIONS: ModelOptions = {
   asOf: "2026-11-05",
   mock: true,
   providers: [
-    { id: "anthropic", name: "Anthropic", families: [{ ...CLAUDE, efforts: [...CLAUDE.efforts], secrets: ["apiKey"] }], places: [{ region: "", routing: null }] },
+    { id: "anthropic", name: "Anthropic", families: [{ ...CLAUDE, efforts: [...CLAUDE.efforts], secrets: [["apiKey"]] }], places: [{ region: "", routing: null }] },
     {
       id: "bedrock",
       name: "Bedrock",
@@ -46,8 +46,8 @@ const OPTIONS: ModelOptions = {
       id: "vertex",
       name: "Vertex AI",
       families: [
-        { ...CLAUDE, efforts: [...CLAUDE.efforts], secrets: ["serviceAccount"] },
-        { id: "gemini", name: "Gemini", efforts: ["low", "medium", "high"], secrets: ["serviceAccount"] },
+        { ...CLAUDE, efforts: [...CLAUDE.efforts], secrets: [["serviceAccount"]] },
+        { id: "gemini", name: "Gemini", efforts: ["low", "medium", "high"], secrets: [["serviceAccount"]] },
       ],
       places: [{ region: "global", routing: null }],
     },
@@ -97,6 +97,9 @@ test("the pickers start on their first entry: a listed model's first place and r
   assert.equal(missing(OPTIONS, bedrock), "The secret for the API key isn't chosen yet.");
   const keys = settled(OPTIONS, { ...bedrock, secrets: { apiKey: "A_KEY" } });
   assert.equal(missing(OPTIONS, keys), null);
+  const pair = settled(OPTIONS, { ...keys, secretSet: 1 });
+  assert.deepEqual(pair.secrets, {});
+  assert.equal(missing(OPTIONS, settled(OPTIONS, { ...pair, secrets: { accessKeyId: "ID" } })), "The secret for the Secret access key isn't chosen yet.");
 });
 
 test("model and region filter each other: a model not served at the region moves it to the model's first", () => {
@@ -151,8 +154,8 @@ test("a model added by hand: its first family, every place of the provider, pric
 test("what follows the family: efforts and secrets; another provider starts over, keeping the name and Make default", () => {
   const form = pick({ provider: "vertex" }, { model: { kind: "added", string: "gemini-x", family: "gemini" } }, { effort: "max" });
   assert.equal(form.effort, null); // Gemini has no max
-  const keys = pick({ provider: "bedrock" }, { model: { kind: "listed", id: "opus" } }, { secrets: { serviceAccount: "SA", apiKey: "K" } });
-  assert.deepEqual(keys.secrets, { apiKey: "K" });
+  const keys = pick({ provider: "bedrock" }, { model: { kind: "listed", id: "opus" } }, { secretSet: 1, secrets: { accessKeyId: "ID", apiKey: "K" } });
+  assert.deepEqual(keys.secrets, { accessKeyId: "ID" });
   const other = withProvider(OPTIONS, { ...keys, name: "Mine", makeDefault: true }, "anthropic");
   assert.deepEqual([other.model, other.name, other.makeDefault, other.secrets], [{ kind: "listed", id: "opus" }, "Mine", true, {}]);
 });
@@ -216,7 +219,7 @@ function config(fields: Partial<ModelConfig>): ModelConfig {
     region: "eu-central-1",
     routing: "geographic",
     project: null,
-    secrets: { apiKey: "BEDROCK_KEY" },
+    secrets: { secretAccessKey: "SECRET", accessKeyId: "ID" },
     pricing: { kind: "list", reference: null },
     price: { kind: "priced", price: P(4.4), borrowedFrom: null },
     freeTier: false,
@@ -229,8 +232,8 @@ function config(fields: Partial<ModelConfig>): ModelConfig {
 test("a clone starts from the original's values, its name as typed text, its secrets' set found", () => {
   const form = formFromConfig(OPTIONS, config({}));
   assert.deepEqual(
-    [form.provider, form.model, form.region, form.routing, form.effort, form.secrets, form.pricing, form.name, form.nameEdited],
-    ["bedrock", { kind: "listed", id: "opus" }, "eu-central-1", "geographic", "high", { apiKey: "BEDROCK_KEY" }, "list", "Opus EU", true],
+    [form.provider, form.model, form.region, form.routing, form.effort, form.secretSet, form.secrets, form.pricing, form.name, form.nameEdited],
+    ["bedrock", { kind: "listed", id: "opus" }, "eu-central-1", "geographic", "high", 1, { secretAccessKey: "SECRET", accessKeyId: "ID" }, "list", "Opus EU", true],
   );
   assert.equal(missing(OPTIONS, form), null);
   assert.equal(requestOf(form).name, "Opus EU");

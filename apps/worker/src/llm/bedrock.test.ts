@@ -99,6 +99,19 @@ test("with a Bedrock API key: the region's bedrock-runtime, the model in the pat
   assert.deepEqual(response.usage, { inputTokens: 700, outputTokens: 25, cacheReadTokens: 0, cacheWriteTokens: 0 });
 });
 
+test("with an access key pair: the request is signed (AWS Signature V4) for the region", async () => {
+  const calls: Call[] = [];
+  const provider = createProvider(
+    { provider: "anthropic-bedrock", region: "eu-west-1", accessKeyId: "AKIAEXAMPLE", secretAccessKey: "secret" },
+    { fetch: fakeBedrock(calls, MODEL) },
+  );
+  await provider.send(request);
+  const auth = calls[0].headers.get("authorization") ?? "";
+  assert.match(auth, /^AWS4-HMAC-SHA256 Credential=AKIAEXAMPLE\/\d{8}\/eu-west-1\/bedrock\/aws4_request, /);
+  assert.ok(calls[0].headers.get("x-amz-date"));
+  assert.match(calls[0].url, /^https:\/\/bedrock-runtime\.eu-west-1\.amazonaws\.com\/model\//);
+});
+
 test("the model check takes the answer's model with or without the routing's prefix, and nothing else", async () => {
   // An inference profile asked for ("eu."), the bare model ID in the answer: the same model.
   const bare = createProvider({ provider: "anthropic-bedrock", region: "eu-central-1", apiKey: "k" }, { fetch: fakeBedrock([], "anthropic.claude-opus-5-5") });
@@ -122,6 +135,13 @@ test("an adapter for each supported pair, none for the others", () => {
   assert.equal(createAdapter({ provider: "bedrock", family: "gemini", region: "eu-west-1", project: null, secrets }), null);
 });
 
-test("Bedrock needs an API key", () => {
-  assert.throws(() => bedrockClaudeProvider({ region: "eu-central-1", apiKey: "" }), LlmError);
+test("Bedrock needs an API key or a whole key pair, not both nor neither", () => {
+  for (const credentials of [
+    {},
+    { apiKey: "k", accessKeyId: "a", secretAccessKey: "s" },
+    { accessKeyId: "a" },
+    { secretAccessKey: "s" },
+  ]) {
+    assert.throws(() => bedrockClaudeProvider({ region: "eu-central-1", ...credentials }), LlmError);
+  }
 });

@@ -296,6 +296,8 @@ const ROUTINGS: Record<NonNullable<ModelConfig["routing"]>, string> = { global: 
 const FIELD_LABELS: Record<string, string> = {
   apiKey: "API key",
   serviceAccount: "Service account",
+  accessKeyId: "Access key ID",
+  secretAccessKey: "Secret access key",
   region: "Region",
   projectId: "Project",
 };
