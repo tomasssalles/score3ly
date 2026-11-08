@@ -6,7 +6,7 @@ import { FakeProvider } from "./fake.ts";
 import { GoogleProvider, VertexGeminiProvider } from "./google.ts";
 import type { Fetch, LlmProvider } from "./types.ts";
 import { adapterFor } from "./adapters.ts";
-import type { Family, Provider, Routing } from "./models.ts";
+import type { Family, Provider } from "./models.ts";
 
 export * from "./types.ts";
 
@@ -59,14 +59,4 @@ export function createAdapter(settings: AdapterSettings, options: { fetch?: Fetc
     : adapter === "anthropic-vertex" || adapter === "google-vertex" ? { provider: adapter, serviceAccount: secrets.serviceAccount!, ...where }
     : { provider: adapter };
   return createProvider(config as ProviderConfig, options);
-}
-
-// The model string Bedrock is sent for a routing (docs/llm.md, "Prices"): AWS's inference profiles are the model ID
-// with a prefix, "global." for global routing and the geography's ("eu.", "us.", "jp.", "au.") for geographic routing;
-// in-region routing sends the model ID alone. Assumed for Bedrock's Messages API endpoint as for its older integration
-// until a real call confirms it (§15, "Decide the model configs").
-export function bedrockModel(model: string, routing: Routing | null, geography: string | undefined): string {
-  if (routing === "global") return `global.${model}`;
-  if (routing === "geographic" && geography) return `${geography.toLowerCase()}.${model}`;
-  return model;
 }

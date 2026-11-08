@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { bedrockClaudeProvider } from "./anthropic.ts";
-import { bedrockModel, createAdapter, createProvider } from "./index.ts";
+import { createAdapter, createProvider } from "./index.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 
 type Call = { url: string; headers: Headers; body: any };
@@ -81,12 +81,6 @@ test("the model check takes the answer's model with or without the routing's pre
   assert.equal((await bare.send(request)).unexpectedModel, undefined);
   const other = createProvider({ provider: "anthropic-bedrock", region: "eu-central-1", apiKey: "k" }, { fetch: fakeBedrock([], "anthropic.claude-sonnet-5-5") });
   assert.match((await other.send(request)).unexpectedModel ?? "", /but anthropic\.claude-sonnet-5-5 answered/);
-});
-
-test("the routing becomes the model string's prefix", () => {
-  assert.equal(bedrockModel("anthropic.claude-opus-5-5", "global", "EU"), "global.anthropic.claude-opus-5-5");
-  assert.equal(bedrockModel("anthropic.claude-opus-5-5", "geographic", "EU"), "eu.anthropic.claude-opus-5-5");
-  assert.equal(bedrockModel("anthropic.claude-opus-5-5", "in-region", "EU"), "anthropic.claude-opus-5-5");
 });
 
 test("an adapter for each supported pair, none for the others", () => {
