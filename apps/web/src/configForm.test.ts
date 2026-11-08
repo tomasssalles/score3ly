@@ -219,6 +219,7 @@ function config(fields: Partial<ModelConfig>): ModelConfig {
     region: "eu-central-1",
     routing: "geographic",
     project: null,
+    account: null,
     secrets: { secretAccessKey: "SECRET", accessKeyId: "ID" },
     pricing: { kind: "list", reference: null },
     price: { kind: "priced", price: P(4.4), borrowedFrom: null },
@@ -272,4 +273,52 @@ test("a listed model that takes no effort level offers only the dash, and drops 
   const form = settled(options, { ...opus, effort: "high", model: { kind: "listed", id: "haiku-4-5" } });
   assert.deepEqual(effortsOf(options, form), []);
   assert.equal(form.effort, null);
+});
+
+// OpenRouter: priced by the provider, with an account; the EU for Business only.
+const OR_OPTIONS: ModelOptions = {
+  ...OPTIONS,
+  providers: [
+    ...OPTIONS.providers,
+    {
+      id: "openrouter",
+      name: "OpenRouter",
+      families: [{ ...CLAUDE, efforts: [...CLAUDE.efforts], secrets: [["apiKey"]] }],
+      places: [{ region: "", routing: null }, { region: "eu", routing: null }],
+      pricedByProvider: { fees: { standard: 0.055, business: 0.08 }, businessRegions: ["eu"] },
+    },
+  ],
+  models: OPTIONS.models.map((m) =>
+    m.id === "opus" ? { ...m, providers: { ...m.providers, openrouter: { string: "anthropic/claude-opus-5.5", places: [{ region: "", routing: null, price: null }, { region: "eu", routing: null, price: null }] } } } : m,
+  ),
+};
+
+test("OpenRouter: priced by the provider, a Standard account at first, the EU only for Business", () => {
+  const step = (form: FormState, change: Partial<FormState>) => settled(OR_OPTIONS, { ...form, ...change });
+  const standard = step(step(EMPTY_FORM, { provider: "openrouter" }), { model: { kind: "listed", id: "opus" }, secrets: { apiKey: "OR" } });
+  assert.deepEqual([standard.pricing, standard.account, standard.region], ["provider", "standard", ""]);
+  assert.deepEqual(regionsOf(OR_OPTIONS, standard), [""]);
+  assert.equal(missing(OR_OPTIONS, standard), null);
+  assert.deepEqual(requestOf(standard), {
+    provider: "openrouter",
+    modelId: "opus",
+    effort: null,
+    region: "",
+    routing: null,
+    account: "standard",
+    secrets: { apiKey: "OR" },
+    pricing: { kind: "provider" },
+  });
+  assert.equal(confirmationOf(OR_OPTIONS, standard), null);
+  const business = step(standard, { account: "business" });
+  assert.deepEqual(regionsOf(OR_OPTIONS, business), ["", "eu"]);
+  const eu = step(business, { region: "eu" });
+  assert.equal(eu.region, "eu");
+  // Back to Standard: the EU goes, the first region comes.
+  assert.equal(step(eu, { account: "standard" }).region, "");
+  // A model added by hand is priced by the provider too; another provider has no account.
+  const added = step(standard, { model: { kind: "added", string: "anthropic/claude-opus-6", family: "claude" } });
+  assert.equal(added.pricing, "provider");
+  const bedrock = step(standard, { provider: "bedrock", model: { kind: "listed", id: "opus" } });
+  assert.deepEqual([bedrock.pricing, bedrock.account], ["list", null]);
 });

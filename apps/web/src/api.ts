@@ -309,7 +309,9 @@ export async function fetchTextContent(sha256: string): Promise<string> {
 
 // LLM calls (apps/worker/src/llmRoutes.ts, docs/llm.md).
 
-export type Provider = "anthropic" | "bedrock" | "ai-studio" | "vertex" | "fake" | "fake-dev";
+export type Provider = "anthropic" | "bedrock" | "ai-studio" | "vertex" | "openrouter" | "fake" | "fake-dev";
+// An OpenRouter account's plan: its fee on credit purchases, and the EU for Business only.
+export type Account = "standard" | "business";
 export type Family = "claude" | "gemini" | "fake";
 
 // A model config (docs/llm.md, "Configs"), with what the list of models says about its model.
@@ -329,13 +331,15 @@ export type ModelConfig = {
   region: string; // "" where the provider has no regions
   routing: "global" | "geographic" | "in-region" | null; // Bedrock only
   project: string | null; // Vertex AI only
+  account: Account | null; // OpenRouter only
   secrets: Record<string, string>; // field → name of a Worker secret
-  pricing: { kind: "list"; reference: string | null } | { kind: "free" } | { kind: "unpriced" };
+  pricing: { kind: "list"; reference: string | null } | { kind: "free" } | { kind: "unpriced" } | { kind: "provider" };
   // What its calls cost now: per million tokens, perhaps borrowed from another model (its name).
   price:
     | { kind: "priced"; price: { input: number; output: number; cacheRead: number; cacheWrite: number }; borrowedFrom: string | null }
     | { kind: "free" }
     | { kind: "unpriced" }
+    | { kind: "provider"; fee: number } // each answer says what it cost; plus the fee on credits
     | { kind: "missing" };
   freeTier: boolean; // pricing "free"
   createdAt: string;
@@ -572,13 +576,16 @@ export type ModelOptions = {
     name: string;
     families: { id: Family; name: string; efforts: NonNullable<ModelConfig["effort"]>[]; secrets: string[][] }[];
     places: (Place & { geography?: string })[];
+    // Priced by the provider (OpenRouter): an account's plan sets the fee, and some regions are for Business only.
+    pricedByProvider?: { fees: Record<Account, number>; businessRegions: string[] };
   }[];
   models: {
     id: string;
     name: string;
     family: Family;
     efforts: NonNullable<ModelConfig["effort"]>[]; // the levels the model takes ([] for none)
-    providers: Partial<Record<Provider, { string: string; places: (Place & { price: ModelPrice })[] }>>;
+    // A place's price is null where the provider prices each call itself.
+    providers: Partial<Record<Provider, { string: string; places: (Place & { price: ModelPrice | null })[] }>>;
   }[];
 };
 
@@ -602,6 +609,7 @@ export type NewModelConfig = {
   region: string;
   routing: Routing | null;
   project?: string;
+  account?: Account;
   secrets: Record<string, string>;
   pricing: ModelConfig["pricing"];
 };

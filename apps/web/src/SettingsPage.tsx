@@ -22,7 +22,7 @@ import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { CACHE_LIMITS_MB, cacheLimitMb, formatSize, setCacheLimitMb } from "./cacheLru";
 import { useHost } from "./host";
-import { pricingText } from "./pricing";
+import { ACCOUNT_NAMES, pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
 import { ChevronDownIcon, MoreIcon, PlusIcon } from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -285,6 +285,7 @@ const PROVIDERS: Record<ModelConfig["provider"], string> = {
   anthropic: "Anthropic",
   bedrock: "Bedrock",
   "ai-studio": "AI Studio",
+  openrouter: "OpenRouter",
   vertex: "Vertex AI",
   fake: "Fake (no network, no costs, for trying the app)",
   "fake-dev": "Fake with costs (for development)",
@@ -415,6 +416,12 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
                 </>
               )}
               {config.project && <Fact label="projectId" value={config.project} />}
+              {config.account && (
+                <>
+                  <dt>Account</dt>
+                  <dd>{ACCOUNT_NAMES[config.account]}</dd>
+                </>
+              )}
               <dt>Pricing</dt>
               <dd>{pricingText(config)}</dd>
               {Object.entries(config.secrets).map(([field, secret]) => (

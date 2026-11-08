@@ -16,9 +16,19 @@ export function pricingText(config: ModelConfig): string {
   if (price.kind === "free") return "Free tier";
   if (price.kind === "unpriced") return "Unpriced: its calls' costs are unknown";
   if (price.kind === "missing") return "No price in the app's list";
+  if (price.kind === "provider") return `Priced per call by ${PROVIDER_NAMES[config.provider] ?? config.provider}, plus its ${percent(price.fee)} fee on credit purchases`;
   const text = pricesText(price.price);
   return price.borrowedFrom ? `${text} (priced as ${price.borrowedFrom})` : text;
 }
+
+// A share as a percentage: 0.055 → "5.5%".
+export function percent(share: number): string {
+  return `${Math.round(share * 1000) / 10}%`;
+}
+
+const PROVIDER_NAMES: Partial<Record<ModelConfig["provider"], string>> = { openrouter: "OpenRouter" };
+
+export const ACCOUNT_NAMES: Record<NonNullable<ModelConfig["account"]>, string> = { standard: "Standard", business: "Business" };
 
 // The four prices of a model, per million tokens.
 export function pricesText(p: ModelPrice): string {

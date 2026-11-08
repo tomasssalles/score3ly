@@ -175,6 +175,7 @@ const PROVIDERS: Record<string, string> = {
   anthropic: "Anthropic",
   bedrock: "Bedrock",
   "ai-studio": "AI Studio",
+  openrouter: "OpenRouter",
   vertex: "Vertex AI",
   "fake-dev": "Fake (dev)",
 };

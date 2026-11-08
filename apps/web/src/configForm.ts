@@ -2,7 +2,7 @@
 // offers given the others, the default name it would get, what is still missing, and the request it makes. Pure, so the
 // dialog (NewModelConfig.tsx) only shows it.
 
-import type { Family, ModelConfig, ModelOptions, NewModelConfig, Place, Provider, Routing } from "./api";
+import type { Account, Family, ModelConfig, ModelOptions, NewModelConfig, Place, Provider, Routing } from "./api";
 
 type Effort = NonNullable<ModelConfig["effort"]>;
 type ProviderOption = ModelOptions["providers"][number];
@@ -11,8 +11,9 @@ type ModelOption = ModelOptions["models"][number];
 // A listed model, or one added by hand (its string and family).
 export type FormModel = { kind: "listed"; id: string } | { kind: "added"; string: string; family: Family | null };
 
-// "list": a listed model at its own price; "as": a model added by hand priced as a listed one (`reference`).
-export type FormPricing = "list" | "as" | "unpriced" | "free";
+// "list": a listed model at its own price; "as": a model added by hand priced as a listed one (`reference`);
+// "provider": priced by the provider (OpenRouter), every model there.
+export type FormPricing = "list" | "as" | "unpriced" | "free" | "provider";
 
 export type FormState = {
   provider: Provider | null;
@@ -21,6 +22,7 @@ export type FormState = {
   routing: Routing | null;
   effort: Effort | null; // null: the model's default
   project: string;
+  account: Account | null; // OpenRouter: the plan (the fee; the EU for Business only)
   secretSet: number; // which of the adapter's sets of secrets (Bedrock: an API key, or an access key pair)
   secrets: Record<string, string>;
   pricing: FormPricing | null;
@@ -54,6 +56,7 @@ export const EMPTY_FORM: FormState = {
   routing: null,
   effort: null,
   project: "",
+  account: null,
   secretSet: 0,
   secrets: {},
   pricing: null,
@@ -107,6 +110,7 @@ export function formFromConfig(options: ModelOptions, config: ModelConfig): Form
     routing: config.routing,
     effort: config.effort,
     project: config.project ?? "",
+    account: config.account,
     secretSet,
     secrets: { ...config.secrets },
     pricing,
@@ -175,7 +179,10 @@ export function placesOf(options: ModelOptions, form: FormState): (Place & { geo
   if (!provider) return [];
   const withGeography = (p: Place) => provider.places.find((q) => samePlace(p, q)) ?? p;
   const listed = listedModel(options, form);
-  const places = listed || form.model?.kind === "listed" ? (listed?.providers[provider.id]?.places ?? []).map(withGeography) : provider.places;
+  const all = listed || form.model?.kind === "listed" ? (listed?.providers[provider.id]?.places ?? []).map(withGeography) : provider.places;
+  // Some of OpenRouter's regions are for a Business account only.
+  const businessOnly = provider.pricedByProvider?.businessRegions ?? [];
+  const places = form.account === "business" ? all : all.filter((p) => !businessOnly.includes(p.region));
   // A clone's original place, kept while its model is the original's, even where the app no longer supports it.
   const pinned = pinnedModel(form);
   if (pinned && !places.some((p) => samePlace(p, pinned))) {
@@ -225,6 +232,13 @@ export function priceAt(options: ModelOptions, form: FormState) {
   return model.providers[form.provider]?.places.find((p) => samePlace(p, { region: form.region!, routing: form.routing }))?.price ?? null;
 }
 
+// Whether a listed model is offered at the form's place (with a price, or priced by the provider).
+export function offeredAt(options: ModelOptions, form: FormState): boolean {
+  const model = listedModel(options, form);
+  if (!model || !form.provider || form.region === null) return false;
+  return model.providers[form.provider]?.places.some((p) => samePlace(p, { region: form.region!, routing: form.routing })) ?? false;
+}
+
 // After a change, what no longer fits is dropped, and the pickers that start on their first entry get it (docs/style.md,
 // "Pickers"): the family, the region, the routing; the pricing of a listed model is its own, of a model added by hand
 // "Priced as" at first. The effort stays "—" (the model's own default) unless picked. The secrets and the model priced as
@@ -239,9 +253,17 @@ export function settled(options: ModelOptions, form: FormState): FormState {
   if (next.model?.kind === "listed" && !modelsOf(options, provider.id).some((m) => m.id === (next.model as { id: string }).id) && !pinnedModel(next)) {
     next.model = null;
   }
-  // Pricing: a listed model at its own price or free; a model added by hand priced as another, unpriced or free.
-  if (next.model?.kind === "listed" && next.pricing !== "free") next.pricing = "list";
-  if (next.model?.kind === "added" && (next.pricing === "list" || next.pricing === null)) next.pricing = "as";
+  // Pricing: priced by the provider where it reports each call's cost (with an account, Standard at first); else a
+  // listed model at its own price or free, a model added by hand priced as another, unpriced or free.
+  if (provider.pricedByProvider) {
+    next.pricing = "provider";
+    if (next.account === null) next.account = "standard";
+  } else {
+    next.account = null;
+    if (next.pricing === "provider") next.pricing = null;
+    if (next.model?.kind === "listed" && next.pricing !== "free") next.pricing = "list";
+    if (next.model?.kind === "added" && (next.pricing === "list" || next.pricing === null)) next.pricing = "as";
+  }
   if (next.pricing !== "as") next.reference = null;
   // The place.
   const regions = regionsOf(options, next);
@@ -295,7 +317,7 @@ export function missing(options: ModelOptions, form: FormState): string | null {
   if (form.pricing === "as" && form.reference === null) return "The model it is priced as isn't chosen yet.";
   // A clone of a config the app no longer supports, as it was: not saved until it is supported (docs/llm.md, "Clone").
   const where = `${provider.name}${form.region ? ` in ${form.region}` : ""}${form.routing ? ` (${form.routing} routing)` : ""}`;
-  if (form.model.kind === "listed" && priceAt(options, form) === null) {
+  if (form.model.kind === "listed" && (provider.pricedByProvider ? !offeredAt(options, form) : priceAt(options, form) === null)) {
     return `The app no longer supports ${listedModel(options, form)?.name ?? pinnedModel(form)?.modelName ?? form.model.id} on ${where}.`;
   }
   if (form.pricing === "as" && priceAt(options, form) === null) {
@@ -317,6 +339,7 @@ export function requestOf(form: FormState): NewModelConfig {
     region: form.region ?? "",
     routing: form.routing,
     ...(form.project.trim() ? { project: form.project.trim() } : {}),
+    ...(form.account ? { account: form.account } : {}),
     secrets: form.secrets,
     pricing:
       form.pricing === "list" ? { kind: "list", reference: null }
@@ -351,6 +374,7 @@ export function sameValues(configs: ModelConfig[], request: NewModelConfig): Mod
         c.region === request.region &&
         c.routing === request.routing &&
         (c.project ?? null) === (request.project ?? null) &&
+        (c.account ?? null) === (request.account ?? null) &&
         secrets(c.secrets) === secrets(request.secrets) &&
         c.pricing.kind === request.pricing.kind &&
         reference(c.pricing) === reference(request.pricing),

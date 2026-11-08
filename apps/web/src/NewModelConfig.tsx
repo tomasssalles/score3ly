@@ -33,7 +33,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { Picker } from "./fieldList";
 import { CloseIcon } from "./icons";
 import { Info } from "./Info";
-import { pricesText } from "./pricing";
+import { ACCOUNT_NAMES, percent, pricesText } from "./pricing";
 
 const FIELD_LABELS: Record<string, string> = {
   apiKey: "API key",
@@ -261,13 +261,37 @@ export function NewModelConfig({
           </>
         )}
 
-        {provider && form.model && hasRegions(options, form) && (
+        {provider?.pricedByProvider && form.model && (
+          <>
+            <PickerField label="Account">
+              <Picker
+                value={form.account ? ACCOUNT_NAMES[form.account] : NONE}
+                label="Account"
+                fitted
+                groups={[
+                  (["standard", "business"] as const).map((a) => ({
+                    label: ACCOUNT_NAMES[a],
+                    note: `(${percent(provider.pricedByProvider!.fees[a])} fee)`,
+                    current: form.account === a,
+                    onSelect: () => setForm({ account: a }),
+                  })),
+                ]}
+              />
+            </PickerField>
+            <p className="field-hint">
+              Your {provider.name} account's plan: it sets the fee on credit purchases, which the costs add to every call. Only a Business account can keep
+              requests in the EU.
+            </p>
+          </>
+        )}
+
+        {provider && form.model && hasRegions(options, form) && (!provider.pricedByProvider || form.account === "business") && (
           <PickerField label={provider.id === "vertex" ? "Location" : "Region"}>
             <Picker
-              value={form.region ?? NONE}
+              value={form.region === null ? NONE : regionLabel(provider.id, form.region)}
               label="Region"
               fitted
-              groups={[regionsOf(options, form).map((r) => ({ label: r, current: r === form.region, onSelect: () => setForm({ region: r, routing: null }) }))]}
+              groups={[regionsOf(options, form).map((r) => ({ label: regionLabel(provider.id, r), current: r === form.region, onSelect: () => setForm({ region: r, routing: null }) }))]}
             />
           </PickerField>
         )}
@@ -355,7 +379,17 @@ export function NewModelConfig({
           </>
         )}
 
-        {form.model && (
+        {form.model && form.pricing === "provider" && provider && (
+          <div className="field">
+            <span>Pricing</span>
+            <p className="field-hint">
+              Priced per call by {provider.name}: each call costs what its answer reports, plus the {form.account ? percent(provider.pricedByProvider!.fees[form.account]) : ""} fee
+              on credit purchases. The price of a model can differ between the companies that run it for {provider.name}.
+            </p>
+          </div>
+        )}
+
+        {form.model && form.pricing !== "provider" && (
           <div className="field">
             <span>Pricing</span>
             {form.model.kind === "listed" ? (
@@ -479,6 +513,12 @@ function PickerField({ label, children }: { label: string; children: React.React
       {children}
     </div>
   );
+}
+
+// A region as the picker names it: OpenRouter's are "Everywhere" ("") and its EU host; others by their own names.
+function regionLabel(provider: string, region: string): string {
+  if (provider !== "openrouter") return region;
+  return region === "" ? "Everywhere" : region === "eu" ? "EU" : region;
 }
 
 function PricingChoice({ checked, onCheck, label, info }: { checked: boolean; onCheck: () => void; label: string; info?: string }) {
