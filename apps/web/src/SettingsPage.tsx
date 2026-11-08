@@ -24,7 +24,7 @@ import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { CACHE_LIMITS_MB, cacheLimitMb, formatSize, setCacheLimitMb } from "./cacheLru";
 import { useHost } from "./host";
-import { ACCOUNT_NAMES, pricingText, rangeText } from "./pricing";
+import { ACCOUNT_NAMES, pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
 import { ChevronDownIcon, MoreIcon, PlusIcon } from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -425,10 +425,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
                 </>
               )}
               <dt>Pricing</dt>
-              <dd>
-                {pricingText(config)}
-                {config.price.kind === "provider" && <PriceRangeHint configId={config.id} />}
-              </dd>
+              {config.price.kind === "provider" ? <ProviderPricing config={config} /> : <dd>{pricingText(config)}</dd>}
               {Object.entries(config.secrets).map(([field, secret]) => (
                 <Fact key={`s-${field}`} label={field} value={secret} hint={host === "cloudflare" ? "Worker secret" : "Secret"} />
               ))}
@@ -440,18 +437,19 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
   );
 }
 
-// What a model priced by its provider costs among those who run it, read from the provider when the card shows
-// (docs/llm.md, "OpenRouter"): only a guide, each call costs what its answer says. Nothing where it can't be read.
-function PriceRangeHint({ configId }: { configId: string }) {
+// The pricing of a config priced by its provider (docs/llm.md, "OpenRouter"): the range among those who run the model,
+// read from the provider when the card shows, with the fee included; until then, or where it can't be read, how it is
+// priced. Only a guide: each call costs what its answer says.
+function ProviderPricing({ config }: { config: ModelConfig }) {
   const [range, setRange] = useState<PriceRange | null>(null);
   useEffect(() => {
     let live = true;
-    fetchPriceRange(configId).then((r) => live && setRange(r), () => {});
+    fetchPriceRange(config.id).then((r) => live && setRange(r), () => {});
     return () => {
       live = false;
     };
-  }, [configId]);
-  return range ? <span className="field-hint model-config-range">Currently {rangeText(range)}, depending on who runs it.</span> : null;
+  }, [config.id]);
+  return <dd>{pricingText(config, range)}</dd>;
 }
 
 function Fact({ label, value, hint }: { label: string; value: string; hint?: string }) {

@@ -128,18 +128,21 @@ test("errors: an HTTP error by its status, an error after a 200, no key", async 
 
 test("the price range: lowest and highest per million tokens among the providers, without the tiers asked for", async () => {
   const endpoints = [
-    { tag: "amazon-bedrock", pricing: { prompt: "0.000004", completion: "0.00002" } },
-    { tag: "amazon-bedrock/eu-west-1", pricing: { prompt: "0.0000044", completion: "0.000022" } },
-    { tag: "anthropic/fast", pricing: { prompt: "0.000008", completion: "0.00004" } },
+    { tag: "amazon-bedrock", pricing: { prompt: "0.000004", completion: "0.00002", input_cache_read: "0.0000002", input_cache_write: "0.000005" } },
+    { tag: "amazon-bedrock/eu-west-1", pricing: { prompt: "0.0000044", completion: "0.000022", input_cache_read: "0.00000022", input_cache_write: "0.0000055" } },
+    { tag: "anthropic/fast", pricing: { prompt: "0.000008", completion: "0.00004", input_cache_read: "0.0000004", input_cache_write: "0.00001" } },
   ];
-  assert.deepEqual(priceRange(endpoints), { input: [4, 4.4], output: [20, 22] });
+  const range = { input: [4, 4.4], output: [20, 22], cacheRead: [0.2, 0.22], cacheWrite: [5, 5.5] };
+  assert.deepEqual(priceRange(endpoints), range);
+  // No cache prices: none to pay.
+  assert.deepEqual(priceRange([{ tag: "google-vertex", pricing: { prompt: "0.000002", completion: "0.000012" } }]), { input: [2, 2], output: [12, 12], cacheRead: [0, 0], cacheWrite: [0, 0] });
   assert.equal(priceRange([]), null);
   const calls: string[] = [];
   const fake = (async (input: RequestInfo | URL) => {
     calls.push(String(input));
     return new Response(JSON.stringify({ data: { endpoints } }));
   }) as typeof fetch;
-  assert.deepEqual(await fetchPriceRange("anthropic/claude-opus-5.5", "eu", fake, 1000), { input: [4, 4.4], output: [20, 22] });
+  assert.deepEqual(await fetchPriceRange("anthropic/claude-opus-5.5", "eu", fake, 1000), range);
   await fetchPriceRange("anthropic/claude-opus-5.5", "eu", fake, 2000); // kept
   assert.deepEqual(calls, ["https://eu.openrouter.ai/api/v1/models/anthropic/claude-opus-5.5/endpoints"]);
 });

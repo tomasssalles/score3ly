@@ -515,10 +515,10 @@ function PickerField({ label, children }: { label: string; children: React.React
   );
 }
 
-// A region as the picker names it: OpenRouter's are "Everywhere" ("") and its EU host; others by their own names.
+// A region as the picker names it: OpenRouter's are "Global" ("") and its EU host; others by their own names.
 function regionLabel(provider: string, region: string): string {
   if (provider !== "openrouter") return region;
-  return region === "" ? "Everywhere" : region === "eu" ? "EU" : region;
+  return region === "" ? "Global" : region === "eu" ? "EU" : region;
 }
 
 function PricingChoice({ checked, onCheck, label, info }: { checked: boolean; onCheck: () => void; label: string; info?: string }) {

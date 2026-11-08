@@ -206,23 +206,31 @@ export class OpenRouterProvider implements LlmProvider {
   }
 }
 
-// A guide to what a model costs on OpenRouter (docs/llm.md, "OpenRouter"): the lowest and highest input and output
-// prices, US dollars per million tokens, among the providers that run it there (its endpoints API, public), without the
-// tiers only a request asks for (`…/fast`, `…/priority`, …). Null where OpenRouter doesn't have the model or can't be
-// reached. Only a guide: each call costs what its answer says.
-export type PriceRange = { input: [number, number]; output: [number, number] };
+// A guide to what a model costs on OpenRouter (docs/llm.md, "OpenRouter"): the lowest and highest of each of the four
+// prices (input, output, cache read, cache write), US dollars per million tokens, among the providers that run it there
+// (its endpoints API, public), without the tiers only a request asks for (`…/fast`, `…/priority`, …). A provider
+// without a cache price has none (0: Gemini's implicit caching writes for free). Null where OpenRouter doesn't have
+// the model or can't be reached. Only a guide: each call costs what its answer says. Without the fee on credits.
+export type PriceRange = { input: [number, number]; output: [number, number]; cacheRead: [number, number]; cacheWrite: [number, number] };
 
 const TIERS = new Set(["fast", "priority", "turbo", "flex"]);
 
-export function priceRange(endpoints: { tag?: string; pricing?: { prompt?: string; completion?: string } }[]): PriceRange | null {
+type EndpointPricing = { prompt?: string; completion?: string; input_cache_read?: string; input_cache_write?: string };
+
+export function priceRange(endpoints: { tag?: string; pricing?: EndpointPricing }[]): PriceRange | null {
   const perMillion = (v: string | undefined) => (v === undefined ? NaN : Math.round(Number(v) * 1e6 * 1e6) / 1e6);
   const prices = endpoints
     .filter((e) => !TIERS.has(e.tag?.split("/").at(-1) ?? ""))
-    .map((e) => [perMillion(e.pricing?.prompt), perMillion(e.pricing?.completion)] as const)
-    .filter(([i, o]) => Number.isFinite(i) && Number.isFinite(o));
+    .map((e) => ({
+      input: perMillion(e.pricing?.prompt),
+      output: perMillion(e.pricing?.completion),
+      cacheRead: perMillion(e.pricing?.input_cache_read ?? "0"),
+      cacheWrite: perMillion(e.pricing?.input_cache_write ?? "0"),
+    }))
+    .filter((p) => Object.values(p).every(Number.isFinite));
   if (prices.length === 0) return null;
-  const span = (xs: number[]): [number, number] => [Math.min(...xs), Math.max(...xs)];
-  return { input: span(prices.map(([i]) => i)), output: span(prices.map(([, o]) => o)) };
+  const span = (key: keyof PriceRange): [number, number] => [Math.min(...prices.map((p) => p[key])), Math.max(...prices.map((p) => p[key]))];
+  return { input: span("input"), output: span("output"), cacheRead: span("cacheRead"), cacheWrite: span("cacheWrite") };
 }
 
 // Kept a day per host and model, in the Worker's memory.
