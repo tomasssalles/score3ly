@@ -28,8 +28,7 @@ export const MODEL_LIST: ModelList = {
       "name": "Claude Mythos 5.1",
       "family": "claude",
       "strings": {
-        "anthropic": "claude-mythos-5-1",
-        "bedrock": "anthropic.claude-mythos-5-1"
+        "anthropic": "claude-mythos-5-1"
       },
       "efforts": [
         "low",
@@ -61,8 +60,7 @@ export const MODEL_LIST: ModelList = {
       "name": "Claude Mythos 5",
       "family": "claude",
       "strings": {
-        "anthropic": "claude-mythos-5",
-        "bedrock": "anthropic.claude-mythos-5"
+        "anthropic": "claude-mythos-5"
       },
       "efforts": [
         "low",
@@ -148,6 +146,7 @@ export const MODEL_LIST: ModelList = {
       "family": "claude",
       "strings": {
         "anthropic": "claude-opus-4-6",
+        "bedrock": "anthropic.claude-opus-4-6-v1",
         "vertex": "claude-opus-4-6"
       },
       "efforts": [
@@ -164,6 +163,7 @@ export const MODEL_LIST: ModelList = {
       "family": "claude",
       "strings": {
         "anthropic": "claude-opus-4-5-20251101",
+        "bedrock": "anthropic.claude-opus-4-5-20251101-v1:0",
         "vertex": "claude-opus-4-5@20251101"
       },
       "efforts": [
@@ -212,6 +212,7 @@ export const MODEL_LIST: ModelList = {
       "family": "claude",
       "strings": {
         "anthropic": "claude-sonnet-4-6",
+        "bedrock": "anthropic.claude-sonnet-4-6",
         "vertex": "claude-sonnet-4-6"
       },
       "efforts": [
@@ -228,6 +229,7 @@ export const MODEL_LIST: ModelList = {
       "family": "claude",
       "strings": {
         "anthropic": "claude-sonnet-4-5-20250929",
+        "bedrock": "anthropic.claude-sonnet-4-5-20250929-v1:0",
         "vertex": "claude-sonnet-4-5@20250929"
       },
       "efforts": []
@@ -255,8 +257,26 @@ export const MODEL_LIST: ModelList = {
       "family": "claude",
       "strings": {
         "anthropic": "claude-haiku-4-5-20251001",
-        "bedrock": "anthropic.claude-haiku-4-5",
+        "bedrock": "anthropic.claude-haiku-4-5-20251001-v1:0",
         "vertex": "claude-haiku-4-5@20251001"
+      },
+      "efforts": []
+    },
+    {
+      "id": "claude-opus-4-1",
+      "name": "Claude Opus 4.1",
+      "family": "claude",
+      "strings": {
+        "bedrock": "anthropic.claude-opus-4-1-20250805-v1:0"
+      },
+      "efforts": []
+    },
+    {
+      "id": "claude-sonnet-4",
+      "name": "Claude Sonnet 4",
+      "family": "claude",
+      "strings": {
+        "bedrock": "anthropic.claude-sonnet-4-20250514-v1:0"
       },
       "efforts": []
     },
@@ -468,11 +488,17 @@ export const MODEL_LIST: ModelList = {
     },
     {
       "provider": "bedrock",
+      "region": "ap-east-2",
+      "routings": [
+        "global"
+      ]
+    },
+    {
+      "provider": "bedrock",
       "region": "ap-northeast-1",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "JP"
     },
@@ -480,8 +506,11 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "ap-northeast-2",
       "routings": [
-        "global"
-      ]
+        "global",
+        "geographic",
+        "in-region"
+      ],
+      "geography": "APAC"
     },
     {
       "provider": "bedrock",
@@ -496,22 +525,29 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "ap-south-1",
       "routings": [
-        "global"
-      ]
+        "global",
+        "geographic"
+      ],
+      "geography": "IN"
     },
     {
       "provider": "bedrock",
       "region": "ap-south-2",
       "routings": [
-        "global"
-      ]
+        "global",
+        "geographic"
+      ],
+      "geography": "IN"
     },
     {
       "provider": "bedrock",
       "region": "ap-southeast-1",
       "routings": [
-        "global"
-      ]
+        "global",
+        "geographic",
+        "in-region"
+      ],
+      "geography": "APAC"
     },
     {
       "provider": "bedrock",
@@ -534,10 +570,32 @@ export const MODEL_LIST: ModelList = {
       "region": "ap-southeast-4",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "AU"
+    },
+    {
+      "provider": "bedrock",
+      "region": "ap-southeast-5",
+      "routings": [
+        "global"
+      ]
+    },
+    {
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routings": [
+        "global",
+        "geographic"
+      ],
+      "geography": "AU"
+    },
+    {
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routings": [
+        "global"
+      ]
     },
     {
       "provider": "bedrock",
@@ -552,8 +610,10 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "ca-west-1",
       "routings": [
-        "global"
-      ]
+        "global",
+        "geographic"
+      ],
+      "geography": "US"
     },
     {
       "provider": "bedrock",
@@ -578,8 +638,7 @@ export const MODEL_LIST: ModelList = {
       "region": "eu-north-1",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "EU"
     },
@@ -606,8 +665,7 @@ export const MODEL_LIST: ModelList = {
       "region": "eu-west-1",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "EU"
     },
@@ -616,7 +674,8 @@ export const MODEL_LIST: ModelList = {
       "region": "eu-west-2",
       "routings": [
         "global",
-        "geographic"
+        "geographic",
+        "in-region"
       ],
       "geography": "EU"
     },
@@ -633,12 +692,28 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "il-central-1",
       "routings": [
+        "global",
+        "geographic"
+      ],
+      "geography": "EU"
+    },
+    {
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routings": [
         "global"
       ]
     },
     {
       "provider": "bedrock",
-      "region": "me-central-1",
+      "region": "me-south-1",
+      "routings": [
+        "global"
+      ]
+    },
+    {
+      "provider": "bedrock",
+      "region": "mx-central-1",
       "routings": [
         "global"
       ]
@@ -655,8 +730,7 @@ export const MODEL_LIST: ModelList = {
       "region": "us-east-1",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "US"
     },
@@ -665,8 +739,23 @@ export const MODEL_LIST: ModelList = {
       "region": "us-east-2",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
+      ],
+      "geography": "US"
+    },
+    {
+      "provider": "bedrock",
+      "region": "us-gov-east-1",
+      "routings": [
+        "geographic"
+      ],
+      "geography": "US"
+    },
+    {
+      "provider": "bedrock",
+      "region": "us-gov-west-1",
+      "routings": [
+        "geographic"
       ],
       "geography": "US"
     },
@@ -684,8 +773,7 @@ export const MODEL_LIST: ModelList = {
       "region": "us-west-2",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "US"
     },
@@ -1048,6 +1136,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5-1",
       "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "global",
       "price": {
@@ -1156,6 +1256,42 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5-1",
       "provider": "bedrock",
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
       "region": "ca-central-1",
       "routing": "global",
       "price": {
@@ -1187,6 +1323,18 @@ export const MODEL_LIST: ModelList = {
         "output": 50,
         "cacheRead": 0.25,
         "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 0.275,
+        "cacheWrite": 13.75
       }
     },
     {
@@ -1312,6 +1460,30 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5-1",
       "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5-1",
+      "provider": "bedrock",
       "region": "sa-east-1",
       "routing": "global",
       "price": {
@@ -1348,18 +1520,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5-1",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5-1",
-      "provider": "bedrock",
       "region": "us-east-2",
       "routing": "global",
       "price": {
@@ -1374,18 +1534,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5-1",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
       "price": {
         "input": 11,
         "output": 55,
@@ -1434,114 +1582,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5-1",
-      "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "in-region",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "provider": "bedrock",
-      "region": "ca-central-1",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "provider": "bedrock",
-      "region": "us-west-1",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "in-region",
       "price": {
         "input": 11,
         "output": 55,
@@ -1564,6 +1604,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5",
       "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "global",
       "price": {
@@ -1648,18 +1700,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5",
       "provider": "bedrock",
-      "region": "ap-southeast-2",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
       "region": "ap-southeast-3",
       "routing": "global",
       "price": {
@@ -1684,25 +1724,37 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5",
       "provider": "bedrock",
-      "region": "ap-southeast-4",
-      "routing": "geographic",
+      "region": "ap-southeast-5",
+      "routing": "global",
       "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
       }
     },
     {
       "model": "claude-fable-5",
       "provider": "bedrock",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
+      "region": "ap-southeast-6",
+      "routing": "global",
       "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
       }
     },
     {
@@ -1744,6 +1796,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5",
       "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 11,
+        "output": 55,
+        "cacheRead": 1.1,
+        "cacheWrite": 13.75
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
       "region": "eu-central-1",
       "routing": "global",
       "price": {
@@ -1751,18 +1815,6 @@ export const MODEL_LIST: ModelList = {
         "output": 50,
         "cacheRead": 1,
         "cacheWrite": 12.5
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
-      "region": "eu-central-1",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
       }
     },
     {
@@ -1780,18 +1832,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5",
       "provider": "bedrock",
-      "region": "eu-central-2",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
       "region": "eu-north-1",
       "routing": "global",
       "price": {
@@ -1799,30 +1839,6 @@ export const MODEL_LIST: ModelList = {
         "output": 50,
         "cacheRead": 1,
         "cacheWrite": 12.5
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
-      "region": "eu-north-1",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
-      "region": "eu-north-1",
-      "routing": "in-region",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
       }
     },
     {
@@ -1840,18 +1856,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5",
       "provider": "bedrock",
-      "region": "eu-south-1",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
       "region": "eu-south-2",
       "routing": "global",
       "price": {
@@ -1864,18 +1868,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5",
       "provider": "bedrock",
-      "region": "eu-south-2",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
       "region": "eu-west-1",
       "routing": "global",
       "price": {
@@ -1883,30 +1875,6 @@ export const MODEL_LIST: ModelList = {
         "output": 50,
         "cacheRead": 1,
         "cacheWrite": 12.5
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
       }
     },
     {
@@ -1924,18 +1892,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5",
       "provider": "bedrock",
-      "region": "eu-west-2",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
       "region": "eu-west-3",
       "routing": "global",
       "price": {
@@ -1943,18 +1899,6 @@ export const MODEL_LIST: ModelList = {
         "output": 50,
         "cacheRead": 1,
         "cacheWrite": 12.5
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
-      "region": "eu-west-3",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
       }
     },
     {
@@ -1973,6 +1917,30 @@ export const MODEL_LIST: ModelList = {
       "model": "claude-fable-5",
       "provider": "bedrock",
       "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5
+      }
+    },
+    {
+      "model": "claude-fable-5",
+      "provider": "bedrock",
+      "region": "mx-central-1",
       "routing": "global",
       "price": {
         "input": 10,
@@ -2020,18 +1988,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-fable-5",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
       "region": "us-east-2",
       "routing": "global",
       "price": {
@@ -2046,18 +2002,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
       "price": {
         "input": 11,
         "output": 55,
@@ -2106,42 +2050,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "in-region",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-mythos-5",
-      "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "geographic",
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-mythos-5",
-      "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
       "price": {
         "input": 11,
         "output": 55,
@@ -2164,6 +2072,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5-5",
       "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "global",
       "price": {
@@ -2178,18 +2098,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "geographic",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "bedrock",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
       "price": {
         "input": 4.4,
         "output": 22,
@@ -2332,13 +2240,37 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5-5",
       "provider": "bedrock",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
+      "region": "ap-southeast-5",
+      "routing": "global",
       "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
       }
     },
     {
@@ -2380,6 +2312,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5-5",
       "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
       "region": "eu-central-1",
       "routing": "global",
       "price": {
@@ -2442,18 +2386,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "eu-north-1",
       "routing": "geographic",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "bedrock",
-      "region": "eu-north-1",
-      "routing": "in-region",
       "price": {
         "input": 4.4,
         "output": 22,
@@ -2536,18 +2468,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5-5",
       "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "bedrock",
       "region": "eu-west-2",
       "routing": "global",
       "price": {
@@ -2562,6 +2482,18 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "eu-west-2",
       "routing": "geographic",
+      "price": {
+        "input": 4.4,
+        "output": 22,
+        "cacheRead": 0.22,
+        "cacheWrite": 5.5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "in-region",
       "price": {
         "input": 4.4,
         "output": 22,
@@ -2620,6 +2552,30 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5-5",
       "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 4,
+        "output": 20,
+        "cacheRead": 0.2,
+        "cacheWrite": 5
+      }
+    },
+    {
+      "model": "claude-opus-5-5",
+      "provider": "bedrock",
       "region": "sa-east-1",
       "routing": "global",
       "price": {
@@ -2656,18 +2612,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5-5",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "bedrock",
       "region": "us-east-2",
       "routing": "global",
       "price": {
@@ -2682,18 +2626,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "geographic",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
       "price": {
         "input": 4.4,
         "output": 22,
@@ -2742,18 +2674,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "geographic",
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "in-region",
       "price": {
         "input": 4.4,
         "output": 22,
@@ -2776,7 +2696,7 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5",
       "provider": "bedrock",
-      "region": "ap-northeast-1",
+      "region": "ap-east-2",
       "routing": "global",
       "price": {
         "input": 5,
@@ -2789,24 +2709,12 @@ export const MODEL_LIST: ModelList = {
       "model": "claude-opus-5",
       "provider": "bedrock",
       "region": "ap-northeast-1",
-      "routing": "geographic",
+      "routing": "global",
       "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-5",
-      "provider": "bedrock",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
       }
     },
     {
@@ -2824,6 +2732,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5",
       "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
       "region": "ap-northeast-3",
       "routing": "global",
       "price": {
@@ -2831,18 +2751,6 @@ export const MODEL_LIST: ModelList = {
         "output": 25,
         "cacheRead": 0.5,
         "cacheWrite": 6.25
-      }
-    },
-    {
-      "model": "claude-opus-5",
-      "provider": "bedrock",
-      "region": "ap-northeast-3",
-      "routing": "geographic",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
       }
     },
     {
@@ -2860,6 +2768,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5",
       "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
       "region": "ap-south-2",
       "routing": "global",
       "price": {
@@ -2867,6 +2787,18 @@ export const MODEL_LIST: ModelList = {
         "output": 25,
         "cacheRead": 0.5,
         "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
       }
     },
     {
@@ -2944,13 +2876,37 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5",
       "provider": "bedrock",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
+      "region": "ap-southeast-5",
+      "routing": "global",
       "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
       }
     },
     {
@@ -2992,6 +2948,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5",
       "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
       "region": "eu-central-1",
       "routing": "global",
       "price": {
@@ -3064,18 +3032,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5",
       "provider": "bedrock",
-      "region": "eu-north-1",
-      "routing": "in-region",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-5",
-      "provider": "bedrock",
       "region": "eu-south-1",
       "routing": "global",
       "price": {
@@ -3138,18 +3094,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "eu-west-1",
       "routing": "geographic",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
       "price": {
         "input": 5.5,
         "output": 27.5,
@@ -3232,6 +3176,30 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5",
       "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-5",
+      "provider": "bedrock",
       "region": "sa-east-1",
       "routing": "global",
       "price": {
@@ -3268,18 +3236,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-5",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-5",
-      "provider": "bedrock",
       "region": "us-east-2",
       "routing": "global",
       "price": {
@@ -3294,18 +3250,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "geographic",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-5",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
       "price": {
         "input": 5.5,
         "output": 27.5,
@@ -3354,18 +3298,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "geographic",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-5",
-      "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "in-region",
       "price": {
         "input": 5.5,
         "output": 27.5,
@@ -3388,6 +3320,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-8",
       "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "global",
       "price": {
@@ -3402,18 +3346,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "geographic",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-8",
-      "provider": "bedrock",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
       "price": {
         "input": 5.5,
         "output": 27.5,
@@ -3556,13 +3488,37 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-8",
       "provider": "bedrock",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
+      "region": "ap-southeast-5",
+      "routing": "global",
       "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
       }
     },
     {
@@ -3604,6 +3560,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-8",
       "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
       "region": "eu-central-1",
       "routing": "global",
       "price": {
@@ -3676,18 +3644,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-8",
       "provider": "bedrock",
-      "region": "eu-north-1",
-      "routing": "in-region",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-8",
-      "provider": "bedrock",
       "region": "eu-south-1",
       "routing": "global",
       "price": {
@@ -3750,18 +3706,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "eu-west-1",
       "routing": "geographic",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-8",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
       "price": {
         "input": 5.5,
         "output": 27.5,
@@ -3844,6 +3788,30 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-8",
       "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-8",
+      "provider": "bedrock",
       "region": "sa-east-1",
       "routing": "global",
       "price": {
@@ -3880,18 +3848,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-8",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-8",
-      "provider": "bedrock",
       "region": "us-east-2",
       "routing": "global",
       "price": {
@@ -3906,18 +3862,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "geographic",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-8",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
       "price": {
         "input": 5.5,
         "output": 27.5,
@@ -3966,18 +3910,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "geographic",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-8",
-      "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "in-region",
       "price": {
         "input": 5.5,
         "output": 27.5,
@@ -4000,6 +3932,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-7",
       "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "global",
       "price": {
@@ -4014,18 +3958,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "geographic",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-7",
-      "provider": "bedrock",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
       "price": {
         "input": 5.5,
         "output": 27.5,
@@ -4168,13 +4100,37 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-7",
       "provider": "bedrock",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
+      "region": "ap-southeast-5",
+      "routing": "global",
       "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
       }
     },
     {
@@ -4216,6 +4172,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-7",
       "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
       "region": "eu-central-1",
       "routing": "global",
       "price": {
@@ -4288,18 +4256,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-7",
       "provider": "bedrock",
-      "region": "eu-north-1",
-      "routing": "in-region",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-7",
-      "provider": "bedrock",
       "region": "eu-south-1",
       "routing": "global",
       "price": {
@@ -4362,18 +4318,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "eu-west-1",
       "routing": "geographic",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-7",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
       "price": {
         "input": 5.5,
         "output": 27.5,
@@ -4456,6 +4400,30 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-7",
       "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
       "region": "sa-east-1",
       "routing": "global",
       "price": {
@@ -4492,8 +4460,608 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-opus-4-7",
       "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-7",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
       "region": "us-east-1",
-      "routing": "in-region",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-6",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
       "price": {
         "input": 5.5,
         "output": 27.5,
@@ -4502,7 +5070,7 @@ export const MODEL_LIST: ModelList = {
       }
     },
     {
-      "model": "claude-opus-4-7",
+      "model": "claude-opus-4-6",
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "global",
@@ -4514,7 +5082,7 @@ export const MODEL_LIST: ModelList = {
       }
     },
     {
-      "model": "claude-opus-4-7",
+      "model": "claude-opus-4-6",
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "geographic",
@@ -4526,19 +5094,7 @@ export const MODEL_LIST: ModelList = {
       }
     },
     {
-      "model": "claude-opus-4-7",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-7",
+      "model": "claude-opus-4-6",
       "provider": "bedrock",
       "region": "us-west-1",
       "routing": "global",
@@ -4550,7 +5106,7 @@ export const MODEL_LIST: ModelList = {
       }
     },
     {
-      "model": "claude-opus-4-7",
+      "model": "claude-opus-4-6",
       "provider": "bedrock",
       "region": "us-west-1",
       "routing": "geographic",
@@ -4562,7 +5118,7 @@ export const MODEL_LIST: ModelList = {
       }
     },
     {
-      "model": "claude-opus-4-7",
+      "model": "claude-opus-4-6",
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "global",
@@ -4574,7 +5130,7 @@ export const MODEL_LIST: ModelList = {
       }
     },
     {
-      "model": "claude-opus-4-7",
+      "model": "claude-opus-4-6",
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "geographic",
@@ -4586,15 +5142,483 @@ export const MODEL_LIST: ModelList = {
       }
     },
     {
-      "model": "claude-opus-4-7",
+      "model": "claude-opus-4-5",
       "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "in-region",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
       "price": {
         "input": 5.5,
         "output": 27.5,
         "cacheRead": 0.55,
         "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 5,
+        "output": 25,
+        "cacheRead": 0.5,
+        "cacheWrite": 6.25
+      }
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 5.5,
+        "output": 27.5,
+        "cacheRead": 0.55,
+        "cacheWrite": 6.875
+      }
+    },
+    {
+      "model": "claude-opus-4-1",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 15,
+        "output": 75,
+        "cacheRead": 1.5,
+        "cacheWrite": 18.75
+      }
+    },
+    {
+      "model": "claude-opus-4-1",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 15,
+        "output": 75,
+        "cacheRead": 1.5,
+        "cacheWrite": 18.75
+      }
+    },
+    {
+      "model": "claude-opus-4-1",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 15,
+        "output": 75,
+        "cacheRead": 1.5,
+        "cacheWrite": 18.75
       }
     },
     {
@@ -4612,6 +5636,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5-5",
       "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
       "region": "ap-northeast-2",
       "routing": "global",
       "price": {
@@ -4720,13 +5756,37 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5-5",
       "provider": "bedrock",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
+      "region": "ap-southeast-5",
+      "routing": "global",
       "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.11,
-        "cacheWrite": 2.75
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
       }
     },
     {
@@ -4768,6 +5828,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5-5",
       "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.11,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
       "region": "eu-central-1",
       "routing": "global",
       "price": {
@@ -4840,18 +5912,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5-5",
       "provider": "bedrock",
-      "region": "eu-north-1",
-      "routing": "in-region",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.11,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "bedrock",
       "region": "eu-south-1",
       "routing": "global",
       "price": {
@@ -4914,18 +5974,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "eu-west-1",
       "routing": "geographic",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.11,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
       "price": {
         "input": 2.2,
         "output": 11,
@@ -5008,6 +6056,30 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5-5",
       "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.1,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "provider": "bedrock",
       "region": "sa-east-1",
       "routing": "global",
       "price": {
@@ -5044,18 +6116,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5-5",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.11,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "bedrock",
       "region": "us-east-2",
       "routing": "global",
       "price": {
@@ -5070,18 +6130,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "geographic",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.11,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
       "price": {
         "input": 2.2,
         "output": 11,
@@ -5130,18 +6178,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "geographic",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.11,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "in-region",
       "price": {
         "input": 2.2,
         "output": 11,
@@ -5164,7 +6200,7 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5",
       "provider": "bedrock",
-      "region": "ap-northeast-1",
+      "region": "ap-east-2",
       "routing": "global",
       "price": {
         "input": 2,
@@ -5177,24 +6213,12 @@ export const MODEL_LIST: ModelList = {
       "model": "claude-sonnet-5",
       "provider": "bedrock",
       "region": "ap-northeast-1",
-      "routing": "geographic",
+      "routing": "global",
       "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5",
-      "provider": "bedrock",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
       }
     },
     {
@@ -5212,6 +6236,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5",
       "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
       "region": "ap-northeast-3",
       "routing": "global",
       "price": {
@@ -5219,18 +6255,6 @@ export const MODEL_LIST: ModelList = {
         "output": 10,
         "cacheRead": 0.2,
         "cacheWrite": 2.5
-      }
-    },
-    {
-      "model": "claude-sonnet-5",
-      "provider": "bedrock",
-      "region": "ap-northeast-3",
-      "routing": "geographic",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
       }
     },
     {
@@ -5248,6 +6272,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5",
       "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
       "region": "ap-south-2",
       "routing": "global",
       "price": {
@@ -5260,6 +6296,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5",
       "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
       "region": "ap-southeast-1",
       "routing": "global",
       "price": {
@@ -5267,6 +6315,18 @@ export const MODEL_LIST: ModelList = {
         "output": 10,
         "cacheRead": 0.2,
         "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "in-region",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
       }
     },
     {
@@ -5332,13 +6392,37 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5",
       "provider": "bedrock",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
+      "region": "ap-southeast-5",
+      "routing": "global",
       "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
       }
     },
     {
@@ -5380,6 +6464,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5",
       "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
       "region": "eu-central-1",
       "routing": "global",
       "price": {
@@ -5442,18 +6538,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "eu-north-1",
       "routing": "geographic",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5",
-      "provider": "bedrock",
-      "region": "eu-north-1",
-      "routing": "in-region",
       "price": {
         "input": 2.2,
         "output": 11,
@@ -5536,18 +6620,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5",
       "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5",
-      "provider": "bedrock",
       "region": "eu-west-2",
       "routing": "global",
       "price": {
@@ -5562,6 +6634,18 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "eu-west-2",
       "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "in-region",
       "price": {
         "input": 2.2,
         "output": 11,
@@ -5620,6 +6704,30 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5",
       "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
       "region": "sa-east-1",
       "routing": "global",
       "price": {
@@ -5656,109 +6764,1549 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-sonnet-5",
       "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 2,
+        "output": 10,
+        "cacheRead": 0.2,
+        "cacheWrite": 2.5
+      }
+    },
+    {
+      "model": "claude-sonnet-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 2.2,
+        "output": 11,
+        "cacheRead": 0.22,
+        "cacheWrite": 2.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "in-region",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
       "region": "us-east-1",
-      "routing": "in-region",
+      "routing": "global",
       "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
       }
     },
     {
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-6",
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "global",
       "price": {
-        "input": 2,
-        "output": 10,
-        "cacheRead": 0.2,
-        "cacheWrite": 2.5
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
       }
     },
     {
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-4-6",
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "geographic",
       "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
       }
     },
     {
-      "model": "claude-sonnet-5",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-4-6",
       "provider": "bedrock",
       "region": "us-west-1",
       "routing": "global",
       "price": {
-        "input": 2,
-        "output": 10,
-        "cacheRead": 0.2,
-        "cacheWrite": 2.5
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
       }
     },
     {
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-4-6",
       "provider": "bedrock",
       "region": "us-west-1",
       "routing": "geographic",
       "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
       }
     },
     {
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-4-6",
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "global",
       "price": {
-        "input": 2,
-        "output": 10,
-        "cacheRead": 0.2,
-        "cacheWrite": 2.5
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
       }
     },
     {
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-4-6",
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "geographic",
       "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
       }
     },
     {
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "af-south-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "me-central-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "sa-east-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "us-gov-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.6,
+        "output": 18,
+        "cacheRead": 0.36,
+        "cacheWrite": 4.5
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "us-gov-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.6,
+        "output": 18,
+        "cacheRead": 0.36,
+        "cacheWrite": 4.5
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
       "provider": "bedrock",
       "region": "us-west-2",
-      "routing": "in-region",
+      "routing": "global",
       "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3.3,
+        "output": 16.5,
+        "cacheRead": 0.33,
+        "cacheWrite": 4.125
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "ap-northeast-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "ap-southeast-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "il-central-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "global",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
+      }
+    },
+    {
+      "model": "claude-sonnet-4",
+      "provider": "bedrock",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "price": {
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": 3.75
       }
     },
     {
@@ -5776,6 +8324,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-5-5",
       "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "global",
       "price": {
@@ -5790,18 +8350,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "geographic",
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "bedrock",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
       "price": {
         "input": 0.11,
         "output": 0.55,
@@ -5944,13 +8492,37 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-5-5",
       "provider": "bedrock",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
+      "region": "ap-southeast-5",
+      "routing": "global",
       "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
       }
     },
     {
@@ -5992,6 +8564,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-5-5",
       "provider": "bedrock",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "price": {
+        "input": 0.11,
+        "output": 0.55,
+        "cacheRead": 0.011,
+        "cacheWrite": 0.1375
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
       "region": "eu-central-1",
       "routing": "global",
       "price": {
@@ -6064,18 +8648,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-5-5",
       "provider": "bedrock",
-      "region": "eu-north-1",
-      "routing": "in-region",
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "bedrock",
       "region": "eu-south-1",
       "routing": "global",
       "price": {
@@ -6138,18 +8710,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "eu-west-1",
       "routing": "geographic",
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
       "price": {
         "input": 0.11,
         "output": 0.55,
@@ -6232,6 +8792,30 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-5-5",
       "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 0.1,
+        "output": 0.5,
+        "cacheRead": 0.01,
+        "cacheWrite": 0.125
+      }
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "provider": "bedrock",
       "region": "sa-east-1",
       "routing": "global",
       "price": {
@@ -6268,18 +8852,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-5-5",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "bedrock",
       "region": "us-east-2",
       "routing": "global",
       "price": {
@@ -6294,18 +8866,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "geographic",
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
       "price": {
         "input": 0.11,
         "output": 0.55,
@@ -6354,18 +8914,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "geographic",
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "in-region",
       "price": {
         "input": 0.11,
         "output": 0.55,
@@ -6388,6 +8936,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-4-5",
       "provider": "bedrock",
+      "region": "ap-east-2",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "global",
       "price": {
@@ -6402,18 +8962,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "ap-northeast-1",
       "routing": "geographic",
-      "price": {
-        "input": 1.1,
-        "output": 5.5,
-        "cacheRead": 0.11,
-        "cacheWrite": 1.375
-      }
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "provider": "bedrock",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
       "price": {
         "input": 1.1,
         "output": 5.5,
@@ -6472,6 +9020,18 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-4-5",
       "provider": "bedrock",
+      "region": "ap-south-1",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
       "region": "ap-south-2",
       "routing": "global",
       "price": {
@@ -6479,6 +9039,18 @@ export const MODEL_LIST: ModelList = {
         "output": 5,
         "cacheRead": 0.1,
         "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-south-2",
+      "routing": "geographic",
+      "price": {
+        "input": 1.1,
+        "output": 5.5,
+        "cacheRead": 0.11,
+        "cacheWrite": 1.375
       }
     },
     {
@@ -6556,13 +9128,49 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-4-5",
       "provider": "bedrock",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-6",
+      "routing": "geographic",
       "price": {
         "input": 1.1,
         "output": 5.5,
         "cacheRead": 0.11,
         "cacheWrite": 1.375
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
       }
     },
     {
@@ -6676,18 +9284,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-4-5",
       "provider": "bedrock",
-      "region": "eu-north-1",
-      "routing": "in-region",
-      "price": {
-        "input": 1.1,
-        "output": 5.5,
-        "cacheRead": 0.11,
-        "cacheWrite": 1.375
-      }
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "provider": "bedrock",
       "region": "eu-south-1",
       "routing": "global",
       "price": {
@@ -6750,18 +9346,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "eu-west-1",
       "routing": "geographic",
-      "price": {
-        "input": 1.1,
-        "output": 5.5,
-        "cacheRead": 0.11,
-        "cacheWrite": 1.375
-      }
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "provider": "bedrock",
-      "region": "eu-west-1",
-      "routing": "in-region",
       "price": {
         "input": 1.1,
         "output": 5.5,
@@ -6844,6 +9428,30 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-4-5",
       "provider": "bedrock",
+      "region": "me-south-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
+      "region": "mx-central-1",
+      "routing": "global",
+      "price": {
+        "input": 1,
+        "output": 5,
+        "cacheRead": 0.1,
+        "cacheWrite": 1.25
+      }
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "bedrock",
       "region": "sa-east-1",
       "routing": "global",
       "price": {
@@ -6880,18 +9488,6 @@ export const MODEL_LIST: ModelList = {
     {
       "model": "claude-haiku-4-5",
       "provider": "bedrock",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "price": {
-        "input": 1.1,
-        "output": 5.5,
-        "cacheRead": 0.11,
-        "cacheWrite": 1.375
-      }
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "provider": "bedrock",
       "region": "us-east-2",
       "routing": "global",
       "price": {
@@ -6906,18 +9502,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-east-2",
       "routing": "geographic",
-      "price": {
-        "input": 1.1,
-        "output": 5.5,
-        "cacheRead": 0.11,
-        "cacheWrite": 1.375
-      }
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "provider": "bedrock",
-      "region": "us-east-2",
-      "routing": "in-region",
       "price": {
         "input": 1.1,
         "output": 5.5,
@@ -6966,18 +9550,6 @@ export const MODEL_LIST: ModelList = {
       "provider": "bedrock",
       "region": "us-west-2",
       "routing": "geographic",
-      "price": {
-        "input": 1.1,
-        "output": 5.5,
-        "cacheRead": 0.11,
-        "cacheWrite": 1.375
-      }
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "provider": "bedrock",
-      "region": "us-west-2",
-      "routing": "in-region",
       "price": {
         "input": 1.1,
         "output": 5.5,

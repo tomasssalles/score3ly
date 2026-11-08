@@ -1,15 +1,15 @@
 {
   "$schema": "./schema.json",
   "provider": "bedrock",
-  "collectedAt": "2026-11-05",
+  "collectedAt": "2026-11-08",
   "sources": [
     {
       "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrockFoundationModels/current/index.json",
       "note": "the prices: gather/sources/bedrock/price-list.jsonl"
     },
     {
-      "url": "https://platform.claude.com/docs/en/build-with-claude/claude-in-amazon-bedrock",
-      "note": "the models on the Messages API endpoint, their strings, the regions and routings: gather/sources/bedrock/page.txt"
+      "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-<id>.html",
+      "note": "the models on bedrock-runtime, their model IDs, the regions and routings: gather/sources/bedrock/cards.txt"
     }
   ],
   "models": [
@@ -27,36 +27,10 @@
       ]
     },
     {
-      "id": "claude-mythos-5-1",
-      "name": "Claude Mythos 5.1",
-      "family": "claude",
-      "string": "anthropic.claude-mythos-5-1",
-      "efforts": [
-        "low",
-        "medium",
-        "high",
-        "xhigh",
-        "max"
-      ]
-    },
-    {
       "id": "claude-fable-5",
       "name": "Claude Fable 5",
       "family": "claude",
       "string": "anthropic.claude-fable-5",
-      "efforts": [
-        "low",
-        "medium",
-        "high",
-        "xhigh",
-        "max"
-      ]
-    },
-    {
-      "id": "claude-mythos-5",
-      "name": "Claude Mythos 5",
-      "family": "claude",
-      "string": "anthropic.claude-mythos-5",
       "efforts": [
         "low",
         "medium",
@@ -120,6 +94,37 @@
       "thinking": "adaptive"
     },
     {
+      "id": "claude-opus-4-6",
+      "name": "Claude Opus 4.6",
+      "family": "claude",
+      "string": "anthropic.claude-opus-4-6-v1",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "max"
+      ],
+      "thinking": "adaptive"
+    },
+    {
+      "id": "claude-opus-4-5",
+      "name": "Claude Opus 4.5",
+      "family": "claude",
+      "string": "anthropic.claude-opus-4-5-20251101-v1:0",
+      "efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "claude-opus-4-1",
+      "name": "Claude Opus 4.1",
+      "family": "claude",
+      "string": "anthropic.claude-opus-4-1-20250805-v1:0",
+      "efforts": []
+    },
+    {
       "id": "claude-sonnet-5-5",
       "name": "Claude Sonnet 5.5",
       "family": "claude",
@@ -146,6 +151,33 @@
       ]
     },
     {
+      "id": "claude-sonnet-4-6",
+      "name": "Claude Sonnet 4.6",
+      "family": "claude",
+      "string": "anthropic.claude-sonnet-4-6",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "max"
+      ],
+      "thinking": "adaptive"
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "name": "Claude Sonnet 4.5",
+      "family": "claude",
+      "string": "anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "efforts": []
+    },
+    {
+      "id": "claude-sonnet-4",
+      "name": "Claude Sonnet 4",
+      "family": "claude",
+      "string": "anthropic.claude-sonnet-4-20250514-v1:0",
+      "efforts": []
+    },
+    {
       "id": "claude-haiku-5-5",
       "name": "Claude Haiku 5.5",
       "family": "claude",
@@ -162,7 +194,7 @@
       "id": "claude-haiku-4-5",
       "name": "Claude Haiku 4.5",
       "family": "claude",
-      "string": "anthropic.claude-haiku-4-5",
+      "string": "anthropic.claude-haiku-4-5-20251001-v1:0",
       "efforts": []
     }
   ],
@@ -174,19 +206,27 @@
       ]
     },
     {
+      "region": "ap-east-2",
+      "routings": [
+        "global"
+      ]
+    },
+    {
       "region": "ap-northeast-1",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "JP"
     },
     {
       "region": "ap-northeast-2",
       "routings": [
-        "global"
-      ]
+        "global",
+        "geographic",
+        "in-region"
+      ],
+      "geography": "APAC"
     },
     {
       "region": "ap-northeast-3",
@@ -199,20 +239,27 @@
     {
       "region": "ap-south-1",
       "routings": [
-        "global"
-      ]
+        "global",
+        "geographic"
+      ],
+      "geography": "IN"
     },
     {
       "region": "ap-south-2",
       "routings": [
-        "global"
-      ]
+        "global",
+        "geographic"
+      ],
+      "geography": "IN"
     },
     {
       "region": "ap-southeast-1",
       "routings": [
-        "global"
-      ]
+        "global",
+        "geographic",
+        "in-region"
+      ],
+      "geography": "APAC"
     },
     {
       "region": "ap-southeast-2",
@@ -232,10 +279,29 @@
       "region": "ap-southeast-4",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "AU"
+    },
+    {
+      "region": "ap-southeast-5",
+      "routings": [
+        "global"
+      ]
+    },
+    {
+      "region": "ap-southeast-6",
+      "routings": [
+        "global",
+        "geographic"
+      ],
+      "geography": "AU"
+    },
+    {
+      "region": "ap-southeast-7",
+      "routings": [
+        "global"
+      ]
     },
     {
       "region": "ca-central-1",
@@ -248,8 +314,10 @@
     {
       "region": "ca-west-1",
       "routings": [
-        "global"
-      ]
+        "global",
+        "geographic"
+      ],
+      "geography": "US"
     },
     {
       "region": "eu-central-1",
@@ -271,8 +339,7 @@
       "region": "eu-north-1",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "EU"
     },
@@ -296,8 +363,7 @@
       "region": "eu-west-1",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "EU"
     },
@@ -305,7 +371,8 @@
       "region": "eu-west-2",
       "routings": [
         "global",
-        "geographic"
+        "geographic",
+        "in-region"
       ],
       "geography": "EU"
     },
@@ -320,11 +387,25 @@
     {
       "region": "il-central-1",
       "routings": [
+        "global",
+        "geographic"
+      ],
+      "geography": "EU"
+    },
+    {
+      "region": "me-central-1",
+      "routings": [
         "global"
       ]
     },
     {
-      "region": "me-central-1",
+      "region": "me-south-1",
+      "routings": [
+        "global"
+      ]
+    },
+    {
+      "region": "mx-central-1",
       "routings": [
         "global"
       ]
@@ -339,8 +420,7 @@
       "region": "us-east-1",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "US"
     },
@@ -348,8 +428,21 @@
       "region": "us-east-2",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
+      ],
+      "geography": "US"
+    },
+    {
+      "region": "us-gov-east-1",
+      "routings": [
+        "geographic"
+      ],
+      "geography": "US"
+    },
+    {
+      "region": "us-gov-west-1",
+      "routings": [
+        "geographic"
       ],
       "geography": "US"
     },
@@ -365,8 +458,7 @@
       "region": "us-west-2",
       "routings": [
         "global",
-        "geographic",
-        "in-region"
+        "geographic"
       ],
       "geography": "US"
     }
@@ -384,6 +476,16 @@
     },
     {
       "model": "claude-fable-5-1",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 0.25,
+      "cacheWrite": 12.5,
+      "source": "price list: APE2-MP:APE2_input_tokens_global_standard-Units, APE2-MP:APE2_output_tokens_global_standard-Units, APE2-MP:APE2_cache_read_tokens_global_standard-Units, APE2-MP:APE2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5-1",
       "region": "ap-northeast-1",
       "routing": "global",
       "input": 10,
@@ -474,6 +576,36 @@
     },
     {
       "model": "claude-fable-5-1",
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 0.25,
+      "cacheWrite": 12.5,
+      "source": "price list: APS7-MP:APS7_input_tokens_global_standard-Units, APS7-MP:APS7_output_tokens_global_standard-Units, APS7-MP:APS7_cache_read_tokens_global_standard-Units, APS7-MP:APS7_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 0.25,
+      "cacheWrite": 12.5,
+      "source": "price list: APS8-MP:APS8_input_tokens_global_standard-Units, APS8-MP:APS8_output_tokens_global_standard-Units, APS8-MP:APS8_cache_read_tokens_global_standard-Units, APS8-MP:APS8_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 0.25,
+      "cacheWrite": 12.5,
+      "source": "price list: APS9-MP:APS9_input_tokens_global_standard-Units, APS9-MP:APS9_output_tokens_global_standard-Units, APS9-MP:APS9_cache_read_tokens_global_standard-Units, APS9-MP:APS9_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5-1",
       "region": "ca-central-1",
       "routing": "global",
       "input": 10,
@@ -501,6 +633,16 @@
       "cacheRead": 0.25,
       "cacheWrite": 12.5,
       "source": "price list: CAN2-MP:CAN2_input_tokens_global_standard-Units, CAN2-MP:CAN2_output_tokens_global_standard-Units, CAN2-MP:CAN2_cache_read_tokens_global_standard-Units, CAN2-MP:CAN2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 11,
+      "output": 55,
+      "cacheRead": 0.275,
+      "cacheWrite": 13.75,
+      "source": "price list: CAN2-MP:CAN2_input_tokens_standard-Units, CAN2-MP:CAN2_output_tokens_standard-Units, CAN2-MP:CAN2_cache_read_tokens_standard-Units, CAN2-MP:CAN2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-fable-5-1",
@@ -604,6 +746,26 @@
     },
     {
       "model": "claude-fable-5-1",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 0.25,
+      "cacheWrite": 12.5,
+      "source": "price list: MES1-MP:MES1_input_tokens_global_standard-Units, MES1-MP:MES1_output_tokens_global_standard-Units, MES1-MP:MES1_cache_read_tokens_global_standard-Units, MES1-MP:MES1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5-1",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 0.25,
+      "cacheWrite": 12.5,
+      "source": "price list: MXC1-MP:MXC1_input_tokens_global_standard-Units, MXC1-MP:MXC1_output_tokens_global_standard-Units, MXC1-MP:MXC1_cache_read_tokens_global_standard-Units, MXC1-MP:MXC1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5-1",
       "region": "sa-east-1",
       "routing": "global",
       "input": 10,
@@ -634,16 +796,6 @@
     },
     {
       "model": "claude-fable-5-1",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5-1",
       "region": "us-east-2",
       "routing": "global",
       "input": 10,
@@ -656,16 +808,6 @@
       "model": "claude-fable-5-1",
       "region": "us-east-2",
       "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5-1",
-      "region": "us-east-2",
-      "routing": "in-region",
       "input": 11,
       "output": 55,
       "cacheRead": 0.275,
@@ -713,96 +855,6 @@
       "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
     },
     {
-      "model": "claude-fable-5-1",
-      "region": "us-west-2",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "region": "ca-central-1",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: CAN1-MP:CAN1_input_tokens_standard-Units, CAN1-MP:CAN1_output_tokens_standard-Units, CAN1-MP:CAN1_cache_read_tokens_standard-Units, CAN1-MP:CAN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "region": "us-east-1",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "region": "us-east-2",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "region": "us-east-2",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "region": "us-west-1",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: USW1-MP:USW1_input_tokens_standard-Units, USW1-MP:USW1_output_tokens_standard-Units, USW1-MP:USW1_cache_read_tokens_standard-Units, USW1-MP:USW1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "region": "us-west-2",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-mythos-5-1",
-      "region": "us-west-2",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 0.275,
-      "cacheWrite": 13.75,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
-    },
-    {
       "model": "claude-fable-5",
       "region": "af-south-1",
       "routing": "global",
@@ -811,6 +863,16 @@
       "cacheRead": 1,
       "cacheWrite": 12.5,
       "source": "price list: AFS1-MP:AFS1_input_tokens_global_standard-Units, AFS1-MP:AFS1_output_tokens_global_standard-Units, AFS1-MP:AFS1_cache_read_tokens_global_standard-Units, AFS1-MP:AFS1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 1,
+      "cacheWrite": 12.5,
+      "source": "price list: APE2-MP:APE2_input_tokens_global_standard-Units, APE2-MP:APE2_output_tokens_global_standard-Units, APE2-MP:APE2_cache_read_tokens_global_standard-Units, APE2-MP:APE2_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-fable-5",
@@ -884,16 +946,6 @@
     },
     {
       "model": "claude-fable-5",
-      "region": "ap-southeast-2",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: APS2-MP:APS2_input_tokens_standard-Units, APS2-MP:APS2_output_tokens_standard-Units, APS2-MP:APS2_cache_read_tokens_standard-Units, APS2-MP:APS2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
       "region": "ap-southeast-3",
       "routing": "global",
       "input": 10,
@@ -914,23 +966,33 @@
     },
     {
       "model": "claude-fable-5",
-      "region": "ap-southeast-4",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: APS6-MP:APS6_input_tokens_standard-Units, APS6-MP:APS6_output_tokens_standard-Units, APS6-MP:APS6_cache_read_tokens_standard-Units, APS6-MP:APS6_cache_write_tokens_standard-Units"
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 1,
+      "cacheWrite": 12.5,
+      "source": "price list: APS7-MP:APS7_input_tokens_global_standard-Units, APS7-MP:APS7_output_tokens_global_standard-Units, APS7-MP:APS7_cache_read_tokens_global_standard-Units, APS7-MP:APS7_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-fable-5",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: APS6-MP:APS6_input_tokens_standard-Units, APS6-MP:APS6_output_tokens_standard-Units, APS6-MP:APS6_cache_read_tokens_standard-Units, APS6-MP:APS6_cache_write_tokens_standard-Units"
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 1,
+      "cacheWrite": 12.5,
+      "source": "price list: APS8-MP:APS8_input_tokens_global_standard-Units, APS8-MP:APS8_output_tokens_global_standard-Units, APS8-MP:APS8_cache_read_tokens_global_standard-Units, APS8-MP:APS8_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 1,
+      "cacheWrite": 12.5,
+      "source": "price list: APS9-MP:APS9_input_tokens_global_standard-Units, APS9-MP:APS9_output_tokens_global_standard-Units, APS9-MP:APS9_cache_read_tokens_global_standard-Units, APS9-MP:APS9_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-fable-5",
@@ -964,6 +1026,16 @@
     },
     {
       "model": "claude-fable-5",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 11,
+      "output": 55,
+      "cacheRead": 1.1,
+      "cacheWrite": 13.75,
+      "source": "price list: CAN2-MP:CAN2_input_tokens_standard-Units, CAN2-MP:CAN2_output_tokens_standard-Units, CAN2-MP:CAN2_cache_read_tokens_standard-Units, CAN2-MP:CAN2_cache_write_tokens_standard-Units"
+    },
+    {
+      "model": "claude-fable-5",
       "region": "eu-central-1",
       "routing": "global",
       "input": 10,
@@ -971,16 +1043,6 @@
       "cacheRead": 1,
       "cacheWrite": 12.5,
       "source": "price list: EUC1-MP:EUC1_input_tokens_global_standard-Units, EUC1-MP:EUC1_output_tokens_global_standard-Units, EUC1-MP:EUC1_cache_read_tokens_global_standard-Units, EUC1-MP:EUC1_cache_write_tokens_global_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
-      "region": "eu-central-1",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: EUC1-MP:EUC1_input_tokens_standard-Units, EUC1-MP:EUC1_output_tokens_standard-Units, EUC1-MP:EUC1_cache_read_tokens_standard-Units, EUC1-MP:EUC1_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-fable-5",
@@ -994,16 +1056,6 @@
     },
     {
       "model": "claude-fable-5",
-      "region": "eu-central-2",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: EUC2-MP:EUC2_input_tokens_standard-Units, EUC2-MP:EUC2_output_tokens_standard-Units, EUC2-MP:EUC2_cache_read_tokens_standard-Units, EUC2-MP:EUC2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
       "region": "eu-north-1",
       "routing": "global",
       "input": 10,
@@ -1011,26 +1063,6 @@
       "cacheRead": 1,
       "cacheWrite": 12.5,
       "source": "price list: EUN1-MP:EUN1_input_tokens_global_standard-Units, EUN1-MP:EUN1_output_tokens_global_standard-Units, EUN1-MP:EUN1_cache_read_tokens_global_standard-Units, EUN1-MP:EUN1_cache_write_tokens_global_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
-      "region": "eu-north-1",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: EUN1-MP:EUN1_input_tokens_standard-Units, EUN1-MP:EUN1_output_tokens_standard-Units, EUN1-MP:EUN1_cache_read_tokens_standard-Units, EUN1-MP:EUN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
-      "region": "eu-north-1",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: EUN1-MP:EUN1_input_tokens_standard-Units, EUN1-MP:EUN1_output_tokens_standard-Units, EUN1-MP:EUN1_cache_read_tokens_standard-Units, EUN1-MP:EUN1_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-fable-5",
@@ -1044,16 +1076,6 @@
     },
     {
       "model": "claude-fable-5",
-      "region": "eu-south-1",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: EUS1-MP:EUS1_input_tokens_standard-Units, EUS1-MP:EUS1_output_tokens_standard-Units, EUS1-MP:EUS1_cache_read_tokens_standard-Units, EUS1-MP:EUS1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
       "region": "eu-south-2",
       "routing": "global",
       "input": 10,
@@ -1061,16 +1083,6 @@
       "cacheRead": 1,
       "cacheWrite": 12.5,
       "source": "price list: EUS2-MP:EUS2_input_tokens_global_standard-Units, EUS2-MP:EUS2_output_tokens_global_standard-Units, EUS2-MP:EUS2_cache_read_tokens_global_standard-Units, EUS2-MP:EUS2_cache_write_tokens_global_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
-      "region": "eu-south-2",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: EUS2-MP:EUS2_input_tokens_standard-Units, EUS2-MP:EUS2_output_tokens_standard-Units, EUS2-MP:EUS2_cache_read_tokens_standard-Units, EUS2-MP:EUS2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-fable-5",
@@ -1084,26 +1096,6 @@
     },
     {
       "model": "claude-fable-5",
-      "region": "eu-west-1",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: EU-MP:EU_input_tokens_standard-Units, EU-MP:EU_output_tokens_standard-Units, EU-MP:EU_cache_read_tokens_standard-Units, EU-MP:EU_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: EU-MP:EU_input_tokens_standard-Units, EU-MP:EU_output_tokens_standard-Units, EU-MP:EU_cache_read_tokens_standard-Units, EU-MP:EU_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
       "region": "eu-west-2",
       "routing": "global",
       "input": 10,
@@ -1114,16 +1106,6 @@
     },
     {
       "model": "claude-fable-5",
-      "region": "eu-west-2",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: EUW2-MP:EUW2_input_tokens_standard-Units, EUW2-MP:EUW2_output_tokens_standard-Units, EUW2-MP:EUW2_cache_read_tokens_standard-Units, EUW2-MP:EUW2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
       "region": "eu-west-3",
       "routing": "global",
       "input": 10,
@@ -1131,16 +1113,6 @@
       "cacheRead": 1,
       "cacheWrite": 12.5,
       "source": "price list: EUW3-MP:EUW3_input_tokens_global_standard-Units, EUW3-MP:EUW3_output_tokens_global_standard-Units, EUW3-MP:EUW3_cache_read_tokens_global_standard-Units, EUW3-MP:EUW3_cache_write_tokens_global_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
-      "region": "eu-west-3",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: EUW3-MP:EUW3_input_tokens_standard-Units, EUW3-MP:EUW3_output_tokens_standard-Units, EUW3-MP:EUW3_cache_read_tokens_standard-Units, EUW3-MP:EUW3_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-fable-5",
@@ -1161,6 +1133,26 @@
       "cacheRead": 1,
       "cacheWrite": 12.5,
       "source": "price list: MEC1-MP:MEC1_input_tokens_global_standard-Units, MEC1-MP:MEC1_output_tokens_global_standard-Units, MEC1-MP:MEC1_cache_read_tokens_global_standard-Units, MEC1-MP:MEC1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 1,
+      "cacheWrite": 12.5,
+      "source": "price list: MES1-MP:MES1_input_tokens_global_standard-Units, MES1-MP:MES1_output_tokens_global_standard-Units, MES1-MP:MES1_cache_read_tokens_global_standard-Units, MES1-MP:MES1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-fable-5",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 1,
+      "cacheWrite": 12.5,
+      "source": "price list: MXC1-MP:MXC1_input_tokens_global_standard-Units, MXC1-MP:MXC1_output_tokens_global_standard-Units, MXC1-MP:MXC1_cache_read_tokens_global_standard-Units, MXC1-MP:MXC1_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-fable-5",
@@ -1194,16 +1186,6 @@
     },
     {
       "model": "claude-fable-5",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
       "region": "us-east-2",
       "routing": "global",
       "input": 10,
@@ -1216,16 +1198,6 @@
       "model": "claude-fable-5",
       "region": "us-east-2",
       "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-fable-5",
-      "region": "us-east-2",
-      "routing": "in-region",
       "input": 11,
       "output": 55,
       "cacheRead": 1.1,
@@ -1273,36 +1245,6 @@
       "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
     },
     {
-      "model": "claude-fable-5",
-      "region": "us-west-2",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-mythos-5",
-      "region": "us-east-1",
-      "routing": "geographic",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-mythos-5",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 11,
-      "output": 55,
-      "cacheRead": 1.1,
-      "cacheWrite": 13.75,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
       "model": "claude-opus-5-5",
       "region": "af-south-1",
       "routing": "global",
@@ -1311,6 +1253,16 @@
       "cacheRead": 0.2,
       "cacheWrite": 5,
       "source": "price list: AFS1-MP:AFS1_input_tokens_global_standard-Units, AFS1-MP:AFS1_output_tokens_global_standard-Units, AFS1-MP:AFS1_cache_read_tokens_global_standard-Units, AFS1-MP:AFS1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5-5",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 4,
+      "output": 20,
+      "cacheRead": 0.2,
+      "cacheWrite": 5,
+      "source": "price list: APE2-MP:APE2_input_tokens_global_standard-Units, APE2-MP:APE2_output_tokens_global_standard-Units, APE2-MP:APE2_cache_read_tokens_global_standard-Units, APE2-MP:APE2_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-opus-5-5",
@@ -1326,16 +1278,6 @@
       "model": "claude-opus-5-5",
       "region": "ap-northeast-1",
       "routing": "geographic",
-      "input": 4.4,
-      "output": 22,
-      "cacheRead": 0.22,
-      "cacheWrite": 5.5,
-      "source": "price list: APN1-MP:APN1_input_tokens_standard-Units, APN1-MP:APN1_output_tokens_standard-Units, APN1-MP:APN1_cache_read_tokens_standard-Units, APN1-MP:APN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5-5",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
       "input": 4.4,
       "output": 22,
       "cacheRead": 0.22,
@@ -1454,13 +1396,33 @@
     },
     {
       "model": "claude-opus-5-5",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
-      "input": 4.4,
-      "output": 22,
-      "cacheRead": 0.22,
-      "cacheWrite": 5.5,
-      "source": "price list: APS6-MP:APS6_input_tokens_standard-Units, APS6-MP:APS6_output_tokens_standard-Units, APS6-MP:APS6_cache_read_tokens_standard-Units, APS6-MP:APS6_cache_write_tokens_standard-Units"
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 4,
+      "output": 20,
+      "cacheRead": 0.2,
+      "cacheWrite": 5,
+      "source": "price list: APS7-MP:APS7_input_tokens_global_standard-Units, APS7-MP:APS7_output_tokens_global_standard-Units, APS7-MP:APS7_cache_read_tokens_global_standard-Units, APS7-MP:APS7_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5-5",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 4,
+      "output": 20,
+      "cacheRead": 0.2,
+      "cacheWrite": 5,
+      "source": "price list: APS8-MP:APS8_input_tokens_global_standard-Units, APS8-MP:APS8_output_tokens_global_standard-Units, APS8-MP:APS8_cache_read_tokens_global_standard-Units, APS8-MP:APS8_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5-5",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 4,
+      "output": 20,
+      "cacheRead": 0.2,
+      "cacheWrite": 5,
+      "source": "price list: APS9-MP:APS9_input_tokens_global_standard-Units, APS9-MP:APS9_output_tokens_global_standard-Units, APS9-MP:APS9_cache_read_tokens_global_standard-Units, APS9-MP:APS9_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-opus-5-5",
@@ -1491,6 +1453,16 @@
       "cacheRead": 0.2,
       "cacheWrite": 5,
       "source": "price list: CAN2-MP:CAN2_input_tokens_global_standard-Units, CAN2-MP:CAN2_output_tokens_global_standard-Units, CAN2-MP:CAN2_cache_read_tokens_global_standard-Units, CAN2-MP:CAN2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5-5",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 4.4,
+      "output": 22,
+      "cacheRead": 0.22,
+      "cacheWrite": 5.5,
+      "source": "price list: CAN2-MP:CAN2_input_tokens_standard-Units, CAN2-MP:CAN2_output_tokens_standard-Units, CAN2-MP:CAN2_cache_read_tokens_standard-Units, CAN2-MP:CAN2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-opus-5-5",
@@ -1546,16 +1518,6 @@
       "model": "claude-opus-5-5",
       "region": "eu-north-1",
       "routing": "geographic",
-      "input": 4.4,
-      "output": 22,
-      "cacheRead": 0.22,
-      "cacheWrite": 5.5,
-      "source": "price list: EUN1-MP:EUN1_input_tokens_standard-Units, EUN1-MP:EUN1_output_tokens_standard-Units, EUN1-MP:EUN1_cache_read_tokens_standard-Units, EUN1-MP:EUN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5-5",
-      "region": "eu-north-1",
-      "routing": "in-region",
       "input": 4.4,
       "output": 22,
       "cacheRead": 0.22,
@@ -1624,16 +1586,6 @@
     },
     {
       "model": "claude-opus-5-5",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "input": 4.4,
-      "output": 22,
-      "cacheRead": 0.22,
-      "cacheWrite": 5.5,
-      "source": "price list: EU-MP:EU_input_tokens_standard-Units, EU-MP:EU_output_tokens_standard-Units, EU-MP:EU_cache_read_tokens_standard-Units, EU-MP:EU_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5-5",
       "region": "eu-west-2",
       "routing": "global",
       "input": 4,
@@ -1646,6 +1598,16 @@
       "model": "claude-opus-5-5",
       "region": "eu-west-2",
       "routing": "geographic",
+      "input": 4.4,
+      "output": 22,
+      "cacheRead": 0.22,
+      "cacheWrite": 5.5,
+      "source": "price list: EUW2-MP:EUW2_input_tokens_standard-Units, EUW2-MP:EUW2_output_tokens_standard-Units, EUW2-MP:EUW2_cache_read_tokens_standard-Units, EUW2-MP:EUW2_cache_write_tokens_standard-Units"
+    },
+    {
+      "model": "claude-opus-5-5",
+      "region": "eu-west-2",
+      "routing": "in-region",
       "input": 4.4,
       "output": 22,
       "cacheRead": 0.22,
@@ -1694,6 +1656,26 @@
     },
     {
       "model": "claude-opus-5-5",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 4,
+      "output": 20,
+      "cacheRead": 0.2,
+      "cacheWrite": 5,
+      "source": "price list: MES1-MP:MES1_input_tokens_global_standard-Units, MES1-MP:MES1_output_tokens_global_standard-Units, MES1-MP:MES1_cache_read_tokens_global_standard-Units, MES1-MP:MES1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5-5",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 4,
+      "output": 20,
+      "cacheRead": 0.2,
+      "cacheWrite": 5,
+      "source": "price list: MXC1-MP:MXC1_input_tokens_global_standard-Units, MXC1-MP:MXC1_output_tokens_global_standard-Units, MXC1-MP:MXC1_cache_read_tokens_global_standard-Units, MXC1-MP:MXC1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5-5",
       "region": "sa-east-1",
       "routing": "global",
       "input": 4,
@@ -1724,16 +1706,6 @@
     },
     {
       "model": "claude-opus-5-5",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 4.4,
-      "output": 22,
-      "cacheRead": 0.22,
-      "cacheWrite": 5.5,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5-5",
       "region": "us-east-2",
       "routing": "global",
       "input": 4,
@@ -1746,16 +1718,6 @@
       "model": "claude-opus-5-5",
       "region": "us-east-2",
       "routing": "geographic",
-      "input": 4.4,
-      "output": 22,
-      "cacheRead": 0.22,
-      "cacheWrite": 5.5,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5-5",
-      "region": "us-east-2",
-      "routing": "in-region",
       "input": 4.4,
       "output": 22,
       "cacheRead": 0.22,
@@ -1803,16 +1765,6 @@
       "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
     },
     {
-      "model": "claude-opus-5-5",
-      "region": "us-west-2",
-      "routing": "in-region",
-      "input": 4.4,
-      "output": 22,
-      "cacheRead": 0.22,
-      "cacheWrite": 5.5,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
-    },
-    {
       "model": "claude-opus-5",
       "region": "af-south-1",
       "routing": "global",
@@ -1821,6 +1773,16 @@
       "cacheRead": 0.5,
       "cacheWrite": 6.25,
       "source": "price list: AFS1-MP:AFS1_input_tokens_global_standard-Units, AFS1-MP:AFS1_output_tokens_global_standard-Units, AFS1-MP:AFS1_cache_read_tokens_global_standard-Units, AFS1-MP:AFS1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APE2-MP:APE2_input_tokens_global_standard-Units, APE2-MP:APE2_output_tokens_global_standard-Units, APE2-MP:APE2_cache_read_tokens_global_standard-Units, APE2-MP:APE2_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-opus-5",
@@ -1834,26 +1796,6 @@
     },
     {
       "model": "claude-opus-5",
-      "region": "ap-northeast-1",
-      "routing": "geographic",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: APN1-MP:APN1_input_tokens_standard-Units, APN1-MP:APN1_output_tokens_standard-Units, APN1-MP:APN1_cache_read_tokens_standard-Units, APN1-MP:APN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: APN1-MP:APN1_input_tokens_standard-Units, APN1-MP:APN1_output_tokens_standard-Units, APN1-MP:APN1_cache_read_tokens_standard-Units, APN1-MP:APN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5",
       "region": "ap-northeast-2",
       "routing": "global",
       "input": 5,
@@ -1861,6 +1803,16 @@
       "cacheRead": 0.5,
       "cacheWrite": 6.25,
       "source": "price list: APN2-MP:APN2_input_tokens_global_standard-Units, APN2-MP:APN2_output_tokens_global_standard-Units, APN2-MP:APN2_cache_read_tokens_global_standard-Units, APN2-MP:APN2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5",
+      "region": "ap-northeast-2",
+      "routing": "in-region",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: APN2-MP:APN2_input_tokens_standard-Units, APN2-MP:APN2_output_tokens_standard-Units, APN2-MP:APN2_cache_read_tokens_standard-Units, APN2-MP:APN2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-opus-5",
@@ -1874,16 +1826,6 @@
     },
     {
       "model": "claude-opus-5",
-      "region": "ap-northeast-3",
-      "routing": "geographic",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: APN3-MP:APN3_input_tokens_standard-Units, APN3-MP:APN3_output_tokens_standard-Units, APN3-MP:APN3_cache_read_tokens_standard-Units, APN3-MP:APN3_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5",
       "region": "ap-south-1",
       "routing": "global",
       "input": 5,
@@ -1894,6 +1836,16 @@
     },
     {
       "model": "claude-opus-5",
+      "region": "ap-south-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: APS3-MP:APS3_input_tokens_standard-Units, APS3-MP:APS3_output_tokens_standard-Units, APS3-MP:APS3_cache_read_tokens_standard-Units, APS3-MP:APS3_cache_write_tokens_standard-Units"
+    },
+    {
+      "model": "claude-opus-5",
       "region": "ap-south-2",
       "routing": "global",
       "input": 5,
@@ -1901,6 +1853,16 @@
       "cacheRead": 0.5,
       "cacheWrite": 6.25,
       "source": "price list: APS5-MP:APS5_input_tokens_global_standard-Units, APS5-MP:APS5_output_tokens_global_standard-Units, APS5-MP:APS5_cache_read_tokens_global_standard-Units, APS5-MP:APS5_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5",
+      "region": "ap-south-2",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: APS5-MP:APS5_input_tokens_standard-Units, APS5-MP:APS5_output_tokens_standard-Units, APS5-MP:APS5_cache_read_tokens_standard-Units, APS5-MP:APS5_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-opus-5",
@@ -1964,13 +1926,33 @@
     },
     {
       "model": "claude-opus-5",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: APS6-MP:APS6_input_tokens_standard-Units, APS6-MP:APS6_output_tokens_standard-Units, APS6-MP:APS6_cache_read_tokens_standard-Units, APS6-MP:APS6_cache_write_tokens_standard-Units"
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS7-MP:APS7_input_tokens_global_standard-Units, APS7-MP:APS7_output_tokens_global_standard-Units, APS7-MP:APS7_cache_read_tokens_global_standard-Units, APS7-MP:APS7_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS8-MP:APS8_input_tokens_global_standard-Units, APS8-MP:APS8_output_tokens_global_standard-Units, APS8-MP:APS8_cache_read_tokens_global_standard-Units, APS8-MP:APS8_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS9-MP:APS9_input_tokens_global_standard-Units, APS9-MP:APS9_output_tokens_global_standard-Units, APS9-MP:APS9_cache_read_tokens_global_standard-Units, APS9-MP:APS9_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-opus-5",
@@ -2001,6 +1983,16 @@
       "cacheRead": 0.5,
       "cacheWrite": 6.25,
       "source": "price list: CAN2-MP:CAN2_input_tokens_global_standard-Units, CAN2-MP:CAN2_output_tokens_global_standard-Units, CAN2-MP:CAN2_cache_read_tokens_global_standard-Units, CAN2-MP:CAN2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: CAN2-MP:CAN2_input_tokens_standard-Units, CAN2-MP:CAN2_output_tokens_standard-Units, CAN2-MP:CAN2_cache_read_tokens_standard-Units, CAN2-MP:CAN2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-opus-5",
@@ -2056,16 +2048,6 @@
       "model": "claude-opus-5",
       "region": "eu-north-1",
       "routing": "geographic",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: EUN1-MP:EUN1_input_tokens_standard-Units, EUN1-MP:EUN1_output_tokens_standard-Units, EUN1-MP:EUN1_cache_read_tokens_standard-Units, EUN1-MP:EUN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5",
-      "region": "eu-north-1",
-      "routing": "in-region",
       "input": 5.5,
       "output": 27.5,
       "cacheRead": 0.55,
@@ -2134,16 +2116,6 @@
     },
     {
       "model": "claude-opus-5",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: EU-MP:EU_input_tokens_standard-Units, EU-MP:EU_output_tokens_standard-Units, EU-MP:EU_cache_read_tokens_standard-Units, EU-MP:EU_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5",
       "region": "eu-west-2",
       "routing": "global",
       "input": 5,
@@ -2204,6 +2176,26 @@
     },
     {
       "model": "claude-opus-5",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MES1-MP:MES1_input_tokens_global_standard-Units, MES1-MP:MES1_output_tokens_global_standard-Units, MES1-MP:MES1_cache_read_tokens_global_standard-Units, MES1-MP:MES1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MXC1-MP:MXC1_input_tokens_global_standard-Units, MXC1-MP:MXC1_output_tokens_global_standard-Units, MXC1-MP:MXC1_cache_read_tokens_global_standard-Units, MXC1-MP:MXC1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-5",
       "region": "sa-east-1",
       "routing": "global",
       "input": 5,
@@ -2234,16 +2226,6 @@
     },
     {
       "model": "claude-opus-5",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5",
       "region": "us-east-2",
       "routing": "global",
       "input": 5,
@@ -2256,16 +2238,6 @@
       "model": "claude-opus-5",
       "region": "us-east-2",
       "routing": "geographic",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-5",
-      "region": "us-east-2",
-      "routing": "in-region",
       "input": 5.5,
       "output": 27.5,
       "cacheRead": 0.55,
@@ -2313,16 +2285,6 @@
       "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
     },
     {
-      "model": "claude-opus-5",
-      "region": "us-west-2",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
-    },
-    {
       "model": "claude-opus-4-8",
       "region": "af-south-1",
       "routing": "global",
@@ -2331,6 +2293,16 @@
       "cacheRead": 0.5,
       "cacheWrite": 6.25,
       "source": "price list: AFS1-MP:AFS1_input_tokens_global_standard-Units, AFS1-MP:AFS1_output_tokens_global_standard-Units, AFS1-MP:AFS1_cache_read_tokens_global_standard-Units, AFS1-MP:AFS1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-8",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APE2-MP:APE2_input_tokens_global_standard-Units, APE2-MP:APE2_output_tokens_global_standard-Units, APE2-MP:APE2_cache_read_tokens_global_standard-Units, APE2-MP:APE2_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-opus-4-8",
@@ -2354,16 +2326,6 @@
     },
     {
       "model": "claude-opus-4-8",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: APN1-MP:APN1_input_tokens_standard-Units, APN1-MP:APN1_output_tokens_standard-Units, APN1-MP:APN1_cache_read_tokens_standard-Units, APN1-MP:APN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-4-8",
       "region": "ap-northeast-2",
       "routing": "global",
       "input": 5,
@@ -2474,13 +2436,33 @@
     },
     {
       "model": "claude-opus-4-8",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: APS6-MP:APS6_input_tokens_standard-Units, APS6-MP:APS6_output_tokens_standard-Units, APS6-MP:APS6_cache_read_tokens_standard-Units, APS6-MP:APS6_cache_write_tokens_standard-Units"
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS7-MP:APS7_input_tokens_global_standard-Units, APS7-MP:APS7_output_tokens_global_standard-Units, APS7-MP:APS7_cache_read_tokens_global_standard-Units, APS7-MP:APS7_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-8",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS8-MP:APS8_input_tokens_global_standard-Units, APS8-MP:APS8_output_tokens_global_standard-Units, APS8-MP:APS8_cache_read_tokens_global_standard-Units, APS8-MP:APS8_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-8",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS9-MP:APS9_input_tokens_global_standard-Units, APS9-MP:APS9_output_tokens_global_standard-Units, APS9-MP:APS9_cache_read_tokens_global_standard-Units, APS9-MP:APS9_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-opus-4-8",
@@ -2511,6 +2493,16 @@
       "cacheRead": 0.5,
       "cacheWrite": 6.25,
       "source": "price list: CAN2-MP:CAN2_input_tokens_global_standard-Units, CAN2-MP:CAN2_output_tokens_global_standard-Units, CAN2-MP:CAN2_cache_read_tokens_global_standard-Units, CAN2-MP:CAN2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-8",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: CAN2-MP:CAN2_input_tokens_standard-Units, CAN2-MP:CAN2_output_tokens_standard-Units, CAN2-MP:CAN2_cache_read_tokens_standard-Units, CAN2-MP:CAN2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-opus-4-8",
@@ -2566,16 +2558,6 @@
       "model": "claude-opus-4-8",
       "region": "eu-north-1",
       "routing": "geographic",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: EUN1-MP:EUN1_input_tokens_standard-Units, EUN1-MP:EUN1_output_tokens_standard-Units, EUN1-MP:EUN1_cache_read_tokens_standard-Units, EUN1-MP:EUN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-4-8",
-      "region": "eu-north-1",
-      "routing": "in-region",
       "input": 5.5,
       "output": 27.5,
       "cacheRead": 0.55,
@@ -2644,16 +2626,6 @@
     },
     {
       "model": "claude-opus-4-8",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: EU-MP:EU_input_tokens_standard-Units, EU-MP:EU_output_tokens_standard-Units, EU-MP:EU_cache_read_tokens_standard-Units, EU-MP:EU_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-4-8",
       "region": "eu-west-2",
       "routing": "global",
       "input": 5,
@@ -2714,6 +2686,26 @@
     },
     {
       "model": "claude-opus-4-8",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MES1-MP:MES1_input_tokens_global_standard-Units, MES1-MP:MES1_output_tokens_global_standard-Units, MES1-MP:MES1_cache_read_tokens_global_standard-Units, MES1-MP:MES1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-8",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MXC1-MP:MXC1_input_tokens_global_standard-Units, MXC1-MP:MXC1_output_tokens_global_standard-Units, MXC1-MP:MXC1_cache_read_tokens_global_standard-Units, MXC1-MP:MXC1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-8",
       "region": "sa-east-1",
       "routing": "global",
       "input": 5,
@@ -2744,16 +2736,6 @@
     },
     {
       "model": "claude-opus-4-8",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-4-8",
       "region": "us-east-2",
       "routing": "global",
       "input": 5,
@@ -2766,16 +2748,6 @@
       "model": "claude-opus-4-8",
       "region": "us-east-2",
       "routing": "geographic",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-4-8",
-      "region": "us-east-2",
-      "routing": "in-region",
       "input": 5.5,
       "output": 27.5,
       "cacheRead": 0.55,
@@ -2823,16 +2795,6 @@
       "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
     },
     {
-      "model": "claude-opus-4-8",
-      "region": "us-west-2",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
-    },
-    {
       "model": "claude-opus-4-7",
       "region": "af-south-1",
       "routing": "global",
@@ -2841,6 +2803,16 @@
       "cacheRead": 0.5,
       "cacheWrite": 6.25,
       "source": "price list: AFS1-MP:AFS1_input_tokens_global_standard-Units, AFS1-MP:AFS1_output_tokens_global_standard-Units, AFS1-MP:AFS1_cache_read_tokens_global_standard-Units, AFS1-MP:AFS1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-7",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APE2-MP:APE2_input_tokens_global_standard-Units, APE2-MP:APE2_output_tokens_global_standard-Units, APE2-MP:APE2_cache_read_tokens_global_standard-Units, APE2-MP:APE2_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-opus-4-7",
@@ -2864,16 +2836,6 @@
     },
     {
       "model": "claude-opus-4-7",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: APN1-MP:APN1_input_tokens_standard-Units, APN1-MP:APN1_output_tokens_standard-Units, APN1-MP:APN1_cache_read_tokens_standard-Units, APN1-MP:APN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-4-7",
       "region": "ap-northeast-2",
       "routing": "global",
       "input": 5,
@@ -2984,13 +2946,33 @@
     },
     {
       "model": "claude-opus-4-7",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: APS6-MP:APS6_input_tokens_standard-Units, APS6-MP:APS6_output_tokens_standard-Units, APS6-MP:APS6_cache_read_tokens_standard-Units, APS6-MP:APS6_cache_write_tokens_standard-Units"
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS7-MP:APS7_input_tokens_global_standard-Units, APS7-MP:APS7_output_tokens_global_standard-Units, APS7-MP:APS7_cache_read_tokens_global_standard-Units, APS7-MP:APS7_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-7",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS8-MP:APS8_input_tokens_global_standard-Units, APS8-MP:APS8_output_tokens_global_standard-Units, APS8-MP:APS8_cache_read_tokens_global_standard-Units, APS8-MP:APS8_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-7",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS9-MP:APS9_input_tokens_global_standard-Units, APS9-MP:APS9_output_tokens_global_standard-Units, APS9-MP:APS9_cache_read_tokens_global_standard-Units, APS9-MP:APS9_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-opus-4-7",
@@ -3021,6 +3003,16 @@
       "cacheRead": 0.5,
       "cacheWrite": 6.25,
       "source": "price list: CAN2-MP:CAN2_input_tokens_global_standard-Units, CAN2-MP:CAN2_output_tokens_global_standard-Units, CAN2-MP:CAN2_cache_read_tokens_global_standard-Units, CAN2-MP:CAN2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-7",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: CAN2-MP:CAN2_input_tokens_standard-Units, CAN2-MP:CAN2_output_tokens_standard-Units, CAN2-MP:CAN2_cache_read_tokens_standard-Units, CAN2-MP:CAN2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-opus-4-7",
@@ -3076,16 +3068,6 @@
       "model": "claude-opus-4-7",
       "region": "eu-north-1",
       "routing": "geographic",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: EUN1-MP:EUN1_input_tokens_standard-Units, EUN1-MP:EUN1_output_tokens_standard-Units, EUN1-MP:EUN1_cache_read_tokens_standard-Units, EUN1-MP:EUN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-4-7",
-      "region": "eu-north-1",
-      "routing": "in-region",
       "input": 5.5,
       "output": 27.5,
       "cacheRead": 0.55,
@@ -3154,16 +3136,6 @@
     },
     {
       "model": "claude-opus-4-7",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: EU-MP:EU_input_tokens_standard-Units, EU-MP:EU_output_tokens_standard-Units, EU-MP:EU_cache_read_tokens_standard-Units, EU-MP:EU_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-4-7",
       "region": "eu-west-2",
       "routing": "global",
       "input": 5,
@@ -3224,6 +3196,26 @@
     },
     {
       "model": "claude-opus-4-7",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MES1-MP:MES1_input_tokens_global_standard-Units, MES1-MP:MES1_output_tokens_global_standard-Units, MES1-MP:MES1_cache_read_tokens_global_standard-Units, MES1-MP:MES1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-7",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MXC1-MP:MXC1_input_tokens_global_standard-Units, MXC1-MP:MXC1_output_tokens_global_standard-Units, MXC1-MP:MXC1_cache_read_tokens_global_standard-Units, MXC1-MP:MXC1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-opus-4-7",
       "region": "sa-east-1",
       "routing": "global",
       "input": 5,
@@ -3254,16 +3246,6 @@
     },
     {
       "model": "claude-opus-4-7",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-4-7",
       "region": "us-east-2",
       "routing": "global",
       "input": 5,
@@ -3276,16 +3258,6 @@
       "model": "claude-opus-4-7",
       "region": "us-east-2",
       "routing": "geographic",
-      "input": 5.5,
-      "output": 27.5,
-      "cacheRead": 0.55,
-      "cacheWrite": 6.875,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-opus-4-7",
-      "region": "us-east-2",
-      "routing": "in-region",
       "input": 5.5,
       "output": 27.5,
       "cacheRead": 0.55,
@@ -3333,14 +3305,914 @@
       "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
     },
     {
-      "model": "claude-opus-4-7",
-      "region": "us-west-2",
+      "model": "claude-opus-4-6",
+      "region": "af-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: AFS1-MP:AFS1_InputTokenCount_Global-Units, AFS1-MP:AFS1_OutputTokenCount_Global-Units, AFS1-MP:AFS1_CacheReadInputTokenCount_Global-Units, AFS1-MP:AFS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APE2-MP:APE2_InputTokenCount_Global-Units, APE2-MP:APE2_OutputTokenCount_Global-Units, APE2-MP:APE2_CacheReadInputTokenCount_Global-Units, APE2-MP:APE2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APN1-MP:APN1_InputTokenCount_Global-Units, APN1-MP:APN1_OutputTokenCount_Global-Units, APN1-MP:APN1_CacheReadInputTokenCount_Global-Units, APN1-MP:APN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APN2-MP:APN2_InputTokenCount_Global-Units, APN2-MP:APN2_OutputTokenCount_Global-Units, APN2-MP:APN2_CacheReadInputTokenCount_Global-Units, APN2-MP:APN2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APN3-MP:APN3_InputTokenCount_Global-Units, APN3-MP:APN3_OutputTokenCount_Global-Units, APN3-MP:APN3_CacheReadInputTokenCount_Global-Units, APN3-MP:APN3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS3-MP:APS3_InputTokenCount_Global-Units, APS3-MP:APS3_OutputTokenCount_Global-Units, APS3-MP:APS3_CacheReadInputTokenCount_Global-Units, APS3-MP:APS3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-south-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS5-MP:APS5_InputTokenCount_Global-Units, APS5-MP:APS5_OutputTokenCount_Global-Units, APS5-MP:APS5_CacheReadInputTokenCount_Global-Units, APS5-MP:APS5_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS1-MP:APS1_InputTokenCount_Global-Units, APS1-MP:APS1_OutputTokenCount_Global-Units, APS1-MP:APS1_CacheReadInputTokenCount_Global-Units, APS1-MP:APS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS2-MP:APS2_InputTokenCount_Global-Units, APS2-MP:APS2_OutputTokenCount_Global-Units, APS2-MP:APS2_CacheReadInputTokenCount_Global-Units, APS2-MP:APS2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: APS2-MP:APS2_InputTokenCount-Units, APS2-MP:APS2_OutputTokenCount-Units, APS2-MP:APS2_CacheReadInputTokenCount-Units, APS2-MP:APS2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS4-MP:APS4_InputTokenCount_Global-Units, APS4-MP:APS4_OutputTokenCount_Global-Units, APS4-MP:APS4_CacheReadInputTokenCount_Global-Units, APS4-MP:APS4_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS6-MP:APS6_InputTokenCount_Global-Units, APS6-MP:APS6_OutputTokenCount_Global-Units, APS6-MP:APS6_CacheReadInputTokenCount_Global-Units, APS6-MP:APS6_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: APS6-MP:APS6_InputTokenCount-Units, APS6-MP:APS6_OutputTokenCount-Units, APS6-MP:APS6_CacheReadInputTokenCount-Units, APS6-MP:APS6_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS7-MP:APS7_InputTokenCount_Global-Units, APS7-MP:APS7_OutputTokenCount_Global-Units, APS7-MP:APS7_CacheReadInputTokenCount_Global-Units, APS7-MP:APS7_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS8-MP:APS8_InputTokenCount_Global-Units, APS8-MP:APS8_OutputTokenCount_Global-Units, APS8-MP:APS8_CacheReadInputTokenCount_Global-Units, APS8-MP:APS8_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-southeast-6",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: APS8-MP:APS8_InputTokenCount-Units, APS8-MP:APS8_OutputTokenCount-Units, APS8-MP:APS8_CacheReadInputTokenCount-Units, APS8-MP:APS8_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS9-MP:APS9_InputTokenCount_Global-Units, APS9-MP:APS9_OutputTokenCount_Global-Units, APS9-MP:APS9_CacheReadInputTokenCount_Global-Units, APS9-MP:APS9_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ca-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: CAN1-MP:CAN1_InputTokenCount_Global-Units, CAN1-MP:CAN1_OutputTokenCount_Global-Units, CAN1-MP:CAN1_CacheReadInputTokenCount_Global-Units, CAN1-MP:CAN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: CAN1-MP:CAN1_InputTokenCount-Units, CAN1-MP:CAN1_OutputTokenCount-Units, CAN1-MP:CAN1_CacheReadInputTokenCount-Units, CAN1-MP:CAN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ca-west-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: CAN2-MP:CAN2_InputTokenCount_Global-Units, CAN2-MP:CAN2_OutputTokenCount_Global-Units, CAN2-MP:CAN2_CacheReadInputTokenCount_Global-Units, CAN2-MP:CAN2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: CAN2-MP:CAN2_InputTokenCount-Units, CAN2-MP:CAN2_OutputTokenCount-Units, CAN2-MP:CAN2_CacheReadInputTokenCount-Units, CAN2-MP:CAN2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUC1-MP:EUC1_InputTokenCount_Global-Units, EUC1-MP:EUC1_OutputTokenCount_Global-Units, EUC1-MP:EUC1_CacheReadInputTokenCount_Global-Units, EUC1-MP:EUC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUC1-MP:EUC1_InputTokenCount-Units, EUC1-MP:EUC1_OutputTokenCount-Units, EUC1-MP:EUC1_CacheReadInputTokenCount-Units, EUC1-MP:EUC1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-central-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUC2-MP:EUC2_InputTokenCount_Global-Units, EUC2-MP:EUC2_OutputTokenCount_Global-Units, EUC2-MP:EUC2_CacheReadInputTokenCount_Global-Units, EUC2-MP:EUC2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUC2-MP:EUC2_InputTokenCount-Units, EUC2-MP:EUC2_OutputTokenCount-Units, EUC2-MP:EUC2_CacheReadInputTokenCount-Units, EUC2-MP:EUC2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-north-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUN1-MP:EUN1_InputTokenCount_Global-Units, EUN1-MP:EUN1_OutputTokenCount_Global-Units, EUN1-MP:EUN1_CacheReadInputTokenCount_Global-Units, EUN1-MP:EUN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUN1-MP:EUN1_InputTokenCount-Units, EUN1-MP:EUN1_OutputTokenCount-Units, EUN1-MP:EUN1_CacheReadInputTokenCount-Units, EUN1-MP:EUN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUS1-MP:EUS1_InputTokenCount_Global-Units, EUS1-MP:EUS1_OutputTokenCount_Global-Units, EUS1-MP:EUS1_CacheReadInputTokenCount_Global-Units, EUS1-MP:EUS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUS1-MP:EUS1_InputTokenCount-Units, EUS1-MP:EUS1_OutputTokenCount-Units, EUS1-MP:EUS1_CacheReadInputTokenCount-Units, EUS1-MP:EUS1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-south-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUS2-MP:EUS2_InputTokenCount_Global-Units, EUS2-MP:EUS2_OutputTokenCount_Global-Units, EUS2-MP:EUS2_CacheReadInputTokenCount_Global-Units, EUS2-MP:EUS2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUS2-MP:EUS2_InputTokenCount-Units, EUS2-MP:EUS2_OutputTokenCount-Units, EUS2-MP:EUS2_CacheReadInputTokenCount-Units, EUS2-MP:EUS2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-west-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EU-MP:EU_InputTokenCount_Global-Units, EU-MP:EU_OutputTokenCount_Global-Units, EU-MP:EU_CacheReadInputTokenCount_Global-Units, EU-MP:EU_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EU-MP:EU_InputTokenCount-Units, EU-MP:EU_OutputTokenCount-Units, EU-MP:EU_CacheReadInputTokenCount-Units, EU-MP:EU_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-west-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUW2-MP:EUW2_InputTokenCount_Global-Units, EUW2-MP:EUW2_OutputTokenCount_Global-Units, EUW2-MP:EUW2_CacheReadInputTokenCount_Global-Units, EUW2-MP:EUW2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUW2-MP:EUW2_InputTokenCount-Units, EUW2-MP:EUW2_OutputTokenCount-Units, EUW2-MP:EUW2_CacheReadInputTokenCount-Units, EUW2-MP:EUW2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-west-2",
       "routing": "in-region",
       "input": 5.5,
       "output": 27.5,
       "cacheRead": 0.55,
       "cacheWrite": 6.875,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
+      "source": "price list: EUW2-MP:EUW2_InputTokenCount-Units, EUW2-MP:EUW2_OutputTokenCount-Units, EUW2-MP:EUW2_CacheReadInputTokenCount-Units, EUW2-MP:EUW2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-west-3",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUW3-MP:EUW3_InputTokenCount_Global-Units, EUW3-MP:EUW3_OutputTokenCount_Global-Units, EUW3-MP:EUW3_CacheReadInputTokenCount_Global-Units, EUW3-MP:EUW3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUW3-MP:EUW3_InputTokenCount-Units, EUW3-MP:EUW3_OutputTokenCount-Units, EUW3-MP:EUW3_CacheReadInputTokenCount-Units, EUW3-MP:EUW3_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "il-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: ILC1-MP:ILC1_InputTokenCount_Global-Units, ILC1-MP:ILC1_OutputTokenCount_Global-Units, ILC1-MP:ILC1_CacheReadInputTokenCount_Global-Units, ILC1-MP:ILC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "me-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MEC1-MP:MEC1_InputTokenCount_Global-Units, MEC1-MP:MEC1_OutputTokenCount_Global-Units, MEC1-MP:MEC1_CacheReadInputTokenCount_Global-Units, MEC1-MP:MEC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MES1-MP:MES1_InputTokenCount_Global-Units, MES1-MP:MES1_OutputTokenCount_Global-Units, MES1-MP:MES1_CacheReadInputTokenCount_Global-Units, MES1-MP:MES1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MXC1-MP:MXC1_InputTokenCount_Global-Units, MXC1-MP:MXC1_OutputTokenCount_Global-Units, MXC1-MP:MXC1_CacheReadInputTokenCount_Global-Units, MXC1-MP:MXC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "sa-east-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: SAE1-MP:SAE1_InputTokenCount_Global-Units, SAE1-MP:SAE1_OutputTokenCount_Global-Units, SAE1-MP:SAE1_CacheReadInputTokenCount_Global-Units, SAE1-MP:SAE1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "us-east-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: USE1-MP:USE1_InputTokenCount_Global-Units, USE1-MP:USE1_OutputTokenCount_Global-Units, USE1-MP:USE1_CacheReadInputTokenCount_Global-Units, USE1-MP:USE1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: USE1-MP:USE1_InputTokenCount-Units, USE1-MP:USE1_OutputTokenCount-Units, USE1-MP:USE1_CacheReadInputTokenCount-Units, USE1-MP:USE1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "us-east-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: USE2-MP:USE2_InputTokenCount_Global-Units, USE2-MP:USE2_OutputTokenCount_Global-Units, USE2-MP:USE2_CacheReadInputTokenCount_Global-Units, USE2-MP:USE2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: USE2-MP:USE2_InputTokenCount-Units, USE2-MP:USE2_OutputTokenCount-Units, USE2-MP:USE2_CacheReadInputTokenCount-Units, USE2-MP:USE2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "us-west-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: USW1-MP:USW1_InputTokenCount_Global-Units, USW1-MP:USW1_OutputTokenCount_Global-Units, USW1-MP:USW1_CacheReadInputTokenCount_Global-Units, USW1-MP:USW1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: USW1-MP:USW1_InputTokenCount-Units, USW1-MP:USW1_OutputTokenCount-Units, USW1-MP:USW1_CacheReadInputTokenCount-Units, USW1-MP:USW1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "us-west-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: USW2-MP:USW2_InputTokenCount_Global-Units, USW2-MP:USW2_OutputTokenCount_Global-Units, USW2-MP:USW2_CacheReadInputTokenCount_Global-Units, USW2-MP:USW2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-6",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: USW2-MP:USW2_InputTokenCount-Units, USW2-MP:USW2_OutputTokenCount-Units, USW2-MP:USW2_CacheReadInputTokenCount-Units, USW2-MP:USW2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "af-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: AFS1-MP:AFS1_InputTokenCount_Global-Units, AFS1-MP:AFS1_OutputTokenCount_Global-Units, AFS1-MP:AFS1_CacheReadInputTokenCount_Global-Units, AFS1-MP:AFS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APE2-MP:APE2_InputTokenCount_Global-Units, APE2-MP:APE2_OutputTokenCount_Global-Units, APE2-MP:APE2_CacheReadInputTokenCount_Global-Units, APE2-MP:APE2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APN2-MP:APN2_InputTokenCount_Global-Units, APN2-MP:APN2_OutputTokenCount_Global-Units, APN2-MP:APN2_CacheReadInputTokenCount_Global-Units, APN2-MP:APN2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "ap-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS3-MP:APS3_InputTokenCount_Global-Units, APS3-MP:APS3_OutputTokenCount_Global-Units, APS3-MP:APS3_CacheReadInputTokenCount_Global-Units, APS3-MP:APS3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "ap-south-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS5-MP:APS5_InputTokenCount_Global-Units, APS5-MP:APS5_OutputTokenCount_Global-Units, APS5-MP:APS5_CacheReadInputTokenCount_Global-Units, APS5-MP:APS5_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS1-MP:APS1_InputTokenCount_Global-Units, APS1-MP:APS1_OutputTokenCount_Global-Units, APS1-MP:APS1_CacheReadInputTokenCount_Global-Units, APS1-MP:APS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS4-MP:APS4_InputTokenCount_Global-Units, APS4-MP:APS4_OutputTokenCount_Global-Units, APS4-MP:APS4_CacheReadInputTokenCount_Global-Units, APS4-MP:APS4_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS8-MP:APS8_InputTokenCount_Global-Units, APS8-MP:APS8_OutputTokenCount_Global-Units, APS8-MP:APS8_CacheReadInputTokenCount_Global-Units, APS8-MP:APS8_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: APS9-MP:APS9_InputTokenCount_Global-Units, APS9-MP:APS9_OutputTokenCount_Global-Units, APS9-MP:APS9_CacheReadInputTokenCount_Global-Units, APS9-MP:APS9_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "ca-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: CAN1-MP:CAN1_InputTokenCount_Global-Units, CAN1-MP:CAN1_OutputTokenCount_Global-Units, CAN1-MP:CAN1_CacheReadInputTokenCount_Global-Units, CAN1-MP:CAN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: CAN1-MP:CAN1_InputTokenCount-Units, CAN1-MP:CAN1_OutputTokenCount-Units, CAN1-MP:CAN1_CacheReadInputTokenCount-Units, CAN1-MP:CAN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUC1-MP:EUC1_InputTokenCount_Global-Units, EUC1-MP:EUC1_OutputTokenCount_Global-Units, EUC1-MP:EUC1_CacheReadInputTokenCount_Global-Units, EUC1-MP:EUC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUC1-MP:EUC1_InputTokenCount-Units, EUC1-MP:EUC1_OutputTokenCount-Units, EUC1-MP:EUC1_CacheReadInputTokenCount-Units, EUC1-MP:EUC1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-north-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUN1-MP:EUN1_InputTokenCount_Global-Units, EUN1-MP:EUN1_OutputTokenCount_Global-Units, EUN1-MP:EUN1_CacheReadInputTokenCount_Global-Units, EUN1-MP:EUN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUN1-MP:EUN1_InputTokenCount-Units, EUN1-MP:EUN1_OutputTokenCount-Units, EUN1-MP:EUN1_CacheReadInputTokenCount-Units, EUN1-MP:EUN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUS1-MP:EUS1_InputTokenCount_Global-Units, EUS1-MP:EUS1_OutputTokenCount_Global-Units, EUS1-MP:EUS1_CacheReadInputTokenCount_Global-Units, EUS1-MP:EUS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUS1-MP:EUS1_InputTokenCount-Units, EUS1-MP:EUS1_OutputTokenCount-Units, EUS1-MP:EUS1_CacheReadInputTokenCount-Units, EUS1-MP:EUS1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-south-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUS2-MP:EUS2_InputTokenCount_Global-Units, EUS2-MP:EUS2_OutputTokenCount_Global-Units, EUS2-MP:EUS2_CacheReadInputTokenCount_Global-Units, EUS2-MP:EUS2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUS2-MP:EUS2_InputTokenCount-Units, EUS2-MP:EUS2_OutputTokenCount-Units, EUS2-MP:EUS2_CacheReadInputTokenCount-Units, EUS2-MP:EUS2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-west-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EU-MP:EU_InputTokenCount_Global-Units, EU-MP:EU_OutputTokenCount_Global-Units, EU-MP:EU_CacheReadInputTokenCount_Global-Units, EU-MP:EU_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EU-MP:EU_InputTokenCount-Units, EU-MP:EU_OutputTokenCount-Units, EU-MP:EU_CacheReadInputTokenCount-Units, EU-MP:EU_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-west-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUW2-MP:EUW2_InputTokenCount_Global-Units, EUW2-MP:EUW2_OutputTokenCount_Global-Units, EUW2-MP:EUW2_CacheReadInputTokenCount_Global-Units, EUW2-MP:EUW2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-west-3",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: EUW3-MP:EUW3_InputTokenCount_Global-Units, EUW3-MP:EUW3_OutputTokenCount_Global-Units, EUW3-MP:EUW3_CacheReadInputTokenCount_Global-Units, EUW3-MP:EUW3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: EUW3-MP:EUW3_InputTokenCount-Units, EUW3-MP:EUW3_OutputTokenCount-Units, EUW3-MP:EUW3_CacheReadInputTokenCount-Units, EUW3-MP:EUW3_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "il-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: ILC1-MP:ILC1_InputTokenCount_Global-Units, ILC1-MP:ILC1_OutputTokenCount_Global-Units, ILC1-MP:ILC1_CacheReadInputTokenCount_Global-Units, ILC1-MP:ILC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "me-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MEC1-MP:MEC1_InputTokenCount_Global-Units, MEC1-MP:MEC1_OutputTokenCount_Global-Units, MEC1-MP:MEC1_CacheReadInputTokenCount_Global-Units, MEC1-MP:MEC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MES1-MP:MES1_InputTokenCount_Global-Units, MES1-MP:MES1_OutputTokenCount_Global-Units, MES1-MP:MES1_CacheReadInputTokenCount_Global-Units, MES1-MP:MES1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: MXC1-MP:MXC1_InputTokenCount_Global-Units, MXC1-MP:MXC1_OutputTokenCount_Global-Units, MXC1-MP:MXC1_CacheReadInputTokenCount_Global-Units, MXC1-MP:MXC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "sa-east-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: SAE1-MP:SAE1_InputTokenCount_Global-Units, SAE1-MP:SAE1_OutputTokenCount_Global-Units, SAE1-MP:SAE1_CacheReadInputTokenCount_Global-Units, SAE1-MP:SAE1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "us-east-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: USE1-MP:USE1_InputTokenCount_Global-Units, USE1-MP:USE1_OutputTokenCount_Global-Units, USE1-MP:USE1_CacheReadInputTokenCount_Global-Units, USE1-MP:USE1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: USE1-MP:USE1_InputTokenCount-Units, USE1-MP:USE1_OutputTokenCount-Units, USE1-MP:USE1_CacheReadInputTokenCount-Units, USE1-MP:USE1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "us-east-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: USE2-MP:USE2_InputTokenCount_Global-Units, USE2-MP:USE2_OutputTokenCount_Global-Units, USE2-MP:USE2_CacheReadInputTokenCount_Global-Units, USE2-MP:USE2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: USE2-MP:USE2_InputTokenCount-Units, USE2-MP:USE2_OutputTokenCount-Units, USE2-MP:USE2_CacheReadInputTokenCount-Units, USE2-MP:USE2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "us-west-1",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: USW1-MP:USW1_InputTokenCount_Global-Units, USW1-MP:USW1_OutputTokenCount_Global-Units, USW1-MP:USW1_CacheReadInputTokenCount_Global-Units, USW1-MP:USW1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: USW1-MP:USW1_InputTokenCount-Units, USW1-MP:USW1_OutputTokenCount-Units, USW1-MP:USW1_CacheReadInputTokenCount-Units, USW1-MP:USW1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "us-west-2",
+      "routing": "global",
+      "input": 5,
+      "output": 25,
+      "cacheRead": 0.5,
+      "cacheWrite": 6.25,
+      "source": "price list: USW2-MP:USW2_InputTokenCount_Global-Units, USW2-MP:USW2_OutputTokenCount_Global-Units, USW2-MP:USW2_CacheReadInputTokenCount_Global-Units, USW2-MP:USW2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-opus-4-5",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "input": 5.5,
+      "output": 27.5,
+      "cacheRead": 0.55,
+      "cacheWrite": 6.875,
+      "source": "price list: USW2-MP:USW2_InputTokenCount-Units, USW2-MP:USW2_OutputTokenCount-Units, USW2-MP:USW2_CacheReadInputTokenCount-Units, USW2-MP:USW2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-1",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "input": 15,
+      "output": 75,
+      "cacheRead": 1.5,
+      "cacheWrite": 18.75,
+      "source": "price list: USE1-MP:USE1_InputTokenCount-Units, USE1-MP:USE1_OutputTokenCount-Units, USE1-MP:USE1_CacheReadInputTokenCount-Units, USE1-MP:USE1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-1",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "input": 15,
+      "output": 75,
+      "cacheRead": 1.5,
+      "cacheWrite": 18.75,
+      "source": "price list: USE2-MP:USE2_InputTokenCount-Units, USE2-MP:USE2_OutputTokenCount-Units, USE2-MP:USE2_CacheReadInputTokenCount-Units, USE2-MP:USE2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-opus-4-1",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "input": 15,
+      "output": 75,
+      "cacheRead": 1.5,
+      "cacheWrite": 18.75,
+      "source": "price list: USW2-MP:USW2_InputTokenCount-Units, USW2-MP:USW2_OutputTokenCount-Units, USW2-MP:USW2_CacheReadInputTokenCount-Units, USW2-MP:USW2_CacheWriteInputTokenCount-Units"
     },
     {
       "model": "claude-sonnet-5-5",
@@ -3351,6 +4223,16 @@
       "cacheRead": 0.1,
       "cacheWrite": 2.5,
       "source": "price list: AFS1-MP:AFS1_input_tokens_global_standard-Units, AFS1-MP:AFS1_output_tokens_global_standard-Units, AFS1-MP:AFS1_cache_read_tokens_global_standard-Units, AFS1-MP:AFS1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.1,
+      "cacheWrite": 2.5,
+      "source": "price list: APE2-MP:APE2_input_tokens_global_standard-Units, APE2-MP:APE2_output_tokens_global_standard-Units, APE2-MP:APE2_cache_read_tokens_global_standard-Units, APE2-MP:APE2_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-sonnet-5-5",
@@ -3444,13 +4326,33 @@
     },
     {
       "model": "claude-sonnet-5-5",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.11,
-      "cacheWrite": 2.75,
-      "source": "price list: APS6-MP:APS6_input_tokens_standard-Units, APS6-MP:APS6_output_tokens_standard-Units, APS6-MP:APS6_cache_read_tokens_standard-Units, APS6-MP:APS6_cache_write_tokens_standard-Units"
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.1,
+      "cacheWrite": 2.5,
+      "source": "price list: APS7-MP:APS7_input_tokens_global_standard-Units, APS7-MP:APS7_output_tokens_global_standard-Units, APS7-MP:APS7_cache_read_tokens_global_standard-Units, APS7-MP:APS7_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.1,
+      "cacheWrite": 2.5,
+      "source": "price list: APS8-MP:APS8_input_tokens_global_standard-Units, APS8-MP:APS8_output_tokens_global_standard-Units, APS8-MP:APS8_cache_read_tokens_global_standard-Units, APS8-MP:APS8_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.1,
+      "cacheWrite": 2.5,
+      "source": "price list: APS9-MP:APS9_input_tokens_global_standard-Units, APS9-MP:APS9_output_tokens_global_standard-Units, APS9-MP:APS9_cache_read_tokens_global_standard-Units, APS9-MP:APS9_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-sonnet-5-5",
@@ -3481,6 +4383,16 @@
       "cacheRead": 0.1,
       "cacheWrite": 2.5,
       "source": "price list: CAN2-MP:CAN2_input_tokens_global_standard-Units, CAN2-MP:CAN2_output_tokens_global_standard-Units, CAN2-MP:CAN2_cache_read_tokens_global_standard-Units, CAN2-MP:CAN2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 2.2,
+      "output": 11,
+      "cacheRead": 0.11,
+      "cacheWrite": 2.75,
+      "source": "price list: CAN2-MP:CAN2_input_tokens_standard-Units, CAN2-MP:CAN2_output_tokens_standard-Units, CAN2-MP:CAN2_cache_read_tokens_standard-Units, CAN2-MP:CAN2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-sonnet-5-5",
@@ -3536,16 +4448,6 @@
       "model": "claude-sonnet-5-5",
       "region": "eu-north-1",
       "routing": "geographic",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.11,
-      "cacheWrite": 2.75,
-      "source": "price list: EUN1-MP:EUN1_input_tokens_standard-Units, EUN1-MP:EUN1_output_tokens_standard-Units, EUN1-MP:EUN1_cache_read_tokens_standard-Units, EUN1-MP:EUN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "region": "eu-north-1",
-      "routing": "in-region",
       "input": 2.2,
       "output": 11,
       "cacheRead": 0.11,
@@ -3614,16 +4516,6 @@
     },
     {
       "model": "claude-sonnet-5-5",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.11,
-      "cacheWrite": 2.75,
-      "source": "price list: EU-MP:EU_input_tokens_standard-Units, EU-MP:EU_output_tokens_standard-Units, EU-MP:EU_cache_read_tokens_standard-Units, EU-MP:EU_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5-5",
       "region": "eu-west-2",
       "routing": "global",
       "input": 2,
@@ -3684,6 +4576,26 @@
     },
     {
       "model": "claude-sonnet-5-5",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.1,
+      "cacheWrite": 2.5,
+      "source": "price list: MES1-MP:MES1_input_tokens_global_standard-Units, MES1-MP:MES1_output_tokens_global_standard-Units, MES1-MP:MES1_cache_read_tokens_global_standard-Units, MES1-MP:MES1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.1,
+      "cacheWrite": 2.5,
+      "source": "price list: MXC1-MP:MXC1_input_tokens_global_standard-Units, MXC1-MP:MXC1_output_tokens_global_standard-Units, MXC1-MP:MXC1_cache_read_tokens_global_standard-Units, MXC1-MP:MXC1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5-5",
       "region": "sa-east-1",
       "routing": "global",
       "input": 2,
@@ -3714,16 +4626,6 @@
     },
     {
       "model": "claude-sonnet-5-5",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.11,
-      "cacheWrite": 2.75,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5-5",
       "region": "us-east-2",
       "routing": "global",
       "input": 2,
@@ -3736,16 +4638,6 @@
       "model": "claude-sonnet-5-5",
       "region": "us-east-2",
       "routing": "geographic",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.11,
-      "cacheWrite": 2.75,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "region": "us-east-2",
-      "routing": "in-region",
       "input": 2.2,
       "output": 11,
       "cacheRead": 0.11,
@@ -3793,16 +4685,6 @@
       "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
     },
     {
-      "model": "claude-sonnet-5-5",
-      "region": "us-west-2",
-      "routing": "in-region",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.11,
-      "cacheWrite": 2.75,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
-    },
-    {
       "model": "claude-sonnet-5",
       "region": "af-south-1",
       "routing": "global",
@@ -3811,6 +4693,16 @@
       "cacheRead": 0.2,
       "cacheWrite": 2.5,
       "source": "price list: AFS1-MP:AFS1_input_tokens_global_standard-Units, AFS1-MP:AFS1_output_tokens_global_standard-Units, AFS1-MP:AFS1_cache_read_tokens_global_standard-Units, AFS1-MP:AFS1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.2,
+      "cacheWrite": 2.5,
+      "source": "price list: APE2-MP:APE2_input_tokens_global_standard-Units, APE2-MP:APE2_output_tokens_global_standard-Units, APE2-MP:APE2_cache_read_tokens_global_standard-Units, APE2-MP:APE2_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-sonnet-5",
@@ -3824,26 +4716,6 @@
     },
     {
       "model": "claude-sonnet-5",
-      "region": "ap-northeast-1",
-      "routing": "geographic",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.22,
-      "cacheWrite": 2.75,
-      "source": "price list: APN1-MP:APN1_input_tokens_standard-Units, APN1-MP:APN1_output_tokens_standard-Units, APN1-MP:APN1_cache_read_tokens_standard-Units, APN1-MP:APN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.22,
-      "cacheWrite": 2.75,
-      "source": "price list: APN1-MP:APN1_input_tokens_standard-Units, APN1-MP:APN1_output_tokens_standard-Units, APN1-MP:APN1_cache_read_tokens_standard-Units, APN1-MP:APN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5",
       "region": "ap-northeast-2",
       "routing": "global",
       "input": 2,
@@ -3851,6 +4723,16 @@
       "cacheRead": 0.2,
       "cacheWrite": 2.5,
       "source": "price list: APN2-MP:APN2_input_tokens_global_standard-Units, APN2-MP:APN2_output_tokens_global_standard-Units, APN2-MP:APN2_cache_read_tokens_global_standard-Units, APN2-MP:APN2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "ap-northeast-2",
+      "routing": "in-region",
+      "input": 2.2,
+      "output": 11,
+      "cacheRead": 0.22,
+      "cacheWrite": 2.75,
+      "source": "price list: APN2-MP:APN2_input_tokens_standard-Units, APN2-MP:APN2_output_tokens_standard-Units, APN2-MP:APN2_cache_read_tokens_standard-Units, APN2-MP:APN2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-sonnet-5",
@@ -3864,16 +4746,6 @@
     },
     {
       "model": "claude-sonnet-5",
-      "region": "ap-northeast-3",
-      "routing": "geographic",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.22,
-      "cacheWrite": 2.75,
-      "source": "price list: APN3-MP:APN3_input_tokens_standard-Units, APN3-MP:APN3_output_tokens_standard-Units, APN3-MP:APN3_cache_read_tokens_standard-Units, APN3-MP:APN3_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5",
       "region": "ap-south-1",
       "routing": "global",
       "input": 2,
@@ -3881,6 +4753,16 @@
       "cacheRead": 0.2,
       "cacheWrite": 2.5,
       "source": "price list: APS3-MP:APS3_input_tokens_global_standard-Units, APS3-MP:APS3_output_tokens_global_standard-Units, APS3-MP:APS3_cache_read_tokens_global_standard-Units, APS3-MP:APS3_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "ap-south-1",
+      "routing": "geographic",
+      "input": 2.2,
+      "output": 11,
+      "cacheRead": 0.22,
+      "cacheWrite": 2.75,
+      "source": "price list: APS3-MP:APS3_input_tokens_standard-Units, APS3-MP:APS3_output_tokens_standard-Units, APS3-MP:APS3_cache_read_tokens_standard-Units, APS3-MP:APS3_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-sonnet-5",
@@ -3894,6 +4776,16 @@
     },
     {
       "model": "claude-sonnet-5",
+      "region": "ap-south-2",
+      "routing": "geographic",
+      "input": 2.2,
+      "output": 11,
+      "cacheRead": 0.22,
+      "cacheWrite": 2.75,
+      "source": "price list: APS5-MP:APS5_input_tokens_standard-Units, APS5-MP:APS5_output_tokens_standard-Units, APS5-MP:APS5_cache_read_tokens_standard-Units, APS5-MP:APS5_cache_write_tokens_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
       "region": "ap-southeast-1",
       "routing": "global",
       "input": 2,
@@ -3901,6 +4793,16 @@
       "cacheRead": 0.2,
       "cacheWrite": 2.5,
       "source": "price list: APS1-MP:APS1_input_tokens_global_standard-Units, APS1-MP:APS1_output_tokens_global_standard-Units, APS1-MP:APS1_cache_read_tokens_global_standard-Units, APS1-MP:APS1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "ap-southeast-1",
+      "routing": "in-region",
+      "input": 2.2,
+      "output": 11,
+      "cacheRead": 0.22,
+      "cacheWrite": 2.75,
+      "source": "price list: APS1-MP:APS1_input_tokens_standard-Units, APS1-MP:APS1_output_tokens_standard-Units, APS1-MP:APS1_cache_read_tokens_standard-Units, APS1-MP:APS1_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-sonnet-5",
@@ -3954,13 +4856,33 @@
     },
     {
       "model": "claude-sonnet-5",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.22,
-      "cacheWrite": 2.75,
-      "source": "price list: APS6-MP:APS6_input_tokens_standard-Units, APS6-MP:APS6_output_tokens_standard-Units, APS6-MP:APS6_cache_read_tokens_standard-Units, APS6-MP:APS6_cache_write_tokens_standard-Units"
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.2,
+      "cacheWrite": 2.5,
+      "source": "price list: APS7-MP:APS7_input_tokens_global_standard-Units, APS7-MP:APS7_output_tokens_global_standard-Units, APS7-MP:APS7_cache_read_tokens_global_standard-Units, APS7-MP:APS7_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.2,
+      "cacheWrite": 2.5,
+      "source": "price list: APS8-MP:APS8_input_tokens_global_standard-Units, APS8-MP:APS8_output_tokens_global_standard-Units, APS8-MP:APS8_cache_read_tokens_global_standard-Units, APS8-MP:APS8_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.2,
+      "cacheWrite": 2.5,
+      "source": "price list: APS9-MP:APS9_input_tokens_global_standard-Units, APS9-MP:APS9_output_tokens_global_standard-Units, APS9-MP:APS9_cache_read_tokens_global_standard-Units, APS9-MP:APS9_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-sonnet-5",
@@ -3991,6 +4913,16 @@
       "cacheRead": 0.2,
       "cacheWrite": 2.5,
       "source": "price list: CAN2-MP:CAN2_input_tokens_global_standard-Units, CAN2-MP:CAN2_output_tokens_global_standard-Units, CAN2-MP:CAN2_cache_read_tokens_global_standard-Units, CAN2-MP:CAN2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 2.2,
+      "output": 11,
+      "cacheRead": 0.22,
+      "cacheWrite": 2.75,
+      "source": "price list: CAN2-MP:CAN2_input_tokens_standard-Units, CAN2-MP:CAN2_output_tokens_standard-Units, CAN2-MP:CAN2_cache_read_tokens_standard-Units, CAN2-MP:CAN2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-sonnet-5",
@@ -4046,16 +4978,6 @@
       "model": "claude-sonnet-5",
       "region": "eu-north-1",
       "routing": "geographic",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.22,
-      "cacheWrite": 2.75,
-      "source": "price list: EUN1-MP:EUN1_input_tokens_standard-Units, EUN1-MP:EUN1_output_tokens_standard-Units, EUN1-MP:EUN1_cache_read_tokens_standard-Units, EUN1-MP:EUN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5",
-      "region": "eu-north-1",
-      "routing": "in-region",
       "input": 2.2,
       "output": 11,
       "cacheRead": 0.22,
@@ -4124,16 +5046,6 @@
     },
     {
       "model": "claude-sonnet-5",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.22,
-      "cacheWrite": 2.75,
-      "source": "price list: EU-MP:EU_input_tokens_standard-Units, EU-MP:EU_output_tokens_standard-Units, EU-MP:EU_cache_read_tokens_standard-Units, EU-MP:EU_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5",
       "region": "eu-west-2",
       "routing": "global",
       "input": 2,
@@ -4146,6 +5058,16 @@
       "model": "claude-sonnet-5",
       "region": "eu-west-2",
       "routing": "geographic",
+      "input": 2.2,
+      "output": 11,
+      "cacheRead": 0.22,
+      "cacheWrite": 2.75,
+      "source": "price list: EUW2-MP:EUW2_input_tokens_standard-Units, EUW2-MP:EUW2_output_tokens_standard-Units, EUW2-MP:EUW2_cache_read_tokens_standard-Units, EUW2-MP:EUW2_cache_write_tokens_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "eu-west-2",
+      "routing": "in-region",
       "input": 2.2,
       "output": 11,
       "cacheRead": 0.22,
@@ -4194,6 +5116,26 @@
     },
     {
       "model": "claude-sonnet-5",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.2,
+      "cacheWrite": 2.5,
+      "source": "price list: MES1-MP:MES1_input_tokens_global_standard-Units, MES1-MP:MES1_output_tokens_global_standard-Units, MES1-MP:MES1_cache_read_tokens_global_standard-Units, MES1-MP:MES1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.2,
+      "cacheWrite": 2.5,
+      "source": "price list: MXC1-MP:MXC1_input_tokens_global_standard-Units, MXC1-MP:MXC1_output_tokens_global_standard-Units, MXC1-MP:MXC1_cache_read_tokens_global_standard-Units, MXC1-MP:MXC1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-sonnet-5",
       "region": "sa-east-1",
       "routing": "global",
       "input": 2,
@@ -4224,16 +5166,6 @@
     },
     {
       "model": "claude-sonnet-5",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.22,
-      "cacheWrite": 2.75,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5",
       "region": "us-east-2",
       "routing": "global",
       "input": 2,
@@ -4246,16 +5178,6 @@
       "model": "claude-sonnet-5",
       "region": "us-east-2",
       "routing": "geographic",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.22,
-      "cacheWrite": 2.75,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-sonnet-5",
-      "region": "us-east-2",
-      "routing": "in-region",
       "input": 2.2,
       "output": 11,
       "cacheRead": 0.22,
@@ -4303,14 +5225,1234 @@
       "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
     },
     {
-      "model": "claude-sonnet-5",
-      "region": "us-west-2",
+      "model": "claude-sonnet-4-6",
+      "region": "af-south-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: AFS1-MP:AFS1_InputTokenCount_Global-Units, AFS1-MP:AFS1_OutputTokenCount_Global-Units, AFS1-MP:AFS1_CacheReadInputTokenCount_Global-Units, AFS1-MP:AFS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APE2-MP:APE2_InputTokenCount_Global-Units, APE2-MP:APE2_OutputTokenCount_Global-Units, APE2-MP:APE2_CacheReadInputTokenCount_Global-Units, APE2-MP:APE2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APN1-MP:APN1_InputTokenCount_Global-Units, APN1-MP:APN1_OutputTokenCount_Global-Units, APN1-MP:APN1_CacheReadInputTokenCount_Global-Units, APN1-MP:APN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: APN1-MP:APN1_InputTokenCount-Units, APN1-MP:APN1_OutputTokenCount-Units, APN1-MP:APN1_CacheReadInputTokenCount-Units, APN1-MP:APN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APN2-MP:APN2_InputTokenCount_Global-Units, APN2-MP:APN2_OutputTokenCount_Global-Units, APN2-MP:APN2_CacheReadInputTokenCount_Global-Units, APN2-MP:APN2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APN3-MP:APN3_InputTokenCount_Global-Units, APN3-MP:APN3_OutputTokenCount_Global-Units, APN3-MP:APN3_CacheReadInputTokenCount_Global-Units, APN3-MP:APN3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: APN3-MP:APN3_InputTokenCount-Units, APN3-MP:APN3_OutputTokenCount-Units, APN3-MP:APN3_CacheReadInputTokenCount-Units, APN3-MP:APN3_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-south-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS3-MP:APS3_InputTokenCount_Global-Units, APS3-MP:APS3_OutputTokenCount_Global-Units, APS3-MP:APS3_CacheReadInputTokenCount_Global-Units, APS3-MP:APS3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-south-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS5-MP:APS5_InputTokenCount_Global-Units, APS5-MP:APS5_OutputTokenCount_Global-Units, APS5-MP:APS5_CacheReadInputTokenCount_Global-Units, APS5-MP:APS5_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS1-MP:APS1_InputTokenCount_Global-Units, APS1-MP:APS1_OutputTokenCount_Global-Units, APS1-MP:APS1_CacheReadInputTokenCount_Global-Units, APS1-MP:APS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS2-MP:APS2_InputTokenCount_Global-Units, APS2-MP:APS2_OutputTokenCount_Global-Units, APS2-MP:APS2_CacheReadInputTokenCount_Global-Units, APS2-MP:APS2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: APS2-MP:APS2_InputTokenCount-Units, APS2-MP:APS2_OutputTokenCount-Units, APS2-MP:APS2_CacheReadInputTokenCount-Units, APS2-MP:APS2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS4-MP:APS4_InputTokenCount_Global-Units, APS4-MP:APS4_OutputTokenCount_Global-Units, APS4-MP:APS4_CacheReadInputTokenCount_Global-Units, APS4-MP:APS4_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS6-MP:APS6_InputTokenCount_Global-Units, APS6-MP:APS6_OutputTokenCount_Global-Units, APS6-MP:APS6_CacheReadInputTokenCount_Global-Units, APS6-MP:APS6_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: APS6-MP:APS6_InputTokenCount-Units, APS6-MP:APS6_OutputTokenCount-Units, APS6-MP:APS6_CacheReadInputTokenCount-Units, APS6-MP:APS6_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS7-MP:APS7_InputTokenCount_Global-Units, APS7-MP:APS7_OutputTokenCount_Global-Units, APS7-MP:APS7_CacheReadInputTokenCount_Global-Units, APS7-MP:APS7_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS8-MP:APS8_InputTokenCount_Global-Units, APS8-MP:APS8_OutputTokenCount_Global-Units, APS8-MP:APS8_CacheReadInputTokenCount_Global-Units, APS8-MP:APS8_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-southeast-6",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: APS8-MP:APS8_InputTokenCount-Units, APS8-MP:APS8_OutputTokenCount-Units, APS8-MP:APS8_CacheReadInputTokenCount-Units, APS8-MP:APS8_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS9-MP:APS9_InputTokenCount_Global-Units, APS9-MP:APS9_OutputTokenCount_Global-Units, APS9-MP:APS9_CacheReadInputTokenCount_Global-Units, APS9-MP:APS9_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ca-central-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: CAN1-MP:CAN1_InputTokenCount_Global-Units, CAN1-MP:CAN1_OutputTokenCount_Global-Units, CAN1-MP:CAN1_CacheReadInputTokenCount_Global-Units, CAN1-MP:CAN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: CAN1-MP:CAN1_InputTokenCount-Units, CAN1-MP:CAN1_OutputTokenCount-Units, CAN1-MP:CAN1_CacheReadInputTokenCount-Units, CAN1-MP:CAN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ca-west-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: CAN2-MP:CAN2_InputTokenCount_Global-Units, CAN2-MP:CAN2_OutputTokenCount_Global-Units, CAN2-MP:CAN2_CacheReadInputTokenCount_Global-Units, CAN2-MP:CAN2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: CAN2-MP:CAN2_InputTokenCount-Units, CAN2-MP:CAN2_OutputTokenCount-Units, CAN2-MP:CAN2_CacheReadInputTokenCount-Units, CAN2-MP:CAN2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-central-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUC1-MP:EUC1_InputTokenCount_Global-Units, EUC1-MP:EUC1_OutputTokenCount_Global-Units, EUC1-MP:EUC1_CacheReadInputTokenCount_Global-Units, EUC1-MP:EUC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUC1-MP:EUC1_InputTokenCount-Units, EUC1-MP:EUC1_OutputTokenCount-Units, EUC1-MP:EUC1_CacheReadInputTokenCount-Units, EUC1-MP:EUC1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-central-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUC2-MP:EUC2_InputTokenCount_Global-Units, EUC2-MP:EUC2_OutputTokenCount_Global-Units, EUC2-MP:EUC2_CacheReadInputTokenCount_Global-Units, EUC2-MP:EUC2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUC2-MP:EUC2_InputTokenCount-Units, EUC2-MP:EUC2_OutputTokenCount-Units, EUC2-MP:EUC2_CacheReadInputTokenCount-Units, EUC2-MP:EUC2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-north-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUN1-MP:EUN1_InputTokenCount_Global-Units, EUN1-MP:EUN1_OutputTokenCount_Global-Units, EUN1-MP:EUN1_CacheReadInputTokenCount_Global-Units, EUN1-MP:EUN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUN1-MP:EUN1_InputTokenCount-Units, EUN1-MP:EUN1_OutputTokenCount-Units, EUN1-MP:EUN1_CacheReadInputTokenCount-Units, EUN1-MP:EUN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-south-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUS1-MP:EUS1_InputTokenCount_Global-Units, EUS1-MP:EUS1_OutputTokenCount_Global-Units, EUS1-MP:EUS1_CacheReadInputTokenCount_Global-Units, EUS1-MP:EUS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUS1-MP:EUS1_InputTokenCount-Units, EUS1-MP:EUS1_OutputTokenCount-Units, EUS1-MP:EUS1_CacheReadInputTokenCount-Units, EUS1-MP:EUS1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-south-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUS2-MP:EUS2_InputTokenCount_Global-Units, EUS2-MP:EUS2_OutputTokenCount_Global-Units, EUS2-MP:EUS2_CacheReadInputTokenCount_Global-Units, EUS2-MP:EUS2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUS2-MP:EUS2_InputTokenCount-Units, EUS2-MP:EUS2_OutputTokenCount-Units, EUS2-MP:EUS2_CacheReadInputTokenCount-Units, EUS2-MP:EUS2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-west-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EU-MP:EU_InputTokenCount_Global-Units, EU-MP:EU_OutputTokenCount_Global-Units, EU-MP:EU_CacheReadInputTokenCount_Global-Units, EU-MP:EU_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EU-MP:EU_InputTokenCount-Units, EU-MP:EU_OutputTokenCount-Units, EU-MP:EU_CacheReadInputTokenCount-Units, EU-MP:EU_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-west-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUW2-MP:EUW2_InputTokenCount_Global-Units, EUW2-MP:EUW2_OutputTokenCount_Global-Units, EUW2-MP:EUW2_CacheReadInputTokenCount_Global-Units, EUW2-MP:EUW2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUW2-MP:EUW2_InputTokenCount-Units, EUW2-MP:EUW2_OutputTokenCount-Units, EUW2-MP:EUW2_CacheReadInputTokenCount-Units, EUW2-MP:EUW2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-west-2",
       "routing": "in-region",
-      "input": 2.2,
-      "output": 11,
-      "cacheRead": 0.22,
-      "cacheWrite": 2.75,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUW2-MP:EUW2_InputTokenCount-Units, EUW2-MP:EUW2_OutputTokenCount-Units, EUW2-MP:EUW2_CacheReadInputTokenCount-Units, EUW2-MP:EUW2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-west-3",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUW3-MP:EUW3_InputTokenCount_Global-Units, EUW3-MP:EUW3_OutputTokenCount_Global-Units, EUW3-MP:EUW3_CacheReadInputTokenCount_Global-Units, EUW3-MP:EUW3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUW3-MP:EUW3_InputTokenCount-Units, EUW3-MP:EUW3_OutputTokenCount-Units, EUW3-MP:EUW3_CacheReadInputTokenCount-Units, EUW3-MP:EUW3_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "il-central-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: ILC1-MP:ILC1_InputTokenCount_Global-Units, ILC1-MP:ILC1_OutputTokenCount_Global-Units, ILC1-MP:ILC1_CacheReadInputTokenCount_Global-Units, ILC1-MP:ILC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "me-central-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: MEC1-MP:MEC1_InputTokenCount_Global-Units, MEC1-MP:MEC1_OutputTokenCount_Global-Units, MEC1-MP:MEC1_CacheReadInputTokenCount_Global-Units, MEC1-MP:MEC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: MES1-MP:MES1_InputTokenCount_Global-Units, MES1-MP:MES1_OutputTokenCount_Global-Units, MES1-MP:MES1_CacheReadInputTokenCount_Global-Units, MES1-MP:MES1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: MXC1-MP:MXC1_InputTokenCount_Global-Units, MXC1-MP:MXC1_OutputTokenCount_Global-Units, MXC1-MP:MXC1_CacheReadInputTokenCount_Global-Units, MXC1-MP:MXC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "sa-east-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: SAE1-MP:SAE1_InputTokenCount_Global-Units, SAE1-MP:SAE1_OutputTokenCount_Global-Units, SAE1-MP:SAE1_CacheReadInputTokenCount_Global-Units, SAE1-MP:SAE1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "us-east-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USE1-MP:USE1_InputTokenCount_Global-Units, USE1-MP:USE1_OutputTokenCount_Global-Units, USE1-MP:USE1_CacheReadInputTokenCount_Global-Units, USE1-MP:USE1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: USE1-MP:USE1_InputTokenCount-Units, USE1-MP:USE1_OutputTokenCount-Units, USE1-MP:USE1_CacheReadInputTokenCount-Units, USE1-MP:USE1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "us-east-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USE2-MP:USE2_InputTokenCount_Global-Units, USE2-MP:USE2_OutputTokenCount_Global-Units, USE2-MP:USE2_CacheReadInputTokenCount_Global-Units, USE2-MP:USE2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: USE2-MP:USE2_InputTokenCount-Units, USE2-MP:USE2_OutputTokenCount-Units, USE2-MP:USE2_CacheReadInputTokenCount-Units, USE2-MP:USE2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "us-west-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USW1-MP:USW1_InputTokenCount_Global-Units, USW1-MP:USW1_OutputTokenCount_Global-Units, USW1-MP:USW1_CacheReadInputTokenCount_Global-Units, USW1-MP:USW1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: USW1-MP:USW1_InputTokenCount-Units, USW1-MP:USW1_OutputTokenCount-Units, USW1-MP:USW1_CacheReadInputTokenCount-Units, USW1-MP:USW1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "us-west-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USW2-MP:USW2_InputTokenCount_Global-Units, USW2-MP:USW2_OutputTokenCount_Global-Units, USW2-MP:USW2_CacheReadInputTokenCount_Global-Units, USW2-MP:USW2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: USW2-MP:USW2_InputTokenCount-Units, USW2-MP:USW2_OutputTokenCount-Units, USW2-MP:USW2_CacheReadInputTokenCount-Units, USW2-MP:USW2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "af-south-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: AFS1-MP:AFS1_InputTokenCount_Global-Units, AFS1-MP:AFS1_OutputTokenCount_Global-Units, AFS1-MP:AFS1_CacheReadInputTokenCount_Global-Units, AFS1-MP:AFS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APE2-MP:APE2_InputTokenCount_Global-Units, APE2-MP:APE2_OutputTokenCount_Global-Units, APE2-MP:APE2_CacheReadInputTokenCount_Global-Units, APE2-MP:APE2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APN1-MP:APN1_InputTokenCount_Global-Units, APN1-MP:APN1_OutputTokenCount_Global-Units, APN1-MP:APN1_CacheReadInputTokenCount_Global-Units, APN1-MP:APN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-northeast-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: APN1-MP:APN1_InputTokenCount-Units, APN1-MP:APN1_OutputTokenCount-Units, APN1-MP:APN1_CacheReadInputTokenCount-Units, APN1-MP:APN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-northeast-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APN2-MP:APN2_InputTokenCount_Global-Units, APN2-MP:APN2_OutputTokenCount_Global-Units, APN2-MP:APN2_CacheReadInputTokenCount_Global-Units, APN2-MP:APN2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-northeast-3",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APN3-MP:APN3_InputTokenCount_Global-Units, APN3-MP:APN3_OutputTokenCount_Global-Units, APN3-MP:APN3_CacheReadInputTokenCount_Global-Units, APN3-MP:APN3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-northeast-3",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: APN3-MP:APN3_InputTokenCount-Units, APN3-MP:APN3_OutputTokenCount-Units, APN3-MP:APN3_CacheReadInputTokenCount-Units, APN3-MP:APN3_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-south-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS3-MP:APS3_InputTokenCount_Global-Units, APS3-MP:APS3_OutputTokenCount_Global-Units, APS3-MP:APS3_CacheReadInputTokenCount_Global-Units, APS3-MP:APS3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-south-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS5-MP:APS5_InputTokenCount_Global-Units, APS5-MP:APS5_OutputTokenCount_Global-Units, APS5-MP:APS5_CacheReadInputTokenCount_Global-Units, APS5-MP:APS5_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-southeast-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS1-MP:APS1_InputTokenCount_Global-Units, APS1-MP:APS1_OutputTokenCount_Global-Units, APS1-MP:APS1_CacheReadInputTokenCount_Global-Units, APS1-MP:APS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-southeast-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS2-MP:APS2_InputTokenCount_Global-Units, APS2-MP:APS2_OutputTokenCount_Global-Units, APS2-MP:APS2_CacheReadInputTokenCount_Global-Units, APS2-MP:APS2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-southeast-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: APS2-MP:APS2_InputTokenCount-Units, APS2-MP:APS2_OutputTokenCount-Units, APS2-MP:APS2_CacheReadInputTokenCount-Units, APS2-MP:APS2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-southeast-3",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS4-MP:APS4_InputTokenCount_Global-Units, APS4-MP:APS4_OutputTokenCount_Global-Units, APS4-MP:APS4_CacheReadInputTokenCount_Global-Units, APS4-MP:APS4_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-southeast-4",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS6-MP:APS6_InputTokenCount_Global-Units, APS6-MP:APS6_OutputTokenCount_Global-Units, APS6-MP:APS6_CacheReadInputTokenCount_Global-Units, APS6-MP:APS6_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-southeast-4",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: APS6-MP:APS6_InputTokenCount-Units, APS6-MP:APS6_OutputTokenCount-Units, APS6-MP:APS6_CacheReadInputTokenCount-Units, APS6-MP:APS6_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS7-MP:APS7_InputTokenCount_Global-Units, APS7-MP:APS7_OutputTokenCount_Global-Units, APS7-MP:APS7_CacheReadInputTokenCount_Global-Units, APS7-MP:APS7_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS8-MP:APS8_InputTokenCount_Global-Units, APS8-MP:APS8_OutputTokenCount_Global-Units, APS8-MP:APS8_CacheReadInputTokenCount_Global-Units, APS8-MP:APS8_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-southeast-6",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: APS8-MP:APS8_InputTokenCount-Units, APS8-MP:APS8_OutputTokenCount-Units, APS8-MP:APS8_CacheReadInputTokenCount-Units, APS8-MP:APS8_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS9-MP:APS9_InputTokenCount_Global-Units, APS9-MP:APS9_OutputTokenCount_Global-Units, APS9-MP:APS9_CacheReadInputTokenCount_Global-Units, APS9-MP:APS9_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ca-central-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: CAN1-MP:CAN1_InputTokenCount_Global-Units, CAN1-MP:CAN1_OutputTokenCount_Global-Units, CAN1-MP:CAN1_CacheReadInputTokenCount_Global-Units, CAN1-MP:CAN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "ca-central-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: CAN1-MP:CAN1_InputTokenCount-Units, CAN1-MP:CAN1_OutputTokenCount-Units, CAN1-MP:CAN1_CacheReadInputTokenCount-Units, CAN1-MP:CAN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-central-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUC1-MP:EUC1_InputTokenCount_Global-Units, EUC1-MP:EUC1_OutputTokenCount_Global-Units, EUC1-MP:EUC1_CacheReadInputTokenCount_Global-Units, EUC1-MP:EUC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUC1-MP:EUC1_InputTokenCount-Units, EUC1-MP:EUC1_OutputTokenCount-Units, EUC1-MP:EUC1_CacheReadInputTokenCount-Units, EUC1-MP:EUC1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-central-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUC2-MP:EUC2_InputTokenCount_Global-Units, EUC2-MP:EUC2_OutputTokenCount_Global-Units, EUC2-MP:EUC2_CacheReadInputTokenCount_Global-Units, EUC2-MP:EUC2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-central-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUC2-MP:EUC2_InputTokenCount-Units, EUC2-MP:EUC2_OutputTokenCount-Units, EUC2-MP:EUC2_CacheReadInputTokenCount-Units, EUC2-MP:EUC2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-north-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUN1-MP:EUN1_InputTokenCount_Global-Units, EUN1-MP:EUN1_OutputTokenCount_Global-Units, EUN1-MP:EUN1_CacheReadInputTokenCount_Global-Units, EUN1-MP:EUN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUN1-MP:EUN1_InputTokenCount-Units, EUN1-MP:EUN1_OutputTokenCount-Units, EUN1-MP:EUN1_CacheReadInputTokenCount-Units, EUN1-MP:EUN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-south-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUS1-MP:EUS1_InputTokenCount_Global-Units, EUS1-MP:EUS1_OutputTokenCount_Global-Units, EUS1-MP:EUS1_CacheReadInputTokenCount_Global-Units, EUS1-MP:EUS1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUS1-MP:EUS1_InputTokenCount-Units, EUS1-MP:EUS1_OutputTokenCount-Units, EUS1-MP:EUS1_CacheReadInputTokenCount-Units, EUS1-MP:EUS1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-south-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUS2-MP:EUS2_InputTokenCount_Global-Units, EUS2-MP:EUS2_OutputTokenCount_Global-Units, EUS2-MP:EUS2_CacheReadInputTokenCount_Global-Units, EUS2-MP:EUS2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUS2-MP:EUS2_InputTokenCount-Units, EUS2-MP:EUS2_OutputTokenCount-Units, EUS2-MP:EUS2_CacheReadInputTokenCount-Units, EUS2-MP:EUS2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-west-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EU-MP:EU_InputTokenCount_Global-Units, EU-MP:EU_OutputTokenCount_Global-Units, EU-MP:EU_CacheReadInputTokenCount_Global-Units, EU-MP:EU_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EU-MP:EU_InputTokenCount-Units, EU-MP:EU_OutputTokenCount-Units, EU-MP:EU_CacheReadInputTokenCount-Units, EU-MP:EU_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-west-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUW2-MP:EUW2_InputTokenCount_Global-Units, EUW2-MP:EUW2_OutputTokenCount_Global-Units, EUW2-MP:EUW2_CacheReadInputTokenCount_Global-Units, EUW2-MP:EUW2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-west-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUW2-MP:EUW2_InputTokenCount-Units, EUW2-MP:EUW2_OutputTokenCount-Units, EUW2-MP:EUW2_CacheReadInputTokenCount-Units, EUW2-MP:EUW2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-west-3",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUW3-MP:EUW3_InputTokenCount_Global-Units, EUW3-MP:EUW3_OutputTokenCount_Global-Units, EUW3-MP:EUW3_CacheReadInputTokenCount_Global-Units, EUW3-MP:EUW3_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: EUW3-MP:EUW3_InputTokenCount-Units, EUW3-MP:EUW3_OutputTokenCount-Units, EUW3-MP:EUW3_CacheReadInputTokenCount-Units, EUW3-MP:EUW3_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "il-central-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: ILC1-MP:ILC1_InputTokenCount_Global-Units, ILC1-MP:ILC1_OutputTokenCount_Global-Units, ILC1-MP:ILC1_CacheReadInputTokenCount_Global-Units, ILC1-MP:ILC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "me-central-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: MEC1-MP:MEC1_InputTokenCount_Global-Units, MEC1-MP:MEC1_OutputTokenCount_Global-Units, MEC1-MP:MEC1_CacheReadInputTokenCount_Global-Units, MEC1-MP:MEC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: MES1-MP:MES1_InputTokenCount_Global-Units, MES1-MP:MES1_OutputTokenCount_Global-Units, MES1-MP:MES1_CacheReadInputTokenCount_Global-Units, MES1-MP:MES1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: MXC1-MP:MXC1_InputTokenCount_Global-Units, MXC1-MP:MXC1_OutputTokenCount_Global-Units, MXC1-MP:MXC1_CacheReadInputTokenCount_Global-Units, MXC1-MP:MXC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "sa-east-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: SAE1-MP:SAE1_InputTokenCount_Global-Units, SAE1-MP:SAE1_OutputTokenCount_Global-Units, SAE1-MP:SAE1_CacheReadInputTokenCount_Global-Units, SAE1-MP:SAE1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "us-east-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USE1-MP:USE1_InputTokenCount_Global-Units, USE1-MP:USE1_OutputTokenCount_Global-Units, USE1-MP:USE1_CacheReadInputTokenCount_Global-Units, USE1-MP:USE1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: USE1-MP:USE1_InputTokenCount-Units, USE1-MP:USE1_OutputTokenCount-Units, USE1-MP:USE1_CacheReadInputTokenCount-Units, USE1-MP:USE1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "us-east-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USE2-MP:USE2_InputTokenCount_Global-Units, USE2-MP:USE2_OutputTokenCount_Global-Units, USE2-MP:USE2_CacheReadInputTokenCount_Global-Units, USE2-MP:USE2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: USE2-MP:USE2_InputTokenCount-Units, USE2-MP:USE2_OutputTokenCount-Units, USE2-MP:USE2_CacheReadInputTokenCount-Units, USE2-MP:USE2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "us-gov-east-1",
+      "routing": "geographic",
+      "input": 3.6,
+      "output": 18,
+      "cacheRead": 0.36,
+      "cacheWrite": 4.5,
+      "source": "price list: UGE1-MP:UGE1_InputTokenCount-Units, UGE1-MP:UGE1_OutputTokenCount-Units, UGE1-MP:UGE1_CacheReadInputTokenCount-Units, UGE1-MP:UGE1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "us-gov-west-1",
+      "routing": "geographic",
+      "input": 3.6,
+      "output": 18,
+      "cacheRead": 0.36,
+      "cacheWrite": 4.5,
+      "source": "price list: UGW1-MP:UGW1_InputTokenCount-Units, UGW1-MP:UGW1_OutputTokenCount-Units, UGW1-MP:UGW1_CacheReadInputTokenCount-Units, UGW1-MP:UGW1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "us-west-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USW1-MP:USW1_InputTokenCount_Global-Units, USW1-MP:USW1_OutputTokenCount_Global-Units, USW1-MP:USW1_CacheReadInputTokenCount_Global-Units, USW1-MP:USW1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: USW1-MP:USW1_InputTokenCount-Units, USW1-MP:USW1_OutputTokenCount-Units, USW1-MP:USW1_CacheReadInputTokenCount-Units, USW1-MP:USW1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "us-west-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USW2-MP:USW2_InputTokenCount_Global-Units, USW2-MP:USW2_OutputTokenCount_Global-Units, USW2-MP:USW2_CacheReadInputTokenCount_Global-Units, USW2-MP:USW2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "input": 3.3,
+      "output": 16.5,
+      "cacheRead": 0.33,
+      "cacheWrite": 4.125,
+      "source": "price list: USW2-MP:USW2_InputTokenCount-Units, USW2-MP:USW2_OutputTokenCount-Units, USW2-MP:USW2_CacheReadInputTokenCount-Units, USW2-MP:USW2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "ap-northeast-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APN1-MP:APN1_InputTokenCount_Global-Units, APN1-MP:APN1_OutputTokenCount_Global-Units, APN1-MP:APN1_CacheReadInputTokenCount_Global-Units, APN1-MP:APN1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "ap-northeast-2",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APN2-MP:APN2_InputTokenCount-Units, APN2-MP:APN2_OutputTokenCount-Units, APN2-MP:APN2_CacheReadInputTokenCount-Units, APN2-MP:APN2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "ap-southeast-1",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: APS1-MP:APS1_InputTokenCount-Units, APS1-MP:APS1_OutputTokenCount-Units, APS1-MP:APS1_CacheReadInputTokenCount-Units, APS1-MP:APS1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "eu-central-1",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUC1-MP:EUC1_InputTokenCount-Units, EUC1-MP:EUC1_OutputTokenCount-Units, EUC1-MP:EUC1_CacheReadInputTokenCount-Units, EUC1-MP:EUC1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "eu-north-1",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUN1-MP:EUN1_InputTokenCount-Units, EUN1-MP:EUN1_OutputTokenCount-Units, EUN1-MP:EUN1_CacheReadInputTokenCount-Units, EUN1-MP:EUN1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "eu-south-1",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUS1-MP:EUS1_InputTokenCount-Units, EUS1-MP:EUS1_OutputTokenCount-Units, EUS1-MP:EUS1_CacheReadInputTokenCount-Units, EUS1-MP:EUS1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "eu-south-2",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUS2-MP:EUS2_InputTokenCount-Units, EUS2-MP:EUS2_OutputTokenCount-Units, EUS2-MP:EUS2_CacheReadInputTokenCount-Units, EUS2-MP:EUS2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "eu-west-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EU-MP:EU_InputTokenCount_Global-Units, EU-MP:EU_OutputTokenCount_Global-Units, EU-MP:EU_CacheReadInputTokenCount_Global-Units, EU-MP:EU_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "eu-west-1",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EU-MP:EU_InputTokenCount-Units, EU-MP:EU_OutputTokenCount-Units, EU-MP:EU_CacheReadInputTokenCount-Units, EU-MP:EU_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "eu-west-3",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: EUW3-MP:EUW3_InputTokenCount-Units, EUW3-MP:EUW3_OutputTokenCount-Units, EUW3-MP:EUW3_CacheReadInputTokenCount-Units, EUW3-MP:EUW3_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "il-central-1",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: ILC1-MP:ILC1_InputTokenCount-Units, ILC1-MP:ILC1_OutputTokenCount-Units, ILC1-MP:ILC1_CacheReadInputTokenCount-Units, ILC1-MP:ILC1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "us-east-1",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USE1-MP:USE1_InputTokenCount_Global-Units, USE1-MP:USE1_OutputTokenCount_Global-Units, USE1-MP:USE1_CacheReadInputTokenCount_Global-Units, USE1-MP:USE1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "us-east-1",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USE1-MP:USE1_InputTokenCount-Units, USE1-MP:USE1_OutputTokenCount-Units, USE1-MP:USE1_CacheReadInputTokenCount-Units, USE1-MP:USE1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "us-east-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USE2-MP:USE2_InputTokenCount_Global-Units, USE2-MP:USE2_OutputTokenCount_Global-Units, USE2-MP:USE2_CacheReadInputTokenCount_Global-Units, USE2-MP:USE2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "us-east-2",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USE2-MP:USE2_InputTokenCount-Units, USE2-MP:USE2_OutputTokenCount-Units, USE2-MP:USE2_CacheReadInputTokenCount-Units, USE2-MP:USE2_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "us-west-1",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USW1-MP:USW1_InputTokenCount-Units, USW1-MP:USW1_OutputTokenCount-Units, USW1-MP:USW1_CacheReadInputTokenCount-Units, USW1-MP:USW1_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "us-west-2",
+      "routing": "global",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USW2-MP:USW2_InputTokenCount_Global-Units, USW2-MP:USW2_OutputTokenCount_Global-Units, USW2-MP:USW2_CacheReadInputTokenCount_Global-Units, USW2-MP:USW2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-sonnet-4",
+      "region": "us-west-2",
+      "routing": "geographic",
+      "input": 3,
+      "output": 15,
+      "cacheRead": 0.3,
+      "cacheWrite": 3.75,
+      "source": "price list: USW2-MP:USW2_InputTokenCount-Units, USW2-MP:USW2_OutputTokenCount-Units, USW2-MP:USW2_CacheReadInputTokenCount-Units, USW2-MP:USW2_CacheWriteInputTokenCount-Units"
     },
     {
       "model": "claude-haiku-5-5",
@@ -4321,6 +6463,16 @@
       "cacheRead": 0.01,
       "cacheWrite": 0.125,
       "source": "price list: AFS1-MP:AFS1_input_tokens_global_standard-Units, AFS1-MP:AFS1_output_tokens_global_standard-Units, AFS1-MP:AFS1_cache_read_tokens_global_standard-Units, AFS1-MP:AFS1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 0.1,
+      "output": 0.5,
+      "cacheRead": 0.01,
+      "cacheWrite": 0.125,
+      "source": "price list: APE2-MP:APE2_input_tokens_global_standard-Units, APE2-MP:APE2_output_tokens_global_standard-Units, APE2-MP:APE2_cache_read_tokens_global_standard-Units, APE2-MP:APE2_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-haiku-5-5",
@@ -4344,16 +6496,6 @@
     },
     {
       "model": "claude-haiku-5-5",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
-      "input": 0.11,
-      "output": 0.55,
-      "cacheRead": 0.011,
-      "cacheWrite": 0.1375,
-      "source": "price list: APN1-MP:APN1_input_tokens_standard-Units, APN1-MP:APN1_output_tokens_standard-Units, APN1-MP:APN1_cache_read_tokens_standard-Units, APN1-MP:APN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-haiku-5-5",
       "region": "ap-northeast-2",
       "routing": "global",
       "input": 0.1,
@@ -4464,13 +6606,33 @@
     },
     {
       "model": "claude-haiku-5-5",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
-      "input": 0.11,
-      "output": 0.55,
-      "cacheRead": 0.011,
-      "cacheWrite": 0.1375,
-      "source": "price list: APS6-MP:APS6_input_tokens_standard-Units, APS6-MP:APS6_output_tokens_standard-Units, APS6-MP:APS6_cache_read_tokens_standard-Units, APS6-MP:APS6_cache_write_tokens_standard-Units"
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 0.1,
+      "output": 0.5,
+      "cacheRead": 0.01,
+      "cacheWrite": 0.125,
+      "source": "price list: APS7-MP:APS7_input_tokens_global_standard-Units, APS7-MP:APS7_output_tokens_global_standard-Units, APS7-MP:APS7_cache_read_tokens_global_standard-Units, APS7-MP:APS7_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 0.1,
+      "output": 0.5,
+      "cacheRead": 0.01,
+      "cacheWrite": 0.125,
+      "source": "price list: APS8-MP:APS8_input_tokens_global_standard-Units, APS8-MP:APS8_output_tokens_global_standard-Units, APS8-MP:APS8_cache_read_tokens_global_standard-Units, APS8-MP:APS8_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 0.1,
+      "output": 0.5,
+      "cacheRead": 0.01,
+      "cacheWrite": 0.125,
+      "source": "price list: APS9-MP:APS9_input_tokens_global_standard-Units, APS9-MP:APS9_output_tokens_global_standard-Units, APS9-MP:APS9_cache_read_tokens_global_standard-Units, APS9-MP:APS9_cache_write_tokens_global_standard-Units"
     },
     {
       "model": "claude-haiku-5-5",
@@ -4501,6 +6663,16 @@
       "cacheRead": 0.01,
       "cacheWrite": 0.125,
       "source": "price list: CAN2-MP:CAN2_input_tokens_global_standard-Units, CAN2-MP:CAN2_output_tokens_global_standard-Units, CAN2-MP:CAN2_cache_read_tokens_global_standard-Units, CAN2-MP:CAN2_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "region": "ca-west-1",
+      "routing": "geographic",
+      "input": 0.11,
+      "output": 0.55,
+      "cacheRead": 0.011,
+      "cacheWrite": 0.1375,
+      "source": "price list: CAN2-MP:CAN2_input_tokens_standard-Units, CAN2-MP:CAN2_output_tokens_standard-Units, CAN2-MP:CAN2_cache_read_tokens_standard-Units, CAN2-MP:CAN2_cache_write_tokens_standard-Units"
     },
     {
       "model": "claude-haiku-5-5",
@@ -4556,16 +6728,6 @@
       "model": "claude-haiku-5-5",
       "region": "eu-north-1",
       "routing": "geographic",
-      "input": 0.11,
-      "output": 0.55,
-      "cacheRead": 0.011,
-      "cacheWrite": 0.1375,
-      "source": "price list: EUN1-MP:EUN1_input_tokens_standard-Units, EUN1-MP:EUN1_output_tokens_standard-Units, EUN1-MP:EUN1_cache_read_tokens_standard-Units, EUN1-MP:EUN1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "region": "eu-north-1",
-      "routing": "in-region",
       "input": 0.11,
       "output": 0.55,
       "cacheRead": 0.011,
@@ -4634,16 +6796,6 @@
     },
     {
       "model": "claude-haiku-5-5",
-      "region": "eu-west-1",
-      "routing": "in-region",
-      "input": 0.11,
-      "output": 0.55,
-      "cacheRead": 0.011,
-      "cacheWrite": 0.1375,
-      "source": "price list: EU-MP:EU_input_tokens_standard-Units, EU-MP:EU_output_tokens_standard-Units, EU-MP:EU_cache_read_tokens_standard-Units, EU-MP:EU_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-haiku-5-5",
       "region": "eu-west-2",
       "routing": "global",
       "input": 0.1,
@@ -4704,6 +6856,26 @@
     },
     {
       "model": "claude-haiku-5-5",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 0.1,
+      "output": 0.5,
+      "cacheRead": 0.01,
+      "cacheWrite": 0.125,
+      "source": "price list: MES1-MP:MES1_input_tokens_global_standard-Units, MES1-MP:MES1_output_tokens_global_standard-Units, MES1-MP:MES1_cache_read_tokens_global_standard-Units, MES1-MP:MES1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 0.1,
+      "output": 0.5,
+      "cacheRead": 0.01,
+      "cacheWrite": 0.125,
+      "source": "price list: MXC1-MP:MXC1_input_tokens_global_standard-Units, MXC1-MP:MXC1_output_tokens_global_standard-Units, MXC1-MP:MXC1_cache_read_tokens_global_standard-Units, MXC1-MP:MXC1_cache_write_tokens_global_standard-Units"
+    },
+    {
+      "model": "claude-haiku-5-5",
       "region": "sa-east-1",
       "routing": "global",
       "input": 0.1,
@@ -4734,16 +6906,6 @@
     },
     {
       "model": "claude-haiku-5-5",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 0.11,
-      "output": 0.55,
-      "cacheRead": 0.011,
-      "cacheWrite": 0.1375,
-      "source": "price list: USE1-MP:USE1_input_tokens_standard-Units, USE1-MP:USE1_output_tokens_standard-Units, USE1-MP:USE1_cache_read_tokens_standard-Units, USE1-MP:USE1_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-haiku-5-5",
       "region": "us-east-2",
       "routing": "global",
       "input": 0.1,
@@ -4756,16 +6918,6 @@
       "model": "claude-haiku-5-5",
       "region": "us-east-2",
       "routing": "geographic",
-      "input": 0.11,
-      "output": 0.55,
-      "cacheRead": 0.011,
-      "cacheWrite": 0.1375,
-      "source": "price list: USE2-MP:USE2_input_tokens_standard-Units, USE2-MP:USE2_output_tokens_standard-Units, USE2-MP:USE2_cache_read_tokens_standard-Units, USE2-MP:USE2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "region": "us-east-2",
-      "routing": "in-region",
       "input": 0.11,
       "output": 0.55,
       "cacheRead": 0.011,
@@ -4806,16 +6958,6 @@
       "model": "claude-haiku-5-5",
       "region": "us-west-2",
       "routing": "geographic",
-      "input": 0.11,
-      "output": 0.55,
-      "cacheRead": 0.011,
-      "cacheWrite": 0.1375,
-      "source": "price list: USW2-MP:USW2_input_tokens_standard-Units, USW2-MP:USW2_output_tokens_standard-Units, USW2-MP:USW2_cache_read_tokens_standard-Units, USW2-MP:USW2_cache_write_tokens_standard-Units"
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "region": "us-west-2",
-      "routing": "in-region",
       "input": 0.11,
       "output": 0.55,
       "cacheRead": 0.011,
@@ -4834,6 +6976,16 @@
     },
     {
       "model": "claude-haiku-4-5",
+      "region": "ap-east-2",
+      "routing": "global",
+      "input": 1,
+      "output": 5,
+      "cacheRead": 0.1,
+      "cacheWrite": 1.25,
+      "source": "price list: APE2-MP:APE2_InputTokenCount_Global-Units, APE2-MP:APE2_OutputTokenCount_Global-Units, APE2-MP:APE2_CacheReadInputTokenCount_Global-Units, APE2-MP:APE2_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-haiku-4-5",
       "region": "ap-northeast-1",
       "routing": "global",
       "input": 1,
@@ -4846,16 +6998,6 @@
       "model": "claude-haiku-4-5",
       "region": "ap-northeast-1",
       "routing": "geographic",
-      "input": 1.1,
-      "output": 5.5,
-      "cacheRead": 0.11,
-      "cacheWrite": 1.375,
-      "source": "price list: APN1-MP:APN1_InputTokenCount-Units, APN1-MP:APN1_OutputTokenCount-Units, APN1-MP:APN1_CacheReadInputTokenCount-Units, APN1-MP:APN1_CacheWriteInputTokenCount-Units"
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "region": "ap-northeast-1",
-      "routing": "in-region",
       "input": 1.1,
       "output": 5.5,
       "cacheRead": 0.11,
@@ -4904,6 +7046,16 @@
     },
     {
       "model": "claude-haiku-4-5",
+      "region": "ap-south-1",
+      "routing": "geographic",
+      "input": 1.1,
+      "output": 5.5,
+      "cacheRead": 0.11,
+      "cacheWrite": 1.375,
+      "source": "price list: APS3-MP:APS3_InputTokenCount-Units, APS3-MP:APS3_OutputTokenCount-Units, APS3-MP:APS3_CacheReadInputTokenCount-Units, APS3-MP:APS3_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-haiku-4-5",
       "region": "ap-south-2",
       "routing": "global",
       "input": 1,
@@ -4911,6 +7063,16 @@
       "cacheRead": 0.1,
       "cacheWrite": 1.25,
       "source": "price list: APS5-MP:APS5_InputTokenCount_Global-Units, APS5-MP:APS5_OutputTokenCount_Global-Units, APS5-MP:APS5_CacheReadInputTokenCount_Global-Units, APS5-MP:APS5_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "region": "ap-south-2",
+      "routing": "geographic",
+      "input": 1.1,
+      "output": 5.5,
+      "cacheRead": 0.11,
+      "cacheWrite": 1.375,
+      "source": "price list: APS5-MP:APS5_InputTokenCount-Units, APS5-MP:APS5_OutputTokenCount-Units, APS5-MP:APS5_CacheReadInputTokenCount-Units, APS5-MP:APS5_CacheWriteInputTokenCount-Units"
     },
     {
       "model": "claude-haiku-4-5",
@@ -4974,13 +7136,43 @@
     },
     {
       "model": "claude-haiku-4-5",
-      "region": "ap-southeast-4",
-      "routing": "in-region",
+      "region": "ap-southeast-5",
+      "routing": "global",
+      "input": 1,
+      "output": 5,
+      "cacheRead": 0.1,
+      "cacheWrite": 1.25,
+      "source": "price list: APS7-MP:APS7_InputTokenCount_Global-Units, APS7-MP:APS7_OutputTokenCount_Global-Units, APS7-MP:APS7_CacheReadInputTokenCount_Global-Units, APS7-MP:APS7_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "region": "ap-southeast-6",
+      "routing": "global",
+      "input": 1,
+      "output": 5,
+      "cacheRead": 0.1,
+      "cacheWrite": 1.25,
+      "source": "price list: APS8-MP:APS8_InputTokenCount_Global-Units, APS8-MP:APS8_OutputTokenCount_Global-Units, APS8-MP:APS8_CacheReadInputTokenCount_Global-Units, APS8-MP:APS8_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "region": "ap-southeast-6",
+      "routing": "geographic",
       "input": 1.1,
       "output": 5.5,
       "cacheRead": 0.11,
       "cacheWrite": 1.375,
-      "source": "price list: APS6-MP:APS6_InputTokenCount-Units, APS6-MP:APS6_OutputTokenCount-Units, APS6-MP:APS6_CacheReadInputTokenCount-Units, APS6-MP:APS6_CacheWriteInputTokenCount-Units"
+      "source": "price list: APS8-MP:APS8_InputTokenCount-Units, APS8-MP:APS8_OutputTokenCount-Units, APS8-MP:APS8_CacheReadInputTokenCount-Units, APS8-MP:APS8_CacheWriteInputTokenCount-Units"
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "region": "ap-southeast-7",
+      "routing": "global",
+      "input": 1,
+      "output": 5,
+      "cacheRead": 0.1,
+      "cacheWrite": 1.25,
+      "source": "price list: APS9-MP:APS9_InputTokenCount_Global-Units, APS9-MP:APS9_OutputTokenCount_Global-Units, APS9-MP:APS9_CacheReadInputTokenCount_Global-Units, APS9-MP:APS9_CacheWriteInputTokenCount_Global-Units"
     },
     {
       "model": "claude-haiku-4-5",
@@ -5074,16 +7266,6 @@
     },
     {
       "model": "claude-haiku-4-5",
-      "region": "eu-north-1",
-      "routing": "in-region",
-      "input": 1.1,
-      "output": 5.5,
-      "cacheRead": 0.11,
-      "cacheWrite": 1.375,
-      "source": "price list: EUN1-MP:EUN1_InputTokenCount-Units, EUN1-MP:EUN1_OutputTokenCount-Units, EUN1-MP:EUN1_CacheReadInputTokenCount-Units, EUN1-MP:EUN1_CacheWriteInputTokenCount-Units"
-    },
-    {
-      "model": "claude-haiku-4-5",
       "region": "eu-south-1",
       "routing": "global",
       "input": 1,
@@ -5136,16 +7318,6 @@
       "model": "claude-haiku-4-5",
       "region": "eu-west-1",
       "routing": "geographic",
-      "input": 1.1,
-      "output": 5.5,
-      "cacheRead": 0.11,
-      "cacheWrite": 1.375,
-      "source": "price list: EU-MP:EU_InputTokenCount-Units, EU-MP:EU_OutputTokenCount-Units, EU-MP:EU_CacheReadInputTokenCount-Units, EU-MP:EU_CacheWriteInputTokenCount-Units"
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "region": "eu-west-1",
-      "routing": "in-region",
       "input": 1.1,
       "output": 5.5,
       "cacheRead": 0.11,
@@ -5214,6 +7386,26 @@
     },
     {
       "model": "claude-haiku-4-5",
+      "region": "me-south-1",
+      "routing": "global",
+      "input": 1,
+      "output": 5,
+      "cacheRead": 0.1,
+      "cacheWrite": 1.25,
+      "source": "price list: MES1-MP:MES1_InputTokenCount_Global-Units, MES1-MP:MES1_OutputTokenCount_Global-Units, MES1-MP:MES1_CacheReadInputTokenCount_Global-Units, MES1-MP:MES1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "region": "mx-central-1",
+      "routing": "global",
+      "input": 1,
+      "output": 5,
+      "cacheRead": 0.1,
+      "cacheWrite": 1.25,
+      "source": "price list: MXC1-MP:MXC1_InputTokenCount_Global-Units, MXC1-MP:MXC1_OutputTokenCount_Global-Units, MXC1-MP:MXC1_CacheReadInputTokenCount_Global-Units, MXC1-MP:MXC1_CacheWriteInputTokenCount_Global-Units"
+    },
+    {
+      "model": "claude-haiku-4-5",
       "region": "sa-east-1",
       "routing": "global",
       "input": 1,
@@ -5244,16 +7436,6 @@
     },
     {
       "model": "claude-haiku-4-5",
-      "region": "us-east-1",
-      "routing": "in-region",
-      "input": 1.1,
-      "output": 5.5,
-      "cacheRead": 0.11,
-      "cacheWrite": 1.375,
-      "source": "price list: USE1-MP:USE1_InputTokenCount-Units, USE1-MP:USE1_OutputTokenCount-Units, USE1-MP:USE1_CacheReadInputTokenCount-Units, USE1-MP:USE1_CacheWriteInputTokenCount-Units"
-    },
-    {
-      "model": "claude-haiku-4-5",
       "region": "us-east-2",
       "routing": "global",
       "input": 1,
@@ -5266,16 +7448,6 @@
       "model": "claude-haiku-4-5",
       "region": "us-east-2",
       "routing": "geographic",
-      "input": 1.1,
-      "output": 5.5,
-      "cacheRead": 0.11,
-      "cacheWrite": 1.375,
-      "source": "price list: USE2-MP:USE2_InputTokenCount-Units, USE2-MP:USE2_OutputTokenCount-Units, USE2-MP:USE2_CacheReadInputTokenCount-Units, USE2-MP:USE2_CacheWriteInputTokenCount-Units"
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "region": "us-east-2",
-      "routing": "in-region",
       "input": 1.1,
       "output": 5.5,
       "cacheRead": 0.11,
@@ -5316,16 +7488,6 @@
       "model": "claude-haiku-4-5",
       "region": "us-west-2",
       "routing": "geographic",
-      "input": 1.1,
-      "output": 5.5,
-      "cacheRead": 0.11,
-      "cacheWrite": 1.375,
-      "source": "price list: USW2-MP:USW2_InputTokenCount-Units, USW2-MP:USW2_OutputTokenCount-Units, USW2-MP:USW2_CacheReadInputTokenCount-Units, USW2-MP:USW2_CacheWriteInputTokenCount-Units"
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "region": "us-west-2",
-      "routing": "in-region",
       "input": 1.1,
       "output": 5.5,
       "cacheRead": 0.11,

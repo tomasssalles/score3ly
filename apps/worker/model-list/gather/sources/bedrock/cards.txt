@@ -1,0 +1,592 @@
+# AWS's model cards, https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-<id>.html; fetched 2026-11-08; for bedrock-runtime: the model ID, the routings per region, the geographies' source regions
+
+## claude-fable-5-1 | anthropic.claude-fable-5-1 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| eu-central-1 | in-region: no | geo: no | global: yes
+| eu-central-2 | in-region: no | geo: no | global: yes
+| eu-north-1 | in-region: no | geo: no | global: yes
+| eu-south-1 | in-region: no | geo: no | global: yes
+| eu-south-2 | in-region: no | geo: no | global: yes
+| eu-west-1 | in-region: no | geo: no | global: yes
+| eu-west-2 | in-region: no | geo: no | global: yes
+| eu-west-3 | in-region: no | geo: no | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: no | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: no | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: no | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: no | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: no | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+| us-gov-east-1 | in-region: no | geo: yes | global: no
+| us-gov-west-1 | in-region: no | geo: yes | global: no
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+
+## claude-fable-5 | anthropic.claude-fable-5 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| eu-central-1 | in-region: no | geo: no | global: yes
+| eu-central-2 | in-region: no | geo: no | global: yes
+| eu-north-1 | in-region: no | geo: no | global: yes
+| eu-south-1 | in-region: no | geo: no | global: yes
+| eu-south-2 | in-region: no | geo: no | global: yes
+| eu-west-1 | in-region: no | geo: no | global: yes
+| eu-west-2 | in-region: no | geo: no | global: yes
+| eu-west-3 | in-region: no | geo: no | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: no | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: no | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: no | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: no | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: no | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+
+## claude-opus-5-5 | anthropic.claude-opus-5-5 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| us-gov-west-1 | in-region: no | geo: yes | global: no
+| us-gov-east-1 | in-region: no | geo: yes | global: no
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: yes | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: yes | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: yes | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: no | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo AU: ap-southeast-2, ap-southeast-4
+geo JP: ap-northeast-1, ap-northeast-3
+
+## claude-opus-5 | anthropic.claude-opus-5 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| us-gov-west-1 | in-region: no | geo: yes | global: no
+| us-gov-east-1 | in-region: no | geo: yes | global: no
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: no | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: no | global: yes
+| ap-northeast-2 | in-region: yes | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: no | global: yes
+| ap-south-1 | in-region: no | geo: yes | global: yes
+| ap-south-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: no | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo AU: ap-southeast-2, ap-southeast-4
+geo IN: ap-south-1, ap-south-2
+
+## claude-opus-4-8 | anthropic.claude-opus-4-8 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| us-gov-west-1 | in-region: no | geo: yes | global: no
+| us-gov-east-1 | in-region: no | geo: yes | global: no
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: no | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: yes | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: yes | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: no | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo JP: ap-northeast-1, ap-northeast-3
+geo AU: ap-southeast-2, ap-southeast-4
+geo US-GOV: us-gov-west-1, us-gov-east-1
+
+## claude-opus-4-7 | anthropic.claude-opus-4-7 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: no | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: yes | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: yes | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: no | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo JP: ap-northeast-1, ap-northeast-3
+geo AU: ap-southeast-2, ap-southeast-4
+
+## claude-opus-4-6 | anthropic.claude-opus-4-6-v1 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: yes | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: no | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: no | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: yes | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo AU: ap-southeast-2, ap-southeast-4, ap-southeast-6
+
+## claude-opus-4-5 | anthropic.claude-opus-4-5-20251101-v1:0 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: no | global: yes
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: no | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: no | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: no | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: no | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: no | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: no | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+
+## claude-opus-4-1 | anthropic.claude-opus-4-1-20250805-v1:0 | global: no
+| us-east-1 | in-region: no | geo: yes | global: no
+| us-east-2 | in-region: no | geo: yes | global: no
+| us-west-2 | in-region: no | geo: yes | global: no
+geo US: us-east-1, us-east-2, us-west-2
+
+## claude-sonnet-5-5 | anthropic.claude-sonnet-5-5 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| us-gov-west-1 | in-region: no | geo: yes | global: no
+| us-gov-east-1 | in-region: no | geo: yes | global: no
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: no | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: no | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: no | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: no | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo AU: ap-southeast-2, ap-southeast-4
+
+## claude-sonnet-5 | anthropic.claude-sonnet-5 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| us-gov-west-1 | in-region: no | geo: yes | global: no
+| us-gov-east-1 | in-region: no | geo: yes | global: no
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: yes | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: no | global: yes
+| ap-northeast-2 | in-region: yes | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: no | global: yes
+| ap-south-1 | in-region: no | geo: yes | global: yes
+| ap-south-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-1 | in-region: yes | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: no | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo AU: ap-southeast-2, ap-southeast-4
+geo IN: ap-south-1, ap-south-2
+
+## claude-sonnet-4-6 | anthropic.claude-sonnet-4-6 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: yes | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: yes | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: yes | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: yes | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo AU: ap-southeast-2, ap-southeast-4, ap-southeast-6
+geo JP: ap-northeast-1, ap-northeast-3
+
+## claude-sonnet-4-5 | anthropic.claude-sonnet-4-5-20250929-v1:0 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: no | global: yes
+| us-gov-west-1 | in-region: no | geo: yes | global: no
+| us-gov-east-1 | in-region: no | geo: yes | global: no
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: no | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: yes | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: yes | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: yes | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, us-gov-east-1, us-gov-west-1, ca-central-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo AU: ap-southeast-2, ap-southeast-4, ap-southeast-6
+geo JP: ap-northeast-1, ap-northeast-3
+
+## claude-sonnet-4 | anthropic.claude-sonnet-4-20250514-v1:0 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: no
+| us-west-2 | in-region: no | geo: yes | global: yes
+| eu-central-1 | in-region: no | geo: yes | global: no
+| eu-north-1 | in-region: no | geo: yes | global: no
+| eu-south-1 | in-region: no | geo: yes | global: no
+| eu-south-2 | in-region: no | geo: yes | global: no
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: no
+| ap-east-2 | in-region: no | geo: yes | global: no
+| ap-northeast-1 | in-region: no | geo: yes | global: yes
+| ap-northeast-2 | in-region: no | geo: yes | global: no
+| ap-northeast-3 | in-region: no | geo: yes | global: no
+| ap-south-1 | in-region: no | geo: yes | global: no
+| ap-south-2 | in-region: no | geo: yes | global: no
+| ap-southeast-1 | in-region: no | geo: yes | global: no
+| ap-southeast-2 | in-region: no | geo: yes | global: no
+| ap-southeast-3 | in-region: no | geo: yes | global: no
+| ap-southeast-4 | in-region: no | geo: yes | global: no
+| ap-southeast-5 | in-region: no | geo: yes | global: no
+| ap-southeast-7 | in-region: no | geo: yes | global: no
+| il-central-1 | in-region: no | geo: yes | global: no
+geo US: us-east-1, us-east-2, us-west-1, us-west-2
+geo EU: eu-central-1, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-3, il-central-1
+geo APAC: ap-northeast-1, ap-northeast-2, ap-northeast-3, ap-south-1, ap-south-2, ap-southeast-1, ap-southeast-2
+
+## claude-haiku-5-5 | anthropic.claude-haiku-5-5 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: yes | global: yes
+| us-gov-west-1 | in-region: no | geo: yes | global: no
+| us-gov-east-1 | in-region: no | geo: yes | global: no
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: no | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: yes | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: yes | global: yes
+| ap-south-1 | in-region: no | geo: no | global: yes
+| ap-south-2 | in-region: no | geo: no | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: no | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1
+geo CA: ca-central-1, ca-west-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo AU: ap-southeast-2, ap-southeast-4
+geo JP: ap-northeast-1, ap-northeast-3
+
+## claude-haiku-4-5 | anthropic.claude-haiku-4-5-20251001-v1:0 | global: yes
+| us-east-1 | in-region: no | geo: yes | global: yes
+| us-east-2 | in-region: no | geo: yes | global: yes
+| us-west-1 | in-region: no | geo: yes | global: yes
+| us-west-2 | in-region: no | geo: yes | global: yes
+| ca-central-1 | in-region: no | geo: yes | global: yes
+| ca-west-1 | in-region: no | geo: no | global: yes
+| us-gov-west-1 | in-region: no | geo: yes | global: no
+| us-gov-east-1 | in-region: no | geo: yes | global: no
+| eu-central-1 | in-region: no | geo: yes | global: yes
+| eu-central-2 | in-region: no | geo: yes | global: yes
+| eu-north-1 | in-region: no | geo: yes | global: yes
+| eu-south-1 | in-region: no | geo: yes | global: yes
+| eu-south-2 | in-region: no | geo: yes | global: yes
+| eu-west-1 | in-region: no | geo: yes | global: yes
+| eu-west-2 | in-region: no | geo: yes | global: yes
+| eu-west-3 | in-region: no | geo: yes | global: yes
+| ap-east-2 | in-region: no | geo: no | global: yes
+| ap-northeast-1 | in-region: no | geo: yes | global: yes
+| ap-northeast-2 | in-region: no | geo: no | global: yes
+| ap-northeast-3 | in-region: no | geo: yes | global: yes
+| ap-south-1 | in-region: no | geo: yes | global: yes
+| ap-south-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-1 | in-region: no | geo: no | global: yes
+| ap-southeast-2 | in-region: no | geo: yes | global: yes
+| ap-southeast-3 | in-region: no | geo: no | global: yes
+| ap-southeast-4 | in-region: no | geo: yes | global: yes
+| ap-southeast-5 | in-region: no | geo: no | global: yes
+| ap-southeast-6 | in-region: no | geo: yes | global: yes
+| ap-southeast-7 | in-region: no | geo: no | global: yes
+| il-central-1 | in-region: no | geo: no | global: yes
+| me-central-1 | in-region: no | geo: no | global: yes
+| me-south-1 | in-region: no | geo: no | global: yes
+| af-south-1 | in-region: no | geo: no | global: yes
+| sa-east-1 | in-region: no | geo: no | global: yes
+| mx-central-1 | in-region: no | geo: no | global: yes
+geo US: us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1
+geo EU: eu-central-1, eu-central-2, eu-north-1, eu-south-1, eu-south-2, eu-west-1, eu-west-2, eu-west-3
+geo AU: ap-southeast-2, ap-southeast-4, ap-southeast-6
+geo JP: ap-northeast-1, ap-northeast-3
+geo IN: ap-south-1, ap-south-2

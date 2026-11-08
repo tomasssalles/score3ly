@@ -282,12 +282,12 @@ test("a provider's places come from the list's regions", () => {
   ]);
   assert.deepEqual(placesOfProvider(LIST, "anthropic"), [NOWHERE]);
   assert.deepEqual(placesOfProvider(LIST, "fake"), []);
-  // The app's list has Bedrock's regions as Anthropic's page lists them.
+  // The app's list has Bedrock's regions as AWS's model cards list them for bedrock-runtime.
   const bedrock = MODEL_LIST.regions.filter((r) => r.provider === "bedrock");
-  assert.equal(bedrock.length, 27);
+  assert.equal(bedrock.length, 35);
   assert.deepEqual(
-    bedrock.find((r) => r.region === "il-central-1"),
-    { provider: "bedrock", region: "il-central-1", routings: ["global"] },
+    bedrock.find((r) => r.region === "eu-central-1"),
+    { provider: "bedrock", region: "eu-central-1", routings: ["global", "geographic"], geography: "EU" },
   );
 });
 
