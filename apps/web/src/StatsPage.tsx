@@ -93,7 +93,7 @@ function CostsTab() {
 
   return (
     <>
-      {error && <p className="settings-error">{error}</p>}
+      {error && <p className="settings-error error-text">{error}</p>}
       {data && <Costs data={data} />}
     </>
   );

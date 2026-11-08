@@ -83,7 +83,7 @@ export function RenameDialog({
             aria-describedby="rename-message"
           />
         </label>
-        <p id="rename-message" className="field-message" role="alert">
+        <p id="rename-message" className="field-message error-text" role="alert">
           {error ?? shownProblem}
         </p>
         <div className="dialog-buttons">

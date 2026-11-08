@@ -192,6 +192,7 @@ From the most local to the most interrupting; always the most local one that the
 - **Nothing reports the user's own action back to them:** what follows directly from a click (a run they started, a stage they added) makes no toast for a moment; the change itself is the feedback.
 - **Errors say what happened and what is kept:** "Couldn't parse the answer for system 17. The answers for systems 1–16 are kept." Not "Error", not a stack trace, not a code.
 - **Errors suggest the way out** where there is one: "split the score into several projects", "add a key in the settings".
+- **Error texts wrap anywhere rather than overflow** (decided 2026-11-08): an error from a provider or the Worker can hold a long word or JSON, and breaking it at an awkward place is better than a card, a dialog or a panel that scrolls sideways. Every element that may show an error has the class `error-text` (`overflow-wrap: anywhere`, `min-width: 0`), besides its own; a test checks it for every class named `…error` or `…problem(s)`. The fake model's error is long on purpose, so the screenshots show it, and the screenshot script reports anything that scrolls sideways that shouldn't.
 - **No success messages for ordinary success.** A done stage shows its result; a saved field shows its value.
 - **Courtesy notices are quiet:** a stage dropped by a re-run leaves a dimmed card with a struck-through name and one line saying why, dismissible with ×.
 

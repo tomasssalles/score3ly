@@ -14,6 +14,10 @@
 
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse } from "./types.ts";
 
+// Long, with JSON and an unbroken word, as providers' errors are, so the screenshots show how the app wraps them.
+const FAKE_ERROR =
+  'The fake provider failed, as asked: {"type":"error","error":{"type":"invalid_request_error","message":"output_config.format.schema.properties.systems.items.properties.stretches.items.anyOf[3]: the_compiled_grammar_is_too_large_for_the_fake_provider_to_accept_it"}}';
+
 export class FakeProvider implements LlmProvider {
   readonly id: "fake" | "fake-dev";
 
@@ -23,7 +27,7 @@ export class FakeProvider implements LlmProvider {
   }
 
   async send(request: LlmRequest): Promise<LlmResponse> {
-    if (request.model === "fake-error") throw new LlmError("server", "The fake provider failed, as asked.", 500);
+    if (request.model === "fake-error") throw new LlmError("server", FAKE_ERROR, 500);
     const unparseable = request.model === "fake-unparseable" && request.jsonSchema;
     const answer = unparseable ? "Not JSON, as asked." : request.jsonSchema ? (fakeLayout(request) ?? fakeExtract(request) ?? fakeReview(request) ?? fakeApplyReview(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
     const text = typeof answer === "string" ? answer : JSON.stringify(answer);

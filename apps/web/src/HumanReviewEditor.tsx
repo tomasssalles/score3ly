@@ -768,8 +768,8 @@ function OwnIssuePanel({
           }}
         />
       </div>
-      {!text.trim() && <p className="issue-facts hint-problem">{NO_TEXT}</p>}
-      {problem.problem && <p className="issue-facts hint-problem">{problem.problem}</p>}
+      {!text.trim() && <p className="issue-facts hint-problem error-text">{NO_TEXT}</p>}
+      {problem.problem && <p className="issue-facts hint-problem error-text">{problem.problem}</p>}
       <ul className="own-boxes">
         {issue.boxes.map((b, k) => (
           <li key={k} className={problem.bad.includes(k) ? "hint-problem" : undefined}>

@@ -21,7 +21,7 @@ export function RunTimesTab() {
 
   return (
     <>
-      {error && <p className="settings-error">{error}</p>}
+      {error && <p className="settings-error error-text">{error}</p>}
       {data && activity && <RunTimes data={data} activity={activity} />}
     </>
   );

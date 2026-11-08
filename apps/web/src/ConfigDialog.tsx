@@ -129,7 +129,7 @@ export function ConfigDialog({
             )}
           </div>
         ))}
-        <p className="field-message" role="alert">
+        <p className="field-message error-text" role="alert">
           {problem}
         </p>
         <div className="dialog-buttons">

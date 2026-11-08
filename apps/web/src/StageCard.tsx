@@ -135,7 +135,7 @@ export function StageCard({
           not fit them.
         </p>
       )}
-      {stage.status === "failed" && <p className="stage-error">{stage.error}</p>}
+      {stage.status === "failed" && <p className="stage-error error-text">{stage.error}</p>}
       <StageButton stage={stage} mode={mode} actions={actions} />
 
       {hasArtifacts(stage) && stage.artifacts.length > 0 && (

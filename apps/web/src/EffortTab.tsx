@@ -20,7 +20,7 @@ export function EffortTab() {
   return (
     <>
       <p className="stats-intro">This page is about how often the automated pipeline wasn't good enough and you had to swoop in and save the day.</p>
-      {error && <p className="settings-error">{error}</p>}
+      {error && <p className="settings-error error-text">{error}</p>}
       {data && <Effort data={data} />}
     </>
   );

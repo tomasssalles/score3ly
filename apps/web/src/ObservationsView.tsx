@@ -146,7 +146,7 @@ export function ObservationsView({ project, artifact, onEdited }: { project: Pro
     <div className="text-view analysis">
       {editor && (
         <div className="metadata-tools">
-          {error && <p className="field-problem">{error}</p>}
+          {error && <p className="field-problem error-text">{error}</p>}
           <DropdownMenu
             icon={<PlusIcon />}
             label="Add an item"
@@ -540,7 +540,7 @@ function ItemEditor({
         </button>
       </div>
       {lines}
-      {editing.problem && <p className="field-problem">{editing.problem}</p>}
+      {editing.problem && <p className="field-problem error-text">{editing.problem}</p>}
     </li>
   );
 }

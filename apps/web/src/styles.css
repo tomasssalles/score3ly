@@ -452,6 +452,13 @@ body {
   flex-direction: column;
 }
 
+/* Every text that may hold an error: errors come from providers and the Worker, with long words and JSON in them, so they
+   wrap anywhere rather than push their box wider (docs/style.md, "Feedback and notifications"). */
+.error-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .error-banner {
   margin: 0;
   padding: 10px 16px;
@@ -919,7 +926,6 @@ body {
   font-size: 13px;
   line-height: 1.4;
   color: var(--danger);
-  overflow-wrap: anywhere;
 }
 
 .stage-button {

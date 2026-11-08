@@ -120,7 +120,7 @@ export function PipelinePanel({
             ))}
         </div>
         {/* In the head, so it stays in view while the list scrolls to the current stage. */}
-        {error && <p className="panel-error">{error}</p>}
+        {error && <p className="panel-error error-text">{error}</p>}
       </div>
 
       <p className="project-dates">

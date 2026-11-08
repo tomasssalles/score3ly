@@ -132,6 +132,7 @@ type Seed = {
   wipEditor: string;
   humanReview: string; // the screen of a human review in progress
   failed: string;
+  failedStage: string; // its failed stage, the layout
   differs: string;
   differsLayout: string;
   artifacts: { title: string; hash: string }[];
@@ -223,7 +224,7 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   sql(stateDir, `UPDATE image_fingerprints SET height = height + 1 WHERE pdf_sha256 = '${sha}'`);
 
   await context.close();
-  return { done, dropped, wip, wipEditor, humanReview, failed, differs, differsLayout, artifacts, stageIds };
+  return { done, dropped, wip, wipEditor, humanReview, failed, failedStage: layout.id, differs, differsLayout, artifacts, stageIds };
 }
 
 // Runs SQL on the servers' database: Wrangler's local D1, or the desktop server's SQLite file.
@@ -266,6 +267,24 @@ async function open(page: Page, hash: string) {
   await settled(page);
 }
 
+// What scrolls sideways that shouldn't (docs/style.md, "Shape, space and depth"): the page itself, and every element
+// that can scroll and is wider inside than out, except content that is wide by nature (code, a page or engraving).
+async function sideways(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const wideByNature = "pre, code, .mei-code, .page-scroll, .viewer, canvas, svg, img";
+    const name = (el: Element) => el.tagName.toLowerCase() + (el.className && typeof el.className === "string" ? `.${el.className.trim().split(/\s+/).join(".")}` : "");
+    const found: string[] = [];
+    for (const el of [document.documentElement, ...document.querySelectorAll("body *")]) {
+      const overflowX = getComputedStyle(el).overflowX;
+      const scrolls = el === document.documentElement || overflowX === "auto" || overflowX === "scroll";
+      if (!scrolls || el.scrollWidth <= el.clientWidth + 1) continue;
+      if (el !== document.documentElement && el.matches(wideByNature)) continue;
+      found.push(name(el));
+    }
+    return found;
+  });
+}
+
 // The narrow screen shows the panel only when no artifact is open: closing one goes back to it.
 async function projectActions(page: Page, id: string) {
   await open(page, `#/projects/${id}`);
@@ -298,6 +317,7 @@ function shots(seed: Seed): Shot[] {
     { name: "03-stage-details", take: (p) => open(p, `${project(seed.done)}/stages/${seed.stageIds.find((s) => s.title === "layout")!.id}`) },
     { name: "04-fix-layout-editor", take: (p) => open(p, seed.wipEditor) },
     { name: "05-failed-stage", take: (p) => open(p, project(seed.failed)) },
+    { name: "05b-failed-stage-details", take: (p) => open(p, `${project(seed.failed)}/stages/${seed.failedStage}`) },
     { name: "06-images-differ", take: (p) => open(p, seed.differsLayout) },
     { name: "06b-dropped-stage", layouts: ["wide", "narrow"], take: (p) => open(p, project(seed.dropped)).then(() => p.locator(".stage-card.dropped").evaluate((el) => el.scrollIntoView({ block: "center" }))) },
     { name: "07-settings", layouts: ["wide", "narrow"], take: (p) => open(p, "#/settings") },
@@ -388,6 +408,28 @@ function shots(seed: Seed): Shot[] {
         await open(p, "#/");
         await p.evaluate((hash) => (window.location.hash = hash), project(seed.done));
         await settled(p);
+      },
+    },
+    {
+      // A test that failed with a long error. Test is offered only for real providers: the failing fake config is
+      // listed as Anthropic's, and the test's answer is made up here.
+      name: "26-dialog-test-failed",
+      layouts: ["wide", "narrow"],
+      take: async (p) => {
+        await p.route("**/api/model-configs", async (route) => {
+          if (route.request().method() !== "GET") return route.continue();
+          const response = await route.fetch();
+          const configs = (await response.json()) as { name: string; provider: string }[];
+          await route.fulfill({ response, json: configs.map((c) => (c.name === "Failing model" ? { ...c, provider: "anthropic" } : c)) });
+        });
+        const error = `400 ${JSON.stringify({ type: "error", error: { type: "invalid_request_error", message: "output_config.format.schema: the_compiled_grammar_is_too_large_for_the_provider_to_accept_it" } })}`;
+        await p.route("**/api/model-configs/*/test", (route) => route.fulfill({ json: { status: "error", error, costUsd: null, durationMs: 1234 } }));
+        await open(p, "#/settings");
+        await p.getByRole("button", { name: "Failing model: actions" }).click();
+        await p.getByRole("menuitem", { name: "Test" }).click();
+        await p.getByRole("button", { name: "Send request" }).click();
+        await p.locator(".test-result.failed").waitFor();
+        await p.waitForTimeout(300);
       },
     },
     {
@@ -486,6 +528,7 @@ async function main() {
             await shot.take(page);
             await page.screenshot({ path: join(OUT, path) });
             taken.add(path);
+            for (const where of await sideways(page)) console.warn(`  ${path}: scrolls sideways: ${where}`);
           } catch (err) {
             console.warn(`  ${path}: ${err instanceof Error ? err.message.split("\n")[0] : err}`);
           } finally {

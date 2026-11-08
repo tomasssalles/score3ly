@@ -158,7 +158,7 @@ export function PageImageView({
           <ImagesDiffer page={recipe} />
         </>
       ) : (
-        <div className="page-placeholder">{error ?? "Drawing the page…"}</div>
+        <div className="page-placeholder error-text">{error ?? "Drawing the page…"}</div>
       )}
     </div>
   );

@@ -140,7 +140,7 @@ export function MeiWorkspace({
           </div>
         </div>
       </div>
-      {problem && <p className="editor-hint mei-problem">{problem}</p>}
+      {problem && <p className="editor-hint mei-problem error-text">{problem}</p>}
       {notice}
       <div className={score === "shown" ? "mei-split" : "mei-split alone"}>
         <Suspense fallback={<div className="mei-code" />}>
@@ -217,7 +217,7 @@ function MeiScore({
   return (
     <div className="mei-score" ref={scroller}>
       {error ? (
-        <p className="mei-score-note">{error}</p>
+        <p className="mei-score-note error-text">{error}</p>
       ) : !pages ? (
         <p className="mei-score-note">Engraving the score…</p>
       ) : (

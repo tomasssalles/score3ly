@@ -94,7 +94,7 @@ export function DeleteProjectDialog({
             aria-describedby="delete-message"
           />
         </label>
-        <p id="delete-message" className="field-message" role="alert">
+        <p id="delete-message" className="field-message error-text" role="alert">
           {error}
         </p>
         <div className="dialog-buttons">

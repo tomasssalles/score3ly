@@ -41,7 +41,7 @@ function EngravedPdf({ engraving }: { engraving: Engraving }) {
       if (made) URL.revokeObjectURL(made);
     };
   }, [engraving.meiSha256, JSON.stringify(engraving.config)]);
-  if (error) return <div className="text-view"><p>{error}</p></div>;
+  if (error) return <div className="text-view"><p className="error-text">{error}</p></div>;
   if (!url) return <div className="text-view"><p>{regenerating ? "Regenerating the PDF…" : "Loading the PDF…"}</p></div>;
   return <PdfView key={url} url={url} />;
 }

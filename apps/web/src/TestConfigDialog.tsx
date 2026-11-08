@@ -36,7 +36,7 @@ export function TestConfigDialog({ config, onDone }: { config: ModelConfig; onDo
         works.
         {config.price.kind !== "free" && " It usually costs less than a cent, but real money nevertheless, and counts towards the spending cap."}
       </p>
-      <p className={`dialog-text test-result ${state.kind === "done" && state.result.status === "ok" ? "ok" : state.kind === "idle" || state.kind === "sending" ? "" : "failed"}`} role="status">
+      <p className={`dialog-text test-result error-text ${state.kind === "done" && state.result.status === "ok" ? "ok" : state.kind === "idle" || state.kind === "sending" ? "" : "failed"}`} role="status">
         {state.kind === "sending" && "Waiting for the response…"}
         {state.kind === "refused" && state.error}
         {state.kind === "done" && resultText(state.result, model, config)}

@@ -119,7 +119,7 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
     <div className="text-view analysis">
       {editor && (
         <div className="metadata-tools">
-          {error && <p className="field-problem">{error}</p>}
+          {error && <p className="field-problem error-text">{error}</p>}
           <DropdownMenu
             icon={<PlusIcon />}
             label="Add a field"
@@ -286,7 +286,7 @@ function FieldEditor({
           onChange={(e) => onChange({ ...row, text: e.target.value })}
         />
       )}
-      {editing.problem && <p className="field-problem">{editing.problem}</p>}
+      {editing.problem && <p className="field-problem error-text">{editing.problem}</p>}
     </li>
   );
 }

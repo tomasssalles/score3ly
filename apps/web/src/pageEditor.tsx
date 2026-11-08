@@ -331,7 +331,7 @@ export function PageCanvas({
       ) : (
         <div className="page-placeholder">{error ?? "Drawing the page…"}</div>
       )}
-      {error && image && <p className="editor-error">{error}</p>}
+      {error && image && <p className="editor-error error-text">{error}</p>}
       {image && notice}
     </div>
   );

@@ -28,7 +28,7 @@ export function UsageTab() {
 
   return (
     <>
-      {error && <p className="settings-error">{error}</p>}
+      {error && <p className="settings-error error-text">{error}</p>}
       {data && <ActiveHours data={data} />}
       {projects && <Projects data={projects} />}
       {failures && <Failures data={failures} />}

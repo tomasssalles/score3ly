@@ -443,7 +443,7 @@ export function NewModelConfig({
           Make default
         </label>
 
-        <p className="field-message" role="alert">
+        <p className="field-message error-text" role="alert">
           {error ?? (form.provider ? problem : null)}
         </p>
         <div className="dialog-buttons">

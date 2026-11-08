@@ -33,7 +33,7 @@ export function FixMeiView({ project, artifact, onEdited }: { project: Project; 
       cancelled = true;
     };
   }, [stage.id]);
-  if (texts === "error") return <div className="text-view"><p>The MEI couldn't be loaded. {loadError}</p></div>;
+  if (texts === "error") return <div className="text-view"><p className="error-text">The MEI couldn't be loaded. {loadError}</p></div>;
   if (!texts) return <div className="text-view"><p>Loading the MEI…</p></div>;
   return <FixMeiEditor project={project} stageId={stage.id} texts={texts} editable={!!artifact.editor} onEdited={onEdited} />;
 }
@@ -155,9 +155,9 @@ function FixMeiEditor({
   );
   const notice = (
     <>
-      {saveError && <p className="editor-hint mei-problem">{saveError}</p>}
+      {saveError && <p className="editor-hint mei-problem error-text">{saveError}</p>}
       {problems && problems.length > 0 && (
-        <div className="fix-mei-problems" role="alert">
+        <div className="fix-mei-problems error-text" role="alert">
           <p>
             Not applied: the MEI doesn't pass the checks ({problems.length} {problems.length === 1 ? "problem" : "problems"}).
           </p>

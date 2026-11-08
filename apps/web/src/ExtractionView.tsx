@@ -250,7 +250,7 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
         <p className="editor-hint">Numbered boxes are questions about what the page says. Dashed boxes mark places where the transcription doesn't add up.</p>
       )}
       {reverted.length > 0 && (
-        <div className="reverted-block" role="note">
+        <div className="reverted-block error-text" role="note">
           <p className="reverted-head">
             {reverted.length === 1 ? "1 answer couldn't be applied" : `${reverted.length} answers couldn't be applied`} as given, and{" "}
             {reverted.length === 1 ? "was" : "were"} reverted:
@@ -339,7 +339,7 @@ function CropView({ recipe, label, children }: { recipe: CropRecipe; label: stri
   }, [near, JSON.stringify(recipe)]);
   return (
     <div ref={ref} className="page-image">
-      {url ? <img src={url} alt={label} /> : <div className="page-placeholder crop-placeholder">{error ?? "Drawing the system…"}</div>}
+      {url ? <img src={url} alt={label} /> : <div className="page-placeholder crop-placeholder error-text">{error ?? "Drawing the system…"}</div>}
       {url && children}
       {url && <ImagesDiffer page={recipe.straight.page} below />}
     </div>
@@ -429,7 +429,7 @@ export function SystemRendering({ score, system, changed, width }: { score: Scor
         // At its own size (its view box, in pixels), narrower where the view is: a short system isn't blown up.
         <div ref={frame} className="rendering" style={width ? { width } : { maxWidth: naturalWidth(svg) }} dangerouslySetInnerHTML={{ __html: svg }} />
       ) : (
-        <div className="rendering-placeholder">{error ?? "Rendering the music…"}</div>
+        <div className="rendering-placeholder error-text">{error ?? "Rendering the music…"}</div>
       )}
     </div>
   );

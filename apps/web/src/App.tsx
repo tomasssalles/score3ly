@@ -174,7 +174,7 @@ export function App() {
             e.target.value = "";
           }}
         />
-        {error && <p className="error-banner">{error}</p>}
+        {error && <p className="error-banner error-text">{error}</p>}
         {renaming && current && (
           <RenameDialog
             title="Rename project"

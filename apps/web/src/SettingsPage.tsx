@@ -55,7 +55,7 @@ export function SettingsPage() {
   return (
     <div className="page-view settings">
       <h2>Settings</h2>
-      {error && <p className="settings-error">{error}</p>}
+      {error && <p className="settings-error error-text">{error}</p>}
       {settings && (
         <dl className="settings-list">
           <dt>Run mode for new projects</dt>
@@ -262,7 +262,7 @@ function Secrets() {
           >
             Open the secrets file
           </button>
-          {error && <p className="settings-error">{error}</p>}
+          {error && <p className="settings-error error-text">{error}</p>}
         </>
       )}
       {host === "local" && (
@@ -342,7 +342,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
           <PlusIcon />
         </button>
       </div>
-      {error && <p className="settings-error">{error}</p>}
+      {error && <p className="settings-error error-text">{error}</p>}
       {creating && (
         <NewModelConfig
           options={creating.options}
@@ -480,7 +480,7 @@ function SpendingCap({ value, onSave }: { value: number; onSave: (usd: number) =
         onBlur={commit}
         onKeyDown={onKeyDown}
       />
-      {problem && <p className="settings-error">{problem}</p>}
+      {problem && <p className="settings-error error-text">{problem}</p>}
     </div>
   );
 }
