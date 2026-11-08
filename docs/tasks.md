@@ -583,7 +583,7 @@ Found 2026-11-07 (the project owner): a project run to the end with the Fake mod
 The current rule and its reasons (`docs/overview.md` §5.5, "Extra reviews are dropped like manual stages", decided and built 2026-11-02): extra reviews are carried like manual stages, kept if their inputs are the same, dropped otherwise, with their `apply_review`, so a re-run doesn't pay for reviews the user may not want again (one added because the first missed problems on this score may be unnecessary after the re-run), and what runs after the first `apply_review` is free or from the cache. To think through and decide: e.g. extra reviews become planned stages like the recipe's (re-run on a change, the config change reaching them); or they stay carried but a config change "for every stage after it" turns them into planned stages with the new config; or the dialog or the card says what will happen to them. Then update §5.5, `docs/database.md` (carried stages) and `docs/project-view.md` (the confirmation, the cards), and the code (`apps/worker/src/pipeline.ts`).
 
 ### OpenRouter support and testing
-`#optional`
+`#next-release` `#owner`
 
 OpenRouter as a fifth provider (discussed 2026-11-06 and 2026-11-08): one API key and one OpenAI-compatible API (`/api/v1/chat/completions`, a plain `fetch`, no SDK) for Claude, Gemini and other families. Why: Claude in the EU without the hyperscalers' setup.
 
@@ -606,7 +606,7 @@ OpenRouter as a fifth provider (discussed 2026-11-06 and 2026-11-08): one API ke
 3. ✓ **The pricing kind "priced by the provider"** (done 2026-11-08, `providerCost` in `llmRoutes.ts`; the spending cap counts these calls too): cost = reported `cost` × (1 + fee); an answer without one is a call of unknown cost.
 4. ✓ **The list without prices** (done 2026-11-08, `gather/openrouter.ts`: 27 models, 15 in the EU; a list entry without a price says where the model is offered): a gathering of both hosts' models APIs (ids, efforts, which models the EU serves), mapped onto `claude-models.json` and `gemini-models.json`; a listed model is supported where OpenRouter offers it.
 5. ✓ **The settings card** (done 2026-11-08; `PriceRangeHint` in `SettingsPage.tsx`, `/api/model-configs/<id>/price-range`, kept a day in the Worker's memory): "Priced per call by OpenRouter, plus its fee on credit purchases", and where it can be read, the providers' range from the endpoints API, read live by the Worker and kept a day ("$4–4.40 input, $20–22 output per million tokens"), for models added by hand too.
-6. **Tests** with a fake `fetch`, then a real call. **To see on it:** whether the answer names the id or the canonical slug; whether `cost` agrees with tokens × the serving provider's price.
+6. ✓ **Tests** with a fake `fetch` (done 2026-11-08); **left: a real call** by the project owner. **To see on it:** whether the answer names the id or the canonical slug; whether `cost` agrees with tokens × the serving provider's price.
 
 ### Try a run on a real phone that goes to sleep or to another app
 `#manual-test`
