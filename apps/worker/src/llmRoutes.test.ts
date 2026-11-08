@@ -2,7 +2,7 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { getPlatformProxy } from "wrangler";
+import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList } from "./llm/models.ts";
@@ -11,11 +11,11 @@ import { MODEL_LIST } from "./llm/modelList.ts";
 
 // The LLM endpoints against Wrangler's local R2 and D1, kept in memory, with the fake provider (llm/fake.ts).
 const workerDir = join(import.meta.dirname, "..");
-let platform: Awaited<ReturnType<typeof getPlatformProxy<Env>>>;
+let platform: Awaited<ReturnType<typeof testPlatform>>;
 let env: Env;
 
 before(async () => {
-  platform = await getPlatformProxy<Env>({ configPath: join(workerDir, "wrangler.jsonc"), persist: false });
+  platform = await testPlatform();
   env = platform.env;
   // The fake provider with costs is for development: offered with DEV_PROVIDERS (most tests use it).
   (env as unknown as Record<string, string>).DEV_PROVIDERS = "true";

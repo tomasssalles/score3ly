@@ -2,18 +2,18 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { getPlatformProxy } from "wrangler";
+import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { collectOrphans } from "./deletion.ts";
 import { defaultName, firstFreeName } from "./names.ts";
 
 // The tests run the API against Wrangler's local R2 and D1, kept in memory.
 const workerDir = join(import.meta.dirname, "..");
-let platform: Awaited<ReturnType<typeof getPlatformProxy<Env>>>;
+let platform: Awaited<ReturnType<typeof testPlatform>>;
 let env: Env;
 
 before(async () => {
-  platform = await getPlatformProxy<Env>({ configPath: join(workerDir, "wrangler.jsonc"), persist: false });
+  platform = await testPlatform();
   env = platform.env;
   const migrationsDir = join(workerDir, "migrations");
   for (const file of readdirSync(migrationsDir).sort()) {
