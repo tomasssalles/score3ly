@@ -36,9 +36,8 @@ export class ClaudeProvider implements LlmProvider {
       throw toLlmError(err);
     }
     const response = { ...fromMessage(message), provider: this.id };
-    // A sanity check: the answer must come from the model that was asked. It was paid for all the same. On Bedrock, a
-    // routing's prefix ("global.", "eu.", …: an inference profile) may be left out of the answer's model.
-    const asked = this.id === "anthropic-bedrock" ? [request.model, request.model.replace(/^[a-z]+(?:-[a-z]+)?\.(?=anthropic\.)/, "")] : [request.model];
+    // A sanity check: the answer must come from the model that was asked. It was paid for all the same.
+    const asked = this.id === "anthropic-bedrock" ? bedrockNames(request.model) : [request.model];
     if (!asked.includes(message.model)) return { ...response, unexpectedModel: `Asked ${request.model}, but ${message.model} answered.` };
     return request.jsonSchema ? withJson(response) : response;
   }
@@ -175,4 +174,14 @@ function toLlmError(err: unknown): LlmError {
     return new LlmError("unreadable_response", String(err));
   }
   return new LlmError("unknown", String(err));
+}
+
+// The names Bedrock may answer with for the model asked: the string as sent, without the routing's prefix ("global.",
+// "eu.", …: an inference profile), or Anthropic's own name for it (found 2026-11-08: asked
+// eu.anthropic.claude-sonnet-4-6, answered claude-sonnet-4-6), for a dated model with or without its date
+// ("anthropic.claude-haiku-4-5-20251001-v1:0": claude-haiku-4-5-20251001, claude-haiku-4-5).
+export function bedrockNames(model: string): string[] {
+  const id = model.replace(/^[a-z]+(?:-[a-z]+)?\.(?=anthropic\.)/, "");
+  const own = id.replace(/^anthropic\./, "").replace(/-v\d+(?::\d+)?$/, "");
+  return [...new Set([model, id, own, own.replace(/-\d{8}$/, "")])];
 }

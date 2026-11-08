@@ -120,6 +120,18 @@ test("the model check takes the answer's model with or without the routing's pre
   assert.match((await other.send(request)).unexpectedModel ?? "", /but anthropic\.claude-sonnet-5-5 answered/);
 });
 
+test("the model check takes Anthropic's own name for the model, as Bedrock answers with it", async () => {
+  // Found 2026-11-08, the first real call: asked eu.anthropic.claude-sonnet-4-6, answered claude-sonnet-4-6.
+  const send = (asked: string, answered: string) =>
+    createProvider({ provider: "anthropic-bedrock", region: "eu-central-1", apiKey: "k" }, { fetch: fakeBedrock([], answered) }).send({ ...request, model: asked });
+  assert.equal((await send("eu.anthropic.claude-sonnet-4-6", "claude-sonnet-4-6")).unexpectedModel, undefined);
+  assert.equal((await send("anthropic.claude-opus-5-5", "claude-opus-5-5")).unexpectedModel, undefined);
+  // A dated model: its ID without the version, or without the date too.
+  assert.equal((await send("eu.anthropic.claude-haiku-4-5-20251001-v1:0", "claude-haiku-4-5-20251001")).unexpectedModel, undefined);
+  assert.equal((await send("eu.anthropic.claude-haiku-4-5-20251001-v1:0", "claude-haiku-4-5")).unexpectedModel, undefined);
+  assert.match((await send("eu.anthropic.claude-sonnet-4-6", "claude-sonnet-4-5")).unexpectedModel ?? "", /but claude-sonnet-4-5 answered/);
+});
+
 test("the routing becomes the model string's prefix", () => {
   const id = "anthropic.claude-haiku-4-5-20251001-v1:0";
   assert.equal(bedrockModel(id, "global", "EU"), `global.${id}`);

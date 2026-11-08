@@ -578,13 +578,10 @@ Decided by the project owner (2026-11-08): Claude on Bedrock goes through `bedro
 - ✓ **The docs** (done 2026-11-08): `docs/llm.md` ("Calling the providers", the routing, the model strings), the tasks that mention Mantle or the routing ("Decide the model configs", "Check Bedrock's model name on the first real call", "Make the first real request on Bedrock").
 - **A real call** by the project owner, in "Make the first real request on Bedrock": a call with `eu.` routing answers, and is billed at that routing's price.
 
-### Check Bedrock's model name on the first real call
-`docs/llm.md`, "Calling the providers": whether the answer names the model with the same string that was asked (an inference profile may come back as the bare model ID). The app sends an inference profile on `bedrock-runtime` (`eu.anthropic.…`, 2026-11-08), and the sanity check takes the answer's model with or without its prefix; the first call that answers shows which string comes back.
-
 ### Make the first real request on Bedrock
 `#next-release` `#owner`
 
-The project owner's AWS account for Bedrock exists already; it has to make a real request. The steps (`docs/llm.md`, "Calling the providers"): access to Claude Opus 5.5 enabled for the account in an EU region (e.g. `eu-central-1`); credentials, either a Bedrock API key or an access key pair; a Worker secret holding them (`apps/worker/.dev.vars` locally); then one call, e.g. `npm run llm:try -w apps/worker -- anthropic-bedrock <model> <image> "<question>"`, and a model config for the app. Settles on the way: the task "Check Bedrock's model name on the first real call", and that a call with `eu.` (geographic) routing on `bedrock-runtime` answers and is billed at that routing's price (the AWS bill or CloudWatch).
+The project owner's AWS account for Bedrock exists already; it has to make a real request. The steps (`docs/llm.md`, "Calling the providers"): access to Claude Opus 5.5 enabled for the account in an EU region (e.g. `eu-central-1`); credentials, either a Bedrock API key or an access key pair; a Worker secret holding them (`apps/worker/.dev.vars` locally); then one call, e.g. `npm run llm:try -w apps/worker -- anthropic-bedrock <model> <image> "<question>"`, and a model config for the app. Settles on the way that a call with `eu.` (geographic) routing on `bedrock-runtime` answers and is billed at that routing's price (the AWS bill or CloudWatch).
 
 ### Try the app with Opus 5.5 in Europe on Bedrock
 `#next-release` `#owner` `#manual-test`
