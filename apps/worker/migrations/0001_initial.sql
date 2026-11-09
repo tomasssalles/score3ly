@@ -30,25 +30,28 @@ CREATE UNIQUE INDEX projects_name ON projects (name) WHERE deleted_at IS NULL;
 
 -- Model configs (docs/llm.md, "Configs"): a provider (a platform), a model of the app's list (`model_id`) or one the
 -- user added (`model_string` with its `family`), never both, an effort, a place (region, routing on Bedrock only, the
--- project on Vertex AI only), the names of the Worker secrets to use, and how its calls are priced: from the list (as
--- its own model, or a model the user added as `pricing_reference`'s), free (the user's free tier) or unpriced. The
+-- project on Vertex AI only, the account's plan on OpenRouter only), the names of the Worker secrets to use, and how its
+-- calls are priced: from the list (as its own model, or a model the user added as `pricing_reference`'s), free (the
+-- user's free tier), unpriced, or by the provider (OpenRouter's answers say what each call cost). The
 -- Worker checks the rest (`configProblem` in llmRoutes.ts): that the model, place and reference are in the list.
 CREATE TABLE model_configs (
   id TEXT PRIMARY KEY,
   -- Unique among the configs that aren't deleted, ignoring case (index below).
   name TEXT NOT NULL,
-  provider TEXT NOT NULL CHECK (provider IN ('anthropic', 'bedrock', 'ai-studio', 'vertex', 'fake', 'fake-dev')),
+  provider TEXT NOT NULL CHECK (provider IN ('anthropic', 'bedrock', 'ai-studio', 'vertex', 'openrouter', 'fake', 'fake-dev')),
   model_id TEXT,
   model_string TEXT,
   family TEXT CHECK (family IN ('claude', 'gemini', 'fake')),
   effort TEXT CHECK (effort IN ('low', 'medium', 'high', 'xhigh', 'max')),
-  -- '' for providers without regions.
+  -- '' for providers without regions; on OpenRouter '' is global and 'eu' its EU host.
   region TEXT NOT NULL DEFAULT '',
   routing TEXT CHECK (routing IN ('global', 'geographic', 'in-region')),
   project TEXT,
+  -- OpenRouter only: the account's plan, 'standard' or 'business' (the fee on credits; the EU for Business only).
+  account TEXT CHECK (account IN ('standard', 'business')),
   -- The names of the Worker secrets per field of the adapter, e.g. {"apiKey": "ANTHROPIC_KEY"}; never their values.
   secrets_json TEXT NOT NULL DEFAULT '{}',
-  pricing_kind TEXT NOT NULL CHECK (pricing_kind IN ('list', 'free', 'unpriced')),
+  pricing_kind TEXT NOT NULL CHECK (pricing_kind IN ('list', 'free', 'unpriced', 'provider')),
   pricing_reference TEXT,
   created_at TEXT NOT NULL,
   deleted_at TEXT,
@@ -56,7 +59,12 @@ CREATE TABLE model_configs (
   CHECK ((family IS NULL) = (model_string IS NULL)),
   CHECK (pricing_reference IS NULL OR (pricing_kind = 'list' AND model_string IS NOT NULL)),
   CHECK ((routing IS NULL) = (provider <> 'bedrock')),
-  CHECK (project IS NULL OR provider = 'vertex')
+  CHECK (project IS NULL OR provider = 'vertex'),
+  CHECK ((account IS NULL) = (provider <> 'openrouter')),
+  CHECK (region <> 'eu' OR provider <> 'openrouter' OR account = 'business'),
+  -- 'provider': each answer says what it cost (OpenRouter's only); OpenRouter's configs may also be free tier.
+  CHECK (pricing_kind <> 'provider' OR provider = 'openrouter'),
+  CHECK (provider <> 'openrouter' OR pricing_kind IN ('provider', 'free'))
 );
 
 CREATE UNIQUE INDEX model_configs_name ON model_configs (name COLLATE NOCASE) WHERE deleted_at IS NULL;

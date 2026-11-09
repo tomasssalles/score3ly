@@ -473,7 +473,7 @@ To do: move the runner (the abort controller, the heartbeat, the Auto loop and t
 ### Create the remote R2 bucket and D1 database
 `#next-release` `#owner`
 
-The script is written (2026-11-09, `npm run setup:cloudflare -w apps/worker`; `docs/database.md`, "Deploying"): it creates both in the EU jurisdiction and writes the database's id into `apps/worker/wrangler.jsonc`. Left: running it with the project owner's Cloudflare account (after "Squash the migrations again"), then the secrets and the first `npm run deploy`. Until then the app can't be deployed.
+The script is written (2026-11-09, `npm run setup:cloudflare -w apps/worker`; `docs/database.md`, "Deploying"): it creates both in the EU jurisdiction and writes the database's id into `apps/worker/wrangler.jsonc`. Left: running it with the project owner's Cloudflare account, then the secrets and the first `npm run deploy`. Until then the app can't be deployed.
 
 ### Set up Cloudflare Access
 `#next-release` `#security`
@@ -559,11 +559,6 @@ They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk b
 `#optional`
 
 `docs/llm.md`, "Which config a stage uses": a level between a stage's own config and the default, in the advanced settings: a model config per kind of work, used by every stage of that kind that has no config of its own. Proposed kinds: finding layout boxes (`layout`), analyzing the pages (`analyze`: metadata and observations), extracting the music notation (`extract`, `apply_review`), reviewing (`review`).
-
-### Squash the migrations again
-`#next-release`
-
-`docs/database.md`: the migrations were squashed into `0001_initial.sql` on 2026-11-06, while no data needed keeping; since then `0002_openrouter.sql` and `0003_openrouter_free_tier.sql` rebuilt `model_configs` twice for OpenRouter's column and CHECKs. Before the release, while there is still no data to keep (CLAUDE.md, "Existing data"): fold them into `0001_initial.sql` (the `account` column, the pricing kind `provider` and the CHECKs as `0003` has them), delete `0002` and `0003`, and say in `docs/database.md` when it was done. Local databases (Wrangler's `.wrangler/state`, the desktop app's data folder) then need to be made anew, since their `d1_migrations` table names migrations that no longer exist: say so to the project owner when it is done. The tests apply every file in `migrations/` and need no change.
 
 ### OpenRouter's prices in the config form
 `#optional`

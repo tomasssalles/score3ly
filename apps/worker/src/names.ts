@@ -2,7 +2,7 @@
 
 export const MAX_NAME_LENGTH = 200;
 
-// The default project name: the file name without ".pdf". Must match migrations/0002.
+// The default project name: the file name without ".pdf".
 export function defaultName(filename: string): string {
   const trimmed = filename.trim();
   const stem = (trimmed.toLowerCase().endsWith(".pdf") ? trimmed.slice(0, -4) : trimmed).trim();
