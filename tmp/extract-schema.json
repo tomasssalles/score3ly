@@ -13,24 +13,10 @@
             "type": "integer"
           },
           "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "string"
           },
           "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "string"
           },
           "clef": {
             "type": "string"
@@ -39,14 +25,7 @@
             "type": "string"
           },
           "time": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "string"
           }
         },
         "required": [
@@ -81,14 +60,7 @@
             ]
           },
           "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "string"
           }
         },
         "required": [
@@ -110,45 +82,18 @@
           "class": {
             "type": "string",
             "enum": [
-              "none",
-              "new",
-              "continues"
-            ]
-          },
-          "kind": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "normal",
-                  "incomplete",
-                  "unmeasured"
-                ]
-              },
-              {
-                "type": "null"
-              }
+              "new-normal",
+              "new-incomplete",
+              "new-unmeasured",
+              "continues",
+              "none"
             ]
           },
           "printedNumber": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "string"
           },
           "measureNumber": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "integer"
           },
           "changes": {
             "type": "array",
@@ -159,24 +104,10 @@
                   "type": "integer"
                 },
                 "key": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
+                  "type": "string"
                 },
                 "time": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
+                  "type": "string"
                 }
               },
               "required": [
@@ -188,38 +119,17 @@
             }
           },
           "ending": {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "startsHere": {
-                    "type": "boolean"
-                  },
-                  "endsHere": {
-                    "type": "boolean"
-                  },
-                  "label": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  }
-                },
-                "required": [
-                  "startsHere",
-                  "endsHere",
-                  "label"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "null"
-              }
+            "type": "string",
+            "enum": [
+              "none",
+              "start",
+              "middle",
+              "end",
+              "whole"
             ]
+          },
+          "endingLabel": {
+            "type": "string"
           },
           "voices": {
             "type": "array",
@@ -233,14 +143,7 @@
                   "type": "integer"
                 },
                 "description": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
+                  "type": "string"
                 },
                 "music": {
                   "type": "string"
@@ -272,11 +175,11 @@
         "required": [
           "stretch",
           "class",
-          "kind",
           "printedNumber",
           "measureNumber",
           "changes",
           "ending",
+          "endingLabel",
           "voices",
           "rightBarLine"
         ],
@@ -332,14 +235,7 @@
             }
           },
           "location": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "string"
           },
           "question": {
             "type": "string"
@@ -374,17 +270,10 @@
             ]
           },
           "lilypond": {
-            "anyOf": [
-              {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [

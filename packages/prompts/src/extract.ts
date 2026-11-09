@@ -4,6 +4,7 @@
 // stretches to fill, the piece's staves and voices so far, what the previous system left open, and what `analyze`
 // saw, as hints. Code checks the answer as soon as it arrives (@score3ly/notation).
 
+import { ENDING_VALUES, GROUP_SYMBOL_VALUES, RIGHT_BAR_LINES, STRETCH_CLASS_VALUES } from "./lensForm.ts";
 import {
   ACCENT_DYNAMICS,
   ACCIDENTALS,
@@ -155,12 +156,8 @@ function object(properties: Record<string, unknown>) {
   return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
 }
 
-// The answer's schema has no nullable field (Anthropic's limit on schemas, docs/llm.md): a text with no value is "", a
-// number -1, a stretch's class and its measure's kind are one value, and its ending is a value and a label.
-// lensFromExtract turns the answer into the lens as code uses it.
-export const STRETCH_CLASS_VALUES = ["new-normal", "new-incomplete", "new-unmeasured", "continues", "none"] as const;
-export const ENDING_VALUES = ["none", "start", "middle", "end", "whole"] as const;
-
+// The answer's schema has no nullable field: the lens as the models write it (lensForm.ts), which lensFromExtract turns
+// into the lens as code uses it.
 export const EXTRACT_SCHEMA = object({
   startRepeat: bool,
   staves: {
@@ -169,7 +166,7 @@ export const EXTRACT_SCHEMA = object({
   },
   groups: {
     type: "array",
-    items: object({ staves: { type: "array", items: int }, symbol: enumOf(["brace", "bracket", "bracketsq", "line"]), label: str }),
+    items: object({ staves: { type: "array", items: int }, symbol: enumOf(GROUP_SYMBOL_VALUES), label: str }),
   },
   stretches: {
     type: "array",
@@ -182,7 +179,7 @@ export const EXTRACT_SCHEMA = object({
       ending: enumOf(ENDING_VALUES),
       endingLabel: str,
       voices: { type: "array", items: object({ voice: int, staff: int, description: str, music: str }) },
-      rightBarLine: enumOf(["single", "double", "final", "startRepeat", "endRepeat", "bothRepeats", "dashed", "none"]),
+      rightBarLine: enumOf(RIGHT_BAR_LINES),
     }),
   },
   lastMeasureContinues: bool,
@@ -202,50 +199,3 @@ export const EXTRACT_SCHEMA = object({
     }),
   },
 });
-
-// The answer as the schema has it, as the lens code uses it (LensSystem, @score3ly/notation): "" and -1 null, the class
-// split into class and kind, the ending an object or null, a reading issue's empty list of tokens null. Whatever isn't
-// of the expected form is left as it is, for the checks.
-export function lensFromExtract(json: unknown): unknown {
-  const record = (o: unknown): o is Record<string, unknown> => typeof o === "object" && o !== null && !Array.isArray(o);
-  const orNull = (o: unknown, keys: string[]) => {
-    if (!record(o)) return o;
-    const copy = { ...o };
-    for (const k of keys) if (copy[k] === "") copy[k] = null;
-    return copy;
-  };
-  const each = (list: unknown, f: (o: unknown) => unknown) => (Array.isArray(list) ? list.map(f) : list);
-  const endings: Record<string, { startsHere: boolean; endsHere: boolean } | null> = {
-    none: null,
-    start: { startsHere: true, endsHere: false },
-    middle: { startsHere: false, endsHere: false },
-    end: { startsHere: false, endsHere: true },
-    whole: { startsHere: true, endsHere: true },
-  };
-  if (!record(json)) return json;
-  return {
-    ...json,
-    staves: each(json.staves, (t) => orNull(t, ["description", "label", "time"])),
-    groups: each(json.groups, (g) => orNull(g, ["label"])),
-    stretches: each(json.stretches, (u) => {
-      if (!record(u)) return u;
-      const { endingLabel, ...s } = orNull(u, ["printedNumber"]) as Record<string, unknown>;
-      const merged = typeof s.class === "string" && s.class.startsWith("new-");
-      const ending = typeof s.ending === "string" && s.ending in endings ? endings[s.ending] : s.ending;
-      return {
-        ...s,
-        class: merged ? "new" : s.class,
-        kind: merged ? (s.class as string).slice("new-".length) : null,
-        measureNumber: s.measureNumber === -1 ? null : s.measureNumber,
-        changes: each(s.changes, (c) => orNull(c, ["key", "time"])),
-        ending: record(ending) ? { ...ending, label: endingLabel === "" ? null : endingLabel } : ending,
-        voices: each(s.voices, (v) => orNull(v, ["description"])),
-      };
-    }),
-    issues: each(json.issues, (i) => {
-      const issue = orNull(i, ["location"]);
-      if (!record(issue)) return issue;
-      return issue.class !== "format" && Array.isArray(issue.lilypond) && issue.lilypond.length === 0 ? { ...issue, lilypond: null } : issue;
-    }),
-  };
-}

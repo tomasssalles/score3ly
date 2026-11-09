@@ -85,7 +85,7 @@ export function extractRequest(input: {
     previousMeasureContinues: state.measureContinues,
     staves: state.staves,
     voices: state.voices,
-    signatures: state.signatures,
+    signatures: state.signatures.map((x) => ({ ...x, time: x.time ?? "" })), // as the lens's texts in the answer: "" for none
     openMarks: state.open.map((m) => ({ ...m, description: describeMark(m) })),
     openEnding: state.ending !== null,
     hints: input.hints,

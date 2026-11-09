@@ -6,7 +6,7 @@
 // agreements ("kept") added for the issues it left as they were.
 
 import type { Box, LensSystem, Score } from "@score3ly/notation";
-import type { LayoutSystem, ReviewAnswer, ReviewNewIssueEntry } from "@score3ly/prompts";
+import { groupForModel, reviewFromModel, staffForModel, stretchForModel, type LayoutSystem, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
 import { keyOf } from "@score3ly/core";
 import { onPage, stretchBox, systemCropBox, type ImageSource, type StoredIssue, type StoredWarning } from "./extract.ts";
 
@@ -41,7 +41,8 @@ export const systemsOf = (boxes: { page: number; box: Box }[], systems: PlacedSy
 
 // The score as the model reads it (docs/stages/music.md, `review`, "The score as text"): per piece its staves and voices
 // with their descriptions, once; per system its staves, groups and stretches as `extract` wrote them, without the
-// descriptions and the issues, each stretch with `measure`, the number code gave its measure.
+// descriptions and the issues, each stretch with `measure`, the number code gave its measure (-1 for none); in the lens as
+// models read it (lensForm.ts).
 export function reviewScore(score: Score): unknown {
   return {
     pieces: score.pieces.map((piece) => {
@@ -56,13 +57,15 @@ export function reviewScore(score: Score): unknown {
             system: s.number,
             page: s.page,
             startRepeat: answer.startRepeat,
-            staves: answer.staves.map(({ staff, label, clef, key, time }) => ({ staff, label, clef, key, time })),
-            groups: answer.groups,
-            stretches: answer.stretches.map(({ voices, ...rest }) => ({
-              ...rest,
-              measure: measureOf.get(`${s.number}/${rest.stretch}`) ?? null,
-              voices: voices.map(({ voice, staff, music }) => ({ voice, staff, music })),
-            })),
+            staves: answer.staves.map(({ staff, label, clef, key, time }) => staffForModel({ staff, label, clef, key, time })),
+            groups: answer.groups.map(groupForModel),
+            stretches: answer.stretches.map(({ voices, ...rest }) =>
+              stretchForModel({
+                ...rest,
+                measure: measureOf.get(`${s.number}/${rest.stretch}`) ?? -1,
+                voices: voices.map(({ voice, staff, music }) => ({ voice, staff, music })),
+              }),
+            ),
             lastMeasureContinues: answer.lastMeasureContinues,
           };
         }),
@@ -71,17 +74,18 @@ export function reviewScore(score: Score): unknown {
   };
 }
 
-// The issues as the model reads them: their places as systems and stretches, the choices by who made them.
+// The issues as the model reads them: their places as systems and stretches, the choices by who made them, a text with
+// no value "" (only `applied` is null, where it isn't known).
 export function reviewIssues(issues: StoredIssue[], systems: PlacedSystem[], chooser: (by: string) => string): unknown {
   return issues.map((i) => ({
     id: i.id,
     source: i.source,
     class: i.class,
     places: placesOf(i.boxes, systems),
-    location: i.location,
+    location: i.location ?? "",
     question: i.question,
     answers: i.answers,
-    choices: i.choices.map((c) => ({ by: chooser(c.by), key: c.key, reason: c.reason, ...(c.kept ? { kept: true } : {}) })),
+    choices: i.choices.map((c) => ({ by: chooser(c.by), key: c.key, reason: c.reason ?? "", ...(c.kept ? { kept: true } : {}) })),
     applied: i.applied,
     resolved: i.resolved,
     ...(i.lilypond ? { lilypond: i.lilypond } : {}),
@@ -103,17 +107,17 @@ export type StoredReview = { system: number; entries: ReviewEntry[] };
 export function logEntries(stored: StoredReview): unknown[] {
   return stored.entries.map((e) =>
     "choice" in e
-      ? { choice: { issue: e.choice.issue, key: e.choice.key, ...(e.choice.newAnswer ? { newAnswer: e.choice.newAnswer.text } : {}), reason: e.choice.reason } }
+      ? { choice: { issue: e.choice.issue, key: e.choice.key, ...(e.choice.newAnswer ? { newAnswer: e.choice.newAnswer.text } : {}), reason: e.choice.reason ?? "" } }
       : {
           newIssue: {
             id: e.newIssue.id,
             class: e.newIssue.class,
-            location: e.newIssue.location,
+            location: e.newIssue.location ?? "",
             question: e.newIssue.question,
             answers: e.newIssue.answers,
             applied: e.newIssue.applied,
-            chosen: e.newIssue.choices[0]?.key ?? null,
-            reason: e.newIssue.choices[0]?.reason ?? null,
+            chosen: e.newIssue.choices[0]?.key ?? "",
+            reason: e.newIssue.choices[0]?.reason ?? "",
             ...(e.newIssue.lilypond ? { lilypond: e.newIssue.lilypond } : {}),
           },
         },
@@ -138,7 +142,7 @@ export type ReviewContext = {
 // makes the answer unusable, as in `extract`. Otherwise its entries, the new issues numbered from `first` (code
 // asks for as many numbers as `newIssues` says, before).
 export function checkReview(json: unknown, ctx: ReviewContext, first: number): { entries: ReviewEntry[] } | { problem: string } {
-  const answer = json as ReviewAnswer;
+  const answer = reviewFromModel(json) as ReviewAnswer;
   if (typeof answer !== "object" || answer === null || !Array.isArray(answer.entries)) return { problem: "the answer doesn't have the expected form" };
   const entries: ReviewEntry[] = [];
   const chosen = new Set<number>();
@@ -201,6 +205,7 @@ function newIssue(n: ReviewNewIssueEntry["newIssue"], ctx: ReviewContext, id: nu
   if (n.applied === n.chosen) return { problem: `${what}: "applied" and "chosen" are the same answer` };
   // A format issue's list may be empty: what is printed may need no new token, only what the format's rules forbid.
   if (n.class === "format" && !Array.isArray(n.lilypond)) return { problem: `${what} is a format issue without its list of LilyPond tokens` };
+  if (n.class !== "format" && n.lilypond !== null) return { problem: `${what} isn't a format issue, so its list of LilyPond tokens must be empty` };
   return {
     id,
     source: "review",

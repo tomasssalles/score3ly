@@ -6,9 +6,10 @@
 // issues' boxes drawn on them, and a request. Code checks the answer as soon as it arrives (apps/web/src/review.ts).
 
 import { MUSIC } from "./extract.ts";
+import { issueFromModel, orNull } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
-export const REVIEW_PROMPT_VERSION = 3;
+export const REVIEW_PROMPT_VERSION = 4;
 
 export const REVIEW_MAX_OUTPUT_TOKENS = 16_000;
 
@@ -17,7 +18,7 @@ export const REVIEW_SYSTEM = `You review a transcription of printed music agains
 Your understanding of music is how you read well: it fills gaps and decides what isn't fully clear on the page. But where the page is clear, what is printed wins over what would be likely, and a transcription that is unusual but matches the page is right.
 
 ## What you get
-1. **The score:** the whole transcription, in the format below, as JSON: for each piece its staves and voices, and for each system its staves, groups and stretches, each stretch with **measure**, the number code gave the measure it belongs to (the numbers everything else uses), and the music of its voices. Observations from an earlier look at the pages follow it: hints, not ground truth.
+1. **The score:** the whole transcription, in the format below, as JSON: for each piece its staves and voices, and for each system its staves, groups and stretches, each stretch with **measure**, the number code gave the measure it belongs to (the numbers everything else uses; -1 for none), and the music of its voices. A stretch's **class** says whether it starts a measure and of which kind ("new-normal", "new-incomplete", "new-unmeasured"), or is part of the measure before it ("continues") or of none ("none"); its **ending** is the "1." / "2." bracket over it ("none", "start", "middle", "end", "whole": where it starts and ends), with its **endingLabel** as printed where visible. Observations from an earlier look at the pages follow it: hints, not ground truth.
 2. **The issues and the warnings,** as they were when this review started. An issue is a question about what the page says at a place: **places** (the systems and stretches its boxes cover), **location** and **question**, **answers** with keys "a", "b", …, **choices** (who chose which answer so far, in order: the latest counts), **applied** (the answer the transcription reflects now; null when that isn't known), **resolved** (a person decided it: it is settled), and for a format issue **lilypond** (the tokens that would express what is printed). A warning is something code found wrong with the transcription itself (durations that don't add up, measure numbers that don't match): never answered, but worth a look.
 3. **What this review's earlier calls changed,** one entry per change, in order. Take them into account: they are part of the issues now.
 4. **Your system:** its crop ("System 17:"), a crop of each of its stretches with generous margins ("System 17, stretch 2:"), the previous and the next system for context, all with the boxes of the issues on them drawn in colour and labelled with the issue's id; then a request: the system, the issues and warnings on it, and **links**: what on this system belongs with something elsewhere (an end repeat and where it goes back to, the endings of a repeat, a slur or pedal crossing into or out of the system and where its other end is).
@@ -33,20 +34,22 @@ Compare every stretch of your system with its crop, note by note, mark by mark. 
 - **Structure:** a stretch read as starting a measure where it continues one, a wrong bar line or ending, a wrong clef, key or time.
 Read first, compare afterwards: never trust a passage because it seems to repeat another.
 
+**A text with no value is the empty string "", and a number with no value -1,** in the score and in your answer, never null (only an issue's **applied** is null, where it isn't known).
+
 ## Your answer: a list of entries, in any order
-- **A choice** on an existing issue: \`{ "choice": { "issue": 12, "key": "b", "newAnswer": null, "reason": null } }\`.
+- **A choice** on an existing issue: \`{ "choice": { "issue": 12, "key": "b", "newAnswer": "", "reason": "" } }\`.
   - Only on issues with a box on your system, and never on a resolved one.
-  - **key** an existing answer, or **newAnswer** the text of an answer that isn't in the list (it gets the next letter): exactly one of them, the other null. At most one new answer per issue.
+  - **key** an existing answer, or **newAnswer** the text of an answer that isn't in the list (it gets the next letter): exactly one of them, the other "". At most one new answer per issue.
   - **It must change the chosen answer:** where you agree with the latest choice, leave the issue alone; that counts as agreement.
-  - **reason:** null, unless it adds something a reader wouldn't see by themselves: "measure 23 is the same figure and there it's clearly a D", "the same spot appears on several notes nearby, so it is paper ageing, not a staccato". "I think it's a D" adds nothing.
+  - **reason:** "", unless it adds something a reader wouldn't see by themselves: "measure 23 is the same figure and there it's clearly a D", "the same spot appears on several notes nearby, so it is paper ageing, not a staccato". "I think it's a D" adds nothing.
 - **A new issue,** for every correction you want, and for every doubt or gap of the format nobody raised: \`{ "newIssue": { … } }\` with
   - **Never about what a resolved issue settled:** a person decided it, and their answer is the truth, even where you would read the page otherwise. Don't raise the same question again in other words, and don't raise one whose answer would change what the resolved issue says.
   - **boxes:** one or more, each on one of the images you were sent, named by its label ("system", "stretch 3", "previous system", "next system"), as fractions of that image (left, right, top, bottom from 0 to 1). At least one on your system; others may be on the previous or the next system, not both.
-  - **location:** what in the box is meant, when the box alone doesn't say: simple and local to the box ("the middle note of the chord"), never depending on a reading of the score. Else null.
+  - **location:** what in the box is meant, when the box alone doesn't say: simple and local to the box ("the middle note of the chord"), never depending on a reading of the score. Else "".
   - **question**, and **answers** with keys "a", "b", "c", …: at least two, one for what the transcription has now and one for what you think is right, with others where they are reasonable.
   - **applied:** the key of the answer the transcription has now; **chosen:** the key of the one you think is right. They differ.
   - **reason:** as for a choice.
-  - **class:** "reading" when what the page says is hard to tell or the transcription misread it; "format" when the page is clear but the format can't express it, and then **lilypond** lists the LilyPond tokens that would (e.g. ["\\\\harmonic"]); null for a reading issue. Format issues cost nothing and are wanted.
+  - **class:** "reading" when what the page says is hard to tell or the transcription misread it; "format" when the page is clear but the format can't express it, and then **lilypond** lists the LilyPond tokens that would (e.g. ["\\\\harmonic"]), or is empty when no new token would (the tokens exist, but the format's rules don't allow what is printed, e.g. a beam across a bar line); for a reading issue it is always empty. Format issues cost nothing and are wanted.
 - **People read them too:** the questions, locations, answers and reasons are shown to the user in the app. Write them as plain sentences a musician understands without the request, each starting with a capital letter, naming places by measure ("m. 23") or by what is printed, not by stretch numbers. **Never refer to the transcription** ("as transcribed", "the current reading", "what you wrote"): a later stage may apply another answer, and the text would then be wrong. Say only what the page might show: "A D", not "A D, as transcribed".
 - An empty list is a fine answer for a clean system.
 
@@ -73,7 +76,6 @@ export function reviewText(request: unknown): string {
 const str = { type: "string" };
 const int = { type: "integer" };
 const num = { type: "number" };
-const nullable = (schema: object) => ({ anyOf: [schema, { type: "null" }] });
 
 function object(properties: Record<string, unknown>) {
   return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
@@ -84,18 +86,18 @@ export const REVIEW_SCHEMA = object({
     type: "array",
     items: {
       anyOf: [
-        object({ choice: object({ issue: int, key: nullable(str), newAnswer: nullable(str), reason: nullable(str) }) }),
+        object({ choice: object({ issue: int, key: str, newAnswer: str, reason: str }) }),
         object({
           newIssue: object({
             boxes: { type: "array", items: object({ image: str, box: object({ left: num, right: num, top: num, bottom: num }) }) },
-            location: nullable(str),
+            location: str,
             question: str,
             answers: { type: "array", items: object({ key: str, text: str }) },
             applied: str,
             chosen: str,
-            reason: nullable(str),
+            reason: str,
             class: { type: "string", enum: ["reading", "format"] },
-            lilypond: nullable({ type: "array", items: str }),
+            lilypond: { type: "array", items: str },
           }),
         }),
       ],
@@ -103,7 +105,8 @@ export const REVIEW_SCHEMA = object({
   },
 });
 
-// The answer, as the schema has it.
+// The answer, as the code uses it: the model writes "" for a text with no value and an empty list of tokens on a reading
+// issue, which reviewFromModel makes null.
 export type ReviewBox = { image: string; box: { left: number; right: number; top: number; bottom: number } };
 export type ReviewChoiceEntry = { choice: { issue: number; key: string | null; newAnswer: string | null; reason: string | null } };
 export type ReviewNewIssueEntry = {
@@ -120,3 +123,17 @@ export type ReviewNewIssueEntry = {
   };
 };
 export type ReviewAnswer = { entries: (ReviewChoiceEntry | ReviewNewIssueEntry)[] };
+
+// The answer as the schema has it, as the code uses it: its texts with no value null, a reading issue's empty list of
+// tokens null. Whatever isn't of the expected form is left as it is, for the checks.
+export function reviewFromModel(json: unknown): unknown {
+  if (typeof json !== "object" || json === null || !Array.isArray((json as ReviewAnswer).entries)) return json;
+  const entries = (json as { entries: unknown[] }).entries.map((e) => {
+    if (typeof e !== "object" || e === null) return e;
+    const entry = e as Record<string, unknown>;
+    if (entry.choice) return { ...entry, choice: orNull(entry.choice, ["key", "newAnswer", "reason"]) };
+    if (entry.newIssue) return { ...entry, newIssue: orNull(issueFromModel(entry.newIssue), ["reason"]) };
+    return entry;
+  });
+  return { ...json, entries };
+}

@@ -9,9 +9,10 @@
 // checks the answer as soon as it arrives (apps/web/src/applyReview.ts).
 
 import { MUSIC } from "./extract.ts";
+import { ENDING_VALUES, GROUP_SYMBOL_VALUES, orNull, RIGHT_BAR_LINES, STRETCH_CLASS_VALUES, groupFromModel, staffFromModel, stretchFromModel, voiceFromModel } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
-export const APPLY_REVIEW_PROMPT_VERSION = 4;
+export const APPLY_REVIEW_PROMPT_VERSION = 5;
 
 export const APPLY_REVIEW_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -20,7 +21,7 @@ export const APPLY_REVIEW_SYSTEM = `You apply decisions to a transcription of pr
 **You follow orders.** The decisions are made: you never judge whether a chosen answer is right, and never refuse one because you would read the page differently. You are given the crops so that you can find what an answer is about and write it correctly, not to check the reviewers.
 
 ## What you get
-1. **The score:** the whole transcription as it was when this stage started, in the format below, as JSON: for each piece its staves and voices, and for each system its staves, groups and stretches, each stretch with **measure**, the number code gave the measure it belongs to, and the music of its voices. Observations from an earlier look at the pages follow it.
+1. **The score:** the whole transcription as it was when this stage started, in the format below, as JSON: for each piece its staves and voices, and for each system its staves, groups and stretches, each stretch with **measure**, the number code gave the measure it belongs to (-1 for none), and the music of its voices. The fields of systems and stretches are those of your answer (below). Observations from an earlier look at the pages follow it.
 2. **The issues and the warnings,** as they were when this stage started. An issue is a question about what the page says at a place: **places** (the systems and stretches its boxes cover), **location** and **question**, **answers** with keys "a", "b", …, **choices** (who chose which answer, in order: the latest counts), **applied** (the answer the transcription reflects now; null when that isn't known), **resolved** (a person decided it). A warning is something code found wrong with the transcription itself.
 3. **What this stage's earlier calls changed,** one entry per change, in order. They are part of the transcription now.
 4. **Your window:** one system, or two when an issue reaches the next one. Its crops ("System 17:", and each of its stretches, "System 17, stretch 2:"), with the boxes of the issues drawn in colour and labelled with the issue's id, and the systems before and after it for context; then a request: the window's systems as they are now (with the changes of the earlier calls), the systems just before and after it, the **links** (what on these systems belongs with something elsewhere), the issues to **apply** (each with its **chosen** answer), the **other** issues on these systems, and the warnings on them.
@@ -36,9 +37,11 @@ For each issue to apply, change the transcription so that it says what the chose
 
 ## Your answer: only what changes
 Each unit you name is replaced whole by what you write; whatever you don't name stays as it is. Copy nothing that doesn't change.
-**A text with no value is the empty string ""** in your answer, never null: where the score has null for a text (a printedNumber, a label, a key or a time in changes, a staff's time, an ending's label, a description), you write "". The only text that can be null is a voice's **music**.
+**A text with no value is the empty string "", and a number with no value -1,** in the score and in your answer, never null (a printedNumber, a label, a key or a time in changes, a staff's time, an endingLabel, a description; a measureNumber). The only field that can be null is a voice's **music**.
 - **voices:** a voice of a stretch, \`{ "system", "stretch", "voice", "staff", "description", "music", "reason" }\`: its music replaced whole. **music** null removes the voice from the stretch (e.g. a voice that isn't printed). A voice that isn't in the stretch yet is added. **description:** "" for a voice that exists; a short description for a voice that is new in the piece.
-- **stretches:** the other fields of a stretch, \`{ "system", "stretch", "class", "kind", "printedNumber", "measureNumber", "changes", "ending", "rightBarLine", "reason" }\`, all of them replaced (its voices stay). Merging two stretches into one measure is the second's class going from "new" to "continues"; splitting is the reverse.
+- **stretches:** the other fields of a stretch, \`{ "system", "stretch", "class", "printedNumber", "measureNumber", "changes", "ending", "endingLabel", "rightBarLine", "reason" }\`, all of them replaced (its voices stay):
+  - **class:** whether the stretch starts a measure, and of which kind: "new-normal", "new-incomplete" (a pickup, or the short measure that completes one), "new-unmeasured" (a cadenza, a passage without bar lines), "continues" (part of the same measure as the stretch before it that is part of a measure, even on the previous system) or "none" (part of no measure). Merging two stretches into one measure is the second's class going from "new-…" to "continues"; splitting is the reverse;
+  - **ending:** the "1." / "2." bracket over the stretch: "none", "start" (it starts here and runs on into the next stretch), "middle" (it runs on from the stretch before and into the next), "end" (it runs on from the stretch before and ends here) or "whole" (it starts and ends here); **endingLabel:** its label as printed where it is visible over this stretch, else "".
 - **systems:** the fields of a system, \`{ "system", "startRepeat", "staves", "groups", "lastMeasureContinues", "reason" }\`, all of them replaced (its stretches stay). In **staves**, description is "" for a staff that exists.
 - **reason:** "" for a change under the boxes of the issues it applies; for a change outside them, why it is needed ("the slur of issue 12 now ends here").
 - **choices:** the issues you can't apply as given. Only when it truly can't be done: the answer doesn't fit the transcription (the slur is to end on a G the measure doesn't have), two chosen answers conflict (one makes a note a quarter, another a dotted quarter), the format can't express it, or the answer is too vague to act on. Then leave the transcription as it is for that issue, and write \`{ "issue": 12, "key": "a", "newAnswer": "", "reason": "…" }\` with **key** the issue's **applied** answer (the one the transcription has now), **newAnswer** "", and **reason** what makes it impossible, written for a musician who reads it in the app and for the next reviewer, so that it isn't asked again: "The reviewer asked for these two changes, but they're incompatible: …". Disagreeing with an answer is never a reason.
@@ -65,7 +68,7 @@ export function applyReviewText(request: unknown): string {
 const str = { type: "string" };
 const int = { type: "integer" };
 const bool = { type: "boolean" };
-const nullable = (schema: object) => ({ anyOf: [schema, { type: "null" }] });
+const nullable = (schema: object) => ({ anyOf: [schema, { type: "null" }] }); // a voice's music only
 const enumOf = (values: readonly string[]) => ({ type: "string", enum: [...values] });
 
 function object(properties: Record<string, unknown>) {
@@ -82,13 +85,13 @@ export const APPLY_REVIEW_SCHEMA = object({
     items: object({
       system: int,
       stretch: int,
-      class: enumOf(["none", "new", "continues"]),
-      kind: nullable(enumOf(["normal", "incomplete", "unmeasured"])),
+      class: enumOf(STRETCH_CLASS_VALUES),
       printedNumber: str,
-      measureNumber: nullable(int),
+      measureNumber: int,
       changes: { type: "array", items: object({ staff: int, key: str, time: str }) },
-      ending: nullable(object({ startsHere: bool, endsHere: bool, label: str })),
-      rightBarLine: enumOf(["single", "double", "final", "startRepeat", "endRepeat", "bothRepeats", "dashed", "none"]),
+      ending: enumOf(ENDING_VALUES),
+      endingLabel: str,
+      rightBarLine: enumOf(RIGHT_BAR_LINES),
       reason: str,
     }),
   },
@@ -103,7 +106,7 @@ export const APPLY_REVIEW_SCHEMA = object({
       },
       groups: {
         type: "array",
-        items: object({ staves: { type: "array", items: int }, symbol: enumOf(["brace", "bracket", "bracketsq", "line"]), label: str }),
+        items: object({ staves: { type: "array", items: int }, symbol: enumOf(GROUP_SYMBOL_VALUES), label: str }),
       },
       lastMeasureContinues: bool,
       reason: str,
@@ -112,7 +115,8 @@ export const APPLY_REVIEW_SCHEMA = object({
   choices: { type: "array", items: object({ issue: int, key: str, newAnswer: str, reason: str }) },
 });
 
-// The answer, as the code uses it: the model writes "" for a text with no value, which nullsForEmpty makes null.
+// The answer, as the code uses it: the model writes the lens as models do (lensForm.ts), which applyReviewFromModel
+// turns into the lens as code uses it.
 export type ApplyVoiceUnit = {
   system: number;
   stretch: number;
@@ -145,31 +149,21 @@ export type ApplySystemUnit = {
 export type ApplyRevert = { issue: number; key: string | null; newAnswer: string | null; reason: string };
 export type ApplyReviewAnswer = { voices: ApplyVoiceUnit[]; stretches: ApplyStretchUnit[]; systems: ApplySystemUnit[]; choices: ApplyRevert[] };
 
-// The answer as the schema has it, its texts with no value "" (all but a voice's music, where null removes the voice
-// and "" is an empty voice), with those texts null, as the code uses them. Whatever isn't of the expected form is left
-// as it is, for the checks.
-export function nullsForEmpty(json: unknown): unknown {
-  const orNull = (o: unknown, keys: string[]) => {
-    if (typeof o !== "object" || o === null) return o;
-    const copy = { ...(o as Record<string, unknown>) };
-    for (const k of keys) if (copy[k] === "") copy[k] = null;
-    return copy;
-  };
+// The answer as the schema has it (the lens as models write it, lensForm.ts; its other texts with no value "" too), as
+// the code uses it: nulls, a stretch's class and kind, its ending an object or null. A voice's music stays as it is: null
+// removes the voice, "" is an empty voice. Whatever isn't of the expected form is left as it is, for the checks.
+export function applyReviewFromModel(json: unknown): unknown {
   const each = (list: unknown, f: (o: unknown) => unknown) => (Array.isArray(list) ? list.map(f) : list);
   if (typeof json !== "object" || json === null) return json;
   const a = json as Record<string, unknown>;
   return {
     ...a,
-    voices: each(a.voices, (v) => orNull(v, ["description", "reason"])),
-    stretches: each(a.stretches, (u) => {
-      const s = orNull(u, ["printedNumber", "reason"]) as Record<string, unknown>;
-      if (typeof s !== "object" || s === null) return s;
-      return { ...s, changes: each(s.changes, (c) => orNull(c, ["key", "time"])), ending: orNull(s.ending, ["label"]) };
-    }),
+    voices: each(a.voices, (v) => orNull(voiceFromModel(v), ["reason"])),
+    stretches: each(a.stretches, (u) => stretchFromModel(orNull(u, ["reason"]))),
     systems: each(a.systems, (u) => {
       const s = orNull(u, ["reason"]) as Record<string, unknown>;
       if (typeof s !== "object" || s === null) return s;
-      return { ...s, staves: each(s.staves, (t) => orNull(t, ["description", "label", "time"])), groups: each(s.groups, (g) => orNull(g, ["label"])) };
+      return { ...s, staves: each(s.staves, staffFromModel), groups: each(s.groups, groupFromModel) };
     }),
     choices: each(a.choices, (c) => orNull(c, ["key", "newAnswer"])),
   };

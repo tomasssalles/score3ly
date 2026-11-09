@@ -169,5 +169,5 @@ test("the entries apply in order; agreements are added where the latest choice i
 
 test("the log gives each change short", () => {
   const call: StoredReview = { system: 2, entries: [{ choice: { issue: 2, key: "c", newAnswer: { key: "c", text: "A dot" }, reason: null } }] };
-  assert.deepEqual(logEntries(call), [{ choice: { issue: 2, key: "c", newAnswer: "A dot", reason: null } }]);
+  assert.deepEqual(logEntries(call), [{ choice: { issue: 2, key: "c", newAnswer: "A dot", reason: "" } }]);
 });

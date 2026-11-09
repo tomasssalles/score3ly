@@ -26,7 +26,10 @@ import {
   applyReviewIssuesText,
   applyReviewLogText,
   applyReviewText,
+  groupForModel,
   reviewScoreText,
+  staffForModel,
+  stretchForModel,
 } from "@score3ly/prompts";
 import { canonicalJson } from "@score3ly/core";
 import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers, type ApiStage } from "./api";
@@ -285,7 +288,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
                 id: i.id,
                 source: i.source,
                 places: placesOf(i.boxes, placed),
-                location: i.location,
+                location: i.location ?? "",
                 question: i.question,
                 answers: i.answers,
                 chosen: chosen.key,
@@ -416,9 +419,9 @@ function systemView(answer: LensSystem, system: MusicSystem, measureOf: Map<stri
     system: system.number,
     page: system.page,
     startRepeat: answer.startRepeat,
-    staves: answer.staves,
-    groups: answer.groups,
-    stretches: answer.stretches.map((s) => ({ ...s, measure: measureOf.get(`${system.number}/${s.stretch}`) ?? null })),
+    staves: answer.staves.map(staffForModel),
+    groups: answer.groups.map(groupForModel),
+    stretches: answer.stretches.map((s) => stretchForModel({ ...s, measure: measureOf.get(`${system.number}/${s.stretch}`) ?? -1 })),
     lastMeasureContinues: answer.lastMeasureContinues,
   };
 }

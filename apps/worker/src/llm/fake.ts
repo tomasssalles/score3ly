@@ -214,13 +214,13 @@ function fakeReview(request: LlmRequest): unknown {
             chosen: "b",
             reason: "Its head sits on the space above the line, as the E in the next measure does.",
             class: "reading",
-            lilypond: null,
+            lilypond: [],
           },
         },
       ],
     };
   }
-  if (r.system === 2 && r.issues.length > 0) return { entries: [{ choice: { issue: Math.min(...r.issues), key: "a", newAnswer: null, reason: null } }] };
+  if (r.system === 2 && r.issues.length > 0) return { entries: [{ choice: { issue: Math.min(...r.issues), key: "a", newAnswer: "", reason: "" } }] };
   return { entries: [] };
 }
 
@@ -251,14 +251,14 @@ function fakeApplyReview(request: LlmRequest): unknown {
     // A person's answers are always applied where they can be, so that a human review gets through.
     if ((r.window[0] % 2 === 0 && !issue.resolved) || !place || !voice) {
       const reason = "The fake model can't apply this answer (a made-up reason).";
-      if (issue.applied !== null) answer.choices.push({ issue: issue.id, key: issue.applied, newAnswer: null, reason });
-      else answer.choices.push({ issue: issue.id, key: null, newAnswer: "As it is now (a made-up answer from the fake model)", reason });
+      if (issue.applied !== null) answer.choices.push({ issue: issue.id, key: issue.applied, newAnswer: "", reason });
+      else answer.choices.push({ issue: issue.id, key: "", newAnswer: "As it is now (a made-up answer from the fake model)", reason });
       continue;
     }
     const key = `${place.system}/${place.stretches[0]}/${voice.voice}`;
     if (done.has(key)) continue;
     done.add(key);
-    answer.voices.push({ system: place.system, stretch: place.stretches[0], voice: voice.voice, staff: voice.staff, description: null, music: "c''1", reason: null });
+    answer.voices.push({ system: place.system, stretch: place.stretches[0], voice: voice.voice, staff: voice.staff, description: "", music: "c''1", reason: "" });
   }
   return answer;
 }

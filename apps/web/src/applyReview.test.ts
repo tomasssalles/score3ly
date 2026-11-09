@@ -4,6 +4,7 @@ import { pieceStart, type LensSystem } from "@score3ly/notation";
 import type { StoredIssue } from "./extract.ts";
 import {
   appliedIssues,
+  applyLogEntries,
   applyCalls,
   applyNote,
   applyPatch,
@@ -152,7 +153,7 @@ test("a patch is checked: only the systems the call may change, each unit once, 
   assert.equal(first.voices[0].description, "melody");
 });
 
-test("the model's empty texts are null in the patch, but an empty voice's music stays an empty voice", () => {
+test("the model's form becomes the lens: empty texts and -1 null, the class split, the ending an object; an empty voice's music stays an empty voice", () => {
   const issues = new Map([issue(1, [on(2)])].map((i) => [i.id, i]));
   const ctx: ApplyContext = { window: [2], allowed: [1, 2, 3], answers: answers(), toApply: [1], issues };
   const patch = checkPatch(
@@ -162,12 +163,12 @@ test("the model's empty texts are null in the patch, but an empty voice's music 
         {
           system: 2,
           stretch: 1,
-          class: "new",
-          kind: "normal",
+          class: "new-incomplete",
           printedNumber: "",
-          measureNumber: 2,
+          measureNumber: -1,
           changes: [{ staff: 1, key: "2f", time: "" }],
-          ending: { startsHere: true, endsHere: true, label: "" },
+          ending: "whole",
+          endingLabel: "",
           rightBarLine: "single",
           reason: "",
         },
@@ -189,11 +190,34 @@ test("the model's empty texts are null in the patch, but an empty voice's music 
   assert.ok(!("problem" in patch));
   assert.deepEqual(patch.voices[0], { system: 2, stretch: 1, voice: 1, staff: 1, description: null, music: "", reason: null });
   const stretch = patch.stretches[0];
-  assert.deepEqual([stretch.printedNumber, stretch.changes[0].time, stretch.ending!.label, stretch.reason], [null, null, null, null]);
+  assert.deepEqual([stretch.printedNumber, stretch.measureNumber, stretch.changes[0].time, stretch.reason], [null, null, null, null]);
+  assert.deepEqual([stretch.class, stretch.kind], ["new", "incomplete"]);
+  assert.deepEqual(stretch.ending, { startsHere: true, endsHere: true, label: null });
+  assert.equal("endingLabel" in stretch, false);
   assert.equal(stretch.changes[0].key, "2f");
   const system = patch.systems[0];
   assert.deepEqual([system.staves[0].label, system.staves[0].time, system.groups[0].label, system.reason], [null, null, null, null]);
   assert.deepEqual(patch.choices, [{ issue: 1, key: "a", reason: "Impossible." }]);
+});
+
+test("the log gives the changes in the lens as models read it", () => {
+  const call: StoredApplyCall = {
+    system: 2,
+    window: [2],
+    voices: [{ system: 2, stretch: 1, voice: 1, staff: 1, description: null, music: null, reason: null }],
+    stretches: [{ system: 2, stretch: 1, class: "new", kind: "normal", printedNumber: null, measureNumber: 7, changes: [], ending: { startsHere: false, endsHere: true, label: null }, rightBarLine: "single", reason: "Why" }],
+    systems: [{ system: 2, startRepeat: false, staves: [{ staff: 1, description: null, label: null, clef: "treble", key: "0", time: null }], groups: [], lastMeasureContinues: false, reason: null }],
+    choices: [],
+    applied: [1],
+    changed: [],
+    warnings: [],
+  };
+  assert.deepEqual(applyLogEntries(call), [
+    { system: { system: 2, startRepeat: false, staves: [{ staff: 1, description: "", label: "", clef: "treble", key: "0", time: "" }], groups: [], lastMeasureContinues: false } },
+    { stretch: { system: 2, stretch: 1, class: "new-normal", printedNumber: "", measureNumber: 7, changes: [], ending: "end", endingLabel: "", rightBarLine: "single" } },
+    { voice: { system: 2, stretch: 1, voice: 1, staff: 1, description: "", music: null } },
+    { applied: [1] },
+  ]);
 });
 
 test("the systems are checked again in order: a patch that breaks a later system is found", () => {

@@ -11,7 +11,7 @@
 
 import { canonicalJson, keyOf } from "@score3ly/core";
 import { checkSystem, type CheckedSystem, type LensStretch, type LensSystem, type ScoreState, type StretchPlace } from "@score3ly/notation";
-import { nullsForEmpty, type ApplyReviewAnswer, type ApplyStretchUnit, type ApplySystemUnit, type ApplyVoiceUnit } from "@score3ly/prompts";
+import { applyReviewFromModel, groupForModel, staffForModel, stretchForModel, voiceForModel, type ApplyReviewAnswer, type ApplyStretchUnit, type ApplySystemUnit, type ApplyVoiceUnit } from "@score3ly/prompts";
 import type { StoredIssue, StoredWarning } from "./extract.ts";
 import { placesOf, systemsOf, type PlacedSystem } from "./review.ts";
 
@@ -108,7 +108,7 @@ export type ApplyContext = {
 // unusable, as in `extract`. Otherwise the patch as stored: a description the model left out (null) where the voice
 // or staff had one is kept, so that the unit replaces only what the model meant to change.
 export function checkPatch(json: unknown, ctx: ApplyContext): Pick<StoredApplyCall, "voices" | "stretches" | "systems" | "choices"> | { problem: string } {
-  const answer = nullsForEmpty(json) as ApplyReviewAnswer;
+  const answer = applyReviewFromModel(json) as ApplyReviewAnswer;
   if (
     typeof answer !== "object" ||
     answer === null ||
@@ -296,12 +296,13 @@ export function appliedIssues(issues: Map<number, StoredIssue>, calls: StoredApp
   return out;
 }
 
-// The entries of a call as the log gives them to later calls: what changed, short.
+// The entries of a call as the log gives them to later calls: what changed, short, in the lens as models read it
+// (lensForm.ts).
 export function applyLogEntries(call: StoredApplyCall): unknown[] {
   return [
-    ...call.systems.map(({ reason: _r, ...u }) => ({ system: u })),
-    ...call.stretches.map(({ reason: _r, ...u }) => ({ stretch: u })),
-    ...call.voices.map(({ reason: _r, ...u }) => ({ voice: u })),
+    ...call.systems.map(({ reason: _r, ...u }) => ({ system: { ...u, staves: u.staves.map(staffForModel), groups: u.groups.map(groupForModel) } })),
+    ...call.stretches.map(({ reason: _r, ...u }) => ({ stretch: stretchForModel(u) })),
+    ...call.voices.map(({ reason: _r, ...u }) => ({ voice: voiceForModel(u) })),
     ...call.choices.map((c) => ({ reverted: c })),
     ...(call.applied.length > 0 ? [{ applied: call.applied }] : []),
   ];
