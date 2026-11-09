@@ -210,7 +210,8 @@ function plannedStage(
 // row, one that ran gets a planned copy with its config, and a manual one, WIP or done, is carried: it stays, waiting
 // for its turn, when it is kept if what it reads is the same as what it read (`resolve`).
 // `modelConfig`: given, the LLM stages after `after` get that model config, and nothing else in their configs changes
-// ("Apply to the remaining stages planned in this pipeline", docs/llm.md): a planned one in place, a copy as it is made.
+// ("Apply to the remaining stages planned in this pipeline", docs/llm.md): a planned one in place, a copy as it is made,
+// further reviews that ran included, which then aren't carried.
 async function rewriteFrom(
   db: D1Database,
   projectId: string,
@@ -244,7 +245,9 @@ async function rewriteFrom(
   for (const id of head) statements.push(point(id));
   for (const row of later) {
     const changed = modelConfig !== null && isLlm(row.step);
-    if (isCarried(row)) statements.push(point(row.id, true));
+    // A further review that ran is carried, unless the change gives the stages after it a model config: then it runs
+    // again with it, as a planned copy (decided 2026-11-09, docs/overview.md §5.5), and so does its Apply review.
+    if (isCarried(row) && !(changed && isFurtherReview(row))) statements.push(point(row.id, true));
     else if (row.status === "planned") {
       statements.push(point(row.id));
       if (changed) {

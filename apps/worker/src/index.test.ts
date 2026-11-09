@@ -1012,6 +1012,46 @@ test("dropping a manual stage takes it out and moves the later stages up; recipe
 // Further reviews (docs/stages/music.md, `apply_review`): added after any Apply review, right after it, with an Apply
 // review of their own; dropped with it; carried through a re-run like a manual stage, kept only if what it reads is the
 // same.
+test("a further review that ran gets a new model config \"for every stage after it\": planned with it, not carried", async () => {
+  // Found 2026-11-07, decided 2026-11-09 (docs/overview.md §5.5): asking for a config for every stage after a change
+  // reaches the further reviews too, which then run again with it instead of waiting to be kept or dropped.
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('later-model', 'Later model', 'fake-dev', 'fake-model', 'fake', 'free', '2026-10-01')",
+  ).run();
+  const project = await createdProject("further-config.pdf");
+  const run = async (index: number) => {
+    const stage = (await pipelineOf(project.id))[index];
+    const config = (stage.config as Record<string, unknown> | null) ?? {};
+    assert.equal((await call(project.id, stage.id, "start", { stepVersion: 1, config, stageKey: crypto.randomUUID().replace(/-/g, "").repeat(2), pageCount: 1, inputIds: [] })).status, 200);
+    assert.equal((await call(project.id, stage.id, "outputs", { outputs: [{ item: "", type: "x", contentSha256: await putContent(`stage ${index}`) }] })).status, 200);
+    assert.equal((await call(project.id, stage.id, "finish", { status: "done" })).status, 204);
+  };
+  const { stageId } = (await (await call(project.id, (await pipelineOf(project.id))[7].id, "review")).json()) as { stageId: string };
+  for (let i = 1; i <= 9; i++) await run(i);
+  const layout = (await pipelineOf(project.id))[3];
+
+  // Without "for every stage after it": the further review is carried, with its old config.
+  assert.equal((await call(project.id, layout.id, "config", { config: { modelConfigId: "fake-model", other: 1 } }, "PUT")).status, 200);
+  let pipeline = await pipelineOf(project.id);
+  assert.deepEqual([pipeline[8].id, pipeline[8].carried], [stageId, true]);
+  for (let i = 3; i <= 7; i++) await run(i);
+  await call(project.id, stageId, "resolve", { inputIds: [] });
+  for (let i = 8; i <= 9; i++) if ((await pipelineOf(project.id))[i]?.status === "planned") await run(i);
+
+  // With it: a planned copy with the new config, in its place, and its Apply review too.
+  const now = (await pipelineOf(project.id))[3];
+  assert.equal((await call(project.id, now.id, "config", { config: { modelConfigId: "later-model" }, applyModelConfigToLater: true }, "PUT")).status, 200);
+  pipeline = await pipelineOf(project.id);
+  assert.deepEqual(pipeline.map((s) => s.step), ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "review", "apply_review", "build_mei", "engrave"]);
+  assert.deepEqual(pipeline.slice(6, 10).map((s) => [s.status, s.carried, s.inRecipe, s.config]), [
+    ["planned", false, true, { modelConfigId: "later-model" }],
+    ["planned", false, true, { modelConfigId: "later-model" }],
+    ["planned", false, false, { modelConfigId: "later-model" }],
+    ["planned", false, false, { modelConfigId: "later-model" }],
+  ]);
+  assert.notEqual(pipeline[8].id, stageId);
+});
+
 test("a further review: added after an Apply review with its own, dropped with it, carried through a re-run", async () => {
   const project = await createdProject("further.pdf");
   const steps = async () => (await pipelineOf(project.id)).map((s) => s.step);

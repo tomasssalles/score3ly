@@ -563,15 +563,6 @@ Decided by the project owner (2026-11-08): nothing untested is released, and Cla
 - **What may stay for later:** the adapter's code (`vertexClaudeProvider`, `apps/worker/src/llm/anthropic.ts`) and `llm:try`'s `anthropic-vertex`, with their tests.
 - **The docs follow:** the supported pairs (`docs/llm.md`'s first paragraph, "Calling the providers", `docs/overview.md` §7.2 and §10), Bedrock's credentials (`docs/llm.md`), and the manual tests if one uses them (`docs/manual-tests.md`).
 
-### Extra reviews after a change, and "for every stage after it"
-`#decision` `#next-release`
-
-Found 2026-11-07 (the project owner): a project run to the end with the Fake model, with an extra review added by hand. `layout`'s config was changed to Gemini 4 Argon, with "for every model stage after it" ticked. Afterwards the pipeline showed two reviews: the recipe's, planned with Argon, and the extra one, carried and still showing the Fake model (the stage that ran, waiting for its turn, where it will be dropped since its inputs changed), each with an `apply_review` planned with Argon. To the project owner this is absolutely unexpected:
-- **"For every model stage after it" didn't reach the extra review.** A carried stage isn't a planned stage; it is the old stage itself, kept or dropped at its turn, so a new config can't apply to it. Asking for a config for every stage after and seeing one of them keep the old one is a surprise, whatever the reason.
-- **Dropping an LLM stage when its inputs change** makes sense for manual stages, whose work is about the input it was made on, not for a review, which would simply run again on the new input.
-
-The current rule and its reasons (`docs/overview.md` §5.5, "Extra reviews are dropped like manual stages", decided and built 2026-11-02): extra reviews are carried like manual stages, kept if their inputs are the same, dropped otherwise, with their `apply_review`, so a re-run doesn't pay for reviews the user may not want again (one added because the first missed problems on this score may be unnecessary after the re-run), and what runs after the first `apply_review` is free or from the cache. To think through and decide: e.g. extra reviews become planned stages like the recipe's (re-run on a change, the config change reaching them); or they stay carried but a config change "for every stage after it" turns them into planned stages with the new config; or the dialog or the card says what will happen to them. Then update §5.5, `docs/database.md` (carried stages) and `docs/project-view.md` (the confirmation, the cards), and the code (`apps/worker/src/pipeline.ts`).
-
 ### OpenRouter support and testing
 `#next-release` `#owner`
 
