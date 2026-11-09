@@ -5,9 +5,11 @@
   // The web app's build output, served as static assets by this Worker.
   // Requests that don't match a file fall through to the Worker code.
   "assets": { "directory": "../web/dist" },
-  // Original PDFs, stored as pdfs/<sha256>.pdf.
-  "r2_buckets": [{ "binding": "PDFS", "bucket_name": "score3ly-pdfs" }],
-  // The database_id is a placeholder until the remote database is created (local dev ignores it).
+  // Original PDFs, stored as pdfs/<sha256>.pdf, and the stage outputs. In the EU jurisdiction (docs/overview.md §3),
+  // created by `npm run setup:cloudflare -w apps/worker`.
+  "r2_buckets": [{ "binding": "PDFS", "bucket_name": "score3ly-pdfs", "jurisdiction": "eu" }],
+  // The database_id is a placeholder until `npm run setup:cloudflare -w apps/worker` creates the remote database in
+  // the EU and writes its id here (local dev ignores it).
   "d1_databases": [
     {
       "binding": "DB",

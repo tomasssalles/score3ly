@@ -466,9 +466,9 @@ Today a run belongs to the project view: opening a menu page (Statistics, Settin
 To do: move the runner (the abort controller, the heartbeat, the Auto loop and the wake lock) out of the project view to the app's top level, so a run goes on whatever the app shows, and the project view only shows it. Then: where the user sees a run going on while elsewhere (e.g. in the header or the project picker), and what a second project's Run does while one runs (one run at a time, as the calls are sequential, §10).
 
 ### Create the remote R2 bucket and D1 database
-`#next-release`
+`#next-release` `#owner`
 
-EU jurisdiction, with a script in the repo (§14), and put the real database ID into `apps/worker/wrangler.jsonc`, which has a placeholder. Until then the app can't be deployed.
+The script is written (2026-11-09, `npm run setup:cloudflare -w apps/worker`; `docs/database.md`, "Deploying"): it creates both in the EU jurisdiction and writes the database's id into `apps/worker/wrangler.jsonc`. Left: running it with the project owner's Cloudflare account (after "Squash the migrations again"), then the secrets and the first `npm run deploy`. Until then the app can't be deployed.
 
 ### Set up Cloudflare Access
 `#next-release` `#security`
