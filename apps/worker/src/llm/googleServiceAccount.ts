@@ -81,6 +81,27 @@ export function tokenSource(
   };
 }
 
+// The token source of a service account, kept between requests (decided 2026-11-09): the Worker makes an adapter for
+// every LLM request, and a new token source each time would fetch a new token each time (100–300 ms). Kept per
+// service account (its email, token endpoint and key) for as long as the Worker lives: always on the desktop, for the
+// isolate's life on Cloudflare. Per `fetch` too, so that tests with fakes don't share tokens.
+const shared = new WeakMap<object, Map<string, TokenSource>>();
+const DEFAULT_FETCH = {};
+
+export function sharedTokenSource(account: ServiceAccount, fetchFn?: Fetch): TokenSource {
+  const bucket = fetchFn ?? DEFAULT_FETCH;
+  let sources = shared.get(bucket);
+  if (!sources) shared.set(bucket, (sources = new Map()));
+  const key = `${account.clientEmail}\n${account.tokenUri}\n${account.privateKey}`;
+  let source = sources.get(key);
+  if (!source) {
+    // Called on its own, never as a method of another object: the Workers runtime refuses that ("Illegal invocation").
+    source = tokenSource(account, fetchFn ?? ((input, init) => fetch(input, init)));
+    sources.set(key, source);
+  }
+  return source;
+}
+
 async function signJwt(account: ServiceAccount, issuedAt: number): Promise<string> {
   const header = { alg: "RS256", typ: "JWT" };
   const claims = { iss: account.clientEmail, scope: SCOPE, aud: account.tokenUri, iat: issuedAt, exp: issuedAt + 3600 };

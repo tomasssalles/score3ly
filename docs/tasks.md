@@ -96,11 +96,6 @@ Proposed by the project owner (2026-10-29). Arbitrary tags on projects, added by
 
 Proposed by the project owner (2026-10-29). A toggle on each project, set by the user when satisfied with the result: a much clearer signal than the finished pipeline the statistics use today (Run times, the average cost per page's "unfinished pipeline"), which says nothing about whether the result still needs work. To decide: whether the statistics then use the mark instead of the finished pipeline, or both (e.g. the mark where it is set).
 
-### Reuse Google's access tokens between calls
-`#next-release`
-
-On Vertex AI (Claude and Gemini), each call first signs a JWT with the service account's key and exchanges it at Google's token endpoint for an access token (`apps/worker/src/llm/googleServiceAccount.ts`), about 100–300 ms. The token is good for an hour and `tokenSource` caches it, but `createAdapter` runs for every LLM request (`apps/worker/src/llmRoutes.ts`), each time with a new `tokenSource`, so the cache is never used. Keep the token sources at module level, keyed by the service account (its client email and key), so that a token is reused: always on the desktop, and on Cloudflare for as long as the isolate lives.
-
 ### Measure the Worker's CPU time per LLM request
 `#research` `#next-release`
 

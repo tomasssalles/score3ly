@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createProvider } from "./index.ts";
 import { vertexHost } from "./google.ts";
-import { parseServiceAccount, tokenSource } from "./googleServiceAccount.ts";
+import { parseServiceAccount, sharedTokenSource, tokenSource } from "./googleServiceAccount.ts";
 import { LlmError } from "./types.ts";
 
 // A service account with a freshly made key, and its public key to check signatures with.
@@ -273,4 +273,24 @@ test("Gemini on Vertex AI: an HTTP error is a typed error with Vertex's message"
     provider.send({ model: "gemini-x", messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] }),
     (err: unknown) => err instanceof LlmError && err.status === 404 && /Vertex AI: Publisher model gemini-x was not found\./.test(err.message),
   );
+});
+
+test("a service account's token is kept between adapters: one token for several requests, one per account", async () => {
+  const { json } = await makeAccount();
+  const other = (await makeAccount()).json;
+  const calls: Call[] = [];
+  const fakeFetch = fakeGoogle(calls);
+  const ask = (account: string) =>
+    createProvider({ provider: "anthropic-vertex", serviceAccount: account, region: "eu" }, { fetch: fakeFetch }).send({
+      model: "claude-opus-5-5",
+      messages: [{ role: "user", content: [{ type: "text", text: "How many systems?" }] }],
+    });
+  const tokenCalls = () => calls.filter((c) => c.url === "https://oauth2.googleapis.com/token").length;
+  await ask(json);
+  await ask(json); // a new adapter, as the Worker makes for every request
+  assert.equal(tokenCalls(), 1);
+  await ask(other); // another account: a token of its own
+  assert.equal(tokenCalls(), 2);
+  assert.equal(sharedTokenSource(parseServiceAccount(json), fakeFetch), sharedTokenSource(parseServiceAccount(json), fakeFetch));
+  assert.notEqual(sharedTokenSource(parseServiceAccount(json), fakeFetch), sharedTokenSource(parseServiceAccount(other), fakeFetch));
 });

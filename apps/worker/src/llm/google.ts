@@ -16,7 +16,7 @@ import {
   type LlmResponse,
   withJson,
 } from "./types.ts";
-import { parseServiceAccount, tokenSource, type TokenSource } from "./googleServiceAccount.ts";
+import { parseServiceAccount, sharedTokenSource, type TokenSource } from "./googleServiceAccount.ts";
 
 // Gemini's thinking levels are fewer than our efforts.
 const THINKING_LEVELS: Record<Effort, ThinkingLevel> = {
@@ -169,7 +169,7 @@ export class VertexGeminiProvider implements LlmProvider {
     // Wrapped, so that `this.#fetch(…)` doesn't call fetch as a method of this object, which the Workers runtime refuses.
     const fetchFn = options.fetch ?? fetch;
     this.#fetch = (input, init) => fetchFn(input, init);
-    this.#auth = tokenSource(account, fetchFn);
+    this.#auth = sharedTokenSource(account, options.fetch);
     this.#location = options.region;
     this.#projectId = options.projectId ?? account.projectId;
   }

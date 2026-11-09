@@ -11,7 +11,7 @@ import {
   type LlmResponse,
   withJson,
 } from "./types.ts";
-import { parseServiceAccount, tokenSource } from "./googleServiceAccount.ts";
+import { parseServiceAccount, sharedTokenSource } from "./googleServiceAccount.ts";
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 64_000;
 
@@ -61,7 +61,7 @@ export function vertexClaudeProvider(options: {
   maxRetries?: number;
 }): ClaudeProvider {
   const account = parseServiceAccount(options.serviceAccount);
-  const auth = tokenSource(account, options.fetch);
+  const auth = sharedTokenSource(account, options.fetch);
   const client = new AnthropicVertex({
     region: options.region,
     projectId: options.projectId ?? account.projectId,
