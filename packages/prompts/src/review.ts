@@ -5,11 +5,11 @@
 // one before it and the provider's prompt cache serves the shared part; then its own system: the crops with the
 // issues' boxes drawn on them, and a request. Code checks the answer as soon as it arrives (apps/web/src/review.ts).
 
-import { MUSIC } from "./extract.ts";
+import { lensRecap, MUSIC } from "./extract.ts";
 import { issueFromModel, orNull } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
-export const REVIEW_PROMPT_VERSION = 4;
+export const REVIEW_PROMPT_VERSION = 5;
 
 export const REVIEW_MAX_OUTPUT_TOKENS = 16_000;
 
@@ -53,7 +53,9 @@ Read first, compare afterwards: never trust a passage because it seems to repeat
 - **People read them too:** the questions, locations, answers and reasons are shown to the user in the app. Write them as plain sentences a musician understands without the request, each starting with a capital letter, naming places by measure ("m. 23") or by what is printed, not by stretch numbers. **Never refer to the transcription** ("as transcribed", "the current reading", "what you wrote"): a later stage may apply another answer, and the text would then be wrong. Say only what the page might show: "A D", not "A D, as transcribed".
 - An empty list is a fine answer for a clean system.
 
-${MUSIC}`;
+${MUSIC}
+
+${lensRecap(false)}`;
 
 // The parts of a call's prompt, in order: the score (with the observations), the issues and warnings, an entry of the
 // log per earlier call that changed something, the system's own request (after its images).

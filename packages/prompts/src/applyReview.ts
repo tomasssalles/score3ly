@@ -8,11 +8,11 @@
 // system, or two when an issue reaches the next): the crops with the issues' boxes drawn on them, and a request. Code
 // checks the answer as soon as it arrives (apps/web/src/applyReview.ts).
 
-import { MUSIC } from "./extract.ts";
+import { lensRecap, MUSIC } from "./extract.ts";
 import { ENDING_VALUES, GROUP_SYMBOL_VALUES, orNull, RIGHT_BAR_LINES, STRETCH_CLASS_VALUES, groupFromModel, staffFromModel, stretchFromModel, voiceFromModel } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
-export const APPLY_REVIEW_PROMPT_VERSION = 5;
+export const APPLY_REVIEW_PROMPT_VERSION = 6;
 
 export const APPLY_REVIEW_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -49,7 +49,9 @@ Each unit you name is replaced whole by what you write; whatever you don't name 
   - **A resolved issue** (a person's answer) is reverted the same way when it truly can't be applied: the stage then stops and shows your reason, so that the person can answer again.
 - Every issue to apply that you don't name in **choices** counts as applied: make sure the transcription then says what its chosen answer says.
 
-${MUSIC}`;
+${MUSIC}
+
+${lensRecap(true)}`;
 
 // The parts of a call's prompt, in order: the score (with the observations; the same text as `review`'s), the issues and
 // warnings, an entry of the log per earlier call that changed something, the window's own request (after its images).

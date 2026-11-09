@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { COMMAND_WORDS, GRADED_DYNAMICS, parseVoice } from "@score3ly/notation/symbolic";
-import { EXTRACT_SCHEMA, MUSIC } from "./extract.ts";
+import { EXTRACT_SCHEMA, LENS_PITFALLS, MUSIC } from "./extract.ts";
 import { lensFromExtract } from "./lensForm.ts";
 
 // docs/notation.md, "The token list": the prompt and the parser can't drift apart.
@@ -18,6 +18,16 @@ test("the prompt's examples of notes and marks parse", () => {
   for (const example of ["g'4.", "<c' \\flat e' g'>4", "<c'\\=1( e'\\=2(>4", "c'4-.\\=1(", "c'4 -. \\=1(", "c'4:32", "c'4_\\p", "R1*12", "c4 \\breathe d4", '\\tempo "Allegro" 4 = 132 c4', "\\tempo 4 = 120-132 c4", '\\clef "treble_8" c4', "\\ottava #1 c''4", '\\change Staff = "3" c4', "\\tuplet 3/2 { c8 d8 e8 }", "\\repeat tremolo 4 { c'16 e'16 }", "\\grace { c'16 } d'4"]) {
     const parsed = parseVoice(example);
     assert.ok(!("problem" in parsed), `${example}: ${"problem" in parsed ? parsed.problem : ""}`);
+  }
+});
+
+test("the recap's wrong examples don't parse, and its right ones do", () => {
+  for (const p of LENS_PITFALLS) {
+    for (const wrong of p.wrong) assert.equal("problem" in parseVoice(wrong), !p.parses, wrong);
+    for (const right of p.right) {
+      const parsed = parseVoice(right);
+      assert.ok(!("problem" in parsed), `${right}: ${"problem" in parsed ? parsed.problem : ""}`);
+    }
   }
 });
 

@@ -24,7 +24,7 @@ import {
 } from "@score3ly/notation/symbolic";
 
 // Raise whenever the texts or the schema change. The format itself has its own version (LENS_VERSION).
-export const EXTRACT_PROMPT_VERSION = 5;
+export const EXTRACT_PROMPT_VERSION = 6;
 
 export const EXTRACT_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -88,6 +88,54 @@ Each voice of each stretch is one string: LilyPond with these differences. Write
 
 **If something printed can't be written with these tokens,** write your best workaround and raise a format issue.`;
 
+// The recap at the end of every prompt that writes or reads the music (docs/notation.md, "The token list"): where the
+// format differs from LilyPond, which models know well and fall back on, each rule with wrong and right examples. A test
+// checks that every wrong example fails to parse and every right one parses.
+// `parses`: its wrong examples are valid, only not what the page says.
+export const LENS_PITFALLS: { rule: string; wrong: string[]; right: string[]; after?: string; sub?: true; parses?: true }[] = [
+  { rule: "**No accidentals in note names.** A printed accidental is a token before its note, and only where it is printed:", wrong: [], right: [] },
+  { sub: true, rule: "an F that sounds F♯ only because of the key signature (G major):", wrong: ["fis'4"], right: ["f'4"] },
+  { sub: true, rule: "an F with a sharp printed before it:", wrong: ["fis'4"], right: ["\\sharp f'4"] },
+  { sub: true, parses: true, rule: "the same F again later in the measure, with no sharp printed before it:", wrong: ["\\sharp f'4 \\sharp f'4"], right: ["\\sharp f'4 f'4"] },
+  { sub: true, rule: "flats the same way:", wrong: ["bes4", "ees'4"], right: ["\\flat b4", "\\flat e'4"] },
+  { rule: "**Absolute octaves, never `\\relative`:** `c'` is always middle C.", wrong: ["\\relative c' { c4 e4 g4 }"], right: ["c'4 e'4 g'4"] },
+  { rule: "**Every note and rest has its own duration,** never carried over from the one before.", wrong: ["c'4 d' e' r"], right: ["c'4 d'4 e'4 r4"] },
+  { rule: "In a chord, the duration goes after `>`:", wrong: ["<c'4 e'4>"], right: ["<c' e'>4"] },
+  {
+    rule: "**Ties and slurs are numbered curves,** closed with the number they opened with (curves left open by the previous system keep theirs).",
+    wrong: ["c'2~ c'2", "c'4( d'4)", "c'4\\( d'4\\)"],
+    right: ["c'2\\=1( c'2\\=1)", "c'4\\=1( d'4\\=1)"],
+  },
+  { rule: "**One voice per string:** no simultaneous voices inside a string; each voice is its own entry in `voices`.", wrong: ["<< { c''4 } \\\\ { a'4 } >>", "\\voiceOne c''4"], right: ["c''4"] },
+  {
+    rule: "**Only the tokens listed above.**",
+    wrong: ["\\key g \\major c'4", "\\time 3/4 c'4", "\\bar \"||\" c'4", "\\partial 4 c'4", "\\times 2/3 { c'8 d'8 e'8 }", "c'4-\\markup { dolce }", "c'4 % comment"],
+    right: ["\\tuplet 3/2 { c'8 d'8 e'8 }", "c'4^\"dolce\""],
+    after:
+      "Key and time signatures go in the JSON (the staves at the system's start, `changes` on a stretch), bar lines in `rightBarLine`, a pickup is a stretch of class \"new-incomplete\". A clef change is the exception: `\\clef bass` in the string.",
+  },
+];
+
+const code = (examples: string[]) => examples.map((e) => `\`${e}\``).join(", ");
+
+// `writes`: the stage writes music (`extract`, `apply_review`); otherwise it reads it (`review`).
+export function lensRecap(writes: boolean): string {
+  const examples = (p: (typeof LENS_PITFALLS)[number]) => (p.wrong.length > 0 ? ` ✗ ${code(p.wrong)} ✓ ${code(p.right)}` : "");
+  const lines = LENS_PITFALLS.map((p) => `${p.sub ? "  " : ""}- ${p.rule}${examples(p)}${p.after ? ` ${p.after}` : ""}`);
+  const json = writes
+    ? `
+
+**In the JSON:** "" means no value, but a staff or a voice that is new in the piece (not in the lists you were given) needs its description, never "". Every staff has a voice in every stretch that is part of a measure (with \`s\` or \`R\` where it has no notes).`
+    : "";
+  const intro = writes
+    ? "Check every string you write against these before you answer: one mistake makes the whole answer unusable."
+    : "Read the transcription with these in mind: `f'` in G major is an F♯, and a sharp printed earlier in the measure carries on to the same note.";
+  return `## Before you answer: where this format differs from LilyPond
+The format looks like LilyPond, but differs where LilyPond's habits are strongest. ${intro} (✗ wrong, ✓ right.)
+
+${lines.join("\n")}${json}`;
+}
+
 export const EXTRACT_SYSTEM = `You transcribe printed music exactly, one system at a time, so that code can build a faithful encoding of the score. You report the symbols that are printed, and code works out what they mean. Your understanding of music is how you read well: it fills gaps and decides what isn't fully clear on the page (a smudged accidental, a faint note). But where the page is clear, what is printed wins over what would be likely.
 
 ## What you get
@@ -140,7 +188,9 @@ Report every doubt as an issue, not silently: a question about what the page say
 - A checklist per note: its accidental, dots, accents, fingering, where its slurs start and end.
 - No unprinted tuplets: if the durations don't add up, read again; if they still don't, raise an issue.
 - Telling marks from smudges is the hard part: neither keep every speck nor drop marks by default; raise an issue where you are unsure.
-- Only the main text: ignore ossias and other alternative versions of a passage (an ossia is a format issue).`;
+- Only the main text: ignore ossias and other alternative versions of a passage (an ossia is a format issue).
+
+${lensRecap(true)}`;
 
 // The request's text, after the images: the request itself as JSON.
 export function extractText(request: unknown): string {
