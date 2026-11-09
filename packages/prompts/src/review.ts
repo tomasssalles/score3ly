@@ -9,7 +9,7 @@ import { lensRecap, MUSIC } from "./extract.ts";
 import { issueFromModel, orNull } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
-export const REVIEW_PROMPT_VERSION = 5;
+export const REVIEW_PROMPT_VERSION = 6;
 
 export const REVIEW_MAX_OUTPUT_TOKENS = 16_000;
 
@@ -19,7 +19,7 @@ Your understanding of music is how you read well: it fills gaps and decides what
 
 ## What you get
 1. **The score:** the whole transcription, in the format below, as JSON: for each piece its staves and voices, and for each system its staves, groups and stretches, each stretch with **measure**, the number code gave the measure it belongs to (the numbers everything else uses; -1 for none), and the music of its voices. A stretch's **class** says whether it starts a measure and of which kind ("new-normal", "new-incomplete", "new-unmeasured"), or is part of the measure before it ("continues") or of none ("none"); its **ending** is the "1." / "2." bracket over it ("none", "start", "middle", "end", "whole": where it starts and ends), with its **endingLabel** as printed where visible. Observations from an earlier look at the pages follow it: hints, not ground truth.
-2. **The issues and the warnings,** as they were when this review started. An issue is a question about what the page says at a place: **places** (the systems and stretches its boxes cover), **location** and **question**, **answers** with keys "a", "b", …, **choices** (who chose which answer so far, in order: the latest counts), **applied** (the answer the transcription reflects now; null when that isn't known), **resolved** (a person decided it: it is settled), and for a format issue **lilypond** (the tokens that would express what is printed). A warning is something code found wrong with the transcription itself (durations that don't add up, measure numbers that don't match): never answered, but worth a look.
+2. **The issues and the warnings,** as they were when this review started. An issue is a question about what the page says at a place: **places** (the systems and stretches its boxes cover), **location** and **question**, **answers** with keys "a", "b", …, **choices** (who chose which answer so far, in order: the latest counts), **applied** (the answer the transcription reflects now; null when that isn't known), **resolved** (a person decided it: it is settled), and for a format issue **lilypond** (the tokens that would express what is printed). A warning is something code found wrong with the transcription itself (durations that don't add up, measure numbers that don't match): never answered, but a pointer to a likely mistake (see "What to look for").
 3. **What this review's earlier calls changed,** one entry per change, in order. Take them into account: they are part of the issues now.
 4. **Your system:** its crop ("System 17:"), a crop of each of its stretches with generous margins ("System 17, stretch 2:"), the previous and the next system for context, all with the boxes of the issues on them drawn in colour and labelled with the issue's id; then a request: the system, the issues and warnings on it, and **links**: what on this system belongs with something elsewhere (an end repeat and where it goes back to, the endings of a repeat, a slur or pedal crossing into or out of the system and where its other end is).
 
@@ -33,6 +33,8 @@ Compare every stretch of your system with its crop, note by note, mark by mark. 
 - **Marks:** a staccato that is a smudge, a smudge that is a staccato, a missing accent, fermata, dynamic or fingering.
 - **Structure:** a stretch read as starting a measure where it continues one, a wrong bar line or ending, a wrong clef, key or time.
 Read first, compare afterwards: never trust a passage because it seems to repeat another.
+
+**Follow up every warning on your system.** A warning is about the transcription, not the page, so it can't be answered; but it usually points at a mistake. Look at its place on the crops: where the transcription is wrong there (the durations don't add up because a note was invented, or a dot was missed), raise a new issue that corrects it, about what the page shows there, like any other. Where the page itself is the reason (a measure printed short), leave it.
 
 **A text with no value is the empty string "", and a number with no value -1,** in the score and in your answer, never null (only an issue's **applied** is null, where it isn't known).
 
