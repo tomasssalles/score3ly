@@ -60,8 +60,30 @@ type Completion = {
     prompt_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number };
     cost?: number;
   };
-  error?: { code?: number | string; message?: string };
+  error?: OpenRouterError;
 };
+
+// An error as OpenRouter reports it. When the provider that ran the call refused it, the message is only "Provider
+// returned error", and the provider's own error is in the metadata: its name, and its raw body.
+type OpenRouterError = { code?: number | string; message?: string; metadata?: { provider_name?: string; raw?: unknown } };
+
+// The error's message, with the provider's own where there is one: "Provider returned error (Google): The compiled
+// grammar is too large, …". The raw body is the provider's JSON (its `error.message` is taken) or plain text.
+export function errorMessage(error: OpenRouterError | undefined): string {
+  const message = error?.message ?? "an error";
+  const raw = error?.metadata?.raw;
+  if (raw === undefined || raw === null || raw === "") return message;
+  let detail = typeof raw === "string" ? raw : JSON.stringify(raw);
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const inner = parsed?.error?.message ?? parsed?.message;
+    if (typeof inner === "string") detail = inner;
+  } catch {
+    // not JSON: the text as it is
+  }
+  const by = error?.metadata?.provider_name ? ` (${error.metadata.provider_name})` : "";
+  return `${message}${by}: ${detail.slice(0, 500)}`;
+}
 
 // The model asked, or its dated canonical slug ("anthropic/claude-opus-5.5" answered as
 // "anthropic/claude-opus-5.5-20260921"): the same model.
@@ -137,7 +159,7 @@ export function fromStream(text: string): Completion {
     chunks++;
     if (chunk.error) {
       const status = typeof chunk.error.code === "number" ? chunk.error.code : undefined;
-      throw new LlmError(status ? kindForStatus(status) : "server", `OpenRouter: ${chunk.error.message ?? "an error"}`, status);
+      throw new LlmError(status ? kindForStatus(status) : "server", `OpenRouter: ${errorMessage(chunk.error)}`, status);
     }
     model = chunk.model ?? model;
     provider = chunk.provider ?? provider;
@@ -196,7 +218,8 @@ export class OpenRouterProvider implements LlmProvider {
     if (!res.ok) {
       let message = text.slice(0, 300);
       try {
-        message = (JSON.parse(text) as Completion).error?.message ?? message;
+        const error = (JSON.parse(text) as Completion).error;
+        if (error) message = errorMessage(error);
       } catch {
         // not JSON: the text as it is
       }

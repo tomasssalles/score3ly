@@ -555,32 +555,6 @@ They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk b
 
 `docs/llm.md`, "Which config a stage uses": a level between a stage's own config and the default, in the advanced settings: a model config per kind of work, used by every stage of that kind that has no config of its own. Proposed kinds: finding layout boxes (`layout`), analyzing the pages (`analyze`: metadata and observations), extracting the music notation (`extract`, `apply_review`), reviewing (`review`).
 
-### OpenRouter support and testing
-`#next-release` `#owner`
-
-OpenRouter as a fifth provider (discussed 2026-11-06 and 2026-11-08): one API key and one OpenAI-compatible API (`/api/v1/chat/completions`, a plain `fetch`, no SDK) for Claude, Gemini and other families. Why: Claude in the EU without the hyperscalers' setup.
-
-**Decided by the project owner (2026-11-08):**
-- **The model matters, not who serves it:** no pinning of the provider behind OpenRouter; its fallbacks between providers of the same model are fine. Never its model fallbacks (`models`), so only the model asked can answer, which the adapter's check confirms.
-- **Every OpenRouter config is "priced by the provider"** (a new pricing kind), listed models and models added by hand alike: each call's cost is the one OpenRouter reports, plus the fee. Not "unpriced", nor priced as another model.
-- **The settings card can't show the price beforehand:** it shows the range among the providers that run the model, with the fee included (decided 2026-11-08: four prices like the other cards, and a note that the fee is included).
-
-**Found in its docs and API (2026-11-08):**
-- **Cost in every answer:** `usage.cost`, in credits (US dollars), the total charged, always included (the old `usage: {include: true}` is deprecated and does nothing); also `prompt_tokens_details.cached_tokens` (cache reads) and `cache_write_tokens` (Claude), `completion_tokens_details.reasoning_tokens`.
-- **The fee:** 5.5% (Standard) or 8% (Business), on credit purchases, not on inference; inference at the providers' prices without markup. Whether the fee is added to a purchase or taken out of it isn't said outright; the terms refund unused credits apart from the "platform fees", so probably added: a call's cost × 1.055 (or 1.08). Third parties mention a $0.80 minimum per purchase, not on OpenRouter's own pages any more.
-- **Prices differ by provider:** Opus 5.5 on the global host: $4 / $20 per million tokens (input / output) on the global endpoints (Bedrock, Vertex, Azure, Anthropic, Claude on AWS), $4.40 / $22 on the regional ones, $8 / $40 on Anthropic's `fast` tier (only when asked for: tier endpoints aren't in the normal routing). OpenRouter picks by cost and speed, so a global call may be served regionally; the reported `cost` follows. `/api/v1/models/<id>/endpoints` lists every provider's prices; `/api/v1/models` one price per model (the lowest).
-- **EU:** `https://eu.openrouter.ai/api/v1`, Business only, the same key; fails rather than leaving the EU (EU/EEA, UK, Switzerland); some account data stays in the US. Its own models API (69 models, 2026-11-08) with EU prices (Opus 5.5 $4.40 / $22): Claude Opus, Sonnet and Haiku 5.5, Opus 5, Fable 5, Sonnet 5, the 4.5 to 4.8 models; of Gemini only 3.5 and 3.1 Flash-Lite.
-- **Model names:** `anthropic/claude-opus-5.5`, with a dated `canonical_slug` (`anthropic/claude-opus-5.5-20260921`). The models API also gives each model's `reasoning.supported_efforts`, so a model added by hand can get its efforts from it.
-- **Structured outputs are decided per provider:** send `provider: {require_parameters: true}`, so only providers that support `response_format` serve the call (not a pin). Claude's `cache_control` marks pass through, with sticky routing to the same provider to keep cache hits. Effort: `reasoning.effort` (`low` to `max`).
-
-**The plan:**
-1. ✓ **The adapter** (done 2026-11-08, `apps/worker/src/llm/openrouter.ts`, streamed): Chat Completions with images, `response_format` (`json_schema`), `reasoning.effort`, `cache_control`, `require_parameters`; reads tokens, cache reads and writes and `cost`, and records the provider that served the call. The model check accepts the id or its canonical slug.
-2. ✓ **The config** (done 2026-11-08; the account a column of its own, migration `0002_openrouter.sql`): provider OpenRouter, an API key, an account type (Standard or Business: the fee), and a region only for Business (global or EU).
-3. ✓ **The pricing kind "priced by the provider"** (done 2026-11-08, `providerCost` in `llmRoutes.ts`; the spending cap counts these calls too): cost = reported `cost` × (1 + fee); an answer without one is a call of unknown cost.
-4. ✓ **The list without prices** (done 2026-11-08, `gather/openrouter.ts`: 27 models, 15 in the EU; a list entry without a price says where the model is offered): a gathering of both hosts' models APIs (ids, efforts, which models the EU serves), mapped onto `claude-models.json` and `gemini-models.json`; a listed model is supported where OpenRouter offers it.
-5. ✓ **The settings card** (done 2026-11-08; `ProviderPricing` in `SettingsPage.tsx`, `rangeText` in `pricing.ts`, `/api/model-configs/<id>/price-range`, kept a day in the Worker's memory): the four prices as ranges among those who run the model, read from the endpoints API, **with the fee included**, and "(including OpenRouter's 5.5% fee on credit purchases; the price depends on who runs the model)"; "Priced per call by OpenRouter, plus its 5.5% fee on credit purchases" while the range isn't there or can't be read.
-6. ✓ **Tests** with a fake `fetch` (done 2026-11-08). **Left, by the project owner, with real requests and a real credit purchase:** that a call's reported `cost` agrees with its tokens × the price of the provider that ran it; that the fee is added on top of a purchase (so that cost × (1 + fee) is what the call really cost), and how much it was; that the card's range with the fee matches what calls cost; whether the answer names the model by its id or its dated slug; that the input tokens are right (the cached ones taken out of `prompt_tokens`).
-
 ### Squash the migrations again
 `#next-release`
 
@@ -734,3 +708,21 @@ Every provider the project owner pays adds VAT on top of its listed prices (2026
 - **Each call stores the rate applied,** beside its cost before VAT, as it stores the prices used: the cost with VAT is computed from the two, and a later change of the rate doesn't change past calls.
 - **Everything shown includes VAT,** marked as such ("incl. 19% VAT"): the prices on the model config cards, the Statistics page's Costs tab, and the spending cap, which is checked against the costs with VAT.
 - **Not covered: payments in euros** (Google's): the costs are right in US dollars, but what that comes to on the user's statement depends on the provider's exchange rate.
+
+### The model configs' list on the settings page
+`#decision` `#style`
+
+Proposed by the project owner (2026-11-09). The list of model configs gets long very quickly, and the other settings are below it.
+- **Sorting:** by creation date, newest at the top, by default. To decide: whether the default config stays at the top regardless.
+- **To decide: a more compact view of each config,** with a way to see all its details: the card expanded in place, or a view of its own.
+- **To decide: how the list stays short:** pages, a container of its own that scrolls, or the configs on a tab of their own in the settings.
+
+### The list of configs doesn't scroll when changing a stage's config
+`#bug`
+
+Found by the project owner (2026-11-09): in the dialog that changes a stage's model config ("Change config"), the list of configs can't be scrolled, so configs below the visible part can't be reached.
+
+### The default name follows the form when cloning
+`#nice-to-have` `#decision`
+
+Proposed by the project owner (2026-11-09). `docs/llm.md`, "The default name": "Claude Opus 5.5 (Bedrock) · high". When a config is cloned from one with the default name, the clone's name doesn't change with its fields, so the user has to rewrite it by hand, which is awkward since "·" isn't on a keyboard (e.g. adding " · high" when the clone picks an effort the original left at the model's default). Instead: recognize that the name is the default one, and keep it updated as the fields change, until the user types a name of their own. To decide: whether the create form does the same (there an empty name already gives the default one, so it matters less).

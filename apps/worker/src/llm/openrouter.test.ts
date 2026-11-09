@@ -126,6 +126,27 @@ test("errors: an HTTP error by its status, an error after a 200, no key", async 
   assert.throws(() => createProvider({ provider: "openrouter", apiKey: "", region: "" }), LlmError);
 });
 
+test("a provider's refusal: its name and its own message, from the error's metadata", async () => {
+  // As OpenRouter answered extract's request on Claude (2026-11-09).
+  const raw = JSON.stringify({
+    type: "error",
+    error: { type: "invalid_request_error", message: "The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools." },
+    request_id: "req_vrtx_011CgsLK3Cx5B5m2ZBiWAAFr",
+  });
+  const body = { error: { message: "Provider returned error", code: 400, metadata: { raw, provider_name: "Google", is_byok: false } }, user_id: "user_1" };
+  await assert.rejects(
+    provider([], body, "", 400).send(request),
+    (e: LlmError) =>
+      e.kind === "bad_request" &&
+      e.message === "OpenRouter answered 400: Provider returned error (Google): The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
+  );
+  // The same after the stream began; a raw body that isn't JSON is taken as it is.
+  await assert.rejects(
+    provider([], { error: { message: "Provider returned error", code: 502, metadata: { raw: "upstream timed out", provider_name: "Anthropic" } } }).send(request),
+    (e: LlmError) => e.message === "OpenRouter: Provider returned error (Anthropic): upstream timed out",
+  );
+});
+
 test("the price range: lowest and highest per million tokens among the providers, without the tiers asked for", async () => {
   const endpoints = [
     { tag: "amazon-bedrock", pricing: { prompt: "0.000004", completion: "0.00002", input_cache_read: "0.0000002", input_cache_write: "0.000005" } },
