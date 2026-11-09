@@ -573,7 +573,9 @@ They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk b
 ### The Worker finishes an LLM call on its own
 `#optional`
 
-§5.8: an answer that was paid for is lost when the tab is closed or a phone suspends the page mid-call (accepted). Some day, perhaps: the Worker finishes the call and stores the answer on its own (a Durable Object or Workflow), so resuming finds it.
+§5.8: an answer that was paid for is lost when the tab is closed or a phone suspends the page mid-call (accepted). Some day, perhaps: the Worker finishes the call and stores the answer on its own, so resuming finds it. Only for calls nobody chose to stop (a closed tab, a suspended phone); Stop cancels instead (see "Stop cancels the LLM call").
+- **The project owner wants a plain Worker** (2026-11-09): no Durable Objects or Workflows. On Cloudflare, a Worker whose client has gone has at most about 30 seconds of `waitUntil` left, and calls often take minutes (a `layout` page with Gemini: several minutes), so a plain Worker can't do it; the desktop app (Node) could. Not sure whether it is worth anything then.
+- **If it is done:** a request identical to one still running (stopped, then Run again unchanged) must wait for that call instead of paying for it twice; and the spending cap can be overshot by the call finishing in the background, whose cost lands late. The Worker serves requests side by side, so a call finishing in the background doesn't hold up the next one (only the browser sends one call at a time).
 
 ### Moderate advisories in electron-builder's dependencies
 `#security`
@@ -726,3 +728,11 @@ Found by the project owner (2026-11-09): in the dialog that changes a stage's mo
 `#nice-to-have` `#decision`
 
 Proposed by the project owner (2026-11-09). `docs/llm.md`, "The default name": "Claude Opus 5.5 (Bedrock) · high". When a config is cloned from one with the default name, the clone's name doesn't change with its fields, so the user has to rewrite it by hand, which is awkward since "·" isn't on a keyboard (e.g. adding " · high" when the clone picks an effort the original left at the model's default). Instead: recognize that the name is the default one, and keep it updated as the fields change, until the user types a name of their own. To decide: whether the create form does the same (there an empty name already gives the default one, so it matters less).
+
+### Stop cancels the LLM call
+
+Today Stop in the browser doesn't cancel the provider's call: the Worker calls the adapter without an abort signal (`llmRoutes.ts`), so the call runs to its end and is billed in full, its answer thrown away. Found 2026-11-09: an `extract` call on Gemini 3.1 Pro Preview through OpenRouter, stopped by the project owner, is on OpenRouter's dashboard (about $0.03 to $0.04, billed), while its row in `llm_calls` stays `running`, with no cost, so the Costs tab and the spending cap leave it out. Long calls (minutes) make this matter more: a user who stops a slow call to try another model pays for both.
+- **What to do:** pass the abort signal of the browser's request through the Worker to the adapter (every adapter's `send` takes one already), so that a stopped stage cancels its call. Record the cancelled call as such (`aborted`), with whatever usage is known by then, rather than leaving it `running`.
+- **To check per provider:** what a call cancelled mid-stream is billed. Believed (not checked): with streaming, the generation stops and only the tokens produced so far are billed; OpenRouter passes the cancellation on for some providers only. Whether the usage so far can be read at all after cancelling (usually it comes at the end of the stream).
+- **To check:** whether the Workers runtime (and `wrangler dev`, and the desktop app's Node server) signals the Worker when the browser's request goes away, and how (`request.signal`).
+- **Also:** whether anything ever closes a row left `running` (a call interrupted by a closed tab, or today by Stop).
