@@ -193,6 +193,21 @@ For testing and debugging: run stages as if nothing were cached, without our own
 
 `packages/prompts/src/analyze.ts`: the page and whole-score texts, the metadata fields and the observations' shape, the confidence levels, the places (systems and bar lines by their labels), and the checks, before the first real run.
 
+### Verify the prompt and schema of `extract`
+`#owner` `#next-release`
+
+`packages/prompts/src/extract.ts`: the text, what each call is given (the system's crop and stretch crops, the neighbours, the observations, what is carried over from the previous system), the lens as the answer's schema, the issues it asks for, and the checks, before the first real run (`docs/stages/music.md`, `extract`). Its schema is still too large for Anthropic: "Decide how Claude's schemas fit".
+
+### Verify the prompt and schema of `review`
+`#owner` `#next-release`
+
+`packages/prompts/src/review.ts`: the text, the whole score in every call and the append-only log of earlier calls' changes, what an issue it writes must hold (boxes, answers, class), and the schema, before the first real run (`docs/stages/music.md`, `review`).
+
+### Verify the prompt and schema of `apply_review`
+`#owner` `#next-release`
+
+`packages/prompts/src/applyReview.ts`: the text, which issues a call gets and when a system gets a call, the typed patch stretch by stretch, the reasons asked for changes outside the issues' boxes, and the schema, before the first real run (`docs/stages/music.md`, `apply_review`).
+
 ### Confirm the decisions made while building `extract`, the MEI builder and `engrave`
 `#owner`
 
