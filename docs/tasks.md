@@ -168,20 +168,15 @@ For each, make a model config on AI Studio (Vertex AI for the last two) with eac
 
 For testing and debugging: run stages as if nothing were cached, without our own cache (§5.2) at either level, the stage's key or an item's (an LLM request's record, an image's recipe), so that a stage is reproduced under the same conditions and its calls are really made (and paid for). Set when the app is started, by a special flag or an environment variable (e.g. for `wrangler dev`, the desktop app and the screenshot script), not in the app's settings. To decide on the way: whether the calls made with it on still fill the cache for later runs; whether the providers' own prompt caching stays on (it is a price, not a reuse of answers); and whether the app shows that it is on.
 
-### A config whose effort its model no longer takes
-`#optional`
-
-`docs/llm.md`, "Models": each listed model's effort levels come from the list of models (`gather/claude-models.json`). If a new list takes a level away from a model, the configs that use it with that level aren't marked "No longer supported", as a model without a price at their region is; the provider would refuse the call. Treat it the same way (`unsupportedReason` in `apps/worker/src/llm/models.ts`), if it ever happens.
-
 ### Stages from the record with a config that can't be used
 `#optional` `#decision`
 
 `docs/llm.md`, "No longer supported" (2026-11-05): a stage whose model config was deleted or is no longer supported can't start, even when every one of its calls would be served from the record without a call. Whether such a stage should be used after all (nothing is paid, nothing is sent), and how the UI would then show the config (in red today, which would be confusing for a stage that runs without problems). Rare: it needs a new list of models, or a deleted config, between two runs of the same stage.
 
-### Say where a model is still supported
+### Hint at similar configs the app still supports
 `#nice-to-have`
 
-`docs/llm.md`, "No longer supported": when a config is no longer supported, a hint where the app still supports its model, from the list: the same model on the same provider in other regions or routings ("The app still supports Claude Opus 4 on Bedrock in eu-central-1, …"), else on other providers ("… on OpenRouter and Anthropic"), else other models of the family on the same provider. Shown in the stage's failure and on the settings card, and useful in the clone form. Not hard with the list's lookups (`placesOf`, `modelsOf`); the wording and how much to list are the work.
+`docs/llm.md`, "No longer supported": when a config is no longer supported, a hint at similar configs the app does support, starting from the part the reason names (the first in the form's order that isn't supported) and keeping everything before it: the same model on the same provider in other regions or routings ("The app still supports Claude Opus 4 on Bedrock in eu-central-1, …"), else on other providers ("… on OpenRouter and Anthropic"), else other models of the family on the same provider; the efforts the model still takes; the credentials the adapter takes now. Shown in the stage's failure and on the settings card, and useful in the clone form. Not hard with the list's lookups (`placesOf`, `modelsOf`, `effortsOf`); the wording and how much to list are the work.
 
 ### Verify the prompt and schema of `layout`
 `#owner` `#next-release`

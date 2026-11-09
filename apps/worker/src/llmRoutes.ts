@@ -25,7 +25,6 @@ import {
   placesOfProvider,
   priceOfConfig,
   PRICED_BY_PROVIDER,
-  unsupportedReason,
   PROVIDER_NAMES,
   PROVIDERS,
   resolveModel,
@@ -132,8 +131,85 @@ export function modelGroupOf(row: Pick<ModelConfigRow, "model_id" | "model_strin
   return { modelKey: `string:${row.model_string ?? ""}`, modelLabel: row.model_string ?? "" };
 }
 
+// Why the app no longer supports a stored config, or null where it does (docs/llm.md, "No longer supported"). A config
+// is supported when it is valid as a whole by today's code and list: when the request that would create it now passes
+// the same checks (`configProblem`). Said after the config's name: `its model config, "X", ${reason}.`
 export function unsupportedOf(row: ModelConfigRow, pricing: Pricing = pricingOf(row), list: ModelList = MODEL_LIST): string | null {
-  return unsupportedReason(list, { provider: row.provider, model: configModel(row), place: { region: row.region, routing: row.routing }, pricing });
+  const problem = configProblem(bodyOf(row, pricing), list);
+  if (problem === null) return null;
+  return unsupportedReason(list, row, pricing) ?? `can't be used as it is any more (${problem})`;
+}
+
+// The request that would create a stored config now.
+function bodyOf(row: ModelConfigRow, pricing: Pricing): Record<string, unknown> {
+  let secrets: unknown;
+  try {
+    secrets = JSON.parse(row.secrets_json);
+  } catch {
+    secrets = null;
+  }
+  return {
+    name: row.name,
+    provider: row.provider,
+    ...(row.model_id !== null ? { modelId: row.model_id } : { modelString: row.model_string, family: row.family }),
+    effort: row.effort,
+    region: row.region,
+    routing: row.routing,
+    project: row.project,
+    account: row.account,
+    secrets,
+    pricing,
+  };
+}
+
+// What the app no longer supports about a config, in words: the first combination in the config form's order that
+// nothing picked after it could make supported (docs/llm.md, "No longer supported"): the provider; the model on it; the
+// account (OpenRouter); the model at the region, then with the routing; the effort; the credentials; the pricing. Null
+// where none of these is the reason (unsupportedOf then says what the checks found).
+function unsupportedReason(list: ModelList, row: ModelConfigRow, pricing: Pricing): string | null {
+  const no = (what: string) => `uses ${what}, which the app no longer supports`;
+  const p = row.provider;
+  if (!PROVIDERS.includes(p)) return no(String(p));
+  const provider = PROVIDER_NAMES[p];
+  const entry = row.model_id !== null ? modelById(list, row.model_id) : null;
+  const modelName = entry?.name ?? row.model_id ?? row.model_string ?? "";
+  // The model on the provider: a listed one offered somewhere on it; one added by hand of a family the app supports there.
+  if (row.model_id !== null) {
+    if (!entry || entry.strings[p] === undefined || placesOf(list, entry.id, p).length === 0) return no(`${modelName} on ${provider}`);
+  } else if (!row.family || !adapterFor(p, row.family)) {
+    return no(`${row.family ? `${FAMILY_NAMES[row.family]} models` : modelName} on ${provider}`);
+  }
+  // OpenRouter's account, which decides where it may run.
+  if (p === "openrouter" && (!ACCOUNTS.includes(row.account as Account) || (BUSINESS_REGIONS.includes(row.region) && row.account !== "business"))) {
+    return no(`${provider}${row.region ? ` in the ${row.region.toUpperCase()}` : ""} with a ${row.account ?? "missing"} account`);
+  }
+  // The region, then the routing: a listed model where the list offers it; one added by hand at the provider's places.
+  const places = row.model_id !== null ? placesOf(list, row.model_id, p) : placesOfProvider(list, p);
+  const at = `${modelName} on ${provider}${row.region ? ` in ${row.region}` : ""}`;
+  if (!places.some((place) => place.region === row.region)) return no(at);
+  if (!places.some((place) => samePlace(place, { region: row.region, routing: row.routing }))) return no(`${at}${row.routing ? ` (${row.routing} routing)` : " without a routing"}`);
+  // The effort, which the model takes or not, wherever it runs.
+  if (row.effort !== null && !effortsOf(entry?.family ?? row.family!, entry).includes(row.effort)) return no(`${modelName} at effort ${row.effort}`);
+  // The credentials: one of the sets of secrets the adapter takes.
+  let secrets: Record<string, string> = {};
+  try {
+    secrets = JSON.parse(row.secrets_json) as Record<string, string>;
+  } catch {
+    // Unreadable: the checks say so.
+  }
+  const fields = Object.keys(secrets).sort().join(",");
+  if (!SECRETS[adapterFor(p, entry?.family ?? row.family!)!].some((set) => [...set].sort().join(",") === fields)) {
+    return `names secrets for ${provider} (${Object.keys(secrets).join(", ") || "none"}) that the app no longer takes`;
+  }
+  // The pricing: by the provider only where it reports each call's cost; a model priced as a listed one needs its price.
+  if ((pricing.kind === "provider") !== PRICED_BY_PROVIDER.includes(p) && !(pricing.kind === "free")) {
+    return `is priced ${pricing.kind === "provider" ? "by the provider" : `as "${pricing.kind}"`}, which the app no longer supports on ${provider}`;
+  }
+  if (pricing.kind === "list" && pricing.reference !== null && row.model_id === null && !listedPrice(list, pricing.reference, p, { region: row.region, routing: row.routing })) {
+    const reference = modelById(list, pricing.reference)?.name ?? pricing.reference;
+    return `is priced as ${reference} on ${provider}${row.region ? ` in ${row.region}` : ""}${row.routing ? ` (${row.routing} routing)` : ""}, which the app no longer has a price for`;
+  }
+  return null;
 }
 
 function pricingOf(row: ModelConfigRow): Pricing {

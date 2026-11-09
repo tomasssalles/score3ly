@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
-import { listedPrice, type ModelList } from "./llm/models.ts";
+import { listedPrice, type ModelList, type Provider } from "./llm/models.ts";
 import { convertAddedConfigs, modelOptions, providerCost, secretNames, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
 
@@ -552,7 +552,7 @@ test("requests are keyed by the images' recipe keys: a cached call is found befo
 test("configs added by hand become listed ones when a new list has their string: priced from it, free staying free", async () => {
   const insert = (id: string, region: string, pricing: string, reference: string | null) =>
     env.DB.prepare(
-      "INSERT INTO model_configs (id, name, provider, model_string, family, region, routing, secrets_json, pricing_kind, pricing_reference, created_at) VALUES (?, ?, 'bedrock', 'anthropic.claude-opus-6', 'claude', ?, 'global', '{}', ?, ?, '2026-10-01')",
+      "INSERT INTO model_configs (id, name, provider, model_string, family, region, routing, secrets_json, pricing_kind, pricing_reference, created_at) VALUES (?, ?, 'bedrock', 'anthropic.claude-opus-6', 'claude', ?, 'global', '{\"apiKey\":\"K\"}', ?, ?, '2026-10-01')",
     )
       .bind(id, id, region, pricing, reference)
       .run();
@@ -581,7 +581,48 @@ test("configs added by hand become listed ones when a new list has their string:
     ["unpriced", "unpriced", "claude-opus-6", null, null, "list", null],
   ]);
   assert.equal(unsupportedOf(rows[3], undefined, list), null);
-  assert.equal(unsupportedOf(rows[0], undefined, list), "uses Claude Opus 6 on Bedrock in us-east-1 (global routing), which the app no longer supports");
+  assert.equal(unsupportedOf(rows[0], undefined, list), "uses Claude Opus 6 on Bedrock in us-east-1, which the app no longer supports");
+});
+
+test("a stored config is supported when it is valid as a whole; otherwise the first part in the form's order that isn't says why", () => {
+  const row = (over: Partial<ModelConfigRow>): ModelConfigRow => ({
+    id: "c",
+    name: "C",
+    provider: "anthropic",
+    model_id: "claude-opus-5-5",
+    model_string: null,
+    family: null,
+    effort: null,
+    region: "",
+    routing: null,
+    project: null,
+    account: null,
+    secrets_json: '{"apiKey":"K"}',
+    pricing_kind: "list",
+    pricing_reference: null,
+    created_at: "2026-10-01",
+    deleted_at: null,
+    ...over,
+  });
+  const no = (what: string) => `uses ${what}, which the app no longer supports`;
+  assert.equal(unsupportedOf(row({})), null);
+  // The provider; the model on it; a family the app no longer supports there.
+  assert.equal(unsupportedOf(row({ provider: "gone" as Provider })), no("gone"));
+  assert.equal(unsupportedOf(row({ model_id: "claude-gone" })), no("claude-gone on Anthropic"));
+  const withoutAnthropic: ModelList = { ...MODEL_LIST, prices: MODEL_LIST.prices.filter((p) => !(p.model === "claude-opus-5-5" && p.provider === "anthropic")) };
+  assert.equal(unsupportedOf(row({}), undefined, withoutAnthropic), no("Claude Opus 5.5 on Anthropic"));
+  assert.equal(unsupportedOf(row({ model_id: null, model_string: "gemini-x", family: "gemini" })), no("Gemini models on Anthropic"));
+  // The effort the model no longer takes.
+  const fewerEfforts: ModelList = { ...MODEL_LIST, models: MODEL_LIST.models.map((m) => (m.id === "claude-opus-5-5" ? { ...m, efforts: ["low", "high"] } : m)) };
+  assert.equal(unsupportedOf(row({ effort: "max" }), undefined, fewerEfforts), no("Claude Opus 5.5 at effort max"));
+  assert.equal(unsupportedOf(row({ effort: "high" }), undefined, fewerEfforts), null);
+  // OpenRouter's account; the credentials.
+  const openRouter = { provider: "openrouter" as const, model_id: "claude-opus-5-5", pricing_kind: "provider" as const };
+  assert.equal(unsupportedOf(row({ ...openRouter, account: "standard" })), null);
+  assert.equal(unsupportedOf(row({ ...openRouter, account: "standard", region: "eu" })), no("OpenRouter in the EU with a standard account"));
+  assert.equal(unsupportedOf(row({ secrets_json: '{"token":"K"}' })), "names secrets for Anthropic (token) that the app no longer takes");
+  // The pricing: by the provider only where it reports the costs.
+  assert.equal(unsupportedOf(row({ pricing_kind: "provider" })), 'is priced by the provider, which the app no longer supports on Anthropic');
 });
 
 test("the pickers' options: providers with their families, efforts, secrets and places; listed models where they have prices", async () => {

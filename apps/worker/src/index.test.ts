@@ -513,7 +513,7 @@ async function startRasterize(projectId: string, stageKey = KEY) {
 
 test("an LLM stage names its model config from its creation: the default then, kept through changes, a copy, a stop", async () => {
   await env.DB.prepare(
-    "INSERT OR IGNORE INTO model_configs (id, name, provider, model_id, pricing_kind, created_at) VALUES ('opus-new', 'Opus for new stages', 'anthropic', 'claude-opus-5-5', 'list', '2026-10-01')",
+    "INSERT OR IGNORE INTO model_configs (id, name, provider, model_id, secrets_json, pricing_kind, created_at) VALUES ('opus-new', 'Opus for new stages', 'anthropic', 'claude-opus-5-5', '{\"apiKey\":\"K\"}', 'list', '2026-10-01')",
   ).run();
   const before = await createdProject("before.pdf");
   await app.request("/api/settings/defaultModelConfigId", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: "opus-new" }) }, env);

@@ -132,6 +132,10 @@ type StageRow = {
   mc_routing?: Routing | null;
   mc_pricing_kind?: Pricing["kind"] | null;
   mc_pricing_reference?: string | null;
+  mc_effort?: ModelConfigRow["effort"];
+  mc_project?: string | null;
+  mc_account?: ModelConfigRow["account"];
+  mc_secrets_json?: string | null;
   mc_deleted_at?: string | null;
   cost_usd?: number | null;
   carried?: number;
@@ -278,7 +282,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
   const [stages, outputs, dropped] = await db.batch([
     db
       .prepare(
-        "SELECT s.*, e.carried, m.name AS mc_name, m.provider AS mc_provider, m.model_id AS mc_model_id, m.model_string AS mc_model_string, m.family AS mc_family, m.region AS mc_region, m.routing AS mc_routing, m.pricing_kind AS mc_pricing_kind, m.pricing_reference AS mc_pricing_reference, m.deleted_at AS mc_deleted_at, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
+        "SELECT s.*, e.carried, m.name AS mc_name, m.provider AS mc_provider, m.model_id AS mc_model_id, m.model_string AS mc_model_string, m.family AS mc_family, m.region AS mc_region, m.routing AS mc_routing, m.pricing_kind AS mc_pricing_kind, m.pricing_reference AS mc_pricing_reference, m.effort AS mc_effort, m.project AS mc_project, m.account AS mc_account, m.secrets_json AS mc_secrets_json, m.deleted_at AS mc_deleted_at, (SELECT SUM(c.cost_usd) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position",
       )
       .bind(projectId),
     db
@@ -942,12 +946,17 @@ function timingValues(t: Timing | undefined): (number | null)[] {
 // longer supports it (docs/llm.md, "No longer supported").
 function stageModelConfig(row: StageRow): { name: string; model: string; deleted: boolean; unsupported: boolean } {
   const config = {
+    name: row.mc_name ?? "",
     provider: row.mc_provider!,
     model_id: row.mc_model_id ?? null,
     model_string: row.mc_model_string ?? null,
     family: row.mc_family ?? null,
+    effort: row.mc_effort ?? null,
     region: row.mc_region ?? "",
     routing: row.mc_routing ?? null,
+    project: row.mc_project ?? null,
+    account: row.mc_account ?? null,
+    secrets_json: row.mc_secrets_json ?? "{}",
     pricing_kind: row.mc_pricing_kind ?? "unpriced",
     pricing_reference: row.mc_pricing_reference ?? null,
   } as ModelConfigRow;
