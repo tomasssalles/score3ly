@@ -520,7 +520,7 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
           })}
         </ul>
       )}
-      {issue.lilypond && (
+      {issue.lilypond && issue.lilypond.length > 0 && (
         <p className="issue-facts">
           LilyPond equivalent: <span className="issue-tokens">{issue.lilypond.join(" ")}</span>
         </p>

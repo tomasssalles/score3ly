@@ -43,8 +43,8 @@ test("the images' labels, which issue boxes name", () => {
 
 test("the answer's schema and the checks agree on every list of values", () => {
   const stretch = (EXTRACT_SCHEMA.properties.stretches as { items: { properties: Record<string, { enum?: string[]; anyOf?: { enum?: string[] }[] }> } }).items.properties;
-  assert.deepEqual(stretch.class.enum, [...STRETCH_CLASSES]);
-  assert.deepEqual(stretch.kind.anyOf![0].enum, [...MEASURE_KINDS]);
+  // The class and the measure's kind are one value in the answer (lensFromExtract splits them).
+  assert.deepEqual(new Set(stretch.class.enum), new Set([...MEASURE_KINDS.map((k) => `new-${k}`), ...STRETCH_CLASSES.filter((c) => c !== "new")]));
   assert.deepEqual(stretch.rightBarLine.enum, [...BAR_LINES]);
   const groups = (EXTRACT_SCHEMA.properties.groups as { items: { properties: { symbol: { enum: string[] } } } }).items.properties;
   assert.deepEqual(groups.symbol.enum, [...GROUP_SYMBOLS]);

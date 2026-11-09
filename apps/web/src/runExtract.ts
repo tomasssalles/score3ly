@@ -7,7 +7,7 @@
 
 import { CROP_VERSION, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { checkScore, checkSystem, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
-import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractText } from "@score3ly/prompts";
+import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractText, lensFromExtract } from "@score3ly/prompts";
 import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers } from "./api";
 import {
   EXTRACT_VERSION,
@@ -159,8 +159,9 @@ export async function runExtract(run: StageRun): Promise<void> {
           const kept = s.number > 1 ? ` The answers for systems 1–${s.number - 1} are kept.` : "";
           const answer = await ask(run, request, `System ${s.number}`, { config });
           // The answer as it reads back from storage (canonical JSON): what the next systems' requests are built from
-          // is then the same in this run and in a retry, and the cache finds them.
-          const checked = checkSystem(JSON.parse(canonicalJson(answer.json)), contextOf(s, first, labels), before);
+          // is then the same in this run and in a retry, and the cache finds them. Its sentinels ("", -1) and merged fields
+          // become the lens as code uses it first (lensFromExtract).
+          const checked = checkSystem(lensFromExtract(JSON.parse(canonicalJson(answer.json))), contextOf(s, first, labels), before);
           if ("problem" in checked) {
             await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
             throw new Error(`Couldn't use the answer for system ${s.number}: ${checked.problem}.${kept}`);

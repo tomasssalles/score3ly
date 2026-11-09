@@ -246,7 +246,7 @@ test("endings: contiguous and labelled, across systems too", () => {
   ok(next, context(1, { system: 2, firstOfPiece: false }), first.state);
 });
 
-test("issues: boxes on the images sent, answers by letter, format issues with tokens", () => {
+test("issues: boxes on the images sent, answers by letter, tokens only on format issues", () => {
   const issue = {
     boxes: [{ image: "stretch 1", box: { left: 0.1, right: 0.3, top: 0.2, bottom: 0.4 } }],
     location: null,
@@ -262,8 +262,11 @@ test("issues: boxes on the images sent, answers by letter, format issues with to
   ok(system(1, { issues: [issue] }), context(1));
   assert.match(unusable(system(1, { issues: [{ ...issue, applied: "c" }] }), context(1)), /isn't one of its answers' keys/);
   assert.match(unusable(system(1, { issues: [{ ...issue, boxes: [{ ...issue.boxes[0], image: "page" }] }] }), context(1)), /isn't one of the images/);
-  assert.match(unusable(system(1, { issues: [{ ...issue, class: "format" }] }), context(1)), /needs the LilyPond tokens/);
+  assert.match(unusable(system(1, { issues: [{ ...issue, class: "format" }] }), context(1)), /needs its list of LilyPond tokens/);
   ok(system(1, { issues: [{ ...issue, class: "format", lilypond: ["\\harmonic"] }] }), context(1));
+  // Empty on a format issue: what is printed needs no new token, only what the format's rules forbid.
+  ok(system(1, { issues: [{ ...issue, class: "format", lilypond: [] }] }), context(1));
+  assert.match(unusable(system(1, { issues: [{ ...issue, lilypond: ["\\harmonic"] }] }), context(1)), /isn't a format issue/);
 });
 
 test("a change in the order of the staves is a warning", () => {

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { COMMAND_WORDS, GRADED_DYNAMICS, parseVoice } from "@score3ly/notation/symbolic";
-import { MUSIC } from "./extract.ts";
+import { EXTRACT_SCHEMA, lensFromExtract, MUSIC } from "./extract.ts";
 
 // docs/notation.md, "The token list": the prompt and the parser can't drift apart.
 test("every command the prompt shows is one the parser knows, and every one it knows is shown", () => {
@@ -18,4 +18,64 @@ test("the prompt's examples of notes and marks parse", () => {
     const parsed = parseVoice(example);
     assert.ok(!("problem" in parsed), `${example}: ${"problem" in parsed ? parsed.problem : ""}`);
   }
+});
+
+test("the answer's schema has no nullable field", () => {
+  assert.doesNotMatch(JSON.stringify(EXTRACT_SCHEMA), /anyOf|"null"/);
+});
+
+test("the answer becomes the lens: sentinels null, the class split, the ending an object, a reading issue's tokens null", () => {
+  const stretch = (over: object) => ({
+    stretch: 1,
+    class: "continues",
+    printedNumber: "",
+    measureNumber: -1,
+    changes: [{ staff: 1, key: "", time: "3/4" }],
+    ending: "none",
+    endingLabel: "",
+    voices: [{ voice: 1, staff: 1, description: "", music: "" }],
+    rightBarLine: "single",
+    ...over,
+  });
+  const issue = { boxes: [], location: "", question: "?", answers: [], applied: "a", class: "reading", lilypond: [] };
+  const lens = lensFromExtract({
+    startRepeat: false,
+    staves: [{ staff: 1, description: "", label: "", clef: "treble", key: "0", time: "" }],
+    groups: [{ staves: [1], symbol: "brace", label: "" }],
+    stretches: [
+      stretch({}),
+      stretch({ stretch: 2, class: "new-incomplete", printedNumber: "12", measureNumber: 12, ending: "start", endingLabel: "1." }),
+      stretch({ stretch: 3, class: "new-normal", measureNumber: 0, ending: "middle" }),
+      stretch({ stretch: 4, class: "none", ending: "end" }),
+      stretch({ stretch: 5, class: "new-unmeasured", ending: "whole", endingLabel: "2." }),
+    ],
+    lastMeasureContinues: false,
+    issues: [issue, { ...issue, location: "The top note", class: "format", lilypond: [] }, { ...issue, class: "format", lilypond: ["\\harmonic"] }],
+  }) as { staves: object[]; groups: object[]; stretches: Record<string, unknown>[]; issues: Record<string, unknown>[] };
+  assert.deepEqual(lens.staves, [{ staff: 1, description: null, label: null, clef: "treble", key: "0", time: null }]);
+  assert.deepEqual(lens.groups, [{ staves: [1], symbol: "brace", label: null }]);
+  assert.deepEqual(lens.stretches[0], {
+    stretch: 1,
+    class: "continues",
+    kind: null,
+    printedNumber: null,
+    measureNumber: null,
+    changes: [{ staff: 1, key: null, time: "3/4" }],
+    ending: null,
+    voices: [{ voice: 1, staff: 1, description: null, music: "" }],
+    rightBarLine: "single",
+  });
+  const fields = (s: Record<string, unknown>) => [s.class, s.kind, s.printedNumber, s.measureNumber, s.ending];
+  assert.deepEqual(fields(lens.stretches[1]), ["new", "incomplete", "12", 12, { startsHere: true, endsHere: false, label: "1." }]);
+  assert.deepEqual(fields(lens.stretches[2]), ["new", "normal", null, 0, { startsHere: false, endsHere: false, label: null }]);
+  assert.deepEqual(fields(lens.stretches[3]), ["none", null, null, null, { startsHere: false, endsHere: true, label: null }]);
+  assert.deepEqual(fields(lens.stretches[4]), ["new", "unmeasured", null, null, { startsHere: true, endsHere: true, label: "2." }]);
+  assert.deepEqual(
+    lens.issues.map((i) => [i.location, i.lilypond]),
+    [
+      [null, null],
+      ["The top note", []],
+      [null, ["\\harmonic"]],
+    ],
+  );
 });

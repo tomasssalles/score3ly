@@ -199,7 +199,8 @@ function newIssue(n: ReviewNewIssueEntry["newIssue"], ctx: ReviewContext, id: nu
   if (keys.some((k, i) => k !== String.fromCharCode(97 + i))) return { problem: `${what}: the answers' keys must be "a", "b", "c", … in order` };
   if (!keys.includes(n.applied) || !keys.includes(n.chosen)) return { problem: `${what}: "applied" and "chosen" must be keys of its answers` };
   if (n.applied === n.chosen) return { problem: `${what}: "applied" and "chosen" are the same answer` };
-  if (n.class === "format" && (!n.lilypond || n.lilypond.length === 0)) return { problem: `${what} is a format issue without its LilyPond tokens` };
+  // A format issue's list may be empty: what is printed may need no new token, only what the format's rules forbid.
+  if (n.class === "format" && !Array.isArray(n.lilypond)) return { problem: `${what} is a format issue without its list of LilyPond tokens` };
   return {
     id,
     source: "review",

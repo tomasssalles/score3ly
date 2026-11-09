@@ -234,7 +234,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
   }
 
   // Issues: boxes on the images sent, answers with unique letters, `applied` one of them, a format issue with its
-  // tokens.
+  // list of tokens.
   for (const [n, issue] of (answer.issues ?? []).entries()) {
     const what = `issue ${n + 1}`;
     if (issue.boxes.length === 0) fail(`${what} has no boxes`);
@@ -250,8 +250,11 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     if (keys.some((k) => !/^[a-z]$/.test(k))) fail(`${what}: answers' keys are single letters, a, b, c, …`);
     if (new Set(keys).size !== keys.length) fail(`${what}: two answers have the same key`);
     if (!keys.includes(issue.applied)) fail(`${what}: "applied" is "${issue.applied}", which isn't one of its answers' keys`);
-    if (issue.class === "format" && (!issue.lilypond || issue.lilypond.length === 0)) fail(`${what} is a format issue and needs the LilyPond tokens that would express it`);
-    if (issue.class !== "format" && issue.lilypond !== null) fail(`${what} isn't a format issue, so its "lilypond" is null`);
+    // A format issue's list may be empty: what is printed may need no new token, only what the format's rules forbid.
+    if (issue.class === "format" && !Array.isArray(issue.lilypond)) fail(`${what} is a format issue and needs its list of LilyPond tokens (empty when no new token would express it)`);
+    if (issue.class !== "format" && issue.lilypond !== null && !(Array.isArray(issue.lilypond) && issue.lilypond.length === 0)) {
+      fail(`${what} isn't a format issue, so its list of LilyPond tokens must be empty`);
+    }
   }
 
   // --- Usable. Now the questions about the page, and the problems of the extraction. ---

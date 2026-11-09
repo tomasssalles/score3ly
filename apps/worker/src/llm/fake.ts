@@ -121,25 +121,25 @@ function fakeExtract(request: LlmRequest): unknown {
     const sig = r.signatures.find((s) => s.staff === staff);
     return {
       staff,
-      description: knownStaves.has(staff) ? null : `staff ${staff}`,
-      label: null,
+      description: knownStaves.has(staff) ? "" : `staff ${staff}`,
+      label: "",
       clef: sig?.clef ?? (i === 0 ? "treble" : "bass"),
       key: sig?.key ?? "0",
-      time: r.firstOfPiece ? "4/4" : null,
+      time: r.firstOfPiece ? "4/4" : "",
     };
   });
   const stretches = Array.from({ length: r.stretches }, (_, i) => ({
     stretch: i + 1,
-    class: "new",
-    kind: "normal",
-    printedNumber: null,
-    measureNumber: null,
+    class: "new-normal",
+    printedNumber: "",
+    measureNumber: -1,
     changes: [],
-    ending: null,
+    ending: "none",
+    endingLabel: "",
     voices: numbers.map((staff) => ({
       voice: staff,
       staff,
-      description: i === 0 && !knownVoices.has(staff) ? `voice on staff ${staff}` : null,
+      description: i === 0 && !knownVoices.has(staff) ? `voice on staff ${staff}` : "",
       music: "R1",
     })),
     rightBarLine: "single",
@@ -156,13 +156,13 @@ function fakeExtract(request: LlmRequest): unknown {
       ],
       applied: "b",
       class: "reading",
-      lilypond: null,
+      lilypond: [],
     },
   ];
   if (r.system === 1) {
     issues.push({
       boxes: [{ image: "system", box }],
-      location: null,
+      location: "",
       question: "A harmonic is printed here, which the format can't write. (A made-up format issue from the fake model.)",
       answers: [
         { key: "a", text: "Left out" },

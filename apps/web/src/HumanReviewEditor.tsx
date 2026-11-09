@@ -955,7 +955,7 @@ function IssuePanel({
           </span>
         </div>
       </div>
-      {issue.lilypond && (
+      {issue.lilypond && issue.lilypond.length > 0 && (
         <p className="issue-facts">
           LilyPond equivalent: <span className="issue-tokens">{issue.lilypond.join(" ")}</span>
         </p>

@@ -23,7 +23,7 @@ import {
 } from "@score3ly/notation/symbolic";
 
 // Raise whenever the texts or the schema change. The format itself has its own version (LENS_VERSION).
-export const EXTRACT_PROMPT_VERSION = 4;
+export const EXTRACT_PROMPT_VERSION = 5;
 
 export const EXTRACT_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -101,21 +101,25 @@ export const EXTRACT_SYSTEM = `You transcribe printed music exactly, one system 
 Transcribe the music, never its appearance. The test: would a player read it differently? If yes, it is musical and is encoded exactly as printed: pitches, rhythms, rests, voices, which hand plays what, ties, slurs (one per chord note where there are several), articulations, dynamics and hairpins with the notes they start and end on, ottava extents, clefs, repeats, beam grouping, and stem direction where it separates voices or hands. Typesetting is ignored: spacing, the shapes of slurs and beams, the exact height of marks, fonts, the default stem direction of a single voice. Attach every dynamic, hairpin, articulation and slur to the notes it applies to; never let the layout influence what you encode (never attach a crescendo to a pedal line because it would print lower); never simplify to suit the format.
 
 ## Your answer
+**A text with no value is the empty string ""**, never null (a description, a label, a time, a printed number, a location), and a number with no value is -1.
+
 - **startRepeat:** whether the system begins with a start-repeat bar line (not the line that joins the staves at the left edge).
 - **staves:** the system's staves, top to bottom, each with:
   - **staff:** its number in the piece: the number of a staff from the request's list that continues here, or a new number for a staff that is new (a staff that comes back after systems without it takes its old number);
-  - **description:** for a new staff, a short description ("piano right hand", "violin I", "orchestra reduction"); null for a staff from the list;
-  - **label:** the instrument name printed at its left, as printed, or null;
-  - **clef**, **key** and **time** as printed at the system's start: the clef (LilyPond's names), the key signature as the number of sharps or flats ("0", "1s" … "7s", "1f" … "7f"; no mode), and the time signature as printed ("3/4", "6/8", "C", "C|", "3+2/8"), or null when none is printed there. Clefs and key signatures are printed on every system: report them as you see them, never "as before". The first system of a piece has a time signature on every staff.
-- **groups:** the braces and brackets that join staves, as printed: the staves' numbers, the symbol ("brace", "bracket", "bracketsq", "line") and its label (e.g. "Piano I") or null.
+  - **description:** for a new staff, a short description ("piano right hand", "violin I", "orchestra reduction"); "" for a staff from the list;
+  - **label:** the instrument name printed at its left, as printed, or "";
+  - **clef**, **key** and **time** as printed at the system's start: the clef (LilyPond's names), the key signature as the number of sharps or flats ("0", "1s" … "7s", "1f" … "7f"; no mode), and the time signature as printed ("3/4", "6/8", "C", "C|", "3+2/8"), or "" when none is printed there. Clefs and key signatures are printed on every system: report them as you see them, never "as before". The first system of a piece has a time signature on every staff.
+- **groups:** the braces and brackets that join staves, as printed: the staves' numbers, the symbol ("brace", "bracket", "bracketsq", "line") and its label (e.g. "Piano I") or "".
 - **stretches:** one per stretch, in order, each with:
   - **stretch:** its number;
-  - **class:** "new" (it starts a measure), "continues" (it is part of the same measure as the stretch before it that is part of a measure, even on the previous system), or "none" (part of no measure, e.g. courtesy signatures at the end of the system);
-  - **kind:** on a "new" stretch, the measure's kind: "normal", "incomplete" (a pickup, or the short measure that completes one before a repeat or at the end of a section) or "unmeasured" (a cadenza, a passage without bar lines); null on the others;
-  - **printedNumber:** a measure number printed at the stretch, as printed (e.g. "12", "12-16"), else null; **measureNumber:** the number it gives the measure, e.g. 12, or null;
-  - **changes:** key and time signatures printed at the stretch's start, per staff (\`{ "staff": 1, "key": "2f", "time": "3/4" }\`, null for what doesn't change), an empty list where there are none. Clef changes are never here: they are \`\\clef\` in the strings. A courtesy signature at the end of a system goes on the "none" stretch that holds it;
-  - **ending:** null, or the "1." / "2." bracket over the stretch: \`{ "startsHere", "endsHere", "label" }\`, the label as printed where it is visible, else null; an ending that runs on from the previous stretch or into the next one has "startsHere" or "endsHere" false;
-  - **voices:** the music, one entry per voice: **voice** (its id in the piece: from the request's list where it continues, a new number otherwise; traditionally 1 the upper voice, stems up, 2 the lower), **staff** (the staff it starts on), **description** (for a new voice, where it first appears: a short description, "melody", "inner alto line", "left-hand bass"; else null) and **music** (a string, below). Every staff has a voice in every stretch that is part of a measure: where a staff has no notes, a voice with \`s\` or \`R\` of the stretch's length. All voices of a stretch last the same time. A "none" stretch has no notes or rests (an empty list, or voices with only a \`\\clef\`);
+  - **class:** whether the stretch starts a measure, and of which kind:
+    - "new-normal", "new-incomplete", "new-unmeasured": it starts a measure, which is normal, incomplete (a pickup, or the short measure that completes one before a repeat or at the end of a section) or unmeasured (a cadenza, a passage without bar lines);
+    - "continues": it is part of the same measure as the stretch before it that is part of a measure, even on the previous system;
+    - "none": part of no measure, e.g. courtesy signatures at the end of the system;
+  - **printedNumber:** a measure number printed at the stretch, as printed (e.g. "12", "12-16"), else ""; **measureNumber:** the number it gives the measure, e.g. 12, or -1;
+  - **changes:** key and time signatures printed at the stretch's start, per staff (\`{ "staff": 1, "key": "2f", "time": "3/4" }\`, "" for what doesn't change), an empty list where there are none. Clef changes are never here: they are \`\\clef\` in the strings. A courtesy signature at the end of a system goes on the "none" stretch that holds it;
+  - **ending:** the "1." / "2." bracket over the stretch: "none" (no ending over it), "start" (an ending starts here and runs on into the next stretch), "middle" (it runs on from the stretch before and into the next), "end" (it runs on from the stretch before and ends here), or "whole" (it starts and ends here); **endingLabel:** the ending's label as printed where it is visible over this stretch ("1.", "2."), else "";
+  - **voices:** the music, one entry per voice: **voice** (its id in the piece: from the request's list where it continues, a new number otherwise; traditionally 1 the upper voice, stems up, 2 the lower), **staff** (the staff it starts on), **description** (for a new voice, where it first appears: a short description, "melody", "inner alto line", "left-hand bass"; else "") and **music** (a string, below). Every staff has a voice in every stretch that is part of a measure: where a staff has no notes, a voice with \`s\` or \`R\` of the stretch's length. All voices of a stretch last the same time. A "none" stretch has no notes or rests (an empty list, or voices with only a \`\\clef\`);
   - **rightBarLine:** the bar line at the stretch's right: "single", "double", "final", "startRepeat", "endRepeat", "bothRepeats", "dashed", or "none" (the last stretch, when the system ends without a bar line).
 - **lastMeasureContinues:** whether the system's last measure continues on the next system.
 - **issues:** your doubts and what the format can't express (below).
@@ -126,8 +130,8 @@ ${MUSIC}
 Report every doubt as an issue, not silently: a question about what the page says at one place, with the answers you considered, each with its evidence ("dot near the A♭: staccato or smudge?"), and **applied**: the key of the answer your music reflects. Answers have keys: "a", "b", "c", …
 - **boxes:** where it is: one or more boxes, each on one of the images you were sent, named by its label ("system", "stretch 3", "previous system", "next system"), as fractions of that image (left, right, top, bottom from 0 to 1).
 - **People read them too:** the question, the location and the answers are shown to the user in the app, not only to the stages after you. Write them as plain sentences that a musician understands without the request: each starts with a capital letter. **Never refer to the transcription** ("as transcribed", "the current reading", "what you wrote"): a later stage may apply another answer, and the text would then be wrong. Say only what the page might show: "A D", not "A D, as transcribed".
-- **location:** what in the box is meant, when the box alone doesn't say: simple and local to the box ("the middle note of the chord"), never depending on your reading of the score ("the left hand on beat 3"). Else null.
-- **class:** "reading" when what the page says is hard to tell; "format" when the page is clear but the format can't express it (a mark that isn't in the list, lyrics, an ossia, a beam across a bar line). For a format issue, the answers are the workarounds (dropping the mark is one), and **lilypond** lists the LilyPond tokens that would express what is printed (e.g. ["\\\\harmonic"]); for a reading issue it is null. Format issues cost nothing and are wanted.
+- **location:** what in the box is meant, when the box alone doesn't say: simple and local to the box ("the middle note of the chord"), never depending on your reading of the score ("the left hand on beat 3"). Else "".
+- **class:** "reading" when what the page says is hard to tell; "format" when the page is clear but the format can't express it (a mark that isn't in the list, lyrics, an ossia, a beam across a bar line). For a format issue, the answers are the workarounds (dropping the mark is one), and **lilypond** lists the LilyPond tokens that would express what is printed (e.g. ["\\\\harmonic"]), or is empty when no new token would (the tokens exist, but the format's rules don't allow what is printed, e.g. a beam across a bar line); for a reading issue it is always empty. Format issues cost nothing and are wanted.
 
 ## How to read
 - Read first, compare afterwards: transcribe a stretch from the image before you look at any passage it seems to repeat. The differences are then things to look at again, never a reason to copy.
@@ -145,34 +149,39 @@ export function extractText(request: unknown): string {
 const str = { type: "string" };
 const int = { type: "integer" };
 const bool = { type: "boolean" };
-const nullable = (schema: object) => ({ anyOf: [schema, { type: "null" }] });
 const enumOf = (values: readonly string[]) => ({ type: "string", enum: [...values] });
 
 function object(properties: Record<string, unknown>) {
   return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
 }
 
+// The answer's schema has no nullable field (Anthropic's limit on schemas, docs/llm.md): a text with no value is "", a
+// number -1, a stretch's class and its measure's kind are one value, and its ending is a value and a label.
+// lensFromExtract turns the answer into the lens as code uses it.
+export const STRETCH_CLASS_VALUES = ["new-normal", "new-incomplete", "new-unmeasured", "continues", "none"] as const;
+export const ENDING_VALUES = ["none", "start", "middle", "end", "whole"] as const;
+
 export const EXTRACT_SCHEMA = object({
   startRepeat: bool,
   staves: {
     type: "array",
-    items: object({ staff: int, description: nullable(str), label: nullable(str), clef: str, key: str, time: nullable(str) }),
+    items: object({ staff: int, description: str, label: str, clef: str, key: str, time: str }),
   },
   groups: {
     type: "array",
-    items: object({ staves: { type: "array", items: int }, symbol: enumOf(["brace", "bracket", "bracketsq", "line"]), label: nullable(str) }),
+    items: object({ staves: { type: "array", items: int }, symbol: enumOf(["brace", "bracket", "bracketsq", "line"]), label: str }),
   },
   stretches: {
     type: "array",
     items: object({
       stretch: int,
-      class: enumOf(["none", "new", "continues"]),
-      kind: nullable(enumOf(["normal", "incomplete", "unmeasured"])),
-      printedNumber: nullable(str),
-      measureNumber: nullable(int),
-      changes: { type: "array", items: object({ staff: int, key: nullable(str), time: nullable(str) }) },
-      ending: nullable(object({ startsHere: bool, endsHere: bool, label: nullable(str) })),
-      voices: { type: "array", items: object({ voice: int, staff: int, description: nullable(str), music: str }) },
+      class: enumOf(STRETCH_CLASS_VALUES),
+      printedNumber: str,
+      measureNumber: int,
+      changes: { type: "array", items: object({ staff: int, key: str, time: str }) },
+      ending: enumOf(ENDING_VALUES),
+      endingLabel: str,
+      voices: { type: "array", items: object({ voice: int, staff: int, description: str, music: str }) },
       rightBarLine: enumOf(["single", "double", "final", "startRepeat", "endRepeat", "bothRepeats", "dashed", "none"]),
     }),
   },
@@ -184,12 +193,59 @@ export const EXTRACT_SCHEMA = object({
         type: "array",
         items: object({ image: str, box: object({ left: { type: "number" }, right: { type: "number" }, top: { type: "number" }, bottom: { type: "number" } }) }),
       },
-      location: nullable(str),
+      location: str,
       question: str,
       answers: { type: "array", items: object({ key: str, text: str }) },
       applied: str,
       class: enumOf(["reading", "format"]),
-      lilypond: nullable({ type: "array", items: str }),
+      lilypond: { type: "array", items: str },
     }),
   },
 });
+
+// The answer as the schema has it, as the lens code uses it (LensSystem, @score3ly/notation): "" and -1 null, the class
+// split into class and kind, the ending an object or null, a reading issue's empty list of tokens null. Whatever isn't
+// of the expected form is left as it is, for the checks.
+export function lensFromExtract(json: unknown): unknown {
+  const record = (o: unknown): o is Record<string, unknown> => typeof o === "object" && o !== null && !Array.isArray(o);
+  const orNull = (o: unknown, keys: string[]) => {
+    if (!record(o)) return o;
+    const copy = { ...o };
+    for (const k of keys) if (copy[k] === "") copy[k] = null;
+    return copy;
+  };
+  const each = (list: unknown, f: (o: unknown) => unknown) => (Array.isArray(list) ? list.map(f) : list);
+  const endings: Record<string, { startsHere: boolean; endsHere: boolean } | null> = {
+    none: null,
+    start: { startsHere: true, endsHere: false },
+    middle: { startsHere: false, endsHere: false },
+    end: { startsHere: false, endsHere: true },
+    whole: { startsHere: true, endsHere: true },
+  };
+  if (!record(json)) return json;
+  return {
+    ...json,
+    staves: each(json.staves, (t) => orNull(t, ["description", "label", "time"])),
+    groups: each(json.groups, (g) => orNull(g, ["label"])),
+    stretches: each(json.stretches, (u) => {
+      if (!record(u)) return u;
+      const { endingLabel, ...s } = orNull(u, ["printedNumber"]) as Record<string, unknown>;
+      const merged = typeof s.class === "string" && s.class.startsWith("new-");
+      const ending = typeof s.ending === "string" && s.ending in endings ? endings[s.ending] : s.ending;
+      return {
+        ...s,
+        class: merged ? "new" : s.class,
+        kind: merged ? (s.class as string).slice("new-".length) : null,
+        measureNumber: s.measureNumber === -1 ? null : s.measureNumber,
+        changes: each(s.changes, (c) => orNull(c, ["key", "time"])),
+        ending: record(ending) ? { ...ending, label: endingLabel === "" ? null : endingLabel } : ending,
+        voices: each(s.voices, (v) => orNull(v, ["description"])),
+      };
+    }),
+    issues: each(json.issues, (i) => {
+      const issue = orNull(i, ["location"]);
+      if (!record(issue)) return issue;
+      return issue.class !== "format" && Array.isArray(issue.lilypond) && issue.lilypond.length === 0 ? { ...issue, lilypond: null } : issue;
+    }),
+  };
+}
