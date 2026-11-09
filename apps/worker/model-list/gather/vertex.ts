@@ -7,12 +7,6 @@
 //
 // and writes model-list/vertex.json. Run from apps/worker. The parsing is expected to change from release to release:
 // URLs move, formats change. What it reads, all public pages (no credentials):
-// - Anthropic's page "Claude Models on Google Cloud (Google managed)", the offering the app's adapter uses
-//   (`AnthropicVertex`), in its Markdown version: the table "API model IDs", each model's name and its string on Vertex
-//   AI (with an `@` date for the models before 4.6).
-// - Google's page "Partner Models Pricing": a table of Claude prices per location, one tab per location ("Global",
-//   "EU Multi-Region (EU)", "europe-west 1", …). A model is served where its tab has its prices. Of each model, the
-//   short-context column (≤ 200K, or ≤ 100K for Haiku 5.5) of Input, Output, 5m Cache Write and Cache Hit.
 // - Google's page "Vertex AI pricing", the "Standard" tabs: Gemini's input, output and cached input prices per million
 //   tokens, short context, "Global" and "Non-global" (or one price for every location, for Gemini 2.5). Dated prices
 //   (introductory or promotional, "through December 31, 2026", and the price "starting January 1, 2027"): the latest,
@@ -23,13 +17,12 @@
 //   endpoint locations", one row per Gemini model ("Gemini 4 Argon (gemini-4-argon)"), a mark (`compare-yes`) per location
 //   serving it.
 // Google localizes its pages by where they are fetched from, so they are asked for in English (`hl=en`).
-// - claude-models.json and gemini-models.json, kept by hand: which models the app lists, their names and efforts.
+// - gemini-models.json, kept by hand: which models the app lists, their names and efforts.
+// Only Gemini: the app doesn't support Claude on Vertex AI (docs/llm.md, "Calling the providers").
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const CLAUDE_PAGE_URL = "https://platform.claude.com/docs/en/build-with-claude/claude-models-on-google-cloud/google-managed.md";
-const CLAUDE_PRICES_URL = "https://cloud.google.com/model-garden/partner-models/pricing?hl=en";
 const GEMINI_PRICES_URL = "https://cloud.google.com/vertex-ai/generative-ai/pricing?hl=en";
 const LOCATIONS_URL = "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations?hl=en";
 
@@ -39,17 +32,11 @@ const sources = join(here, "sources", "vertex");
 const output = join(here, "..", "vertex.json");
 const today = new Date().toISOString().slice(0, 10);
 
-type Kind = "input" | "output" | "cacheRead" | "cacheWrite";
-const KINDS: Kind[] = ["input", "output", "cacheRead", "cacheWrite"];
-type KnownClaude = { name: string; efforts: string[]; thinking?: "adaptive" };
 type KnownGemini = { id: string; name: string; efforts: string[]; onlyOn?: "ai-studio" | "vertex" };
 
 // The excerpts' rows.
-type ClaudePrice = { tab: string; model: string; type: string; usd: number };
 type GeminiPrice = { model: string; type: string; region: string; price: string; cached: string };
 type GeminiPlaces = { name: string; string: string; locations: string[] };
-
-const CLAUDE_TYPES: Record<string, Kind> = { Input: "input", Output: "output", "Cache Hit": "cacheRead", "5m Cache Write": "cacheWrite" };
 
 // ---- HTML, read with regular expressions: enough for these pages' tables.
 
@@ -95,8 +82,6 @@ function tabOf(html: string, start: number): string | undefined {
 async function download(): Promise<void> {
   mkdirSync(downloads, { recursive: true });
   for (const [url, file] of [
-    [CLAUDE_PAGE_URL, "claude-models.md"],
-    [CLAUDE_PRICES_URL, "partner-pricing.html"],
     [GEMINI_PRICES_URL, "pricing.html"],
     [LOCATIONS_URL, "locations.html"],
   ]) {
@@ -111,43 +96,6 @@ const header = (url: string, note: string) => JSON.stringify({ url, fetched: tod
 
 function writeJsonl(file: string, head: string, rows: unknown[]): void {
   writeFileSync(join(sources, file), [head, ...rows.map((r) => JSON.stringify(r)), ""].join("\n"));
-}
-
-// The Claude models' strings: the rows of the table "API model IDs".
-function excerptClaudeModels(): number {
-  const lines = readFileSync(join(downloads, "claude-models.md"), "utf8")
-    .split("\n")
-    .filter((l) => /^\|\s*Claude [^|]*\|\s*`claude-[^`]+`\s*\|$/.test(l.trim()));
-  if (lines.length === 0) throw new Error("Anthropic's table \"API model IDs\" wasn't found: its format changed.");
-  writeFileSync(join(sources, "claude-models.md"), [`# ${CLAUDE_PAGE_URL}`, `# fetched ${today}; the table "API model IDs"`, "", ...lines.map((l) => l.trim()), ""].join("\n"));
-  return lines.length;
-}
-
-// Claude's prices: per tab (a location), model and type, the short-context cell, the only one of the "=<" columns
-// that has a price.
-function excerptClaudePrices(): number {
-  const html = readFileSync(join(downloads, "partner-pricing.html"), "utf8");
-  const rows: ClaudePrice[] = [];
-  for (const table of tables(html)) {
-    const head = table.rows[0]?.map((c) => c.text) ?? [];
-    if (head[0] !== "Model" || head[1] !== "Type") continue;
-    const short = head.flatMap((h, i) => (/^Price \(\/1M tokens\) =< \d+K input tokens/.test(h) ? [i] : []));
-    let model = "";
-    for (const row of table.rows.slice(1)) {
-      model = row[0]?.text || model;
-      if (!/^(Claude )?(Opus|Sonnet|Haiku|Fable|Mythos) /.test(model)) break; // another partner's table
-      const type = row[1]?.text ?? "";
-      if (!CLAUDE_TYPES[type]) continue;
-      const tab = tabOf(html, table.start);
-      if (!tab) throw new Error(`${model}: its table isn't in a tab: the page's format changed.`);
-      const cells = short.map((i) => row[i]?.text ?? "").filter((c) => c !== "");
-      if (cells.length !== 1 || !/^\$[\d.]+$/.test(cells[0])) throw new Error(`${model}, ${type} (${tab}): not exactly one short-context price: ${JSON.stringify(cells)}.`);
-      rows.push({ tab, model: model.startsWith("Claude ") ? model : `Claude ${model}`, type, usd: Number(cells[0].slice(1)) });
-    }
-  }
-  if (rows.length === 0) throw new Error("No Claude prices found on the partner pricing page: its format changed.");
-  writeJsonl("claude-prices.jsonl", header(CLAUDE_PRICES_URL, "per location tab, the Claude models' short-context Input, Output, 5m Cache Write and Cache Hit, per million tokens"), rows);
-  return rows.length;
 }
 
 // Gemini's locations: every Gemini row of the section "Google model endpoint locations", with the locations marked
@@ -218,18 +166,12 @@ function excerptGeminiPrices(places: GeminiPlaces[]): number {
 
 function excerpt(): void {
   mkdirSync(sources, { recursive: true });
-  const claudeModels = excerptClaudeModels();
-  const claudePrices = excerptClaudePrices();
   const places = excerptLocations();
   const geminiPrices = excerptGeminiPrices(places);
-  console.log(`Excerpts: ${claudeModels} Claude models, ${claudePrices} Claude price rows, ${places.length} Gemini models' locations, ${geminiPrices} Gemini price rows.`);
+  console.log(`Excerpts: ${places.length} Gemini models' locations, ${geminiPrices} Gemini price rows.`);
 }
 
 // ---- Parsing the excerpts.
-
-function claudeKnown(): Record<string, KnownClaude> {
-  return (JSON.parse(readFileSync(join(here, "claude-models.json"), "utf8")) as { models: Record<string, KnownClaude> }).models;
-}
 
 function geminiKnown(): { models: Record<string, KnownGemini>; ignored: string[] } {
   return JSON.parse(readFileSync(join(here, "gemini-models.json"), "utf8"));
@@ -240,57 +182,8 @@ function readJsonl<T>(file: string): { fetched: string; rows: T[] } {
   return { fetched: (JSON.parse(head) as { fetched: string }).fetched, rows: lines.map((l) => JSON.parse(l) as T) };
 }
 
-// "Global" → global, "EU Multi-Region (EU)" → eu, "europe-west 1" → europe-west1.
-function locationOfTab(tab: string): string {
-  if (tab === "Global") return "global";
-  const code = /\(([A-Z]{2})\)$/.exec(tab)?.[1];
-  return code ? code.toLowerCase() : tab.replace(/\s+/g, "");
-}
-
 type Price = { model: string; region: string; routing: null; input: number; output: number; cacheRead: number; cacheWrite: number; source: string };
-type Model = { id: string; name: string; family: "claude" | "gemini"; string: string; efforts: string[]; thinking?: "adaptive" };
-
-function parseClaude(problems: string[], notes: string[]): { models: Model[]; prices: Price[] } {
-  const known = claudeKnown();
-  // "| Claude Opus 4.5 | `claude-opus-4-5@20251101` |", the name possibly followed by "([deprecated](…))".
-  const strings = readFileSync(join(sources, "claude-models.md"), "utf8")
-    .split("\n")
-    .filter((l) => l.startsWith("| Claude"))
-    .map((l) => {
-      const [, name, string] = l.split("|").map((c) => c.trim());
-      return { name: name.replace(/\s*\(.*\)\s*$/, ""), string: string.replace(/`/g, "") };
-    });
-  const { rows } = readJsonl<ClaudePrice>("claude-prices.jsonl");
-
-  for (const name of new Set(rows.map((r) => r.model))) if (!strings.some((s) => s.name === name)) problems.push(`${name} has prices but isn't in Anthropic's table of model IDs: its string is unknown.`);
-  const models: Model[] = [];
-  const prices: Price[] = [];
-  for (const { name, string } of strings) {
-    const id = string.replace(/@\d+$/, "");
-    if (!known[id]) {
-      problems.push(`${id} (${name}) isn't in claude-models.json: decide whether the app lists it.`);
-      continue;
-    }
-    const mine = rows.filter((r) => r.model === name);
-    if (mine.length === 0) {
-      notes.push(`${name}: on Anthropic's page, without prices on Google's: left out.`);
-      continue;
-    }
-    for (const tab of new Set(mine.map((r) => r.tab))) {
-      const four = KINDS.map((kind) => mine.filter((r) => r.tab === tab && CLAUDE_TYPES[r.type] === kind));
-      // Google's tables have slips (a row missing, an output labelled input, a row twice): such a place is left out,
-      // and printed for the spot-check, rather than guessed.
-      if (four.some((f) => f.length !== 1)) {
-        notes.push(`${name} at ${locationOfTab(tab)}: not exactly one price of each kind on the page (input, output, cache read, cache write: ${four.map((f) => f.length).join(", ")}): left out.`);
-        continue;
-      }
-      const [input, output, cacheRead, cacheWrite] = four.map((f) => f[0].usd);
-      prices.push({ model: id, region: locationOfTab(tab), routing: null, input, output, cacheRead, cacheWrite, source: `partner pricing page: tab "${tab}", ${name}` });
-    }
-    models.push({ id, name: known[id].name, family: "claude", string, efforts: known[id].efforts, ...(known[id].thinking ? { thinking: known[id].thinking } : {}) });
-  }
-  return { models, prices };
-}
+type Model = { id: string; name: string; family: "gemini"; string: string; efforts: string[] };
 
 const usd = (cell: string) => (/^\$\d+(\.\d+)?$/.test(cell) ? Number(cell.slice(1)) : null);
 
@@ -350,28 +243,25 @@ function regionOrder(r: string): string {
 }
 
 function parse(): void {
-  const fetched = readJsonl("claude-prices.jsonl").fetched;
+  const fetched = readJsonl("gemini-prices.jsonl").fetched;
   const problems: string[] = [];
   const notes: string[] = [];
-  const claude = parseClaude(problems, notes);
   const gemini = parseGemini(problems, notes);
   if (problems.length > 0) {
     console.error(problems.map((p) => `  ${p}`).join("\n"));
     process.exit(1);
   }
-  const prices = [...claude.prices, ...gemini.prices];
+  const prices = gemini.prices;
   const regions = [...new Set(prices.map((p) => p.region))].sort((a, b) => regionOrder(a).localeCompare(regionOrder(b)));
   const file = {
     $schema: "./schema.json",
     provider: "vertex",
     collectedAt: fetched,
     sources: [
-      { url: CLAUDE_PAGE_URL, note: "the Claude models' strings: gather/sources/vertex/claude-models.md" },
-      { url: CLAUDE_PRICES_URL, note: "the Claude models' locations and prices: gather/sources/vertex/claude-prices.jsonl" },
       { url: GEMINI_PRICES_URL, note: "the Gemini models' prices: gather/sources/vertex/gemini-prices.jsonl" },
       { url: LOCATIONS_URL, note: "the Gemini models' strings and locations: gather/sources/vertex/locations.jsonl" },
     ],
-    models: [...claude.models, ...gemini.models],
+    models: gemini.models,
     regions: regions.map((region) => ({ region, routings: null })),
     prices,
   };

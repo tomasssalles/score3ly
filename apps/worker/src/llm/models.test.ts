@@ -292,7 +292,7 @@ test("a provider's places come from the list's regions", () => {
 });
 
 test("the supported pairs of provider and family are the adapters'", () => {
-  assert.deepEqual(supportedFamilies("vertex"), ["claude", "gemini"]);
+  assert.deepEqual(supportedFamilies("vertex"), ["gemini"]);
   assert.deepEqual(supportedFamilies("bedrock"), ["claude"]);
   assert.equal(adapterFor("vertex", "gemini"), "google-vertex");
   assert.equal(adapterFor("bedrock", "gemini"), null);

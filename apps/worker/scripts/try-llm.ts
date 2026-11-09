@@ -2,8 +2,6 @@
 //
 //   ANTHROPIC_API_KEY=... npm run llm:try -w apps/worker -- anthropic claude-opus-5-5 page.png "How many systems?"
 //   GEMINI_API_KEY=...    npm run llm:try -w apps/worker -- google gemini-3-pro page.jpg "How many systems?"
-//   VERTEX_SERVICE_ACCOUNT=key.json VERTEX_REGION=eu \
-//                         npm run llm:try -w apps/worker -- anthropic-vertex claude-opus-5-5 page.png "How many systems?"
 //   VERTEX_SERVICE_ACCOUNT=key.json VERTEX_REGION=global \
 //                         npm run llm:try -w apps/worker -- google-vertex gemini-3.1-pro-preview page.png "How many systems?"
 //
@@ -13,7 +11,7 @@
 //   BEDROCK_API_KEY=... BEDROCK_REGION=eu-central-1 \
 //                         npm run llm:try -w apps/worker -- anthropic-bedrock eu.anthropic.claude-opus-5-5 page.png "..."
 //
-// For Vertex AI (Claude or Gemini), VERTEX_SERVICE_ACCOUNT is the path of a service account's key file (JSON), VERTEX_REGION the region
+// For Gemini on Vertex AI, VERTEX_SERVICE_ACCOUNT is the path of a service account's key file (JSON), VERTEX_REGION the region
 // ("eu" if left out), and VERTEX_PROJECT the project (the key file's if left out). For Bedrock, BEDROCK_API_KEY is a
 // Bedrock API key, or else AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY an access key pair; BEDROCK_REGION is the
 // region ("eu-central-1" if left out). For OpenRouter, OPENROUTER_REGION "eu" sends to its EU host (a Business account),
@@ -34,10 +32,10 @@ if (
   !model ||
   !imagePath ||
   !prompt ||
-  !["anthropic", "anthropic-vertex", "anthropic-bedrock", "google", "google-vertex", "openrouter"].includes(provider)
+  !["anthropic", "anthropic-bedrock", "google", "google-vertex", "openrouter"].includes(provider)
 ) {
   console.error(
-    "Usage: try-llm.ts <anthropic|anthropic-vertex|anthropic-bedrock|google|google-vertex|openrouter> <model> <image> <prompt> [--json]",
+    "Usage: try-llm.ts <anthropic|anthropic-bedrock|google|google-vertex|openrouter> <model> <image> <prompt> [--json]",
   );
   process.exit(1);
 }
@@ -64,7 +62,7 @@ const config: ProviderConfig =
         : provider === "openrouter"
           ? { provider, apiKey: required("OPENROUTER_API_KEY"), region: process.env.OPENROUTER_REGION ?? "" }
         : {
-            provider: provider as "anthropic-vertex" | "google-vertex",
+            provider: "google-vertex",
             serviceAccount: readFileSync(userPath(required("VERTEX_SERVICE_ACCOUNT")), "utf8"),
             region: process.env.VERTEX_REGION ?? "eu",
             projectId: process.env.VERTEX_PROJECT,

@@ -135,7 +135,7 @@ function toLlmError(err: unknown): LlmError {
 }
 
 // Where Vertex AI answers for a location: the global endpoint, the US or EU multi-region, or a single region (the same
-// rule as Anthropic's Vertex SDK, for Claude).
+// rule as Anthropic's Vertex SDK).
 export function vertexHost(location: string): string {
   if (location === "global") return "aiplatform.googleapis.com";
   if (location === "us" || location === "eu") return `aiplatform.${location}.rep.googleapis.com`;
@@ -155,7 +155,7 @@ export function toVertexBody(request: LlmRequest): Record<string, unknown> {
 }
 
 // Gemini through Google Cloud's Vertex AI, for processing in a chosen location (e.g. in the EU, §10), with a service
-// account's key file as for Claude on Vertex AI. Vertex's REST API is called directly: Google's SDK authenticates
+// account's key file. Vertex's REST API is called directly: Google's SDK authenticates
 // with Google's auth library, which doesn't run in a Worker; the token comes from our own token source instead.
 export class VertexGeminiProvider implements LlmProvider {
   readonly id = "google-vertex" as const;

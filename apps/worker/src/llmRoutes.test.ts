@@ -605,10 +605,7 @@ test("the pickers' options: providers with their families, efforts, secrets and 
   assert.equal(vertex.name, "Vertex AI");
   assert.deepEqual(
     vertex.families.map((f) => [f.id, f.efforts.length, f.secrets]),
-    [
-      ["claude", 5, [["serviceAccount"]]],
-      ["gemini", 3, [["serviceAccount"]]],
-    ],
+    [["gemini", 3, [["serviceAccount"]]]],
   );
   const bedrock = options.providers.find((p) => p.id === "bedrock")!;
   assert.deepEqual(bedrock.families[0].secrets, [["apiKey"], ["accessKeyId", "secretAccessKey"]]);

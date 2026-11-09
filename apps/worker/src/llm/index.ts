@@ -1,7 +1,7 @@
 // Vision LLMs behind one interface (types.ts). A model config (docs/llm.md, "Model configs") names the provider and the secrets
 // and settings it needs; the Worker reads the secrets and creates the provider here.
 
-import { anthropicProvider, bedrockClaudeProvider, vertexClaudeProvider } from "./anthropic.ts";
+import { anthropicProvider, bedrockClaudeProvider } from "./anthropic.ts";
 import { FakeProvider } from "./fake.ts";
 import { GoogleProvider, VertexGeminiProvider } from "./google.ts";
 import { OpenRouterProvider } from "./openrouter.ts";
@@ -13,7 +13,6 @@ export * from "./types.ts";
 
 export type ProviderConfig =
   | { provider: "anthropic"; apiKey: string }
-  | { provider: "anthropic-vertex"; serviceAccount: string; region: string; projectId?: string }
   | { provider: "anthropic-bedrock"; region: string; apiKey: string }
   | { provider: "anthropic-bedrock"; region: string; accessKeyId: string; secretAccessKey: string }
   | { provider: "google"; apiKey: string }
@@ -25,8 +24,6 @@ export function createProvider(config: ProviderConfig, options: { fetch?: Fetch 
   switch (config.provider) {
     case "anthropic":
       return anthropicProvider({ apiKey: config.apiKey, fetch: options.fetch });
-    case "anthropic-vertex":
-      return vertexClaudeProvider({ ...config, fetch: options.fetch });
     case "anthropic-bedrock":
       return bedrockClaudeProvider({ ...config, fetch: options.fetch });
     case "google":
@@ -61,7 +58,7 @@ export function createAdapter(settings: AdapterSettings, options: { fetch?: Fetc
     adapter === "anthropic" || adapter === "google" ? { provider: adapter, apiKey: secrets.apiKey! }
     : adapter === "anthropic-bedrock" ? { provider: adapter, region, ...secrets }
     : adapter === "openrouter" ? { provider: adapter, region, apiKey: secrets.apiKey! }
-    : adapter === "anthropic-vertex" || adapter === "google-vertex" ? { provider: adapter, serviceAccount: secrets.serviceAccount!, ...where }
+    : adapter === "google-vertex" ? { provider: adapter, serviceAccount: secrets.serviceAccount!, ...where }
     : { provider: adapter };
   return createProvider(config as ProviderConfig, options);
 }

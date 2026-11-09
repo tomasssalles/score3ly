@@ -1,6 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { AnthropicBedrock } from "@anthropic-ai/bedrock-sdk";
-import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
 import type { ContentBlockParam, Message, MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages";
 import {
   type Fetch,
@@ -11,19 +10,18 @@ import {
   type LlmResponse,
   withJson,
 } from "./types.ts";
-import { parseServiceAccount, sharedTokenSource } from "./googleServiceAccount.ts";
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 64_000;
 
-// Claude through Anthropic's API, Google Cloud's Vertex AI or Amazon Bedrock (e.g. in the EU, docs/overview.md §10), with
-// Anthropic's official clients: the same Messages API on all three, so one class serves them all. Requests are streamed, so long
+// Claude through Anthropic's API or Amazon Bedrock (e.g. in the EU, docs/overview.md §10), with Anthropic's official
+// clients: the same Messages API on both, so one class serves them both. Requests are streamed, so long
 // answers don't hit HTTP timeouts; the caller gets the whole message at the end. The chosen model answers or the
 // call fails: no fallback to another model.
 export class ClaudeProvider implements LlmProvider {
-  readonly id: "anthropic" | "anthropic-vertex" | "anthropic-bedrock";
-  readonly #client: Anthropic | AnthropicVertex | AnthropicBedrock;
+  readonly id: "anthropic" | "anthropic-bedrock";
+  readonly #client: Anthropic | AnthropicBedrock;
 
-  constructor(id: ClaudeProvider["id"], client: Anthropic | AnthropicVertex | AnthropicBedrock) {
+  constructor(id: ClaudeProvider["id"], client: Anthropic | AnthropicBedrock) {
     this.id = id;
     this.#client = client;
   }
@@ -47,30 +45,6 @@ export class ClaudeProvider implements LlmProvider {
 export function anthropicProvider(options: { apiKey: string; fetch?: Fetch; maxRetries?: number }): ClaudeProvider {
   const client = new Anthropic({ apiKey: options.apiKey, fetch: options.fetch, maxRetries: options.maxRetries });
   return new ClaudeProvider("anthropic", client);
-}
-
-type VertexAuthClient = NonNullable<NonNullable<ConstructorParameters<typeof AnthropicVertex>[0]>["authClient"]>;
-
-// Vertex AI, with a service account's key file. `region` is where requests are processed: "eu" (the EU
-// multi-region), a single region such as "europe-west1", "us", or "global".
-export function vertexClaudeProvider(options: {
-  serviceAccount: string; // the key file's JSON
-  region: string;
-  projectId?: string; // default: the service account's project
-  fetch?: Fetch;
-  maxRetries?: number;
-}): ClaudeProvider {
-  const account = parseServiceAccount(options.serviceAccount);
-  const auth = sharedTokenSource(account, options.fetch);
-  const client = new AnthropicVertex({
-    region: options.region,
-    projectId: options.projectId ?? account.projectId,
-    // Our own token source: Google's auth library doesn't run in a Worker.
-    authClient: auth as unknown as VertexAuthClient,
-    fetch: options.fetch,
-    maxRetries: options.maxRetries,
-  });
-  return new ClaudeProvider("anthropic-vertex", client);
 }
 
 // Amazon Bedrock, through `bedrock-runtime` (InvokeModel; not the Messages API endpoint, "Mantle": docs/llm.md, "Calling

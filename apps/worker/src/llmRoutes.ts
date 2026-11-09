@@ -46,7 +46,6 @@ import { firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 // Bedrock takes an API key or an access key pair.
 const SECRETS: Record<string, string[][]> = {
   anthropic: [["apiKey"]],
-  "anthropic-vertex": [["serviceAccount"]],
   "anthropic-bedrock": [["apiKey"], ["accessKeyId", "secretAccessKey"]],
   google: [["apiKey"]],
   "google-vertex": [["serviceAccount"]],

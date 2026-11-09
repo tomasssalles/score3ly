@@ -27,7 +27,7 @@ export function modelKey(config: ModelConfig): { provider: string; model: string
 }
 
 // The largest image to send, by the model's family (not its model string, which the app doesn't interpret, §7.2):
-// Claude on any of its three providers sees at most 2576 px and about 3.75 megapixels (Opus 4.7 and later; older
+// Claude on any of its providers sees at most 2576 px and about 3.75 megapixels (Opus 4.7 and later; older
 // Claude models shrink further on their own). Gemini's limits aren't checked yet: Claude's are used for it too, and for
 // the fake models.
 export function imageLimit(_config: ModelConfig): SizeLimit {
@@ -36,7 +36,7 @@ export function imageLimit(_config: ModelConfig): SizeLimit {
 
 // What a provider accepts in one request (docs/stages/analyze.md): images are sent inline, as base64. Claude's API:
 // 32 MB per request, 10 MB per image, and with more than 20 images none may be larger than 2000 px either way
-// (the vision docs, 2026-10). Bedrock and Vertex AI: 5 MB per image, and less per request than the API (assumed 20 MB
+// (the vision docs, 2026-10). Bedrock: 5 MB per image, and less per request than the API (assumed 20 MB
 // until checked). Gemini, as Gemini said (to check against Google's documentation): 20 MB per request, 7 MB per image
 // at the least, on Vertex AI too (to check as well).
 export type RequestLimits = {
@@ -50,7 +50,7 @@ const MB = 1024 * 1024;
 export function requestLimits(config: ModelConfig): RequestLimits {
   const many = { above: 20, limit: { maxLongEdge: 2000, maxPixels: CLAUDE_IMAGE_LIMIT.maxPixels } };
   if (config.family === "gemini") return { maxRequestBytes: 20 * MB, maxImageBytes: 7 * MB, manyImages: null };
-  if (config.provider === "bedrock" || config.provider === "vertex") return { maxRequestBytes: 20 * MB, maxImageBytes: 5 * MB, manyImages: many };
+  if (config.provider === "bedrock") return { maxRequestBytes: 20 * MB, maxImageBytes: 5 * MB, manyImages: many };
   return { maxRequestBytes: 32 * MB, maxImageBytes: 10 * MB, manyImages: many };
 }
 

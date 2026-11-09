@@ -120,8 +120,8 @@ The Workers free plan allows 10 ms of CPU time per request; waiting for the prov
 `#owner` `#next-release`
 
 The prices the gathering collected for all four providers (`apps/worker/model-list/<provider>.json`, from the excerpts in `gather/sources/<provider>/`; `docs/llm.md`, "The list of models and prices: code, generated"), checked by the project owner against the providers' own pages before the first release: a sample of models, regions and routings per provider, and anything that looks odd (a price far from its siblings, a model missing where it should be).
-- **Vertex AI, against Google's billing catalog too:** a few prices looked up by hand with the commands in `gather/README.md` ("Cross-checking with Google's billing catalog, by hand"; the catalog has only Opus 5.5 and Sonnet 5.5 of the Claude models). Already compared (2026-11-06): every Claude model's `global` price matches Anthropic's own list; Opus 5.5 at `eu` and Gemini 4 Argon, global and regional, match the catalog.
-- **Left out on Vertex AI for slips on Google's pages** (2026-11-06; the gathering prints them): Fable 5 and Opus 5.5 at `us`, Sonnet 4.6 at us-east5 and europe-west1 (a row missing, an output row labelled input, two input rows), and Gemini 3 Flash Preview everywhere (no output price). If the pages are fixed, gather again; if they aren't, decide whether to take those prices from the catalog by hand. Also left out, no price on Google's page: the Mythos models, Opus 4.1, Opus 4 and Sonnet 4.
+- **Vertex AI, against Google's billing catalog too:** a few prices looked up by hand with the commands in `gather/README.md` ("Cross-checking with Google's billing catalog, by hand"). Already compared (2026-11-06): Gemini 4 Argon, global and regional, matches the catalog.
+- **Left out on Vertex AI for slips on Google's pages** (2026-11-06; the gathering prints them): Gemini 3 Flash Preview everywhere (no output price). If the page is fixed, gather again; if it isn't, decide whether to take its prices from the catalog by hand.
 
 ### 2026-12-01: Gemini 4 Argon's new prices on AI Studio
 `#date` `#owner`
@@ -176,7 +176,7 @@ For testing and debugging: run stages as if nothing were cached, without our own
 ### Say where a model is still supported
 `#nice-to-have`
 
-`docs/llm.md`, "No longer supported": when a config is no longer supported, a hint where the app still supports its model, from the list: the same model on the same provider in other regions or routings ("The app still supports Claude Opus 4 on Bedrock in eu-central-1, …"), else on other providers ("… on Vertex AI and Anthropic"), else other models of the family on the same provider. Shown in the stage's failure and on the settings card, and useful in the clone form. Not hard with the list's lookups (`placesOf`, `modelsOf`); the wording and how much to list are the work.
+`docs/llm.md`, "No longer supported": when a config is no longer supported, a hint where the app still supports its model, from the list: the same model on the same provider in other regions or routings ("The app still supports Claude Opus 4 on Bedrock in eu-central-1, …"), else on other providers ("… on OpenRouter and Anthropic"), else other models of the family on the same provider. Shown in the stage's failure and on the settings card, and useful in the clone form. Not hard with the list's lookups (`placesOf`, `modelsOf`); the wording and how much to list are the work.
 
 ### Verify the prompt and schema of `layout`
 `#owner` `#next-release`
@@ -547,21 +547,13 @@ On a computer, a run should go on while its tab is in the background: the page k
 
 ### Images for the LLMs
 They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk by our own code to Claude's limits (`packages/imaging/src/scale.ts`; 2576 px on the long edge, 4784 visual tokens):
-- **5 MB per image on Bedrock and Vertex AI** (10 MB on Anthropic's API, 32 MB per request): check with the first real calls whether a colour scan at 2576 px stays under it as PNG, and what to do if not (grayscale, or a smaller limit for that provider). `layout` doesn't check its requests' size yet (§6).
+- **5 MB per image on Bedrock** (10 MB on Anthropic's API, 32 MB per request): check with the first real calls whether a colour scan at 2576 px stays under it as PNG, and what to do if not (grayscale, or a smaller limit for that provider). `layout` doesn't check its requests' size yet (§6).
 - **Gemini's limits:** what Gemini said about them is in §6 (`analyze`), to check against Google's documentation when we use it. `imageLimit` gives Gemini Claude's limits for now; each provider's adapter should declare its own.
 
 ### Model configs per kind of work
 `#optional`
 
 `docs/llm.md`, "Which config a stage uses": a level between a stage's own config and the default, in the advanced settings: a model config per kind of work, used by every stage of that kind that has no config of its own. Proposed kinds: finding layout boxes (`layout`), analyzing the pages (`analyze`: metadata and observations), extracting the music notation (`extract`, `apply_review`), reviewing (`review`).
-
-### Remove Claude on Vertex AI from the first release
-`#next-release`
-
-Decided by the project owner (2026-11-08): nothing untested is released, and Claude on Vertex AI won't be tested before the first release. (AWS access key pairs on Bedrock were to go too, and were removed from the code, then restored the same day: a personal AWS account can't use long-term Bedrock API keys, so access key pairs are what the project owner uses.)
-- **Claude on Vertex AI:** the model was bought, but the project's quota for Claude is 0 and raising it was refused (`docs/llm.md`, "Claude on Google Cloud's Vertex AI"). Take the pair (Vertex AI, Claude) out of `ADAPTERS` (`apps/worker/src/llm/adapters.ts`), so the form doesn't offer it and the Worker refuses it; the Vertex AI gathering stops listing Claude (`gather/vertex.ts`), and the list is gathered again.
-- **What may stay for later:** the adapter's code (`vertexClaudeProvider`, `apps/worker/src/llm/anthropic.ts`) and `llm:try`'s `anthropic-vertex`, with their tests.
-- **The docs follow:** the supported pairs (`docs/llm.md`'s first paragraph, "Calling the providers", `docs/overview.md` §7.2 and §10), Bedrock's credentials (`docs/llm.md`), and the manual tests if one uses them (`docs/manual-tests.md`).
 
 ### OpenRouter support and testing
 `#next-release` `#owner`
@@ -706,3 +698,39 @@ Not thought through: when a manual stage's input changes for only some items, ke
 ### Forking a project
 From a given stage: a new, separate project that starts with the original's pipeline up to that stage. Each project keeps its own linear history. Behind the scenes, the fork reuses the original's stage outputs without duplicating them (§2, §5.4, §5.8: a fork copies the pipeline entries up to its stage, and the issue counter, and no stages or outputs).
 - **The statistics with forks** (the project owner's thought, 2026-10-30): a manual stage a fork shares with its original counts in both, each with the stage's whole work time and its own page count (Effort, "Average manual work per page"): what matters is the effort a new score needs, and the shared stage's work was needed for both. The statistics' queries find a project's stages by the project they were created in (`created_in`) or its pipeline; a fork's shared stages were created in the original, so they need a look whenever forks are built.
+
+### Timeouts for LLM calls
+`#decision` `#owner`
+
+No LLM call has a timeout today: the Worker calls the adapter without an abort signal (`llmRoutes.ts`), Google's SDK and OpenRouter's `fetch` have none, Anthropic's SDK bounds at most the wait for the stream to start, and the browser's request to the Worker has none either. So a call can hang for good, and the stage's bar can't fill with the time elapsed out of the call's timeout, as §5.1 intends (today it moves only when an item is done, `stageRunner.ts`). Long calls are normal: a `layout` of 3 pages with Gemini 4 Argon at medium effort took 21 minutes (2026-11-09). **Decided** (the project owner, 2026-11-09): use the app for a while first, then choose a reasonable timeout for each kind of call (stage, perhaps provider and effort) from the recorded calls' times. Also check, while at it, whether Stop in the browser cancels the provider's call in the Worker (no signal is passed, so probably not; the provider may still bill the answer).
+
+### Stream Gemini's answers on Google AI Studio
+
+`google.ts` calls `generateContent`, which answers in one piece; every other adapter streams. Use the streamed call (`generateContentStream`), put together at the end like the others, so that the Worker knows tokens are arriving (see "The Worker reports the current call's progress"). Weigh against "Measure the Worker's CPU time per LLM request": a streamed answer is many small events parsed apart, which costs CPU time (its candidate fix 2 goes the other way).
+
+### Stream Gemini's answers on Vertex AI
+
+As on AI Studio, but Vertex AI's adapter calls the REST API with a plain `fetch` (`generateContent`, `google.ts`): the streamed endpoint is `streamGenerateContent` (with `?alt=sse` for server-sent events). Same weighing of the CPU time.
+
+### The Worker reports the current call's progress
+
+The Worker sends the browser, while an LLM call runs: when it started, when it ended, and how many tokens of the answer have arrived so far. Today the Worker puts the streamed answer together and answers the browser's request only at the end, so the browser knows nothing until then. To work out how: e.g. the Worker's response streamed as events (progress, then the answer), which keeps it to one request; mind the CPU time ("Measure the Worker's CPU time per LLM request"). Needs streaming on every provider ("Stream Gemini's answers on …").
+
+### Show that a long call is making progress
+`#decision` `#style`
+
+A call can take minutes with nothing on the screen moving, and the user can't tell whether to wait or to stop the stage and try another model. Use what is known (the number of calls made and expected, the tokens received on the current call, the time elapsed on it, its timeout, perhaps more) to show that progress is being made, or not. A clock alone only shows that the browser is alive, not that the provider is answering, though it does help decide when to give up. Note `docs/project-view.md`'s rule: progress indicators never show numbers. Waits for "Timeouts for LLM calls" and "The Worker reports the current call's progress".
+
+### The project filter's rows shift when the selection changes
+`#bug` `#style`
+
+Found by the project owner (2026-11-09), on the Statistics page (seen in Run times): with the project filter open, changing the selection moves the checkboxes and the texts slightly up and down, by different amounts, so their positions relative to each other change too. Seen when toggling between no project selected and only the top one selected. Probably the same in every tab that has the filter.
+
+### VAT in the costs
+`#next-release`
+
+Every provider the project owner pays adds VAT on top of its listed prices (2026-11-09, Germany, 19%, no VAT ID): Anthropic at checkout (5 USD of credits for 5.95 USD); OpenRouter on the credits and its fee together (100 USD of credits: 108 USD with the Business fee, 128.52 USD with VAT); AWS on pay-as-you-go use after the starter credits; Google AI Studio apparently deducted from the prepaid balance as it is used (5 € paid, 5 € of credit shown). So the app's costs (tokens × list prices, plus OpenRouter's fee) are about 19% below what the user pays, and the spending cap counts the costs before VAT too. **Decided** (the project owner, 2026-11-09):
+- **One VAT rate in the settings** (a percentage), for every provider: VAT depends on the user's place and status (a VAT ID usually means a reverse charge, no VAT on the invoice), not on the model. 0% for a new database, which is today's behaviour; the user guide points to it. A rate per model config, prefilled from the global one, is left for when a provider is found that differs.
+- **Each call stores the rate applied,** beside its cost before VAT, as it stores the prices used: the cost with VAT is computed from the two, and a later change of the rate doesn't change past calls.
+- **Everything shown includes VAT,** marked as such ("incl. 19% VAT"): the prices on the model config cards, the Statistics page's Costs tab, and the spending cap, which is checked against the costs with VAT.
+- **Not covered: payments in euros** (Google's): the costs are right in US dollars, but what that comes to on the user's statement depends on the provider's exchange rate.

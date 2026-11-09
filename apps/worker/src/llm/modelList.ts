@@ -13,7 +13,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-fable-5-1",
         "bedrock": "anthropic.claude-fable-5-1",
-        "vertex": "claude-fable-5-1",
         "openrouter": "anthropic/claude-fable-5.1"
       },
       "efforts": [
@@ -46,7 +45,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-fable-5",
         "bedrock": "anthropic.claude-fable-5",
-        "vertex": "claude-fable-5",
         "openrouter": "anthropic/claude-fable-5"
       },
       "efforts": [
@@ -79,7 +77,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-5-5",
         "bedrock": "anthropic.claude-opus-5-5",
-        "vertex": "claude-opus-5-5",
         "openrouter": "anthropic/claude-opus-5.5"
       },
       "efforts": [
@@ -97,7 +94,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-5",
         "bedrock": "anthropic.claude-opus-5",
-        "vertex": "claude-opus-5",
         "openrouter": "anthropic/claude-opus-5"
       },
       "efforts": [
@@ -115,7 +111,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-4-8",
         "bedrock": "anthropic.claude-opus-4-8",
-        "vertex": "claude-opus-4-8",
         "openrouter": "anthropic/claude-opus-4.8"
       },
       "efforts": [
@@ -134,7 +129,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-4-7",
         "bedrock": "anthropic.claude-opus-4-7",
-        "vertex": "claude-opus-4-7",
         "openrouter": "anthropic/claude-opus-4.7"
       },
       "efforts": [
@@ -153,7 +147,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-4-6",
         "bedrock": "anthropic.claude-opus-4-6-v1",
-        "vertex": "claude-opus-4-6",
         "openrouter": "anthropic/claude-opus-4.6"
       },
       "efforts": [
@@ -171,7 +164,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-opus-4-5-20251101",
         "bedrock": "anthropic.claude-opus-4-5-20251101-v1:0",
-        "vertex": "claude-opus-4-5@20251101",
         "openrouter": "anthropic/claude-opus-4.5"
       },
       "efforts": [
@@ -187,7 +179,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-sonnet-5-5",
         "bedrock": "anthropic.claude-sonnet-5-5",
-        "vertex": "claude-sonnet-5-5",
         "openrouter": "anthropic/claude-sonnet-5.5"
       },
       "efforts": [
@@ -205,7 +196,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-sonnet-5",
         "bedrock": "anthropic.claude-sonnet-5",
-        "vertex": "claude-sonnet-5",
         "openrouter": "anthropic/claude-sonnet-5"
       },
       "efforts": [
@@ -223,7 +213,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-sonnet-4-6",
         "bedrock": "anthropic.claude-sonnet-4-6",
-        "vertex": "claude-sonnet-4-6",
         "openrouter": "anthropic/claude-sonnet-4.6"
       },
       "efforts": [
@@ -241,7 +230,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-sonnet-4-5-20250929",
         "bedrock": "anthropic.claude-sonnet-4-5-20250929-v1:0",
-        "vertex": "claude-sonnet-4-5@20250929",
         "openrouter": "anthropic/claude-sonnet-4.5"
       },
       "efforts": []
@@ -253,7 +241,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-haiku-5-5",
         "bedrock": "anthropic.claude-haiku-5-5",
-        "vertex": "claude-haiku-5-5",
         "openrouter": "anthropic/claude-haiku-5.5"
       },
       "efforts": [
@@ -271,7 +258,6 @@ export const MODEL_LIST: ModelList = {
       "strings": {
         "anthropic": "claude-haiku-4-5-20251001",
         "bedrock": "anthropic.claude-haiku-4-5-20251001-v1:0",
-        "vertex": "claude-haiku-4-5@20251001",
         "openrouter": "anthropic/claude-haiku-4.5"
       },
       "efforts": []
@@ -822,11 +808,6 @@ export const MODEL_LIST: ModelList = {
     {
       "provider": "vertex",
       "region": "us",
-      "routings": null
-    },
-    {
-      "provider": "vertex",
-      "region": "asia-east1",
       "routings": null
     },
     {
@@ -9712,546 +9693,6 @@ export const MODEL_LIST: ModelList = {
         "output": 0.4,
         "cacheRead": 0.01,
         "cacheWrite": 0
-      }
-    },
-    {
-      "model": "claude-fable-5-1",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 10,
-        "output": 50,
-        "cacheRead": 0.25,
-        "cacheWrite": 12.5
-      }
-    },
-    {
-      "model": "claude-fable-5-1",
-      "provider": "vertex",
-      "region": "us",
-      "routing": null,
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5-1",
-      "provider": "vertex",
-      "region": "eu",
-      "routing": null,
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 0.275,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 10,
-        "output": 50,
-        "cacheRead": 1,
-        "cacheWrite": 12.5
-      }
-    },
-    {
-      "model": "claude-fable-5",
-      "provider": "vertex",
-      "region": "eu",
-      "routing": null,
-      "price": {
-        "input": 11,
-        "output": 55,
-        "cacheRead": 1.1,
-        "cacheWrite": 13.75
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 4,
-        "output": 20,
-        "cacheRead": 0.2,
-        "cacheWrite": 5
-      }
-    },
-    {
-      "model": "claude-opus-5-5",
-      "provider": "vertex",
-      "region": "eu",
-      "routing": null,
-      "price": {
-        "input": 4.4,
-        "output": 22,
-        "cacheRead": 0.22,
-        "cacheWrite": 5.5
-      }
-    },
-    {
-      "model": "claude-opus-5",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 5,
-        "output": 25,
-        "cacheRead": 0.5,
-        "cacheWrite": 6.25
-      }
-    },
-    {
-      "model": "claude-opus-5",
-      "provider": "vertex",
-      "region": "us",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-5",
-      "provider": "vertex",
-      "region": "eu",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-8",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 5,
-        "output": 25,
-        "cacheRead": 0.5,
-        "cacheWrite": 6.25
-      }
-    },
-    {
-      "model": "claude-opus-4-8",
-      "provider": "vertex",
-      "region": "us",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-8",
-      "provider": "vertex",
-      "region": "eu",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-7",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 5,
-        "output": 25,
-        "cacheRead": 0.5,
-        "cacheWrite": 6.25
-      }
-    },
-    {
-      "model": "claude-opus-4-7",
-      "provider": "vertex",
-      "region": "us",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-7",
-      "provider": "vertex",
-      "region": "eu",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-6",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 5,
-        "output": 25,
-        "cacheRead": 0.5,
-        "cacheWrite": 6.25
-      }
-    },
-    {
-      "model": "claude-opus-4-6",
-      "provider": "vertex",
-      "region": "us-east5",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-6",
-      "provider": "vertex",
-      "region": "europe-west1",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-6",
-      "provider": "vertex",
-      "region": "asia-southeast1",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-5",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 5,
-        "output": 25,
-        "cacheRead": 0.5,
-        "cacheWrite": 6.25
-      }
-    },
-    {
-      "model": "claude-opus-4-5",
-      "provider": "vertex",
-      "region": "us-east5",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-5",
-      "provider": "vertex",
-      "region": "europe-west1",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-opus-4-5",
-      "provider": "vertex",
-      "region": "asia-southeast1",
-      "routing": null,
-      "price": {
-        "input": 5.5,
-        "output": 27.5,
-        "cacheRead": 0.55,
-        "cacheWrite": 6.875
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 2,
-        "output": 10,
-        "cacheRead": 0.1,
-        "cacheWrite": 2.5
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "vertex",
-      "region": "us",
-      "routing": null,
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.11,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5-5",
-      "provider": "vertex",
-      "region": "eu",
-      "routing": null,
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.11,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 2,
-        "output": 10,
-        "cacheRead": 0.2,
-        "cacheWrite": 2.5
-      }
-    },
-    {
-      "model": "claude-sonnet-5",
-      "provider": "vertex",
-      "region": "us",
-      "routing": null,
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-5",
-      "provider": "vertex",
-      "region": "eu",
-      "routing": null,
-      "price": {
-        "input": 2.2,
-        "output": 11,
-        "cacheRead": 0.22,
-        "cacheWrite": 2.75
-      }
-    },
-    {
-      "model": "claude-sonnet-4-6",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 3,
-        "output": 15,
-        "cacheRead": 0.3,
-        "cacheWrite": 3.75
-      }
-    },
-    {
-      "model": "claude-sonnet-4-6",
-      "provider": "vertex",
-      "region": "asia-southeast1",
-      "routing": null,
-      "price": {
-        "input": 3.3,
-        "output": 16.5,
-        "cacheRead": 0.33,
-        "cacheWrite": 4.13
-      }
-    },
-    {
-      "model": "claude-sonnet-4-5",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 3,
-        "output": 15,
-        "cacheRead": 0.3,
-        "cacheWrite": 3.75
-      }
-    },
-    {
-      "model": "claude-sonnet-4-5",
-      "provider": "vertex",
-      "region": "us-east5",
-      "routing": null,
-      "price": {
-        "input": 3.3,
-        "output": 16.5,
-        "cacheRead": 0.33,
-        "cacheWrite": 4.13
-      }
-    },
-    {
-      "model": "claude-sonnet-4-5",
-      "provider": "vertex",
-      "region": "europe-west1",
-      "routing": null,
-      "price": {
-        "input": 3.3,
-        "output": 16.5,
-        "cacheRead": 0.33,
-        "cacheWrite": 4.13
-      }
-    },
-    {
-      "model": "claude-sonnet-4-5",
-      "provider": "vertex",
-      "region": "asia-southeast1",
-      "routing": null,
-      "price": {
-        "input": 3.3,
-        "output": 16.5,
-        "cacheRead": 0.33,
-        "cacheWrite": 4.13
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 0.1,
-        "output": 0.5,
-        "cacheRead": 0.01,
-        "cacheWrite": 0.125
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "vertex",
-      "region": "us",
-      "routing": null,
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "vertex",
-      "region": "eu",
-      "routing": null,
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "vertex",
-      "region": "europe-west1",
-      "routing": null,
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-5-5",
-      "provider": "vertex",
-      "region": "asia-southeast1",
-      "routing": null,
-      "price": {
-        "input": 0.11,
-        "output": 0.55,
-        "cacheRead": 0.011,
-        "cacheWrite": 0.1375
-      }
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "provider": "vertex",
-      "region": "global",
-      "routing": null,
-      "price": {
-        "input": 1,
-        "output": 5,
-        "cacheRead": 0.1,
-        "cacheWrite": 1.25
-      }
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "provider": "vertex",
-      "region": "us-east5",
-      "routing": null,
-      "price": {
-        "input": 1.1,
-        "output": 5.5,
-        "cacheRead": 0.11,
-        "cacheWrite": 1.375
-      }
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "provider": "vertex",
-      "region": "europe-west1",
-      "routing": null,
-      "price": {
-        "input": 1.1,
-        "output": 5.5,
-        "cacheRead": 0.11,
-        "cacheWrite": 1.375
-      }
-    },
-    {
-      "model": "claude-haiku-4-5",
-      "provider": "vertex",
-      "region": "asia-east1",
-      "routing": null,
-      "price": {
-        "input": 1.1,
-        "output": 5.5,
-        "cacheRead": 0.11,
-        "cacheWrite": 1.375
       }
     },
     {
