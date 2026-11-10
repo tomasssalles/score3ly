@@ -1314,13 +1314,17 @@ body {
   background: var(--surface);
 }
 
-/* Something drawn over the top of the filmstrip (the Transcription's hint), on the page's background so that the systems
-   scroll under it; the filmstrip starts with as much empty space. */
+/* Something drawn over the top of the filmstrip (the Transcription's hint); the filmstrip starts with as much empty
+   space. The container has no background of its own: what it holds brings one (the systems scroll under it), and
+   hiding that hides the whole rectangle. */
 .filmstrip-overlay {
   position: absolute;
   z-index: 1;
   top: 0;
   left: 0;
+}
+
+.filmstrip-overlay .editor-hint {
   background: var(--surface);
 }
 
