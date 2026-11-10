@@ -31,6 +31,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER = join(ROOT, "apps/worker");
@@ -49,8 +50,8 @@ function random(): number {
 const between = (min: number, max: number) => min + random() * (max - min);
 const int = (min: number, max: number) => Math.floor(between(min, max + 1));
 const chance = (p: number) => random() < p;
-const hex = (n: number) => Array.from({ length: n }, => Math.floor(random() * 16).toString(16)).join("");
-const uuid = => `${hex(8)}-${hex(4)}-4${hex(3)}-${hex(4)}-${hex(12)}`;
+const hex = (n: number) => Array.from({ length: n }, () => Math.floor(random() * 16).toString(16)).join("");
+const uuid = () => `${hex(8)}-${hex(4)}-4${hex(3)}-${hex(4)}-${hex(12)}`;
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -192,7 +193,7 @@ function call(stageId: string, cfg: Config, t: number, tokens: Tokens, deleted: 
 
 // Tokens of one request, before the effort scales the output (thinking included).
 const LAYOUT_ROUND = (round: number): Tokens => ({ input: int(1800, 2600), output: int(1200, 2400), cacheRead: round === 1 ? 0 : int(3800, 5200) * (round - 1), cacheWrite: round === 1 ? int(3600, 4800) : int(1800, 2600) });
-const ANALYZE_PAGE =: Tokens => ({ input: int(1400, 2200), output: int(1800, 3200), cacheRead: int(2400, 2600), cacheWrite: 0 });
+const ANALYZE_PAGE = (): Tokens => ({ input: int(1400, 2200), output: int(1800, 3200), cacheRead: int(2400, 2600), cacheWrite: 0 });
 const ANALYZE_SCORE = (pages: number): Tokens => ({ input: 2400 + pages * int(500, 800), output: int(2500, 4500), cacheRead: 0, cacheWrite: 0 });
 const EXTRACT_SYSTEM = (staves: number): Tokens => ({ input: int(6000, 9500) * (staves / 2), output: int(2600, 6500) * (staves / 2), cacheRead: int(5200, 6400), cacheWrite: 0 });
 
@@ -238,22 +239,22 @@ function stageRowWithId(id: string, p: Project, step: string, cfg: Config | null
 // inputs changed only in part): no call, a moment's work.
 function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, start: number, opts: { inPipeline?: boolean; stopAfter?: number; failAt?: number; cached?: number } = {}): Stage {
   const id = uuid();
-  type Item = { item: string; type: string; images: number; requests: => Tokens[] };
+  type Item = { item: string; type: string; images: number; requests: () => Tokens[] };
   const items: Item[] = [];
   const pages = Array.from({ length: p.pages }, (_, i) => `p${i + 1}`);
   if (step === "layout") {
     for (const item of pages) {
       const rounds = random() < 0.55 ? 1 : random() < 0.8 ? 2 : 3;
-      items.push({ item, type: "layout", images: 2 * rounds, requests: => Array.from({ length: rounds }, (_, r) => LAYOUT_ROUND(r + 1)) });
+      items.push({ item, type: "layout", images: 2 * rounds, requests: () => Array.from({ length: rounds }, (_, r) => LAYOUT_ROUND(r + 1)) });
     }
   }
   if (step === "analyze") {
-    for (const item of pages) items.push({ item, type: "analysis", images: 3, requests: => [ANALYZE_PAGE()] });
-    items.push({ item: "", type: "metadata", images: p.pages, requests: => [ANALYZE_SCORE(p.pages)] });
+    for (const item of pages) items.push({ item, type: "analysis", images: 3, requests: () => [ANALYZE_PAGE()] });
+    items.push({ item: "", type: "metadata", images: p.pages, requests: () => [ANALYZE_SCORE(p.pages)] });
   }
   if (step === "extract") {
     p.systems.forEach((n, page) => {
-      for (let s = 0; s < n; s++) items.push({ item: `p${page + 1}/s${s + 1}`, type: "extraction", images: 12, requests: => [EXTRACT_SYSTEM(p.staves)] });
+      for (let s = 0; s < n; s++) items.push({ item: `p${page + 1}/s${s + 1}`, type: "extraction", images: 12, requests: () => [EXTRACT_SYSTEM(p.staves)] });
     });
   }
   let t = start;
@@ -386,7 +387,7 @@ function front(p: Project, cfg: Config, t: number, fixes: { skew?: boolean; layo
   return t;
 }
 
-const pdf = => hex(64);
+const pdf = () => hex(64);
 
 // ---- Five months of use ----
 
@@ -556,12 +557,13 @@ rmSync(stateDir, { recursive: true, force: true });
 // Wrangler reports its errors on stdout, which is only shown when it fails.
 function wrangler(args: string[]) {
   try {
-    execFileSync("npx", ["wrangler", ...args], { cwd: WORKER, stdio: ["ignore", "pipe", "inherit"] });
+    execFileSync("npx", ["wrangler", ...args, "-c", "wrangler.local-dev.jsonc"], { cwd: WORKER, stdio: ["ignore", "pipe", "inherit"] });
   } catch (e) {
     process.stdout.write((e as { stdout?: Buffer }).stdout ?? "");
     throw e;
   }
 }
+writeLocalDevConfig(); // Wrangler's config for local work (apps/worker/scripts/config.ts)
 wrangler(["d1", "migrations", "apply", "score3ly", "--local", "--persist-to", STATE]);
 const file = join(mkdtempSync(join(tmpdir(), "score3ly-seed-")), "seed.sql");
 writeFileSync(file, [...statements, ...callStatements, ...laterStatements].join("\n"));

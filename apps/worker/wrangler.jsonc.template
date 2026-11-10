@@ -1,0 +1,27 @@
+// The Worker's Wrangler config. Wrangler never reads this file: scripts/config.ts generates the two it reads, each
+// time before they are used, and neither is committed nor meant to be edited (docs/database.md, "Deploying"):
+// - wrangler.local-dev.jsonc, this file as it is, for `dev`, the tests, local commands and the scripts;
+// - wrangler.deploy.jsonc, this file with your account's parts from cloudflare.env (the database's id, the bucket's
+//   jurisdiction), for `deploy` and every command on the deployed Worker.
+// Change the app's configuration here.
+{
+  "name": "score3ly",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  // The web app's build output, served as static assets by this Worker.
+  // Requests that don't match a file fall through to the Worker code.
+  "assets": { "directory": "../web/dist" },
+  // Original PDFs, stored as pdfs/<sha256>.pdf, and the stage outputs. Created by `npm run setup:cloudflare`; the
+  // deploy config adds the bucket's jurisdiction where it has one.
+  "r2_buckets": [{ "binding": "PDFS", "bucket_name": "score3ly-pdfs" }],
+  // The database_id is a placeholder, which the local database is named after; the deploy config has the remote
+  // database's id, from cloudflare.env.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "score3ly",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

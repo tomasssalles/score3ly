@@ -19,7 +19,7 @@ What the stories need: a local Worker and Vite on their own database and storage
 
 **The servers**, on a state folder of their own (relative to `apps/worker`), in two terminals:
 ```
-(cd apps/worker && npx wrangler d1 migrations apply score3ly --local --persist-to .wrangler/manual)
+(cd apps/worker && npm run config && npx wrangler d1 migrations apply score3ly --local -c wrangler.local-dev.jsonc --persist-to .wrangler/manual)
 npm run dev:worker -- --persist-to .wrangler/manual --var DEV_PROVIDERS:true
 ```
 ```
@@ -228,7 +228,7 @@ Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new 
 4. → Change Rasterize to all pages and run. ✓ Rasterize about a second per page; the panel stays responsive; scrolling the page images while they are made works. The cache stays under 250 MB (Settings), the pages still shown (made again when they come into view).
 5. → Clear the site's storage (DevTools → Application → Storage → "Clear site data"), reload, open the project. ✓ Everything still there; the page images, crops and renderings are made again when they come into view (slower, then cached). This is a second device's situation, on one device.
 6. → Change Analyze's input slightly (a Fix layout moving one box on one page) and let it run. ✓ Only that page's calls are new; the other pages are served from the record without their images being made (quick).
-7. Optional, a developer's test: change a stored fingerprint, `npx wrangler d1 execute score3ly --local --persist-to .wrangler/manual --command "UPDATE image_fingerprints SET height = height + 1"` (in `apps/worker`), clear the site's storage again, open a page. ✓ A warning that the images differ from those the results were made from; nothing stops.
+7. Optional, a developer's test: change a stored fingerprint, `npx wrangler d1 execute score3ly --local -c wrangler.local-dev.jsonc --persist-to .wrangler/manual --command "UPDATE image_fingerprints SET height = height + 1"` (in `apps/worker`), clear the site's storage again, open a page. ✓ A warning that the images differ from those the results were made from; nothing stops.
 
 ## Story 9: The desktop app (*cadenza*)
 

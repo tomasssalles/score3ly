@@ -22,6 +22,7 @@ import { DatabaseSync } from "node:sqlite";
 import { join, relative } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { THEMES } from "../apps/web/src/themes.ts";
+import { writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
 
 const ROOT = join(import.meta.dirname, "..");
 const WORKER_PORT = 8887;
@@ -239,7 +240,7 @@ function sql(stateDir: string, command: string) {
 }
 
 function wrangler(args: string[]) {
-  const result = spawnSync("npx", ["wrangler", ...args], { cwd: join(ROOT, "apps/worker"), encoding: "utf8" });
+  const result = spawnSync("npx", ["wrangler", ...args, "-c", "wrangler.local-dev.jsonc"], { cwd: join(ROOT, "apps/worker"), encoding: "utf8" });
   if (result.status !== 0) throw new Error(`wrangler ${args.slice(0, 3).join(" ")} failed:\n${result.stderr}`);
 }
 
@@ -498,8 +499,9 @@ async function main() {
   if (DESKTOP) {
     start("node", ["dist/server.js", "--data", stateDir, "--port", String(WORKER_PORT)], join(ROOT, "apps/desktop"));
   } else {
+    writeLocalDevConfig(); // Wrangler's config for local work (apps/worker/scripts/config.ts)
     wrangler(["d1", "migrations", "apply", "score3ly", "--local", "--persist-to", stateDir]);
-    start("npx", ["wrangler", "dev", "--port", String(WORKER_PORT), "--persist-to", stateDir], join(ROOT, "apps/worker"));
+    start("npx", ["wrangler", "dev", "-c", "wrangler.local-dev.jsonc", "--port", String(WORKER_PORT), "--persist-to", stateDir], join(ROOT, "apps/worker"));
   }
   start("npx", ["vite", "--host", "127.0.0.1", "--port", String(WEB_PORT), "--strictPort"], join(ROOT, "apps/web"), {
     SCORE3LY_API_URL: `http://127.0.0.1:${WORKER_PORT}`,

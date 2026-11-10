@@ -29,10 +29,10 @@ npm run dev:web      # UI (Vite), http://localhost:5173 — open this one
 
 The Vite dev server forwards `/api` requests to Wrangler.
 
-Locally, Wrangler simulates the database (D1) and the PDF storage (R2) with files under `apps/worker/.wrangler/state/`. Nothing is sent to Cloudflare. To query the local database, run in `apps/worker`:
+Locally, Wrangler simulates the database (D1) and the PDF storage (R2) with files under `apps/worker/.wrangler/state/`. Nothing is sent to Cloudflare. Wrangler's config is generated from `apps/worker/wrangler.jsonc.template` and named in every command (`npm run config -w apps/worker` makes it; see [docs/database.md](docs/database.md), "Deploying"). To query the local database, run in `apps/worker`:
 
 ```sh
-npx wrangler d1 execute score3ly --local --command "SELECT * FROM projects"
+npx wrangler d1 execute score3ly --local -c wrangler.local-dev.jsonc --command "SELECT * FROM projects"
 ```
 
 Run the tests with `npm test`.
@@ -79,7 +79,7 @@ After changing dependencies, make `THIRD_PARTY_NOTICES.md` again with `npm run n
 
 After changing the app icon (`apps/web/public/icon.svg`), make its PNG versions again with `npm run icons -- --force`.
 
-To deploy the app and API to Cloudflare as one Worker: once per Cloudflare account, `npx wrangler login` and `npm run setup:cloudflare -w apps/worker -- --jurisdiction <eu|fedramp|none>` (where the data is stored, which can't be changed later); then, for the first deployment and every upgrade, `npm run deploy`. The setup writes your account's parts into `apps/worker/wrangler.jsonc`, which isn't committed: it is a copy of `apps/worker/wrangler.template.jsonc`, made on install.
+To deploy the app and API to Cloudflare as one Worker: once per Cloudflare account, `npx wrangler login` and `npm run setup:cloudflare -w apps/worker -- --jurisdiction <eu|fedramp|none>` (where the data is stored, which can't be changed later); then, for the first deployment and every upgrade, `npm run deploy`. The setup writes your account's parts into `apps/worker/cloudflare.env`, which isn't committed and never overwritten; none of the generated files (`cloudflare.env`, `wrangler.local-dev.jsonc`, `wrangler.deploy.jsonc`) is meant to be edited.
 
 ## Evaluation
 

@@ -1,37 +1,39 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { templatePath, withAccount } from "./config.ts";
+import { formatAccount, parseAccount, templatePath, withAccount } from "./config.ts";
 
 const template = readFileSync(templatePath, "utf8");
 const ID = "0123abcd-4567-89ef-0123-456789abcdef";
+const PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
 
 test("the template has the placeholder id and a bucket without a jurisdiction", () => {
-  assert.match(template, /"database_id": "00000000-0000-0000-0000-000000000000"/);
+  assert.match(template, new RegExp(`"database_id": "${PLACEHOLDER}"`));
   assert.match(template, /\{ "binding": "PDFS", "bucket_name": "score3ly-pdfs" \}/);
 });
 
 test("withAccount writes the id and the bucket's jurisdiction, and changes nothing else", () => {
-  const eu = withAccount(template, "score3ly-pdfs", ID, "eu");
-  assert.equal(typeof eu, "string");
   assert.equal(
-    eu,
+    withAccount(template, { jurisdiction: "eu", databaseId: ID }),
     template
-      .replace("00000000-0000-0000-0000-000000000000", ID)
+      .replace(PLACEHOLDER, ID)
       .replace('"bucket_name": "score3ly-pdfs" }', '"bucket_name": "score3ly-pdfs", "jurisdiction": "eu" }'),
   );
-});
-
-test("withAccount run again replaces the jurisdiction, or removes it for none", () => {
-  const eu = withAccount(template, "score3ly-pdfs", ID, "eu") as string;
-  assert.equal(withAccount(eu, "score3ly-pdfs", ID, "eu"), eu);
-  const fedramp = withAccount(eu, "score3ly-pdfs", ID, "fedramp") as string;
-  assert.match(fedramp, /"bucket_name": "score3ly-pdfs", "jurisdiction": "fedramp" \}/);
-  assert.doesNotMatch(fedramp, /"eu"/);
-  assert.equal(withAccount(fedramp, "score3ly-pdfs", ID, "none"), template.replace("00000000-0000-0000-0000-000000000000", ID));
+  assert.equal(withAccount(template, { jurisdiction: "none", databaseId: ID }), template.replace(PLACEHOLDER, ID));
 });
 
 test("withAccount says what it couldn't find", () => {
-  assert.deepEqual(withAccount("{}", "score3ly-pdfs", ID, "eu"), { error: `Couldn't find "database_id"` });
-  assert.deepEqual(withAccount(template, "other", ID, "eu"), { error: "Couldn't find the bucket other" });
+  assert.deepEqual(withAccount("{}", { jurisdiction: "eu", databaseId: ID }), { error: `Couldn't find "database_id"` });
+  assert.deepEqual(withAccount(template.replace("score3ly-pdfs", "other"), { jurisdiction: "eu", databaseId: ID }), {
+    error: "Couldn't find the bucket score3ly-pdfs",
+  });
+});
+
+test("cloudflare.env is read back as written, and refused where it is incomplete", () => {
+  for (const jurisdiction of ["eu", "fedramp", "none"] as const)
+    assert.deepEqual(parseAccount(formatAccount({ jurisdiction, databaseId: ID })), { jurisdiction, databaseId: ID });
+  assert.deepEqual(parseAccount(`CLOUDFLARE_JURISDICTION="eu"\nCLOUDFLARE_D1_ID = ${ID}\n`), { jurisdiction: "eu", databaseId: ID });
+  assert.ok("error" in parseAccount(`CLOUDFLARE_D1_ID=${ID}`));
+  assert.ok("error" in parseAccount(`CLOUDFLARE_JURISDICTION=us\nCLOUDFLARE_D1_ID=${ID}`));
+  assert.ok("error" in parseAccount("CLOUDFLARE_JURISDICTION=eu\nCLOUDFLARE_D1_ID=abc"));
 });

@@ -7,20 +7,25 @@
 //
 // - the R2 bucket for the PDFs and the stage outputs, `score3ly-pdfs`;
 // - the D1 database, `score3ly`;
-// - your wrangler.jsonc (not committed; copied from wrangler.template.jsonc where there is none): the database's id in
-//   place of the placeholder, and the bucket's jurisdiction, which the Worker needs to find it.
+// - cloudflare.env (not committed), with the jurisdiction and the database's id, written last, from which
+//   scripts/config.ts generates wrangler.deploy.jsonc before every deployment.
 //
-// Run it logged in with Wrangler (`npx wrangler login`, which opens a browser), from a computer of your own. Running it
-// again changes nothing: what exists already is kept, and wrangler.jsonc is written again. Then deploy with
-// `npm run deploy`, which applies the migrations to the remote database first (docs/database.md, "Deploying").
+// Run it logged in with Wrangler (`npx wrangler login`, which opens a browser), from a computer of your own. It refuses
+// to run where there is a cloudflare.env already, so that file is never overwritten. If it fails before writing it, run
+// it again: what it created already is kept. Then deploy with `npm run deploy` (docs/database.md, "Deploying").
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
-import { configPath, ensureConfig, type Jurisdiction, JURISDICTIONS, withAccount, workerDir } from "./config.ts";
+import { existsSync, writeFileSync } from "node:fs";
+import { accountPath, formatAccount, type Jurisdiction, JURISDICTIONS, workerDir, writeDeployConfig } from "./config.ts";
 
 const BUCKET = "score3ly-pdfs";
 const DATABASE = "score3ly";
-const PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
+
+if (existsSync(accountPath)) {
+  console.error(`${accountPath} exists already: this account is set up. It is never overwritten; delete it by hand only if
+it is wrong (the bucket and the database it names stay on Cloudflare).`);
+  process.exit(1);
+}
 
 // --jurisdiction <value> or --jurisdiction=<value>; required, since it can't be changed afterwards.
 function jurisdictionArg(): Jurisdiction {
@@ -41,7 +46,8 @@ const jurisdiction = jurisdictionArg();
 const jurisdictionFlag = jurisdiction === "none" ? [] : ["--jurisdiction", jurisdiction];
 const where = jurisdiction === "none" ? "" : ` (jurisdiction ${jurisdiction})`;
 
-// Wrangler's output, or its error output where it fails (thrown with `failed`).
+// Wrangler's output, or its error output where it fails. It runs without a config (there is no wrangler.jsonc), so it
+// creates what it is asked to and offers to add nothing to a config.
 function wrangler(args: string[]): { ok: boolean; out: string } {
   try {
     return { ok: true, out: execFileSync("npx", ["wrangler", ...args], { cwd: workerDir, encoding: "utf8", stdio: ["inherit", "pipe", "pipe"] }) };
@@ -84,23 +90,18 @@ if (!databaseId) {
   databaseId = found?.uuid ?? null;
 }
 if (!databaseId) {
-  console.error(`Couldn't find the id of the D1 database ${DATABASE}: put it into ${configPath} by hand (wrangler d1 list).`);
+  console.error(`Couldn't find the id of the D1 database ${DATABASE}: find it with \`npx wrangler d1 list\` and write ${accountPath} by hand:\n${formatAccount({ jurisdiction, databaseId: "<its id>" })}`);
   process.exit(1);
 }
 
-// wrangler.jsonc: the id in place of the placeholder or an earlier id, and the bucket's jurisdiction.
-ensureConfig();
-const config = readFileSync(configPath, "utf8");
-const updated = withAccount(config, BUCKET, databaseId, jurisdiction);
-if (typeof updated !== "string") {
-  console.error(`${updated.error} in ${configPath}: put ${databaseId} and the bucket's jurisdiction there by hand.`);
-  process.exit(1);
-}
-writeFileSync(configPath, updated);
-console.log(`${configPath}: database_id ${databaseId}${config.includes(PLACEHOLDER) ? " (was the placeholder)" : ""}, bucket ${
-  jurisdiction === "none" ? "without a jurisdiction" : `in jurisdiction ${jurisdiction}`}.`);
+// cloudflare.env, last, and the deploy config from it.
+writeFileSync(accountPath, formatAccount({ jurisdiction, databaseId }));
+console.log(`Wrote ${accountPath}.`);
+writeDeployConfig();
 console.log(`
 Next:
-  1. The secrets your model configs name, each with: npx wrangler secret put <NAME>   (in apps/worker)
+  1. The secrets your model configs name, each with (in apps/worker):
+       npx wrangler secret put <NAME> -c wrangler.deploy.jsonc
   2. npm run deploy   (builds the web app, applies the migrations to the remote database, deploys the Worker)
-  3. Cloudflare Access in front of the app (docs/database.md, "Deploying").`);
+  3. Cloudflare Access in front of the app (docs/database.md, "Deploying").
+`);
