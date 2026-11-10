@@ -1314,6 +1314,16 @@ body {
   background: var(--surface);
 }
 
+/* Something drawn over the top of the filmstrip (the Transcription's hint), on the page's background so that the systems
+   scroll under it; the filmstrip starts with as much empty space. */
+.filmstrip-overlay {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  background: var(--surface);
+}
+
 .film-counter {
   position: absolute;
   right: 24px;

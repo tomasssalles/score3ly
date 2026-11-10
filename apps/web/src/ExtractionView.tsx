@@ -246,9 +246,6 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
           </div>
         )}
       </div>
-      {boxes === "shown" && (
-        <p className="editor-hint">Numbered boxes are questions about what the page says. Dashed boxes mark places where the transcription doesn't add up.</p>
-      )}
       {reverted.length > 0 && (
         <div className="reverted-block error-text" role="note">
           <p className="reverted-head">
@@ -270,6 +267,12 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
       <Filmstrip
         count={systems.length}
         wide={true}
+        overlay={
+          // Over the filmstrip, not above it, and only hidden with the boxes, so that toggling them moves nothing.
+          <p className="editor-hint" style={{ visibility: boxes === "shown" ? "visible" : "hidden" }}>
+            Numbered boxes are questions about what the page says. Dashed boxes mark places where the transcription doesn't add up.
+          </p>
+        }
         render={(i) => {
           const s = systems[i];
           const { extraction } = s;

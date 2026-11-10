@@ -1,5 +1,5 @@
 import { ImagesDiffer } from "./ImagesDiffer";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchJsonContent, type Project } from "./api";
 import { CloseIcon } from "./icons";
 import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
@@ -308,14 +308,33 @@ export function Filmstrip({
   wide,
   render,
   focus,
+  overlay,
 }: {
   count: number;
   wide: boolean;
   render: (i: number) => ReactNode;
   focus?: { index: number; y?: number };
+  // Drawn over the top of the scrolling part, which starts with as much empty space as it is high, so that it hides
+  // nothing until the content is scrolled under it, and showing or hiding it (with `visibility`) moves nothing.
+  overlay?: ReactNode;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
+  const overlayBox = useRef<HTMLDivElement>(null);
+  const [overlaySize, setOverlaySize] = useState({ height: 0, scrollbar: 0 });
+  const hasOverlay = overlay !== undefined;
+
+  useLayoutEffect(() => {
+    const box = overlayBox.current;
+    const el = scroller.current!;
+    if (!box) return;
+    const measure = () => setOverlaySize({ height: box.offsetHeight, scrollbar: el.offsetWidth - el.clientWidth });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasOverlay]);
 
   useEffect(() => {
     if (!focus) return;
@@ -331,7 +350,7 @@ export function Filmstrip({
         const rect = image.getBoundingClientRect();
         el.scrollTop = rect.top - top + focus.y * rect.height - el.clientHeight / 2;
       } else {
-        el.scrollTop = item.getBoundingClientRect().top - top - 8;
+        el.scrollTop = item.getBoundingClientRect().top - top - 8 - (overlayBox.current?.offsetHeight ?? 0);
       }
     };
     const stop = () => {
@@ -365,13 +384,19 @@ export function Filmstrip({
 
   return (
     <div className="filmstrip-frame">
-      <div className="filmstrip" ref={scroller}>
+      <div className="filmstrip" ref={scroller} style={hasOverlay ? { scrollPaddingTop: overlaySize.height } : undefined}>
+        {hasOverlay && <div style={{ height: overlaySize.height }} aria-hidden="true" />}
         <div className={wide ? "film-items wide" : "film-items"}>
           {Array.from({ length: count }, (_, i) => (
             <div key={i}>{render(i)}</div>
           ))}
         </div>
       </div>
+      {hasOverlay && (
+        <div className="filmstrip-overlay" ref={overlayBox} style={{ right: overlaySize.scrollbar }}>
+          {overlay}
+        </div>
+      )}
       <span className="film-counter">
         {current + 1} / {count}
       </span>
