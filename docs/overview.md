@@ -628,7 +628,7 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [ ] Check the prompt and the response schema of `extract`
 - [ ] Check the prompt and the response schema of `review`
 - [ ] Check the prompt and the response schema of `apply_review`
-- [ ] Run the pipeline with a real LLM
+- [x] Run the pipeline with a real LLM (the project owner, 2026-11-10, on the deployed app: pretty good results)
 - [ ] The first fixture, and replay tests (§12)
 - [ ] Results on the test set, compared with the baselines in the viewer (§13)
 
