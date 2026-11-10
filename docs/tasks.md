@@ -559,10 +559,10 @@ On a computer, a run should go on while its tab is in the background: the page k
 
 `docs/llm.md`, "Configs" (priced by the provider): the settings card shows the range of an OpenRouter model's four prices among the providers that run it, with the fee included (`/api/model-configs/<id>/price-range`). The create and clone forms could show the same for the model picked, listed or unlisted (once its identifier is typed), at the form's region and with the fee of the account picked: the Worker's lookup taking a model string and a region instead of a config's id (`fetchPriceRange` in `apps/worker/src/llm/openrouter.ts` already does), and the form asking again when the model, the region or the account changes (debounced while the identifier is typed). An unlisted identifier OpenRouter doesn't know could be said there too ("OpenRouter has no model …"), before the config is saved.
 
-### Try a run on a real phone that goes to sleep or to another app
+### Try a run on a real phone that goes to another app
 `#manual-test`
 
-§5.8: while this device runs a stage, the screen is kept on (the Screen Wake Lock, `apps/web/src/wakeLock.ts`, asked for again whenever the app comes back to the front; built, tried in Chromium with the API stubbed). The browser drops the lock when the app isn't in front, so the page can still be suspended: check that the run carries on where it stopped when the app comes back, and what other devices show meanwhile (it turns "Interrupted" after three minutes without a heartbeat).
+§5.8: while this device runs a stage, the screen is kept on (the Screen Wake Lock, `apps/web/src/wakeLock.ts`, asked for again whenever the app comes back to the front; built, tried in Chromium with the API stubbed; on the project owner's Android phone, the deployed app kept the screen on through a 20-minute `extract`, 2026-11-10). Left: the browser drops the lock when the app isn't in front, so the page can still be suspended; check that the run carries on where it stopped when the app comes back, and what other devices show meanwhile (it turns "Interrupted" after three minutes without a heartbeat).
 
 ### The Worker finishes an LLM call on its own
 `#optional`
