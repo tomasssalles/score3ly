@@ -470,6 +470,17 @@ To do: move the runner (the abort controller, the heartbeat, the Auto loop and t
 
 The script is written (2026-11-09, `npm run setup:cloudflare -w apps/worker`; `docs/database.md`, "Deploying"): it creates both in the jurisdiction given (`--jurisdiction eu` for the project owner's) and writes them with the database's id into `apps/worker/cloudflare.env`, from which `wrangler.deploy.jsonc` is generated. Left: running it with the project owner's Cloudflare account, then the secrets and the first `npm run deploy`. Until then the app can't be deployed.
 
+### The build's warning about large chunks
+`#nice-to-have`
+
+`npm run build` (and so `npm run deploy`) warns that some chunks are over 500 kB after minification. Harmless for the deployment (Cloudflare allows 25 MiB per file). Measured 2026-11-10 in `apps/web/dist/assets`:
+- `renderWorker` (Verovio): 8 MB, 2.3 MB gzipped; loaded only when something is rendered (§9).
+- `pdf.worker` (pdf.js): 1.3 MB; loaded when a PDF is read.
+- `meiCheckWorker` (libxml2, Fix MEI's schema check): 1.1 MB; loaded only in Fix MEI.
+- `index`, the app itself: 1.17 MB, 352 kB gzipped; the only one loaded on every first visit (cached afterwards).
+
+To do: split `index` with dynamic `import()` where whole screens are rarely needed (the Statistics page, the editors, Fix MEI, the MEI view; `jspdf` and `html2canvas` are split already), measure the first load again, and then raise `build.chunkSizeWarningLimit` in `apps/web/vite.config.ts` just enough for the workers, which are lazy by design, so that the warning means something again.
+
 ### Set up Cloudflare Access
 `#next-release` `#security`
 
