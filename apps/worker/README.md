@@ -33,7 +33,7 @@ In the folder with the code:
 
 ```sh
 npx wrangler login
-npm run setup:cloudflare -w apps/worker -- --jurisdiction eu
+npm run setup:cloudflare -w apps/worker -- --jurisdiction <jurisdiction>
 ```
 
 - `wrangler login` opens a browser, where you log in to Cloudflare and allow Wrangler (Cloudflare's tool) to act on
