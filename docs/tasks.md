@@ -484,7 +484,12 @@ To do: split `index` with dynamic `import()` where whole screens are rarely need
 ### Set up Cloudflare Access
 `#next-release` `#security`
 
-In front of the deployed app (§3). The steps for users are in `apps/worker/README.md`, step 4: one click in the Worker's *Domains & Routes* (*Enable Cloudflare Access* for workers.dev), after the first deployment, since it is a setting of the Worker. Left: doing it on the project owner's account and correcting the guide where the dashboard differs. Also to check there: Cloudflare's changelog (2026-08-14) mentions a default Access policy for every Worker of an account, which might protect the Worker from its first deployment; if so, the guide sets it before deploying.
+In front of the deployed app (§3). The steps for users are in `apps/worker/README.md` (step 1: Zero Trust with its Free plan, then *Protect all Workers* on the Workers & Pages page, all traffic, the policy *Cloudflare account*), checked against Cloudflare's docs on 2026-11-10. Left: doing it on the project owner's account, whose Worker is already deployed (there, the Worker's own *Access* tab or the account-wide card; either covers workers.dev and the previews), checking that a private window is asked to log in, and correcting the guide where the dashboard differs.
+
+### Check Access's token in the Worker
+`#optional` `#security`
+
+Cloudflare Access checks every request before the Worker runs, for a Worker protected as a whole (worker-level or account-level Access, which covers all its addresses). Cloudflare's older guide for workers.dev still advises validating the JWT that Access adds (`Cf-Access-Jwt-Assertion`) in the Worker as well, against the team domain's keys and the application's audience: a second lock, should a setting ever leave an address open. `ctx.access` would make it a one-liner, but it isn't passed to Workers with static assets, which ours is, so it would be the header and `jose` (or WebCrypto), with the team domain and audience as settings (in `NOT_SECRETS`, §10). Not for local development or cadenza, which have no Access. Decide whether it is worth it.
 
 ### Build the test environments
 §12: the start script, the build script and a first environment.
