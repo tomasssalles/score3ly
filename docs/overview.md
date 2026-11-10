@@ -448,7 +448,7 @@ In `docs/notation.md`: the lens, the symbolic format, MEI, what is music and wha
 What each LLM stage (`layout`, `analyze`, `extract`, `review`, `apply_review`) is given and returns is in its file in `docs/stages/`; the format models write music in, the issues and the warnings are in `docs/notation.md`. This section covers what all of them share.
 
 ### 7.1 Structured output
-Every call returns JSON validated by a Zod schema, using the provider's schema-constrained output. Doubts are issues (§6), not prose. **Anthropic refused most of our schemas as too large** for its constrained output (found 2026-11-07): `docs/llm.md`, "Claude's limit on schemas". Redesigned on a branch, `analyze`'s and `apply_review`'s are accepted; `extract`'s is still refused (§15, "Decide how Claude's schemas fit").
+Every call returns JSON validated by a Zod schema, using the provider's schema-constrained output. Doubts are issues (§6), not prose. **Anthropic refused most of our schemas as too large** for its constrained output (found 2026-11-07): `docs/llm.md`, "Claude's limit on schemas". Redesigned to fit (decided 2026-11-10): `analyze`'s answer flat, and no nullable fields in the lens and the answers that carry it (`""` and `-1` for no value); every stage now runs on Claude with constrained output.
 
 ### 7.2 Prompts and model configs
 In `docs/llm.md`: calling the providers, the call records and the cache, model configs, which config a stage uses, and supported models and prices (under discussion). What holds for every LLM stage:

@@ -34,11 +34,6 @@ Everything that is still to do about score3ly is a task, and every task is in th
 
 Models trained on LilyPond write `fis`, `bes`, `ees` despite the prompt (Opus 5.5 did in a real `extract`, 2026-11-09), and the parser rejects them, which makes the whole answer unusable. Instead, code would accept them and write the most likely printed form: in LilyPond `fis` is the pitch that sounds, so it becomes `f` where an F is already sharp at that point (the key signature, or an accidental earlier in the measure in that voice) and `\sharp f` otherwise, the reading with the fewest printed accidentals (wrong only for a courtesy accidental, or a misreading). Each conversion gets a warning (about the lens: "Stretch 3, voice 1: the model wrote `fis`, a sounding pitch; code wrote it as `\sharp f`."), which `review` follows up on the page like any warning (`docs/stages/music.md`, `review`, "Warnings are followed up"), raising an issue with a real location where code's guess is wrong. Not an issue raised by code: code can't say which printed note it is about, and issues are about the page. The work: the checks reject such names today (`parseVoice`), and the conversion needs each voice's accidental state through the measure, carried across stretches and systems for a measure that continues, which only the MEI builder works out today; `extract`'s and `apply_review`'s answers alike. The follow-up round for failed checks (`docs/stages/music.md`, `extract`, "Later, perhaps") would fix such slips too, by asking the model again.
 
-### Decide how Claude's schemas fit
-`#decision` `#next-release` `#bug`
-
-Anthropic refused the JSON schemas of `analyze` (both calls), `extract` and `apply_review` for schema-constrained output (`docs/llm.md`, "Claude's limit on schemas": the problem, what the grammar is, the probes, the options and the leaning). **Done so far** (2026-11-07, on branch `claude/friendly-curie-wb7w4w`, not merged; option 2, schemas redesigned): `analyze`'s answer flat (`docs/stages/analyze.md`, "The answer's shape") and `apply_review`'s texts with no value "" (`docs/stages/music.md`, `apply_review`): both accepted by the probe, and `analyze` ran in the app on Claude. **Left: `extract`,** whose run on Claude failed with "compiled grammar is too large"; its schema has no nullable field now (2026-11-09, `docs/llm.md`), nor have `review`'s and `apply_review`'s (but a voice's `music`), none of them probed yet; then whether to keep the redesign (and merge it) or decide otherwise. Re-run `npm run llm:probe-schemas -w apps/worker` after each change, and once more whenever a schema grows. The full runs on Claude ("Run the pipeline with a real LLM", §16) wait for it.
-
 ### Move the tasks to GitHub issues
 `#next-release`
 
@@ -216,7 +211,7 @@ For testing and debugging: run stages as if nothing were cached, without our own
 ### Verify the prompt and schema of `extract`
 `#owner` `#next-release`
 
-`packages/prompts/src/extract.ts`: the text, what each call is given (the system's crop and stretch crops, the neighbours, the observations, what is carried over from the previous system), the lens as the answer's schema, the issues it asks for, and the checks, before the first real run (`docs/stages/music.md`, `extract`). Its schema is still too large for Anthropic: "Decide how Claude's schemas fit".
+`packages/prompts/src/extract.ts`: the text, what each call is given (the system's crop and stretch crops, the neighbours, the observations, what is carried over from the previous system), the lens as the answer's schema, the issues it asks for, and the checks, before the first real run (`docs/stages/music.md`, `extract`).
 
 ### Verify the prompt and schema of `review`
 `#owner` `#next-release`
