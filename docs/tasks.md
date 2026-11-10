@@ -465,11 +465,6 @@ Today a run belongs to the project view: opening a menu page (Statistics, Settin
 
 To do: move the runner (the abort controller, the heartbeat, the Auto loop and the wake lock) out of the project view to the app's top level, so a run goes on whatever the app shows, and the project view only shows it. Then: where the user sees a run going on while elsewhere (e.g. in the header or the project picker), and what a second project's Run does while one runs (one run at a time, as the calls are sequential, §10).
 
-### Create the remote R2 bucket and D1 database
-`#next-release` `#owner`
-
-The script is written (2026-11-09, `npm run setup:cloudflare -w apps/worker`; `docs/database.md`, "Deploying"): it creates both in the jurisdiction given (`--jurisdiction eu` for the project owner's) and writes them with the database's id into `apps/worker/cloudflare.env`, from which `wrangler.deploy.jsonc` is generated. Left: running it with the project owner's Cloudflare account, then the secrets and the first `npm run deploy`. Until then the app can't be deployed.
-
 ### The build's warning about large chunks
 `#nice-to-have`
 
@@ -480,11 +475,6 @@ The script is written (2026-11-09, `npm run setup:cloudflare -w apps/worker`; `d
 - `index`, the app itself: 1.17 MB, 352 kB gzipped; the only one loaded on every first visit (cached afterwards).
 
 To do: split `index` with dynamic `import()` where whole screens are rarely needed (the Statistics page, the editors, Fix MEI, the MEI view; `jspdf` and `html2canvas` are split already), measure the first load again, and then raise `build.chunkSizeWarningLimit` in `apps/web/vite.config.ts` just enough for the workers, which are lazy by design, so that the warning means something again.
-
-### Set up Cloudflare Access
-`#next-release` `#security`
-
-In front of the deployed app (§3). The steps for users are in `apps/worker/README.md` (Zero Trust with its Free plan in step 1; after the deployment, the Worker's *Access* tab, all traffic, the policy *Cloudflare account*), checked against Cloudflare's docs on 2026-11-10. Left: doing it on the project owner's account, checking that a private window is asked to log in, and correcting the guide where the dashboard differs.
 
 ### Check Access's token in the Worker
 `#optional` `#security`

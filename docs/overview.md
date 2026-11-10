@@ -633,8 +633,8 @@ The main parts of the first release, and the measure of progress: ticked items s
 - [ ] Results on the test set, compared with the baselines in the viewer (§13)
 
 **Deployment**
-- [ ] The remote D1 database and R2 bucket in the EU, and a first deployment
-- [ ] Cloudflare Access in front of it
+- [x] The remote D1 database and R2 bucket in the EU, and a first deployment
+- [x] Cloudflare Access in front of it
 - [ ] Tried in Firefox, Safari and on a phone
 - [ ] The user guide (Help)
 - [x] A license (AGPL-3.0, and the third-party notices)

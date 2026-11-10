@@ -77,9 +77,9 @@ it, but do the next step right away.
 Try it: open the app's address in a private window. Cloudflare should ask you to log in before showing the app.
 
 **Instead, if every Worker of your account should be private** (for example, an account used only for score3ly):
-the card *Protect all Workers* on the *Workers & Pages* page, with the same choices, made before step 3. It protects
-every Worker of the account, existing ones and those deployed later, so score3ly is never open, not even right after
-its first deployment. Mind your other Workers: any that should stay public then needs an exception (its *Access* tab,
+the card *Protect all Workers* on the *Workers & Pages* page, with the same choices. It protects every Worker of the
+account that has no rule of its own, existing ones and those deployed later; set before step 3, score3ly is never
+open, not even right after its first deployment. Mind your other Workers: any that should stay public then needs an exception (its *Access* tab,
 *make this Worker public*).
 
 ## 5. Your API keys (in the dashboard)
