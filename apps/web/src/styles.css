@@ -795,6 +795,31 @@ body {
   background: var(--progress);
 }
 
+/* Progress not known here (a stage running on another device): a grey strip slides through from left to right and
+   comes in again on the left. Grey, like the spinner, so it doesn't read as progress. */
+.progress-bar-slider {
+  width: 30%;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--muted);
+  animation: slide 1.6s linear infinite;
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(334%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar-slider {
+    animation-duration: 5s;
+  }
+}
+
 .progress-ring {
   flex: none;
 }

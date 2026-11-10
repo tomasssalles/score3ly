@@ -541,28 +541,13 @@ The one way to let a phone run a pipeline in the background (discussed 2026-11-0
 
 On a computer, a run should go on while its tab is in the background: the page keeps running, and the heartbeat (once a minute, stale after 3) stays within its limit even under Chrome's strongest timer slowing (once a minute after 5 hidden minutes). What isn't known: whether Chrome's Memory Saver, Edge's sleeping tabs or Safari put a busy tab to sleep after a while, which would stop the run. Run a long pipeline (a real model, or the fake one with many pages), then spend 30 minutes or more in another tab and another window, in Chrome, Edge, Firefox and Safari; note what each did. The user guide's text depends on it ("Help").
 
-### Try the page images in Firefox, Safari and on phones
-`#manual-test` `#next-release`
-
-§8.1: they work in Chromium, in a Web Worker. Check that pdf.js loads in a worker there, that the pixels match Node's (scans exactly, vector pages "close"), that the PNG bytes match (they do in Chromium), and the memory needed for large scans on a phone (a 5400×7200 scan is about 155 MB as RGBA).
-
 ### Google Drive
 §3, §10: picking source PDFs with the Picker, and exporting to an app-created folder.
-
-### Try regeneration on a second device
-`#manual-test`
-
-§5.3: a project run on one device, continued on another whose image cache is empty.
 
 ### Try the editors with touch and on a real phone
 `#manual-test`
 
 `fix_layout` hasn't been tried with touch at all, `fix_skew` only through Chromium's emulation of touch at phone size.
-
-### Images for the LLMs
-They are PNGs from our own encoder (`packages/imaging/src/png.ts`), and shrunk by our own code to Claude's limits (`packages/imaging/src/scale.ts`; 2576 px on the long edge, 4784 visual tokens):
-- **5 MB per image on Bedrock** (10 MB on Anthropic's API, 32 MB per request): check with the first real calls whether a colour scan at 2576 px stays under it as PNG, and what to do if not (grayscale, or a smaller limit for that provider). `layout` doesn't check its requests' size yet (§6).
-- **Gemini's limits:** what Gemini said about them is in §6 (`analyze`), to check against Google's documentation when we use it. `imageLimit` gives Gemini Claude's limits for now; each provider's adapter should declare its own.
 
 ### Model configs per kind of work
 `#optional`

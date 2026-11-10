@@ -128,7 +128,9 @@ export function StageCard({
       </div>
 
       <Facts stage={stage} />
-      {stage.status === "running" && <ProgressBar value={stage.progress} label={`${stage.title}: progress`} />}
+      {stage.status === "running" && (
+        <ProgressBar value={stage.runningHere ? stage.progress : null} label={`${stage.title}: progress`} />
+      )}
       {stage.status === "running" && stage.imagesDiffer && (
         <p className="stage-warning">
           Some images differ from the ones the stored results were made from ({differsCause(desktop)}); boxes or answers may

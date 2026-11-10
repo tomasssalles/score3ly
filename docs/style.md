@@ -161,7 +161,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 **Progress:**
 - a thin green bar for a known fraction (the pipeline's, a stage's); a green circle where there is no room for a bar (the collapsed strip); never a percentage or a count;
-- a grey spinner for something that happens where the progress isn't known (a stage running on another device): grey, so it doesn't read as progress;
+- where the progress isn't known (a stage running on another device), grey, so it doesn't read as progress: a grey spinner in place of a circle, and in place of a bar a short grey strip that slides through it from left to right and comes in again on the left (decided 2026-11-10, the project owner's idea; `ProgressBar` with no value); both slow down with reduced motion;
 - a waiting LLM call fills its share of the bar by the time elapsed out of its timeout, so the bar always moves;
 - **state icons** where there is no room for words: a green check (done), a red warning triangle (failed), an empty circle with a grey pause sign (waiting for the user).
 
