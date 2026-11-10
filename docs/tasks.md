@@ -91,6 +91,14 @@ Proposed 2026-10-30. While a manual stage's editor is open, the browser sends a 
 
 The tabs measure different targets in different ways, because the data offers no single clean one (the reasons, from the project owner: `docs/statistics.md`, "Why the tabs differ"). Some day, perhaps: one concept for the whole page, with consistent definitions of a project, a page, work and time across the tabs. Not now (decided 2026-10-30): the statistics aren't a scientific experiment, and what is built is probably good enough for a while. Two optional tasks would help it: "Tags for projects" and "A "done" mark for projects".
 
+### A home
+`#optional`
+
+The header's wordmark `<score3ly>` (`docs/style.md`, "The wordmark"), on the left like a website's logo, suggests that clicking it goes home, but it isn't clickable, and the app has no home. Today a tab without a project in its URL shows no project (`docs/project-view.md`, "The header"), and leaving a project while it runs interrupts the run (the task "Keep a run going while another page of the app is open"). The project owner's idea (2026-11-10):
+- **Opening the app with no project open** shows cards of the most recent projects in the main view, to open one with a click (beside the picker and "+ New project", which stay).
+- **Once a project is open,** the app shows it, as it does now.
+- **The wordmark is a link to the main view.** With a project open, that is the project view itself: clicking it closes whatever is open over it (an artifact, a stage's details, a page from the menu) and shows the project, without bringing the cards back, leaving the project, or interrupting anything. With no project open, it shows the cards.
+
 ### Tags for projects
 `#optional` `#decision`
 
