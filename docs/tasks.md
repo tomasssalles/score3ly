@@ -484,7 +484,7 @@ To do: split `index` with dynamic `import()` where whole screens are rarely need
 ### Set up Cloudflare Access
 `#next-release` `#security`
 
-In front of the deployed app (§3). The steps for users are in `apps/worker/README.md` (step 1: Zero Trust with its Free plan, then *Protect all Workers* on the Workers & Pages page, all traffic, the policy *Cloudflare account*), checked against Cloudflare's docs on 2026-11-10. Left: doing it on the project owner's account, whose Worker is already deployed (there, the Worker's own *Access* tab or the account-wide card; either covers workers.dev and the previews), checking that a private window is asked to log in, and correcting the guide where the dashboard differs.
+In front of the deployed app (§3). The steps for users are in `apps/worker/README.md` (Zero Trust with its Free plan in step 1; after the deployment, the Worker's *Access* tab, all traffic, the policy *Cloudflare account*), checked against Cloudflare's docs on 2026-11-10. Left: doing it on the project owner's account, checking that a private window is asked to log in, and correcting the guide where the dashboard differs.
 
 ### Check Access's token in the Worker
 `#optional` `#security`

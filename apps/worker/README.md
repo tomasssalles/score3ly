@@ -17,27 +17,22 @@ changes its labels from time to time, so a button may be called slightly differe
 
 ## 1. The Cloudflare account (in the dashboard)
 
+If you already use Cloudflare, use your account and skip what it has already (a payment method, R2, a workers.dev
+subdomain, Zero Trust). Nothing here changes your other projects.
+
 1. **Create an account** at [dash.cloudflare.com](https://dash.cloudflare.com/sign-up). The free plan is enough.
    Cloudflare recommends turning on two-factor authentication; do, since this account will be the key to the app.
 2. **Add a payment method:** *Billing* → *Subscriptions* → *Payment methods*. R2 and Zero Trust (next steps) require
-   one, although you use them for free: R2's free tier is 10 GB of storage a month, with no fees for downloads, and
+   one, although you can use them for free: R2's free tier is 10 GB of storage a month, with no fees for downloads, and
    Zero Trust's Free plan costs nothing.
 3. **Subscribe to R2:** *Storage & databases* → *R2* → *Overview*, and complete the checkout.
 4. **Choose your workers.dev subdomain:** *Workers & Pages*, then *Change* next to *Your subdomain*. It is one for
    the whole account, and the app's address will be `https://score3ly.<your subdomain>.workers.dev`, so pick
    something you don't mind being visible.
-5. **Set up Zero Trust,** which Cloudflare Access belongs to: *Zero Trust* in the dashboard's menu. Choose a team name
-   (an identifier of your own, e.g. your name; it isn't part of the app's address), then the **Free** plan; it asks
-   for the payment details again, without charging anything.
-6. **Make every Worker private:** *Workers & Pages*, the card *Protect all Workers* → *Enable Access*:
-   - choose **All traffic** (not *Previews only*);
-   - under *Authentication policy*, choose **Cloudflare account**: only members of your Cloudflare account, which is
-     you, can open the app, by logging in with your Cloudflare account. (Not *Email domain* with a public domain like
-     `gmail.com`: that would let in everyone with an address there.)
-   - *Enable Access*, then *Apply Access*.
-
-   This protects the Worker from the moment it is first deployed, including its preview addresses, so the app is
-   never open to others.
+5. **Set up Zero Trust,** which Cloudflare Access belongs to: *Zero Trust*,
+   in the side bar's *Protect & connect* section. Choose a team name (an identifier of your own, e.g. your name; it
+   isn't part of the app's address), then the **Free** plan; it asks for the payment details again, without charging
+   anything.
 
 ## 2. Create the storage (in the terminal)
 
@@ -64,13 +59,30 @@ npm run setup:cloudflare -w apps/worker -- --jurisdiction <jurisdiction>
 npm run deploy
 ```
 
-It builds the app, prepares the database and uploads both. At the end it prints the app's address.
+It builds the app, prepares the database and uploads both. At the end it prints the app's address. Until the next
+step, anyone who has that address can open the app; without API keys, which come last, nobody can spend money through
+it, but do the next step right away.
 
-Try it: open the address in a private window. Cloudflare should ask you to log in before showing the app. If it shows
-the app right away, step 1.6 is missing: do it now (or, for this Worker only: *Workers & Pages* → *score3ly* →
-*Access* → *Protect this Worker behind Access*, with the same choices), and add no API keys until it asks.
+## 4. Lock it with Cloudflare Access (in the dashboard)
 
-## 4. Your API keys (in the dashboard)
+*Workers & Pages* → *score3ly* → the *Access* tab → *Protect this Worker behind Access*:
+- choose **All traffic** (not *Previews only*): this covers every address of the Worker, its preview addresses too;
+- under *Authentication policy*, choose **Cloudflare account**: only members of your Cloudflare account can open the
+  app, after logging in with their Cloudflare account. If others are members of it and shouldn't use the app, edit the
+  policy afterwards in *Zero Trust* (*Access*, the application named after the Worker) to allow only your email
+  address. Don't choose *Email domain* with a public domain like `gmail.com`: that would let in everyone with an
+  address there.
+- *Apply Access*.
+
+Try it: open the app's address in a private window. Cloudflare should ask you to log in before showing the app.
+
+**Instead, if every Worker of your account should be private** (for example, an account used only for score3ly):
+the card *Protect all Workers* on the *Workers & Pages* page, with the same choices, made before step 3. It protects
+every Worker of the account, existing ones and those deployed later, so score3ly is never open, not even right after
+its first deployment. Mind your other Workers: any that should stay public then needs an exception (its *Access* tab,
+*make this Worker public*).
+
+## 5. Your API keys (in the dashboard)
 
 *Workers & Pages* → *score3ly* → *Settings* → *Variables and Secrets* → *Add*. Choose the type **Secret** (not
 *Text*), give it a name of your choice (e.g. `ANTHROPIC_API_KEY`) and paste the key. It takes effect within seconds,
