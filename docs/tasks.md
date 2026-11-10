@@ -399,7 +399,7 @@ The root `README.md`; the owner wants it written properly, today it is the devel
 ### Help
 `#docs` `#next-release`
 
-Write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment and setting the LLM keys (§10; a service account's key file is set from the file, `npx wrangler secret put NAME -c wrangler.deploy.jsonc < key.json`), and it recommends a model (§7.2). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
+Write the user guide as a Markdown file in the repository, and make "Help" in the menu lead to it on GitHub (§5.6). It has to cover deployment (written: `apps/worker/README.md`, to link to) and setting the LLM keys (§10; a service account's key file is set from the file, `npx wrangler secret put NAME -c wrangler.deploy.jsonc < key.json`), and it recommends a model (§7.2). For the desktop version (§3): where things are stored on each platform, with a strong warning that changing those files can invalidate pipelines that already ran. Only makes sense once there is something to explain. Now a placeholder page.
 - **Wording to use, here and in the README** (the project owner's, 2026-11-03): *you can drop a stage you added.* That is every manual stage and every extra review; a new project already comes with a standard review, which you didn't add, so you can't drop it. *Reviews, by a model or by you, are added from an Apply review stage.*
 - **Runs in the background** (decided 2026-11-03): on a computer, a run goes on while the app's tab or window is in the background (another tab, another window, minimized), in the browser and in the desktop app; only closing it stops the run (and asks first). On a phone, a run only goes on while the app is open and in front: switching apps or locking the screen stops it, and nothing can warn first (the screen is kept on while it runs). **Run picks up where it stopped,** in about a second: what was done is kept, so after an interruption, Run again.
 
@@ -484,7 +484,7 @@ To do: split `index` with dynamic `import()` where whole screens are rarely need
 ### Set up Cloudflare Access
 `#next-release` `#security`
 
-In front of the deployed app (§3).
+In front of the deployed app (§3). The steps for users are in `apps/worker/README.md`, step 4: one click in the Worker's *Domains & Routes* (*Enable Cloudflare Access* for workers.dev), after the first deployment, since it is a setting of the Worker. Left: doing it on the project owner's account and correcting the guide where the dashboard differs. Also to check there: Cloudflare's changelog (2026-08-14) mentions a default Access policy for every Worker of an account, which might protect the Worker from its first deployment; if so, the guide sets it before deploying.
 
 ### Build the test environments
 §12: the start script, the build script and a first environment.
