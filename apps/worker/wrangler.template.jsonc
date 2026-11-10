@@ -1,0 +1,24 @@
+// The template of wrangler.jsonc, which is not committed: it is copied from this file when the packages are installed
+// (scripts/ensure-config.ts), and `npm run setup:cloudflare -w apps/worker` writes your account's parts into the copy
+// (the database's id, the bucket's jurisdiction). Change the app's configuration here; the tests read this file.
+{
+  "name": "score3ly",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  // The web app's build output, served as static assets by this Worker.
+  // Requests that don't match a file fall through to the Worker code.
+  "assets": { "directory": "../web/dist" },
+  // Original PDFs, stored as pdfs/<sha256>.pdf, and the stage outputs. Created by `npm run setup:cloudflare`, which
+  // adds the bucket's jurisdiction here when it has one (local dev ignores it).
+  "r2_buckets": [{ "binding": "PDFS", "bucket_name": "score3ly-pdfs" }],
+  // The database_id is a placeholder until `npm run setup:cloudflare` creates the remote database and writes its id
+  // here (local dev ignores it).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "score3ly",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

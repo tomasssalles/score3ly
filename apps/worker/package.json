@@ -3,12 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "mkdir -p ../web/dist && wrangler dev",
-    "deploy": "wrangler d1 migrations apply score3ly --remote && wrangler deploy",
+    "postinstall": "node scripts/config.ts",
+    "dev": "node scripts/config.ts && mkdir -p ../web/dist && wrangler dev",
+    "deploy": "node scripts/config.ts && wrangler d1 migrations apply score3ly --remote && wrangler deploy",
     "setup:cloudflare": "node scripts/setup-cloudflare.ts",
     "typecheck": "tsc --noEmit",
     "migrate:local": "wrangler d1 migrations apply score3ly --local",
-    "test": "node --test \"src/**/*.test.ts\"",
+    "test": "node --test \"src/**/*.test.ts\" \"scripts/*.test.ts\"",
     "llm:try": "node scripts/try-llm.ts",
     "llm:probe-schemas": "node scripts/probe-schemas.ts",
     "model-list": "node scripts/generate-model-list.ts"

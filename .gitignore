@@ -20,3 +20,6 @@ release/
 
 # The list of models and prices: the whole downloads of step 1 (apps/worker/model-list/gather/README.md); only excerpts are committed.
 /apps/worker/model-list/gather/downloads/
+# Your Cloudflare account's config, copied from apps/worker/wrangler.template.jsonc on install and completed by
+# `npm run setup:cloudflare` (apps/worker/scripts/config.ts).
+/apps/worker/wrangler.jsonc

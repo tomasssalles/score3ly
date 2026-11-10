@@ -468,7 +468,7 @@ To do: move the runner (the abort controller, the heartbeat, the Auto loop and t
 ### Create the remote R2 bucket and D1 database
 `#next-release` `#owner`
 
-The script is written (2026-11-09, `npm run setup:cloudflare -w apps/worker`; `docs/database.md`, "Deploying"): it creates both in the EU jurisdiction and writes the database's id into `apps/worker/wrangler.jsonc`. Left: running it with the project owner's Cloudflare account, then the secrets and the first `npm run deploy`. Until then the app can't be deployed.
+The script is written (2026-11-09, `npm run setup:cloudflare -w apps/worker`; `docs/database.md`, "Deploying"): it creates both in the jurisdiction given (`--jurisdiction eu` for the project owner's) and writes the database's id and the bucket's jurisdiction into `apps/worker/wrangler.jsonc`, a copy of the committed template. Left: running it with the project owner's Cloudflare account, then the secrets and the first `npm run deploy`. Until then the app can't be deployed.
 
 ### Set up Cloudflare Access
 `#next-release` `#security`

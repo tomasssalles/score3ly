@@ -79,7 +79,7 @@ After changing dependencies, make `THIRD_PARTY_NOTICES.md` again with `npm run n
 
 After changing the app icon (`apps/web/public/icon.svg`), make its PNG versions again with `npm run icons -- --force`.
 
-To deploy the app and API to Cloudflare as one Worker: `npm run deploy`.
+To deploy the app and API to Cloudflare as one Worker: once per Cloudflare account, `npx wrangler login` and `npm run setup:cloudflare -w apps/worker -- --jurisdiction <eu|fedramp|none>` (where the data is stored, which can't be changed later); then, for the first deployment and every upgrade, `npm run deploy`. The setup writes your account's parts into `apps/worker/wrangler.jsonc`, which isn't committed: it is a copy of `apps/worker/wrangler.template.jsonc`, made on install.
 
 ## Evaluation
 

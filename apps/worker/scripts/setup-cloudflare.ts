@@ -1,25 +1,45 @@
-// Creates the app's storage on Cloudflare, in the EU (docs/overview.md §3 and §14: the jurisdiction can only be set at
-// creation), once per Cloudflare account:
+// Creates the app's storage on Cloudflare, once per Cloudflare account, in the jurisdiction you choose (it can only be
+// set at creation, docs/overview.md §14):
 //
-//   npm run setup:cloudflare -w apps/worker
+//   npm run setup:cloudflare -w apps/worker -- --jurisdiction eu        (stored in the EU)
+//   npm run setup:cloudflare -w apps/worker -- --jurisdiction fedramp   (FedRAMP; Cloudflare Enterprise only)
+//   npm run setup:cloudflare -w apps/worker -- --jurisdiction none      (wherever Cloudflare stores it)
 //
-// - the R2 bucket for the PDFs and the stage outputs, `score3ly-pdfs`, in the EU jurisdiction;
-// - the D1 database, `score3ly`, in the EU jurisdiction, whose id it writes into wrangler.jsonc (a placeholder until
-//   then; commit the change, or keep it local: the id is no secret, but it is your account's).
+// - the R2 bucket for the PDFs and the stage outputs, `score3ly-pdfs`;
+// - the D1 database, `score3ly`;
+// - your wrangler.jsonc (not committed; copied from wrangler.template.jsonc where there is none): the database's id in
+//   place of the placeholder, and the bucket's jurisdiction, which the Worker needs to find it.
 //
 // Run it logged in with Wrangler (`npx wrangler login`, which opens a browser), from a computer of your own. Running it
-// again changes nothing: what exists already is kept, and the id is written again. Then deploy with `npm run deploy`,
-// which applies the migrations to the remote database first (docs/database.md, "Deploying").
+// again changes nothing: what exists already is kept, and wrangler.jsonc is written again. Then deploy with
+// `npm run deploy`, which applies the migrations to the remote database first (docs/database.md, "Deploying").
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { configPath, ensureConfig, type Jurisdiction, JURISDICTIONS, withAccount, workerDir } from "./config.ts";
 
-const workerDir = join(import.meta.dirname, "..");
-const configPath = join(workerDir, "wrangler.jsonc");
 const BUCKET = "score3ly-pdfs";
 const DATABASE = "score3ly";
 const PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
+
+// --jurisdiction <value> or --jurisdiction=<value>; required, since it can't be changed afterwards.
+function jurisdictionArg(): Jurisdiction {
+  const args = process.argv.slice(2);
+  const i = args.findIndex((a) => a === "--jurisdiction" || a.startsWith("--jurisdiction="));
+  const value = i < 0 ? undefined : args[i].includes("=") ? args[i].split("=")[1] : args[i + 1];
+  if (!value || !(JURISDICTIONS as readonly string[]).includes(value)) {
+    console.error(`Say where Cloudflare stores the data, which can't be changed later:
+  --jurisdiction eu        in the EU
+  --jurisdiction fedramp   FedRAMP (Cloudflare Enterprise only)
+  --jurisdiction none      wherever Cloudflare stores it`);
+    process.exit(1);
+  }
+  return value as Jurisdiction;
+}
+
+const jurisdiction = jurisdictionArg();
+const jurisdictionFlag = jurisdiction === "none" ? [] : ["--jurisdiction", jurisdiction];
+const where = jurisdiction === "none" ? "" : ` (jurisdiction ${jurisdiction})`;
 
 // Wrangler's output, or its error output where it fails (thrown with `failed`).
 function wrangler(args: string[]): { ok: boolean; out: string } {
@@ -38,9 +58,9 @@ if (!who.ok || /not authenticated|You are not logged in/i.test(who.out)) {
 }
 
 // The bucket.
-const bucket = wrangler(["r2", "bucket", "create", BUCKET, "--jurisdiction", "eu"]);
-if (bucket.ok) console.log(`Created the R2 bucket ${BUCKET} in the EU.`);
-else if (/already exists|already own/i.test(bucket.out)) console.log(`The R2 bucket ${BUCKET} exists already in the EU.`);
+const bucket = wrangler(["r2", "bucket", "create", BUCKET, ...jurisdictionFlag]);
+if (bucket.ok) console.log(`Created the R2 bucket ${BUCKET}${where}.`);
+else if (/already exists|already own/i.test(bucket.out)) console.log(`The R2 bucket ${BUCKET} exists already${where}.`);
 else {
   console.error(`Couldn't create the R2 bucket ${BUCKET}:\n${bucket.out}`);
   process.exit(1);
@@ -48,10 +68,10 @@ else {
 
 // The database, and its id.
 let databaseId: string | null = null;
-const database = wrangler(["d1", "create", DATABASE, "--jurisdiction", "eu"]);
+const database = wrangler(["d1", "create", DATABASE, ...jurisdictionFlag]);
 if (database.ok) {
   databaseId = /"?database_id"?\s*[:=]\s*"([0-9a-f-]{36})"/.exec(database.out)?.[1] ?? null;
-  console.log(`Created the D1 database ${DATABASE} in the EU.`);
+  console.log(`Created the D1 database ${DATABASE}${where}.`);
 } else if (/already exists/i.test(database.out)) {
   console.log(`The D1 database ${DATABASE} exists already.`);
 } else {
@@ -68,15 +88,17 @@ if (!databaseId) {
   process.exit(1);
 }
 
-// The id into wrangler.jsonc, in place of the placeholder or an earlier id.
+// wrangler.jsonc: the id in place of the placeholder or an earlier id, and the bucket's jurisdiction.
+ensureConfig();
 const config = readFileSync(configPath, "utf8");
-const updated = config.replace(/("database_id":\s*")[0-9a-f-]{36}(")/, `$1${databaseId}$2`);
-if (updated === config && !config.includes(databaseId)) {
-  console.error(`Couldn't find "database_id" in ${configPath}: put ${databaseId} there by hand.`);
+const updated = withAccount(config, BUCKET, databaseId, jurisdiction);
+if (typeof updated !== "string") {
+  console.error(`${updated.error} in ${configPath}: put ${databaseId} and the bucket's jurisdiction there by hand.`);
   process.exit(1);
 }
 writeFileSync(configPath, updated);
-console.log(`${configPath}: database_id ${databaseId}${config.includes(PLACEHOLDER) ? " (was the placeholder)" : ""}.`);
+console.log(`${configPath}: database_id ${databaseId}${config.includes(PLACEHOLDER) ? " (was the placeholder)" : ""}, bucket ${
+  jurisdiction === "none" ? "without a jurisdiction" : `in jurisdiction ${jurisdiction}`}.`);
 console.log(`
 Next:
   1. The secrets your model configs name, each with: npx wrangler secret put <NAME>   (in apps/worker)

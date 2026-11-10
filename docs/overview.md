@@ -112,7 +112,7 @@ flowchart LR
     WW <--> OPFS
   end
 
-  subgraph CF["Cloudflare (EU jurisdiction)"]
+  subgraph CF["Cloudflare (a jurisdiction of your choice, e.g. EU)"]
     W["Worker (Hono):<br/>API, auth boundary, LLM proxy"]
     D1[("D1 (SQLite):<br/>projects, configs, stages,<br/>provenance, LLM call records")]
     R2[("R2:<br/>original PDFs and stage<br/>outputs, by SHA-256")]
@@ -152,8 +152,8 @@ flowchart LR
 | Language | TypeScript everywhere | One set of types shared by the UI, the processing code, the Worker and the DB rows. The v1 Python code is being rewritten anyway. |
 | Frontend | React + Vite | Familiar. Deploys to Cloudflare as static assets without changes. |
 | Backend | Cloudflare Worker, HTTP layer on Hono | Web-standard `Request`/`Response`, minimal and portable. |
-| Database | Cloudflare D1, created with `--jurisdiction eu` | SQLite semantics, free tier, EU data residency. The jurisdiction can only be set at creation. |
-| Object storage | Cloudflare R2, bucket created with EU jurisdiction | 10 GB free, no egress fees, native Worker binding. The jurisdiction can only be set at creation. |
+| Database | Cloudflare D1, created in the jurisdiction the setup is given (the EU for the project owner's instance) | SQLite semantics, free tier, EU data residency where wanted. The jurisdiction can only be set at creation. |
+| Object storage | Cloudflare R2, bucket created in the same jurisdiction | 10 GB free, no egress fees, native Worker binding. The jurisdiction can only be set at creation. |
 | Auth | Cloudflare Access in front of the whole app | No auth code in the app. |
 | Device storage | OPFS (Origin Private File System) | Supported by Firefox, Chrome and Safari. Fast binary access from Web Workers. |
 | PDF handling | pdf.js, version pinned | Renders vector PDFs and decodes CCITT, JBIG2 and JPEG 2000 images in JS/WASM, deterministically. |
@@ -486,8 +486,8 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
 | Service | Use | Notes |
 |---|---|---|
 | Cloudflare Workers (static assets + API) | Hosting | Free tier. No heavy compute. |
-| Cloudflare D1 | Database | EU jurisdiction set at creation. Cannot be changed later. |
-| Cloudflare R2 | Original PDFs, stage outputs, large LLM payloads | EU jurisdiction bucket. Cannot be changed later. |
+| Cloudflare D1 | Database | Jurisdiction (e.g. EU) set at creation. Cannot be changed later. |
+| Cloudflare R2 | Original PDFs, stage outputs, large LLM payloads | Jurisdiction (e.g. EU) set at creation. Cannot be changed later. |
 | Cloudflare Access | Login | Protects everything, including the API. |
 | Google Drive | Picking source PDFs. Optional export target. | `drive.file` scope, Picker for selection, app-created export folder. Publish the OAuth app to "production" status (even unverified), because refresh tokens expire after 7 days in "testing" status. |
 | Vision LLMs | Layout, analysis, extraction, review (§6) | Called **only through the Worker**: API keys stay in Worker secrets. |
@@ -502,7 +502,7 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
 - Entering the keys in the app is an optional task (§15).
 
 ### Data residency
-- PDFs and stage outputs (R2) and everything else (D1) are in EU-jurisdiction Cloudflare storage. Images stay on the device unless sent to an LLM.
+- PDFs and stage outputs (R2) and everything else (D1) are in Cloudflare storage in the jurisdiction chosen at setup (`docs/database.md`, "Deploying"); the project owner's instance is in the EU. Images stay on the device unless sent to an LLM.
 - Cloudflare is a US company. An EU jurisdiction guarantees **where** data is stored, not which legal regime ultimately applies. This is acceptable for this project.
 - **LLM calls are the residency gap.** For EU processing:
   - Gemini is available in EU regions through Google Vertex AI, Claude through AWS Bedrock.
@@ -578,7 +578,7 @@ In `docs/evaluation.md`: the test set (`testset/`), the tooling (`apps/eval`: th
 | Bugs in building the MEI or rendering it, misleading the user in `human_review` | Tests of the MEI builder, validated against the MEI schemas (`docs/notation.md`, "MEI"); `review` reads the lens, not the rendering. |
 | ML costs creeping up | Per-call cost logging, reuse of recorded requests, the spending cap (§10). |
 | Two devices editing the same project | Optimistic locking (§4). |
-| Irreversible infrastructure choices | D1 and R2 jurisdictions are set at creation. Scripted in the repo. |
+| Irreversible infrastructure choices | D1 and R2 jurisdictions are set at creation. Scripted in the repo, which requires choosing one. |
 
 ## 15. Tasks
 
