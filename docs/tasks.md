@@ -91,6 +91,11 @@ Proposed 2026-10-30. While a manual stage's editor is open, the browser sends a 
 
 The tabs measure different targets in different ways, because the data offers no single clean one (the reasons, from the project owner: `docs/statistics.md`, "Why the tabs differ"). Some day, perhaps: one concept for the whole page, with consistent definitions of a project, a page, work and time across the tabs. Not now (decided 2026-10-30): the statistics aren't a scientific experiment, and what is built is probably good enough for a while. Two optional tasks would help it: "Tags for projects" and "A "done" mark for projects".
 
+### Change the human review's screen to work like the Transcription
+`#decision` `#next-release`
+
+The project owner, after using the deployed app (2026-11-10): `human_review`'s screen (`docs/stages/music.md`, `human_review`, "The screen"; `HumanReviewEditor`: the original and the rendering in two panes, the boxes dimmed on the original, one issue's panel at a time over the rendering, arrows from box to box) is very hard to use for a person, while the Transcription (`ExtractionView.tsx`: a filmstrip of the systems, each crop above its rendering, the issues' cards below it) is already excellent for comparing the original with the transcription. The human review should become something very similar to the Transcription. The project owner's thoughts on how come later.
+
 ### Decide how the Transcription's boxes should look on a phone
 `#decision` `#style`
 
