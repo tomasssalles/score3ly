@@ -91,6 +91,20 @@ Proposed 2026-10-30. While a manual stage's editor is open, the browser sends a 
 
 The tabs measure different targets in different ways, because the data offers no single clean one (the reasons, from the project owner: `docs/statistics.md`, "Why the tabs differ"). Some day, perhaps: one concept for the whole page, with consistent definitions of a project, a page, work and time across the tabs. Not now (decided 2026-10-30): the statistics aren't a scientific experiment, and what is built is probably good enough for a while. Two optional tasks would help it: "Tags for projects" and "A "done" mark for projects".
 
+### Decide how the Transcription's boxes should look on a phone
+`#decision` `#style`
+
+**The problem** (found by the project owner on the deployed app, Android, 2026-11-10): in the Transcription (`docs/stages/music.md`, "The Transcription"; `ExtractionView.tsx`), the boxes of issues and warnings cover far too much of the score on a phone, the numbers especially: each box has its label filled in its colour inside the top left corner, as the layout's system labels, and at a phone's scale those labels sit on noteheads, accidentals and marks, the very things the box asks about. The toggle hides all the boxes, which helps for a quick look but loses the link between the music and the issues.
+
+**A related problem:** toggling the boxes also shows and hides the hint above the systems ("Numbered boxes are questions…"), which moves the whole view up or down, while the point of the toggle is a quick look at what a box covers, in place. Proposed: keep the hint's line and hide only its text (`visibility: hidden`), so nothing moves. Considered: a toast at each toggle (in the way just when the page should be clear, and once dismissed it never explains again), an "i" button beside the toggle (a new user has to find it), the hint drawn over the scrolling view (covers the first system, and the top edge needs care: the hint mustn't disappear and the view mustn't snap back to the top).
+
+**Proposed** (2026-11-10, to decide), like `human_review`'s original, where all boxes are dimmed (45%) and the selected one isn't, but further:
+- **Unselected boxes:** a thin, faint frame, without a number; a thin frame hides little, the filled labels hide the most. The box and its card below the system stay linked by colour, as now (the card's edge has its box's colour).
+- **The selected box:** at full strength, with its number. Selected by tapping it (which also brings its card into view, as now) or its card; tapping it again or another changes or clears the selection; nothing selected when the view opens.
+- **Warnings** the same: dashed frames, "!" only when selected.
+- **The toggle stays,** for a clean look.
+- **One rule at every width,** so the wide view gets calmer too.
+
 ### A home
 `#optional`
 
