@@ -3,11 +3,13 @@ import type { Project } from "./api";
 import { FittedText } from "./FittedText";
 import { when } from "./time";
 
-// Shown when a picked PDF already has projects: open one of them, or create another.
+// Shown when a picked PDF, or the PDF of a picked project file, already has projects: open one of them, or create
+// (import) another.
 export function KnownPdfDialog({
   filename,
   projects,
   newProjectName,
+  newLabel = "+ New project",
   onOpen,
   onCreate,
   onCancel,
@@ -15,6 +17,7 @@ export function KnownPdfDialog({
   filename: string;
   projects: Project[]; // most recently opened first
   newProjectName: string;
+  newLabel?: string;
   onOpen: (project: Project) => void;
   onCreate: () => void;
   onCancel: () => void;
@@ -57,7 +60,7 @@ export function KnownPdfDialog({
         ))}
         <li>
           <button type="button" className="dialog-new" onClick={onCreate}>
-            <span className="option-name">+ New project</span>
+            <span className="option-name">{newLabel}</span>
             <FittedText className="option-name new-name" text={newProjectName} lines={3} />
           </button>
         </li>

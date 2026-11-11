@@ -1839,3 +1839,21 @@ test("import: a call found nowhere is a new row that counts, a config found nowh
   assert.equal(newer.status, 400);
   assert.match((await json<{ error: string }>(newer)).error, /newer version of score3ly/);
 });
+
+test("historical exports (fixtures/exports) are imported, each with its whole pipeline", async () => {
+  const { unzipSync } = await import("fflate");
+  const dir = join(workerDir, "../../fixtures/exports");
+  const files = readdirSync(dir).filter((f) => f.endsWith(".s3l"));
+  assert.ok(files.length > 0);
+  for (const file of files) {
+    const zip = unzipSync(new Uint8Array(readFileSync(join(dir, file))));
+    const rows = JSON.parse(new TextDecoder().decode(zip["project.json"])) as ExportJson;
+    const pdf = rows.project.pdf_sha256 as string;
+    assert.equal((await app.request(`/api/pdfs/${pdf}`, { method: "PUT", body: zip[`pdf/${pdf}.pdf`] as Uint8Array<ArrayBuffer> }, env)).status, 204, file);
+    for (const sha of rows.content) assert.equal((await app.request(`/api/content/${sha}`, { method: "PUT", body: zip[`content/${sha}`] as Uint8Array<ArrayBuffer> }, env)).status, 204, file);
+    const response = await importOf(rows);
+    assert.equal(response.status, 201, `${file}: ${await response.clone().text()}`);
+    const imported = await json<{ id: string }>(response);
+    assert.deepEqual((await pipelineOf(imported.id)).map((s) => s.step), rows.stages.length ? rows.pipeline.map((e) => rows.stages.find((s) => s.id === e.stage_id)!.step) : [], file);
+  }
+});

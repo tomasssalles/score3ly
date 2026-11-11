@@ -26,6 +26,7 @@ export function PipelinePanel({
   actions,
   onCollapse,
   onRename,
+  onExport,
   onDelete,
   error,
 }: {
@@ -38,6 +39,7 @@ export function PipelinePanel({
   actions: PanelActions;
   onCollapse?: () => void; // wide mode only
   onRename: () => void;
+  onExport: () => void;
   onDelete: () => void;
   error: string | null; // loading or changing the pipeline failed
 }) {
@@ -68,7 +70,7 @@ export function PipelinePanel({
             <DropdownMenu
               icon={<MoreIcon />}
               label="Project actions"
-              groups={[[{ label: "Rename", onSelect: onRename }], [{ label: "Delete project", danger: true, onSelect: onDelete }]]}
+              groups={[[{ label: "Rename", onSelect: onRename }, { label: "Export", onSelect: onExport }], [{ label: "Delete project", danger: true, onSelect: onDelete }]]}
             />
             {onCollapse && (
               <button type="button" className="icon-button" aria-label="Collapse the pipeline" onClick={onCollapse}>

@@ -673,3 +673,44 @@ export async function testModelConfig(id: string): Promise<TestResult> {
 export async function deleteModelConfig(id: string): Promise<void> {
   await refusedOr(await fetch(`/api/model-configs/${id}`, { method: "DELETE" }));
 }
+
+// Exporting and importing a project (docs/database.md, "Exporting and importing a project"). The rows of the project's
+// current pipeline, as the Worker hands them out (an object of the export format, `format` in it).
+export type ProjectRows = Record<string, unknown> & { format: number; project: Record<string, unknown> & { name: string; pdf_sha256: string; pdf_filename: string }; content: string[] };
+
+export async function fetchExport(project: Project): Promise<ProjectRows> {
+  return (await checked(await fetch(`/api/projects/${project.id}/export`))).json();
+}
+
+export async function fetchContent(sha256: string): Promise<{ bytes: Uint8Array<ArrayBuffer>; contentType: string }> {
+  const response = await checked(await fetch(`/api/content/${sha256}`));
+  return { bytes: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("Content-Type") ?? "application/octet-stream" };
+}
+
+export async function fetchPdf(sha256: string): Promise<Uint8Array<ArrayBuffer>> {
+  return new Uint8Array(await (await checked(await fetch(`/api/pdfs/${sha256}/file`))).arrayBuffer());
+}
+
+export async function storePdf(sha256: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+  await checked(await fetch(`/api/pdfs/${sha256}`, { method: "PUT", body: bytes }));
+}
+
+// Which of these content objects the Worker doesn't have yet (asked at most 200 at a time, as the Worker wants).
+export async function missingContent(sha256s: string[]): Promise<string[]> {
+  const missing: string[] = [];
+  for (let i = 0; i < sha256s.length; i += 200) {
+    const response = await fetch("/api/content/missing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sha256s: sha256s.slice(i, i + 200) }) });
+    missing.push(...((await (await checked(response)).json()) as { missing: string[] }).missing);
+  }
+  return missing;
+}
+
+// Imports the rows (the PDF and the content uploaded first). Refusals come with the Worker's own message.
+export async function importRows(rows: ProjectRows): Promise<{ id: string; name: string }> {
+  const response = await fetch("/api/projects/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rows) });
+  if (!response.ok) {
+    const error = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
+    throw new Error(error ?? `HTTP ${response.status}`);
+  }
+  return response.json();
+}

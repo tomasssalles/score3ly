@@ -137,7 +137,6 @@ The tasks below, in the file's order.
 - [Go straight to the flagged pages in `fix_layout`](#go-straight-to-the-flagged-pages-in-fix_layout)
 - [Stages that would run as no-ops stay finished](#stages-that-would-run-as-no-ops-stay-finished)
 - [Keep `fix_mei`'s edits through a re-run](#keep-fix_meis-edits-through-a-re-run)
-- [Export a project before deleting it, and import it again](#export-a-project-before-deleting-it-and-import-it-again)
 - [Going back to an earlier applied version in `fix_mei`](#going-back-to-an-earlier-applied-version-in-fix_mei)
 - [Running the pipeline on the server](#running-the-pipeline-on-the-server)
 - [Entering the LLM keys in the app](#entering-the-llm-keys-in-the-app)
@@ -765,24 +764,6 @@ After a change in the middle, a later stage whose inputs and config come out the
 `#optional`
 
 `docs/stages/engrave.md`: rough patching, not git. The unit is a measure, by its `xml:id`: after a new extraction, a measure still identical to what `fix_mei` started from gets its final text; the rest is dropped and reported. The parts outside the measures (the header, the `scoreDef`) need units of their own.
-
-### Export a project before deleting it, and import it again
-`#optional` `#nice-to-have`
-
-Not trivial: a file with everything the project stores (its pipeline, stages, outputs and their content, call records, the PDF), so that heavy users can free storage (R2's free 10 GB, §2) and bring a project back later. Importing has to fit what is stored by then (other step versions, ids that exist, content already there).
-
-Also for testing: a real run imported into a local instance replays from its records, for free (discussed 2026-11-11). **Decided** (2026-11-11, the project owner; to build):
-- **The file:** `<project name>.s3l`, a plain zip (no format of our own) of JSON files and the PDF, with a `manifest.json` holding the export format's own version (`format: 1`, moving apart from the app's), the app's version and commit, and the date. Documented as a zip, to be unzipped on the command line or by renaming; but imports take the zipped file, with the extension `.s3l`. Images stay out (rebuilt from their recipes). Historical exports kept in the repo (`fixtures/exports/`), with a test that imports each.
-- **What is exported: exactly the current pipeline,** every stage in it whatever its state (done, failed, stopped, WIP, carried, planned), with its outputs, inputs, calls, the calls its outputs were served from, its manual saves, and the model configs of those stages and calls. Not replaced stages nor the cards of dropped stages; links to anything outside the pipeline are cut (an edited manual stage's `replaces_stage_id`, provenance pointing to earlier attempts). So a pipeline exported while a manual stage is WIP after a full run pays again for the stages after it once it continues (their earlier runs stay behind); **the export dialog says so.**
-- **Export:** in the project's "⋮", through a dialog. Refused while a stage runs, as deletion is.
-- **Import:** through "+ New project", whose picker takes `.pdf` and `.s3l` (no folders). The project gets its exported name, numbered if taken, like a new one. If its PDF already has projects here, the dialog of a known PDF lists them, its last item importing the file as a new project.
-- **Model configs:** a config with the same values (all but id, name and dates; the secrets' names included) among those not deleted is used; else one is created, numbered if its name is taken. A secret missing here makes it invalid, as any config.
-- **An import is looked up like a run,** stage by stage, then call by call, under the rule of `docs/database.md`, "Deleting a project" (what a live project uses stays alive; costs stay where they were paid):
-  1. an imported stage with the key of a live done stage here: the imported pipeline points to that stage, nothing copied (like reusing a stage from the cache);
-  2. otherwise the stage is copied, with a new id, and each of its calls is looked up: **a live call with the same request key:** no row, the imported outputs name it; **a deleted call with the same key:** the imported outputs name it, which brings it back to life, its cost staying where it was (under the deleted project; nothing counts twice; deleting the imported project marks it again); **none:** a new row, with its cost, counted in the costs, the statistics and the spending cap. Deleted stages aren't revived as stages (their outputs are gone), only their calls.
-  Stages, outputs and saves count in the statistics like a run's. **Original times are kept,** so costs show on the days they happened. **The spending cap never refuses an import:** an import sends no call, it records calls already paid; with original times only those of the last 24 hours count towards it.
-- **`imported_at`** on projects (it came in by import, on that date; work done later isn't marked), stages and calls (those the import added or brought back to life; not live calls it reused). Nothing reads it yet: room for later choices (e.g. a toggle in the costs view).
-- **Rows are copied with new ids;** content in R2 is stored under its hash and so never twice. No id is part of a cache key (both levels are content only).
 
 ### Going back to an earlier applied version in `fix_mei`
 `#optional`

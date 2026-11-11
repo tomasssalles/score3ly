@@ -328,6 +328,7 @@ function shots(seed: Seed): Shot[] {
     { name: "10-menu-project-picker", layouts: ["wide", "narrow"], take: (p) => open(p, project(seed.done)).then(() => p.locator(".picker-field").click()).then(() => p.waitForTimeout(300)) },
     { name: "11-menu-header", layouts: ["wide", "narrow"], take: (p) => open(p, project(seed.done)).then(() => p.getByRole("button", { name: "Menu" }).click()).then(() => p.waitForTimeout(300)) },
     { name: "12-menu-project-actions", layouts: ["wide", "narrow"], take: (p) => projectActions(p, seed.done).then(() => p.waitForTimeout(300)) },
+    { name: "12b-export-dialog", layouts: ["wide", "narrow"], take: (p) => projectActions(p, seed.done).then(() => p.getByRole("menuitem", { name: "Export" }).click()).then(() => p.waitForTimeout(300)) },
     {
       name: "13-menu-stage",
       layouts: ["wide", "narrow"],

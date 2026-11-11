@@ -3,6 +3,8 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { leavesProject, runningProject } from "./leaveGuard";
 import { ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type PdfLookup, type Project } from "./api";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
+import { ExportDialog } from "./ExportDialog";
+import { EXTENSION, importArchive, type ProjectArchive, unzipArchive } from "./projectFile";
 import { Header } from "./Header";
 import { useEditionWindow, useHost } from "./host";
 import { KnownPdfDialog } from "./KnownPdfDialog";
@@ -20,7 +22,12 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   // A picked PDF that already has projects, waiting for the user's choice.
   const [knownPdf, setKnownPdf] = useState<{ pdf: File; sha256: string; lookup: PdfLookup } | null>(null);
+  // A picked project file (docs/database.md, "Exporting and importing a project") whose PDF already has projects.
+  const [knownArchive, setKnownArchive] = useState<{ file: File; archive: ProjectArchive; lookup: PdfLookup } | null>(null);
+  // An import on its way: its project's name.
+  const [importing, setImporting] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // The name of the project just deleted: said where the project was, until something else is opened.
   const [deleted, setDeleted] = useState<string | null>(null);
@@ -86,9 +93,11 @@ export function App() {
     if (route || page) setDeleted(null);
   }, [hash]);
 
-  // A picked PDF gets a new project, unless it already has projects: then the user chooses.
+  // A picked PDF gets a new project, unless it already has projects: then the user chooses. A project file is imported,
+  // the same way.
   async function pdfPicked(pdf: File) {
     setError(null);
+    if (pdf.name.toLowerCase().endsWith(EXTENSION)) return archivePicked(pdf);
     let sha256: string;
     let lookup: PdfLookup;
     try {
@@ -103,6 +112,38 @@ export function App() {
     } else {
       await newProject(pdf, sha256, false);
     }
+  }
+
+  async function archivePicked(file: File) {
+    let archive: ProjectArchive;
+    let lookup: PdfLookup;
+    try {
+      archive = await unzipArchive(new Uint8Array(await file.arrayBuffer()));
+      // The name a new project would get: the exported one, numbered if taken.
+      lookup = await lookUpPdf(archive.rows.project.pdf_sha256, `${archive.rows.project.name}.pdf`);
+    } catch (err) {
+      setError(`Importing the project failed: ${err instanceof Error ? err.message : err}`);
+      return;
+    }
+    if (lookup.projects.length > 0) {
+      setKnownArchive({ file, archive, lookup });
+    } else {
+      await importProject(archive, lookup.newProjectName);
+    }
+  }
+
+  async function importProject(archive: ProjectArchive, name: string) {
+    setError(null);
+    setImporting(name);
+    try {
+      const imported = await importArchive(archive);
+      navigate(hashForProject(imported.id));
+    } catch (err) {
+      setError(`Importing the project failed: ${err instanceof Error ? err.message : err}`);
+    } finally {
+      setImporting(null);
+    }
+    await refresh();
   }
 
   async function newProject(pdf: File, sha256: string, alreadyStored: boolean) {
@@ -165,7 +206,7 @@ export function App() {
         <input
           ref={fileInput}
           type="file"
-          accept="application/pdf"
+          accept={`application/pdf,.pdf,${EXTENSION}`}
           hidden
           onChange={(e) => {
             const pdf = e.target.files?.[0];
@@ -175,6 +216,7 @@ export function App() {
           }}
         />
         {error && <p className="error-banner error-text">{error}</p>}
+        {importing !== null && <p className="status-banner" role="status">Importing "{importing}"…</p>}
         {renaming && current && (
           <RenameDialog
             title="Rename project"
@@ -199,6 +241,7 @@ export function App() {
             onCancel={() => setRenaming(false)}
           />
         )}
+        {exporting && current && <ExportDialog project={current} onDone={() => setExporting(false)} />}
         {deleting && current && (
           <DeleteProjectDialog
             project={current}
@@ -238,6 +281,23 @@ export function App() {
             onCancel={() => setLeaving(null)}
           />
         )}
+        {knownArchive && (
+          <KnownPdfDialog
+            filename={knownArchive.file.name}
+            projects={knownArchive.lookup.projects}
+            newLabel="+ Import as a new project"
+            newProjectName={knownArchive.lookup.newProjectName}
+            onOpen={(project) => {
+              setKnownArchive(null);
+              open(project);
+            }}
+            onCreate={() => {
+              setKnownArchive(null);
+              importProject(knownArchive.archive, knownArchive.lookup.newProjectName);
+            }}
+            onCancel={() => setKnownArchive(null)}
+          />
+        )}
         {knownPdf && (
           <KnownPdfDialog
             filename={knownPdf.pdf.name}
@@ -266,6 +326,7 @@ export function App() {
             onShowStage={showStage}
             onCloseArtifact={closeArtifact}
             onRename={() => setRenaming(true)}
+            onExport={() => setExporting(true)}
             onDelete={() => setDeleting(true)}
             onChanged={refresh}
           />

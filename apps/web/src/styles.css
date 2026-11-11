@@ -466,6 +466,14 @@ body {
   color: var(--danger);
 }
 
+/* Something on its way that has no other place to show (an import). */
+.status-banner {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+
 .empty-state {
   padding: 48px 16px;
   text-align: center;

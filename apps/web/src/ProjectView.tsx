@@ -81,6 +81,7 @@ export function ProjectView({
   onShowStage,
   onCloseArtifact,
   onRename,
+  onExport,
   onDelete,
   onChanged,
 }: {
@@ -91,6 +92,7 @@ export function ProjectView({
   onShowStage: (stageId: string) => void;
   onCloseArtifact: () => void;
   onRename: () => void;
+  onExport: () => void;
   onDelete: () => void;
   onChanged: () => void; // the project itself changed (e.g. its run mode)
 }) {
@@ -575,6 +577,7 @@ export function ProjectView({
       actions={actions}
       onCollapse={onCollapse}
       onRename={onRename}
+      onExport={onExport}
       onDelete={onDelete}
       error={error}
     />

@@ -12,7 +12,7 @@ Everything beyond the overview is in the files below, each about one topic; the 
 
 **The app**
 - [project-view.md](project-view.md): what the app shows around a project: the layouts, the artifact view, progress and toasts, the header, the pipeline panel and its stage cards, the cards of dropped stages, the confirmation before a re-run, the pages of the menu. Read it before working on those screens.
-- [database.md](database.md): the D1 tables, the Worker's requests while a stage runs and for manual stages, carried manual stages, interrupted runs, deleting a project. Read it before working on the Worker's pipeline code, the migrations or deletion.
+- [database.md](database.md): the D1 tables, the Worker's requests while a stage runs and for manual stages, carried manual stages, interrupted runs, deleting, exporting and importing a project. Read it before working on the Worker's pipeline code, the migrations or deletion.
 - [statistics.md](statistics.md): the Statistics page: why its tabs differ, Costs (the costs view and the average cost per page), Usage, Run times, Effort, how active time is counted, the mock data. Read it before working on the statistics.
 - [llm.md](llm.md): how the Worker calls the LLM providers, call records and the cache, model configs and which one a stage uses, supported models and prices, how costs are computed and kept, and the spending cap. Read it before working on providers, model configs, prices or costs.
 - [images.md](images.md): page images from PDFs, deterministic image operations, fingerprints, device constraints and the image cache (this overview's §8 subsections, by the same numbers). Read it before working on `packages/imaging` or the image cache.
@@ -362,12 +362,13 @@ The look of the app (colours and themes, type, components, the brand: wordmark, 
 - **Installed, the app opens as an app** (decided, built: the manifest's `"display": "standalone"`, with `id`, `start_url` and `scope` "/"): from a phone's home screen, or installed from a desktop browser, it gets its own window or the whole screen, without the browser's bar. It then shows its own back and forward buttons (`docs/desktop.md`, "Navigation"). Opened in a browser tab, nothing changes.
 
 ### 5.8 The database
-In `docs/database.md`: the tables of D1 and what each row holds, the Worker's requests while a stage runs and for manual stages, carried manual stages, interrupted runs, deleting a project, page counts. In short:
+In `docs/database.md`: the tables of D1 and what each row holds, the Worker's requests while a stage runs and for manual stages, carried manual stages, interrupted runs, deleting, exporting and importing a project, page counts. In short:
 - **The pipeline is a list of pointers** (`pipeline_entries`) to stages (`stages`), which are shared, not owned: a fork copies pointers, never stages or outputs. Planned stages have a row too.
 - **Every output has a row** (`outputs`), with its content's hash (stored in R2) or its recipe (computed), and the outputs it was made from; every LLM call has a row (`llm_calls`), with its request and response in R2, its tokens and cost.
 - **The browser does the work, the Worker records it:** a stage's start, its outputs as each is done, a heartbeat once a minute, its end.
 - **Deleting marks rows instead of deleting them,** for the costs, and every cache lookup ignores marked rows.
 - **Two kinds of settings:** the user's, in D1, and the device's, in the browser.
+- **A project can be exported** as one file, `<name>.s3l` (a zip of its current pipeline's rows, its content and the PDF), and **imported** through "+ New project", looked up like a run: what this instance already has is reused, a deleted call brought back to life, only what is found nowhere added and counted.
 
 ## 6. Pipeline stages
 
