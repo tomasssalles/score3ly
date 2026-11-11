@@ -6,8 +6,8 @@ A suite of behavioural tests for trying the app by hand: short scripts, each tel
 - **Stories, not isolated cases.** A story starts from the state the earlier ones left, unless it says otherwise, and runs straight through. A step is an action (→) and what should happen (✓). When a ✓ fails, note it (story, step, what happened) and go on if you can; a broken state rarely makes the rest of a story useless.
 - **Single device for now.** Everything here runs on one computer, locally, with the fake models. **Multi-device tests wait for a real deployment** (§16, "Deployment"): they are listed at the end ("Waiting for a deployment"), so they aren't forgotten.
 - **Sized for a person.** Each story says roughly how long it takes. Not every story runs before every release:
-  - **The smoke run** (about an hour, before every commit that reaches `main`, §11): story 1, and the steps marked ★ in stories 3, 4 and 10.
-  - **The full run** (about 7 hours, split over several evenings; before showing the app to anyone, and before a version goes up by a minor or a major): every story.
+  - **The smoke run** (about an hour, before every commit that reaches `main`, §11): story 1, and the steps marked ★ in stories 3, 4, 10 and 11.
+  - **The full run** (about 8 hours, split over several evenings; before showing the app to anyone, and before a version goes up by a minor or a major): every story.
   - **In between:** the stories that touch what changed (each story lists the areas it covers).
 - **Expected results come from the docs.** Where the docs and the app disagree, either can be wrong (CLAUDE.md): note it, don't decide on the spot.
 - **They cost nothing, or very little** (decided 2026-11-06): the fake models answer without network or charges. A few stories may cost a small sum where a real model makes a test meaningful (a real run under realistic conditions); where real calls are optional, a story says so and what they would cost, as story 10 does for the configs' Test.
@@ -266,6 +266,24 @@ Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new 
 18. → Put the files back: `git checkout apps/worker/model-list apps/worker/src/llm/modelList.ts`, let the Worker reload. ✓ The configs on Fake Next stay "No longer supported" (the list in git never had the model, so they name it by its id, `fake-next`); everything else as before step 13.
 
 *Worth automating:* the form's pickers following each other and its refusals (pure functions in `configForm.ts`, mostly tested already); the conversion and the marks after a new list (a Worker test with two lists).
+
+## Story 11: Export and import
+
+*A user who saves a project as a file, deletes it to free storage, brings it back, and takes it to another instance.* About 40 minutes (the ★ steps about 10). Covers: `docs/database.md`, "Exporting and importing a project" (the file, what it holds, the dialog, the import looked up like a run, configs matched by their values, deleted calls brought back, the format's version), the known-PDF dialog for project files, the costs of imports. Needs a finished project (story 1's Für Elise) and one run with "Fake (priced)" as its config (made here).
+
+1. ★ → Für Elise's project "⋮". ✓ "Rename", "Export", a line, "Delete project" in red. → Export. ✓ "Export project", the file's name `<name>.s3l` under it, the two paragraphs ("Saves the project as a zipped archive…", "Earlier attempts stay out…"), Cancel and Export. → Export. ✓ "Exporting…" with a bar, then the file saved as `<name>.s3l`.
+2. → Look inside: `unzip -l <name>.s3l` (or a copy renamed `.zip`). ✓ `manifest.json`, `project.json`, `pdf/<sha256>.pdf`, and `content/…` files. `manifest.json`: `"format": 1`, the app's version and commit (as on the About page), the date, the project's name.
+3. → Start a stage running in another project (Run), and Export that project meanwhile. ✓ The dialog stays open with "A stage of this project is running, here or on another device. Stop it, or let it finish, then export the project."
+4. ★ → "+ New project", pick Für Elise's `.s3l`. ✓ The picker offers `.pdf` and `.s3l` files. ✓ "Projects already based on this file", the file's name under it, Für Elise's projects, and last "→ Import as a new project" with "<name> (1)". → Pick it. ✓ "Importing "<name> (1)"…" for a moment, then the new project opens: every stage in the state it had, the same notes and times, the artifacts open (the Transcription with its issues, the MEI, the PDF). Statistics → Costs: nothing new (its done stages are the original's).
+5. → "+ New project", a zip that isn't a project, renamed to `x.s3l` (e.g. a download bundle). ✓ "Importing the project failed: The file isn't a score3ly project: it has no manifest.json." → A PDF renamed `y.s3l`. ✓ "… it isn't a zip."
+6. → New project from Kinderscenen p3 with "Fake (priced)" as the default, run it to the end. Note the total in Costs. → Export it, then delete it. ✓ Costs: still there (under the deleted project). → Import the file. ✓ No dialog (no other project on that PDF): the project comes back under its own name, every stage done. ✓ Costs: the same total as before, not twice.
+7. → Another instance: stop the Worker, apply the migrations to a second state folder and start it there (the commands of "Setup", with `.wrangler/manual-2`), clear the site's storage, reload. ✓ No projects; Settings: only "Fake model". → Import story 6's file. ✓ The project, complete; Settings: "Fake (priced)" created, with the values it had (no secrets: it needs none); Costs: its spending on the days it really happened; the cap's "last 24 hours" counts it only if those were in the last 24 hours.
+8. → Import the same file again here. ✓ "<name> (1)", via the known-PDF dialog; no second "Fake (priced)" (the same values: reused); Costs: unchanged (the done stages are the first import's).
+9. → In that project, Analyze's "⋮" → "Fix metadata manually", change the composer, Finish, Run. ✓ The stages after it run again (with the fake models, nothing to pay beyond "Fake (priced)"'s made-up prices), and the pipeline finishes. (The dialog's "Earlier attempts stay out": had the project been exported with the fix still WIP, the stages after it would run again here too.)
+10. → A newer file: unzip story 6's file, set `"format": 2` in `manifest.json`, zip it again as `newer.s3l`, import it. ✓ "Importing the project failed: The file was exported by a newer version of score3ly (export format 2). Update the app to import it." Nothing created.
+11. → Back to the first instance: stop the Worker, start it on `.wrangler/manual` again, reload. ✓ Everything as before step 7.
+
+*Worth automating:* already in the Worker's tests (export, the import while the original lives, after deleting it, from elsewhere, the formats) and the app's (the file read back, the refusals); `fixtures/exports/` keeps a file of each format, which a test imports. Left to the hand: the dialogs and the files on disk.
 
 ## While going through the stories
 
