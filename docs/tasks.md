@@ -56,7 +56,6 @@ The tasks below, in the file's order.
 - [2027-01-01: Gemini 3.6 Flash's new prices on AI Studio](#2027-01-01-gemini-36-flashs-new-prices-on-ai-studio)
 - [Test the thinking levels of Gemini 3.7 Flash, 3.5 Flash, 3.1 Flash-Lite and 2.5](#test-the-thinking-levels-of-gemini-37-flash-35-flash-31-flash-lite-and-25)
 - [Do our prompts reach long-context prices?](#do-our-prompts-reach-long-context-prices)
-- [A switch that turns off the cache](#a-switch-that-turns-off-the-cache)
 - [Stages from the record with a config that can't be used](#stages-from-the-record-with-a-config-that-cant-be-used)
 - [Hint at similar configs the app still supports](#hint-at-similar-configs-the-app-still-supports)
 - [Verify the prompt and schema of `layout`](#verify-the-prompt-and-schema-of-layout)
@@ -109,8 +108,6 @@ The tasks below, in the file's order.
 - [Measure the prompt lengths](#measure-the-prompt-lengths)
 - [Compare the symbolic format with plain LilyPond](#compare-the-symbolic-format-with-plain-lilypond)
 - [Pitch guides](#pitch-guides)
-- [Pick an icon for each kind of artifact](#pick-an-icon-for-each-kind-of-artifact)
-- [Build the stages](#build-the-stages)
 - [Sort the statistics' project lists by name](#sort-the-statistics-project-lists-by-name)
 - [Search the statistics' project lists](#search-the-statistics-project-lists)
 - [Keep a run going while another page of the app is open](#keep-a-run-going-while-another-page-of-the-app-is-open)
@@ -310,11 +307,6 @@ For each, make a model config on AI Studio (Vertex AI for the last two) with eac
 `#research`
 
 `docs/llm.md`, "Supported models, prices and the config form": the prices are the short-context ones (decided 2026-11-04). Check, once real runs exist, whether a prompt of ours ever reaches a provider's threshold for long-context prices (Gemini's Pro models: more than 200K tokens of prompt; Claude's long-context variants on Bedrock; Haiku 5.5: more than 100K), for every provider and family the release supports. The likeliest is `review` on a long score, which sends the whole score with every call. The data is there: every call's prompt is the sum of its `input_tokens`, `cached_tokens` (cache reads) and `cache_write_tokens` in `llm_calls`, so a query over the calls of real runs answers it; each provider's exact rule (which tokens count towards the threshold) is checked on the way. If a prompt does reach one, a new task: get the long-context prices and use them where they apply.
-
-### A switch that turns off the cache
-`#optional`
-
-For testing and debugging: run stages as if nothing were cached, without our own cache (§5.2) at either level, the stage's key or an item's (an LLM request's record, an image's recipe), so that a stage is reproduced under the same conditions and its calls are really made (and paid for). Set when the app is started, by a special flag or an environment variable (e.g. for `wrangler dev`, the desktop app and the screenshot script), not in the app's settings. To decide on the way: whether the calls made with it on still fill the cache for later runs; whether the providers' own prompt caching stays on (it is a price, not a reuse of answers); and whether the app shows that it is on.
 
 ### Stages from the record with a config that can't be used
 `#optional` `#decision`
@@ -585,14 +577,6 @@ When the pipeline is finished: run it on most of the test set with a real model,
 `#experiment` `#optional`
 
 If extraction turns out painfully slow: faint labelled lines for the staff lines and ledger-line positions (E4, G4, …, C6) drawn on each crop, so the model reads a label instead of judging a pixel height, its biggest time sink in the manual run (§13). It needs the staff lines detected, which is error-prone, and a wrong detection would make the extraction worse.
-
-### Pick an icon for each kind of artifact
-`#style`
-
-§5.6, once the list of stages is final and the kinds of artifact are known (decided so far: image artifacts the usual image icon, as on `rasterize`'s card; the original PDF a sheet with "PDF" on it, `PdfIcon`).
-
-### Build the stages
-One by one, with the Worker endpoints each needs, added as they are needed rather than planned ahead (decided). A form for "Change config" comes with them. The details in §5.6 are provisional until the possible stages are defined, and are settled then: what exactly a card shows, the icons, the fields of the details view, and which manual stages can be added where.
 
 ### Sort the statistics' project lists by name
 `#optional`
