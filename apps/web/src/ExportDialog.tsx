@@ -57,13 +57,10 @@ export function ExportDialog({ project, onDone }: { project: Project; onDone: ()
           <FittedText text={name} lines={3} />
         </p>
         <p className="dialog-text">
-          Saves the project as one file, to import here or into another score3ly with "+ New project": its pipeline as it is
-          now, with the PDF, the results and the models' answers.
+          Saves the project as a zipped archive: its pipeline as it is now, with the PDF, the results and the models' answers.
+          The file can be imported back into any score3ly instance with "+ New project".
         </p>
-        <p className="dialog-text">
-          Earlier attempts stay out: stages that were replaced or dropped, and their answers. So if the pipeline continues
-          after a change, stages that ran before that change may be paid for again.
-        </p>
+        <p className="dialog-text">Earlier attempts stay out: stages that were replaced or dropped, and their answers.</p>
         {busy && <ProgressBar value={progress} label="Exporting" />}
         <p className="field-message error-text" role="alert">
           {error}
