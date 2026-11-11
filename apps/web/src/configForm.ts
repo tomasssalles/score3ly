@@ -68,9 +68,9 @@ export const EMPTY_FORM: FormState = {
   pinned: null,
 };
 
-// The model a provider starts with: Claude Opus 5.5 where it is offered, else Gemini 3.1 Pro, else the first listed one,
-// else an unlisted one (decided 2026-11-05).
-const PREFERRED_MODELS = ["claude-opus-5-5", "gemini-3-1-pro-preview"];
+// The model a provider starts with: Claude Opus 5.5 where it is offered, else Gemini 4 Argon, else the first listed one,
+// else an unlisted one (decided 2026-11-05; Gemini 4 Argon instead of Gemini 3.1 Pro since 2026-11-11).
+const PREFERRED_MODELS = ["claude-opus-5-5", "gemini-4-argon"];
 
 export function defaultModel(options: ModelOptions, provider: Provider): FormModel {
   const listed = modelsOf(options, provider);

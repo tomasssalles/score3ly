@@ -180,16 +180,16 @@ test("a listed model's request, named after its model, provider and effort unles
   assert.match(confirmationOf(OPTIONS, free) ?? "", /cost \$0\.00/);
 });
 
-test("the form opens on the first provider with its model: Opus 5.5 where offered, else Gemini 3.1 Pro Preview, else the first", () => {
+test("the form opens on the first provider with its model: Opus 5.5 where offered, else Gemini 4 Argon, else the first", () => {
   const form = initialForm(OPTIONS);
   assert.deepEqual([form.provider, form.model, form.region], ["anthropic", { kind: "listed", id: "opus" }, ""]);
   const gemini = (id: string, name: string, string: string) => ({ id, name, family: "gemini" as const, efforts: ["low" as const, "medium" as const, "high" as const], providers: { vertex: { string, places: [{ region: "global", routing: null, price: P(2) }] } } });
   const withGemini: ModelOptions = {
     ...OPTIONS,
-    models: [...OPTIONS.models, gemini("gemini-4-argon", "Gemini 4 Argon", "gemini-4-argon"), gemini("gemini-3-1-pro-preview", "Gemini 3.1 Pro Preview", "gemini-3.1-pro-preview")],
+    models: [...OPTIONS.models, gemini("gemini-3-1-pro-preview", "Gemini 3.1 Pro Preview", "gemini-3.1-pro-preview"), gemini("gemini-4-argon", "Gemini 4 Argon", "gemini-4-argon")],
   };
   assert.deepEqual(defaultModel({ ...OPTIONS, models: OPTIONS.models.map((m) => (m.id === "opus" ? { ...m, id: "claude-opus-5-5" } : m)) }, "bedrock"), { kind: "listed", id: "claude-opus-5-5" });
-  assert.deepEqual(defaultModel(withGemini, "vertex"), { kind: "listed", id: "gemini-3-1-pro-preview" });
+  assert.deepEqual(defaultModel(withGemini, "vertex"), { kind: "listed", id: "gemini-4-argon" }); // not the first listed
   assert.deepEqual(defaultModel(OPTIONS, "bedrock"), { kind: "listed", id: "opus" }); // the first listed
   assert.deepEqual(defaultModel(OPTIONS, "vertex"), { kind: "added", string: "", family: null }); // none listed
   // Another provider starts over with its own model, keeping the name typed and Make default.

@@ -295,7 +295,7 @@ Google's pricing page announces new prices for Gemini 3.6 Flash on AI Studio fro
 ### Try Gemini 4 Argon
 `#owner` `#experiment`
 
-The config form prefers Gemini 3.1 Pro Preview among the Gemini models (`PREFERRED_MODELS` in `apps/web/src/configForm.ts`), the one the project owner has tried. Gemini 4 Argon is newer, not a preview, and cheaper on AI Studio ($2 input and $10 output per million tokens until 2026-11-30, against $2 and $12). Try it on the stages, and make it the preferred Gemini if it does at least as well.
+The config form prefers Gemini 4 Argon among the Gemini models since 2026-11-11 (`PREFERRED_MODELS` in `apps/web/src/configForm.ts`; the project owner's decision; Gemini 3.1 Pro Preview before, the one the project owner has tried). Gemini 4 Argon is newer and not a preview; its price on AI Studio doubles from 2026-12-01 ($4 input and $20 output per million tokens, as Opus 5.5). Try it on the stages, to know how it does against Gemini 3.1 Pro and Opus 5.5.
 
 ### Test the thinking levels of Gemini 3.7 Flash, 3.5 Flash, 3.1 Flash-Lite and 2.5
 `#owner` `#manual-test` `#next-release`
