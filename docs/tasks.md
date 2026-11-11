@@ -777,8 +777,10 @@ Also for testing: a real run imported into a local instance replays from its rec
 - **Export:** in the project's "⋮". Refused while a stage runs, as deletion is.
 - **Import:** through "+ New project", whose picker takes `.pdf` and `.s3l` (no folders). The project gets its exported name, numbered if taken, like a new one. If its PDF already has projects here, the dialog of a known PDF lists them, its last item importing the file as a new project.
 - **Model configs:** a config with the same values (all but id, name and dates; the secrets' names included) among those not deleted is used; else one is created, numbered if its name is taken. A secret missing here makes it invalid, as any config.
-- **Imports are free:** imported calls count towards neither the spending cap nor the statistics.
-- **Rows are copied with new ids;** the content in R2 is stored under its hash and so never twice. No id is part of a cache key (both levels are content only), so the imported calls serve this instance's identical requests.
+- **An import is like running the project here:** each imported call with a match here (the same request key, an answer on record, not deleted) adds no row, and the imported outputs point to that call, as a cache hit does in a run; a call without one becomes a new row, with its cost, counted in the costs, the statistics and the spending cap. Stages, outputs and manual saves count in the statistics like a run's. **Original times are kept** (the calls', the stages', the saves'), so costs show on the days they happened.
+- **The spending cap never refuses an import:** it stops calls being sent, and an import sends none, it only records calls already paid; with original times, only calls of the last 24 hours count towards it, and new calls may then wait, as after any expensive run.
+- **Rows are copied with new ids;** the content in R2 is stored under its hash and so never twice. No id is part of a cache key (both levels are content only).
+- **To decide: a deleted project brought back into its own instance.** Its calls are kept for the statistics but marked deleted, so the cache ignores them, nothing matches, and its costs would count a second time. Not ideal (the project owner).
 - **To decide:** whether replaced stages (and anything else not in the current pipeline) are exported; whether "the statistics" means all of them (Usage, Run times, Effort too).
 
 ### Going back to an earlier applied version in `fix_mei`
