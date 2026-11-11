@@ -3,7 +3,7 @@ dist/
 # The desktop app's packages (`npm run package -w apps/desktop`).
 release/
 .wrangler/
-.dev.vars
+.dev.vars*
 
 # `npm run screenshots` writes here.
 /screenshots/
