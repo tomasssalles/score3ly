@@ -183,9 +183,16 @@ export function meiNote(text: string): string {
 }
 
 // A file name from the project's name: what a file system would refuse is replaced.
-export function downloadName(projectName: string, extension: "mei" | "pdf" | "zip" | "report.json"): string {
-  const base = projectName.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_").trim() || "score";
-  return `${base}.s3l.${extension}`;
+export function fileBase(projectName: string): string {
+  return projectName.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_").trim() || "score";
+}
+
+// The downloads' names (docs/stages/engrave.md, "Downloads"): the project's name, then what the file is. Not `.s3l`,
+// which is a project's export (docs/database.md, "Exporting and importing a project").
+const DOWNLOAD_SUFFIXES = { zip: "score3ly-bundle.zip", mei: "score3ly-source.mei", pdf: "score3ly-render.pdf", "report.json": "score3ly-report.json" } as const;
+
+export function downloadName(projectName: string, kind: keyof typeof DOWNLOAD_SUFFIXES): string {
+  return `${fileBase(projectName)}.${DOWNLOAD_SUFFIXES[kind]}`;
 }
 
 // jsPDF always writes the creation date: it is overwritten with spaces, so every offset in the file stays right and

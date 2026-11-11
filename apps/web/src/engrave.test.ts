@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiStage } from "./api.ts";
-import { latestMei, meiNote, pdfPageCount, withoutDate } from "./engrave.ts";
+import { downloadName, latestMei, meiNote, pdfPageCount, withoutDate } from "./engrave.ts";
 
 const stage = (step: string, status: ApiStage["status"], outputs: { id: string; type: string; sha: string }[] = []): ApiStage =>
   ({
@@ -44,4 +44,12 @@ test("an edited MEI's result: its pieces and measures, a multi-measure rest coun
   ].join("\n");
   assert.equal(meiNote(mei), "2 pieces · 6 measures");
   assert.equal(meiNote('<mdiv n="1">\n<measure n="1">'), "1 measure");
+});
+
+test("the downloads' names: the project's name, then what the file is, never `.s3l` (an export's)", () => {
+  assert.equal(downloadName("Bach: Suite 1/2", "zip"), "Bach_ Suite 1_2.score3ly-bundle.zip");
+  assert.equal(downloadName("x", "mei"), "x.score3ly-source.mei");
+  assert.equal(downloadName("x", "pdf"), "x.score3ly-render.pdf");
+  assert.equal(downloadName("x", "report.json"), "x.score3ly-report.json");
+  assert.equal(downloadName("  ", "zip"), "score.score3ly-bundle.zip");
 });
