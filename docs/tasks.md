@@ -53,7 +53,6 @@ The tasks below, in the file's order.
 - [2026-12-01: Gemini 4 Argon's new prices on AI Studio](#2026-12-01-gemini-4-argons-new-prices-on-ai-studio)
 - [2027-01-01: Gemini 3.8 Flash's new prices on AI Studio](#2027-01-01-gemini-38-flashs-new-prices-on-ai-studio)
 - [2027-01-01: Gemini 3.6 Flash's new prices on AI Studio](#2027-01-01-gemini-36-flashs-new-prices-on-ai-studio)
-- [Try Gemini 4 Argon](#try-gemini-4-argon)
 - [Test the thinking levels of Gemini 3.7 Flash, 3.5 Flash, 3.1 Flash-Lite and 2.5](#test-the-thinking-levels-of-gemini-37-flash-35-flash-31-flash-lite-and-25)
 - [Do our prompts reach long-context prices?](#do-our-prompts-reach-long-context-prices)
 - [A switch that turns off the cache](#a-switch-that-turns-off-the-cache)
@@ -291,11 +290,6 @@ Google's pricing page announces new prices for Gemini 3.8 Flash on AI Studio fro
 `#date` `#owner`
 
 Google's pricing page announces new prices for Gemini 3.6 Flash on AI Studio from 2027-01-01: $1.50 input, $7.50 output, $0.15 cache read, per million tokens (now $0.75, $3.75, $0.075). The list has the prices valid on the day of the gathering (2026-11-06; `apps/worker/model-list/gather/README.md`, "Google AI Studio"), so from 2027-01-01 its calls are counted at the old ones. On that day or after, gather AI Studio again (`node model-list/gather/ai-studio.ts --download`, then `npm run model-list -w apps/worker`), and make a release with the new list.
-
-### Try Gemini 4 Argon
-`#owner` `#experiment`
-
-The config form prefers Gemini 4 Argon among the Gemini models since 2026-11-11 (`PREFERRED_MODELS` in `apps/web/src/configForm.ts`; the project owner's decision; Gemini 3.1 Pro Preview before, the one the project owner has tried). Gemini 4 Argon is newer and not a preview; its price on AI Studio doubles from 2026-12-01 ($4 input and $20 output per million tokens, as Opus 5.5). Try it on the stages, to know how it does against Gemini 3.1 Pro and Opus 5.5.
 
 ### Test the thinking levels of Gemini 3.7 Flash, 3.5 Flash, 3.1 Flash-Lite and 2.5
 `#owner` `#manual-test` `#next-release`
