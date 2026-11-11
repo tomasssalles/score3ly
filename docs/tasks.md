@@ -784,7 +784,6 @@ Also for testing: a real run imported into a local instance replays from its rec
   Stages, outputs and saves count in the statistics like a run's. **Original times are kept,** so costs show on the days they happened. **The spending cap never refuses an import:** an import sends no call, it records calls already paid; with original times only those of the last 24 hours count towards it.
 - **`imported_at`** on projects (it came in by import, on that date; work done later isn't marked), stages and calls (those the import added or brought back to life; not live calls it reused). Nothing reads it yet: room for later choices (e.g. a toggle in the costs view).
 - **Rows are copied with new ids;** content in R2 is stored under its hash and so never twice. No id is part of a cache key (both levels are content only).
-- **First, a fix** (`docs/database.md`, "Deleting a project"): deleting a project marks calls that another project's live outputs still name, which then no longer serve the cache. Reproduce in a test, then fix.
 
 ### Going back to an earlier applied version in `fix_mei`
 `#optional`

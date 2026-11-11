@@ -1699,3 +1699,25 @@ test("a person's change is refused when the project changed since the browser re
   assert.equal(renamed.status, 200);
   assert.equal(renamed.headers.get("X-Project-Version"), String(Number(v) + 1));
 });
+
+test("deleting a project: a call another project's live output names stays alive and serving the cache, until that project goes too", async () => {
+  // `a` made a call; `b` was served it from the cache: an output of `b` names it.
+  const a = await createdProject("calls-a.pdf");
+  const aSkew = (await pipelineOf(a.id))[2];
+  const b = await createdProject("calls-b.pdf");
+  const bSkew = (await pipelineOf(b.id))[2];
+  await env.DB.prepare(
+    "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at) SELECT 'call-shared', ?, id, 'k-shared', 'ok', '2026-10-01' FROM model_configs LIMIT 1",
+  )
+    .bind(aSkew.id)
+    .run();
+  await call(b.id, bSkew.id, "start", { stepVersion: 1, config: {}, stageKey: RECIPE_KEY(7), pageCount: 1, inputIds: [] });
+  await call(b.id, bSkew.id, "outputs", { outputs: [{ item: "p1", type: "skew", contentSha256: await putContent("skew of b"), callId: "call-shared" }] });
+  await call(b.id, bSkew.id, "finish", { status: "done" });
+
+  const callMarked = async () => (await env.DB.prepare("SELECT deleted_at FROM llm_calls WHERE id = 'call-shared'").first<{ deleted_at: string | null }>())?.deleted_at;
+  assert.equal((await deleteProject(a.id)).status, 200);
+  assert.equal(await callMarked(), null); // `b` still uses it: alive, and the cache still finds it
+  assert.equal((await deleteProject(b.id)).status, 200);
+  assert.ok(await callMarked()); // nothing alive uses it any more
+});

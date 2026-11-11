@@ -1,5 +1,5 @@
 // Deleting a project (docs/database.md, "Deleting a project"): apart from the costs and statistics, as if it had never existed. Its row,
-// and the stages and LLM calls no project that isn't deleted uses, are kept for the costs, marked with a deletion
+// and the stages and LLM calls no project that isn't deleted uses (in its pipeline, or named by its outputs), are kept for the costs, marked with a deletion
 // time that every cache lookup ignores; everything else of it that nothing else uses is deleted: the outputs (rows
 // and content), the full requests and responses of its calls, its PDF and the PDF's fingerprints. Content in R2 is
 // deleted by collecting what no row refers to any more, which also collects the orphans other changes leave behind.
@@ -18,6 +18,9 @@ const UNUSED_OUTPUTS = `
     AND NOT EXISTS (SELECT 1 FROM stage_inputs si JOIN stages s2 ON s2.id = si.stage_id WHERE si.output_id = o.id AND s2.deleted_at IS NULL)
     AND NOT EXISTS (SELECT 1 FROM output_inputs oi JOIN outputs o2 ON o2.id = oi.output_id JOIN stages s3 ON s3.id = o2.stage_id WHERE oi.input_id = o.id AND s3.deleted_at IS NULL)
     AND NOT EXISTS (SELECT 1 FROM outputs o4 JOIN stages s4 ON s4.id = o4.stage_id WHERE o4.parent_output_id = o.id AND s4.deleted_at IS NULL)`;
+
+// The calls an output of a stage that isn't marked names.
+const LIVE_CALLS = "SELECT o.call_id FROM outputs o JOIN stages s ON s.id = o.stage_id WHERE o.call_id IS NOT NULL AND s.deleted_at IS NULL";
 
 export type Deleted = { pdfUnused: boolean }; // whether no project that isn't deleted uses the PDF any more
 
@@ -38,7 +41,9 @@ export async function deleteProject(env: Env, projectId: string, now = new Date(
         "UPDATE stages SET deleted_at = ? WHERE deleted_at IS NULL AND created_in IN (SELECT id FROM projects WHERE deleted_at IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM pipeline_entries e JOIN projects p ON p.id = e.project_id WHERE e.stage_id = stages.id AND p.deleted_at IS NULL)",
       )
       .bind(iso),
-    db.prepare("UPDATE llm_calls SET deleted_at = ? WHERE deleted_at IS NULL AND stage_id IN (SELECT id FROM stages WHERE deleted_at IS NOT NULL)").bind(iso),
+    // A call is marked when its stage is and no output of a stage that isn't marked names it (served from the cache
+    // to another project, which still uses it): what a live project uses stays alive, and keeps serving the cache.
+    db.prepare(`UPDATE llm_calls SET deleted_at = ? WHERE deleted_at IS NULL AND stage_id IN (SELECT id FROM stages WHERE deleted_at IS NOT NULL) AND id NOT IN (${LIVE_CALLS})`).bind(iso),
     // The outputs nothing uses go, with what refers to them from marked stages.
     db.prepare(`DELETE FROM output_inputs WHERE output_id IN (${UNUSED_OUTPUTS}) OR input_id IN (${UNUSED_OUTPUTS})`),
     db.prepare("DELETE FROM stage_inputs WHERE stage_id IN (SELECT id FROM stages WHERE deleted_at IS NOT NULL)"),
