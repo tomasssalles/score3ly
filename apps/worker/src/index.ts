@@ -10,6 +10,7 @@ import { fingerprintRoutes } from "./fingerprints.ts";
 import { llmRoutes, readSettings, convertAddedConfigs } from "./llmRoutes.ts";
 import { defaultForNewStages, newPipeline, pipelineRoutes } from "./pipeline.ts";
 import { versionRoutes } from "./versions.ts";
+import { projectFileRoutes } from "./projectFile.ts";
 
 export type { Project, RunMode } from "@score3ly/core";
 import type { Project, RunMode } from "@score3ly/core";
@@ -314,6 +315,7 @@ app.post("/api/projects/:id/issue-numbers", async (c) => {
 
 pipelineRoutes(app);
 llmRoutes(app);
+projectFileRoutes(app);
 fingerprintRoutes(app);
 costRoutes(app);
 activityRoutes(app);

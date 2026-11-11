@@ -117,6 +117,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       version: 0,
       next_issue_number: 1,
       deleted_at: null,
+      imported_at: null,
     },
   ]);
 
@@ -1720,4 +1721,121 @@ test("deleting a project: a call another project's live output names stays alive
   assert.equal(await callMarked(), null); // `b` still uses it: alive, and the cache still finds it
   assert.equal((await deleteProject(b.id)).status, 200);
   assert.ok(await callMarked()); // nothing alive uses it any more
+});
+
+// Exporting and importing a project (docs/database.md, "Exporting and importing a project").
+
+type ExportJson = Record<string, unknown> & { project: Record<string, unknown>; stages: Record<string, unknown>[]; llm_calls: Record<string, unknown>[]; model_configs: Record<string, unknown>[]; content: string[]; pipeline: Record<string, unknown>[] };
+
+const exportOf = async (id: string) => json<ExportJson>(await app.request(`/api/projects/${id}/export`, {}, env));
+const importOf = (data: unknown) => app.request("/api/projects/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }, env);
+const count = async (sql: string, ...values: unknown[]) => (await env.DB.prepare(sql).bind(...values).first<{ n: number }>())!.n;
+
+// A project whose skew stage has a call (with a request and a response in R2) and an output naming it.
+async function projectWithACall(filename: string) {
+  await env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_id, secrets_json, pricing_kind, created_at) VALUES ('paid', 'Opus', 'anthropic', 'claude-opus-5-5', '{\"apiKey\":\"K\"}', 'list', '2026-10-01')").run();
+  const p = await createdProject(filename);
+  const { rasterize } = await startRasterize(p.id, RECIPE_KEY(4));
+  await call(p.id, rasterize.id, "outputs", { outputs: [{ item: "p1", type: "page_image", recipeKey: RECIPE_KEY(1) }] });
+  await call(p.id, rasterize.id, "finish", { status: "done" });
+  const skew = (await pipelineOf(p.id))[2];
+  await call(p.id, skew.id, "start", { stepVersion: 1, config: {}, stageKey: RECIPE_KEY(5), pageCount: 1, inputIds: [] });
+  const request = await putContent(`request of ${filename}`);
+  const response = await putContent(`response of ${filename}`);
+  await env.DB.prepare(
+    "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, response_sha256, status, cost_usd, started_at) VALUES (?, ?, 'paid', ?, ?, ?, 'ok', 0.5, '2026-10-01T10:00:00.000Z')",
+  )
+    .bind(`call-${filename}`, skew.id, `key-${filename}`, request, response)
+    .run();
+  const answer = await putContent(`skew of ${filename}`);
+  await call(p.id, skew.id, "outputs", { outputs: [{ item: "p1", type: "skew", contentSha256: answer, callId: `call-${filename}` }] });
+  await call(p.id, skew.id, "finish", { status: "done" });
+  return { project: p, rasterize, skew, content: [request, response, answer] };
+}
+
+test("export: the current pipeline's rows, the configs and content they use; refused while a stage runs", async () => {
+  const { project, skew, content } = await projectWithACall("export.pdf");
+  const data = await exportOf(project.id);
+  assert.equal(data.format, 1);
+  assert.equal(data.project.name, "export");
+  assert.deepEqual(data.pipeline.map((e) => e.position), (await pipelineOf(project.id)).map((_, i) => i + 1));
+  assert.deepEqual(data.llm_calls.map((c) => [c.id, c.stage_id]), [["call-export.pdf", skew.id]]);
+  assert.ok(data.model_configs.some((m) => m.id === "paid"));
+  for (const sha of content) assert.ok(data.content.includes(sha));
+  // A running stage: refused.
+  const layout = (await pipelineOf(project.id))[3];
+  await call(project.id, layout.id, "start", { stepVersion: 1, config: {}, stageKey: RECIPE_KEY(6), pageCount: 1, inputIds: [] });
+  assert.equal((await app.request(`/api/projects/${project.id}/export`, {}, env)).status, 409);
+});
+
+test("import while the original lives: its done stages are the original's (nothing copied), the rest copied, nothing counted again", async () => {
+  const { project, rasterize, skew } = await projectWithACall("live.pdf");
+  const data = await exportOf(project.id);
+  const calls = await count("SELECT COUNT(*) AS n FROM llm_calls");
+  const configs = await count("SELECT COUNT(*) AS n FROM model_configs");
+  const response = await importOf(data);
+  assert.equal(response.status, 201);
+  const imported = await json<{ id: string; name: string }>(response);
+  assert.equal(imported.name, "live (1)"); // the name is taken: numbered
+  const stages = await pipelineOf(imported.id);
+  assert.equal(stages[1].id, rasterize.id);
+  assert.equal(stages[2].id, skew.id);
+  assert.notEqual(stages[3].id, (await pipelineOf(project.id))[3].id); // a planned stage: copied
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls"), calls);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM projects WHERE id = ? AND imported_at IS NOT NULL", imported.id), 1);
+  // The same config was found by its values, not copied.
+  assert.equal(await count("SELECT COUNT(*) AS n FROM model_configs"), configs);
+});
+
+test("import after deleting the original: stages copied, the deleted call brought back to life where it was paid, not counted twice", async () => {
+  const { project, content } = await projectWithACall("back.pdf");
+  const data = await exportOf(project.id);
+  assert.equal((await deleteProject(project.id)).status, 200);
+  await collectOrphans(env, new Date(Date.now() + 60_000)); // its content gone from R2
+  // What the browser does: the PDF and the missing content first.
+  const missing = await json<{ missing: string[] }>(await app.request("/api/content/missing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sha256s: data.content }) }, env));
+  assert.deepEqual([...missing.missing].sort(), [...content].sort());
+  for (const sha of missing.missing) {
+    const text = ["request", "response", "skew"].map((w) => `${w} of back.pdf`).find((t) => sha === content[["request", "response", "skew"].indexOf(t.split(" ")[0])])!;
+    assert.equal((await app.request(`/api/content/${sha}`, { method: "PUT", body: pdfBytes(text) }, env)).status, 204);
+  }
+  const pdf = data.project.pdf_sha256 as string;
+  assert.equal((await importOf(data)).status, 409); // the PDF isn't stored any more
+  assert.equal((await app.request(`/api/pdfs/${pdf}`, { method: "PUT", body: pdfBytes("back.pdf") }, env)).status, 204);
+
+  const calls = await count("SELECT COUNT(*) AS n FROM llm_calls");
+  const imported = await json<{ id: string; name: string }>(await importOf(data));
+  assert.equal(imported.name, "back"); // free again
+  const stages = await pipelineOf(imported.id);
+  const skewOutput = stages[2].outputs[0];
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls"), calls); // no new row
+  const revived = await env.DB.prepare("SELECT deleted_at, imported_at, stage_id FROM llm_calls WHERE id = 'call-back.pdf'").first<Record<string, string | null>>();
+  assert.equal(revived?.deleted_at, null);
+  assert.ok(revived?.imported_at);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM outputs WHERE stage_id = ? AND call_id = 'call-back.pdf'", stages[2].id), 1);
+  assert.equal(skewOutput.contentSha256, content[2]);
+  // Its cost is still the deleted project's: the sum over all calls is what it was.
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE c.id = 'call-back.pdf' AND s.created_in = ?", project.id), 1);
+});
+
+test("import: a call found nowhere is a new row that counts, a config found nowhere is created (numbered); other formats refused", async () => {
+  const { project } = await projectWithACall("new.pdf");
+  const data = await exportOf(project.id);
+  // As if from another instance: the stages' keys, the call's key and the config's effort unknown here.
+  const other = structuredClone(data);
+  for (const s of other.stages) if (s.stage_key) s.stage_key = "f".repeat(64);
+  other.llm_calls[0].request_key = "unknown-here";
+  const config = other.model_configs.find((m) => m.id === "paid")!;
+  config.effort = "high";
+  const imported = await json<{ id: string }>(await importOf(other));
+  const added = await env.DB.prepare("SELECT stage_id, cost_usd, imported_at FROM llm_calls WHERE request_key = 'unknown-here'").first<Record<string, unknown>>();
+  assert.equal(added?.cost_usd, 0.5);
+  assert.ok(added?.imported_at);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM stages WHERE id = ? AND created_in = ?", added?.stage_id, imported.id), 1);
+  const created = await env.DB.prepare("SELECT name FROM model_configs WHERE provider = 'anthropic' AND effort = 'high'").first<{ name: string }>();
+  assert.equal(created?.name, "Opus (1)");
+
+  const newer = await importOf({ ...data, format: 2 });
+  assert.equal(newer.status, 400);
+  assert.match((await json<{ error: string }>(newer)).error, /newer version of score3ly/);
 });
