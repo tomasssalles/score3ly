@@ -47,6 +47,7 @@ The tasks below, in the file's order.
 - [A home](#a-home)
 - [Tags for projects](#tags-for-projects)
 - [A "done" mark for projects](#a-done-mark-for-projects)
+- [Check export and import on a large project](#check-export-and-import-on-a-large-project)
 - [Measure the Worker's CPU time per LLM request](#measure-the-workers-cpu-time-per-llm-request)
 - [Safe storage of the secrets in cadenza](#safe-storage-of-the-secrets-in-cadenza)
 - [Spot-check the collected prices](#spot-check-the-collected-prices)
@@ -247,6 +248,11 @@ Proposed by the project owner (2026-10-29). Arbitrary tags on projects, added by
 `#optional` `#decision`
 
 Proposed by the project owner (2026-10-29). A toggle on each project, set by the user when satisfied with the result: a much clearer signal than the finished pipeline the statistics use today (Run times, the average cost per page's "unfinished pipeline"), which says nothing about whether the result still needs work. To decide: whether the statistics then use the mark instead of the finished pipeline, or both (e.g. the mark where it is set).
+
+### Check export and import on a large project
+`#next-release` `#manual-test`
+
+An import sends all the rows of a project's pipeline to the Worker in one request (`POST /api/projects/import`), which parses them and writes them in one D1 batch; an export hands them out in one answer (`docs/database.md`, "Exporting and importing a project"). Tried only on the one-page Bach prelude (2026-11-11). On a long score (a Beethoven sonata: a few hundred systems, each with its outputs and calls) that may hit the Workers free plan's limits: the 10 ms of CPU time (parsing a large JSON body and building the statements), the size of a D1 batch and of its statements, and the number of calls to R2 in one request (`POST /api/content/missing` heads at most 200 objects per request for that reason). **Without paying for a real run:** run a long score from `testset/` (e.g. `bendel_la_cascade.orig.pdf`) with the fake model on the deployed app, export it, import it there and into a fresh local instance, and read the requests' CPU time in the dashboard. If it is over or close, split the import into several requests (stages first, then calls and outputs in chunks), as the export's content is already fetched object by object.
 
 ### Measure the Worker's CPU time per LLM request
 `#research` `#next-release`
