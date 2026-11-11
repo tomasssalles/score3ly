@@ -285,7 +285,7 @@ export function App() {
           <KnownPdfDialog
             filename={knownArchive.file.name}
             projects={knownArchive.lookup.projects}
-            newLabel="+ Import as a new project"
+            newLabel="→ Import as a new project"
             newProjectName={knownArchive.lookup.newProjectName}
             onOpen={(project) => {
               setKnownArchive(null);
