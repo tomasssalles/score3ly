@@ -771,6 +771,16 @@ After a change in the middle, a later stage whose inputs and config come out the
 
 Not trivial: a file with everything the project stores (its pipeline, stages, outputs and their content, call records, the PDF), so that heavy users can free storage (R2's free 10 GB, §2) and bring a project back later. Importing has to fit what is stored by then (other step versions, ids that exist, content already there).
 
+Also for testing: a real run imported into a local instance replays from its records, for free (discussed 2026-11-11). **Decided so far** (2026-11-11, the project owner; being discussed, then to build):
+- **The file:** `<project name>.s3l`, a plain zip (no format of our own) of JSON files and the PDF, with a `manifest.json` holding the export format's own version (`format: 1`, moving apart from the app's), the app's version and commit, and the date. Documented as a zip, to be unzipped on the command line or by renaming; but imports take the zipped file, with the extension `.s3l`. Images stay out (rebuilt from their recipes). Historical exports kept in the repo (`fixtures/exports/`), with a test that imports each.
+- **The downloads lose their `.s3l` marker** (`<name>.s3l.zip` and the files in it), so that it means only this file; their new names to settle.
+- **Export:** in the project's "⋮". Refused while a stage runs, as deletion is.
+- **Import:** through "+ New project", whose picker takes `.pdf` and `.s3l` (no folders). The project gets its exported name, numbered if taken, like a new one. If its PDF already has projects here, the dialog of a known PDF lists them, its last item importing the file as a new project.
+- **Model configs:** a config with the same values (all but id, name and dates; the secrets' names included) among those not deleted is used; else one is created, numbered if its name is taken. A secret missing here makes it invalid, as any config.
+- **Imports are free:** imported calls count towards neither the spending cap nor the statistics.
+- **Rows are copied with new ids;** the content in R2 is stored under its hash and so never twice. No id is part of a cache key (both levels are content only), so the imported calls serve this instance's identical requests.
+- **To decide:** whether replaced stages (and anything else not in the current pipeline) are exported; whether "the statistics" means all of them (Usage, Run times, Effort too).
+
 ### Going back to an earlier applied version in `fix_mei`
 `#optional`
 
