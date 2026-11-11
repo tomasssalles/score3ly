@@ -3613,7 +3613,12 @@ textarea.field-input {
 }
 
 /* A box, ticked with the check mark, or with a dash when only some are selected. */
+/* Not on the row's baseline, which the texts share: an empty box's baseline is its bottom edge, a box with a check or
+   a dash in it takes its content's, so the box and the row's height moved when the selection changed. Centred on the
+   name's first line instead, whatever the box holds. */
 .check-box {
+  align-self: flex-start;
+  margin-top: calc((1lh - 15px) / 2);
   flex: none;
   display: inline-grid;
   place-items: center;

@@ -145,7 +145,6 @@ The tasks below, in the file's order.
 - [Stream Gemini's answers on Vertex AI](#stream-geminis-answers-on-vertex-ai)
 - [The Worker reports the current call's progress](#the-worker-reports-the-current-calls-progress)
 - [Show that a long call is making progress](#show-that-a-long-call-is-making-progress)
-- [The project filter's rows shift when the selection changes](#the-project-filters-rows-shift-when-the-selection-changes)
 - [VAT in the costs](#vat-in-the-costs)
 - [The model configs' list on the settings page](#the-model-configs-list-on-the-settings-page)
 - [The list of configs doesn't scroll when changing a stage's config](#the-list-of-configs-doesnt-scroll-when-changing-a-stages-config)
@@ -809,11 +808,6 @@ The Worker sends the browser, while an LLM call runs: when it started, when it e
 `#decision` `#style`
 
 A call can take minutes with nothing on the screen moving, and the user can't tell whether to wait or to stop the stage and try another model. Use what is known (the number of calls made and expected, the tokens received on the current call, the time elapsed on it, its timeout, perhaps more) to show that progress is being made, or not. A clock alone only shows that the browser is alive, not that the provider is answering, though it does help decide when to give up. Note `docs/project-view.md`'s rule: progress indicators never show numbers. Waits for "Timeouts for LLM calls" and "The Worker reports the current call's progress".
-
-### The project filter's rows shift when the selection changes
-`#bug` `#style`
-
-Found by the project owner (2026-11-09), on the Statistics page (seen in Run times): with the project filter open, changing the selection moves the checkboxes and the texts slightly up and down, by different amounts, so their positions relative to each other change too. Seen when toggling between no project selected and only the top one selected. Probably the same in every tab that has the filter.
 
 ### VAT in the costs
 `#next-release`
