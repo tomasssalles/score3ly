@@ -119,7 +119,7 @@ The tasks below, in the file's order.
 - [Closing cadenza during a run](#closing-cadenza-during-a-run)
 - [A run in a background tab](#a-run-in-a-background-tab)
 - [Google Drive](#google-drive)
-- [Try the editors with touch and on a real phone](#try-the-editors-with-touch-and-on-a-real-phone)
+- [Try `fix_skew`'s editor on a real phone](#try-fix_skews-editor-on-a-real-phone)
 - [Model configs per kind of work](#model-configs-per-kind-of-work)
 - [OpenRouter's prices in the config form](#openrouters-prices-in-the-config-form)
 - [Try a run on a real phone that goes to another app](#try-a-run-on-a-real-phone-that-goes-to-another-app)
@@ -678,10 +678,10 @@ On a computer, a run should go on while its tab is in the background: the page k
 ### Google Drive
 §3, §10: picking source PDFs with the Picker, and exporting to an app-created folder.
 
-### Try the editors with touch and on a real phone
+### Try `fix_skew`'s editor on a real phone
 `#manual-test`
 
-`fix_layout` hasn't been tried with touch at all, `fix_skew` only through Chromium's emulation of touch at phone size.
+`fix_layout` was tried on the project owner's phone (2026-11-12): the UI is great, done. Left: `fix_skew`, tried so far only through Chromium's emulation of touch at phone size.
 
 ### Model configs per kind of work
 `#optional`
