@@ -539,10 +539,10 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
 
 ### Branches and releases
 (decided, 2026-10-27)
-- **`dev` is the branch for daily work.** Bigger chunks of work go from `dev` into `main` when they are ready.
+- **`dev` is the branch for daily work.** Bigger chunks of work go from `dev` into `main` when they are ready, not every push: the checks on GitHub (§12) run on every push to `main`.
 - **The claude.ai sessions work on their own branches,** assigned automatically. The fast-forwarding both ways that keeps them level with the daily work is between those branches and `dev`, not `main`. The project owner says explicitly when to fast-forward what where.
 - **Every commit on `main` is a release:** users can always pull the latest commit of `main` and build their desktop app (§3), and that is promised to be safe and an improvement. So the About page keeps the commit's short hash in the version (above): two builds of `main` with the same version number can differ.
-- **When a big chunk of work reaches `main`, the version goes up** (by the rules above) **and the commit gets a tag** (`v0.2.0`), for users who would rather follow coarser steps.
+- **Versions and tags when the project owner decides** (clarified 2026-11-12): a commit of `main` that deserves it gets a version bump (by the rules above) and a tag (`v0.2.0`); not every chunk that reaches `main` does. Users who would rather not take a random commit of `main` follow the tags.
 - **No release cycle and no release branches** are planned, and no big releases.
 
 ## 12. Testing and reproducibility
