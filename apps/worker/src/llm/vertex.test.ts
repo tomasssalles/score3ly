@@ -92,7 +92,8 @@ function fakeVertexGemini(calls: Call[], reply: object, status = 200): typeof fe
     if (url === "https://oauth2.googleapis.com/token") {
       return Response.json({ access_token: `token-${calls.length}`, expires_in: 3600, token_type: "Bearer" });
     }
-    return new Response(JSON.stringify(reply), { status, headers: { "content-type": "application/json" } });
+    if (status !== 200) return new Response(JSON.stringify(reply), { status, headers: { "content-type": "application/json" } });
+    return new Response(`data: ${JSON.stringify(reply)}\r\n\r\n`, { status, headers: { "content-type": "text/event-stream" } });
   }) as typeof fetch;
 }
 
@@ -126,7 +127,7 @@ test("Gemini on Vertex AI: the endpoint for the location, the project, the token
   const call = calls.find((c) => c.url.includes("aiplatform"))!;
   assert.equal(
     call.url,
-    "https://europe-west4-aiplatform.googleapis.com/v1/projects/my-project/locations/europe-west4/publishers/google/models/gemini-3.1-pro:generateContent",
+    "https://europe-west4-aiplatform.googleapis.com/v1/projects/my-project/locations/europe-west4/publishers/google/models/gemini-3.1-pro:streamGenerateContent?alt=sse",
   );
   assert.equal(call.headers.get("authorization"), "Bearer token-1");
   const body = JSON.parse(call.body);
@@ -190,6 +191,31 @@ test("Gemini on Vertex AI: an HTTP error is a typed error with Vertex's message"
     provider.send({ model: "gemini-x", messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] }),
     (err: unknown) => err instanceof LlmError && err.status === 404 && /Vertex AI: Publisher model gemini-x was not found\./.test(err.message),
   );
+});
+
+test("Gemini on Vertex AI: a streamed answer is put together; an error in the stream or a stream cut short fails", async () => {
+  const { json } = await makeAccount();
+  const answering = (body: string): typeof fetch =>
+    (async (input: RequestInfo | URL) =>
+      String(input) === "https://oauth2.googleapis.com/token"
+        ? Response.json({ access_token: "t", expires_in: 3600, token_type: "Bearer" })
+        : new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } })) as typeof fetch;
+  const ask = (body: string) =>
+    createProvider({ provider: "google-vertex", serviceAccount: json, region: "eu" }, { fetch: answering(body) }).send({
+      model: "gemini-3.1-pro",
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+    });
+  const event = (chunk: object) => `data: ${JSON.stringify(chunk)}\r\n\r\n`;
+  const first = { candidates: [{ content: { role: "model", parts: [{ text: "Six " }] } }] };
+  const response = await ask(
+    event(first) + event({ candidates: [{ content: { role: "model", parts: [{ text: "systems." }] }, finishReason: "STOP" }], usageMetadata: geminiReply.usageMetadata, modelVersion: "gemini-3.1-pro" }),
+  );
+  assert.equal(response.text, "Six systems.");
+  assert.equal(response.stop, "end");
+  assert.equal(response.usage.outputTokens, 512);
+  await assert.rejects(ask(event(first) + event({ error: { code: 429, message: "Resource exhausted." } })), (err: unknown) => err instanceof LlmError && err.kind === "rate_limit" && /Vertex AI: Resource exhausted\./.test(err.message));
+  await assert.rejects(ask(event(first) + 'data: {"candidates":['), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
+  await assert.rejects(ask(""), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
 });
 
 test("a service account's token is kept between adapters: one token for several requests, one per account", async () => {

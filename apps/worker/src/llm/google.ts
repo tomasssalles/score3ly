@@ -1,9 +1,9 @@
 import {
-  ApiError,
+  type Candidate,
   FinishReason,
   type GenerateContentParameters,
   type GenerateContentResponse,
-  GoogleGenAI,
+  type Part,
   ThinkingLevel,
 } from "@google/genai";
 import {
@@ -38,32 +38,31 @@ const REFUSALS = new Set<string>([
   FinishReason.IMAGE_PROHIBITED_CONTENT,
 ]);
 
-// Gemini through Google's Gemini API (AI Studio keys), with the official SDK. Gemini on Vertex AI is
-// `VertexGeminiProvider` below.
+// Gemini through Google's Gemini API (AI Studio keys). Its REST API is called directly, as Vertex AI's below, with the
+// request built by the same code: the SDK's streamed call drops an error sent as an event of the stream. Gemini on
+// Vertex AI is `VertexGeminiProvider` below.
 export class GoogleProvider implements LlmProvider {
   readonly id = "google" as const;
-  readonly #client: GoogleGenAI;
+  readonly #apiKey: string;
+  readonly #fetch: Fetch;
 
   constructor(options: { apiKey: string; fetch?: Fetch }) {
-    this.#client = new GoogleGenAI({
-      apiKey: options.apiKey,
-      ...(options.fetch ? { httpOptions: { fetch: options.fetch } } : {}),
-    });
+    this.#apiKey = options.apiKey;
+    // Wrapped, so that `this.#fetch(…)` doesn't call fetch as a method of this object, which the Workers runtime refuses.
+    const fetchFn = options.fetch ?? fetch;
+    this.#fetch = (input, init) => fetchFn(input, init);
   }
 
   async send(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse> {
-    let result: GenerateContentResponse;
-    try {
-      result = await this.#client.models.generateContent(toParams(request, signal));
-    } catch (err) {
-      throw toLlmError(err);
-    }
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse`;
+    const headers = new Headers({ "x-goog-api-key": this.#apiKey });
+    const result = await streamGemini(this.#fetch, url, async () => headers, request, signal, "Gemini API");
     const response = fromResult(result, request);
     return request.jsonSchema ? withJson(response) : response;
   }
 }
 
-export function toParams(request: LlmRequest, signal?: AbortSignal): GenerateContentParameters {
+function toParams(request: LlmRequest): GenerateContentParameters {
   return {
     model: request.model,
     contents: request.messages.map((message) => ({
@@ -80,7 +79,6 @@ export function toParams(request: LlmRequest, signal?: AbortSignal): GenerateCon
       ...(request.jsonSchema ? { responseMimeType: "application/json", responseJsonSchema: request.jsonSchema } : {}),
       // Thinking levels exist from Gemini 3 on; older models take a token budget instead and refuse a level.
       ...(request.effort ? { thinkingConfig: { thinkingLevel: THINKING_LEVELS[request.effort] } } : {}),
-      ...(signal ? { abortSignal: signal } : {}),
     },
   };
 }
@@ -126,8 +124,42 @@ export function fromResult(result: GenerateContentResponse, request: LlmRequest)
   };
 }
 
+// A streamed answer's chunks put together as one response, as `generateContent` would have answered: the parts in
+// order (adjacent texts of the same kind joined), and the last finish reason, usage and model version given.
+export function mergeChunks(chunks: GenerateContentResponse[]): GenerateContentResponse {
+  if (chunks.length === 0) throw new LlmError("unreadable_response", "Gemini's streamed answer has no chunks.");
+  const parts: Part[] = [];
+  let candidate: Candidate | undefined;
+  const merged: GenerateContentResponse = {} as GenerateContentResponse;
+  for (const chunk of chunks) {
+    if (chunk.promptFeedback) merged.promptFeedback = chunk.promptFeedback;
+    if (chunk.usageMetadata) merged.usageMetadata = chunk.usageMetadata;
+    if (chunk.modelVersion) merged.modelVersion = chunk.modelVersion;
+    if (chunk.responseId) merged.responseId = chunk.responseId;
+    const c = chunk.candidates?.[0];
+    if (!c) continue;
+    const { content, ...rest } = c;
+    candidate = { ...candidate, ...rest, content: { role: content?.role ?? candidate?.content?.role ?? "model", parts } };
+    for (const part of content?.parts ?? []) {
+      const last = parts[parts.length - 1];
+      if (last && isPlainText(last) && isPlainText(part) && !last.thought === !part.thought) {
+        parts[parts.length - 1] = { ...last, text: last.text + part.text };
+      } else {
+        parts.push({ ...part });
+      }
+    }
+  }
+  if (candidate) merged.candidates = [candidate];
+  return merged;
+}
+
+// A part that is only text (a thought or not), which can be joined with the next.
+function isPlainText(part: Part): part is Part & { text: string } {
+  return typeof part.text === "string" && Object.keys(part).every((key) => key === "text" || key === "thought");
+}
+
 function toLlmError(err: unknown): LlmError {
-  if (err instanceof ApiError) return new LlmError(kindForStatus(err.status), err.message, err.status);
+  if (err instanceof LlmError) return err;
   if (err instanceof SyntaxError) return new LlmError("unreadable_response", String(err));
   if (err instanceof DOMException && err.name === "AbortError") return new LlmError("aborted", "The request was aborted.");
   if (err instanceof TypeError) return new LlmError("network", String(err)); // fetch's own failure
@@ -142,11 +174,11 @@ export function vertexHost(location: string): string {
   return `${location}-aiplatform.googleapis.com`;
 }
 
-// The body of Vertex AI's `generateContent` (REST, as JSON): the same request as the Gemini API's, with the config
-// split into a system instruction and a generation config.
-export function toVertexBody(request: LlmRequest): Record<string, unknown> {
+// The body of `streamGenerateContent` (REST, as JSON), the same on the Gemini API and on Vertex AI: the SDK's parameters
+// with the config split into a system instruction and a generation config.
+export function toRestBody(request: LlmRequest): Record<string, unknown> {
   const { contents, config } = toParams(request);
-  const { systemInstruction, abortSignal: _signal, ...generationConfig } = config ?? {};
+  const { systemInstruction, ...generationConfig } = config ?? {};
   return {
     contents,
     ...(systemInstruction ? { systemInstruction: { parts: [{ text: systemInstruction as string }] } } : {}),
@@ -175,32 +207,69 @@ export class VertexGeminiProvider implements LlmProvider {
   }
 
   async send(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse> {
-    const url = `https://${vertexHost(this.#location)}/v1/projects/${encodeURIComponent(this.#projectId)}/locations/${encodeURIComponent(this.#location)}/publishers/google/models/${encodeURIComponent(request.model)}:generateContent`;
-    let response: Response;
-    try {
-      const headers = await this.#auth.getRequestHeaders();
-      headers.set("content-type", "application/json");
-      response = await this.#fetch(url, { method: "POST", headers, body: JSON.stringify(toVertexBody(request)), signal });
-    } catch (err) {
-      throw err instanceof LlmError ? err : toLlmError(err);
-    }
-    const text = await response.text();
-    if (!response.ok) {
-      let message = text;
-      try {
-        message = (JSON.parse(text) as { error?: { message?: string } }).error?.message ?? text;
-      } catch {
-        // Not JSON: the text as it is.
-      }
-      throw new LlmError(kindForStatus(response.status), `Vertex AI: ${message}`, response.status);
-    }
-    let result: GenerateContentResponse;
-    try {
-      result = JSON.parse(text) as GenerateContentResponse;
-    } catch (err) {
-      throw toLlmError(err);
-    }
+    const url = `https://${vertexHost(this.#location)}/v1/projects/${encodeURIComponent(this.#projectId)}/locations/${encodeURIComponent(this.#location)}/publishers/google/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse`;
+    const result = await streamGemini(this.#fetch, url, () => this.#auth.getRequestHeaders(), request, signal, "Vertex AI");
     const answer = { ...fromResult(result, request), provider: "google-vertex" as const };
     return request.jsonSchema ? withJson(answer) : answer;
   }
+}
+
+type GeminiError = { error?: { code?: number; message?: string } };
+
+// Sends a request to `streamGenerateContent` and puts the streamed answer together. Streamed, so that the answer's
+// headers come at once: a Worker's request that gets no headers within 100 seconds is cut off with Cloudflare's 524
+// (found 2026-11-12, an `extract` call with Gemini 3.1 Pro on Vertex AI, which wasn't streamed then). `label` starts
+// every error's message.
+async function streamGemini(
+  fetchFn: Fetch,
+  url: string,
+  headersFor: () => Promise<Headers>,
+  request: LlmRequest,
+  signal: AbortSignal | undefined,
+  label: string,
+): Promise<GenerateContentResponse> {
+  let response: Response;
+  let text: string;
+  try {
+    const headers = await headersFor();
+    headers.set("content-type", "application/json");
+    response = await fetchFn(url, { method: "POST", headers, body: JSON.stringify(toRestBody(request)), signal });
+    text = await response.text();
+  } catch (err) {
+    throw toLlmError(err);
+  }
+  if (!response.ok) {
+    let message = text;
+    try {
+      const parsed = JSON.parse(text) as GeminiError | GeminiError[];
+      message = (Array.isArray(parsed) ? parsed[0] : parsed)?.error?.message ?? text;
+    } catch {
+      // Not JSON: the text as it is.
+    }
+    throw new LlmError(kindForStatus(response.status), `${label}: ${message}`, response.status);
+  }
+  return mergeChunks(sseChunks(text, label));
+}
+
+// A streamed answer ("data: {chunk}" events) as its chunks. An error after the stream began comes as a chunk of its own,
+// with the error's code and message.
+export function sseChunks(text: string, label: string): GenerateContentResponse[] {
+  const chunks: GenerateContentResponse[] = [];
+  for (const line of text.split("\n")) {
+    if (!line.startsWith("data:")) continue;
+    const data = line.slice(5).trim();
+    if (data === "") continue;
+    let chunk: GenerateContentResponse & GeminiError;
+    try {
+      chunk = JSON.parse(data);
+    } catch {
+      throw new LlmError("unreadable_response", `${label}: a chunk of the answer isn't JSON: ${data.slice(0, 200)}`);
+    }
+    if (chunk.error) {
+      const status = typeof chunk.error.code === "number" ? chunk.error.code : undefined;
+      throw new LlmError(status ? kindForStatus(status) : "server", `${label}: ${chunk.error.message ?? JSON.stringify(chunk.error)}`, status);
+    }
+    chunks.push(chunk);
+  }
+  return chunks;
 }

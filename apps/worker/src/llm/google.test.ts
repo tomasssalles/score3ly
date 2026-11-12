@@ -1,17 +1,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { GoogleProvider } from "./google.ts";
+import { GoogleProvider, mergeChunks } from "./google.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 
 type Captured = { url: string; headers: Headers; body: any };
 
-function fakeFetch(reply: object, captured: Captured[], status = 200): typeof fetch {
+// Server-sent events, as Gemini streams its answer: one "data:" event per chunk.
+export function sse(chunks: object[]): string {
+  return chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\r\n\r\n`).join("");
+}
+
+// A successful reply is streamed: an object is sent as one chunk, a list as its chunks. An error is plain JSON.
+function fakeFetch(reply: object | object[], captured: Captured[], status = 200): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input);
     const body = input instanceof Request ? await input.text() : String(init?.body);
     const headers = new Headers(input instanceof Request ? input.headers : init?.headers);
     captured.push({ url, headers, body: JSON.parse(body) });
-    return new Response(JSON.stringify(reply), { status, headers: { "content-type": "application/json" } });
+    if (status !== 200) return new Response(JSON.stringify(reply), { status, headers: { "content-type": "application/json" } });
+    return new Response(sse(Array.isArray(reply) ? reply : [reply]), { status, headers: { "content-type": "text/event-stream" } });
   }) as typeof fetch;
 }
 
@@ -52,7 +59,7 @@ test("a request is sent as the Gemini API expects", async () => {
   const captured: Captured[] = [];
   await new GoogleProvider({ apiKey: "g-key", fetch: fakeFetch(reply, captured) }).send(request);
   const [{ url, headers, body }] = captured;
-  assert.match(url, /models\/gemini-3-pro:generateContent/);
+  assert.match(url, /models\/gemini-3-pro:streamGenerateContent\?alt=sse/);
   assert.equal(headers.get("x-goog-api-key"), "g-key");
   assert.deepEqual(body.contents, [
     {
@@ -111,8 +118,47 @@ test("HTTP errors become typed errors", async () => {
   }
 });
 
+// The same answer as `reply`, in the pieces Gemini streams it in: thoughts, then the text, the usage at the end.
+const chunks = [
+  { candidates: [{ content: { role: "model", parts: [{ text: "think", thought: true }] } }], modelVersion: "gemini-3-pro" },
+  { candidates: [{ content: { role: "model", parts: [{ text: "ing…", thought: true }] } }], modelVersion: "gemini-3-pro" },
+  { candidates: [{ content: { role: "model", parts: [{ text: '{"syst' }] } }], modelVersion: "gemini-3-pro" },
+  { candidates: [{ content: { role: "model", parts: [{ text: 'ems":6}' }] }, finishReason: "STOP" }], usageMetadata: reply.usageMetadata, modelVersion: "gemini-3-pro" },
+];
+
+test("a streamed answer is put together: its text, its thoughts left out, the last finish reason and usage", async () => {
+  const response = await new GoogleProvider({ apiKey: "k", fetch: fakeFetch(chunks, []) }).send(request);
+  assert.equal(response.text, '{"systems":6}');
+  assert.deepEqual(response.json, { systems: 6 });
+  assert.equal(response.stop, "end");
+  assert.deepEqual(response.usage, { inputTokens: 1000, outputTokens: 512, cacheReadTokens: 300, cacheWriteTokens: 0 });
+  // The record keeps one response, as `generateContent` would have answered.
+  assert.deepEqual((response.raw as any).candidates[0].content.parts, [{ text: "thinking…", thought: true }, { text: '{"systems":6}' }]);
+});
+
+test("chunks put together: parts that aren't plain text are kept apart, and no chunks is unreadable", () => {
+  const merged = mergeChunks([
+    { candidates: [{ content: { parts: [{ text: "a", thoughtSignature: "sig" }] } }] },
+    { candidates: [{ content: { parts: [{ text: "b" }] } }] },
+    { candidates: [{ content: { parts: [{ text: "c" }] }, finishReason: "STOP" }] },
+  ] as any);
+  assert.deepEqual(merged.candidates?.[0].content?.parts, [{ text: "a", thoughtSignature: "sig" }, { text: "bc" }]);
+  assert.equal(merged.candidates?.[0].finishReason, "STOP");
+  assert.throws(() => mergeChunks([]), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
+});
+
+test("an error in the stream is a typed error; a stream cut short is unreadable", async () => {
+  const failing = (async () =>
+    new Response(sse([chunks[0]]) + 'data: {"error":{"code":503,"message":"overloaded","status":"UNAVAILABLE"}}\r\n\r\n', { status: 200 })) as unknown as typeof fetch;
+  await assert.rejects(new GoogleProvider({ apiKey: "k", fetch: failing }).send(request), (err: unknown) => err instanceof LlmError && err.kind === "overloaded");
+  const cut = (async () => new Response(sse([chunks[0]]) + 'data: {"candidates":[', { status: 200 })) as unknown as typeof fetch;
+  await assert.rejects(new GoogleProvider({ apiKey: "k", fetch: cut }).send(request), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
+  const empty = (async () => new Response("", { status: 200 })) as unknown as typeof fetch;
+  await assert.rejects(new GoogleProvider({ apiKey: "k", fetch: empty }).send(request), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
+});
+
 test("a response that isn't JSON is unreadable, a failed fetch is the network", async () => {
-  const broken = (async () => new Response("{broken", { status: 200, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
+  const broken = (async () => new Response("data: {broken\r\n\r\n", { status: 200, headers: { "content-type": "text/event-stream" } })) as unknown as typeof fetch;
   const offline = (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch;
   for (const [fetch, kind] of [[broken, "unreadable_response"], [offline, "network"]] as const) {
     const provider = new GoogleProvider({ apiKey: "k", fetch });
