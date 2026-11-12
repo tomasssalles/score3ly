@@ -49,6 +49,7 @@ The tasks below, in the file's order.
 - [A "done" mark for projects](#a-done-mark-for-projects)
 - [Check export and import on a large project](#check-export-and-import-on-a-large-project)
 - [Measure the Worker's CPU time per LLM request](#measure-the-workers-cpu-time-per-llm-request)
+- [Make the Worker's logs useful despite Cloudflare's redaction](#make-the-workers-logs-useful-despite-cloudflares-redaction)
 - [Safe storage of the secrets in cadenza](#safe-storage-of-the-secrets-in-cadenza)
 - [Spot-check the collected prices](#spot-check-the-collected-prices)
 - [2026-12-01: Gemini 4 Argon's new prices on AI Studio](#2026-12-01-gemini-4-argons-new-prices-on-ai-studio)
@@ -268,6 +269,14 @@ The Workers free plan allows 10 ms of CPU time per request; waiting for the prov
 - **Not a fix: images as binary parts instead of base64.** Every provider wants base64 in its JSON body, so the Worker would have to encode them, which costs more than passing the browser's base64 through.
 - **Ruled out** (the project owner, 2026-11-06): the paid Workers plan ($5/month, 30 s of CPU time by default), since it breaks "runs on free tiers" for every instance; sending each image once through the providers' Files APIs and naming it in later calls (a feature per provider, uploads that expire, Bedrock and Vertex AI different); preferring Bedrock API keys to key pairs to save the signing's hash of the body (small, and nothing for other providers); calling the providers from the browser (the keys would reach it).
 - **Not a problem:** the RSA signature of Vertex AI's token exchange (native, well under a millisecond; `docs/llm.md`, "Authentication stays in the Worker's own code").
+
+### Make the Worker's logs useful despite Cloudflare's redaction
+`#next`
+
+Found 2026-11-12, while measuring CPU time ("Measure the Worker's CPU time per LLM request"): Workers Logs replaces parts of a request's URL that look like IDs with "REDACTED" (`POST …/api/projects/REDACTED/stages/REDACTED/finish`), so a request can't be traced to its project, stage or item. Cloudflare does it on its own; nothing found says it can be turned off (only the whole invocation log can, `invocation_logs = false`).
+- **One log line of our own per request** (`console.log` in a Hono middleware or in the routes): it shows under its request in Workers Logs, beside the CPU time. What it should carry is what an analysis needs, not only IDs: the route, the step (`review`), the item (`p3/s2`), the request body's size, the number of images, whether the answer came from the cache.
+- **If Cloudflare redacts our lines too** (to check first): the first 7 characters of each UUID, without dashes (the project owner), which don't look like an ID to the redaction and are enough to find the row in D1 with a little extra work (`LIKE 'abcdef1%'` on the ID with its dashes taken out).
+- **Until then:** a run's requests are told apart by time: stages run one after another, their start and finish are in D1, and the routes (`/llm`, `/outputs`, `/heartbeat`, `/finish`) survive the redaction.
 
 ### Safe storage of the secrets in cadenza
 `#decision` `#security`
