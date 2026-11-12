@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export type MenuItem = {
   label: string;
@@ -12,7 +12,8 @@ export type MenuItem = {
 };
 
 // A button that opens a short menu of items, in groups separated by a line, each with an optional heading. Closes on a pick, on Esc, and on a
-// tap or click outside. The arrow keys move between the items. It opens with the current choice in view.
+// tap or click outside. The arrow keys move between the items. It opens with the current choice in view, and always
+// within the window: below the button, or above it where there is more room there, scrolling inside what it gets.
 export function DropdownMenu({
   icon,
   label,
@@ -34,6 +35,28 @@ export function DropdownMenu({
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
+
+  // Within the window (found 2026-11-09: in "Change config", a long list of configs went below the window's edge, where
+  // its last configs couldn't be reached): as tall as the room below the button allows, or opening upwards when there
+  // is more room above; scrolled inside. Before the browser paints, so it doesn't jump.
+  useLayoutEffect(() => {
+    const el = list.current;
+    const at = button.current?.getBoundingClientRect();
+    if (!open || !el || !at) return;
+    const gap = 6 + 8; // from the button, and from the window's edge
+    const below = window.innerHeight - at.bottom - gap;
+    const above = at.top - gap;
+    const height = el.getBoundingClientRect().height;
+    if (height <= below) return;
+    const up = above > below;
+    el.classList.toggle("dropdown-up", up);
+    // The height given is the list's whole box: its padding and border come off (not by `box-sizing`, which would make
+    // a list with a set width narrower).
+    const style = getComputedStyle(el);
+    const frame = ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"].reduce((sum, k) => sum + parseFloat(style[k as "paddingTop"]), 0);
+    el.style.maxHeight = `${Math.max((up ? above : below) - frame, 0)}px`;
+    el.style.overflowY = "auto";
+  }, [open]);
 
   const items = () => [...(list.current?.querySelectorAll<HTMLElement>("[role=menuitem]:not([disabled])") ?? [])];
 

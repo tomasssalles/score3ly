@@ -1453,6 +1453,12 @@ body {
   box-shadow: 0 16px 40px var(--shadow);
 }
 
+/* Opened upwards, where there is more room above the button than below it (DropdownMenu). */
+.dropdown-list.dropdown-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
 .dropdown-group + .dropdown-group {
   margin-top: 6px;
   padding-top: 6px;

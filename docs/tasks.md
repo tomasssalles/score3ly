@@ -147,7 +147,6 @@ The tasks below, in the file's order.
 - [Show that a long call is making progress](#show-that-a-long-call-is-making-progress)
 - [VAT in the costs](#vat-in-the-costs)
 - [The model configs' list on the settings page](#the-model-configs-list-on-the-settings-page)
-- [The list of configs doesn't scroll when changing a stage's config](#the-list-of-configs-doesnt-scroll-when-changing-a-stages-config)
 - [The default name follows the form when cloning](#the-default-name-follows-the-form-when-cloning)
 - [Stop cancels the LLM call](#stop-cancels-the-llm-call)
 
@@ -825,11 +824,6 @@ Proposed by the project owner (2026-11-09). The list of model configs gets long 
 - **Sorting:** by creation date, newest at the top, by default. To decide: whether the default config stays at the top regardless.
 - **To decide: a more compact view of each config,** with a way to see all its details: the card expanded in place, or a view of its own.
 - **To decide: how the list stays short:** pages, a container of its own that scrolls, or the configs on a tab of their own in the settings.
-
-### The list of configs doesn't scroll when changing a stage's config
-`#bug`
-
-Found by the project owner (2026-11-09): in the dialog that changes a stage's model config ("Change config"), the list of configs can't be scrolled, so configs below the visible part can't be reached.
 
 ### The default name follows the form when cloning
 `#nice-to-have` `#decision`
