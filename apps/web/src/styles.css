@@ -2048,6 +2048,7 @@ dialog.app-dialog.config-form {
   }
   .artifact-view.overlay .page-editor-toolbar > .editor-undo {
     order: 1;
+    margin-right: 44px; /* the close button's room, less the gap */
   }
 }
 
