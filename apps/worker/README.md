@@ -106,6 +106,23 @@ npm run deploy
 
 Your projects, settings and keys stay as they are.
 
+## Deploying from GitHub
+
+If your copy of score3ly is a repository on GitHub, it can deploy itself: the workflow **Deploy** does what
+`npm run deploy` does, started by hand (Actions → Deploy → Run workflow, from the branch you pick). It needs the setup
+above done once, and three repository secrets (on GitHub: the repository's Settings → Secrets and variables → Actions →
+New repository secret):
+
+- **`CLOUDFLARE_API_TOKEN`:** in the Cloudflare dashboard, your profile → API Tokens → Create Token → the template
+  "Edit Cloudflare Workers"; add the permission Account → D1 → Edit; under Account Resources, pick your account; create
+  it and copy the token (it is shown once).
+- **`CLOUDFLARE_ACCOUNT_ID`:** your account's id: in the dashboard, Workers & Pages shows it under "Account details",
+  or run `npx wrangler whoami`.
+- **`CLOUDFLARE_ENV`:** the whole contents of `apps/worker/cloudflare.env`, which the setup wrote (the jurisdiction
+  and the database's id).
+
+Your API keys for the models stay where they are, in the Worker's secrets: a deployment doesn't touch them.
+
 ## The files the setup makes
 
 None of these is meant to be edited, and none is committed:

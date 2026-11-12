@@ -1,0 +1,47 @@
+# Deploys the app to Cloudflare (docs/database.md, "Deploying"), as `npm run deploy` does on a computer: builds the web
+# app, applies the migrations the remote database doesn't have yet, and uploads the Worker with the app's files. Only
+# started by hand (Actions → Deploy → Run workflow), from the branch picked there. Needs three repository secrets
+# (apps/worker/README.md, "Deploying from GitHub"):
+# - CLOUDFLARE_API_TOKEN: a Cloudflare API token that may edit Workers and D1;
+# - CLOUDFLARE_ACCOUNT_ID: the Cloudflare account's id;
+# - CLOUDFLARE_ENV: the contents of apps/worker/cloudflare.env, which `npm run setup:cloudflare` wrote (the
+#   jurisdiction and the database's id).
+# The keys of the model configs are Worker secrets, set in Cloudflare and left alone by a deployment.
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a second waits for the first.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Deploying doesn't run Electron: its binary isn't needed.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Write cloudflare.env
+        env:
+          CLOUDFLARE_ENV: ${{ secrets.CLOUDFLARE_ENV }}
+        run: |
+          if [ -z "$CLOUDFLARE_ENV" ]; then echo "The secret CLOUDFLARE_ENV is missing (apps/worker/README.md, \"Deploying from GitHub\")."; exit 1; fi
+          printf '%s\n' "$CLOUDFLARE_ENV" > apps/worker/cloudflare.env
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run deploy
