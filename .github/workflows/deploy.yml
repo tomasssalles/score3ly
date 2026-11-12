@@ -1,7 +1,7 @@
 # Deploys the app to Cloudflare (docs/database.md, "Deploying"), as `npm run deploy` does on a computer: builds the web
 # app, applies the migrations the remote database doesn't have yet, and uploads the Worker with the app's files. Only
-# started by hand (Actions → Deploy → Run workflow), from the branch picked there. Needs, in the repository's settings
-# (apps/worker/README.md, "Deploying from GitHub"):
+# started by hand (Actions → Deploy → Run workflow), from the branch picked there. Needs, in the GitHub environment
+# "deployment" (apps/worker/README.md, "Deploying from GitHub"):
 # - the secret CLOUDFLARE_API_TOKEN: a Cloudflare API token that may edit Workers and D1;
 # - the secret CLOUDFLARE_ACCOUNT_ID: the Cloudflare account's id;
 # - the secret CLOUDFLARE_D1_ID: the D1 database's id (CLOUDFLARE_D1_ID in apps/worker/cloudflare.env);
@@ -25,6 +25,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # The secrets and the variable are the environment's (Settings → Environments), which can limit the branches that
+    # may deploy.
+    environment: deployment
     timeout-minutes: 20
     env:
       # Deploying doesn't run Electron: its binary isn't needed.
