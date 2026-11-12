@@ -326,7 +326,7 @@ function shots(seed: Seed): Shot[] {
     { name: "04-fix-layout-editor", take: (p) => open(p, seed.wipEditor) },
     // A box selected (its handles), and a bar line selected with one tap (its handle).
     { name: "04b-fix-layout-box-selected", layouts: ["wide", "narrow"], take: (p) => open(p, seed.wipEditor).then(() => clickCentre(p, p.locator(".layout-label").nth(1))) },
-    { name: "04d-fix-layout-hidden", layouts: ["wide", "narrow"], take: (p) => open(p, seed.wipEditor).then(() => p.getByRole("button", { name: "Hide the boxes and bar lines" }).click()).then(() => p.waitForTimeout(300)) },
+    { name: "04d-fix-layout-hidden", layouts: ["wide", "narrow"], take: (p) => open(p, seed.wipEditor).then(() => p.locator(".layout-box").first().waitFor()).then(() => p.getByRole("button", { name: "Hide the boxes and bar lines" }).click()).then(() => p.waitForTimeout(300)) },
     { name: "04c-fix-layout-bar-selected", layouts: ["wide", "narrow"], take: (p) => open(p, seed.wipEditor).then(() => clickCentre(p, p.locator(".layout-bar").nth(5))) },
     { name: "05-failed-stage", take: (p) => open(p, project(seed.failed)) },
     { name: "05b-failed-stage-details", take: (p) => open(p, `${project(seed.failed)}/stages/${seed.failedStage}`) },

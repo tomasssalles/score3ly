@@ -544,6 +544,7 @@ function Screen({
         {/* Only the original's: "Hide the boxes" moved to the toolbar (ShowToggle, 2026-11-12). */}
         {showOriginal && (
           <DropdownMenu
+            className="human-review-more"
             icon={<MoreIcon />}
             label="More"
             groups={[[{ label: "Add clarification", onSelect: () => { setSelected(null); setBoxes("shown"); switchMode("box"); } }]]}
