@@ -47,7 +47,23 @@ export function onThemeApplied(listener: (theme: Theme) => void) {
 export function applyTheme() {
   const theme = currentTheme();
   document.documentElement.dataset.theme = theme.id;
+  showBarColor();
   for (const listener of listeners) listener(theme);
+}
+
+// The installed app's bar (the title bar on a desktop, the status bar on Android) in the theme's accent
+// (docs/style.md, "Brand"): a `theme-color` meta tag overrides the manifest's `theme_color`, which stays as the colour
+// before the script runs. The colour is read from the theme's CSS, so it is named only in themes.css.
+function showBarColor() {
+  const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+  if (!accent) return; // the stylesheet isn't loaded yet: shown again on load
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = "theme-color";
+    document.head.append(meta);
+  }
+  meta.content = accent;
 }
 
 export function setThemeChoice(choice: ThemeChoice) {
@@ -64,6 +80,7 @@ export function setThemeChoice(choice: ThemeChoice) {
 export function startThemes() {
   applyTheme();
   darkQuery()?.addEventListener("change", applyTheme);
+  window.addEventListener("load", showBarColor);
 }
 
 export const CHOICES: { value: ThemeChoice; label: string }[] = [{ value: "auto", label: "Auto" }, ...THEMES.map((t) => ({ value: t.id, label: t.label }))];

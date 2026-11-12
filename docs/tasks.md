@@ -126,7 +126,6 @@ The tasks below, in the file's order.
 - [Remove the override of `minimatch`](#remove-the-override-of-minimatch)
 - [A run mode between Auto and Manual](#a-run-mode-between-auto-and-manual)
 - [A "needs you" state for stages](#a-needs-you-state-for-stages)
-- [The toolbar colour follows the theme](#the-toolbar-colour-follows-the-theme)
 - [Split the whole-score analysis of long scores](#split-the-whole-score-analysis-of-long-scores)
 - [Choose places by tapping the score](#choose-places-by-tapping-the-score)
 - [Links between observations made by the model](#links-between-observations-made-by-the-model)
@@ -709,11 +708,6 @@ To do: once an electron-builder release depends on a fixed `minimatch` (11.0.1 o
 `#optional`
 
 `docs/project-view.md`, "The pipeline panel": for a model asking for human input; left out for now, easy to add.
-
-### The toolbar colour follows the theme
-`#optional` `#nice-to-have` `#style`
-
-`docs/style.md`, "Brand": the manifest's `theme_color` is the icon's coral in both themes; making it follow the theme would take a `<meta name="theme-color">` changed by script.
 
 ### Split the whole-score analysis of long scores
 `#optional`
