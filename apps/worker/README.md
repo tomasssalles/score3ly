@@ -110,18 +110,22 @@ Your projects, settings and keys stay as they are.
 
 If your copy of score3ly is a repository on GitHub, it can deploy itself: the workflow **Deploy** does what
 `npm run deploy` does, started by hand (Actions → Deploy → Run workflow, from the branch you pick). It needs the setup
-above done once, and three repository secrets (on GitHub: the repository's Settings → Secrets and variables → Actions →
-New repository secret):
+above done once, and, on GitHub, in the repository's Settings → Secrets and variables → Actions:
 
-- **`CLOUDFLARE_API_TOKEN`:** in the Cloudflare dashboard, your profile → API Tokens → Create Token → the template
-  "Edit Cloudflare Workers"; add the permission Account → D1 → Edit; under Account Resources, pick your account; create
-  it and copy the token (it is shown once).
-- **`CLOUDFLARE_ACCOUNT_ID`:** your account's id: in the dashboard, Workers & Pages shows it under "Account details",
-  or run `npx wrangler whoami`.
-- **`CLOUDFLARE_ENV`:** the whole contents of `apps/worker/cloudflare.env`, which the setup wrote (the jurisdiction
-  and the database's id).
+- three **secrets** (the Secrets tab → New repository secret):
+  - **`CLOUDFLARE_API_TOKEN`:** in the Cloudflare dashboard, your profile → API Tokens → Create Token → the template
+    "Edit Cloudflare Workers"; add the permission Account → D1 → Edit; under Account Resources, pick your account;
+    create it and copy the token (it is shown once).
+  - **`CLOUDFLARE_ACCOUNT_ID`:** your account's id: in the dashboard, Workers & Pages shows it under "Account
+    details", or run `npx wrangler whoami`.
+  - **`CLOUDFLARE_D1_ID`:** the value of `CLOUDFLARE_D1_ID` in `apps/worker/cloudflare.env`, which the setup wrote.
+- one **variable** (the Variables tab → New repository variable):
+  - **`CLOUDFLARE_JURISDICTION`:** the value of `CLOUDFLARE_JURISDICTION` in `apps/worker/cloudflare.env` (`eu`,
+    `fedramp` or `none`).
 
-Your API keys for the models stay where they are, in the Worker's secrets: a deployment doesn't touch them.
+GitHub hides the secrets' values in the run's logs, which anyone can read in a public repository; the logs still show
+the app's address, which a deployment prints. Your API keys for the models stay where they are, in the Worker's
+secrets: a deployment doesn't touch them.
 
 ## The files the setup makes
 
