@@ -2036,10 +2036,18 @@ dialog.app-dialog.config-form {
   .artifact-view.overlay .page-editor-toolbar > :first-child {
     flex-basis: calc(100% - 48px);
   }
-  /* In fix_layout's toolbar, "Fit width" gives way to the boxes' toggle, so that the tools fit on one row: on a phone
-     a page fitted to its width is about the whole page, and two fingers zoom out as well. (The human review's: below.) */
-  .artifact-view.overlay .layout-editor-toolbar .zoom-fit {
-    display: none;
+  /* Undo and redo go up to the first row, beside the page arrows (decided 2026-11-12, the project owner): their
+     history is per page, and the tools' row then has room for every tool, "Fit width" included. The arrows grow to
+     fill what the undo buttons (2 × 36 px) and the close button's room leave. */
+  .artifact-view.overlay .page-editor-toolbar:has(> .editor-undo) > * {
+    order: 2;
+  }
+  .artifact-view.overlay .page-editor-toolbar:has(> .editor-undo) > :first-child {
+    order: 0;
+    flex: 1 0 calc(100% - 48px - 72px - 8px);
+  }
+  .artifact-view.overlay .page-editor-toolbar > .editor-undo {
+    order: 1;
   }
 }
 

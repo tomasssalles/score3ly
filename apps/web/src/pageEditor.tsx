@@ -484,7 +484,7 @@ export function UndoRedo({
   onRedo: () => void;
 }) {
   return (
-    <div className="editor-tools">
+    <div className="editor-tools editor-undo">
       <button type="button" className="icon-button" aria-label="Undo" title="Undo" disabled={!canUndo} onClick={onUndo}>
         <UndoIcon />
       </button>

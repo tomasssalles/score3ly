@@ -266,13 +266,14 @@ export function HandIcon() {
 }
 
 // A line with its two ends: drawing a line by its ends.
-// Adding a line (fix_skew's draw tool): a line between its two ends, and a "+" (an experiment, 2026-11-12).
+// Adding a line (fix_skew's draw tool): a line between its two ends, going down so that the "+" has the top right
+// corner to itself (an experiment, 2026-11-12).
 export function LineIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5.2 18.6l9.2-6.9" />
-      <circle cx="3.8" cy="19.7" r="2" fill="currentColor" />
-      <circle cx="15.8" cy="10.6" r="2" fill="currentColor" />
+      <path d="M5.2 10.6l9.2 6.9" />
+      <circle cx="3.8" cy="9.5" r="2" fill="currentColor" />
+      <circle cx="15.8" cy="18.6" r="2" fill="currentColor" />
       <path d="M20 1v6M17 4h6" />
     </svg>
   );
