@@ -116,10 +116,12 @@ export function kindForStatus(status: number): LlmErrorKind {
   return "bad_request";
 }
 
-// What a call cut off by Cloudflare says (HTTP 524, the Proxy Read Timeout: no response within 125 seconds; docs/llm.md,
-// "Calling the providers"). Only on Cloudflare: cadenza's Node server calls the providers directly.
+// What a call that got HTTP 524 says. Only Cloudflare sends 524 (its Proxy Read Timeout: no response within 125
+// seconds; docs/llm.md, "Calling the providers"): most likely our Worker's Cloudflare, but a provider behind Cloudflare
+// could send it too, and the response doesn't tell them apart, so the message allows for both (wording by the project
+// owner, 2026-11-12).
 export function cloudflareTimeoutMessage(provider: string): string {
-  return `${provider} sent nothing for 125 seconds, and Cloudflare, which runs this app, cuts off a request that waits that long (error 524). The model was probably still thinking, and the provider may have charged for the call. A lower thinking level or a faster model may answer in time, though possibly less accurately.`;
+  return `Error 524. If this instance is deployed via Cloudflare, the most likely cause is a timeout from Cloudflare itself because ${provider} took too long to start streaming the response (the threshold is 125 seconds on a free account). The model was probably still thinking, and the provider may charge you for the call anyway. Using a lower thinking level or a faster model may answer in time, but perhaps less accurately.`;
 }
 
 // Parses a structured answer into `json`, or says in `invalidJson` why it can't. Only a finished answer is expected to

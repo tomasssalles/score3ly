@@ -755,7 +755,7 @@ test("a call cut off by Cloudflare (524) is a timeout, with a message that says 
   try {
     const answer = await json(await send(`/api/model-configs/${gemini.id}/test`));
     assert.equal(answer.status, "error");
-    assert.match(answer.error as string, /^AI Studio sent nothing for 125 seconds, and Cloudflare.*\(error 524\).*lower thinking level or a faster model/);
+    assert.match(answer.error as string, /^Error 524\. If this instance is deployed via Cloudflare, .*because AI Studio took too long to start streaming.*lower thinking level or a faster model/);
   } finally {
     globalThis.fetch = realFetch;
     delete (env as unknown as Record<string, string>).TEST_GEMINI_KEY;
