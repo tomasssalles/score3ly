@@ -93,6 +93,7 @@ The tasks below, in the file's order.
 - [Decide what a re-run does with a newer step version](#decide-what-a-re-run-does-with-a-newer-step-version)
 - [Decide how pieces are numbered](#decide-how-pieces-are-numbered)
 - [Decide how to show the original in `fix_mei`](#decide-how-to-show-the-original-in-fix_mei)
+- [Make the engraving look like a commercial edition](#make-the-engraving-look-like-a-commercial-edition)
 - [Refine the MEI view by using it](#refine-the-mei-view-by-using-it)
 - [The format gap report](#the-format-gap-report)
 - [Test the installed app on a real Android phone and an iPhone](#test-the-installed-app-on-a-real-android-phone-and-an-iphone)
@@ -252,6 +253,8 @@ An import sends all the rows of a project's pipeline to the Worker in one reques
 `#research` `#next-release`
 
 The Workers free plan allows 10 ms of CPU time per request; waiting for the provider doesn't count, but everything the Worker does with the request does: parsing the JSON with the images in base64, the cache key, writing the call record to R2, building the provider's request (and on Bedrock with an access key pair, signing it, which hashes the whole body), reading the answer. `review` sends the whole score with every call. `wrangler dev` doesn't enforce the limit, so it can only be measured on a deployed Worker (its CPU time per request in the dashboard's metrics or Workers Logs): a large `extract` and a `review` call on a long score, cached and not. If it is over, or close, fix what the measurement shows to be expensive (discussed 2026-11-06).
+- **Measured with the fake model** (the project owner, 2026-11-12, a 30-page score on the deployed app; the dashboard's percentiles, every request of the Worker together): no errors of any kind, although p90 was about 25 ms in `layout` and 40 ms in `analyze`, and p999 about 50 and 60 ms. Cloudflare tolerates a Worker that runs over "infrequently" and stops it only when it does so "consistently", without saying where that line is, so the leeway can't be relied on. The fake model doesn't exercise building a provider's body or reading a streamed answer.
+- **Per request:** Workers Logs are on (`observability` in `wrangler.jsonc.template`): the Worker's Logs tab in the dashboard lists every request with its URL and CPU time. Next: a run with a real model, looking at the `/llm` requests apart from the others (outputs, heartbeats).
 - **What the Worker does with an image today** (`apps/worker/src/llmRoutes.ts`): it parses the request with the image in base64, decodes it (`atob`) and hashes its bytes (`sha256Hex`) for the call record only, then hands the base64 to the adapter, which writes it into the provider's JSON body. Parsing the request once and writing the provider's body once can't be avoided; both are native string handling, roughly linear in megabytes.
 - **Candidate fix 1: the browser sends each image's hash** with the image, so the Worker neither decodes nor hashes it. The browser has the bytes and hashes them for nothing (in a Web Worker). The only downside: the Worker records a hash it hasn't checked, so a bug in the browser could record a hash that doesn't match the bytes sent. The hash is only kept for checking the image later, never part of a key (keys use recipe keys), and the browser is trusted with far more anyway (it makes the images and runs every stage).
 - **Candidate fix 2: answers in one piece instead of streamed.** The adapters stream (`messages.stream(…).finalMessage()`; `docs/llm.md`: "so long answers don't hit timeouts"), so a long answer arrives as thousands of small events, each parsed apart in JavaScript, which may cost as much as the request. One response is one parse. Downsides: Anthropic's SDK may refuse a request without streaming when its expected duration is long (a large maximum of output tokens; to check); a connection silent for minutes risks being cut by something in between. Nothing is lost for progress: partial answers aren't shown.
@@ -499,6 +502,13 @@ Keeping an old result means reusing what is stored (§5.5), so no old code has t
 `#decision`
 
 §6: the edits are made against the score engraved from the MEI, but the original is what they should match. E.g. the score pane switching between the score and the original, which shows the measure of the selected line (its `@facs` zone) on its page.
+
+### Make the engraving look like a commercial edition
+`#style` `#owner`
+
+`engrave`'s PDF (`docs/stages/engrave.md`) should look like a good printed edition, not Verovio's defaults.
+- **First, the side margins:** far too small. `pageOptions` in `apps/web/src/engrave.ts` sets no margins, so Verovio's defaults apply (5 mm on every side); printed editions have about 15 to 20 mm.
+- **The finer details** (spacing, title and headers, system and staff distances, the size of the staves) wait for a long real transcription to judge them on.
 
 ### Refine the MEI view by using it
 `#owner`

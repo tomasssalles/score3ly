@@ -11,6 +11,9 @@
   // The web app's build output, served as static assets by this Worker.
   // Requests that don't match a file fall through to the Worker code.
   "assets": { "directory": "../web/dist" },
+  // Workers Logs: every request with its CPU time, in the dashboard (the Worker's Logs tab), to measure it per request
+  // (docs/tasks.md, "Measure the Worker's CPU time per LLM request").
+  "observability": { "enabled": true },
   // Original PDFs, stored as pdfs/<sha256>.pdf, and the stage outputs. Created by `npm run setup:cloudflare`; the
   // deploy config adds the bucket's jurisdiction where it has one.
   "r2_buckets": [{ "binding": "PDFS", "bucket_name": "score3ly-pdfs" }],
