@@ -2036,9 +2036,9 @@ dialog.app-dialog.config-form {
   .artifact-view.overlay .page-editor-toolbar > :first-child {
     flex-basis: calc(100% - 48px);
   }
-  /* "Fit width" gives way so that the tools fit on one row: on a phone a page fitted to its width is about the whole
-     page, and two fingers zoom out as well. */
-  .artifact-view.overlay .page-editor-toolbar .zoom-fit {
+  /* In fix_layout's toolbar, "Fit width" gives way to the boxes' toggle, so that the tools fit on one row: on a phone
+     a page fitted to its width is about the whole page, and two fingers zoom out as well. (The human review's: below.) */
+  .artifact-view.overlay .layout-editor-toolbar .zoom-fit {
     display: none;
   }
 }
@@ -4053,9 +4053,8 @@ textarea.field-input {
   .artifact-view.overlay .human-review-toolbar .editor-page {
     min-width: 0;
   }
-  /* On a phone, the "⋮" gives way too (as "Fit width" does in every page editor), for the eye: its one item, "Add
-     clarification", is the box tool beside it. */
-  .artifact-view.overlay .human-review-toolbar .human-review-more {
+  /* On a phone, "Fit width" gives way so that the tools fit on one row (two fingers zoom out as well). */
+  .artifact-view.overlay .human-review-toolbar .zoom-fit {
     display: none;
   }
 }

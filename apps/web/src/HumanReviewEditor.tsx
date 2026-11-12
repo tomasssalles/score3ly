@@ -10,7 +10,6 @@ import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imag
 import type { Box } from "@score3ly/notation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { fetchJsonContent, putContent, recordOutputs, reserveIssueNumbers, type Project } from "./api";
-import { DropdownMenu } from "./DropdownMenu";
 import { Info } from "./Info";
 import { AnswerTags, Choices, ISSUE_CLASS_LABELS, SystemRendering, useRemembered } from "./ExtractionView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
@@ -32,7 +31,7 @@ import {
   writeAnswer,
   type StoredHumanReview,
 } from "./humanReview";
-import { BoxIcon, ChevronDownIcon, CollapseIcon, ExpandIcon, HandIcon, LinkIcon, MoreIcon, UnlinkIcon } from "./icons";
+import { BoxIcon, ChevronDownIcon, CollapseIcon, ExpandIcon, HandIcon, LinkIcon, UnlinkIcon } from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Picker } from "./fieldList";
 import { NO_TEXT } from "./humanReview";
@@ -540,15 +539,6 @@ function Screen({
               {linked ? <LinkIcon /> : <UnlinkIcon />}
             </button>
           </div>
-        )}
-        {/* Only the original's: "Hide the boxes" moved to the toolbar (ShowToggle, 2026-11-12). */}
-        {showOriginal && (
-          <DropdownMenu
-            className="human-review-more"
-            icon={<MoreIcon />}
-            label="More"
-            groups={[[{ label: "Add clarification", onSelect: () => { setSelected(null); setBoxes("shown"); switchMode("box"); } }]]}
-          />
         )}
       </div>
       {showOriginal && <p className="editor-hint">{hint}</p>}

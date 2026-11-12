@@ -6,7 +6,7 @@
 // phone the user zooms in close for each point and zooms out and pans in between.
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { CollapseIcon, ExpandIcon, EyeIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
+import { BoxesIcon, CollapseIcon, ExpandIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
 import { pngSize } from "./pageImages";
 import { BOX_HANDLES } from "./fixLayout";
 import { CORNER, EDGE, EDGE_SHARE, handleRect } from "./handles";
@@ -76,12 +76,16 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
     pageScale.current = wholePageScale(el, image);
     setView({ scale: pageScale.current, x: 0, y: 0 });
   }
-  // The page's width in view, from its top: how a page opens (decided 2026-11-12, the project owner).
-  function fitWidth() {
+  // The page's width in view: from its top when a page opens (decided 2026-11-12, the project owner); by the button,
+  // with what is in the middle of the view kept there (`keepMiddle`).
+  function fitWidth(keepMiddle = false) {
     const el = ref.current;
     if (!el || !image) return;
     pageScale.current = wholePageScale(el, image);
-    setView({ scale: widthScale(el, image), x: PAD, y: PAD }, true);
+    const scale = widthScale(el, image);
+    const v = viewRef.current;
+    const middle = (el.clientHeight / 2 - v.y) / v.scale; // in image px
+    setView({ scale, x: PAD, y: keepMiddle ? el.clientHeight / 2 - middle * scale : PAD }, true);
   }
   function widthScale(el: HTMLElement, image: { width: number; height: number }) {
     return Math.max(pageScale.current, (el.clientWidth - 2 * PAD) / image.width);
@@ -429,8 +433,9 @@ export function ModeToggle<M extends string>({
   );
 }
 
-// Shows or hides what an editor draws over the page (boxes, bar lines, lines), to see the page itself (decided
-// 2026-11-12, the project owner); remembered on the device. While they are hidden, the page can only be panned and
+// Shows or hides the boxes an editor draws over the page (fix_layout's, with their bar lines; the human review's), to see
+// the page itself (decided 2026-11-12, the project owner), with the Transcription's icon for its boxes; remembered on
+// the device. While they are hidden, the page can only be panned and
 // zoomed: the editor deselects and keeps only the hand.
 export function ShowToggle({ shown, onChange, what }: { shown: boolean; onChange: (shown: boolean) => void; what: string }) {
   return (
@@ -443,7 +448,7 @@ export function ShowToggle({ shown, onChange, what }: { shown: boolean; onChange
         title={shown ? `Hide the ${what}` : `Show the ${what}`}
         onClick={() => onChange(!shown)}
       >
-        <EyeIcon />
+        <BoxesIcon />
       </button>
     </div>
   );
@@ -459,7 +464,7 @@ export function ZoomTools({ viewport, children }: { viewport: Viewport; children
       <button type="button" className="icon-button zoom-step" aria-label="Zoom in" onClick={() => viewport.zoomBy(1.5)}>
         <ZoomInIcon />
       </button>
-      <button type="button" className="icon-button zoom-fit" aria-label="Fit width" onClick={viewport.fitWidth}>
+      <button type="button" className="icon-button zoom-fit" aria-label="Fit width" onClick={() => viewport.fitWidth(true)}>
         <FitWidthIcon />
       </button>
       {children}

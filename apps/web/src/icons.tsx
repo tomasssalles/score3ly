@@ -266,12 +266,14 @@ export function HandIcon() {
 }
 
 // A line with its two ends: drawing a line by its ends.
+// Adding a line (fix_skew's draw tool): a line between its two ends, and a "+" (an experiment, 2026-11-12).
 export function LineIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7.2 15.8l9.6-7.6" />
-      <circle cx="5.5" cy="17.2" r="2.2" fill="currentColor" />
-      <circle cx="18.5" cy="6.8" r="2.2" fill="currentColor" />
+      <path d="M5.2 18.6l9.2-6.9" />
+      <circle cx="3.8" cy="19.7" r="2" fill="currentColor" />
+      <circle cx="15.8" cy="10.6" r="2" fill="currentColor" />
+      <path d="M19 2.5v6M16 5.5h6" />
     </svg>
   );
 }
@@ -341,22 +343,27 @@ export function TrashIcon() {
 }
 
 // A box drawn by two opposite corners: a dashed rectangle with a dot at two corners.
+// Adding a box (fix_layout's box tool, the human review's clarification): a box by two corners, and a "+" (an
+// experiment, 2026-11-12).
 export function BoxIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 5h14v14H5z" />
-      <circle cx="5" cy="5" r="2" fill="currentColor" />
-      <circle cx="19" cy="19" r="2" fill="currentColor" />
+      <path d="M4 9h11v11H4z" />
+      <circle cx="4" cy="9" r="1.8" fill="currentColor" />
+      <circle cx="15" cy="20" r="1.8" fill="currentColor" />
+      <path d="M19 2.5v6M16 5.5h6" />
     </svg>
   );
 }
 
 // A bar line across a staff.
+// Adding a bar line (fix_layout's bar line tool): a bar line across a staff, and a "+" (an experiment, 2026-11-12).
 export function BarLineIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3 7h18M3 10.5h18M3 14h18M3 17.5h18" strokeWidth="1" />
-      <path d="M12 5v15" strokeWidth="2.4" />
+      <path d="M2 10h14M2 13h14M2 16h14M2 19h14" strokeWidth="1" />
+      <path d="M9 8.5v12.5" strokeWidth="2.4" />
+      <path d="M19 2.5v6M16 5.5h6" />
     </svg>
   );
 }
