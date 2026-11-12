@@ -3,9 +3,9 @@
 // option), and its "tokens" are estimated from the request's text and images. Some model names make it fail on purpose:
 // "fake-error" (a server error), "fake-refusal", "fake-cut-off", "fake-unparseable", "fake-other-model" (another model
 // answers).
-// Three steps get more than that, so the pipeline runs end to end: `layout` (two systems on every page, each with three
-// bar lines, so that the later stages have systems to work on), `extract`, whose answer must cover exactly the
-// stretches asked for, with a voice on every staff (the fake reads the request's JSON and answers with whole-measure
+// Three steps get more than that, so the pipeline runs end to end: `layout` (six systems on every page, as many as on a
+// real page of piano music, each with three bar lines, so that the later stages have systems to work on), `extract`,
+// whose answer must cover exactly the stretches asked for, with a voice on every staff (the fake reads the request's JSON and answers with whole-measure
 // rests in 4/4, a made-up doubt on every system and a format issue on the first, so their views can be seen), and
 // `review` (a made-up correction on the first system, another answer chosen for the first issue of the second), and
 // `apply_review` (on a window that starts on an odd system, each issue applied by writing a C in the first voice of the
@@ -176,13 +176,13 @@ function fakeExtract(request: LlmRequest): unknown {
   return { startRepeat: false, staves, groups: [], stretches, lastMeasureContinues: false, issues };
 }
 
-// A `layout` answer (its schema has "systems", "satisfied" and "severelySkewed"): two systems, each with three bar
-// lines, satisfied.
+// A `layout` answer (its schema has "systems", "satisfied" and "severelySkewed"): six systems (since 2026-11-12; two
+// before, which made the fake's projects far smaller than real ones), each with three bar lines, satisfied.
 function fakeLayout(request: LlmRequest): unknown {
   const properties = (request.jsonSchema?.properties ?? {}) as Record<string, unknown>;
   if (!("systems" in properties && "satisfied" in properties && "severelySkewed" in properties)) return null;
-  const system = (top: number) => ({ left: 0.1, right: 0.9, top, bottom: top + 0.2, barLines: [0.3, 0.5, 0.7] });
-  return { severelySkewed: false, systems: [system(0.2), system(0.55)], satisfied: true, note: "" };
+  const system = (top: number) => ({ left: 0.1, right: 0.9, top, bottom: top + 0.12, barLines: [0.3, 0.5, 0.7] });
+  return { severelySkewed: false, systems: [0.04, 0.2, 0.36, 0.52, 0.68, 0.84].map(system), satisfied: true, note: "" };
 }
 
 // A `review` answer (its schema has only "entries"): on system 1 a new issue, a made-up correction; on system 2 a
