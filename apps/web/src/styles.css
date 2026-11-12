@@ -2044,11 +2044,13 @@ dialog.app-dialog.config-form {
   }
   .artifact-view.overlay .page-editor-toolbar:has(> .editor-undo) > :first-child {
     order: 0;
-    flex: 1 0 calc(100% - 48px - 72px - 8px);
+    flex: 1 0 calc(100% - 76px - 72px - 12px);
   }
   .artifact-view.overlay .page-editor-toolbar > .editor-undo {
     order: 1;
-    margin-right: 44px; /* the close button's room, less the gap */
+    /* Well clear of the close button (decided 2026-11-12, the project owner): closing by accident loses the undo
+       history. The close button's room (48 px), and 32 px more. */
+    margin-right: 76px;
   }
 }
 
