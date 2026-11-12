@@ -216,10 +216,10 @@ export class VertexGeminiProvider implements LlmProvider {
 
 type GeminiError = { error?: { code?: number; message?: string } };
 
-// Sends a request to `streamGenerateContent` and puts the streamed answer together. Streamed, so that the answer's
-// headers come at once: a Worker's request that gets no headers within 100 seconds is cut off with Cloudflare's 524
-// (found 2026-11-12, an `extract` call with Gemini 3.1 Pro on Vertex AI, which wasn't streamed then). `label` starts
-// every error's message.
+// Sends a request to `streamGenerateContent` and puts the streamed answer together. Streamed, so that something arrives
+// before Cloudflare cuts a Worker's request that gets no response within 125 seconds (524; found 2026-11-12, `extract`
+// calls with Gemini 3.1 Pro on Vertex AI; streaming alone didn't help, docs/llm.md). `label` starts every error's
+// message.
 async function streamGemini(
   fetchFn: Fetch,
   url: string,
