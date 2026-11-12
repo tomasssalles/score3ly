@@ -9,6 +9,7 @@
 ## Code and tests
 - Write code and tests the way that is most comfortable for you, the way you know best. There is no TDD requirement.
 - A bug found by chance in existing code is first reproduced in a test; then fixed, and the test checked to pass.
+- `package-lock.json` is written by npm 12.2.2. Other versions flip its `peer` and `dev` flags, so run anything that writes it (`npm install`, `uninstall`, `update`) as `npx npm@12.2.2 …` when the local npm is another version.
 
 ## Screenshots
 - To show what was just built or changed, take screenshots of that only, with a small script of your own. Run the full screenshot script (`npm run screenshots`) only when I ask for it: it takes too long.
