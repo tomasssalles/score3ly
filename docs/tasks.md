@@ -271,7 +271,6 @@ The Workers free plan allows 10 ms of CPU time per request; waiting for the prov
 - **Not a problem:** the RSA signature of Vertex AI's token exchange (native, well under a millisecond; `docs/llm.md`, "Authentication stays in the Worker's own code").
 
 ### Make the Worker's logs useful despite Cloudflare's redaction
-`#next`
 
 Found 2026-11-12, while measuring CPU time ("Measure the Worker's CPU time per LLM request"): Workers Logs replaces parts of a request's URL that look like IDs with "REDACTED" (`POST …/api/projects/REDACTED/stages/REDACTED/finish`), so a request can't be traced to its project, stage or item. Cloudflare does it on its own; nothing found says it can be turned off (only the whole invocation log can, `invocation_logs = false`).
 - **One log line of our own per request** (`console.log` in a Hono middleware or in the routes): it shows under its request in Workers Logs, beside the CPU time. What it should carry is what an analysis needs, not only IDs: the route, the step (`review`), the item (`p3/s2`), the request body's size, the number of images, whether the answer came from the cache.
