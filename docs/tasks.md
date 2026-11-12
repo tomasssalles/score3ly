@@ -132,6 +132,7 @@ The tasks below, in the file's order.
 - [Links between observations made by the model](#links-between-observations-made-by-the-model)
 - [More about the transcription in the MEI](#more-about-the-transcription-in-the-mei)
 - [Undo and redo could bring the change into view](#undo-and-redo-could-bring-the-change-into-view)
+- [Keep the zoom when flipping pages in `fix_layout`, and try scrolling through the pages](#keep-the-zoom-when-flipping-pages-in-fix_layout-and-try-scrolling-through-the-pages)
 - [Go straight to the flagged pages in `fix_layout`](#go-straight-to-the-flagged-pages-in-fix_layout)
 - [Stages that would run as no-ops stay finished](#stages-that-would-run-as-no-ops-stay-finished)
 - [Keep `fix_mei`'s edits through a re-run](#keep-fix_meis-edits-through-a-re-run)
@@ -743,6 +744,13 @@ Confidence, what was confirmed, the models used, through existing elements of th
 `#optional` `#nice-to-have`
 
 As in a code editor, undoing or redoing a change on a part of the page that is zoomed out of view would pan (and zoom) to it.
+
+### Keep the zoom when flipping pages in `fix_layout`, and try scrolling through the pages
+`#experiment`
+
+The project owner, 2026-11-12. Today the page arrows show the next page whole: a new image makes the viewport fit it (`fit()` in `useViewport`'s layout effect, `apps/web/src/pageEditor.tsx`), so the zoom the user had is lost on every page.
+- **Keep the zoom level** when flipping to another page. Where the view goes on the new page (its top, the same place as on the old page, …) is to decide while building. The viewport is shared, so `fix_skew`'s editor would get the same unless there is a reason not to.
+- **Experiment: the pages scrolling continuously,** one below the other, instead of one page at a time with arrows. To try and judge by using it; what it means for the arrows, "Page 3/10", undo and redo per page and the tools (a box or a bar line drawn across a page break) is part of the experiment.
 
 ### Go straight to the flagged pages in `fix_layout`
 `#optional`
