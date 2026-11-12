@@ -13,9 +13,10 @@ export function logFields(request: Request, more: Record<string, unknown>): void
   fields.set(request, { ...fields.get(request), ...more });
 }
 
-// A path with every id in it (a UUID, a SHA-256) shortened to its first 7 characters, without dashes.
+// A path with every id in it (a UUID, a SHA-256) shortened to its first 7 characters, without dashes, and "..." to
+// show that it is cut.
 export function shortIds(path: string): string {
-  return path.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32,}/gi, (id) => id.slice(0, 7));
+  return path.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32,}/gi, (id) => `${id.slice(0, 7)}...`);
 }
 
 // Only where Workers Logs collects the lines (deployed, and `wrangler dev`'s terminal), not in the tests or the desktop
