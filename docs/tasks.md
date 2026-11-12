@@ -119,7 +119,6 @@ The tasks below, in the file's order.
 - [Closing cadenza during a run](#closing-cadenza-during-a-run)
 - [A run in a background tab](#a-run-in-a-background-tab)
 - [Google Drive](#google-drive)
-- [Try `fix_skew`'s editor on a real phone](#try-fix_skews-editor-on-a-real-phone)
 - [Model configs per kind of work](#model-configs-per-kind-of-work)
 - [OpenRouter's prices in the config form](#openrouters-prices-in-the-config-form)
 - [Try a run on a real phone that goes to another app](#try-a-run-on-a-real-phone-that-goes-to-another-app)
@@ -134,6 +133,7 @@ The tasks below, in the file's order.
 - [Undo and redo could bring the change into view](#undo-and-redo-could-bring-the-change-into-view)
 - [Keep the zoom when flipping pages in `fix_layout`, and try scrolling through the pages](#keep-the-zoom-when-flipping-pages-in-fix_layout-and-try-scrolling-through-the-pages)
 - [Handles on the selected bar line in `fix_layout`](#handles-on-the-selected-bar-line-in-fix_layout)
+- [Fit the page's width, and keep it in view, in the page editors](#fit-the-pages-width-and-keep-it-in-view-in-the-page-editors)
 - [Show and hide the boxes and bar lines in `fix_layout`](#show-and-hide-the-boxes-and-bar-lines-in-fix_layout)
 - [Go straight to the flagged pages in `fix_layout`](#go-straight-to-the-flagged-pages-in-fix_layout)
 - [Stages that would run as no-ops stay finished](#stages-that-would-run-as-no-ops-stay-finished)
@@ -678,11 +678,6 @@ On a computer, a run should go on while its tab is in the background: the page k
 ### Google Drive
 §3, §10: picking source PDFs with the Picker, and exporting to an app-created folder.
 
-### Try `fix_skew`'s editor on a real phone
-`#manual-test`
-
-`fix_layout` was tried on the project owner's phone (2026-11-12): the UI is great, done. Left: `fix_skew`, tried so far only through Chromium's emulation of touch at phone size.
-
 ### Model configs per kind of work
 `#optional`
 
@@ -757,6 +752,14 @@ The project owner, 2026-11-12. Today the page arrows show the next page whole: a
 ### Handles on the selected bar line in `fix_layout`
 
 The project owner, 2026-11-12. A selected box has handles (`docs/stages/layout.md`, "Boxes"); a selected bar line has none today, though it is dragged sideways the same way (and nudged with the arrow keys). Give it handles too, e.g. like a box's (the same size on screen at any zoom), so it is clear that it is selected and where to grab it, above all on a touch screen.
+- **A bar line selected directly with one tap or click,** also one of a box that isn't selected (today a tap selects a box, and only the selected box's bar lines can be selected).
+- **Handles easier to hit:** the handles in the middles of a box's edges, and the bar lines' handles, become longer rectangles, along their edge or line; only the corner handles stay squares.
+
+### Fit the page's width, and keep it in view, in the page editors
+
+The project owner, 2026-11-12, for `fix_layout`, `fix_skew` and every editor with the same viewport (`useViewport` in `apps/web/src/pageEditor.tsx`, also used by `HumanReviewEditor.tsx`):
+- **The default zoom fits the page's width,** not the whole page (`fit()` today). The "Whole page" button may stay as it is; to decide while building.
+- **Panning stops at the page's edges plus a little padding.** Today the page can be moved almost out of view.
 
 ### Show and hide the boxes and bar lines in `fix_layout`
 
