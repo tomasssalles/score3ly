@@ -2097,6 +2097,12 @@ dialog.app-dialog.config-form {
 
 /* Joined into one control only inside a group (.editor-modes): there the inner corners are square and the borders
    overlap. A button on its own keeps all four corners round, wherever it stands (docs/style.md, "Buttons"). */
+/* A tool that can't be picked now (e.g. while the marks are hidden): greyed like a disabled icon button. */
+.editor-mode:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .editor-modes > .editor-mode + .editor-mode {
   margin-left: -1px;
 }
