@@ -123,7 +123,7 @@ The tasks below, in the file's order.
 - [OpenRouter's prices in the config form](#openrouters-prices-in-the-config-form)
 - [Try a run on a real phone that goes to another app](#try-a-run-on-a-real-phone-that-goes-to-another-app)
 - [The Worker finishes an LLM call on its own](#the-worker-finishes-an-llm-call-on-its-own)
-- [Moderate advisories in electron-builder's dependencies](#moderate-advisories-in-electron-builders-dependencies)
+- [Remove the override of `minimatch`](#remove-the-override-of-minimatch)
 - [A run mode between Auto and Manual](#a-run-mode-between-auto-and-manual)
 - [A "needs you" state for stages](#a-needs-you-state-for-stages)
 - [The toolbar colour follows the theme](#the-toolbar-colour-follows-the-theme)
@@ -693,10 +693,12 @@ On a computer, a run should go on while its tab is in the background: the page k
 - **The project owner wants a plain Worker** (2026-11-09): no Durable Objects or Workflows. On Cloudflare, a Worker whose client has gone has at most about 30 seconds of `waitUntil` left, and calls often take minutes (a `layout` page with Gemini: several minutes), so a plain Worker can't do it; the desktop app (Node) could. Not sure whether it is worth anything then.
 - **If it is done:** a request identical to one still running (stopped, then Run again unchanged) must wait for that call instead of paying for it twice; and the spending cap can be overshot by the call finishing in the background, whose cost lands late. The Worker serves requests side by side, so a call finishing in the background doesn't hold up the next one (only the browser sends one call at a time).
 
-### Moderate advisories in electron-builder's dependencies
+### Remove the override of `minimatch`
 `#security`
 
-`npm audit` (2026-11-06) reports 6 moderate ones: `minimatch` 7.0.0 to 11.0.0 (GHSA-g3hv-75wg-m249, a denial of service by globs), through `@electron/universal`, `app-builder-lib`, `dmg-builder` and `electron-builder`. Only used when packaging the desktop app, never at run time. `npm audit fix --force` would downgrade electron-builder to 24.13.3, a breaking change: wait for electron-builder to update its dependencies instead, or override `minimatch` in the root `package.json` if it doesn't.
+The root `package.json` overrides `minimatch` versions 7.0.0 to 11.0.0 with `^11.0.8` (2026-11-12), against a moderate advisory (GHSA-g3hv-75wg-m249, a denial of service by globs) that `npm audit` reported 6 times, through `@electron/universal`, `app-builder-lib`, `dmg-builder` and `electron-builder`. Only used when packaging the desktop app, never at run time. No electron-builder release had fixed it then (26.18.1 and 27.0.0-alpha.14 still want `minimatch` `^10.2.5`), and `npm audit fix --force` would have downgraded electron-builder to 24.13.3. The override touches only the copies electron-builder uses (10.2.6, and 9.0.9 under `@electron/universal`), not the 3.x and 5.x copies of other packages, whose API version 11 doesn't have; the parts of the API they use (`Minimatch`, `minimatch`, `.set`, `.negate`, `.match`) are unchanged, and a Linux `dir` package built with it was byte for byte the same as one without.
+
+To do: once an electron-builder release depends on a fixed `minimatch` (11.0.1 or later), update to it, remove the override from the root `package.json` (and the stale entries from `package-lock.json` with `npm install`), and check that `npm audit` stays clean.
 
 ### A run mode between Auto and Manual
 `#optional`
