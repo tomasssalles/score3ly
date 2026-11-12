@@ -49,6 +49,7 @@ The tasks below, in the file's order.
 - [A "done" mark for projects](#a-done-mark-for-projects)
 - [Check export and import on a large project](#check-export-and-import-on-a-large-project)
 - [Measure the Worker's CPU time per LLM request](#measure-the-workers-cpu-time-per-llm-request)
+- [Discuss Cloudflare's own builds from GitHub](#discuss-cloudflares-own-builds-from-github)
 - [Safe storage of the secrets in cadenza](#safe-storage-of-the-secrets-in-cadenza)
 - [Spot-check the collected prices](#spot-check-the-collected-prices)
 - [2026-12-01: Gemini 4 Argon's new prices on AI Studio](#2026-12-01-gemini-4-argons-new-prices-on-ai-studio)
@@ -263,6 +264,11 @@ The Workers free plan allows 10 ms of CPU time per request; waiting for the prov
 - **Not a fix: images as binary parts instead of base64.** Every provider wants base64 in its JSON body, so the Worker would have to encode them, which costs more than passing the browser's base64 through.
 - **Ruled out** (the project owner, 2026-11-06): the paid Workers plan ($5/month, 30 s of CPU time by default), since it breaks "runs on free tiers" for every instance; sending each image once through the providers' Files APIs and naming it in later calls (a feature per provider, uploads that expire, Bedrock and Vertex AI different); preferring Bedrock API keys to key pairs to save the signing's hash of the body (small, and nothing for other providers); calling the providers from the browser (the keys would reach it).
 - **Not a problem:** the RSA signature of Vertex AI's token exchange (native, well under a millisecond; `docs/llm.md`, "Authentication stays in the Worker's own code").
+
+### Discuss Cloudflare's own builds from GitHub
+`#decision`
+
+The project owner, 2026-11-12: read https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/github-integration/ (Workers Builds: Cloudflare builds and deploys a Worker from its GitHub repository) and discuss deployment via GitHub again, against the Deploy workflow built that day (`.github/workflows/deploy.yml`, `docs/database.md`, "Deploying").
 
 ### Safe storage of the secrets in cadenza
 `#decision` `#security`
