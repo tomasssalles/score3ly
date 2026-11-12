@@ -422,7 +422,10 @@ function PageEditor({
         error={imageError ?? error}
         notice={<ImagesDiffer page={page.recipe} />}
       >
-        {image && !hidden && (
+        {/* Hidden: an empty drawing, so that the page itself still shows (PageCanvas waits for a drawing). */}
+        {image && (hidden ? (
+          <g />
+        ) : (
           <>
             {systems.map((system, i) => {
               const color = LAYOUT_COLOR_HEX[i % LAYOUT_COLOR_HEX.length];
@@ -486,7 +489,7 @@ function PageEditor({
             )}
             {anchor && <circle className="editor-anchor" cx={anchor.x} cy={anchor.y} r={5 / s} />}
           </>
-        )}
+        ))}
       </PageCanvas>
     </div>
   );

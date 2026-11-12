@@ -317,7 +317,10 @@ function PageEditor({
         error={imageError ?? loadError ?? saveError}
         notice={<ImagesDiffer page={page.recipe} />}
       >
-        {image && lines && !hidden && (
+        {/* Hidden: an empty drawing, so that the page itself still shows (PageCanvas waits for a drawing). */}
+        {image && lines && (hidden ? (
+          <g />
+        ) : (
           <>
             {lines.map((line, i) => {
               const [a, b] = ends(line);
@@ -337,7 +340,7 @@ function PageEditor({
             {anchor && hover && <line className="skew-rubber" x1={anchor.x} y1={anchor.y} x2={hover.x} y2={hover.y} />}
             {anchor && <circle className="editor-anchor" cx={anchor.x} cy={anchor.y} r={5 / s} />}
           </>
-        )}
+        ))}
       </PageCanvas>
     </div>
   );
