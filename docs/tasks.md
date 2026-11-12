@@ -131,9 +131,8 @@ The tasks below, in the file's order.
 - [Links between observations made by the model](#links-between-observations-made-by-the-model)
 - [More about the transcription in the MEI](#more-about-the-transcription-in-the-mei)
 - [Undo and redo could bring the change into view](#undo-and-redo-could-bring-the-change-into-view)
-- [Keep the zoom when flipping pages in `fix_layout`, and try scrolling through the pages](#keep-the-zoom-when-flipping-pages-in-fix_layout-and-try-scrolling-through-the-pages)
 - [Handles on the selected bar line in `fix_layout`](#handles-on-the-selected-bar-line-in-fix_layout)
-- [Fit the page's width, and keep it in view, in the page editors](#fit-the-pages-width-and-keep-it-in-view-in-the-page-editors)
+- [A "Fit width" button in the page editors](#a-fit-width-button-in-the-page-editors)
 - [Show and hide the boxes and bar lines in `fix_layout`](#show-and-hide-the-boxes-and-bar-lines-in-fix_layout)
 - [Go straight to the flagged pages in `fix_layout`](#go-straight-to-the-flagged-pages-in-fix_layout)
 - [Stages that would run as no-ops stay finished](#stages-that-would-run-as-no-ops-stay-finished)
@@ -741,24 +740,15 @@ Confidence, what was confirmed, the models used, through existing elements of th
 
 As in a code editor, undoing or redoing a change on a part of the page that is zoomed out of view would pan (and zoom) to it.
 
-### Keep the zoom when flipping pages in `fix_layout`, and try scrolling through the pages
-`#experiment`
-
-The project owner, 2026-11-12. Today the page arrows show the next page whole: a new image makes the viewport fit it (`fit()` in `useViewport`'s layout effect, `apps/web/src/pageEditor.tsx`), so the zoom the user had is lost on every page.
-- **Keep the zoom level** when flipping to another page. Where the view goes on the new page (its top, the same place as on the old page, …) is to decide while building. The viewport is shared, so `fix_skew`'s editor would get the same unless there is a reason not to.
-- **Experiment: the pages scrolling continuously,** one below the other, instead of one page at a time with arrows. To try and judge by using it; what it means for the arrows, "Page 3/10", undo and redo per page and the tools (a box or a bar line drawn across a page break) is part of the experiment.
-
 ### Handles on the selected bar line in `fix_layout`
 
 The project owner, 2026-11-12. A selected box has handles (`docs/stages/layout.md`, "Boxes"); a selected bar line has none today, though it is dragged sideways the same way (and nudged with the arrow keys). Give it handles too, e.g. like a box's (the same size on screen at any zoom), so it is clear that it is selected and where to grab it, above all on a touch screen.
 - **A bar line selected directly with one tap or click,** also one of a box that isn't selected (today a tap selects a box, and only the selected box's bar lines can be selected).
 - **Handles easier to hit:** the handles in the middles of a box's edges, and the bar lines' handles, become longer rectangles, along their edge or line; only the corner handles stay squares.
 
-### Fit the page's width, and keep it in view, in the page editors
+### A "Fit width" button in the page editors
 
-The project owner, 2026-11-12, for `fix_layout`, `fix_skew` and every editor with the same viewport (`useViewport` in `apps/web/src/pageEditor.tsx`, also used by `HumanReviewEditor.tsx`):
-- **The default zoom fits the page's width,** not the whole page (`fit()` today). The "Whole page" button may stay as it is; to decide while building.
-- **Panning stops at the page's edges plus a little padding.** Today the page can be moved almost out of view.
+The project owner, 2026-11-12: pages open fitted to their width since that day (`docs/stages/layout.md`, `fix_layout`), but the toolbar's button still shows the whole page ("Whole page", `ZoomTools` in `apps/web/src/pageEditor.tsx`). Replace it with "Fit width" (`viewport.fitWidth`), with an icon of its own, in every editor that has it (`fix_skew`, `fix_layout`, `human_review`); zooming out (pinch, wheel, "−") still reaches the whole page.
 
 ### Show and hide the boxes and bar lines in `fix_layout`
 

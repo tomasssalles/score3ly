@@ -12,11 +12,12 @@ import { BOX_HANDLES, handlePoint, type BoxHandle } from "./fixLayout";
 import type { Box } from "@score3ly/notation";
 
 export type Point = { x: number; y: number };
-type View = { scale: number; x: number; y: number }; // screen px per image px, and where the image's corner is
+import { clampView, PAD, wholePageScale, type View } from "./viewBounds";
 
 // A pointer that moves less than this between down and up tapped; more, it dragged.
 const TAP_SLOP = { mouse: 4, touch: 10 };
 const MAX_SCALE = 8;
+
 
 // What the editor does with the gestures. Points are in image px; `scale` turns image px into screen px.
 export type Interaction<G> = {
@@ -44,28 +45,49 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
   const viewRef = useRef(view);
   const pointers = useRef(new Map<number, Point>());
   const gesture = useRef<Gesture<G>>({ kind: "none" });
-  const fitScale = useRef(1);
+  // The scale at which the whole page is in view: the furthest one can zoom out.
+  const pageScale = useRef(1);
+  // Whether the page is fitted to the width and not zoomed since: it then stays fitted when the view changes size (a
+  // pane beside it shown or hidden).
+  const widthFitted = useRef(false);
+  // The latest image: the listeners registered once (the wheel, the size) read it here.
+  const imageRef = useRef(image);
+  imageRef.current = image;
   // The latest handlers: they close over the editor's state of this render.
   const latest = useRef(interaction);
   latest.current = interaction;
 
-  const setView = (next: View) => {
-    viewRef.current = next;
-    setViewState(next);
+  // Every view goes through here: the page can't be panned further than PAD past its edges, and where it is smaller
+  // than the view in a direction, it is centred in that direction.
+  // `fitted`: whether the new view is fitted to the width; by default, it stays so while the scale doesn't change (a pan).
+  const setView = (next: View, fitted?: boolean) => {
+    widthFitted.current = fitted ?? (widthFitted.current && next.scale === viewRef.current.scale);
+    const clamped = clampView(next, ref.current, imageRef.current);
+    viewRef.current = clamped;
+    setViewState(clamped);
   };
 
   // The whole page in view, centred.
-  function fit() {
+  function fitPage() {
     const el = ref.current;
     if (!el || !image) return;
-    const scale = Math.min(el.clientWidth / image.width, el.clientHeight / image.height) * 0.96;
-    fitScale.current = scale;
-    setView({ scale, x: (el.clientWidth - image.width * scale) / 2, y: (el.clientHeight - image.height * scale) / 2 });
+    pageScale.current = wholePageScale(el, image);
+    setView({ scale: pageScale.current, x: 0, y: 0 });
+  }
+  // The page's width in view, from its top: how a page opens (decided 2026-11-12, the project owner).
+  function fitWidth() {
+    const el = ref.current;
+    if (!el || !image) return;
+    pageScale.current = wholePageScale(el, image);
+    setView({ scale: widthScale(el, image), x: PAD, y: PAD }, true);
+  }
+  function widthScale(el: HTMLElement, image: { width: number; height: number }) {
+    return Math.max(pageScale.current, (el.clientWidth - 2 * PAD) / image.width);
   }
   // What to show once the image is there (`show`, `center`): a later image (another page) waits for it.
   const pending = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
-    fit();
+    fitWidth();
     const then = pending.current;
     pending.current = null;
     then?.();
@@ -92,14 +114,14 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
     }
     const w = Math.max(1, rect.right - rect.left);
     const h = Math.max(1, rect.bottom - rect.top);
-    const scale = Math.max(fitScale.current, Math.min(1.5, (el.clientWidth * 0.5) / w, (el.clientHeight * 0.4) / h));
+    const scale = Math.max(pageScale.current, Math.min(1.5, (el.clientWidth * 0.5) / w, (el.clientHeight * 0.4) / h));
     setView({ scale, x: el.clientWidth / 2 - ((rect.left + rect.right) / 2) * scale, y: el.clientHeight / 2 - ((rect.top + rect.bottom) / 2) * scale });
   }
 
   // Zooms by `factor` around a point of the viewport, which stays where it is.
   function zoomAt(at: Point, factor: number) {
     const v = viewRef.current;
-    const scale = Math.max(fitScale.current * 0.5, Math.min(MAX_SCALE, v.scale * factor));
+    const scale = Math.max(pageScale.current, Math.min(MAX_SCALE, v.scale * factor));
     const k = scale / v.scale;
     setView({ scale, x: at.x - (at.x - v.x) * k, y: at.y - (at.y - v.y) * k });
   }
@@ -131,7 +153,14 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
     let size = { w: el.clientWidth, h: el.clientHeight };
     const observer = new ResizeObserver(() => {
       const next = { w: el.clientWidth, h: el.clientHeight };
-      if (size.w && size.h && next.w && next.h && (next.w !== size.w || next.h !== size.h)) panBy((next.w - size.w) / 2, (next.h - size.h) / 2);
+      const image = imageRef.current;
+      if (image && next.w && next.h) pageScale.current = wholePageScale(el, image);
+      if (image && next.w && next.h && widthFitted.current) {
+        // Still fitted to the width, at the same place down the page.
+        const v = viewRef.current;
+        const scale = widthScale(el, image);
+        setView({ scale, x: PAD, y: v.y * (scale / v.scale) }, true);
+      } else if (size.w && size.h && next.w && next.h && (next.w !== size.w || next.h !== size.h)) panBy((next.w - size.w) / 2, (next.h - size.h) / 2);
       size = next;
     });
     observer.observe(el);
@@ -222,7 +251,8 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
     ref,
     scale: view.scale,
     transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
-    fit,
+    fit: fitPage,
+    fitWidth,
     show,
     center,
     zoomBy,
@@ -479,3 +509,4 @@ export function BoxHandles({ box, size, scale }: { box: Box; size: { width: numb
     </>
   );
 }
+
