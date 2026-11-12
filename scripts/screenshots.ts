@@ -198,7 +198,7 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   await page.getByRole("button", { name: "Hide the issue" }).click();
   await page.getByRole("radio", { name: "Add clarification" }).click();
   await page.getByText("to add a clarification about it").waitFor();
-  await page.getByRole("button", { name: "Whole page" }).click();
+  await page.getByRole("button", { name: "Fit width" }).click();
   await page.waitForTimeout(500);
   const viewport = (await page.locator(".human-review .editor-viewport").boundingBox())!;
   await page.mouse.click(viewport.x + viewport.width * 0.55, viewport.y + viewport.height * 0.3);

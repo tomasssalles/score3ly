@@ -6,7 +6,7 @@
 // phone the user zooms in close for each point and zooms out and pans in between.
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { CollapseIcon, ExpandIcon, FitIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
+import { CollapseIcon, ExpandIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
 import { pngSize } from "./pageImages";
 import { BOX_HANDLES, handlePoint, type BoxHandle } from "./fixLayout";
 import type { Box } from "@score3ly/notation";
@@ -423,7 +423,7 @@ export function ModeToggle<M extends string>({
   );
 }
 
-// Zoom out, zoom in, the whole page; then whatever the editor adds (e.g. Delete).
+// Zoom out, zoom in, fit the page's width; then whatever the editor adds (e.g. Delete).
 export function ZoomTools({ viewport, children }: { viewport: Viewport; children?: ReactNode }) {
   return (
     <div className="editor-tools">
@@ -433,8 +433,8 @@ export function ZoomTools({ viewport, children }: { viewport: Viewport; children
       <button type="button" className="icon-button zoom-step" aria-label="Zoom in" onClick={() => viewport.zoomBy(1.5)}>
         <ZoomInIcon />
       </button>
-      <button type="button" className="icon-button zoom-fit" aria-label="Whole page" onClick={viewport.fit}>
-        <FitIcon />
+      <button type="button" className="icon-button zoom-fit" aria-label="Fit width" onClick={viewport.fitWidth}>
+        <FitWidthIcon />
       </button>
       {children}
     </div>

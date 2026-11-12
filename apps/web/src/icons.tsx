@@ -304,10 +304,12 @@ export function ZoomOutIcon() {
   );
 }
 
-export function FitIcon() {
+// The page's width in view: a double arrow between two edges.
+export function FitWidthIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+      <path d="M4 5v14M20 5v14" />
+      <path d="M8 12h8M10.5 9.5 8 12l2.5 2.5M13.5 9.5 16 12l-2.5 2.5" />
     </svg>
   );
 }
