@@ -1840,6 +1840,22 @@ test("import: a call found nowhere is a new row that counts, a config found nowh
   assert.match((await json<{ error: string }>(newer)).error, /newer version of score3ly/);
 });
 
+test("import: a stage's config names the model config it was mapped to, as its column does", async () => {
+  const { project } = await projectWithACall("mapped.pdf");
+  const other = structuredClone(await exportOf(project.id));
+  // As if from another instance: a planned layout stage naming a config that is unknown here (another effort).
+  const layout = other.stages.find((s) => s.step === "layout")!;
+  layout.model_config_id = "paid";
+  layout.config_json = JSON.stringify({ modelConfigId: "paid" });
+  other.model_configs.find((m) => m.id === "paid")!.effort = "max";
+  const imported = await json<{ id: string }>(await importOf(other));
+  const row = await env.DB.prepare("SELECT s.model_config_id, s.config_json FROM stages s JOIN pipeline_entries e ON e.stage_id = s.id WHERE e.project_id = ? AND s.step = 'layout'")
+    .bind(imported.id)
+    .first<{ model_config_id: string; config_json: string }>();
+  assert.notEqual(row?.model_config_id, "paid");
+  assert.equal(JSON.parse(row!.config_json).modelConfigId, row?.model_config_id);
+});
+
 test("historical exports (fixtures/exports) are imported, each with its whole pipeline", async () => {
   const { unzipSync } = await import("fflate");
   const dir = join(workerDir, "../../fixtures/exports");

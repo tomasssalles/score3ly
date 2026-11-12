@@ -81,7 +81,7 @@ export function isLlm(step: string): boolean {
 }
 
 // A stage's config with another model config, everything else in it as it was.
-function withModelConfig(configJson: string | null, modelConfigId: string): string {
+export function withModelConfig(configJson: string | null, modelConfigId: string): string {
   return JSON.stringify({ ...(configJson === null ? {} : (JSON.parse(configJson) as Record<string, unknown>)), modelConfigId });
 }
 

@@ -9,7 +9,7 @@
 
 import type { Hono } from "hono";
 import { firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
-import { anyRunning } from "./pipeline.ts";
+import { anyRunning, withModelConfig } from "./pipeline.ts";
 
 // The export format's own version (`format` in the file), apart from the app's: raised when an export can't be read
 // the same way any more. Imports read only the formats listed here.
@@ -342,12 +342,15 @@ export async function importProject(db: D1Database, bucket: R2Bucket, data: Proj
   // The copied stages, their outputs, inputs and saves.
   for (const s of data.stages) {
     if (reused.has(s.id as string)) continue;
+    const modelConfigId = s.model_config_id ? (configMap.get(s.model_config_id as string) ?? null) : null;
     statements.push(
       insert(db, "stages", {
         ...pick(s, STAGE_COLUMNS),
         id: stageMap.get(s.id as string)!,
         created_in: projectId,
-        model_config_id: s.model_config_id ? (configMap.get(s.model_config_id as string) ?? null) : null,
+        model_config_id: modelConfigId,
+        // The config names its model config too (what the browser runs the stage with): the same one as the column.
+        config_json: modelConfigId ? withModelConfig(s.config_json as string | null, modelConfigId) : s.config_json,
         replaces_stage_id: s.replaces_stage_id ? (stageMap.get(s.replaces_stage_id as string) ?? null) : null,
         imported_at: iso,
       }),

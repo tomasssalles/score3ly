@@ -299,8 +299,10 @@ body {
   color: var(--accent);
 }
 
+/* An inline block, so the name's breaking anywhere doesn't break it: it moves to the next line whole. */
 .picker-list li.current .option-name::after {
   content: "current";
+  display: inline-block;
   margin-left: 8px;
   font: 500 11px var(--mono);
   color: var(--accent);
@@ -3718,18 +3720,19 @@ textarea.field-input {
   gap: 6px;
 }
 
-/* The Statistics page's tabs: the current one in the text colour, underlined in coral. */
+/* The Statistics page's tabs: the current one in the text colour, underlined in coral. The grey line is an inset shadow,
+   not a border, so the coral underline covers it without sticking out of the row: overflow-x: auto makes the row
+   scrollable vertically too, and a tab 1px taller than the row let it scroll up and down by that pixel. */
 .stats-tabs {
   display: flex;
   gap: 4px;
   margin-bottom: 8px;
-  border-bottom: 1px solid var(--line);
+  box-shadow: inset 0 -1px var(--line);
   overflow-x: auto;
 }
 
 .stats-tab {
   flex: none;
-  margin-bottom: -1px;
   padding: 8px 12px;
   border: 0;
   border-bottom: 2px solid transparent;
