@@ -136,14 +136,14 @@ export async function ask(
   what: string,
   options: { config: ModelConfig; beforeImages?: () => Promise<void> },
 ): Promise<LlmAnswer> {
-  let answer = await callLlm(run.project, run.stage.id, await withImages(request, null));
+  let answer = await callLlm(run.project, run.stage.id, await withImages(request, null), what);
   if ("imagesNeeded" in answer) {
     await options.beforeImages?.();
     const images: { recipe: unknown; png: Blob }[] = [];
     const full = await withImages(request, images);
     const tooBig = requestSizeProblem(options.config, full);
     if (tooBig) throw new Error(`${what}: ${tooBig}.`);
-    const made = await callLlm(run.project, run.stage.id, full);
+    const made = await callLlm(run.project, run.stage.id, full, what);
     if ("imagesNeeded" in made) throw new Error(`${what}: the request was sent without its images.`);
     answer = made;
     // The answer is computed from these images: their fingerprints are kept (§8.3).

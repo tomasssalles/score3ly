@@ -3,6 +3,7 @@
 // identical earlier answer from the call records (the item-level cache, §5.2), and otherwise checks the spending cap,
 // calls the provider, and records the call with its tokens and cost.
 
+import { logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
@@ -842,14 +843,18 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const problem = requestProblem(body?.request);
     if (problem) return c.json({ error: problem }, 400);
     const request = body.request as CallRequest;
+    // For the request's log line: what the browser calls the call ("System 12"), and how many images it carries.
+    const images = request.messages.reduce((n, m) => n + m.content.filter((part) => part.type === "image" && part.image).length, 0);
+    logFields(c.req.raw, { ...(typeof body.label === "string" ? { label: body.label.slice(0, 100) } : {}), images });
 
     const stage = await db
       .prepare(
-        "SELECT s.status, s.model_config_id FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id JOIN projects p ON p.id = e.project_id WHERE e.project_id = ? AND e.stage_id = ? AND p.deleted_at IS NULL",
+        "SELECT s.step, s.status, s.model_config_id FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id JOIN projects p ON p.id = e.project_id WHERE e.project_id = ? AND e.stage_id = ? AND p.deleted_at IS NULL",
       )
       .bind(pid, sid)
-      .first<{ status: string; model_config_id: string | null }>();
+      .first<{ step: string; status: string; model_config_id: string | null }>();
     if (!stage) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    logFields(c.req.raw, { step: stage.step });
     if (stage.status !== "running") return c.json({ error: "the stage isn't running" }, 409);
     if (!stage.model_config_id) return c.json({ error: "the stage has no model config", code: "no_model_config" }, 409);
     const row = await db.prepare("SELECT * FROM model_configs WHERE id = ?").bind(stage.model_config_id).first<ModelConfigRow>();
@@ -882,6 +887,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (earlier) {
       const object = await c.env.PDFS.get(`content/${earlier.response_sha256}`);
       if (object) {
+        logFields(c.req.raw, { answer: "cached" });
         const response = (await object.json()) as { text: string; json?: unknown };
         const answer: CallAnswer = {
           callId: earlier.id,
@@ -904,10 +910,13 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
 
     // Not cached: the browser makes the images and asks again with them.
     if (request.messages.some((m) => m.content.some((c) => c.type === "image" && !c.image))) {
+      logFields(c.req.raw, { answer: "images needed" });
       return c.json({ imagesNeeded: true });
     }
 
+    logFields(c.req.raw, { answer: "sent", provider: config.provider });
     const sent = await sendCall(c.env, row, request, requestKey, sid);
+    logFields(c.req.raw, "refusal" in sent ? { refused: sent.refusal.code } : { status: sent.status, outputTokens: sent.usage?.outputTokens });
     if ("refusal" in sent) return c.json({ error: sent.refusal.error, code: sent.refusal.code }, sent.refusal.status);
     return c.json(sent);
   });

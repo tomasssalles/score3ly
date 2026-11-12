@@ -519,11 +519,12 @@ export class LlmRefused extends Error {
 
 // One LLM request of a running stage. The Worker serves an identical earlier answer, or makes the call. A request
 // whose images come without their bytes is only looked up: if it isn't cached, the answer asks for the images.
-export async function callLlm(project: Project, stageId: string, request: LlmRequest): Promise<LlmAnswer | { imagesNeeded: true }> {
+// `label` names the call in the Worker's log ("System 12"); it isn't part of the request or its key.
+export async function callLlm(project: Project, stageId: string, request: LlmRequest, label?: string): Promise<LlmAnswer | { imagesNeeded: true }> {
   const response = await fetch(stageUrl(project, stageId, "llm"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ request }),
+    body: JSON.stringify({ request, ...(label ? { label } : {}) }),
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string; code?: string } | null;

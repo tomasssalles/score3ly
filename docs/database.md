@@ -75,6 +75,15 @@ How an instance on Cloudflare is made and upgraded (decided and built 2026-11-09
 - **Migrations come before the new code,** so for a few seconds the old code runs on the new schema. A migration must keep the code before it working, or the gap accepted (an instance has one user, who is the one deploying).
 - **The migrations are squashed into one before the first deployment** (done 2026-11-09, OpenRouter's two rebuilds of `model_configs` folded in; a migration added before the first deployment is folded in the same way): a remote database records the migrations it was given (`d1_migrations`), so squashing after it has them would need the database made anew. Local databases made before a squash (Wrangler's `.wrangler/state`, the desktop app's data folder) are made anew, since their `d1_migrations` names migrations that no longer exist.
 
+## The Worker's logs
+
+**Workers Logs is on** (`observability` in `wrangler.jsonc.template`): the Worker's Logs tab in Cloudflare's dashboard lists every request with its wall time and CPU time. **Cloudflare replaces the parts of a URL that look like ids with "REDACTED"** (found 2026-11-12; nothing found says it can be turned off), so the Worker adds a log line of its own to every API request (built 2026-11-12, `apps/worker/src/requestLog.ts`), shown under the request beside its CPU time, as an object whose fields can be filtered on:
+- `request`: the method and the path, **every id in it (a UUID, a SHA-256) shortened to its first 7 characters,** without dashes (the project owner's idea): short enough not to look like an id, long enough to find the row (`SELECT … WHERE id LIKE '3f2a1b9%'`);
+- `status`, and `bytes`, the request body's size (its `Content-Length`);
+- what the route adds (`logFields`): a stage's `step` (every request about a stage); on `/outputs`, the number of `outputs` and their `items`; on `/llm`, the `label` the browser names the call by ("System 12", "Page 3", "The whole score"; sent beside the request, not part of it or its key), the number of `images` it carries, the `answer` (`cached`, `images needed`, or `sent`, with the `provider`, the call's `status` and its `outputTokens`, or `refused` with the code).
+
+Only where Workers Logs collects them: when the Worker runs on Cloudflare's runtime (deployed, and `wrangler dev`, whose terminal shows them), not in the tests or cadenza's Node server, which run the same app. One `console.log` of a small object per request costs microseconds of CPU time, nothing against the 10 ms limit.
+
 ## Exporting and importing a project
 
 A project as one file, to bring it back after deleting it (to free storage, R2's free 10 GB, §2), to move it to another instance, or to replay a real run locally, for free, from its records (decided 2026-11-11 with the project owner; built the same day: `apps/worker/src/projectFile.ts`, `apps/web/src/projectFile.ts`, `ExportDialog.tsx`).

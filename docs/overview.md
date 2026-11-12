@@ -12,7 +12,7 @@ Everything beyond the overview is in the files below, each about one topic; the 
 
 **The app**
 - [project-view.md](project-view.md): what the app shows around a project: the layouts, the artifact view, progress and toasts, the header, the pipeline panel and its stage cards, the cards of dropped stages, the confirmation before a re-run, the pages of the menu. Read it before working on those screens.
-- [database.md](database.md): the D1 tables, the Worker's requests while a stage runs and for manual stages, carried manual stages, interrupted runs, deleting, exporting and importing a project. Read it before working on the Worker's pipeline code, the migrations or deletion.
+- [database.md](database.md): the D1 tables, the Worker's requests while a stage runs and for manual stages, carried manual stages, interrupted runs, deploying, the Worker's logs, deleting, exporting and importing a project. Read it before working on the Worker's pipeline code, the migrations or deletion.
 - [statistics.md](statistics.md): the Statistics page: why its tabs differ, Costs (the costs view and the average cost per page), Usage, Run times, Effort, how active time is counted, the mock data. Read it before working on the statistics.
 - [llm.md](llm.md): how the Worker calls the LLM providers, call records and the cache, model configs and which one a stage uses, supported models and prices, how costs are computed and kept, and the spending cap. Read it before working on providers, model configs, prices or costs.
 - [images.md](images.md): page images from PDFs, deterministic image operations, fingerprints, device constraints and the image cache (this overview's §8 subsections, by the same numbers). Read it before working on `packages/imaging` or the image cache.

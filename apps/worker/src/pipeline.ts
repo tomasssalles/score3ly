@@ -2,6 +2,7 @@
 // runs a stage (start, outputs, heartbeat, finish, stop) or changes one's config. The browser does the work; the
 // Worker only records it.
 
+import { logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
 import { QUARTER_MS } from "./activeTime.ts";
 import { deletedConfigMessage, readSettings, resolvedModel, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
@@ -335,6 +336,7 @@ async function entry(
   db: D1Database,
   projectId: string,
   stageId: string,
+  request?: Request,
 ): Promise<{ position: number; stage: StageRow; carried: boolean } | null> {
   const row = await db
     .prepare(
@@ -342,6 +344,8 @@ async function entry(
     )
     .bind(projectId, stageId)
     .first<StageRow & { position: number }>();
+  // The stage's step, for the request's log line.
+  if (row && request) logFields(request, { step: row.step });
   return row && { position: row.position, stage: row, carried: row.carried === 1 };
 }
 
@@ -398,7 +402,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (body.applyModelConfigToLater !== undefined && typeof body.applyModelConfigToLater !== "boolean") {
       return c.json({ error: "'applyModelConfigToLater' must be true or false" }, 400);
     }
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const now = new Date().toISOString();
     const { stage, position } = found;
@@ -460,7 +464,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     ) {
       return c.json({ error: "expected 'stepVersion', 'config', 'stageKey', 'pageCount' and 'inputIds'" }, 400);
     }
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage, position } = found;
     const now = new Date();
@@ -530,7 +534,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
           (o.timing === undefined || isTiming(o.timing)),
       );
     if (!valid) return c.json({ error: "expected 'outputs' with an item, a type, and a content hash or a recipe key" }, 400);
-    const found = await entry(db, pid, sid);
+    logFields(c.req.raw, { outputs: outputs.length, items: outputs.map((o: { item: string }) => o.item).join(" ").slice(0, 200) });
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const wip = found.stage.status === "wip";
     if (found.stage.status !== "running" && !wip) return c.json({ error: "the stage isn't running" }, 409);
@@ -597,7 +602,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/heartbeat", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     if (found.stage.status !== "running") return c.json({ error: "the stage isn't running" }, 409);
     await db.prepare("UPDATE stages SET heartbeat_at = ? WHERE id = ?").bind(new Date().toISOString(), sid).run();
@@ -621,7 +626,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     ) {
       return c.json({ error: "expected 'status' 'done' (with an optional 'note') or 'failed' with an 'error'" }, 400);
     }
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage } = found;
     if (stage.status !== "running" && !(stage.status === "wip" && status === "done")) {
@@ -643,7 +648,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/stop", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage, position } = found;
     if (stage.status !== "running") return c.json({ error: "the stage isn't running" }, 409);
@@ -682,7 +687,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       return c.json({ error: "expected a manual 'step', 'stepVersion', 'pageCount' and 'inputIds'" }, 400);
     }
     if (step === "human_review") return c.json({ error: "a Human review is added with its Apply review" }, 409);
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage, position } = found;
     if (stage.status !== "done") return c.json({ error: "a fix can only follow a done stage" }, 409);
@@ -724,7 +729,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/edit", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage, position } = found;
     if (!isManual(stage.step) || stage.status !== "done") {
@@ -770,7 +775,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
     if (!isStringArray(body?.inputIds)) return c.json({ error: "expected 'inputIds'" }, 400);
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     if (!found.carried) return c.json({ error: "the stage isn't waiting to be kept or dropped" }, 409);
     const before = await db
@@ -821,7 +826,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/review", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage, position } = found;
     if (stage.step !== "apply_review") return c.json({ error: "a review can only be added after an Apply review" }, 409);
@@ -854,7 +859,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (!Number.isInteger(stepVersion) || !(pageCount === null || Number.isInteger(pageCount)) || !isStringArray(inputIds)) {
       return c.json({ error: "expected 'stepVersion', 'pageCount' and 'inputIds'" }, 400);
     }
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage, position } = found;
     if (stage.step !== "apply_review") return c.json({ error: "a Human review can only be added after an Apply review" }, 409);
@@ -894,7 +899,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/drop", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
-    const found = await entry(db, pid, sid);
+    const found = await entry(db, pid, sid, c.req.raw);
     if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
     const { stage, position } = found;
     if (!isManual(stage.step) && !isFurtherReview(stage)) return c.json({ error: "only stages outside the recipe can be dropped" }, 409);

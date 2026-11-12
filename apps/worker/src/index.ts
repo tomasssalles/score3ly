@@ -11,6 +11,7 @@ import { llmRoutes, readSettings, convertAddedConfigs } from "./llmRoutes.ts";
 import { defaultForNewStages, newPipeline, pipelineRoutes } from "./pipeline.ts";
 import { versionRoutes } from "./versions.ts";
 import { projectFileRoutes } from "./projectFile.ts";
+import { requestLog } from "./requestLog.ts";
 
 export type { Project, RunMode } from "@score3ly/core";
 import type { Project, RunMode } from "@score3ly/core";
@@ -52,6 +53,9 @@ async function getProject(db: D1Database, id: string): Promise<Project | null> {
 }
 
 const app = new Hono<{ Bindings: Env }>();
+
+// A log line of our own per API request, for Workers Logs (requestLog.ts).
+app.use("/api/*", requestLog);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
