@@ -211,6 +211,7 @@ The tabs measure different targets in different ways, because the data offers no
 `#decision` `#next-release`
 
 The project owner, after using the deployed app (2026-11-10): `human_review`'s screen (`docs/stages/music.md`, `human_review`, "The screen"; `HumanReviewEditor`: the original and the rendering in two panes, the boxes dimmed on the original, one issue's panel at a time over the rendering, arrows from box to box) is very hard to use for a person, while the Transcription (`ExtractionView.tsx`: a filmstrip of the systems, each crop above its rendering, the issues' cards below it) is already excellent for comparing the original with the transcription. The human review should become something very similar to the Transcription. The linked scrolling of the two panes doesn't work well either (the project owner, same day). And unlinked, the zoom buttons zoom only the original, and pinching on the touchpad zooms the original correctly but, on the rendering, zooms the whole page (the browser's zoom). Bugs of the screen as it is, to fix only if it stays. The project owner's thoughts on how come later.
+- **Fit width back on a phone** (the project owner, 2026-11-12): the toolbar's tools don't fit on one row at 390 px, so "Fit width" is hidden there (`.human-review-toolbar .zoom-fit` in `styles.css`); the new screen should make room for it again.
 
 ### Decide how the Transcription's boxes should look on a phone
 `#decision` `#style`

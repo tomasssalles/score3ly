@@ -273,7 +273,7 @@ export function LineIcon() {
       <path d="M5.2 18.6l9.2-6.9" />
       <circle cx="3.8" cy="19.7" r="2" fill="currentColor" />
       <circle cx="15.8" cy="10.6" r="2" fill="currentColor" />
-      <path d="M19 2.5v6M16 5.5h6" />
+      <path d="M20 1v6M17 4h6" />
     </svg>
   );
 }
@@ -311,7 +311,7 @@ export function FitWidthIcon() {
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 5v14M20 5v14" />
-      <path d="M8 12h8M10.5 9.5 8 12l2.5 2.5M13.5 9.5 16 12l-2.5 2.5" />
+      <path d="M7 12h10M9.5 9.5 7 12l2.5 2.5M14.5 9.5 17 12l-2.5 2.5" />
     </svg>
   );
 }
@@ -351,7 +351,7 @@ export function BoxIcon() {
       <path d="M4 9h11v11H4z" />
       <circle cx="4" cy="9" r="1.8" fill="currentColor" />
       <circle cx="15" cy="20" r="1.8" fill="currentColor" />
-      <path d="M19 2.5v6M16 5.5h6" />
+      <path d="M20 1v6M17 4h6" />
     </svg>
   );
 }
@@ -363,7 +363,7 @@ export function BarLineIcon() {
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M2 10h14M2 13h14M2 16h14M2 19h14" strokeWidth="1" />
       <path d="M9 8.5v12.5" strokeWidth="2.4" />
-      <path d="M19 2.5v6M16 5.5h6" />
+      <path d="M20 1v6M17 4h6" />
     </svg>
   );
 }
