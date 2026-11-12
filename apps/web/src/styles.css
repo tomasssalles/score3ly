@@ -2217,8 +2217,9 @@ dialog.app-dialog.config-form {
   stroke-width: calc(3 * var(--px));
 }
 
-.layout-box .layout-bar.selected {
-  stroke-width: calc(6 * var(--px));
+/* Bar lines dashed, to tell them from the boxes' edges; a selected one shows its handle rather than thickening. */
+.layout-bar {
+  stroke-dasharray: calc(6 * var(--px)) calc(4 * var(--px));
 }
 
 .layout-label {

@@ -28,6 +28,7 @@ import type { PageLayout } from "./layout";
 import {
   BoxHandles,
   handleAt,
+  LineHandle,
   ModeToggle,
   PageCanvas,
   PageNav,
@@ -252,30 +253,37 @@ function PageEditor({
     return null;
   }
 
-  // One of the selected box's bar lines near a point.
-  function barAt(q: Point, scale: number): number | null {
-    if (!selected) return null;
-    const { box, barLines } = systems[selected.system];
-    if (q.y < box.top * H - LINE_REACH / scale || q.y > box.bottom * H + LINE_REACH / scale) return null;
-    let best: number | null = null;
+  // The bar line nearest a point, of any system (decided 2026-11-12: one tap selects a bar line, without selecting its
+  // box first); the selected system's first where boxes overlap.
+  function barAt(q: Point, scale: number): { system: number; bar: number } | null {
+    const order = systems.map((_, i) => i).sort((a, b) => Number(b === selected?.system) - Number(a === selected?.system));
+    let best: { system: number; bar: number } | null = null;
     let bestDist = LINE_REACH;
-    barLines.forEach((x, j) => {
-      const dist = Math.abs(x * W - q.x) * scale;
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = j;
-      }
-    });
+    for (const i of order) {
+      const { box, barLines } = systems[i];
+      if (q.y < box.top * H - LINE_REACH / scale || q.y > box.bottom * H + LINE_REACH / scale) continue;
+      barLines.forEach((x, j) => {
+        const dist = Math.abs(x * W - q.x) * scale;
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = { system: i, bar: j };
+        }
+      });
+    }
     return best;
   }
 
   const viewport = useViewport<Grab>(image, {
+    // A selected bar line is dragged by itself (or its handle); a selected box by its handles.
     grab: (q, scale) => {
       if (mode !== "hand" || !selected) return null;
+      if (selected.bar !== null) {
+        const { box, barLines } = systems[selected.system];
+        const near = Math.abs(barLines[selected.bar] * W - q.x) * scale < LINE_REACH && q.y >= box.top * H - LINE_REACH / scale && q.y <= box.bottom * H + LINE_REACH / scale;
+        return near ? { kind: "bar", index: selected.bar } : null;
+      }
       const handle = handleAt(systems[selected.system].box, q, { width: W, height: H }, scale);
-      if (handle) return { kind: "box", handle };
-      const bar = barAt(q, scale);
-      return bar === null ? null : { kind: "bar", index: bar };
+      return handle ? { kind: "box", handle } : null;
     },
     drag: (grabbed, q) => {
       if (!selected) return;
@@ -306,7 +314,7 @@ function PageEditor({
         const label = labelAt(q, scale);
         if (label !== null) return setSelected({ system: label, bar: null });
         const bar = barAt(q, scale);
-        if (bar !== null && selected) return setSelected({ system: selected.system, bar });
+        if (bar) return setSelected(bar);
         const system = systemAt(systems, frac(q), selected?.system ?? null);
         return setSelected(system === null ? null : { system, bar: null });
       }
@@ -418,7 +426,7 @@ function PageEditor({
                   {system.barLines.map((x, j) => (
                     <line
                       key={j}
-                      className={isSelected && selected?.bar === j ? "layout-bar selected" : "layout-bar"}
+                      className="layout-bar"
                       x1={x * W}
                       x2={x * W}
                       y1={top * H}
@@ -444,7 +452,15 @@ function PageEditor({
                 </g>
               );
             })}
-            {selected && systems[selected.system] && <BoxHandles box={systems[selected.system].box} size={{ width: W, height: H }} scale={s} />}
+            {selected && systems[selected.system] && selected.bar === null && <BoxHandles box={systems[selected.system].box} size={{ width: W, height: H }} scale={s} />}
+            {selected && systems[selected.system] && selected.bar !== null && systems[selected.system].barLines[selected.bar] !== undefined && (
+              <LineHandle
+                x={systems[selected.system].barLines[selected.bar] * W}
+                top={systems[selected.system].box.top * H}
+                bottom={systems[selected.system].box.bottom * H}
+                scale={s}
+              />
+            )}
             {rubber && (
               <rect
                 className="editor-rubber"

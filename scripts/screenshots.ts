@@ -20,7 +20,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
 import { join, relative } from "node:path";
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "playwright";
 import { THEMES } from "../apps/web/src/themes.ts";
 import { writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
 
@@ -286,6 +286,13 @@ async function sideways(page: Page): Promise<string[]> {
   });
 }
 
+// A click in the middle of an element (an SVG shape the page editors draw), where a person would tap it.
+async function clickCentre(page: Page, locator: Locator): Promise<void> {
+  const box = (await locator.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.waitForTimeout(300);
+}
+
 // The narrow screen shows the panel only when no artifact is open: closing one goes back to it.
 async function projectActions(page: Page, id: string) {
   await open(page, `#/projects/${id}`);
@@ -317,6 +324,9 @@ function shots(seed: Seed): Shot[] {
     ...seed.artifacts.map((a, i) => ({ name: `02-artifact-${String(i + 1).padStart(2, "0")}-${a.title.toLowerCase().replace(/\W+/g, "-")}`, take: (p: Page) => open(p, a.hash) })),
     { name: "03-stage-details", take: (p) => open(p, `${project(seed.done)}/stages/${seed.stageIds.find((s) => s.title === "layout")!.id}`) },
     { name: "04-fix-layout-editor", take: (p) => open(p, seed.wipEditor) },
+    // A box selected (its handles), and a bar line selected with one tap (its handle).
+    { name: "04b-fix-layout-box-selected", layouts: ["wide", "narrow"], take: (p) => open(p, seed.wipEditor).then(() => clickCentre(p, p.locator(".layout-label").nth(1))) },
+    { name: "04c-fix-layout-bar-selected", layouts: ["wide", "narrow"], take: (p) => open(p, seed.wipEditor).then(() => clickCentre(p, p.locator(".layout-bar").nth(5))) },
     { name: "05-failed-stage", take: (p) => open(p, project(seed.failed)) },
     { name: "05b-failed-stage-details", take: (p) => open(p, `${project(seed.failed)}/stages/${seed.failedStage}`) },
     { name: "06-images-differ", take: (p) => open(p, seed.differsLayout) },

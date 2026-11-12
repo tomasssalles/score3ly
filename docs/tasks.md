@@ -131,7 +131,6 @@ The tasks below, in the file's order.
 - [Links between observations made by the model](#links-between-observations-made-by-the-model)
 - [More about the transcription in the MEI](#more-about-the-transcription-in-the-mei)
 - [Undo and redo could bring the change into view](#undo-and-redo-could-bring-the-change-into-view)
-- [Handles on the selected bar line in `fix_layout`](#handles-on-the-selected-bar-line-in-fix_layout)
 - [Show and hide the boxes and bar lines in `fix_layout`](#show-and-hide-the-boxes-and-bar-lines-in-fix_layout)
 - [Go straight to the flagged pages in `fix_layout`](#go-straight-to-the-flagged-pages-in-fix_layout)
 - [Stages that would run as no-ops stay finished](#stages-that-would-run-as-no-ops-stay-finished)
@@ -738,12 +737,6 @@ Confidence, what was confirmed, the models used, through existing elements of th
 `#optional` `#nice-to-have`
 
 As in a code editor, undoing or redoing a change on a part of the page that is zoomed out of view would pan (and zoom) to it.
-
-### Handles on the selected bar line in `fix_layout`
-
-The project owner, 2026-11-12. A selected box has handles (`docs/stages/layout.md`, "Boxes"); a selected bar line has none today, though it is dragged sideways the same way (and nudged with the arrow keys). Give it handles too, e.g. like a box's (the same size on screen at any zoom), so it is clear that it is selected and where to grab it, above all on a touch screen.
-- **A bar line selected directly with one tap or click,** also one of a box that isn't selected (today a tap selects a box, and only the selected box's bar lines can be selected).
-- **Handles easier to hit:** the handles in the middles of a box's edges, and the bar lines' handles, become longer rectangles, along their edge or line; only the corner handles stay squares.
 
 ### Show and hide the boxes and bar lines in `fix_layout`
 

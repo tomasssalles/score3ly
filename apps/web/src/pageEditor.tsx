@@ -8,7 +8,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { CollapseIcon, ExpandIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
 import { pngSize } from "./pageImages";
-import { BOX_HANDLES, handlePoint, type BoxHandle } from "./fixLayout";
+import { BOX_HANDLES } from "./fixLayout";
+import { CORNER, EDGE, EDGE_SHARE, handleRect } from "./handles";
+export { handleAt } from "./handles";
 import type { Box } from "@score3ly/notation";
 
 export type Point = { x: number; y: number };
@@ -474,39 +476,20 @@ export function undoKey(event: React.KeyboardEvent, onUndo: () => void, onRedo: 
   return true;
 }
 
-// The handles of a box being resized (docs/stages/layout.md, `fix_layout`; also one's own issues in a human review):
-// a corner moves two edges, the middle of an edge one. In screen px: a pointer this close to a handle grabs it.
-const HANDLE_REACH = 22;
-
-// The handle of a box (fractions of the image) a pointer at `q` (image px) takes hold of, if any.
-export function handleAt(box: Box, q: Point, size: { width: number; height: number }, scale: number): BoxHandle | null {
-  for (const handle of BOX_HANDLES) {
-    const p = handlePoint(box, handle);
-    if (Math.hypot(p.x * size.width - q.x, p.y * size.height - q.y) * scale < HANDLE_REACH) return handle;
-  }
-  return null;
-}
-
 // A box's handles, drawn in the editor's SVG (image px), the same size on screen at any zoom; their border one screen pixel,
 // thinner than the boxes', so they don't read as boxes themselves.
 export function BoxHandles({ box, size, scale }: { box: Box; size: { width: number; height: number }; scale: number }) {
   return (
     <>
-      {BOX_HANDLES.map((handle, k) => {
-        const p = handlePoint(box, handle);
-        return (
-          <rect
-            key={k}
-            className="editor-handle"
-            x={p.x * size.width - 7 / scale}
-            y={p.y * size.height - 7 / scale}
-            width={14 / scale}
-            height={14 / scale}
-            strokeWidth={1 / scale}
-          />
-        );
-      })}
+      {BOX_HANDLES.map((handle, k) => (
+        <rect key={k} className="editor-handle" {...handleRect(box, handle, size, scale)} strokeWidth={1 / scale} />
+      ))}
     </>
   );
 }
 
+// The handle of a vertical line inside a box (a bar line in `fix_layout`), like an edge's: a bar along it, centred.
+export function LineHandle({ x, top, bottom, scale }: { x: number; top: number; bottom: number; scale: number }) {
+  const length = Math.max(CORNER / scale, (bottom - top) * EDGE_SHARE);
+  return <rect className="editor-handle" x={x - EDGE / 2 / scale} y={(top + bottom) / 2 - length / 2} width={EDGE / scale} height={length} strokeWidth={1 / scale} />;
+}
