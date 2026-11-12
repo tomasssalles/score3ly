@@ -72,6 +72,8 @@ test("a request is sent as the Gemini API expects", async () => {
   assert.equal(body.generationConfig.responseMimeType, "application/json");
   assert.deepEqual(body.generationConfig.responseJsonSchema, request.jsonSchema);
   assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "HIGH");
+  // Thought summaries, so the stream carries something while the model thinks (Cloudflare's 125 seconds).
+  assert.equal(body.generationConfig.thinkingConfig.includeThoughts, true);
 });
 
 test("cache marks are accepted and left out: Gemini caches matching prefixes by itself", async () => {

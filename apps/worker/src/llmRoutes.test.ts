@@ -746,6 +746,24 @@ function anthropicAnswer(text: string): Response {
   return new Response(events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join(""), { status: 200, headers: { "content-type": "text/event-stream" } });
 }
 
+test("a call cut off by Cloudflare (524) is a timeout, with a message that says what happened and what may help", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const gemini = await modelConfig({ provider: "ai-studio", modelId: "gemini-4-argon", pricing: { kind: "list" }, secrets: { apiKey: "TEST_GEMINI_KEY" }, name: "Gemini 524" });
+  (env as unknown as Record<string, string>).TEST_GEMINI_KEY = "g-test";
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response("error code: 524", { status: 524 })) as unknown as typeof fetch;
+  try {
+    const answer = await json(await send(`/api/model-configs/${gemini.id}/test`));
+    assert.equal(answer.status, "error");
+    assert.match(answer.error as string, /^AI Studio sent nothing for 125 seconds, and Cloudflare.*\(error 524\).*lower thinking level or a faster model/);
+  } finally {
+    globalThis.fetch = realFetch;
+    delete (env as unknown as Record<string, string>).TEST_GEMINI_KEY;
+  }
+  const row = await env.DB.prepare("SELECT error_kind, http_status FROM llm_calls WHERE model_config_id = ?").bind(gemini.id).first();
+  assert.deepEqual({ ...row }, { error_kind: "timeout", http_status: 524 });
+});
+
 test("a config's test is a real request, sent every time, recorded without a stage, counted towards the cap", async () => {
   await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
   const fake = await modelConfig();

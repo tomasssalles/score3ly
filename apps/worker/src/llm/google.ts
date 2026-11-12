@@ -77,8 +77,11 @@ function toParams(request: LlmRequest): GenerateContentParameters {
       ...(request.system ? { systemInstruction: request.system } : {}),
       ...(request.maxOutputTokens ? { maxOutputTokens: request.maxOutputTokens } : {}),
       ...(request.jsonSchema ? { responseMimeType: "application/json", responseJsonSchema: request.jsonSchema } : {}),
+      // Thought summaries are asked for so that the stream carries something while the model thinks: a long silence
+      // is cut off by Cloudflare after 125 seconds (`streamGemini`). They cost nothing more (thinking is billed by its
+      // full tokens either way), are left out of the answer (`fromResult`), and kept in the raw response.
       // Thinking levels exist from Gemini 3 on; older models take a token budget instead and refuse a level.
-      ...(request.effort ? { thinkingConfig: { thinkingLevel: THINKING_LEVELS[request.effort] } } : {}),
+      thinkingConfig: { includeThoughts: true, ...(request.effort ? { thinkingLevel: THINKING_LEVELS[request.effort] } : {}) },
     },
   };
 }

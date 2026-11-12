@@ -8,6 +8,7 @@ import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
+import { cloudflareTimeoutMessage } from "./llm/types.ts";
 import { costOf, type Price } from "./llm/prices.ts";
 import { adapterFor, supportedFamilies } from "./llm/adapters.ts";
 import {
@@ -1041,12 +1042,13 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
       .run();
     answer = { callId, cached: false, status, text: response.text, json: response.json ?? null, error, usage: response.usage, costUsd };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const httpStatus = err instanceof LlmError ? (err.status ?? null) : null;
     // No usable response, so no token counts and no cost. With an HTTP error status, the provider refused the call
     // and didn't bill it, and `auth` without one failed before anything was sent; otherwise it may have been billed
-    // (docs/llm.md, "Calling the providers").
+    // (docs/llm.md, "Calling the providers"). Except a 524: Cloudflare's, not the provider's, which cut off a call the
+    // provider may have finished and billed; its message says what happened and what may help.
+    const message = httpStatus === 524 ? cloudflareTimeoutMessage(PROVIDER_NAMES[config.provider]) : err instanceof Error ? err.message : String(err);
     const kind = err instanceof LlmError ? err.kind : "unknown";
-    const httpStatus = err instanceof LlmError ? (err.status ?? null) : null;
     await db
       .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = ?, http_status = ?, finished_at = ? WHERE id = ?")
       .bind(message, kind, httpStatus, new Date().toISOString(), callId)
