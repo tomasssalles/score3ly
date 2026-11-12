@@ -131,7 +131,6 @@ The tasks below, in the file's order.
 - [Links between observations made by the model](#links-between-observations-made-by-the-model)
 - [More about the transcription in the MEI](#more-about-the-transcription-in-the-mei)
 - [Undo and redo could bring the change into view](#undo-and-redo-could-bring-the-change-into-view)
-- [Show and hide the boxes and bar lines in `fix_layout`](#show-and-hide-the-boxes-and-bar-lines-in-fix_layout)
 - [Go straight to the flagged pages in `fix_layout`](#go-straight-to-the-flagged-pages-in-fix_layout)
 - [Stages that would run as no-ops stay finished](#stages-that-would-run-as-no-ops-stay-finished)
 - [Keep `fix_mei`'s edits through a re-run](#keep-fix_meis-edits-through-a-re-run)
@@ -737,10 +736,6 @@ Confidence, what was confirmed, the models used, through existing elements of th
 `#optional` `#nice-to-have`
 
 As in a code editor, undoing or redoing a change on a part of the page that is zoomed out of view would pan (and zoom) to it.
-
-### Show and hide the boxes and bar lines in `fix_layout`
-
-The project owner, 2026-11-12. A toggle in the editor that hides the boxes and bar lines, and shows them again, to look at the page without them (they hide what is under them, e.g. where a bar line actually is). Whether boxes and bar lines are toggled together or apart, and what the tools do while they are hidden, is to decide while building.
 
 ### Go straight to the flagged pages in `fix_layout`
 `#optional`

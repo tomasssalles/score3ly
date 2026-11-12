@@ -5,6 +5,7 @@
 // two opposite corners. Bar line: a tap adds one in the system under it (the selected one, where boxes overlap). Systems are
 // numbered top to bottom, continuing from page to page. Each change is saved at once; undo and redo per page.
 
+import { useRemembered } from "./ExtractionView";
 import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
 import type { LayoutSystem } from "@score3ly/prompts";
 import { useEffect, useRef, useState } from "react";
@@ -30,6 +31,7 @@ import {
   handleAt,
   LineHandle,
   ModeToggle,
+  ShowToggle,
   PageCanvas,
   PageNav,
   undoKey,
@@ -187,6 +189,8 @@ function PageEditor({
   change: (systems: LayoutSystem[]) => void; // sorted
   step: (move: typeof undo) => boolean;
 }) {
+  const [marks, setMarks] = useRemembered<"shown" | "hidden">("score3ly.fixLayout.marks", "shown", ["shown", "hidden"]);
+  const hidden = marks === "hidden";
   const { image, error: imageError } = usePageImage(
     () => straightPage({ page: page.recipe, angle: layout.angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION }),
     page.item,
@@ -276,7 +280,7 @@ function PageEditor({
   const viewport = useViewport<Grab>(image, {
     // A selected bar line is dragged by itself (or its handle); a selected box by its handles.
     grab: (q, scale) => {
-      if (mode !== "hand" || !selected) return null;
+      if (hidden || mode !== "hand" || !selected) return null;
       if (selected.bar !== null) {
         const { box, barLines } = systems[selected.system];
         const near = Math.abs(barLines[selected.bar] * W - q.x) * scale < LINE_REACH && q.y >= box.top * H - LINE_REACH / scale && q.y <= box.bottom * H + LINE_REACH / scale;
@@ -309,7 +313,7 @@ function PageEditor({
       );
     },
     tap: (q, scale) => {
-      if (!image) return;
+      if (!image || hidden) return;
       if (mode === "hand") {
         const label = labelAt(q, scale);
         if (label !== null) return setSelected({ system: label, bar: null });
@@ -371,6 +375,14 @@ function PageEditor({
     if (next === "box") setSelected(null);
   }
 
+  function showMarks(shown: boolean) {
+    setMarks(shown ? "shown" : "hidden");
+    if (!shown) {
+      switchMode("hand");
+      setSelected(null);
+    }
+  }
+
   const s = viewport.scale;
   const rubber = anchor && hover ? boxThrough(frac(anchor), frac(hover)) : null;
 
@@ -379,7 +391,8 @@ function PageEditor({
       {/* After a button, the keys still go to the editor (a disabled button would leave the focus nowhere). */}
       <div className="editor-toolbar page-editor-toolbar" onClick={viewport.focus}>
         <PageNav nav={nav} />
-        <ModeToggle modes={MODES} mode={mode} onChange={switchMode} />
+        <ModeToggle modes={MODES} mode={mode} onChange={switchMode} enabled={(m) => !hidden || m === "hand"} />
+        <ShowToggle shown={!hidden} onChange={showMarks} what="boxes and bar lines" />
         <ZoomTools viewport={viewport}>
           <button
             type="button"
@@ -409,7 +422,7 @@ function PageEditor({
         error={imageError ?? error}
         notice={<ImagesDiffer page={page.recipe} />}
       >
-        {image && (
+        {image && !hidden && (
           <>
             {systems.map((system, i) => {
               const color = LAYOUT_COLOR_HEX[i % LAYOUT_COLOR_HEX.length];

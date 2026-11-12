@@ -38,7 +38,7 @@ import { Picker } from "./fieldList";
 import { NO_TEXT } from "./humanReview";
 import { ImagesDiffer } from "./ImagesDiffer";
 import type { PageLayout } from "./layout";
-import { BoxHandles, handleAt, ModeToggle, PageCanvas, PageNav, usePageImage, useViewport, ZoomTools, type Point } from "./pageEditor";
+import { BoxHandles, handleAt, ModeToggle, PageCanvas, PageNav, ShowToggle, usePageImage, useViewport, ZoomTools, type Point } from "./pageEditor";
 import { straightPage } from "./pageImages";
 import type { Artifact, Chooser } from "./pipeline";
 import type { PageRecipe } from "./rasterize";
@@ -506,7 +506,17 @@ function Screen({
           </button>
         </div>
         </div>
-        {showOriginal && <ModeToggle modes={MODES} mode={mode} onChange={switchMode} />}
+        {showOriginal && <ModeToggle modes={MODES} mode={mode} onChange={switchMode} enabled={(m) => boxes === "shown" || m === "hand"} />}
+        {showOriginal && (
+          <ShowToggle
+            shown={boxes === "shown"}
+            onChange={(shown) => {
+              setBoxes(shown ? "shown" : "hidden");
+              if (!shown) switchMode("hand");
+            }}
+            what="boxes"
+          />
+        )}
         {showOriginal && <ZoomTools viewport={viewport} />}
         <Picker
           value={VIEWS.find((v) => v.value === view)!.label}
@@ -531,16 +541,14 @@ function Screen({
             </button>
           </div>
         )}
-        <DropdownMenu
-          icon={<MoreIcon />}
-          label="More"
-          groups={[
-            [
-              { label: boxes === "shown" ? "Hide the boxes" : "Show the boxes", onSelect: () => setBoxes(boxes === "shown" ? "hidden" : "shown") },
-            ],
-            ...(showOriginal ? [[{ label: "Add clarification", onSelect: () => { setSelected(null); switchMode("box"); } }]] : []),
-          ]}
-        />
+        {/* Only the original's: "Hide the boxes" moved to the toolbar (ShowToggle, 2026-11-12). */}
+        {showOriginal && (
+          <DropdownMenu
+            icon={<MoreIcon />}
+            label="More"
+            groups={[[{ label: "Add clarification", onSelect: () => { setSelected(null); setBoxes("shown"); switchMode("box"); } }]]}
+          />
+        )}
       </div>
       {showOriginal && <p className="editor-hint">{hint}</p>}
       <div className="human-review-panes">

@@ -4,6 +4,7 @@
 // a dot). Zooming and panning work as in every editor (pageEditor.tsx). Each change is saved at once. Undo and redo
 // go through a page's changes since the editor was opened (§5.4).
 
+import { useRemembered } from "./ExtractionView";
 import type { SkewLine } from "@score3ly/imaging";
 import { useEffect, useRef, useState } from "react";
 import { fetchJsonContent, putContent, recordOutputs, type Project } from "./api";
@@ -13,6 +14,7 @@ import { canRedo, canUndo, pushState, redo, startHistory, undo, type History } f
 import { HandIcon, LineIcon, TrashIcon } from "./icons";
 import {
   ModeToggle,
+  ShowToggle,
   PageCanvas,
   PageNav,
   undoKey,
@@ -101,6 +103,8 @@ function PageEditor({
   nav: PageNavigation;
   onEdited?: () => void;
 }) {
+  const [marks, setMarks] = useRemembered<"shown" | "hidden">("score3ly.fixSkew.marks", "shown", ["shown", "hidden"]);
+  const hidden = marks === "hidden";
   const { image, error: imageError } = usePageImage(async () => (await pageImage(page.recipe)).png, page.item);
   const [lines, setLinesState] = useState<SkewLine[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -198,7 +202,7 @@ function PageEditor({
     // The selected line's end near the pointer.
     grab: (q, scale) => {
       const current = linesRef.current;
-      if (mode !== "hand" || selected === null || !current?.[selected]) return null;
+      if (hidden || mode !== "hand" || selected === null || !current?.[selected]) return null;
       let best: Grab | null = null;
       let bestDist = HANDLE_REACH;
       ends(current[selected]).forEach((end, e) => {
@@ -224,7 +228,7 @@ function PageEditor({
     },
     release: () => linesRef.current && change(linesRef.current),
     tap: (q, scale) => {
-      if (!image || !lines) return;
+      if (!image || !lines || hidden) return;
       if (mode === "hand") {
         setSelected(lineAt(q, scale));
         return;
@@ -273,7 +277,18 @@ function PageEditor({
       {/* After a button, the keys still go to the editor (a disabled button would leave the focus nowhere). */}
       <div className="editor-toolbar page-editor-toolbar" onClick={viewport.focus}>
         <PageNav nav={nav} />
-        <ModeToggle modes={MODES} mode={mode} onChange={switchMode} />
+        <ModeToggle modes={MODES} mode={mode} onChange={switchMode} enabled={(m) => !hidden || m === "hand"} />
+        <ShowToggle
+          shown={!hidden}
+          onChange={(shown) => {
+            setMarks(shown ? "shown" : "hidden");
+            if (!shown) {
+              switchMode("hand");
+              setSelected(null);
+            }
+          }}
+          what="lines"
+        />
         <ZoomTools viewport={viewport}>
           <button
             type="button"
@@ -302,7 +317,7 @@ function PageEditor({
         error={imageError ?? loadError ?? saveError}
         notice={<ImagesDiffer page={page.recipe} />}
       >
-        {image && lines && (
+        {image && lines && !hidden && (
           <>
             {lines.map((line, i) => {
               const [a, b] = ends(line);

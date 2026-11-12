@@ -6,7 +6,7 @@
 // phone the user zooms in close for each point and zooms out and pans in between.
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { CollapseIcon, ExpandIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
+import { CollapseIcon, ExpandIcon, EyeIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
 import { pngSize } from "./pageImages";
 import { BOX_HANDLES } from "./fixLayout";
 import { CORNER, EDGE, EDGE_SHARE, handleRect } from "./handles";
@@ -396,14 +396,17 @@ export function PageNav({ nav }: { nav: PageNavigation }) {
 }
 
 // The editor's modes (tools), icons only.
+// `enabled`: which modes can be picked now (all by default); e.g. only the hand while the marks are hidden.
 export function ModeToggle<M extends string>({
   modes,
   mode,
   onChange,
+  enabled,
 }: {
   modes: { value: M; label: string; title: string; icon: ReactNode }[];
   mode: M;
   onChange: (mode: M) => void;
+  enabled?: (mode: M) => boolean;
 }) {
   return (
     <div className="editor-tools editor-modes" role="radiogroup" aria-label="Mode">
@@ -416,11 +419,32 @@ export function ModeToggle<M extends string>({
           className="editor-mode"
           aria-label={m.label}
           title={m.title}
+          disabled={enabled ? !enabled(m.value) : false}
           onClick={() => onChange(m.value)}
         >
           {m.icon}
         </button>
       ))}
+    </div>
+  );
+}
+
+// Shows or hides what an editor draws over the page (boxes, bar lines, lines), to see the page itself (decided
+// 2026-11-12, the project owner); remembered on the device. While they are hidden, the page can only be panned and
+// zoomed: the editor deselects and keeps only the hand.
+export function ShowToggle({ shown, onChange, what }: { shown: boolean; onChange: (shown: boolean) => void; what: string }) {
+  return (
+    <div className="editor-tools editor-modes">
+      <button
+        type="button"
+        className="editor-mode"
+        aria-pressed={shown}
+        aria-label={shown ? `Hide the ${what}` : `Show the ${what}`}
+        title={shown ? `Hide the ${what}` : `Show the ${what}`}
+        onClick={() => onChange(!shown)}
+      >
+        <EyeIcon />
+      </button>
     </div>
   );
 }
