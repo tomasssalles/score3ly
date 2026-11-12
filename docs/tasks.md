@@ -582,6 +582,10 @@ When the pipeline is finished: run it on most of the test set with a real model,
 `#experiment` `#optional`
 
 If extraction turns out painfully slow: faint labelled lines for the staff lines and ledger-line positions (E4, G4, …, C6) drawn on each crop, so the model reads a label instead of judging a pixel height, its biggest time sink in the manual run (§13). It needs the staff lines detected, which is error-prone, and a wrong detection would make the extraction worse.
+- **Revisited** (the project owner, 2026-11-12): even Opus 5.5 still miscounts staff lines now and then ("is this a D or an F?"). Against it: built in code, easily wrong on bad scans of old scores, and wrong guides would make the extraction much worse than none; guides drawn over the ink would have to stand out from it, and in grayscale (colour isn't decided, "Decide between colour, grayscale and binarized") a line on top of a line among other lines hardly can.
+- **Proposed shape, to avoid both** (not decided): **a ruler beside the music, never over it.** A narrow white strip added to the left of each stretch crop (stretch crops are short, so the music is never far from it), with a tick at each line and space of each staff, continuing a few ledger positions above and below, labelled by position (lines 1–5 and the spaces, or the pitch names for the clef in effect), not drawn on the ink, so grayscale is enough. The model sees the staff lines run into the ruler, so a ruler that doesn't match them is visible as such.
+- **Detection is partly there:** `skew_analysis` finds the staves' lines (`findSkew`, `docs/stages/pages.md`); a ruler needs each staff's five lines measured locally at the stretch's left edge (scanned lines curve), and is drawn only where five evenly spaced lines are found clearly, else that staff gets none.
+- **Experiment before building:** take systems where Opus misread a pitch, add rulers to their crops (a script, or by hand), and compare its answers with and without, in a chat as in the manual run (§13).
 
 ### Sort the statistics' project lists by name
 `#optional`
