@@ -143,7 +143,7 @@ The tasks below, in the file's order.
 - [Show that a long call is making progress](#show-that-a-long-call-is-making-progress)
 - [The model configs' list on the settings page](#the-model-configs-list-on-the-settings-page)
 - [The default name follows the form when cloning](#the-default-name-follows-the-form-when-cloning)
-- [Stop cancels the LLM call](#stop-cancels-the-llm-call)
+- [Check what stopped calls cost at the providers](#check-what-stopped-calls-cost-at-the-providers)
 
 ## The tasks
 
@@ -801,10 +801,11 @@ Proposed by the project owner (2026-11-09). The list of model configs gets long 
 
 Proposed by the project owner (2026-11-09). `docs/llm.md`, "The default name": "Claude Opus 5.5 (Bedrock) · high". When a config is cloned from one with the default name, the clone's name doesn't change with its fields, so the user has to rewrite it by hand, which is awkward since "·" isn't on a keyboard (e.g. adding " · high" when the clone picks an effort the original left at the model's default). Instead: recognize that the name is the default one, and keep it updated as the fields change, until the user types a name of their own. To decide: whether the create form does the same (there an empty name already gives the default one, so it matters less).
 
-### Stop cancels the LLM call
+### Check what stopped calls cost at the providers
+`#owner` `#manual-test`
 
-Today Stop in the browser doesn't cancel the provider's call: the Worker calls the adapter without an abort signal (`llmRoutes.ts`), so the call runs to its end and is billed in full, its answer thrown away. Found 2026-11-09: an `extract` call on Gemini 3.1 Pro Preview through OpenRouter, stopped by the project owner, is on OpenRouter's dashboard (about $0.03 to $0.04, billed), while its row in `llm_calls` stays `running`, with no cost, so the Costs tab and the spending cap leave it out. Long calls (minutes) make this matter more: a user who stops a slow call to try another model pays for both.
-- **What to do:** pass the abort signal of the browser's request through the Worker to the adapter (every adapter's `send` takes one already), so that a stopped stage cancels its call. Record the cancelled call as such (`aborted`), with whatever usage is known by then, rather than leaving it `running`.
-- **To check per provider:** what a call cancelled mid-stream is billed. Believed (not checked): with streaming, the generation stops and only the tokens produced so far are billed; OpenRouter passes the cancellation on for some providers only. Whether the usage so far can be read at all after cancelling (usually it comes at the end of the stream).
-- **To check:** whether the Workers runtime (and `wrangler dev`, and the desktop app's Node server) signals the Worker when the browser's request goes away, and how (`request.signal`).
-- **Also:** whether anything ever closes a row left `running` (a call interrupted by a closed tab, or today by Stop).
+Stopping a stage cancels its LLM call down to the provider, and records the call as stopped, of unknown cost (built 2026-11-13, `docs/llm.md`, "Stopped calls"). What is left needs real calls and the providers' consoles; each check is one cheap call: a stage started on a slow model (an `extract` at high effort), stopped after a few seconds.
+- **On the deployed app, with the fake model `fake-slow`** (free): does the Worker learn that the browser went away (`enable_request_signal`), and does it live long enough to record it? Make a config with model string `fake-slow` on the Fake provider, start a stage, Stop after a few seconds: the Worker's log (Workers Logs) should show the `/llm` request ending at once, not after 30 s, and the call's row closed as stopped.
+- **Per provider (Anthropic, Bedrock, Google AI Studio, Vertex AI, OpenRouter):** is the call cancelled at the provider (its console or logs show it stopped, not finished), and what is it billed: nothing, the tokens produced until the stop, or the whole answer? OpenRouter is said to pass the cancellation on for some providers only.
+- **Per provider: can the usage so far be read after cancelling?** It usually comes at the end of the stream. If it can, record it and the cost so far instead of an unknown cost (`aborted` calls in `apps/worker/src/llmRoutes.ts`).
+- **If a provider bills the whole answer anyway,** say so somewhere the user sees it before stopping (the Stop button's tooltip, or the user guide).

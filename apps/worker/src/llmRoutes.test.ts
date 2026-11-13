@@ -261,6 +261,62 @@ test("VAT: a call keeps its cost before VAT and the rate then; costs, the stage'
   }
 });
 
+test("a stopped call: the browser's abort reaches the provider, and the call is recorded as stopped, of unknown cost", async () => {
+  const config = await modelConfig({ model: "fake-slow" });
+  const stage = await runningStage(config.id);
+  const stop = new AbortController();
+  const started = Date.now();
+  const pending = app.request(
+    `/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request: request() }), signal: stop.signal },
+    env,
+  );
+  setTimeout(() => stop.abort(), 100);
+  const answer = await json(await pending);
+  assert.ok(Date.now() - started < 5000, "the fake's 30 s wait was cut short");
+  assert.equal(answer.status, "error");
+  const row = (await calls()).at(-1)!;
+  assert.equal(row.status, "error");
+  assert.equal(row.error_kind, "aborted");
+  assert.match(row.error as string, /^Stopped: /);
+  assert.equal(row.input_tokens, null);
+  assert.equal(row.cost_usd, null);
+  assert.ok(row.finished_at);
+});
+
+test("Stop, and a new start of an interrupted stage, close the stage's calls still marked running", async () => {
+  const config = await modelConfig();
+  const running = async (stageId: string) =>
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at) VALUES (?, ?, ?, ?, 'running', ?)")
+      .bind(crypto.randomUUID(), stageId, config.id, crypto.randomUUID(), new Date().toISOString())
+      .run();
+  const callsOf = async (stageId: string) =>
+    (await env.DB.prepare("SELECT status, error_kind, error FROM llm_calls WHERE stage_id = ?").bind(stageId).all<Record<string, string>>()).results;
+
+  const stopped = await runningStage(config.id);
+  await running(stopped.stageId);
+  assert.equal((await send(`/api/projects/${stopped.projectId}/stages/${stopped.stageId}/stop`)).status, 200);
+  const [closed] = await callsOf(stopped.stageId);
+  assert.deepEqual([closed.status, closed.error_kind], ["error", "aborted"]);
+  assert.match(closed.error, /^Stopped: the stage was stopped/);
+
+  // A run whose heartbeat stopped (a closed tab), started again.
+  const interrupted = await runningStage(config.id);
+  await running(interrupted.stageId);
+  await env.DB.prepare("UPDATE stages SET heartbeat_at = '2000-01-01T00:00:00.000Z' WHERE id = ?").bind(interrupted.stageId).run();
+  const restarted = await send(`/api/projects/${interrupted.projectId}/stages/${interrupted.stageId}/start`, {
+    stepVersion: 1,
+    config: {},
+    stageKey: "d".repeat(64),
+    pageCount: 1,
+    inputIds: [],
+  });
+  assert.equal(restarted.status, 200, await restarted.clone().text());
+  const [old] = await callsOf(interrupted.stageId);
+  assert.deepEqual([old.status, old.error_kind], ["error", "aborted"]);
+  assert.match(old.error, /^Interrupted: /);
+});
+
 test("a call is made, recorded with its tokens and cost, and an identical one is served from the record", async () => {
   await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
   const config = await modelConfig();

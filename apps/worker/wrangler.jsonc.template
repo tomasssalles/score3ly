@@ -8,6 +8,9 @@
   "name": "score3ly",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
+  // request.signal aborts when the browser goes away (Stop, a closed tab), and with it the LLM call it waits for
+  // (docs/llm.md, "Stopped calls"). The default from the compatibility date 2026-11-17 on.
+  "compatibility_flags": ["enable_request_signal"],
   // The web app's build output, served as static assets by this Worker.
   // Requests that don't match a file fall through to the Worker code.
   "assets": { "directory": "../web/dist" },

@@ -2,7 +2,8 @@
 // docs/llm.md). Its answer follows the request's JSON schema with the simplest values (empty arrays, zeros, the first
 // option), and its "tokens" are estimated from the request's text and images. Some model names make it fail on purpose:
 // "fake-error" (a server error), "fake-refusal", "fake-cut-off", "fake-unparseable", "fake-other-model" (another model
-// answers).
+// answers). "fake-slow" answers as the fake does, but only after FAKE_SLOW_MS, unless its call is stopped first: for
+// trying Stop on a call that is under way (docs/llm.md, "Stopped calls").
 // Three steps get more than that, so the pipeline runs end to end: `layout` (six systems on every page, as many as on a
 // real page of piano music, each with three bar lines, so that the later stages have systems to work on), `extract`,
 // whose answer must cover exactly the stretches asked for, with a voice on every staff (the fake reads the request's JSON and answers with whole-measure
@@ -26,8 +27,9 @@ export class FakeProvider implements LlmProvider {
     this.id = id;
   }
 
-  async send(request: LlmRequest): Promise<LlmResponse> {
+  async send(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse> {
     if (request.model === "fake-error") throw new LlmError("server", FAKE_ERROR, 500);
+    if (request.model === "fake-slow") await slowly(FAKE_SLOW_MS, signal);
     const unparseable = request.model === "fake-unparseable" && request.jsonSchema;
     const answer = unparseable ? "Not JSON, as asked." : request.jsonSchema ? (fakeLayout(request) ?? fakeExtract(request) ?? fakeReview(request) ?? fakeApplyReview(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
     const text = typeof answer === "string" ? answer : JSON.stringify(answer);
@@ -44,6 +46,21 @@ export class FakeProvider implements LlmProvider {
       raw: { fake: true },
     };
   }
+}
+
+export const FAKE_SLOW_MS = 30_000;
+
+// Waits, or stops as a provider's call does when its request is aborted.
+function slowly(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const stopped = () => reject(new LlmError("aborted", "The request was aborted."));
+    if (signal?.aborted) return stopped();
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      stopped();
+    });
+  });
 }
 
 // About what Claude would bill: a token per 4 characters of text, and each image at Claude's most per image (4784

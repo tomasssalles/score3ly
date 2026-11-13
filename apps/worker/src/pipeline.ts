@@ -350,6 +350,18 @@ async function entry(
   return row && { position: row.position, stage: row, carried: row.carried === 1 };
 }
 
+// The LLM calls of a stage still marked running, once its run is over (stopped, or interrupted and started again):
+// recorded as errors of kind `aborted`, without tokens, so the costs count them as calls of unknown cost (docs/llm.md,
+// "Stopped calls"). The Worker that made one may still record its real end afterwards, which then replaces this.
+export const STOPPED_CALL = "Stopped: the stage was stopped while this call ran. Whether the provider billed it is unknown.";
+export const INTERRUPTED_CALL = "Interrupted: the stage's run ended while this call ran. Whether the provider billed it is unknown.";
+
+function closeRunningCalls(db: D1Database, stageId: string, now: string, message: string): D1PreparedStatement {
+  return db
+    .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = 'aborted', finished_at = ? WHERE stage_id = ? AND status = 'running'")
+    .bind(message, now, stageId);
+}
+
 function isStale(stage: StageRow, now: number): boolean {
   return stage.status === "running" && (stage.heartbeat_at === null || now - Date.parse(stage.heartbeat_at) > STALE_MS);
 }
@@ -499,6 +511,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       return c.json({ reused: true, stageId: reusable.id });
     }
     await db.batch([
+      // A call of an earlier run of the stage still marked running (a closed tab) is over (docs/llm.md, "Stopped calls").
+      closeRunningCalls(db, sid, iso, INTERRUPTED_CALL),
       db
         .prepare(
           "UPDATE stages SET status = 'running', step_version = ?, config_json = ?, model_config_id = ?, stage_key = ?, page_count = ?, error = NULL, started_at = COALESCE(started_at, ?), heartbeat_at = ?, finished_at = NULL WHERE id = ?",
@@ -645,7 +659,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Stops a running stage: it is marked stopped and leaves the pipeline, its outputs are thrown away, and a new
-  // planned stage with the same config takes its place (docs/database.md). Its LLM calls would stay.
+  // planned stage with the same config takes its place (docs/database.md). Its LLM calls stay; one still running is
+  // recorded as stopped, of unknown cost (docs/llm.md, "Stopped calls").
   app.post("/api/projects/:pid/stages/:sid/stop", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
@@ -659,6 +674,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       db
         .prepare("UPDATE stages SET status = 'stopped', finished_at = ?, heartbeat_at = NULL WHERE id = ?")
         .bind(now, sid),
+      closeRunningCalls(db, sid, now, STOPPED_CALL),
       db
         .prepare("DELETE FROM output_inputs WHERE output_id IN (SELECT id FROM outputs WHERE stage_id = ?)")
         .bind(sid),

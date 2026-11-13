@@ -808,7 +808,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (unsupported) return c.json({ error: `The model config "${row.name}" ${unsupported}.`, code: "unsupported_model_config" }, 409);
     if (row.provider === "fake" || row.provider === "fake-dev") return c.json({ error: "Only configs of real providers can be tested." }, 400);
     const startedAt = Date.now();
-    const sent = await sendCall(c.env, row, TEST_REQUEST, `test:${crypto.randomUUID()}`, null);
+    const sent = await sendCall(c.env, row, TEST_REQUEST, `test:${crypto.randomUUID()}`, null, c.req.raw.signal);
     if ("refusal" in sent) {
       // A test is never served from the record: the cap's note about calls already paid for doesn't apply.
       const error = sent.refusal.code === "spending_cap" ? sent.refusal.error.replace(" Calls already paid for are still served.", "") : sent.refusal.error;
@@ -921,7 +921,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     }
 
     logFields(c.req.raw, { answer: "sent", provider: config.provider });
-    const sent = await sendCall(c.env, row, request, requestKey, sid);
+    const sent = await sendCall(c.env, row, request, requestKey, sid, c.req.raw.signal);
     logFields(c.req.raw, "refusal" in sent ? { refused: sent.refusal.code } : { status: sent.status, outputTokens: sent.usage?.outputTokens });
     if ("refusal" in sent) return c.json({ error: sent.refusal.error, code: sent.refusal.code }, sent.refusal.status);
     return c.json(sent);
@@ -951,7 +951,12 @@ export const TEST_REQUEST: CallRequest = {
 // is missing or the app has no adapter.
 type Refusal = { refusal: { error: string; code: string; status: 409 | 429 } };
 
-async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, requestKey: string, stageId: string | null): Promise<CallAnswer | Refusal> {
+// A call cancelled because the browser stopped waiting for it: of unknown cost (docs/llm.md, "Stopped calls").
+const ABORTED_CALL = "Stopped: the app stopped waiting for this call (Stop, or the app was closed). Whether the provider billed it is unknown.";
+
+// `signal`: the browser's request, which aborts when the browser stops waiting (Stop, a closed tab), and with it the
+// provider's call (docs/llm.md, "Stopped calls").
+async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, requestKey: string, stageId: string | null, signal?: AbortSignal): Promise<CallAnswer | Refusal> {
   const db = env.DB;
   const config = toModelConfig(row);
   // Then what a priced call needs: a price, room under the spending cap, and the secrets. Free and unpriced calls
@@ -999,7 +1004,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
       messages: providerMessages(request),
       maxOutputTokens: request.maxOutputTokens,
       jsonSchema: request.jsonSchema,
-    });
+    }, signal);
     // An answer that isn't valid JSON comes back with its usage like any other, so its cost is counted.
     const status =
       response.unexpectedModel !== undefined ? "error"
@@ -1055,8 +1060,11 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
     // and didn't bill it, and `auth` without one failed before anything was sent; otherwise it may have been billed
     // (docs/llm.md, "Calling the providers"). Except a 524: Cloudflare's, not the provider's, which cut off a call the
     // provider may have finished and billed; its message says what happened and what may help.
-    const message = httpStatus === 524 ? cloudflareTimeoutMessage(PROVIDER_NAMES[config.provider]) : err instanceof Error ? err.message : String(err);
     const kind = err instanceof LlmError ? err.kind : "unknown";
+    const message =
+      httpStatus === 524 ? cloudflareTimeoutMessage(PROVIDER_NAMES[config.provider])
+      : kind === "aborted" || signal?.aborted ? ABORTED_CALL
+      : err instanceof Error ? err.message : String(err);
     await db
       .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = ?, http_status = ?, finished_at = ? WHERE id = ?")
       .bind(message, kind, httpStatus, new Date().toISOString(), callId)

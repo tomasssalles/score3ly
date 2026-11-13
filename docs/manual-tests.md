@@ -53,6 +53,7 @@ mk '{"provider":"fake","modelString":"fake-refusal",'"$F"',"name":"Fails: refusa
 mk '{"provider":"fake","modelString":"fake-cut-off",'"$F"',"name":"Fails: cut off"}'
 mk '{"provider":"fake","modelString":"fake-unparseable",'"$F"',"name":"Fails: not JSON"}'
 mk '{"provider":"fake","modelString":"fake-other-model",'"$F"',"name":"Fails: other model"}'
+mk '{"provider":"fake-dev","modelString":"fake-slow","family":"fake","pricing":{"kind":"list","reference":"fake"},"name":"Slow (priced)"}'  # answers after 30 s, unless stopped
 mk '{"provider":"anthropic","modelId":"claude-opus-5-5","pricing":{"kind":"list"},"name":"No key","secrets":{"apiKey":"NOT_SET"}}'
 curl -s $W/model-configs | grep -o '"id":"[^"]*","name":"[^"]*"'            # the ids
 ```
@@ -167,6 +168,7 @@ Steps marked ★ are part of the smoke run (about 15 minutes). Start with a new 
 3. → "Change config" on Layout: "Fake model", with the box ticked; Run. ✓ Layout runs and the pipeline goes on to the end, every LLM stage on "Fake model". A Retry alone would have kept the failing config: a stage keeps the config it was given.
    → Delete a config that planned stages name (`curl -X DELETE $W/model-configs/<id>`). ✓ Their cards show it with " (deleted)", in red where the stage still has to start with it; Run says "Layout" can't run: its model config, "…", was deleted; "Change config" shows it as the current one, Save refused until another is picked.
 4. ★ → New project from Bendel, Run, and press Stop in the head while Rasterize is halfway. ✓ The stage leaves the pipeline, a planned Rasterize is ready again, nothing is lost but its partial work. → Run. ✓ It starts from the beginning (page images found in the device cache go faster).
+   → Make "Slow (priced)" the default. New project, Run; when Layout has waited a few seconds, Stop. ✓ Layout leaves the pipeline at once. Statistics → Costs: one more LLM call of unknown cost. (In `wrangler dev` the Worker's log still shows the call answered after its 30 s: the local proxy doesn't pass the disconnect on; on the desktop server it ends at once.) Make "Fake model" the default again.
 5. ★ → During Skew detection, close the tab. ✓ The browser asks first (its own wording). → Close anyway; open the app again at the project's URL. ✓ Skew detection shows as running, without a bar. → Wait about 3 minutes (don't reload). ✓ It turns "Interrupted" by itself, red. → Retry. ✓ The pages saved before the close aren't done again (the run is quicker than a fresh one).
 6. → While Analyze runs, ☰ → Settings, then back. ✓ Known gap: the run is aborted; Analyze shows running, then interrupted after 3 minutes; Retry works.
 7. → While a stage runs: project "⋮" → Delete project. ✓ Refused while a stage runs, with a message saying so.
