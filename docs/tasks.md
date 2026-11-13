@@ -112,7 +112,6 @@ The tasks below, in the file's order.
 - [Sort the statistics' project lists by name](#sort-the-statistics-project-lists-by-name)
 - [Search the statistics' project lists](#search-the-statistics-project-lists)
 - [Keep a run going while another page of the app is open](#keep-a-run-going-while-another-page-of-the-app-is-open)
-- [The build's warning about large chunks](#the-builds-warning-about-large-chunks)
 - [Check Access's token in the Worker](#check-accesss-token-in-the-worker)
 - [Build the test environments](#build-the-test-environments)
 - [An Android app](#an-android-app)
@@ -606,15 +605,6 @@ Not for the first release (decided 2026-11-03): the navigation it protects (Sett
 Today a run belongs to the project view: opening a menu page (Statistics, Settings, About) or another project unmounts it, and its cleanup aborts the run (`ProjectView.tsx`, the first `useEffect`), without a warning, unlike closing the tab. The outputs saved stay; an LLM answer on its way is lost, although it is paid for; the stage shows as running until its heartbeat is 3 minutes old, then as interrupted, and a retry asks only for what is missing (docs/database.md). The same in the web app and in cadenza. Switching to another window doesn't stop a run (a hidden window's timers are slowed, but the heartbeat stays within the 3 minutes).
 
 To do: move the runner (the abort controller, the heartbeat, the Auto loop and the wake lock) out of the project view to the app's top level, so a run goes on whatever the app shows, and the project view only shows it. Then: where the user sees a run going on while elsewhere (e.g. in the header or the project picker), and what a second project's Run does while one runs (one run at a time, as the calls are sequential, §10).
-
-### The build's warning about large chunks
-`#nice-to-have`
-
-`npm run build` (and so `npm run deploy`) warns that a chunk is over 500 kB after minification: `index`, the app itself, the only file every first visit downloads (cached afterwards). Harmless for the deployment (Cloudflare allows 25 MiB per file).
-- **The workers don't count** (found 2026-11-13): Vite builds each Web Worker apart and copies it as a plain file, so its size check never looks at them (`renderWorker`, Verovio, 8.2 MB; `pdf.worker` 1.3 MB; `meiCheckWorker` 1.1 MB; `pageImageWorker` 511 kB). Its limit (`build.chunkSizeWarningLimit` in `apps/web/vite.config.ts`) is one number for every chunk; no setting leaves files out.
-- **pdf.js taken out of `index`** (2026-11-13): 1,206 kB (368 kB gzipped) before, 719 kB (220 kB gzipped) after. It came in two ways, both needed: `@score3ly/imaging`'s index re-exports `pdfPages.ts`, which imports pdf.js, and the main thread imports constants from it (now `"sideEffects": false` in its `package.json`, so what isn't used is dropped); and `apps/web/src/pdf.ts` imported pdf.js at the top (now `loadPdfjs`, when a PDF is first shown, a 487 kB chunk of its own).
-- **Statistics and the human review's editor split off** (2026-11-13, `lazy()` in `PageView.tsx` and `ArtifactView.tsx`): 45 kB and 22 kB. The build then also moved the code they share with the rest of the app into a chunk of its own, `steps` (197 kB: the MEI builder, the prompts, the icons, …), which `index.html` preloads on every visit. So `index` is 452 kB and the warning is gone, but a first visit downloads 659 kB of code (205 kB gzipped; `index`, `steps` and three small ones), against 719 kB before.
-- **Left to do:** the warning checks each file apart, so it no longer sees what a first visit costs. Either a check of our own on the sum of the files `index.html` loads, or splitting more screens (the editors, Settings, the model config form) and keeping an eye on the total by hand.
 
 ### Check Access's token in the Worker
 `#optional` `#security`
