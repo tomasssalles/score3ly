@@ -78,7 +78,6 @@ export type Stage = {
   modelUnusable?: boolean; // the model config was deleted or isn't supported: a stage that hasn't run can't start with it
   seconds?: number; // run time, once done
   cost?: number; // US dollars, LLM stages once done, VAT included
-  costIncludesVat: boolean; // the cost has VAT in it (docs/llm.md, "VAT")
   note?: string; // one short fact about the result, e.g. "3 boxes moved"
   error?: string; // failed stages
   progress: number; // from 0 to 1 while running; known only on the device that runs the stage
@@ -163,7 +162,6 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
     model: stored.modelConfig ? `${stored.modelConfig.name}${unusableMark(stored.modelConfig)}` : undefined,
     modelUnusable: Boolean(stored.modelConfig && (stored.modelConfig.deleted || stored.modelConfig.unsupported)),
     cost: stored.costUsd ?? undefined,
-    costIncludesVat: stored.costIncludesVat ?? false,
     note: stored.note ?? undefined,
     error: stored.error ?? undefined,
     progress: 0,

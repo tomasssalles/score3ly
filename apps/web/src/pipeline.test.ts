@@ -34,7 +34,6 @@ function stage(id: string, step: string, fields: Partial<ApiStage> = {}): ApiSta
     finishedAt: T0,
     modelConfig: null,
     costUsd: null,
-    costIncludesVat: false,
     carried: false,
     inRecipe: true,
     outputs: [],

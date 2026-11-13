@@ -17,7 +17,6 @@ const stage = (step: string, over: Partial<ApiStage> = {}): ApiStage => ({
   finishedAt: "2026-10-21T10:00:12.340Z",
   modelConfig: null,
   costUsd: null,
-  costIncludesVat: false,
   carried: false,
   inRecipe: true,
   outputs: [],
@@ -74,6 +73,5 @@ test("the report has every stage, its config and its model config without secret
   assert.deepEqual(report.stages[1].modelConfig, { name: "Opus in the EU", provider: "bedrock", model: "anthropic.claude-opus-5-5", effort: "high", region: "eu-central-1", freeTier: false });
   assert.equal(report.stages[1].result, "4 systems");
   assert.equal(report.totalCostUsd, 0.12);
-  assert.equal(report.costsIncludeVat, false);
   assert.ok(!JSON.stringify(report).includes("BEDROCK"));
 });

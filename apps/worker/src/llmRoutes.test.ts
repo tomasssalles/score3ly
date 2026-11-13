@@ -247,14 +247,12 @@ test("VAT: a call keeps its cost before VAT and the rate then; costs, the stage'
     assert.equal(answer.vatPercent, 19);
     assert.ok(Math.abs((answer.costUsd as number) - (row.cost_usd as number) * 1.19) < 1e-12);
     assert.ok(Math.abs((await spentInLastDay(env.DB)) - before - (row.cost_usd as number) * 1.19) < 1e-12);
-    // The stage's cost, with VAT, and that it has VAT in it.
-    const { stages } = await json<{ stages: { id: string; costUsd: number; costIncludesVat: boolean }[] }>(
+    // The stage's cost, with VAT.
+    const { stages } = await json<{ stages: { id: string; costUsd: number }[] }>(
       await app.request(`/api/projects/${stage.projectId}/pipeline`, {}, env),
     );
     const own = stages.find((s) => s.id === stage.stageId)!;
     assert.ok(Math.abs(own.costUsd - (row.cost_usd as number) * 1.19) < 1e-12);
-    assert.equal(own.costIncludesVat, true);
-    assert.equal(stages[0].costIncludesVat, false);
     // A later change of the rate doesn't change the call.
     await send("/api/settings/vatPercent", { value: 7 }, "PUT");
     assert.ok(Math.abs((await spentInLastDay(env.DB)) - before - (row.cost_usd as number) * 1.19) < 1e-12);
