@@ -1790,9 +1790,23 @@ dialog.app-dialog.config-form {
   grid-template-columns: calc(6.5ch + 18px) auto;
 }
 
-/* Under the model configs' heading: what their prices are. */
+/* Under the model configs' tools: what their prices are. */
 .model-configs-note {
-  margin: -6px 0 12px;
+  margin: 0 0 12px;
+}
+
+/* The model configs' tools: the order and the filter on the left, "+" on the right. */
+.config-tools {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.config-tools-gap {
+  flex: 1;
+}
+
+.settings .filter-panel {
+  margin-bottom: 12px;
 }
 
 .settings-amount .settings-error {

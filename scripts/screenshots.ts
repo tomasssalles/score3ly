@@ -263,6 +263,18 @@ async function settled(page: Page) {
   await page.waitForTimeout(400);
 }
 
+// A few model configs of other providers, for the settings' list of configs and its filter (made once: the same
+// values again are refused). Their secrets' names needn't exist: nothing is sent.
+async function withConfigs(page: Page) {
+  await page.goto(`${APP}#/`);
+  await page.evaluate(async () => {
+    const make = (body: object) => fetch("/api/model-configs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    await make({ provider: "anthropic", modelId: "claude-opus-5-5", effort: "high", secrets: { apiKey: "ANTHROPIC_KEY" }, pricing: { kind: "list" } });
+    await make({ provider: "anthropic", modelId: "claude-opus-5-5", effort: "low", secrets: { apiKey: "ANTHROPIC_KEY" }, pricing: { kind: "list" } });
+    await make({ name: "Opus in the EU", provider: "bedrock", modelId: "claude-opus-5-5", region: "eu-central-1", routing: "geographic", secrets: { apiKey: "BEDROCK_KEY" }, pricing: { kind: "list" } });
+  });
+}
+
 async function open(page: Page, hash: string) {
   await page.goto(`${APP}${hash}`);
   await settled(page);
@@ -342,6 +354,18 @@ function shots(seed: Seed): Shot[] {
     { name: "06-images-differ", take: (p) => open(p, seed.differsLayout) },
     { name: "06b-dropped-stage", layouts: ["wide", "narrow"], take: (p) => open(p, project(seed.dropped)).then(() => p.locator(".stage-card.dropped").evaluate((el) => el.scrollIntoView({ block: "center" }))) },
     { name: "07-settings", layouts: ["wide", "narrow"], take: (p) => open(p, "#/settings") },
+    { name: "07b-settings-configs", layouts: ["wide", "narrow"], take: (p) => withConfigs(p).then(() => open(p, "#/settings/configs")) },
+    {
+      name: "07c-settings-configs-filter",
+      layouts: ["wide", "narrow"],
+      take: async (p) => {
+        await withConfigs(p);
+        await open(p, "#/settings/configs");
+        await p.getByRole("button", { name: "Filters" }).click();
+        await p.getByRole("checkbox", { name: "Fake", exact: true }).click();
+        await p.waitForTimeout(300);
+      },
+    },
     { name: "08-about", layouts: ["wide", "narrow"], take: (p) => open(p, "#/about") },
     { name: "09-statistics", layouts: ["wide", "narrow"], take: (p) => open(p, "#/stats") },
     // Open menus.

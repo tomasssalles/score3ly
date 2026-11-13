@@ -12,6 +12,9 @@ import {
   projectIdFromHash,
   STATS_TABS,
   statsTabFromHash,
+  SETTINGS_TABS,
+  hashForSettingsTab,
+  settingsTabFromHash,
 } from "./route.ts";
 
 test("a project's hash leads back to its ID", () => {
@@ -71,4 +74,14 @@ test("each tab of the Statistics page has its hash; the page's own opens the fir
     assert.equal(statsTabFromHash(hashForStatsTab(tab)), tab);
   }
   assert.equal(statsTabFromHash("#/stats"), "costs");
+});
+
+test("each tab of the Settings page has its hash; the page's own is the first's", () => {
+  for (const tab of SETTINGS_TABS) {
+    assert.equal(pageFromHash(hashForSettingsTab(tab)), "settings");
+    assert.equal(settingsTabFromHash(hashForSettingsTab(tab)), tab);
+  }
+  assert.equal(hashForSettingsTab("general"), "#/settings");
+  assert.equal(hashForSettingsTab("configs"), "#/settings/configs");
+  assert.equal(pageFromHash("#/settings/costs"), null);
 });

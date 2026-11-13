@@ -1,7 +1,8 @@
-// The settings (docs/overview.md §5.1, docs/database.md, docs/llm.md, "Costs"): the user's, stored by the Worker. So far the run mode new projects
-// start with, the default model config, the spending cap, the model configs, read-only, and where their secrets are set. A pick is saved at
-// once, an amount when it is left or Enter is pressed. Then this device's own, kept in the browser: the theme (§5.7)
-// and the image cache's size limit (§8.5).
+// The settings (docs/overview.md §5.1, docs/database.md, docs/llm.md, "Costs"), on two tabs. "General": the user's, stored
+// by the Worker (the run mode new projects start with, the default model config, the spending cap, the VAT), where the
+// model configs' secrets are set, and this device's own, kept in the browser (the theme, §5.7, and the image cache's size
+// limit, §8.5). A pick is saved at once, an amount when it is left or Enter is pressed. "Model configs": the configs,
+// in the order picked and as filtered, each with its actions, and the "+" that makes one.
 
 import { useEffect, useState, type KeyboardEvent } from "react";
 import {
@@ -26,14 +27,38 @@ import { CACHE_LIMITS_MB, cacheLimitMb, formatSize, setCacheLimitMb } from "./ca
 import { useHost } from "./host";
 import { ACCOUNT_NAMES, pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
-import { ChevronDownIcon, MoreIcon, PlusIcon } from "./icons";
+import { ChevronDownIcon, ExpandIcon, FilterIcon, MoreIcon, PlusIcon } from "./icons";
+import { CheckList } from "./CheckList";
+import { Picker } from "./statsParts";
+import {
+  CONFIG_FACETS,
+  CONFIG_ORDERS,
+  facetValues,
+  filtering,
+  NO_FILTER,
+  shownConfigs,
+  sortedConfigs,
+  type ConfigFacet,
+  type ConfigFilter,
+  type ConfigOrder,
+} from "./configList";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { TestConfigDialog } from "./TestConfigDialog";
 import { MODE_LABELS, MODES } from "./pipeline";
+import { hashForSettingsTab, settingsTabFromHash, type SettingsTab } from "./route";
+import { useHash } from "./useHash";
 import { CHOICES, setThemeChoice, themeChoice } from "./themes";
 
+// The page's tabs, each with its own URL ("#/settings/configs"; docs/project-view.md, "The menu and its pages"):
+// switching tabs replaces the URL, as on the Statistics page, so back leaves the page.
+const TABS: { id: SettingsTab; label: string }[] = [
+  { id: "general", label: "General" },
+  { id: "configs", label: "Model configs" },
+];
+
 export function SettingsPage() {
+  const tab = settingsTabFromHash(useHash().hash);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [configs, setConfigs] = useState<ModelConfig[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,8 +82,32 @@ export function SettingsPage() {
   return (
     <div className="page-view settings">
       <h2>Settings</h2>
+      <div className="stats-tabs" role="tablist" aria-label="Settings">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={t.id === tab}
+            className="stats-tab"
+            onClick={() => window.location.replace(hashForSettingsTab(t.id))}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
       {error && <p className="settings-error error-text">{error}</p>}
-      {settings && (
+      {tab === "configs" && settings && configs && (
+        <ModelConfigs
+          configs={configs}
+          defaultId={settings.defaultModelConfigId}
+          onChanged={() => {
+            fetchModelConfigs().then(setConfigs, () => setError("The model configs couldn't be loaded."));
+            fetchSettings().then(setSettings, () => {});
+          }}
+        />
+      )}
+      {tab === "general" && settings && (
         <dl className="settings-list">
           <dt>Run mode for new projects</dt>
           <dd>
@@ -109,7 +158,7 @@ export function SettingsPage() {
             VAT
             <span className="settings-hint">
               Added to every cost the app shows and to what the spending cap counts, at the rate set when each call is made;
-              0% if your invoices have none. The model configs' prices below are without it.
+              0% if your invoices have none. The model configs' prices are without it.
             </span>
           </dt>
           <dd>
@@ -117,51 +166,43 @@ export function SettingsPage() {
           </dd>
         </dl>
       )}
-      {settings && configs && (
-        <ModelConfigs
-          configs={configs}
-          defaultId={settings.defaultModelConfigId}
-          onChanged={() => {
-            fetchModelConfigs().then(setConfigs, () => setError("The model configs couldn't be loaded."));
-            fetchSettings().then(setSettings, () => {});
-          }}
-        />
+      {tab === "general" && <Secrets />}
+      {tab === "general" && (
+        <section className="settings-section">
+          {/* The desktop app is the only device: its settings are all this computer's. */}
+          {host !== "desktop" && <h3>This device</h3>}
+          <dl className="settings-list">
+            <dt>
+              Theme
+              <span className="settings-hint">Auto follows the system's light or dark setting.</span>
+            </dt>
+            <dd>
+              <DropdownMenu
+                className="mode-picker"
+                buttonClassName="mode-button"
+                icon={
+                  <>
+                    {CHOICES.find((c) => c.value === theme)?.label}
+                    <ChevronDownIcon />
+                  </>
+                }
+                label="Theme"
+                groups={[
+                  CHOICES.map((c) => ({
+                    label: c.label,
+                    current: c.value === theme,
+                    onSelect: () => {
+                      setThemeChoice(c.value);
+                      setTheme(c.value);
+                    },
+                  })),
+                ]}
+              />
+            </dd>
+            <ImageCacheSetting />
+          </dl>
+        </section>
       )}
-      <Secrets />
-      <section className="settings-section">
-        {/* The desktop app is the only device: its settings are all this computer's. */}
-        {host !== "desktop" && <h3>This device</h3>}
-        <dl className="settings-list">
-          <dt>
-            Theme
-            <span className="settings-hint">Auto follows the system's light or dark setting.</span>
-          </dt>
-          <dd>
-            <DropdownMenu
-              className="mode-picker"
-              buttonClassName="mode-button"
-              icon={
-                <>
-                  {CHOICES.find((c) => c.value === theme)?.label}
-                  <ChevronDownIcon />
-                </>
-              }
-              label="Theme"
-              groups={[
-                CHOICES.map((c) => ({
-                  label: c.label,
-                  current: c.value === theme,
-                  onSelect: () => {
-                    setThemeChoice(c.value);
-                    setTheme(c.value);
-                  },
-                })),
-              ]}
-            />
-          </dd>
-          <ImageCacheSetting />
-        </dl>
-      </section>
     </div>
   );
 }
@@ -294,6 +335,65 @@ function Secrets() {
   );
 }
 
+// The filter of the configs (docs/project-view.md, "The menu and its pages"): by provider and by model, each a section
+// that can be collapsed (expanded at first, a coral dot while collapsed with anything taken out), as the statistics'
+// filters are. Each lists the values the configs have; one unticked hides the configs that have it.
+function ConfigFilterPanel({ configs, filter, onChange }: { configs: ModelConfig[]; filter: ConfigFilter; onChange: (filter: ConfigFilter) => void }) {
+  const [collapsed, setCollapsed] = useState<Set<ConfigFacet>>(new Set());
+  return (
+    <div className="costs-panel filter-panel">
+      {CONFIG_FACETS.map(({ id: facet, label }) => {
+        const out = filter[facet];
+        const isCollapsed = collapsed.has(facet);
+        return (
+          <div key={facet} className="filter-section">
+            <div className="costs-panel-row">
+              <button
+                type="button"
+                className="section-toggle"
+                aria-expanded={!isCollapsed}
+                onClick={() => {
+                  const next = new Set(collapsed);
+                  if (isCollapsed) next.delete(facet);
+                  else next.add(facet);
+                  setCollapsed(next);
+                }}
+              >
+                {isCollapsed ? <ExpandIcon /> : <ChevronDownIcon />}
+                {label}
+                {isCollapsed && out.length > 0 && <span className="inline-dot" aria-label="some hidden" />}
+              </button>
+            </div>
+            {!isCollapsed && (
+              <CheckList
+                allLabel="All"
+                items={facetValues(configs, facet, providerName).map((v) => ({ key: v.key, name: v.label }))}
+                isOn={(key) => !out.includes(key)}
+                setOn={(keys, on) => {
+                  const next = new Set(out);
+                  for (const key of keys) {
+                    if (on) next.delete(key);
+                    else next.add(key);
+                  }
+                  onChange({ ...filter, [facet]: [...next] });
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+      {filtering(filter) && (
+        <button type="button" className="link-button" onClick={() => onChange(NO_FILTER)}>
+          Show all
+        </button>
+      )}
+    </div>
+  );
+}
+
+// A provider's name in the filter: without the fake ones' explanation ("Fake", "Fake with costs").
+const providerName = (provider: ModelConfig["provider"]) => (PROVIDERS[provider] ?? provider).replace(/ \(.*\)$/, "");
+
 const PROVIDERS: Record<ModelConfig["provider"], string> = {
   anthropic: "Anthropic",
   bedrock: "Bedrock",
@@ -348,14 +448,42 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
     ],
     ...(config.id === defaultId ? [] : [[{ label: "Delete", danger: true, onSelect: () => setDeleting(config) }]]),
   ];
+  // Only what is shown changes; the order and the filter are forgotten when the page is left, like the statistics'.
+  const [order, setOrder] = useState<ConfigOrder>("newest");
+  const [filter, setFilter] = useState<ConfigFilter>(NO_FILTER);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const shown = shownConfigs(sortedConfigs(configs, order), filter, providerName);
+  const hidden = configs.length - shown.length;
   return (
     <section className="settings-section">
-      <div className="settings-section-head">
-        <h3>Model configs</h3>
+      {/* The tab's title says what it lists: its head is its tools. */}
+      <div className="settings-section-head config-tools">
+        <Picker label="Order" value={order} options={CONFIG_ORDERS} onChange={setOrder} />
+        <button
+          type="button"
+          className="editor-mode"
+          aria-pressed={filterOpen}
+          aria-label="Filters"
+          title="Filters"
+          onClick={() => setFilterOpen(!filterOpen)}
+        >
+          <FilterIcon />
+          {filtering(filter) && <span className="toggle-dot" />}
+        </button>
+        <span className="config-tools-gap" />
         <button type="button" className="icon-button" aria-label="New model config" title="New model config" onClick={() => openForm(null)}>
           <PlusIcon />
         </button>
       </div>
+      {filterOpen && <ConfigFilterPanel configs={configs} filter={filter} onChange={setFilter} />}
+      {!filterOpen && hidden > 0 && (
+        <p className="costs-filtered">
+          {hidden === 1 ? "1 config" : `${hidden} configs`} hidden by filters ·{" "}
+          <button type="button" className="link-button" onClick={() => setFilter(NO_FILTER)}>
+            Show all
+          </button>
+        </p>
+      )}
       {error && <p className="settings-error error-text">{error}</p>}
       {creating && (
         <NewModelConfig
@@ -400,8 +528,9 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
       )}
       <p className="settings-hint model-configs-note">Prices as the providers list them, without VAT.</p>
       {configs.length === 0 && <p>No model configs yet.</p>}
+      {configs.length > 0 && shown.length === 0 && <p className="settings-hint">The filters hide every config.</p>}
       <ul className="model-configs">
-        {configs.map((config) => (
+        {shown.map((config) => (
           <li key={config.id} className="model-config">
             <div className="model-config-head">
               <p className="model-config-name">
