@@ -1,5 +1,5 @@
 import { ImagesDiffer } from "./ImagesDiffer";
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { lazy, type ReactNode, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchJsonContent, type Project } from "./api";
 import { CloseIcon } from "./icons";
 import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
@@ -14,11 +14,13 @@ import { PdfView } from "./PdfView";
 import { SkewEditor } from "./SkewEditor";
 import { AnalysisView } from "./AnalysisView";
 import { EngravingView } from "./EngravingView";
-import { HumanReviewEditor } from "./HumanReviewEditor";
 import { ExtractionView } from "./ExtractionView";
 import { FixMeiView } from "./FixMeiView";
 import { LayoutEditor } from "./LayoutEditor";
 import { firstNumbers } from "./fixLayout";
+
+// Loaded when first opened, to keep it out of the bundle every visit downloads (docs/tasks.md, the build's warning).
+const HumanReviewEditor = lazy(() => import("./HumanReviewEditor").then((m) => ({ default: m.HumanReviewEditor })));
 
 // Shows one output or a stage's details, and nothing else: what is shown can be seen in the pipeline panel.
 // In narrow mode it covers the whole app and has a close button floating over it.
@@ -61,7 +63,11 @@ export function ArtifactContent({
   if (artifact.analysis) return <AnalysisView key={artifact.id} project={project} artifact={artifact} onEdited={onEdited} />;
   // A WIP human review's screen (docs/stages/music.md, `human_review`).
   if (artifact.editor?.step === "human_review" && artifact.extraction) {
-    return <HumanReviewEditor key={artifact.id} project={project} artifact={artifact} onEdited={onEdited} />;
+    return (
+      <Suspense fallback={<div className="text-view"><p>Loading the transcription…</p></div>}>
+        <HumanReviewEditor key={artifact.id} project={project} artifact={artifact} onEdited={onEdited} />
+      </Suspense>
+    );
   }
   if (artifact.extraction) return <ExtractionView key={artifact.id} artifact={artifact} />;
   // A WIP manual stage's artifact is its editor (docs/project-view.md).

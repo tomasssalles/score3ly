@@ -1,7 +1,10 @@
 import { AboutPage } from "./AboutPage";
 import { SettingsPage } from "./SettingsPage";
-import { StatsPage } from "./StatsPage";
+import { lazy, Suspense } from "react";
 import type { Page } from "./route";
+
+// Loaded when first opened, to keep it out of the bundle every visit downloads (docs/tasks.md, the build's warning).
+const StatsPage = lazy(() => import("./StatsPage").then((m) => ({ default: m.StatsPage })));
 
 // The pages reached from the menu. Help is a placeholder for now: it says what it will hold.
 const CONTENT: Record<Exclude<Page, "about" | "settings" | "stats">, { title: string; text: string[] }> = {
@@ -23,7 +26,13 @@ export function PageView({ page }: { page: Page }) {
 function PageContent({ page }: { page: Page }) {
   if (page === "about") return <AboutPage />;
   if (page === "settings") return <SettingsPage />;
-  if (page === "stats") return <StatsPage />;
+  if (page === "stats") {
+    return (
+      <Suspense fallback={<div className="page-view stats" />}>
+        <StatsPage />
+      </Suspense>
+    );
+  }
   const { title, text } = CONTENT[page];
   return (
     <div className="page-view">
