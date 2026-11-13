@@ -1626,9 +1626,25 @@ dialog.app-dialog.config-form {
   max-height: 40vh;
 }
 
-/* A value the form fills in by itself (a config's default name): muted until the user edits it. */
+/* A value the form fills in by itself (a config's default name, "Use default"): muted, and not editable. */
 .field input.default-value {
   color: var(--muted);
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1;
+  cursor: default;
+}
+
+/* A field's label with a control on its right ("Use default"). */
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field-head .field-check {
+  margin: 0;
+  font-size: 13px;
 }
 
 .pricing-choice {

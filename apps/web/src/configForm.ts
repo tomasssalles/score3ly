@@ -27,8 +27,10 @@ export type FormState = {
   secrets: Record<string, string>;
   pricing: FormPricing | null;
   reference: string | null;
-  name: string; // what the user typed, once `nameEdited`; until then the default name stands in
-  nameEdited: boolean;
+  // "Use default" (docs/llm.md, "The default name"): ticked, the config takes its default name, which follows the
+  // fields; unticked, `name` is what the user typed.
+  useDefaultName: boolean;
+  name: string;
   makeDefault: boolean;
   deleteOriginal: boolean; // a clone: the original is deleted with it
   // A clone's original values that a new config couldn't have (a model, a place or a model priced as that the app no
@@ -61,8 +63,8 @@ export const EMPTY_FORM: FormState = {
   secrets: {},
   pricing: null,
   reference: null,
+  useDefaultName: true,
   name: "",
-  nameEdited: false,
   makeDefault: false,
   deleteOriginal: false,
   pinned: null,
@@ -87,12 +89,13 @@ export function initialForm(options: ModelOptions): FormState {
 // Another provider: the form starts over with its model, keeping the name typed, "Make default" and "Delete the
 // original".
 export function withProvider(options: ModelOptions, form: FormState, provider: Provider): FormState {
-  const kept = { name: form.name, nameEdited: form.nameEdited, makeDefault: form.makeDefault, deleteOriginal: form.deleteOriginal };
+  const kept = { name: form.name, useDefaultName: form.useDefaultName, makeDefault: form.makeDefault, deleteOriginal: form.deleteOriginal };
   return settled(options, { ...EMPTY_FORM, ...kept, provider, model: defaultModel(options, provider) });
 }
 
-// A clone's form: the original's values, its name as typed text (decided 2026-11-05), and what the app no longer
-// supports pinned so that the pickers can show it.
+// A clone's form: the original's values, and what the app no longer supports pinned so that the pickers can show it.
+// Its name: "Use default" ticked if the original has its default name (numbered or not: "… · high (1)"), else the
+// original's name as typed text (decided 2026-11-14, docs/llm.md, "The default name").
 export function formFromConfig(options: ModelOptions, config: ModelConfig): FormState {
   const model: FormModel = config.modelId ? { kind: "listed", id: config.modelId } : { kind: "added", string: config.modelString ?? config.model, family: config.family };
   const provider = options.providers.find((p) => p.id === config.provider);
@@ -115,8 +118,8 @@ export function formFromConfig(options: ModelOptions, config: ModelConfig): Form
     secrets: { ...config.secrets },
     pricing,
     reference,
+    useDefaultName: false,
     name: config.name,
-    nameEdited: true,
     pinned: {
       model,
       family: config.family,
@@ -127,7 +130,24 @@ export function formFromConfig(options: ModelOptions, config: ModelConfig): Form
       referenceName: config.price.kind === "priced" ? config.price.borrowedFrom : (options.models.find((m) => m.id === reference)?.name ?? reference),
     },
   };
-  return settled(options, form);
+  const clone = settled(options, form);
+  const base = defaultName(options, clone);
+  return base !== null && withoutNumber(config.name).toLowerCase() === base.toLowerCase() ? { ...clone, useDefaultName: true, name: "" } : clone;
+}
+
+// A name without the number a taken name gets: "… · high (1)" is "… · high".
+export function withoutNumber(name: string): string {
+  return name.trim().replace(/ \(\d+\)$/, "");
+}
+
+// The first of "base", "base (1)", "base (2)", … that isn't taken, ignoring case: the name the Worker gives a config
+// with its default name (as it numbers project names, apps/worker/src/names.ts).
+export function firstFreeName(base: string, taken: string[]): string {
+  const lower = new Set(taken.map((name) => name.toLowerCase()));
+  for (let n = 0; ; n++) {
+    const candidate = n === 0 ? base : `${base} (${n})`;
+    if (!lower.has(candidate.toLowerCase())) return candidate;
+  }
 }
 
 export function providerOf(options: ModelOptions, form: FormState): ProviderOption | null {
@@ -246,7 +266,7 @@ export function offeredAt(options: ModelOptions, form: FormState): boolean {
 export function settled(options: ModelOptions, form: FormState): FormState {
   let next = { ...form };
   const provider = providerOf(options, next);
-  if (!provider) return { ...EMPTY_FORM, name: next.name, nameEdited: next.nameEdited, makeDefault: next.makeDefault };
+  if (!provider) return { ...EMPTY_FORM, name: next.name, useDefaultName: next.useDefaultName, makeDefault: next.makeDefault };
   if (next.model?.kind === "added" && next.model.family === null && provider.families.length > 0) {
     next.model = { ...next.model, family: provider.families[0].id };
   }
@@ -286,8 +306,8 @@ export function settled(options: ModelOptions, form: FormState): FormState {
   return next;
 }
 
-// The name the Worker gives when none is typed: "Claude Opus 5.5 (Bedrock) · high" (docs/llm.md, "Configs"), before
-// numbering.
+// The name the Worker gives when none is typed: "Claude Opus 5.5 (Bedrock) · high" (docs/llm.md, "The default name"),
+// before numbering.
 export function defaultName(options: ModelOptions, form: FormState): string | null {
   const provider = providerOf(options, form);
   const model = listedModel(options, form)?.name ?? pinnedModel(form)?.modelName ?? (form.model?.kind === "added" ? form.model.string.trim() : "");
@@ -315,6 +335,7 @@ export function missing(options: ModelOptions, form: FormState): string | null {
   const unset = (family?.secrets[form.secretSet] ?? []).find((field) => !form.secrets[field]);
   if (unset) return `The secret for the ${SECRET_LABELS[unset] ?? unset} isn't chosen yet.`;
   if (form.pricing === null) return "The pricing isn't chosen yet.";
+  if (!form.useDefaultName && form.name.trim() === "") return "The name is empty: type one, or tick \"Use default\".";
   if (form.pricing === "as" && form.reference === null) return "The model it is priced as isn't chosen yet.";
   // A clone of a config the app no longer supports, as it was: not saved until it is supported (docs/llm.md, "Clone").
   const where = `${provider.name}${form.region ? ` in ${form.region}` : ""}${form.routing ? ` (${form.routing} routing)` : ""}`;
@@ -333,7 +354,7 @@ export function requestOf(form: FormState): NewModelConfig {
   // (The clone's `replaces` is added by the dialog, which knows the original.)
   const model = form.model!;
   return {
-    ...(form.nameEdited && form.name.trim() ? { name: form.name.trim() } : {}),
+    ...(!form.useDefaultName && form.name.trim() ? { name: form.name.trim() } : {}),
     provider: form.provider!,
     ...(model.kind === "listed" ? { modelId: model.id } : { modelString: model.string.trim(), family: model.family! }),
     effort: form.effort,

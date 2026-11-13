@@ -738,12 +738,14 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (same) {
       return c.json({ error: `A config with these settings already exists: "${same.name}".`, code: "same_values", config: { id: same.id, name: same.name } }, 409);
     }
-    const name = await configName(db, body);
+    const name = await configName(db, body, original?.id ?? null);
     if (name === null) return c.json({ error: NAME_TAKEN }, 409);
     const row = { ...draft, name };
-    const statements = [insertConfig(db, row)];
+    // The original is deleted first, so that the clone can take its name (the names' unique index counts live configs).
+    const statements: D1PreparedStatement[] = [];
+    if (original) statements.push(db.prepare("UPDATE model_configs SET deleted_at = ? WHERE id = ?").bind(row.created_at, original.id));
+    statements.push(insertConfig(db, row));
     if (original) {
-      statements.push(db.prepare("UPDATE model_configs SET deleted_at = ? WHERE id = ?").bind(row.created_at, original.id));
       const { defaultModelConfigId } = await readSettings(db);
       if (defaultModelConfigId === original.id) {
         statements.push(
@@ -1076,9 +1078,12 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
 
 // The name of a new config: the one given, or else its default name ("Claude Opus 5.5 (Bedrock) · high"), the first
 // free one, numbered like project names (docs/llm.md, "Configs"). A given name that another config has (ignoring case)
-// is refused: null.
-async function configName(db: D1Database, body: Record<string, unknown>): Promise<string | null> {
-  const { results } = await db.prepare("SELECT name FROM model_configs WHERE deleted_at IS NULL").all<{ name: string }>();
+// is refused: null. A clone that replaces its original may take the original's name: it is deleted in the same batch.
+async function configName(db: D1Database, body: Record<string, unknown>, replaces: string | null = null): Promise<string | null> {
+  const { results } = await db
+    .prepare("SELECT name FROM model_configs WHERE deleted_at IS NULL AND id IS NOT ?")
+    .bind(replaces)
+    .all<{ name: string }>();
   const taken = results.map((row) => row.name);
   const given = typeof body.name === "string" ? body.name.trim() : "";
   if (given) return taken.some((name) => name.toLowerCase() === given.toLowerCase()) ? null : given;

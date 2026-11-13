@@ -8,6 +8,7 @@ import {
   confirmationOf,
   defaultName,
   effortsOf,
+  firstFreeName,
   familyOption,
   formFromConfig,
   initialForm,
@@ -89,9 +90,12 @@ export function NewModelConfig({
   const name = defaultName(options, form);
   const price = priceAt(options, form);
 
-  // The name the config gets: the one typed, else its default name (before numbering).
-  const finalName = (form.nameEdited ? form.name.trim() : "") || name || "";
   const deletesOriginal = from !== null && form.deleteOriginal;
+  // The default name as the Worker will number it: the original's name is free when it is deleted with the clone.
+  const taken = (configs ?? []).filter((c) => !(deletesOriginal && c.id === from?.id)).map((c) => c.name);
+  const shownDefault = name === null ? "" : firstFreeName(name, taken);
+  // The name the config gets: its default name ("Use default"), else the one typed.
+  const finalName = form.useDefaultName ? shownDefault : form.name.trim();
   // Deleting the default needs another default: the clone becomes it (the Worker does it too).
   const makeDefault = form.makeDefault || (deletesOriginal && isDefault);
 
@@ -457,20 +461,36 @@ export function NewModelConfig({
           </div>
         )}
 
-        <label className="field">
-          Name
+        {/* "Use default" (docs/llm.md, "The default name"): ticked, the default name, muted, follows the fields and can't be
+            edited; unticked, it becomes text to edit; ticked again, the text typed is gone. */}
+        <div className="field">
+          <div className="field-head">
+            <span id="config-name-label">Name</span>
+            <label className="field-check">
+              <input
+                type="checkbox"
+                checked={form.useDefaultName}
+                onChange={(e) => setForm(e.target.checked ? { useDefaultName: true, name: "" } : { useDefaultName: false, name: shownDefault })}
+              />
+              Use default
+            </label>
+          </div>
           <input
-            className={form.nameEdited ? undefined : "default-value"}
+            aria-labelledby="config-name-label"
+            className={form.useDefaultName ? "default-value" : undefined}
+            disabled={form.useDefaultName}
             autoComplete="off"
             spellCheck={false}
-            value={form.nameEdited ? form.name : (name ?? "")}
-            onChange={(e) => setForm({ name: e.target.value, nameEdited: true })}
+            value={form.useDefaultName ? shownDefault : form.name}
+            onChange={(e) => setForm({ name: e.target.value })}
           />
-        </label>
+        </div>
         <p className="field-hint">
-          {from
-            ? "Names are unique: a clone needs a name of its own, unless the original is deleted."
-            : "A default name based on the provider, model and effort level will be used, unless you edit the name directly."}
+          {form.useDefaultName
+            ? "The model, its provider and the effort level. A name that is taken gets a number."
+            : from && !deletesOriginal
+              ? "Names are unique: a clone needs a name of its own, unless the original is deleted."
+              : "Names are unique, ignoring case."}
         </p>
 
         {from && (

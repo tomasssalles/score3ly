@@ -142,7 +142,6 @@ The tasks below, in the file's order.
 - [The Worker reports the current call's progress](#the-worker-reports-the-current-calls-progress)
 - [Show that a long call is making progress](#show-that-a-long-call-is-making-progress)
 - [The model configs' list on the settings page](#the-model-configs-list-on-the-settings-page)
-- [The default name follows the form when cloning](#the-default-name-follows-the-form-when-cloning)
 - [Check what stopped calls cost at the providers](#check-what-stopped-calls-cost-at-the-providers)
 
 ## The tasks
@@ -795,11 +794,6 @@ Proposed by the project owner (2026-11-09). The list of model configs gets long 
 - **Sorting:** by creation date, newest at the top, by default. To decide: whether the default config stays at the top regardless.
 - **To decide: a more compact view of each config,** with a way to see all its details: the card expanded in place, or a view of its own.
 - **To decide: how the list stays short:** pages, a container of its own that scrolls, or the configs on a tab of their own in the settings.
-
-### The default name follows the form when cloning
-`#nice-to-have` `#decision`
-
-Proposed by the project owner (2026-11-09). `docs/llm.md`, "The default name": "Claude Opus 5.5 (Bedrock) · high". When a config is cloned from one with the default name, the clone's name doesn't change with its fields, so the user has to rewrite it by hand, which is awkward since "·" isn't on a keyboard (e.g. adding " · high" when the clone picks an effort the original left at the model's default). Instead: recognize that the name is the default one, and keep it updated as the fields change, until the user types a name of their own. To decide: whether the create form does the same (there an empty name already gives the default one, so it matters less).
 
 ### Check what stopped calls cost at the providers
 `#owner` `#manual-test`

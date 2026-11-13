@@ -804,6 +804,18 @@ test("a clone may replace its original: the original deleted, and the clone the 
   assert.equal((await modelConfig({ name: "Claude" })).name, "Claude");
 });
 
+test("a clone that replaces its original may take its name: the one typed, or its default name without a number", async () => {
+  const original = await modelConfig({ name: "Mine" });
+  assert.equal((await modelConfig({ name: "mine", effort: "max", replaces: original.id })).name, "mine");
+  // A default name: the clone (the same model and effort, priced otherwise) gets it again, not "… (1)".
+  const first = await modelConfig({ effort: "low" });
+  const clone = await modelConfig({ effort: "low", freeTier: true, replaces: first.id });
+  assert.equal(clone.name, first.name);
+  // Without replacing, a taken default name is numbered, and a taken name typed is refused.
+  assert.equal((await modelConfig({ effort: "low" })).name, `${first.name} (1)`);
+  assert.equal((await send("/api/model-configs", configBody({ name: "MINE", effort: "high" }))).status, 409);
+});
+
 test("renaming a config: its name only, unique ignoring case among the configs that aren't deleted, its own case free", async () => {
   const a = await modelConfig({ name: "Claude" });
   await modelConfig({ name: "Other", effort: "low" });

@@ -6,7 +6,9 @@ import {
   defaultModel,
   effortsOf,
   familyOf,
+  firstFreeName,
   formFromConfig,
+  withoutNumber,
   initialForm,
   withProvider,
   defaultName,
@@ -165,7 +167,9 @@ test("a listed model's request, named after its model, provider and effort unles
   assert.equal(missing(OPTIONS, form), null);
   assert.equal(defaultName(OPTIONS, form), "Claude Opus 5.5 (Anthropic) · high");
   assert.equal(confirmationOf(OPTIONS, form), null);
-  assert.deepEqual(requestOf({ ...form, name: "  Opus  ", nameEdited: true }), {
+  assert.equal(requestOf(form).name, undefined); // "Use default": the Worker names it
+  assert.equal(missing(OPTIONS, { ...form, useDefaultName: false, name: " " }), 'The name is empty: type one, or tick "Use default".');
+  assert.deepEqual(requestOf({ ...form, name: "  Opus  ", useDefaultName: false }), {
     name: "Opus",
     provider: "anthropic",
     modelId: "opus",
@@ -193,14 +197,14 @@ test("the form opens on the first provider with its model: Opus 5.5 where offere
   assert.deepEqual(defaultModel(OPTIONS, "bedrock"), { kind: "listed", id: "opus" }); // the first listed
   assert.deepEqual(defaultModel(OPTIONS, "vertex"), { kind: "added", string: "", family: null }); // none listed
   // Another provider starts over with its own model, keeping the name typed and Make default.
-  const other = withProvider(OPTIONS, { ...form, name: "Mine", nameEdited: true, makeDefault: true, effort: "high" }, "bedrock");
-  assert.deepEqual([other.model, other.effort, other.name, other.nameEdited, other.makeDefault], [{ kind: "listed", id: "opus" }, null, "Mine", true, true]);
+  const other = withProvider(OPTIONS, { ...form, name: "Mine", useDefaultName: false, makeDefault: true, effort: "high" }, "bedrock");
+  assert.deepEqual([other.model, other.effort, other.name, other.useDefaultName, other.makeDefault], [{ kind: "listed", id: "opus" }, null, "Mine", false, true]);
 });
 
-test("the default name stands in until the name is edited; an edited name is sent as it is", () => {
+test("\"Use default\" ticked: the Worker gives the default name; unticked, the name typed is sent as it is", () => {
   const form = pick({ provider: "anthropic" }, { model: { kind: "listed", id: "opus" } }, { secrets: { apiKey: "K" }, name: "stale" });
-  assert.equal("name" in requestOf(form), false); // not edited: the Worker names it (and numbers it)
-  assert.equal(requestOf({ ...form, name: " Opus ", nameEdited: true }).name, "Opus");
+  assert.equal("name" in requestOf(form), false); // ticked: the Worker names it (and numbers it)
+  assert.equal(requestOf({ ...form, name: " Opus ", useDefaultName: false }).name, "Opus");
 });
 
 // A config as the Worker sends it, for a clone.
@@ -233,11 +237,28 @@ function config(fields: Partial<ModelConfig>): ModelConfig {
 test("a clone starts from the original's values, its name as typed text, its secrets' set found", () => {
   const form = formFromConfig(OPTIONS, config({}));
   assert.deepEqual(
-    [form.provider, form.model, form.region, form.routing, form.effort, form.secretSet, form.secrets, form.pricing, form.name, form.nameEdited],
-    ["bedrock", { kind: "listed", id: "opus" }, "eu-central-1", "geographic", "high", 1, { secretAccessKey: "SECRET", accessKeyId: "ID" }, "list", "Opus EU", true],
+    [form.provider, form.model, form.region, form.routing, form.effort, form.secretSet, form.secrets, form.pricing, form.name, form.useDefaultName],
+    ["bedrock", { kind: "listed", id: "opus" }, "eu-central-1", "geographic", "high", 1, { secretAccessKey: "SECRET", accessKeyId: "ID" }, "list", "Opus EU", false],
   );
   assert.equal(missing(OPTIONS, form), null);
   assert.equal(requestOf(form).name, "Opus EU");
+});
+
+test("a clone of a config with its default name, numbered or not, starts with \"Use default\" ticked", () => {
+  for (const name of ["Claude Opus 5.5 (Bedrock) · high", "claude opus 5.5 (bedrock) · HIGH", "Claude Opus 5.5 (Bedrock) · high (3)"]) {
+    const form = formFromConfig(OPTIONS, config({ name }));
+    assert.deepEqual([form.useDefaultName, form.name], [true, ""], name);
+    assert.equal(requestOf(form).name, undefined);
+  }
+  for (const name of ["Claude Opus 5.5 (Bedrock)", "Claude Opus 5.5 (Bedrock) · high (x)", "Claude Opus 5.5 (Bedrock) · high (1) (1)"]) {
+    assert.equal(formFromConfig(OPTIONS, config({ name })).useDefaultName, false, name);
+  }
+});
+
+test("the default name as the Worker will number it", () => {
+  assert.equal(withoutNumber("A · high (12)"), "A · high");
+  assert.equal(firstFreeName("A", []), "A");
+  assert.equal(firstFreeName("A", ["a", "A (1)"]), "A (2)");
 });
 
 test("a clone of a config the app no longer supports keeps its values in the pickers, and can't be saved as it is", () => {
