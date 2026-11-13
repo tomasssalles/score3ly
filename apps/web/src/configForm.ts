@@ -94,7 +94,7 @@ export function withProvider(options: ModelOptions, form: FormState, provider: P
 }
 
 // A clone's form: the original's values, and what the app no longer supports pinned so that the pickers can show it.
-// Its name: "Use default" ticked if the original has its default name (numbered or not: "… · high (1)"), else the
+// Its name: "Use default" ticked if the original has its default name, exactly (numbered or not: "… · high (1)"), else the
 // original's name as typed text (decided 2026-11-14, docs/llm.md, "The default name").
 export function formFromConfig(options: ModelOptions, config: ModelConfig): FormState {
   const model: FormModel = config.modelId ? { kind: "listed", id: config.modelId } : { kind: "added", string: config.modelString ?? config.model, family: config.family };
@@ -132,7 +132,7 @@ export function formFromConfig(options: ModelOptions, config: ModelConfig): Form
   };
   const clone = settled(options, form);
   const base = defaultName(options, clone);
-  return base !== null && withoutNumber(config.name).toLowerCase() === base.toLowerCase() ? { ...clone, useDefaultName: true, name: "" } : clone;
+  return base !== null && withoutNumber(config.name) === base ? { ...clone, useDefaultName: true, name: "" } : clone;
 }
 
 // A name without the number a taken name gets: "… · high (1)" is "… · high".
@@ -335,7 +335,7 @@ export function missing(options: ModelOptions, form: FormState): string | null {
   const unset = (family?.secrets[form.secretSet] ?? []).find((field) => !form.secrets[field]);
   if (unset) return `The secret for the ${SECRET_LABELS[unset] ?? unset} isn't chosen yet.`;
   if (form.pricing === null) return "The pricing isn't chosen yet.";
-  if (!form.useDefaultName && form.name.trim() === "") return "The name is empty: type one, or tick \"Use default\".";
+  if (!form.useDefaultName && form.name.trim() === "") return "The name cannot be empty: type one, or select \"Use default\".";
   if (form.pricing === "as" && form.reference === null) return "The model it is priced as isn't chosen yet.";
   // A clone of a config the app no longer supports, as it was: not saved until it is supported (docs/llm.md, "Clone").
   const where = `${provider.name}${form.region ? ` in ${form.region}` : ""}${form.routing ? ` (${form.routing} routing)` : ""}`;

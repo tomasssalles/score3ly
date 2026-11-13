@@ -168,7 +168,7 @@ test("a listed model's request, named after its model, provider and effort unles
   assert.equal(defaultName(OPTIONS, form), "Claude Opus 5.5 (Anthropic) · high");
   assert.equal(confirmationOf(OPTIONS, form), null);
   assert.equal(requestOf(form).name, undefined); // "Use default": the Worker names it
-  assert.equal(missing(OPTIONS, { ...form, useDefaultName: false, name: " " }), 'The name is empty: type one, or tick "Use default".');
+  assert.equal(missing(OPTIONS, { ...form, useDefaultName: false, name: " " }), 'The name cannot be empty: type one, or select "Use default".');
   assert.deepEqual(requestOf({ ...form, name: "  Opus  ", useDefaultName: false }), {
     name: "Opus",
     provider: "anthropic",
@@ -245,12 +245,12 @@ test("a clone starts from the original's values, its name as typed text, its sec
 });
 
 test("a clone of a config with its default name, numbered or not, starts with \"Use default\" ticked", () => {
-  for (const name of ["Claude Opus 5.5 (Bedrock) · high", "claude opus 5.5 (bedrock) · HIGH", "Claude Opus 5.5 (Bedrock) · high (3)"]) {
+  for (const name of ["Claude Opus 5.5 (Bedrock) · high", "Claude Opus 5.5 (Bedrock) · high (3)"]) {
     const form = formFromConfig(OPTIONS, config({ name }));
     assert.deepEqual([form.useDefaultName, form.name], [true, ""], name);
     assert.equal(requestOf(form).name, undefined);
   }
-  for (const name of ["Claude Opus 5.5 (Bedrock)", "Claude Opus 5.5 (Bedrock) · high (x)", "Claude Opus 5.5 (Bedrock) · high (1) (1)"]) {
+  for (const name of ["Claude Opus 5.5 (Bedrock)", "claude opus 5.5 (bedrock) · HIGH", "Claude Opus 5.5 (Bedrock) · high (x)", "Claude Opus 5.5 (Bedrock) · high (1) (1)"]) {
     assert.equal(formFromConfig(OPTIONS, config({ name })).useDefaultName, false, name);
   }
 });
@@ -259,6 +259,8 @@ test("the default name as the Worker will number it", () => {
   assert.equal(withoutNumber("A · high (12)"), "A · high");
   assert.equal(firstFreeName("A", []), "A");
   assert.equal(firstFreeName("A", ["a", "A (1)"]), "A (2)");
+  // Five taken, " (2)" cloned with "Delete the original": its own name is free, the first free one.
+  assert.equal(firstFreeName("A", ["A", "A (1)", "A (3)", "A (4)"]), "A (2)");
 });
 
 test("a clone of a config the app no longer supports keeps its values in the pickers, and can't be saved as it is", () => {
