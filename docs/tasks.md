@@ -69,6 +69,7 @@ The tasks below, in the file's order.
 - [The cache's lifetime for Claude: 5 minutes or 1 hour](#the-caches-lifetime-for-claude-5-minutes-or-1-hour)
 - [Zoom crops on request](#zoom-crops-on-request)
 - [Zoom crops accumulated across stages](#zoom-crops-accumulated-across-stages)
+- [New and existing voices as separate entries in the schema](#new-and-existing-voices-as-separate-entries-in-the-schema)
 - [A failed check goes back to the model](#a-failed-check-goes-back-to-the-model)
 - [Nested tuplets](#nested-tuplets)
 - [Beams across bar lines](#beams-across-bar-lines)
@@ -371,6 +372,11 @@ Each of them has a list "Decisions made while building it (to confirm)" in `docs
 `#optional`
 
 Once zoom crops on request exist: the places `extract` zoomed into are the parts of the page that are hard to read, so the first `review` call for a system could get them from the start, with their reasons, and still ask for more; every later `review` and `apply_review` would get all zooms asked for so far, the set growing stage by stage. The caps could then differ, e.g. 3 per system for `extract` and 1 per system after it.
+
+### New and existing voices as separate entries in the schema
+`#optional` `#decision`
+
+The project owner (2026-11-13), if models often leave a new voice's description `""` (Gemini 3.1 Pro did in `extract`, 2026-11-13; seen before at least once): the schema itself makes the difference, with one kind of entry for a voice new in the piece, whose description can't be left out, and no id to refer to another voice, and another for a voice that continues, with only its id and no description. The description matters: later calls use the earlier descriptions to tell a new voice from one that continues. The names are a draft. It enlarges the grammar (an `anyOf` per voice entry, `docs/llm.md`, "Claude's limit on schemas"), so it needs the probe again. First see whether the schema's descriptions (`docs/llm.md`, "Descriptions in the schemas") are enough.
 
 ### A failed check goes back to the model
 `#optional`

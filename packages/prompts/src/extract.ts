@@ -24,7 +24,7 @@ import {
 } from "@score3ly/notation/symbolic";
 
 // Raise whenever the texts or the schema change. The format itself has its own version (LENS_VERSION).
-export const EXTRACT_PROMPT_VERSION = 6;
+export const EXTRACT_PROMPT_VERSION = 7;
 
 export const EXTRACT_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -200,52 +200,140 @@ export function extractText(request: unknown): string {
 const str = { type: "string" };
 const int = { type: "integer" };
 const bool = { type: "boolean" };
+const num = { type: "number" };
 const enumOf = (values: readonly string[]) => ({ type: "string", enum: [...values] });
 
 function object(properties: Record<string, unknown>) {
   return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
 }
 
+// A schema with its description, which the model reads beside the field: short, in the prompt's words, so that it
+// points back to the prompt's longer explanations rather than repeating them.
+export function described<T extends object>(schema: T, description: string): T & { description: string } {
+  return { ...schema, description };
+}
+
+const FOUR_EDGES = object({ left: num, right: num, top: num, bottom: num });
+
+// The parts of the lens's schema that `review` and `apply_review` share with `extract`, with their descriptions.
+export const LENS_SCHEMA_PARTS = {
+  startRepeat: described(bool, "Whether the system begins with a start-repeat bar line (not the line that joins the staves at the left edge)."),
+  staff: described(
+    object({
+      staff: described(int, "Its number in the piece: from the list where the staff continues (also after systems without it), a new number for a new staff."),
+      description: described(str, 'For a staff new in the piece: a short description ("piano right hand", "violin I"), never "". "" for a staff from the list.'),
+      label: described(str, 'The instrument name printed at its left, as printed, or "".'),
+      clef: described(str, "The clef printed at the system's start, by LilyPond's name."),
+      key: described(str, 'The key signature printed at the system\'s start: "0", "1s" … "7s", "1f" … "7f".'),
+      time: described(str, 'The time signature printed at the system\'s start, as printed ("3/4", "C"), or "" when none is printed there.'),
+    }),
+    "A staff of the system, with its clef, key and time as printed at the system's start.",
+  ),
+  group: described(
+    object({
+      staves: described({ type: "array", items: int }, "The numbers of the staves it joins."),
+      symbol: described(enumOf(GROUP_SYMBOL_VALUES), "The symbol, as printed."),
+      label: described(str, 'Its label as printed ("Piano I"), or "".'),
+    }),
+    "A brace or bracket that joins staves, as printed.",
+  ),
+  class: described(
+    enumOf(STRETCH_CLASS_VALUES),
+    'Whether the stretch starts a measure, and of which kind ("new-…"), is part of the same measure as the stretch before it ("continues", even on the previous system), or of none ("none").',
+  ),
+  printedNumber: described(str, 'A measure number printed at the stretch, as printed ("12"), else "".'),
+  measureNumber: described(int, "The number it gives the measure (12), or -1."),
+  changes: described(
+    {
+      type: "array",
+      items: object({
+        staff: described(int, "The staff's number."),
+        key: described(str, 'The new key signature ("2f"), or "" where it doesn\'t change.'),
+        time: described(str, 'The new time signature ("3/4"), or "" where it doesn\'t change.'),
+      }),
+    },
+    "Key and time signatures printed at the stretch's start, per staff; an empty list where there are none. Never clef changes: those are \\clef in the music.",
+  ),
+  ending: described(enumOf(ENDING_VALUES), 'The "1." / "2." bracket over the stretch: where it starts and ends, or "none".'),
+  endingLabel: described(str, 'The ending\'s label as printed where it is visible over this stretch ("1."), else "".'),
+  voice: described(int, "The voice's id in the piece: from the list where it continues, a new number otherwise."),
+  voiceStaff: described(int, "The staff the voice starts on in the stretch."),
+  voiceDescription: described(
+    str,
+    'For a voice new in the piece, where it first appears: a short description ("melody", "inner alto line", "left-hand bass"), never "". "" for a voice from the list.',
+  ),
+  music: described(str, 'The voice\'s music in the stretch: one string, as in "The music of a voice".'),
+  rightBarLine: described(enumOf(RIGHT_BAR_LINES), 'The bar line at the stretch\'s right; "none" for the last stretch when the system ends without one.'),
+  lastMeasureContinues: described(bool, "Whether the system's last measure continues on the next system."),
+  issueBoxes: described(
+    {
+      type: "array",
+      items: object({
+        image: described(str, 'The label of the image it is on: "system", "stretch 3", "previous system", "next system".'),
+        box: described(FOUR_EDGES, "As fractions of that image, from 0 to 1."),
+      }),
+    },
+    "Where it is: one or more boxes, each on one of the images you were sent.",
+  ),
+  location: described(str, 'What in the box is meant, when the box alone doesn\'t say, simple and local to the box ("the middle note of the chord"); else "".'),
+  question: described(str, "What the page says at this place, as a plain sentence a musician understands. Never refers to the transcription."),
+  answerKey: described(str, '"a", "b", "c", …'),
+  answerText: described(str, "The answer, about what the page might show; never refers to the transcription."),
+  issueClass: described(enumOf(["reading", "format"]), '"reading": what the page says is hard to tell; "format": the page is clear, but the format can\'t express it.'),
+  lilypond: described(
+    { type: "array", items: str },
+    "For a format issue, the LilyPond tokens that would express what is printed (empty when no new token would); for a reading issue always empty.",
+  ),
+};
+
+const P = LENS_SCHEMA_PARTS;
+
 // The answer's schema has no nullable field: the lens as the models write it (lensForm.ts), which lensFromExtract turns
 // into the lens as code uses it.
 export const EXTRACT_SCHEMA = object({
-  startRepeat: bool,
-  staves: {
-    type: "array",
-    items: object({ staff: int, description: str, label: str, clef: str, key: str, time: str }),
-  },
-  groups: {
-    type: "array",
-    items: object({ staves: { type: "array", items: int }, symbol: enumOf(GROUP_SYMBOL_VALUES), label: str }),
-  },
-  stretches: {
-    type: "array",
-    items: object({
-      stretch: int,
-      class: enumOf(STRETCH_CLASS_VALUES),
-      printedNumber: str,
-      measureNumber: int,
-      changes: { type: "array", items: object({ staff: int, key: str, time: str }) },
-      ending: enumOf(ENDING_VALUES),
-      endingLabel: str,
-      voices: { type: "array", items: object({ voice: int, staff: int, description: str, music: str }) },
-      rightBarLine: enumOf(RIGHT_BAR_LINES),
-    }),
-  },
-  lastMeasureContinues: bool,
-  issues: {
-    type: "array",
-    items: object({
-      boxes: {
-        type: "array",
-        items: object({ image: str, box: object({ left: { type: "number" }, right: { type: "number" }, top: { type: "number" }, bottom: { type: "number" } }) }),
-      },
-      location: str,
-      question: str,
-      answers: { type: "array", items: object({ key: str, text: str }) },
-      applied: str,
-      class: enumOf(["reading", "format"]),
-      lilypond: { type: "array", items: str },
-    }),
-  },
+  startRepeat: P.startRepeat,
+  staves: described({ type: "array", items: P.staff }, "The system's staves, top to bottom."),
+  groups: described({ type: "array", items: P.group }, "The braces and brackets that join staves."),
+  stretches: described(
+    {
+      type: "array",
+      items: object({
+        stretch: described(int, "Its number, from 1."),
+        class: P.class,
+        printedNumber: P.printedNumber,
+        measureNumber: P.measureNumber,
+        changes: P.changes,
+        ending: P.ending,
+        endingLabel: P.endingLabel,
+        voices: described(
+          {
+            type: "array",
+            items: object({ voice: P.voice, staff: P.voiceStaff, description: P.voiceDescription, music: P.music }),
+          },
+          "The music, one entry per voice. Every staff has a voice in every stretch that is part of a measure; all voices of a stretch last the same time.",
+        ),
+        rightBarLine: P.rightBarLine,
+      }),
+    },
+    "One per stretch of the request, in order: exactly these stretches.",
+  ),
+  lastMeasureContinues: P.lastMeasureContinues,
+  issues: described(
+    {
+      type: "array",
+      items: object({
+        boxes: P.issueBoxes,
+        location: P.location,
+        question: P.question,
+        answers: described(
+          { type: "array", items: object({ key: P.answerKey, text: P.answerText }) },
+          "The answers you considered, each with its evidence.",
+        ),
+        applied: described(str, "The key of the answer your music reflects."),
+        class: P.issueClass,
+        lilypond: P.lilypond,
+      }),
+    },
+    "Your doubts, and what the format can't express: each a question about what the page says at one place.",
+  ),
 });

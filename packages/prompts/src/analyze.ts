@@ -4,7 +4,7 @@
 // are named by the labels drawn on the pages: "system 17, bar line 4", "system 17, stretch 2", "system 17, end".
 
 // Raise whenever the texts, the schemas or the checks change.
-export const ANALYZE_PROMPT_VERSION = 6;
+export const ANALYZE_PROMPT_VERSION = 7;
 
 export const ANALYZE_PAGE_MAX_OUTPUT_TOKENS = 16_000;
 export const ANALYZE_SCORE_MAX_OUTPUT_TOKENS = 32_000;
@@ -345,7 +345,6 @@ function nestedScore(items: FlatScoreItem[]): ScoreObservations {
   return lists as unknown as ScoreObservations;
 }
 
-const confidence = { type: "string", enum: [...CONFIDENCES] };
 const str = { type: "string" };
 const int = { type: "integer" };
 
@@ -353,40 +352,96 @@ function object(properties: Record<string, unknown>) {
   return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
 }
 
-const nullable = (schema: object) => ({ anyOf: [schema, { type: "null" }] });
-const place = object({ system: int, at: { type: "string", enum: [...PLACE_KINDS] }, number: int });
-const staff = object({ number: int, of: int });
-const list = (properties: Record<string, unknown>) => ({ type: "array", items: object(properties) });
+// A schema with its description, which the model reads beside the field: short, in the prompt's words, so that it
+// points back to the prompt's longer explanations rather than repeating them.
+const described = <T extends object>(schema: T, description: string) => ({ ...schema, description });
+const nullable = (schema: object, description: string) => ({ anyOf: [schema, { type: "null" }], description });
+const list = (properties: Record<string, unknown>, description: string) => described({ type: "array", items: object(properties) }, description);
+
+const confidence = described(
+  { type: "string", enum: [...CONFIDENCES] },
+  '"high": clearly legible or clearly right; "medium": a reasonable guess; "low": very unsure (stained, faded, cut off).',
+);
+const place = object({
+  system: described(int, "The system's number, from its label."),
+  at: described({ type: "string", enum: [...PLACE_KINDS] }, "Where in the system: its start, one of its bar lines, a stretch, or its end."),
+  number: described(int, "The bar line's or the stretch's number, read from the labels; 0 for start and end."),
+});
+const staff = described(
+  object({
+    number: described(int, "k: the staff's position in its system, from the top."),
+    of: described(int, "n: the number of staves you give for that system."),
+  }),
+  "Staff k of n in its system.",
+);
 
 const metadataSchema = (extra: Record<string, unknown> = {}) =>
-  list({ category: { type: "string", enum: METADATA_CATEGORIES }, text: str, system: nullable(int), ...extra, confidence });
+  list(
+    {
+      category: described({ type: "string", enum: METADATA_CATEGORIES }, "What the item is: one of the categories of the metadata."),
+      text: described(str, "As printed, in the page's language and spelling. For a person, the name, with the printed role in parentheses where it says more."),
+      system: nullable(int, "For a piece: the system where it starts. Null for every other category."),
+      ...extra,
+      confidence,
+    },
+    "What is printed about the work and the edition, one item per thing, in any order. Only what is printed.",
+  );
 
 // The page's systems and items, each with `extra` (an id, a page).
-function pageObservationsSchema(extra: Record<string, unknown> = {}) {
-  return object({
-    systems: list({ ...extra, system: int, staves: int, instruments: { type: "array", items: str }, confidence }),
-    items: list({
-      ...extra,
-      kind: { type: "string", enum: OBSERVATION_KINDS },
-      text: str,
-      staff: nullable(staff),
-      start: nullable(place),
-      end: nullable(place),
-      confidence,
+function pageObservationsSchema(extra: Record<string, unknown> = {}, description: string) {
+  return described(
+    object({
+      systems: list(
+        {
+          ...extra,
+          system: described(int, "The system's number, from its label."),
+          staves: described(int, "Its number of staves."),
+          instruments: described({ type: "array", items: str }, 'The probable instrument of each staff, top to bottom ("piano right hand", "violin", "voice").'),
+          confidence,
+        },
+        "Every system on the page.",
+      ),
+      items: list(
+        {
+          ...extra,
+          kind: described({ type: "string", enum: OBSERVATION_KINDS }, "What the item is: one of the kinds of observations."),
+          text: described(str, 'What it is, as its kind says ("bass clef", "3/4", the sign or numbers as printed, the note); "" where the kind uses none.'),
+          staff: nullable(staff, "For a clef or an ottava, and a change on one staff only: its staff. Else null."),
+          start: nullable(place, "Its place, or where it starts. Null for a note, and for an ottava or ending that starts before this page."),
+          end: nullable(place, "Where an ottava or ending ends. Null where it ends after this page, and for an item at one place."),
+          confidence,
+        },
+        "Everything else, one item per thing, each where it is printed, in any order. A field its kind doesn't use is null (the text \"\").",
+      ),
     }),
-  });
+    description,
+  );
 }
 
 export const ANALYZE_PAGE_SCHEMA = object({
   metadata: metadataSchema(),
-  observations: pageObservationsSchema(),
+  observations: pageObservationsSchema({}, "This page's observations, for the later transcription."),
 });
 
 export const ANALYZE_SCORE_SCHEMA = object({
-  metadata: metadataSchema({ page: int }),
-  edits: pageObservationsSchema({ id: str, page: int }),
-  removals: { type: "array", items: str },
-  score: list({ kind: { type: "string", enum: SCORE_KINDS }, text: str, places: { type: "array", items: place }, confidence }),
+  metadata: metadataSchema({ page: described(int, "The page it was read on.") }),
+  edits: pageObservationsSchema(
+    {
+      id: described(str, 'The id of the system or item it corrects, or "" for an addition.'),
+      page: described(int, "The page it is on."),
+    },
+    "Corrections of the pages' systems and items (each whole, as it should be, with its id) and additions (id \"\"). Not the ones that are right.",
+  ),
+  removals: described({ type: "array", items: str }, "The ids of the pages' systems and items that are wrong or duplicated."),
+  score: list(
+    {
+      kind: described({ type: "string", enum: SCORE_KINDS }, "What the item is about."),
+      text: str,
+      places: described({ type: "array", items: place }, "For recurringMaterial, its places; else an empty list."),
+      confidence,
+    },
+    "Observations about the whole score, one item per thing.",
+  ),
 });
 
 // The answers as the model writes them.

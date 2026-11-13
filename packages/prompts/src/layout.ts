@@ -3,7 +3,7 @@
 // answers in all. Boxes and positions are fractions of the image sent (left, right, top, bottom from 0 to 1).
 
 // Raise whenever the texts, the schema or the checks change.
-export const LAYOUT_PROMPT_VERSION = 3;
+export const LAYOUT_PROMPT_VERSION = 4;
 
 // The first answer and up to two checks of the drawing.
 export const LAYOUT_ROUNDS = 3;
@@ -31,27 +31,35 @@ export function layoutCheck(round: number): string {
 If anything needs changing, answer with the whole corrected layout and "satisfied": false${last ? "" : ": you will see it drawn again"}. If nothing needs changing, answer with the same layout and "satisfied": true.${last ? " This is the last check: if the layout still isn't right, give your best version, \"satisfied\": false, and say in the note what is wrong with it, for a person to fix." : ""}`;
 }
 
+const number = (description: string) => ({ type: "number", description });
+
 export const LAYOUT_SCHEMA = {
   type: "object",
   properties: {
-    severelySkewed: { type: "boolean" },
+    severelySkewed: { type: "boolean", description: "Whether the page is so crooked that upright rectangles can't hold its systems well." },
     systems: {
       type: "array",
+      description: "Every system on the page, top to bottom; an empty list for a page without music.",
       items: {
         type: "object",
+        description: "A system: its box, tight around everything printed that belongs to it, without a margin, and its bar lines.",
         properties: {
-          left: { type: "number" },
-          right: { type: "number" },
-          top: { type: "number" },
-          bottom: { type: "number" },
-          barLines: { type: "array", items: { type: "number" } },
+          left: number("x of the box's left edge, from 0 to 1: the brace or bracket at the system's start, with the instrument names beside it."),
+          right: number("x of the box's right edge, from 0 to 1: the system's last bar line."),
+          top: number("y of the box's top edge, from 0 to 1: the highest thing printed that belongs to the system."),
+          bottom: number("y of the box's bottom edge, from 0 to 1: the lowest thing printed that belongs to the system."),
+          barLines: {
+            type: "array",
+            items: { type: "number" },
+            description: "x of every bar line inside the system, from 0 to 1, left to right. Not the line at the system's start or at its end.",
+          },
         },
         required: ["left", "right", "top", "bottom", "barLines"],
         additionalProperties: false,
       },
     },
-    satisfied: { type: "boolean" },
-    note: { type: "string" },
+    satisfied: { type: "boolean", description: "true only when you have seen this layout drawn on the page and nothing needs changing." },
+    note: { type: "string", description: 'On the last check, if the layout still isn\'t right: what is wrong with it, for a person to fix. Else "".' },
   },
   required: ["severelySkewed", "systems", "satisfied", "note"],
   additionalProperties: false,
