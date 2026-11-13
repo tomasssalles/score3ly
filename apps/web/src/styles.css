@@ -4130,15 +4130,10 @@ textarea:focus::placeholder {
   font: 600 22px var(--sans);
 }
 
-.home-notice,
-.home-more {
+.home-notice {
   margin: 0 0 16px;
   font-size: 13px;
   color: var(--muted);
-}
-
-.home-more {
-  margin: 16px 0 0;
 }
 
 .home-cards {

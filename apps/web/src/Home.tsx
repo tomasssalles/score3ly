@@ -74,7 +74,6 @@ function RecentProjects({
   const list = useRef<HTMLUListElement>(null);
   const [fitting, setFitting] = useState(HOME_CARDS);
   const shown = recentProjects(projects, fitting);
-  const more = projects.length > shown.length;
 
   useLayoutEffect(() => {
     const el = root.current!;
@@ -84,8 +83,7 @@ function RecentProjects({
       if (!card) return;
       const style = getComputedStyle(el);
       const listStyle = getComputedStyle(ul);
-      // Everything but the cards: the heading, a notice, the line about the picker (counted even before it shows,
-      // since showing fewer cards brings it).
+      // Everything but the cards: the heading, a notice.
       let others = 0;
       for (const child of el.children) {
         if (child === ul) continue;
@@ -95,16 +93,13 @@ function RecentProjects({
       const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - others;
       const columns = listStyle.gridTemplateColumns.split(" ").filter(Boolean).length;
       const gap = parseFloat(listStyle.rowGap) || 0;
-      let n = cardsThatFit(height, card.offsetHeight, gap, columns);
-      // Leaving cards out brings the line about the picker: room for it, if it isn't there yet (its height, about).
-      if (projects.length > n && !el.querySelector(".home-more")) n = cardsThatFit(height - 40, card.offsetHeight, gap, columns);
-      setFitting(n);
+      setFitting(cardsThatFit(height, card.offsetHeight, gap, columns));
     };
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [projects.length]);
+  }, []);
 
   return (
     <div className="home" ref={root}>
@@ -117,7 +112,6 @@ function RecentProjects({
           </li>
         ))}
       </ul>
-      {more && <p className="home-more">All {projects.length} projects are in the picker above.</p>}
     </div>
   );
 }
