@@ -790,11 +790,11 @@ A call can take minutes with nothing on the screen moving, and the user can't te
 ### The model configs' list on the settings page
 `#decision` `#style`
 
-Proposed by the project owner (2026-11-09). The list of model configs gets long very quickly, and the other settings are below it.
-- **Sorting:** by creation date, newest at the top, by default. To decide: whether the default config stays at the top regardless.
+Proposed by the project owner (2026-11-09). The list of model configs gets long very quickly, and the other settings were below it. **Tried** (2026-11-14, built as an experiment of the project owner's: `docs/project-view.md`, "The menu and its pages"): the configs on a tab of their own, "Model configs", beside "General"; sorting (newest first by default, oldest first, by name either way) and a filter by provider and by model. Left, after trying it:
+- **Keep the experiment, change it, or undo it.**
+- **To decide: whether the default config stays at the top** regardless of the order (today it doesn't; its badge says which it is).
 - **To decide: a more compact view of each config,** with a way to see all its details: the card expanded in place, or a view of its own.
-- **To decide: how the list stays short:** pages, a container of its own that scrolls, or the configs on a tab of their own in the settings.
-
+- **Whether the order and the filter are remembered** (on this device, as the theme is) rather than forgotten when the page is left.
 ### Check what stopped calls cost at the providers
 `#owner` `#manual-test`
 
