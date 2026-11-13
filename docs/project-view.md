@@ -34,10 +34,19 @@ What the app shows and how it behaves around a project: the two layouts, the art
 
 ## The home
 (decided and built 2026-11-13; `Home.tsx`, `home.ts`) What the app shows with no project and no page of the menu open (`#/`, or no hash).
-- **Cards of the most recently opened projects,** at most 8 (`HOME_CARDS`), in the picker's order; the picker has them all, and with more a line under the cards says so ("All 12 projects are in the picker above."). A grid on wide screens, one column on a phone.
+- **Cards of the most recently opened projects,** under the heading "Recent", in the picker's order: at most 6 (`HOME_CARDS`), and only as many whole rows as fit without scrolling (measured, `cardsThatFit`): two rows of three on a wide screen, about four on a phone. With cards left out, a line under them says the picker has them all ("All 12 projects are in the picker above."). **Centred vertically** in the space below the header, with more room above the heading and below the last card on a phone (decided, the project owner).
 - **A card shows** the project's name, its PDF's file name (in mono), **where its pipeline is** in the words of the panel's head ("Done", "Layout failed", "Extract interrupted", "Extract…", "Fix layout (WIP)", "Rasterize (not started)"), with the strip's icons (a green check, a red triangle, a pause sign; a small spinner while a stage runs on a device), and when it was last opened ("Opened 2d ago"). **No progress bar** (decided, the project owner: the total is only a guess, and the text says what matters, which project needs the user) and **no thumbnail** (every PDF would have to be downloaded).
 - **A card is a link** to its project: a click opens it here and marks it as opened, as the picker does; a middle click or Ctrl-click opens it in a new tab, without marking it.
-- **With no projects yet:** "Start with a PDF of printed music. The app reads it into MEI, step by step." and "+ New project" under it.
+- **With no projects yet, a welcome** (the project owner's text, 2026-11-13), centred both ways, its lines centred and its list a centred block with its lines on the left:
+
+  > Welcome to score3ly!
+  >
+  > To get started, click the **+ New project** button at the top right to pick a PDF and begin transcribing your first score. Or start by checking out the pages in the ☰ menu next to it:
+  > - **About** tells you what this app is.
+  > - **Help** leads you to a quick-start guide, as well as the full documentation.
+  > - **Settings** is where you need to go to set up your model configs, which drive the transcription pipeline.
+
+  **It teaches where things are, for next time:** no links and no button of its own, only the names in bold and the menu's icon as it looks in the header. **The button is named as it names itself** (`NewProjectLabel`): "+ New" where the back and forward arrows take the room on a phone (the root's class `no-browser-bar`). A user who deletes every project sees the welcome again (accepted, the project owner).
 - **After a deletion** the home says so above the cards ("\"<name>\" was deleted from this device and from the remote storage."), until something else is opened.
 - **Where each pipeline is comes with the list of projects** (`GET /api/projects`, decided): each project has `current`, its first stage that isn't done (a carried one counts as not done), as stored, or null when all are done, in one more query of the same request; the browser names its state as the panel's head does. The picker uses the same list, which the app loads at start and **again whenever the home is shown**, so the cards are current after a run. A route of its own wasn't worth it: one person's projects are few.
 - **The wordmark is the home button** (decided, the project owner): a link to `#/` from everywhere, also from a project (not to the project's own view); leaving a project whose stage runs on this device asks first, like any other way of leaving (below, "Leaving a running project").

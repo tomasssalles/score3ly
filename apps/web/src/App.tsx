@@ -356,7 +356,6 @@ export function App() {
                 )
               }
               onOpen={open}
-              onNewProject={() => fileInput.current?.click()}
             />
           )
         )}

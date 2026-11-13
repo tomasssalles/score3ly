@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { BackIcon, ForwardIcon } from "./icons";
 import { editionOf, useHost } from "./host";
 import { Menu } from "./Menu";
@@ -20,6 +20,10 @@ export function Header({
   const host = useHost();
   // The desktop app's window has no browser bar either.
   const noBrowserBar = installed || host === "desktop";
+  // On the document's root, so that the home's text names the button as the button names itself (NewProjectLabel).
+  useEffect(() => {
+    document.documentElement.classList.toggle("no-browser-bar", noBrowserBar);
+  }, [noBrowserBar]);
   return (
     <header className={noBrowserBar ? "app-header with-history" : "app-header"}>
       <div className="brand">
@@ -36,12 +40,22 @@ export function Header({
       </div>
       <div className="actions">
         <button type="button" className="button-primary" onClick={onNewProject}>
-          + New<span className="new-project-word"> project</span>
+          <NewProjectLabel />
         </button>
         <Menu current={page} />
       </div>
       {picker}
     </header>
+  );
+}
+
+// The new-project button's label, also where the home's text names the button: "+ New project", but "+ New" where the
+// back and forward arrows take the room on a phone (styles.css), in both places alike.
+export function NewProjectLabel() {
+  return (
+    <>
+      + New<span className="new-project-word"> project</span>
+    </>
   );
 }
 
