@@ -4222,21 +4222,22 @@ textarea:focus::placeholder {
   color: var(--muted);
 }
 
-/* The welcome, with no projects yet: its lines centred; the list centred as a block, its lines aligned on the left. */
+/* The welcome, with no projects yet: its first line centred, the rest aligned on the left. */
 .home-welcome {
   max-width: 600px;
-  text-align: center;
 }
 
 .home-welcome p {
   margin: 0 0 12px;
 }
 
+.home-welcome p:first-of-type {
+  text-align: center;
+}
+
 .home-welcome ul {
-  align-self: center;
   margin: 0;
   padding-left: 20px;
-  text-align: left;
 }
 
 .home-welcome li {
