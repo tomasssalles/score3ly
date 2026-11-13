@@ -141,7 +141,6 @@ The tasks below, in the file's order.
 - [Timeouts for LLM calls](#timeouts-for-llm-calls)
 - [The Worker reports the current call's progress](#the-worker-reports-the-current-calls-progress)
 - [Show that a long call is making progress](#show-that-a-long-call-is-making-progress)
-- [VAT in the costs](#vat-in-the-costs)
 - [The model configs' list on the settings page](#the-model-configs-list-on-the-settings-page)
 - [The default name follows the form when cloning](#the-default-name-follows-the-form-when-cloning)
 - [Stop cancels the LLM call](#stop-cancels-the-llm-call)
@@ -788,16 +787,6 @@ The Worker sends the browser, while an LLM call runs: when it started, when it e
 `#decision` `#style`
 
 A call can take minutes with nothing on the screen moving, and the user can't tell whether to wait or to stop the stage and try another model. Use what is known (the number of calls made and expected, the tokens received on the current call, the time elapsed on it, its timeout, perhaps more) to show that progress is being made, or not. A clock alone only shows that the browser is alive, not that the provider is answering, though it does help decide when to give up. Note `docs/project-view.md`'s rule: progress indicators never show numbers. Waits for "Timeouts for LLM calls" and "The Worker reports the current call's progress".
-
-### VAT in the costs
-`#next-release`
-
-Every provider the project owner pays adds VAT on top of its listed prices (2026-11-09, Germany, 19%, no VAT ID): Anthropic at checkout (5 USD of credits for 5.95 USD); OpenRouter on the credits and its fee together (100 USD of credits: 108 USD with the Business fee, 128.52 USD with VAT); AWS on pay-as-you-go use after the starter credits; Google AI Studio apparently deducted from the prepaid balance as it is used (5 € paid, 5 € of credit shown). So the app's costs (tokens × list prices, plus OpenRouter's fee) are about 19% below what the user pays, and the spending cap counts the costs before VAT too. **Decided** (the project owner, 2026-11-09):
-- **One VAT rate in the settings** (a percentage), for every provider: VAT depends on the user's place and status (a VAT ID usually means a reverse charge, no VAT on the invoice), not on the model. 0% for a new database, which is today's behaviour; the user guide points to it. A rate per model config, prefilled from the global one, is left for when a provider is found that differs.
-- **Each call stores the rate applied,** beside its cost before VAT, as it stores the prices used: the cost with VAT is computed from the two, and a later change of the rate doesn't change past calls.
-- **Prices without VAT, costs with it** (the project owner, 2026-11-13, replacing "everything shown includes VAT"): **the prices on the model config cards stay the providers' own,** the numbers people know and compare with the providers' tables, with a note that VAT isn't included (the rate is set and shown on the same Settings page). **Costs include VAT:** the Statistics page's Costs tab (and every cost from the same numbers: a stage's details, the average cost per page, the run report) and the spending cap, which is checked against the costs with VAT. Not a label on every number: the spending cap's "i" says the VAT is included, and so does one place on the Costs tab.
-- **The rate:** 0 to 100, up to two decimals. **A call gets the rate in force when its cost is recorded,** at its end. Free-tier calls stay $0.00 and unpriced ones of unknown cost, without VAT (decided 2026-11-13).
-- **Not covered: payments in euros** (Google's): the costs are right in US dollars, but what that comes to on the user's statement depends on the provider's exchange rate.
 
 ### The model configs' list on the settings page
 `#decision` `#style`

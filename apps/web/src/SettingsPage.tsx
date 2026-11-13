@@ -98,11 +98,22 @@ export function SettingsPage() {
           <dt>
             Spending cap
             <span className="settings-hint">
-              At most this much within any 24 hours, in US dollars. Paid LLM calls are refused once it is reached.
+              At most this much within any 24 hours, in US dollars, VAT included. Paid LLM calls are refused once it is
+              reached.
             </span>
           </dt>
           <dd>
             <SpendingCap key={settings.spendingCapUsd} value={settings.spendingCapUsd} onSave={(usd) => save("spendingCapUsd", usd)} />
+          </dd>
+          <dt>
+            VAT
+            <span className="settings-hint">
+              Added to every cost the app shows and to what the spending cap counts, at the rate set when each call is made;
+              0% if your invoices have none. The model configs' prices below are without it.
+            </span>
+          </dt>
+          <dd>
+            <VatRate key={settings.vatPercent} value={settings.vatPercent} onSave={(percent) => save("vatPercent", percent)} />
           </dd>
         </dl>
       )}
@@ -387,6 +398,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
           onCancel={() => setDeleting(null)}
         />
       )}
+      <p className="settings-hint model-configs-note">Prices as the providers list them, without VAT.</p>
       {configs.length === 0 && <p>No model configs yet.</p>}
       <ul className="model-configs">
         {configs.map((config) => (
@@ -461,6 +473,47 @@ function Fact({ label, value, hint }: { label: string; value: string; hint?: str
         {hint && <span className="model-config-hint"> ({hint})</span>}
       </dd>
     </>
+  );
+}
+
+// The VAT rate, a percentage from 0 to 100 with at most two decimals (docs/llm.md, "VAT"), typed; saved like the cap.
+function VatRate({ value, onSave }: { value: number; onSave: (percent: number) => void }) {
+  const [text, setText] = useState(String(value));
+  const [problem, setProblem] = useState<string | null>(null);
+
+  function commit() {
+    const trimmed = text.trim().replace(/%$/, "").trim();
+    const percent = Number(trimmed);
+    if (trimmed === "" || !Number.isFinite(percent) || percent < 0 || percent > 100 || Math.round(percent * 100) / 100 !== percent) {
+      setProblem("Enter a percentage from 0 to 100, with at most two decimals.");
+      return;
+    }
+    setProblem(null);
+    if (percent !== value) onSave(percent);
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") commit();
+    if (e.key === "Escape") {
+      setText(String(value));
+      setProblem(null);
+    }
+  }
+
+  return (
+    <div className="settings-amount settings-percent">
+      <input
+        className="field-input"
+        inputMode="decimal"
+        value={text}
+        aria-label="VAT in percent"
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={onKeyDown}
+      />
+      <span className="settings-currency">%</span>
+      {problem && <p className="settings-error error-text">{problem}</p>}
+    </div>
   );
 }
 

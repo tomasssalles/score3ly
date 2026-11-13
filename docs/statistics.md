@@ -22,7 +22,7 @@ Rethinking the whole page as one clean concept would be nice, but the statistics
 
 ## Costs
 
-How costs are computed and kept, and the spending cap: llm.md, "Costs".
+How costs are computed and kept, and the spending cap: llm.md, "Costs". **Every cost here includes VAT,** at the rate set when each call was made (llm.md, "VAT"); the "i" of "Last 24 hours" and of "Detailed overview" say so.
 
 ### The costs view
 The Statistics page's Costs tab (`#/stats/costs`) (decided 2026-10-27; first draft built: `apps/web/src/StatsPage.tsx`, `costs.ts`, `TimeChart.tsx`; the Worker's `GET /api/costs`, `apps/worker/src/costs.ts`). Built for a quick glimpse first: it opens on the last 30 days, per day, as bars, nothing split or filtered.

@@ -26,7 +26,8 @@ export function StageDetails({ stage }: { stage: Stage }) {
     ["Status", STATUS_LABELS[stage.status]],
   ];
   if (stage.seconds !== undefined) facts.push(["Run time", duration(stage.seconds)]);
-  if (stage.cost !== undefined) facts.push(["Cost", dollars(stage.cost)]);
+  // Costs include VAT, where any was set (docs/llm.md, "VAT").
+  if (stage.cost !== undefined) facts.push([stage.costIncludesVat ? "Cost, incl. VAT" : "Cost", dollars(stage.cost)]);
   if (stage.note) facts.push(["Result", stage.note]);
   if (stage.error) facts.push(["Error", stage.error]);
   const config = Object.entries(stage.config);

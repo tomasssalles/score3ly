@@ -1769,6 +1769,16 @@ dialog.app-dialog.config-form {
   color: var(--muted);
 }
 
+/* The VAT rate: the field, then "%". */
+.settings-percent {
+  grid-template-columns: calc(6.5ch + 18px) auto;
+}
+
+/* Under the model configs' heading: what their prices are. */
+.model-configs-note {
+  margin: -6px 0 12px;
+}
+
 .settings-amount .settings-error {
   grid-column: 1 / -1;
   margin: 0;

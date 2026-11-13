@@ -85,6 +85,7 @@ const CALL_COLUMNS = [
   "cached_tokens",
   "cache_write_tokens",
   "cost_usd",
+  "vat_percent",
   "price_json",
   "started_at",
   "finished_at",
@@ -334,6 +335,8 @@ export async function importProject(db: D1Database, bucket: R2Bucket, data: Proj
         id,
         stage_id: stageMap.get(c.stage_id as string)!,
         model_config_id: configMap.get(c.model_config_id as string) ?? c.model_config_id,
+        // Files exported before VAT was recorded (docs/llm.md, "VAT") have no rate: their calls had none.
+        vat_percent: c.vat_percent ?? 0,
         imported_at: iso,
       }),
     );

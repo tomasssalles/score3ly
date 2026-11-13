@@ -3,6 +3,7 @@
 // identical earlier answer from the call records (the item-level cache, §5.2), and otherwise checks the spending cap,
 // calls the provider, and records the call with its tokens and cost.
 
+import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
 import { logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
 import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
@@ -270,9 +271,10 @@ export type Settings = {
   defaultModelConfigId: string | null; // the model config of LLM stages unless one is chosen for the stage (§7.2)
   spendingCapUsd: number; // at most this much within any 24 hours, for configs that aren't free (§10): $1 until changed
   newProjectRunMode: "auto" | "manual"; // the run mode a new project starts with (§5.1)
+  vatPercent: number; // the VAT added to every cost, a percentage (docs/llm.md, "VAT"): 0 until changed
 };
 
-const DEFAULT_SETTINGS: Settings = { defaultModelConfigId: null, spendingCapUsd: 1, newProjectRunMode: "auto" };
+const DEFAULT_SETTINGS: Settings = { defaultModelConfigId: null, spendingCapUsd: 1, newProjectRunMode: "auto", vatPercent: 0 };
 
 export async function readSettings(db: D1Database): Promise<Settings> {
   const { results } = await db.prepare("SELECT key, value_json FROM settings").all<{ key: string; value_json: string }>();
@@ -288,6 +290,7 @@ function settingProblem(key: string, value: unknown): string | null {
     return typeof value === "number" && Number.isFinite(value) && value > 0 ? null : "expected an amount in US dollars above 0";
   }
   if (key === "newProjectRunMode") return value === "auto" || value === "manual" ? null : "expected 'auto' or 'manual'";
+  if (key === "vatPercent") return isVatPercent(value) ? null : "expected a percentage from 0 to 100, with at most two decimals";
   return "no such setting";
 }
 
@@ -558,17 +561,18 @@ export type CallAnswer = {
   json: unknown;
   error: string | null;
   usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number } | null;
-  costUsd: number | null;
+  costUsd: number | null; // with VAT (docs/llm.md, "VAT")
+  vatPercent: number; // the rate in it
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// What the spending cap counts (docs/llm.md, "Spending cap"): the costs of the calls started in the last 24 hours,
-// free-tier configs left out (unpriced calls have no cost to count), deleted projects included.
+// What the spending cap counts (docs/llm.md, "Spending cap"): the costs of the calls started in the last 24 hours, with
+// their VAT, free-tier configs left out (unpriced calls have no cost to count), deleted projects included.
 export async function spentInLastDay(db: D1Database, now = Date.now()): Promise<number> {
   const row = await db
     .prepare(
-      "SELECT COALESCE(SUM(c.cost_usd), 0) AS spent FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.pricing_kind <> 'free' AND c.started_at >= ?",
+      `SELECT COALESCE(SUM(${COST_WITH_VAT}), 0) AS spent FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.pricing_kind <> 'free' AND c.started_at >= ?`,
     )
     .bind(new Date(now - DAY_MS).toISOString())
     .first<{ spent: number }>();
@@ -904,6 +908,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
             cacheWriteTokens: earlier.cache_write_tokens ?? 0,
           },
           costUsd: 0,
+          vatPercent: 0,
         };
         return c.json(answer);
       }
@@ -1010,6 +1015,8 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
       priced.kind === "unpriced" ? null
       : priced.kind === "provider" ? providerCost(response.reportedCostUsd, fee)
       : price ? costOf(response.usage, price) : 0;
+    // The rate in force now, when the cost is recorded (docs/llm.md, "VAT").
+    const { vatPercent } = await readSettings(db);
     const responseSha = await putJson(env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, ...(response.servedBy ? { servedBy: response.servedBy } : {}), raw: response.raw });
     const error =
       status === "ok" ? null
@@ -1020,7 +1027,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
       : "The answer ended unexpectedly.";
     await db
       .prepare(
-        "UPDATE llm_calls SET status = ?, error = ?, error_kind = ?, response_model = ?, response_sha256 = ?, input_tokens = ?, output_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, cost_usd = ?, price_json = ?, finished_at = ? WHERE id = ?",
+        "UPDATE llm_calls SET status = ?, error = ?, error_kind = ?, response_model = ?, response_sha256 = ?, input_tokens = ?, output_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, cost_usd = ?, vat_percent = ?, price_json = ?, finished_at = ? WHERE id = ?",
       )
       .bind(
         status,
@@ -1033,6 +1040,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
         response.usage.cacheReadTokens,
         response.usage.cacheWriteTokens,
         costUsd,
+        vatPercent,
         price ? JSON.stringify({ ...price, asOf: MODEL_LIST.asOf, ...(priced.kind === "priced" && priced.borrowedFrom ? { borrowedFrom: priced.borrowedFrom } : {}) })
         : priced.kind === "provider" || (priced.kind === "free" && row.account) ? JSON.stringify({ reportedUsd: response.reportedCostUsd ?? null, fee, account: row.account })
         : null,
@@ -1040,7 +1048,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
         callId,
       )
       .run();
-    answer = { callId, cached: false, status, text: response.text, json: response.json ?? null, error, usage: response.usage, costUsd };
+    answer = { callId, cached: false, status, text: response.text, json: response.json ?? null, error, usage: response.usage, costUsd: withVat(costUsd, vatPercent), vatPercent };
   } catch (err) {
     const httpStatus = err instanceof LlmError ? (err.status ?? null) : null;
     // No usable response, so no token counts and no cost. With an HTTP error status, the provider refused the call
@@ -1053,7 +1061,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
       .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = ?, http_status = ?, finished_at = ? WHERE id = ?")
       .bind(message, kind, httpStatus, new Date().toISOString(), callId)
       .run();
-    answer = { callId, cached: false, status: "error", text: null, json: null, error: message, usage: null, costUsd: null };
+    answer = { callId, cached: false, status: "error", text: null, json: null, error: message, usage: null, costUsd: null, vatPercent: 0 };
   }
   return answer;
 }

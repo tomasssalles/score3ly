@@ -129,7 +129,7 @@ function Costs({ data }: { data: CostData }) {
       <section className="stats-section overview">
         <StatHead
           title="Detailed overview"
-          about={<p>Estimates in US dollars, from the providers' list prices. Free-tier calls aren't counted.</p>}
+          about={<p>Estimates in US dollars, from the providers' list prices, with VAT at the rate set in the settings when each call was made. Free-tier calls aren't counted.</p>}
           right={
             <>
               <Picker label="Time range" value={rangeId} options={RANGES} onChange={pickRange} />
@@ -284,7 +284,7 @@ function SpendingCap({ spent, cap }: { spent: number; cap: number }) {
     <section className="stats-section">
       <StatHead
         title="Last 24 hours"
-        about={<p>The spending cap, set in the settings: paid LLM calls are refused once the costs of the last 24 hours reach it.</p>}
+        about={<p>The spending cap, set in the settings: paid LLM calls are refused once the costs of the last 24 hours reach it. The costs include VAT, at the rate set in the settings when each call was made.</p>}
         right={
           <span className="stat-value">
             <span className="cap-top">

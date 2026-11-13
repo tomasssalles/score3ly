@@ -26,7 +26,8 @@ export type ApiStage = {
   heartbeatAt: string | null;
   finishedAt: string | null;
   modelConfig: { name: string; model: string; deleted: boolean; unsupported: boolean } | null; // LLM stages: the model config it names
-  costUsd: number | null; // what its LLM calls cost
+  costUsd: number | null; // what its LLM calls cost, VAT included (docs/llm.md, "VAT")
+  costIncludesVat: boolean; // some of its calls' costs have VAT in them
   carried: boolean; // a manual stage carried through a re-run, waiting for its turn to be kept or dropped (§5.5)
   inRecipe: boolean; // part of the recipe, or added by the user (a further review and its Apply review, a manual stage)
   outputs: ApiOutput[];
@@ -348,7 +349,8 @@ export type ModelConfig = {
 
 // `defaultModelConfigId` is never null once the database is set up (the Worker refuses to remove it);
 // null only as a guard against a database edited by hand.
-export type Settings = { defaultModelConfigId: string | null; spendingCapUsd: number; newProjectRunMode: RunMode };
+// vatPercent: the VAT added to every cost, a percentage (docs/llm.md, "VAT"); the model configs' prices are without it.
+export type Settings = { defaultModelConfigId: string | null; spendingCapUsd: number; newProjectRunMode: RunMode; vatPercent: number };
 
 export async function fetchSettings(): Promise<Settings> {
   return (await checked(await fetch("/api/settings"))).json();
@@ -661,7 +663,8 @@ export async function renameModelConfig(id: string, name: string): Promise<Model
 export type TestResult = {
   status: "ok" | "cut_off" | "refused" | "unparseable" | "error";
   error: string | null;
-  costUsd: number | null;
+  costUsd: number | null; // VAT included
+  vatPercent: number; // the VAT in it
   durationMs: number;
 };
 

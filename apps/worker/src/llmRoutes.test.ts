@@ -6,7 +6,7 @@ import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList, type Provider } from "./llm/models.ts";
-import { convertAddedConfigs, modelOptions, providerCost, secretNames, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
+import { convertAddedConfigs, modelOptions, providerCost, secretNames, spentInLastDay, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
 
 // The LLM endpoints against Wrangler's local R2 and D1, kept in memory, with the fake provider (llm/fake.ts).
@@ -217,7 +217,11 @@ test("model configs are named: the name given, else the model, its provider and 
 });
 
 test("settings: checked, with defaults", async () => {
-  assert.deepEqual(await json(await app.request("/api/settings", {}, env)), { defaultModelConfigId: null, spendingCapUsd: 1, newProjectRunMode: "auto" });
+  assert.deepEqual(await json(await app.request("/api/settings", {}, env)), { defaultModelConfigId: null, spendingCapUsd: 1, newProjectRunMode: "auto", vatPercent: 0 });
+  // VAT: a percentage from 0 to 100, at most two decimals.
+  for (const value of [-1, 101, 19.555, "19", null]) assert.equal((await send("/api/settings/vatPercent", { value }, "PUT")).status, 400, String(value));
+  for (const value of [0, 19, 7.25, 100]) assert.equal((await send("/api/settings/vatPercent", { value }, "PUT")).status, 200, String(value));
+  await send("/api/settings/vatPercent", { value: 0 }, "PUT");
   // There is always a cap.
   assert.equal((await send("/api/settings/spendingCapUsd", { value: null }, "PUT")).status, 400);
   assert.equal((await send("/api/settings/spendingCapUsd", { value: -1 }, "PUT")).status, 400);
@@ -227,6 +231,36 @@ test("settings: checked, with defaults", async () => {
   assert.equal((await send("/api/settings/defaultModelConfigId", { value: null }, "PUT")).status, 400);
   const settings = await json(await send("/api/settings/spendingCapUsd", { value: 1.5 }, "PUT"));
   assert.equal(settings.spendingCapUsd, 1.5);
+});
+
+test("VAT: a call keeps its cost before VAT and the rate then; costs, the stage's and the cap's, include it", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  await send("/api/settings/vatPercent", { value: 19 }, "PUT");
+  try {
+    const config = await modelConfig();
+    const stage = await runningStage(config.id);
+    const before = await spentInLastDay(env.DB);
+    const answer = await json(await call(stage));
+    const row = (await calls()).at(-1)!;
+    assert.equal(row.vat_percent, 19);
+    assert.ok((row.cost_usd as number) > 0);
+    assert.equal(answer.vatPercent, 19);
+    assert.ok(Math.abs((answer.costUsd as number) - (row.cost_usd as number) * 1.19) < 1e-12);
+    assert.ok(Math.abs((await spentInLastDay(env.DB)) - before - (row.cost_usd as number) * 1.19) < 1e-12);
+    // The stage's cost, with VAT, and that it has VAT in it.
+    const { stages } = await json<{ stages: { id: string; costUsd: number; costIncludesVat: boolean }[] }>(
+      await app.request(`/api/projects/${stage.projectId}/pipeline`, {}, env),
+    );
+    const own = stages.find((s) => s.id === stage.stageId)!;
+    assert.ok(Math.abs(own.costUsd - (row.cost_usd as number) * 1.19) < 1e-12);
+    assert.equal(own.costIncludesVat, true);
+    assert.equal(stages[0].costIncludesVat, false);
+    // A later change of the rate doesn't change the call.
+    await send("/api/settings/vatPercent", { value: 7 }, "PUT");
+    assert.ok(Math.abs((await spentInLastDay(env.DB)) - before - (row.cost_usd as number) * 1.19) < 1e-12);
+  } finally {
+    await send("/api/settings/vatPercent", { value: 0 }, "PUT");
+  }
 });
 
 test("a call is made, recorded with its tokens and cost, and an identical one is served from the record", async () => {

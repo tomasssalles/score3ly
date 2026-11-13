@@ -12,6 +12,7 @@
 // selected, each once. The browser merges the projects of a PDF and averages, so a change of selection needs no
 // request either.
 
+import { COST_WITH_VAT } from "./vat.ts";
 import type { Hono } from "hono";
 import { parsePages } from "@score3ly/core";
 import { modelGroupOf, readSettings, resolvedModel, spentInLastDay, type ModelConfigRow } from "./llmRoutes.ts";
@@ -40,7 +41,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
         .prepare(
           `SELECT c.stage_id AS stage, c.model_config_id AS config,
              (CAST(strftime('%s', c.started_at) AS INTEGER) / ${BUCKET_SECONDS}) * ${BUCKET_SECONDS} AS t,
-             SUM(c.cost_usd) AS usd,
+             SUM(${COST_WITH_VAT}) AS usd,
              CASE WHEN c.error_kind = 'unexpected_model' THEN 'wrong_model' WHEN c.status = 'error' THEN 'unexpected_stop' ELSE c.status END AS outcome
            FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
            WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND c.cost_usd > 0
@@ -61,7 +62,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
       // The configs' test requests, apart from the rest (docs/statistics.md, "The costs view"): their paid cost per
       // quarter of an hour, free configs left out.
       db.prepare(
-        `SELECT (CAST(strftime('%s', c.started_at) AS INTEGER) / ${BUCKET_SECONDS}) * ${BUCKET_SECONDS} AS t, SUM(c.cost_usd) AS usd, COUNT(*) AS n
+        `SELECT (CAST(strftime('%s', c.started_at) AS INTEGER) / ${BUCKET_SECONDS}) * ${BUCKET_SECONDS} AS t, SUM(${COST_WITH_VAT}) AS usd, COUNT(*) AS n
          FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
          WHERE c.stage_id IS NULL AND m.pricing_kind <> 'free' AND c.cost_usd > 0
          GROUP BY t ORDER BY t`,
@@ -83,7 +84,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
       db
         .prepare(`SELECT id, name, provider, model_id, model_string, family, effort, created_at, deleted_at FROM model_configs WHERE id IN (SELECT model_config_id FROM llm_calls WHERE id IN (${counted}))`)
         .bind(zombie),
-      db.prepare("SELECT s.created_in AS project, SUM(c.cost_usd) AS usd FROM llm_calls c JOIN stages s ON s.id = c.stage_id GROUP BY s.created_in"),
+      db.prepare(`SELECT s.created_in AS project, SUM(${COST_WITH_VAT}) AS usd FROM llm_calls c JOIN stages s ON s.id = c.stage_id GROUP BY s.created_in`),
       // The pages a `rasterize` stage ran on are written out in its config ("1-12, 15").
       db.prepare("SELECT created_in AS project, config_json FROM stages WHERE step = 'rasterize' AND started_at IS NOT NULL AND config_json IS NOT NULL"),
     ]);

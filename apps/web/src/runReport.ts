@@ -6,7 +6,8 @@ import type { ApiStage, ModelConfig, Project } from "./api";
 import type { EngraveConfig } from "./engrave";
 import type { StageKind } from "./pipeline";
 
-export const REPORT_VERSION = 1;
+// 2: the costs include VAT (docs/llm.md, "VAT"), and say so.
+export const REPORT_VERSION = 2;
 
 export type ReportModelConfig = { name: string; provider: string; model: string; effort: string | null; region: string | null; freeTier: boolean };
 
@@ -32,10 +33,12 @@ export type RunReport = {
     startedAt: string | null;
     finishedAt: string | null;
     seconds: number | null;
-    costUsd: number | null;
+    costUsd: number | null; // VAT included, where any was set
+    costIncludesVat: boolean;
     result: string | null;
   }[];
   totalCostUsd: number;
+  costsIncludeVat: boolean; // some stage's cost has VAT in it
 };
 
 export type ReportInput = {
@@ -71,6 +74,7 @@ export function runReport(input: ReportInput): RunReport {
       finishedAt: s.finishedAt,
       seconds,
       costUsd: s.costUsd,
+      costIncludesVat: s.costIncludesVat,
       result: s.note,
     };
   });
@@ -85,5 +89,6 @@ export function runReport(input: ReportInput): RunReport {
     engraving: input.engraving,
     stages,
     totalCostUsd: Math.round(stages.reduce((t, s) => t + (s.costUsd ?? 0), 0) * 1e6) / 1e6,
+    costsIncludeVat: stages.some((s) => s.costIncludesVat),
   };
 }
