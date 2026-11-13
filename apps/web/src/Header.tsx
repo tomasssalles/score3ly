@@ -24,8 +24,12 @@ export function Header({
     <header className={noBrowserBar ? "app-header with-history" : "app-header"}>
       <div className="brand">
         {noBrowserBar && <BackForwardButtons />}
-        <h1 className="wordmark" aria-label="score3ly">
-          <span className="bracket">&lt;</span>score3ly<span className="bracket">&gt;</span>
+        {/* The home button, as on a website (docs/project-view.md, "The home"): always the home, also from a project,
+            which then asks first if one of its stages is running here. */}
+        <h1 className="wordmark">
+          <a href="#/" aria-label="score3ly, home" title="Home">
+            <span className="bracket">&lt;</span>score3ly<span className="bracket">&gt;</span>
+          </a>
         </h1>
         {/* The edition (docs/desktop.md, "Editions"), in wide mode only: phones have no room for it. */}
         {host && <span className="header-edition">{editionOf(host)}</span>}

@@ -225,7 +225,14 @@ export function pipelineState(pipeline: Pipeline): PipelineState | null {
 
 // The line under the pipeline's bar in the panel's head: "Analyze…" while it runs, "Layout failed" (or "interrupted"),
 // "Layout (not started)" or "Fix layout (WIP)" while it waits for the user, "Done".
-export function stateLabel(state: PipelineState): string {
+// Only what the label needs, so that the home's cards, which have no pipeline, name a state the same way (home.ts).
+export type LabelState =
+  | { kind: "done" }
+  | { kind: "running"; stage: { title: string } }
+  | { kind: "failed"; stage: { title: string }; interrupted: boolean }
+  | { kind: "waiting"; stage: { title: string; status: string } };
+
+export function stateLabel(state: LabelState): string {
   switch (state.kind) {
     case "done":
       return "Done";

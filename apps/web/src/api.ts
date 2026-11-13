@@ -3,8 +3,8 @@ import type { Timing } from "./itemTiming";
 import { sha256Hex } from "@score3ly/core";
 
 // Mirrors the Worker's Project type (apps/worker/src/index.ts).
-export type { Project, RunMode } from "@score3ly/core";
-import type { Project, RunMode } from "@score3ly/core";
+export type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
+import type { ListedProject, Project, RunMode } from "@score3ly/core";
 
 // Mirrors the Worker's Pipeline, Stage and Output types: the stages as stored (docs/database.md).
 export type ApiPipeline = { stages: ApiStage[]; dropped: ApiDropped[] };
@@ -108,8 +108,8 @@ export async function setWindowTheme(theme: WindowTheme): Promise<void> {
   await checked(await fetch("/api/window/theme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ theme }) }));
 }
 
-// All projects, most recently opened first.
-export async function listProjects(): Promise<Project[]> {
+// All projects, most recently opened first, each with where its pipeline is (for the home's cards).
+export async function listProjects(): Promise<ListedProject[]> {
   return (await checked(await fetch("/api/projects"))).json();
 }
 

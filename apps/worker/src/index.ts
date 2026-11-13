@@ -13,8 +13,8 @@ import { versionRoutes } from "./versions.ts";
 import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
 
-export type { Project, RunMode } from "@score3ly/core";
-import type { Project, RunMode } from "@score3ly/core";
+export type { ListedProject, Project, RunMode } from "@score3ly/core";
+import type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
 
 type ProjectRow = {
   id: string;
@@ -82,12 +82,29 @@ app.delete("/api/projects/:id", async (c) => {
   return c.json(result);
 });
 
-// All projects, most recently opened first.
+// All projects, most recently opened first, each with where its pipeline is (its first stage that isn't done, a carried
+// one included), for the home's cards (docs/project-view.md, "The home").
 app.get("/api/projects", async (c) => {
-  const { results } = await c.env.DB.prepare(
-    "SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY last_opened_at DESC, created_at DESC",
-  ).all<ProjectRow>();
-  return c.json(results.map(toProject));
+  const db = c.env.DB;
+  const [projects, positions] = await db.batch([
+    db.prepare("SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY last_opened_at DESC, created_at DESC"),
+    db.prepare(
+      `SELECT e.project_id, s.step, s.status, s.heartbeat_at, e.carried
+       FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id
+       WHERE e.position = (
+         SELECT MIN(f.position) FROM pipeline_entries f JOIN stages t ON t.id = f.stage_id
+         WHERE f.project_id = e.project_id AND (t.status <> 'done' OR f.carried = 1)
+       )`,
+    ),
+  ]);
+  type PositionRow = { project_id: string; step: string; status: PipelinePosition["status"]; heartbeat_at: string | null; carried: number };
+  const at = new Map(
+    (positions.results as PositionRow[]).map((r) => [
+      r.project_id,
+      { step: r.step, status: r.status, heartbeatAt: r.heartbeat_at, carried: r.carried === 1 } satisfies PipelinePosition,
+    ]),
+  );
+  return c.json((projects.results as ProjectRow[]).map((row): ListedProject => ({ ...toProject(row), current: at.get(row.id) ?? null })));
 });
 
 // Every name in use: firstFreeName picks from them in code. Not with LIKE: D1 refuses patterns over 50 bytes, and

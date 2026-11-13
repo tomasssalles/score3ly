@@ -51,7 +51,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 ## Brand
 
-- **The wordmark** is `<score3ly>` in JetBrains Mono, in the text colour, with the angle brackets in the accent. It nods at the source code the app turns music into. It is always on the left of the header, at every width.
+- **The wordmark** is `<score3ly>` in JetBrains Mono, in the text colour, with the angle brackets in the accent. It nods at the source code the app turns music into. It is always on the left of the header, at every width. It is the home button: a link to the home from everywhere (`docs/project-view.md`, "The home").
 - **The accent is coral:** #ff7b72 in the dark theme (8.4:1 on black, black text on it), #c93a30 in the light one. Chosen from a set of candidates in a mockup. **Progress is green** (#3fb950 dark, #1a7f37 light), never coral, through its own token (`--progress`), so changing it is one line.
 - **The app's icon (the compact mark):** `< >` in coral with a quarter note inside, on a rounded square (`apps/web/public/icon.svg`). Besides angle brackets as a tag, `<c e g>` is a chord in LilyPond. A quarter note rather than an eighth: a flag makes the note lopsided between the brackets and is too much detail for a favicon.
   - **The same in every theme:** an installed app's icon and a favicon can't follow the app's theme, and the README shows it on GitHub's light and dark pages. So: a coal tile (#303237), which keeps its edge on black and on white, and brackets in a coral halfway between the two themes' accents (#e45a51), standing for both looks of the app; a test keeps it halfway. The note is white.

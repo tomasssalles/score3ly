@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { leavesProject, runningProject } from "./leaveGuard";
-import { ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type PdfLookup, type Project } from "./api";
+import { ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type ListedProject, type PdfLookup, type Project } from "./api";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { ExportDialog } from "./ExportDialog";
 import { EXTENSION, importArchive, type ProjectArchive, unzipArchive } from "./projectFile";
 import { Header } from "./Header";
+import { Home } from "./Home";
 import { useEditionWindow, useHost } from "./host";
 import { KnownPdfDialog } from "./KnownPdfDialog";
 import { ProjectPicker } from "./ProjectPicker";
@@ -18,7 +19,7 @@ import { useHash } from "./useHash";
 
 export function App() {
   // Most recently opened first. null until loaded.
-  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [projects, setProjects] = useState<ListedProject[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A picked PDF that already has projects, waiting for the user's choice.
   const [knownPdf, setKnownPdf] = useState<{ pdf: File; sha256: string; lookup: PdfLookup } | null>(null);
@@ -92,6 +93,13 @@ export function App() {
   useEffect(() => {
     if (route || page) setDeleted(null);
   }, [hash]);
+
+  // The home (no project and no page open) loads the projects again whenever it is shown, so that its cards say where
+  // each pipeline is now (docs/project-view.md, "The home"). The first load is the one above.
+  const home = !route && !page;
+  useEffect(() => {
+    if (home && projects !== null) refresh();
+  }, [home]);
 
   // A picked PDF gets a new project, unless it already has projects: then the user chooses. A project file is imported,
   // the same way.
@@ -330,17 +338,26 @@ export function App() {
             onDelete={() => setDeleting(true)}
             onChanged={refresh}
           />
-        ) : (
+        ) : route ? (
           projects !== null && (
             <div className="empty-state">
-              {deleted !== null ? (
-                <p>{desktop ? `"${deleted}" was deleted.` : `"${deleted}" was deleted from this device and from the remote storage.`}</p>
-              ) : route ? (
-                <p>This project doesn't exist (any more).</p>
-              ) : (
-                <p>Pick a project above, or start one with "+ New project".</p>
-              )}
+              <p>This project doesn't exist (any more).</p>
             </div>
+          )
+        ) : (
+          projects !== null && (
+            <Home
+              projects={projects}
+              notice={
+                deleted !== null && (
+                  <p className="home-notice">
+                    {desktop ? `"${deleted}" was deleted.` : `"${deleted}" was deleted from this device and from the remote storage.`}
+                  </p>
+                )
+              }
+              onOpen={open}
+              onNewProject={() => fileInput.current?.click()}
+            />
           )
         )}
       </main>

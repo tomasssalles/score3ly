@@ -134,6 +134,13 @@ body {
   white-space: nowrap;
 }
 
+/* The home button (docs/project-view.md, "The home"). */
+.wordmark a {
+  color: inherit;
+  text-decoration: none;
+  border-radius: 4px;
+}
+
 .wordmark .bracket {
   color: var(--accent);
   font-weight: 500;
@@ -4100,4 +4107,119 @@ textarea:focus::placeholder {
 
 .test-result.failed {
   color: var(--danger);
+}
+
+/* The home (docs/project-view.md, "The home"): cards of the most recently opened projects. */
+.home {
+  width: 100%;
+  max-width: 1000px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.home h2 {
+  margin: 0 0 16px;
+  font: 600 22px var(--sans);
+}
+
+.home-notice,
+.home-more {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.home-more {
+  margin: 16px 0 0;
+}
+
+.home-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--raised);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.home-card:hover {
+  background: var(--hover);
+}
+
+.home-card-name {
+  font-weight: 600;
+}
+
+.home-card-file {
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
+.home-card-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.home-card-state .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.2;
+}
+
+.home-card-state.done .icon {
+  color: var(--progress);
+}
+
+.home-card-state.failed {
+  color: var(--danger);
+}
+
+.home-card-state.waiting .icon {
+  color: var(--muted);
+}
+
+.home-card-spinner {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--progress);
+  animation: spin 1.2s linear infinite;
+}
+
+.home-card-opened {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.home-empty {
+  max-width: 680px;
+  padding-top: 48px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.home-empty p {
+  margin: 0 0 16px;
 }

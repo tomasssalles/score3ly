@@ -44,7 +44,6 @@ The tasks below, in the file's order.
 - [Rethink the Statistics page as one concept](#rethink-the-statistics-page-as-one-concept)
 - [Change the human review's screen to work like the Transcription](#change-the-human-reviews-screen-to-work-like-the-transcription)
 - [Decide how the Transcription's boxes should look on a phone](#decide-how-the-transcriptions-boxes-should-look-on-a-phone)
-- [A home](#a-home)
 - [Tags for projects](#tags-for-projects)
 - [A "done" mark for projects](#a-done-mark-for-projects)
 - [Check export and import on a large project](#check-export-and-import-on-a-large-project)
@@ -223,14 +222,6 @@ The project owner, after using the deployed app (2026-11-10): `human_review`'s s
 - **Warnings** the same: dashed frames, "!" only when selected.
 - **The toggle stays,** for a clean look.
 - **One rule at every width,** so the wide view gets calmer too.
-
-### A home
-`#optional`
-
-The header's wordmark `<score3ly>` (`docs/style.md`, "The wordmark"), on the left like a website's logo, suggests that clicking it goes home, but it isn't clickable, and the app has no home. Today a tab without a project in its URL shows no project (`docs/project-view.md`, "The header"), and leaving a project while it runs interrupts the run (the task "Keep a run going while another page of the app is open"). The project owner's idea (2026-11-10):
-- **Opening the app with no project open** shows cards of the most recent projects in the main view, to open one with a click (beside the picker and "+ New project", which stay).
-- **Once a project is open,** the app shows it, as it does now.
-- **The wordmark is a link to the main view.** With a project open, that is the project view itself: clicking it closes whatever is open over it (an artifact, a stage's details, a page from the menu) and shows the project, without bringing the cards back, leaving the project, or interrupting anything. With no project open, it shows the cards.
 
 ### Tags for projects
 `#optional` `#decision`

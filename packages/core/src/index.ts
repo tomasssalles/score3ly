@@ -3,5 +3,5 @@
 // points: `@score3ly/core/pdf` (browsers) and `@score3ly/core/pdfjs-assets` (Vite, in Node).
 
 export { canonicalJson, keyOf, sha256Hex } from "./keys.ts";
-export type { Project, RunMode } from "./project.ts";
+export type { ListedProject, PipelinePosition, Project, RunMode } from "./project.ts";
 export { formatPages, parsePages, selectPages } from "./pageSelection.ts";

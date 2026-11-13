@@ -319,7 +319,16 @@ async function humanReviewPanel(page: Page, hash: string, view: keyof typeof VIE
 function shots(seed: Seed): Shot[] {
   const project = (id: string) => `#/projects/${id}`;
   const all: Shot[] = [
-    { name: "00-no-project", layouts: ["wide", "narrow"], take: (p) => open(p, "#/") },
+    { name: "00-home", layouts: ["wide", "narrow"], take: (p) => open(p, "#/") },
+    // An instance with no projects yet: the list answered empty.
+    {
+      name: "00-home-empty",
+      layouts: ["wide", "narrow"],
+      take: async (p) => {
+        await p.route("**/api/projects", (route) => (route.request().method() === "GET" ? route.fulfill({ json: [] }) : route.fallback()));
+        await open(p, "#/");
+      },
+    },
     { name: "01-project", take: (p) => open(p, project(seed.done)) },
     ...seed.artifacts.map((a, i) => ({ name: `02-artifact-${String(i + 1).padStart(2, "0")}-${a.title.toLowerCase().replace(/\W+/g, "-")}`, take: (p: Page) => open(p, a.hash) })),
     { name: "03-stage-details", take: (p) => open(p, `${project(seed.done)}/stages/${seed.stageIds.find((s) => s.title === "layout")!.id}`) },
