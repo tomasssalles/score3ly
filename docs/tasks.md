@@ -610,13 +610,10 @@ To do: move the runner (the abort controller, the heartbeat, the Auto loop and t
 ### The build's warning about large chunks
 `#nice-to-have`
 
-`npm run build` (and so `npm run deploy`) warns that some chunks are over 500 kB after minification. Harmless for the deployment (Cloudflare allows 25 MiB per file). Measured 2026-11-10 in `apps/web/dist/assets`:
-- `renderWorker` (Verovio): 8 MB, 2.3 MB gzipped; loaded only when something is rendered (§9).
-- `pdf.worker` (pdf.js): 1.3 MB; loaded when a PDF is read.
-- `meiCheckWorker` (libxml2, Fix MEI's schema check): 1.1 MB; loaded only in Fix MEI.
-- `index`, the app itself: 1.17 MB, 352 kB gzipped; the only one loaded on every first visit (cached afterwards).
-
-To do: split `index` with dynamic `import()` where whole screens are rarely needed (the Statistics page, the editors, Fix MEI, the MEI view; `jspdf` and `html2canvas` are split already), measure the first load again, and then raise `build.chunkSizeWarningLimit` in `apps/web/vite.config.ts` just enough for the workers, which are lazy by design, so that the warning means something again.
+`npm run build` (and so `npm run deploy`) warns that a chunk is over 500 kB after minification: `index`, the app itself, the only file every first visit downloads (cached afterwards). Harmless for the deployment (Cloudflare allows 25 MiB per file).
+- **The workers don't count** (found 2026-11-13): Vite builds each Web Worker apart and copies it as a plain file, so its size check never looks at them (`renderWorker`, Verovio, 8.2 MB; `pdf.worker` 1.3 MB; `meiCheckWorker` 1.1 MB; `pageImageWorker` 511 kB). Its limit (`build.chunkSizeWarningLimit` in `apps/web/vite.config.ts`) is one number for every chunk; no setting leaves files out.
+- **pdf.js taken out of `index`** (2026-11-13): 1,206 kB (368 kB gzipped) before, 719 kB (220 kB gzipped) after. It came in two ways, both needed: `@score3ly/imaging`'s index re-exports `pdfPages.ts`, which imports pdf.js, and the main thread imports constants from it (now `"sideEffects": false` in its `package.json`, so what isn't used is dropped); and `apps/web/src/pdf.ts` imported pdf.js at the top (now `loadPdfjs`, when a PDF is first shown, a 487 kB chunk of its own).
+- **Left to do:** split `index` further with dynamic `import()` where whole screens are rarely needed (the Statistics page and the human review's editor are the biggest; React itself is about 180 kB of it), then set the limit just above what `index` is, so that the warning means something again.
 
 ### Check Access's token in the Worker
 `#optional` `#security`

@@ -1,17 +1,23 @@
 // Loading a PDF with pdf.js and drawing its pages, for the PDF view and the thumbnail of its first page.
 
 import { useEffect, useState } from "react";
-// The legacy build: the modern one needs very recent browser features (e.g. Map.getOrInsertComputed)
-// that many phones don't have yet.
-import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+// Only the types of pdf.js here: pdf.js itself is loaded when a PDF is first shown (`loadPdfjs`), so it isn't in the
+// bundle every visit downloads (apps/web/vite.config.ts, the build's size warning).
+import type * as Pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 // The data files pdf.js loads at runtime, served by the pdfjsAssets plugin (packages/core).
 import { PDFJS_DATA } from "@score3ly/core/pdf";
 
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+// The legacy build: the modern one needs very recent browser features (e.g. Map.getOrInsertComputed)
+// that many phones don't have yet.
+async function loadPdfjs(): Promise<typeof Pdfjs> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+  return pdfjs;
+}
 
 
-export type PdfDocument = pdfjs.PDFDocumentProxy;
+export type PdfDocument = Pdfjs.PDFDocumentProxy;
 
 // Where the Worker serves a PDF. The browser caches it for good: the hash never gets another content.
 export function pdfUrl(sha256: string): string {
@@ -25,13 +31,14 @@ export function usePdf(url: string): { doc?: PdfDocument; error?: string } {
 
   useEffect(() => {
     let cancelled = false;
-    let loadingTask: pdfjs.PDFDocumentLoadingTask | undefined;
+    let loadingTask: Pdfjs.PDFDocumentLoadingTask | undefined;
     async function load() {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
       const bytes = new Uint8Array(await response.arrayBuffer());
+      const pdfjs = await loadPdfjs();
       if (cancelled) return;
       loadingTask = pdfjs.getDocument({ data: bytes, ...PDFJS_DATA });
       const loaded = await loadingTask.promise;
