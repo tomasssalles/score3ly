@@ -438,11 +438,18 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
       () => setError("The models couldn't be loaded."),
     );
   }
+  // The default model config, picked here too (as on the General tab and in the config form).
+  function makeDefault(config: ModelConfig) {
+    setError(null);
+    putSetting("defaultModelConfigId", config.id).then(onChanged, (err) => setError(err instanceof Error ? err.message : String(err)));
+  }
   // A config's actions (docs/llm.md, "Managing model configs"): no Edit. Delete isn't offered for the default (it can't
   // be deleted until another config is the default). Test only for real providers, and configs the app supports.
   const actions = (config: ModelConfig) => [
     ...(config.provider !== "fake" && config.provider !== "fake-dev" && !config.unsupported ? [[{ label: "Test", onSelect: () => setTesting(config) }]] : []),
     [
+      // Not for the default itself, nor a config the app no longer supports (the Worker refuses it as the default).
+      ...(config.id === defaultId || config.unsupported ? [] : [{ label: "Make default", onSelect: () => makeDefault(config) }]),
       { label: "Rename", onSelect: () => setRenaming(config) },
       { label: "Clone", onSelect: () => openForm(config) },
     ],
