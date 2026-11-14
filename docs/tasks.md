@@ -801,9 +801,9 @@ From a given stage: a new, separate project that starts with the original's pipe
 - **The statistics with forks** (the project owner's thought, 2026-10-30): a manual stage a fork shares with its original counts in both, each with the stage's whole work time and its own page count (Effort, "Average manual work per page"): what matters is the effort a new score needs, and the shared stage's work was needed for both. The statistics' queries find a project's stages by the project they were created in (`created_in`) or its pipeline; a fork's shared stages were created in the original, so they need a look whenever forks are built.
 
 ### Timeouts for LLM calls
-`#next` `#decision` `#owner`
+`#decision` `#owner`
 
-No LLM call has a timeout today: the abort signal the adapters get (`llmRoutes.ts`) carries only Stop (built 2026-11-13, `docs/llm.md`, "Stopped calls"), Anthropic's SDK bounds at most the wait for the stream to start, and the browser's request to the Worker has no timeout either. So a call can hang for good, and the stage's bar can't fill with the time elapsed out of the call's timeout, as §5.1 intends (today it moves only when an item is done, `stageRunner.ts`). Long calls are normal: a `layout` of 3 pages with Gemini 4 Argon at medium effort took 21 minutes (2026-11-09). **Decided** (the project owner, 2026-11-09): use the app for a while first, then choose a reasonable timeout for each kind of call (stage, perhaps provider and effort) from the recorded calls' times.
+Every LLM call has a timeout, stopped and recorded by the Worker (built 2026-11-14, `docs/llm.md`, "Timeouts"), but its values are placeholders: very generous, 60 minutes for every LLM step and 10 for a config's Test (`LLM_TIMEOUT_MINUTES` in `apps/worker/src/llm/timeouts.ts`). **Decided** (the project owner, 2026-11-09): use the app for a while first, then choose a reasonable timeout for each kind of call from the recorded calls' times (their `started_at` and `finished_at`); then only the constants change. Per step today; if the times say a provider or an effort needs its own, `llmTimeoutMs` takes them too. Long calls are normal: a `layout` of 3 pages with Gemini 4 Argon at medium effort took 21 minutes (2026-11-09).
 
 ### Gemini's `extract`: an early empty answer, and the new schemas
 `#next` `#bug` `#owner`

@@ -8,6 +8,7 @@ import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList, type Provider } from "./llm/models.ts";
 import { convertAddedConfigs, modelOptions, providerCost, secretNames, spentInLastDay, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
+import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 
 // The LLM endpoints against Wrangler's local R2 and D1, kept in memory, with the fake provider (llm/fake.ts).
 const workerDir = join(import.meta.dirname, "..");
@@ -282,6 +283,29 @@ test("a stopped call: the browser's abort reaches the provider, and the call is 
   assert.equal(row.input_tokens, null);
   assert.equal(row.cost_usd, null);
   assert.ok(row.finished_at);
+});
+
+test("a call that takes longer than its timeout is stopped, down to the provider, and recorded as timed out, of unknown cost", async () => {
+  const config = await modelConfig({ model: "fake-slow" });
+  const stage = await runningStage(config.id);
+  const saved = { ...LLM_TIMEOUT_MINUTES };
+  // 0.3 s for every step (the test's stage isn't an LLM step: it gets the longest).
+  for (const step of Object.keys(LLM_TIMEOUT_MINUTES)) LLM_TIMEOUT_MINUTES[step] = 0.005;
+  try {
+    const started = Date.now();
+    const answer = await json(await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`, { request: request() }));
+    assert.ok(Date.now() - started < 5000, "the fake's 30 s wait was cut short");
+    assert.equal(answer.status, "error");
+    assert.match(answer.error as string, /^Timed out: /);
+    const row = (await calls()).at(-1)!;
+    assert.deepEqual([row.status, row.error_kind], ["error", "timeout"]);
+    assert.match(row.error as string, /^Timed out: /);
+    assert.equal(row.input_tokens, null);
+    assert.equal(row.cost_usd, null);
+    assert.ok(row.finished_at);
+  } finally {
+    Object.assign(LLM_TIMEOUT_MINUTES, saved);
+  }
 });
 
 test("Stop, and a new start of an interrupted stage, close the stage's calls still marked running", async () => {
