@@ -382,6 +382,11 @@ function ConfigFilterPanel({ configs, filter, onChange }: { configs: ModelConfig
           </div>
         );
       })}
+      {filtering(filter) && (
+        <button type="button" className="link-button" onClick={() => onChange(NO_FILTER)}>
+          Show all
+        </button>
+      )}
     </div>
   );
 }
@@ -448,6 +453,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
   const [filter, setFilter] = useState<ConfigFilter>(NO_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
   const shown = shownConfigs(sortedConfigs(configs, order), filter, providerName);
+  const hidden = configs.length - shown.length;
   return (
     <section className="settings-section">
       {/* The tab's title says what it lists: its head is its tools. */}
@@ -470,6 +476,14 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
         </button>
       </div>
       {filterOpen && <ConfigFilterPanel configs={configs} filter={filter} onChange={setFilter} />}
+      {!filterOpen && hidden > 0 && (
+        <p className="costs-filtered">
+          {hidden === 1 ? "1 config" : `${hidden} configs`} hidden by filters ·{" "}
+          <button type="button" className="link-button" onClick={() => setFilter(NO_FILTER)}>
+            Show all
+          </button>
+        </p>
+      )}
       {error && <p className="settings-error error-text">{error}</p>}
       {creating && (
         <NewModelConfig
