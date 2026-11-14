@@ -10,6 +10,7 @@ import { type CallEvent, canonicalJson, keyOf, sha256Hex } from "@score3ly/core"
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import type { LlmProgress, LlmProvider } from "./llm/types.ts";
+import { isReplay, replayProvider } from "./llm/replay.ts";
 import { cloudflareTimeoutMessage } from "./llm/types.ts";
 import { llmTimeoutMs, timedOutMessage, withTimeout } from "./llm/timeouts.ts";
 import { costOf, type Price } from "./llm/prices.ts";
@@ -1147,10 +1148,12 @@ async function runCall(
   const startedMs = Date.parse(startedAt);
   const progress = onEvent ? throttledProgress((p) => onEvent(progressEvent(p, startedMs)), PROGRESS_INTERVAL_MS) : null;
 
+  // The replay model answers from the project's recordings, by the call's place (llm/replay.ts).
+  const answering = isReplay(config) ? replayProvider(db, env.PDFS, stageId, place, config.id) : adapter;
   let answer: CallAnswer;
   const timeout = withTimeout(signal, timeoutMs);
   try {
-    const response = await adapter.send({
+    const response = await answering.send({
       model: sentModel,
       effort: config.effort ?? undefined,
       ...(row.model_id && modelById(MODEL_LIST, row.model_id)?.thinking === "adaptive" ? { adaptiveThinking: true as const } : {}),

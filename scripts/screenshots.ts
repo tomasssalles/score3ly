@@ -14,24 +14,20 @@
 // Needs Playwright's Chromium: `npx playwright install chromium` once; or another Chromium, by its path in `CHROMIUM_PATH`
 // (the cloud sessions have one at /opt/pw-browsers/chromium).
 
-import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { DatabaseSync } from "node:sqlite";
 import { join, relative } from "node:path";
-import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "playwright";
+import type { Browser, BrowserContext, Locator, Page } from "playwright";
 import { THEMES } from "../apps/web/src/themes.ts";
-import { writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
+import { type ApiStage, launchBrowser, newProject as newProjectIn, pipelineOf as pipelineIn, ROOT, runToEnd as runToEndIn, type Servers, startServers, stopAll } from "./appServers.ts";
 
-const ROOT = join(import.meta.dirname, "..");
 const WORKER_PORT = 8887;
 const WEB_PORT = 5273;
-const API = `http://127.0.0.1:${WORKER_PORT}/api`;
-const APP = `http://127.0.0.1:${WEB_PORT}/`;
+let APP = "";
+let servers: Servers;
+const api = <T = unknown>(path: string, body?: unknown, method?: string) => servers.api<T>(path, body, method);
 const PDF = join(ROOT, "testset/bendel_la_cascade_p4.orig.pdf"); // one page, scanned
 const VECTOR_PDF = join(ROOT, "testset/debussy_clair_de_lune_mutopia.orig.pdf"); // four vector pages
-
 const outArg = process.argv.indexOf("--out");
 const OUT = outArg > 0 ? process.argv[outArg + 1] : join(ROOT, "screenshots");
 // `--only <text>`: only the shots whose names contain it, or one of its parts separated by "|" (the seeding still
@@ -51,80 +47,11 @@ type Layout = (typeof LAYOUTS)[number];
 
 // --- The servers --------------------------------------------------------------------------------------------------
 
-const children: ChildProcess[] = [];
-
-function start(command: string, args: string[], cwd: string, env: Record<string, string> = {}): void {
-  // Its own process group, so that stopping it stops what it started (workerd, esbuild).
-  const child = spawn(command, args, { cwd, env: { ...process.env, ...env }, detached: true, stdio: "ignore" });
-  children.push(child);
-}
-
-function stopAll() {
-  for (const child of children) {
-    try {
-      process.kill(-child.pid!, "SIGTERM");
-    } catch {
-      // Gone already.
-    }
-  }
-}
-
-function portFree(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const server = createServer().once("error", () => resolve(false));
-    server.listen(port, "127.0.0.1", () => server.close(() => resolve(true)));
-  });
-}
-
-async function waitFor(url: string, what: string) {
-  for (let i = 0; i < 120; i++) {
-    try {
-      if ((await fetch(url)).ok) return;
-    } catch {
-      // Not yet.
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`${what} didn't start (${url})`);
-}
-
-async function api<T = unknown>(path: string, body?: unknown, method = body === undefined ? "GET" : "POST"): Promise<T> {
-  const response = await fetch(`${API}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error(`${method} ${path}: ${response.status} ${await response.text()}`);
-  return (response.status === 204 ? null : await response.json()) as T;
-}
-
-type ApiStage = { id: string; step: string; status: string; error: string | null };
-const pipelineOf = (id: string) => api<{ stages: ApiStage[] }>(`/projects/${id}/pipeline`).then((p) => p.stages);
+const pipelineOf = (id: string): Promise<ApiStage[]> => pipelineIn(servers, id);
+const newProject = (page: Page, pdf: string) => newProjectIn(page, servers, pdf);
+const runToEnd = (page: Page, id: string) => runToEndIn(page, servers, id);
 
 // --- Seeding, through the app ---------------------------------------------------------------------------------------
-
-// A new project on `pdf`, from the header's button ("+ New project" in the dialog when the PDF is known already).
-async function newProject(page: Page, pdf: string): Promise<string> {
-  await page.goto(APP);
-  await page.setInputFiles('input[type="file"]', pdf);
-  const known = page.locator(".dialog-new");
-  await Promise.race([page.waitForURL(/#\/projects\//, { timeout: 60_000 }), known.waitFor({ timeout: 60_000 })]);
-  if (await known.isVisible().catch(() => false)) await known.click();
-  await page.waitForURL(/#\/projects\//, { timeout: 60_000 });
-  return page.url().split("#/projects/")[1].split("/")[0];
-}
-
-// Runs the project in Auto mode until the last stage is done or one fails.
-async function runToEnd(page: Page, id: string) {
-  await page.goto(`${APP}#/projects/${id}`);
-  await page.getByRole("button", { name: /^(Run|Retry)$/ }).first().click({ timeout: 30_000 });
-  for (let i = 0; i < 600; i++) {
-    const stages = await pipelineOf(id);
-    if (stages.at(-1)!.status === "done" || stages.some((s) => s.status === "failed")) return;
-    await page.waitForTimeout(1000);
-  }
-  throw new Error(`project ${id} didn't finish`);
-}
 
 type Seed = {
   done: string;
@@ -140,7 +67,7 @@ type Seed = {
   stageIds: { title: string; id: string }[];
 };
 
-async function seed(browser: Browser, stateDir: string): Promise<Seed> {
+async function seed(browser: Browser): Promise<Seed> {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
 
@@ -165,8 +92,7 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   const dropped = await newProject(page, PDF);
   await runToEnd(page, dropped);
   const droppedAfter = (await pipelineOf(dropped)).find((s) => s.step === "layout")!.id;
-  sql(
-    stateDir,
+  servers.sql(
     `INSERT INTO dropped_stages (project_id, after_stage_id, stage_id, step, dropped_at) VALUES ('${dropped}', '${droppedAfter}', '${droppedAfter}', 'fix_layout', '2026-10-24T00:00:00.000Z')`,
   );
 
@@ -222,26 +148,10 @@ async function seed(browser: Browser, stateDir: string): Promise<Seed> {
   await page.waitForURL(/\/artifacts\//);
   const differsLayout = new URL(page.url()).hash;
   const sha = (await api<{ id: string; pdfSha256: string }[]>("/projects")).find((p) => p.id === differs)!.pdfSha256;
-  sql(stateDir, `UPDATE image_fingerprints SET height = height + 1 WHERE pdf_sha256 = '${sha}'`);
+  servers.sql(`UPDATE image_fingerprints SET height = height + 1 WHERE pdf_sha256 = '${sha}'`);
 
   await context.close();
   return { done, dropped, wip, wipEditor, humanReview, failed, failedStage: layout.id, differs, differsLayout, artifacts, stageIds };
-}
-
-// Runs SQL on the servers' database: Wrangler's local D1, or the desktop server's SQLite file.
-function sql(stateDir: string, command: string) {
-  if (DESKTOP) {
-    const db = new DatabaseSync(join(stateDir, "score3ly.sqlite"));
-    db.exec(command);
-    db.close();
-  } else {
-    wrangler(["d1", "execute", "score3ly", "--local", "--persist-to", stateDir, "--command", command]);
-  }
-}
-
-function wrangler(args: string[]) {
-  const result = spawnSync("npx", ["wrangler", ...args, "-c", "wrangler.local-dev.jsonc"], { cwd: join(ROOT, "apps/worker"), encoding: "utf8" });
-  if (result.status !== 0) throw new Error(`wrangler ${args.slice(0, 3).join(" ")} failed:\n${result.stderr}`);
 }
 
 // --- The shots ----------------------------------------------------------------------------------------------------
@@ -529,9 +439,6 @@ ${names.map((n) => `<tr><th>${n}</th>${columns.map((c) => `<td>${cell(`${c.theme
 // --- Main ---------------------------------------------------------------------------------------------------------
 
 async function main() {
-  for (const port of [WORKER_PORT, WEB_PORT]) {
-    if (!(await portFree(port))) throw new Error(`port ${port} is taken: is another screenshot run going?`);
-  }
   const stateDir = mkdtempSync(join(tmpdir(), "score3ly-screenshots-"));
   process.on("exit", () => {
     stopAll();
@@ -540,24 +447,13 @@ async function main() {
   process.on("SIGINT", () => process.exit(130));
 
   console.log("Starting the Worker and Vite…");
-  mkdirSync(join(ROOT, "apps/web/dist"), { recursive: true });
-  if (DESKTOP) {
-    start("node", ["dist/server.js", "--data", stateDir, "--port", String(WORKER_PORT)], join(ROOT, "apps/desktop"));
-  } else {
-    writeLocalDevConfig(); // Wrangler's config for local work (apps/worker/scripts/config.ts)
-    wrangler(["d1", "migrations", "apply", "score3ly", "--local", "--persist-to", stateDir]);
-    start("npx", ["wrangler", "dev", "-c", "wrangler.local-dev.jsonc", "--port", String(WORKER_PORT), "--persist-to", stateDir], join(ROOT, "apps/worker"));
-  }
-  start("npx", ["vite", "--host", "127.0.0.1", "--port", String(WEB_PORT), "--strictPort"], join(ROOT, "apps/web"), {
-    SCORE3LY_API_URL: `http://127.0.0.1:${WORKER_PORT}`,
-  });
-  await waitFor(`${API}/health`, "The Worker");
-  await waitFor(APP, "Vite");
+  servers = await startServers({ workerPort: WORKER_PORT, webPort: WEB_PORT, stateDir, desktop: DESKTOP });
+  APP = servers.app;
 
-  const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
+  const browser = await launchBrowser();
   try {
     console.log("Seeding the projects (the fake model runs them)…");
-    const seeded = await seed(browser, stateDir);
+    const seeded = await seed(browser);
     const list = shots(seeded).filter((s) => !ONLY || ONLY.split("|").some((part) => s.name.includes(part)));
     rmSync(OUT, { recursive: true, force: true });
     const taken = new Set<string>();

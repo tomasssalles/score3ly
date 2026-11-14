@@ -20,6 +20,8 @@
     "icons": "npm run icons -w apps/web",
     "notices": "node scripts/notices.ts",
     "screenshots": "node scripts/screenshots.ts",
+    "fixture:fake": "node scripts/make-fixture.ts",
+    "replay": "node scripts/replay.ts",
     "seed:stats": "node scripts/seedStats.ts",
     "desktop": "npm run start -w apps/desktop",
     "serve": "npm run serve -w apps/desktop",

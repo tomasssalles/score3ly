@@ -423,6 +423,25 @@ test("a call records its place, item and round; a request without a valid one is
   }
 });
 
+test("the replay model answers with the project's recorded answer at the same place, whatever the request; a place without one fails", async () => {
+  const recorder = await modelConfig({ freeTier: true });
+  const stage = await runningStage(recorder.id);
+  const recorded = await json(await call(stage, request("Recorded?"), { item: "p1", round: 1 }));
+  assert.equal(recorded.status, "ok");
+
+  // The stage's model config changed to the replay model, a changed request asked at the same place.
+  const replay = await modelConfig({ provider: "fake", model: "fake-replay", family: "fake", freeTier: true, name: "Replay" });
+  await env.DB.prepare("UPDATE stages SET model_config_id = ?, config_json = ? WHERE id = ?").bind(replay.id, JSON.stringify({ modelConfigId: replay.id }), stage.stageId).run();
+  const replayed = await json(await call(stage, request("A prompt that changed?"), { item: "p1", round: 1 }));
+  assert.equal(replayed.status, "ok");
+  assert.equal(replayed.text, recorded.text);
+  assert.deepEqual(replayed.json, recorded.json);
+
+  const missing = await json(await call(stage, request("Elsewhere?"), { item: "p2", round: 1 }));
+  assert.equal(missing.status, "error");
+  assert.match(missing.error as string, /^Replay: no recorded answer for rasterize \(stage 1 of its step\), item "p2", round 1\./);
+});
+
 test("a call is made, recorded with its tokens and cost, and an identical one is served from the record", async () => {
   await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
   const config = await modelConfig();
