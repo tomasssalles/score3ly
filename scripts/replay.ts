@@ -4,7 +4,12 @@
 // 1. the project file imported, as a user would;
 // 2. the replay model (`fake-replay`, apps/worker/src/llm/replay.ts) given to `layout` and every LLM stage after it,
 //    which replaces them all, so every stage from `layout` on runs again; the manual stages after it are carried;
-// 3. Run pressed once, in Auto mode, and the pipeline followed through the API until it is done or a stage fails;
+// 3. the stages run one by one, in Manual mode, each started with Run and followed through the API; before each stage
+//    that numbers issues, the project's counter set to the number its recorded stage started from (issue numbers come
+//    from a project counter that never goes back, docs/notation.md, "Issue ids", and the recorded answers name the
+//    original numbers): worked out from the fixture, the smallest number that first appears in the stage's outputs. A
+//    stage that lost numbers within itself (reserved, then a failure and a retry) can't be replayed so, and fails,
+//    naming the issue;
 // 4. the result compared with the fixture's snapshots in fixtures/replay/<name>/: `requests/`, every request the
 //    replay was asked (the prompts, the schemas, the images by their recipe keys), and `outputs/`, every output of the
 //    pipeline (its stored content, or its recipe). A change made on purpose is accepted with `--update`, and the diff
@@ -17,7 +22,9 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { launchBrowser, newProject, pipelineOf, ROOT, runToEnd, type Servers, startServers, stopAll } from "./appServers.ts";
+import { unzipSync } from "fflate";
+import type { Page } from "playwright";
+import { launchBrowser, newProject, openProject, pipelineOf, ROOT, type Servers, startServers, stopAll } from "./appServers.ts";
 
 const FIXTURES = join(ROOT, "fixtures/replay");
 const UPDATE = process.argv.includes("--update");
@@ -100,6 +107,78 @@ function storedSnapshot(dir: string): Snapshot {
   return files;
 }
 
+// Every issue number found in a stored output: the ids of the items of every "issues" list in it.
+function issueIds(value: unknown, into: Set<number>, key = ""): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (key === "issues" && item && typeof item === "object" && typeof (item as Row).id === "number") into.add((item as Row).id as number);
+      issueIds(item, into);
+    }
+  } else if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value)) issueIds(v, into, k);
+  }
+}
+
+// Where each recorded stage's numbering started, by its step and its turn among the pipeline's stages of that step:
+// the smallest issue number in its outputs that no stage before it has. Stages that numbered nothing are left out.
+function numberingStarts(file: string): Map<string, number> {
+  const zip = unzipSync(readFileSync(file));
+  const data = JSON.parse(new TextDecoder().decode(zip["project.json"])) as Export;
+  const stages = new Map(data.stages.map((s) => [s.id as string, s]));
+  const seen = new Set<number>();
+  const turns = new Map<string, number>();
+  const starts = new Map<string, number>();
+  for (const entry of [...data.pipeline].sort((a, b) => (a.position as number) - (b.position as number))) {
+    const step = stages.get(entry.stage_id as string)!.step as string;
+    const turn = (turns.get(step) ?? 0) + 1;
+    turns.set(step, turn);
+    const ids = new Set<number>();
+    for (const o of data.outputs) {
+      if (o.stage_id !== entry.stage_id || !o.content_sha256) continue;
+      const bytes = zip[`content/${o.content_sha256}`];
+      if (!bytes) continue;
+      try {
+        issueIds(JSON.parse(new TextDecoder().decode(bytes)), ids);
+      } catch {
+        // Not JSON: no issues.
+      }
+    }
+    const fresh = [...ids].filter((id) => !seen.has(id));
+    if (fresh.length > 0) starts.set(`${step}#${turn}`, Math.min(...fresh));
+    for (const id of ids) seen.add(id);
+  }
+  return starts;
+}
+
+type PipelineStage = { id: string; step: string; status: string; error: string | null; carried: boolean };
+
+// Runs the stages one by one, in Manual mode, until the last is done or one fails; before each, the issue counter as
+// its recorded stage had it. A carried manual stage is kept or dropped by the page as soon as its turn comes.
+async function runStageByStage(page: Page, servers: Servers, id: string, starts: Map<string, number>) {
+  await servers.api(`/projects/${id}`, { runMode: "manual" }, "PATCH");
+  const pipeline = () => servers.api<{ stages: PipelineStage[] }>(`/projects/${id}/pipeline`).then((p) => p.stages);
+  for (let steps = 0; steps < 100; steps++) {
+    const stages = await pipeline();
+    if (stages.some((s) => s.status === "failed")) return;
+    const index = stages.findIndex((s) => s.status !== "done");
+    if (index < 0) return;
+    const next = stages[index];
+    const turn = stages.slice(0, index + 1).filter((s) => s.step === next.step).length;
+    const start = starts.get(`${next.step}#${turn}`);
+    if (start !== undefined) servers.sql(`UPDATE projects SET next_issue_number = ${start} WHERE id = '${id}'`);
+    await openProject(page, servers, id);
+    if (!next.carried) await page.getByRole("button", { name: /^(Run|Retry)$/ }).first().click({ timeout: 30_000 });
+    // Until this stage is done or failed, or (a carried one) kept or dropped.
+    for (let i = 0; ; i++) {
+      const now = (await pipeline()).find((s) => s.id === next.id);
+      if (!now || now.status === "done" || now.status === "failed") break;
+      if (i >= 600) throw new Error(`${next.step} didn't finish: ${now.status}`);
+      await page.waitForTimeout(1000);
+    }
+  }
+  throw new Error("the pipeline didn't come to an end");
+}
+
 // Runs one fixture; returns what differs from its snapshot (empty when nothing does, or with --update).
 async function replay(name: string): Promise<string[]> {
   const stateDir = mkdtempSync(join(tmpdir(), "score3ly-replay-"));
@@ -114,14 +193,22 @@ async function replay(name: string): Promise<string[]> {
     const layout = (await pipelineOf(servers, id)).find((s) => s.step === "layout");
     if (!layout) throw new Error("the fixture has no layout stage");
     await servers.api(`/projects/${id}/stages/${layout.id}/config`, { config: { ...layout.config, modelConfigId: replayConfig.id }, applyModelConfigToLater: true }, "PUT");
-    await runToEnd(page, servers, id);
+    await runStageByStage(page, servers, id, numberingStarts(join(FIXTURES, `${name}.s3l`)));
     await context.close();
 
     const problems: string[] = [];
     const { stages, dropped } = await servers.api<{ stages: { step: string; status: string; error: string | null }[]; dropped: { step: string }[] }>(`/projects/${id}/pipeline`);
     for (const s of stages) if (s.status !== "done") problems.push(`${s.step} is ${s.status}${s.error ? `: ${s.error}` : ""}`);
     for (const d of dropped) problems.push(`${d.step} was dropped: the replay should have kept every manual stage`);
-    if (problems.length > 0) return problems;
+    if (problems.length > 0) {
+      if (process.env.REPLAY_KEEP) {
+        const data = await servers.api<Export>(`/projects/${id}/export`);
+        mkdirSync(process.env.REPLAY_KEEP, { recursive: true });
+        writeFileSync(join(process.env.REPLAY_KEEP, "project.json"), JSON.stringify(data, null, 2));
+        for (const sha of (data as unknown as { content: string[] }).content) writeFileSync(join(process.env.REPLAY_KEEP, sha), await content(servers, sha));
+      }
+      return problems;
+    }
 
     const data = await servers.api<Export>(`/projects/${id}/export`);
     const now = await snapshotOf(servers, data, replayConfig.id);
