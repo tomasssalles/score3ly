@@ -92,7 +92,7 @@ export async function runLayout(run: StageRun): Promise<void> {
               ],
             });
           }
-          const answer = await ask(run, request, `Page ${page}`, { config });
+          const answer = await ask(run, request, `Page ${page}`, { config, place: { item: output.item, round } });
           callId = answer.callId;
           const checked = checkLayoutAnswer(answer.json);
           if ("problem" in checked) {

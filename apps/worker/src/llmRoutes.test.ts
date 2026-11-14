@@ -136,8 +136,11 @@ function request(question = "How many systems?", image: { recipeKey: string; bas
   };
 }
 
-function call(stage: { projectId: string; stageId: string }, body: unknown = request()) {
-  return send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`, { request: body });
+// A stage's request, with its place (docs/overview.md §12, "Each call records its place").
+const PLACE = { item: "p1", round: 1 };
+
+function call(stage: { projectId: string; stageId: string }, body: unknown = request(), place: Record<string, unknown> = PLACE) {
+  return send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`, { request: body, ...place });
 }
 
 async function calls() {
@@ -280,7 +283,7 @@ test("a stopped call: the browser's abort reaches the provider, and the call is 
   const started = Date.now();
   const pending = app.request(
     `/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request: request() }), signal: stop.signal },
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request: request(), ...PLACE }), signal: stop.signal },
     env,
   );
   setTimeout(() => stop.abort(), 100);
@@ -304,7 +307,7 @@ test("a call that takes longer than its timeout is stopped, down to the provider
   for (const step of Object.keys(LLM_TIMEOUT_MINUTES)) LLM_TIMEOUT_MINUTES[step] = 0.005;
   try {
     const started = Date.now();
-    const answer = await json(await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`, { request: request() }));
+    const answer = await json(await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`, { request: request(), ...PLACE }));
     assert.ok(Date.now() - started < 5000, "the fake's 30 s wait was cut short");
     assert.equal(answer.status, "error");
     assert.match(answer.error as string, /^Timed out: /);
@@ -326,7 +329,7 @@ test("a sent call streams its start, its progress at most every second, and its 
   // fake-slow thinks 200 characters a second; its call stopped by the timeout after 3.5 s.
   for (const step of Object.keys(LLM_TIMEOUT_MINUTES)) LLM_TIMEOUT_MINUTES[step] = 3.5 / 60;
   try {
-    const response = await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`, { request: request() });
+    const response = await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`, { request: request(), ...PLACE });
     assert.equal(response.headers.get("Content-Type"), "text/event-stream");
     const events = sseEvents(await response.text());
     const [started, ...rest] = events;
@@ -407,6 +410,17 @@ test("Stop, and a new start of an interrupted stage, close the stage's calls sti
   const [old] = await callsOf(interrupted.stageId);
   assert.deepEqual([old.status, old.error_kind], ["error", "aborted"]);
   assert.match(old.error, /^Interrupted: /);
+});
+
+test("a call records its place, item and round; a request without a valid one is refused", async () => {
+  const config = await modelConfig();
+  const stage = await runningStage(config.id);
+  assert.equal((await json(await call(stage, request("Placed?"), { item: "p2/s3", round: 2 }))).status, "ok");
+  const row = (await calls()).at(-1)!;
+  assert.deepEqual([row.item, row.round], ["p2/s3", 2]);
+  for (const place of [{}, { item: "p1" }, { item: "p1", round: 0 }, { item: "p1", round: 1.5 }, { item: "?", round: 1 }, { item: 3, round: 1 }]) {
+    assert.equal((await call(stage, request("Placed?"), place)).status, 400, JSON.stringify(place));
+  }
 });
 
 test("a call is made, recorded with its tokens and cost, and an identical one is served from the record", async () => {

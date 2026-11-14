@@ -1764,7 +1764,7 @@ async function projectWithACall(filename: string) {
   const request = await putContent(`request of ${filename}`);
   const response = await putContent(`response of ${filename}`);
   await env.DB.prepare(
-    "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, response_sha256, status, cost_usd, started_at) VALUES (?, ?, 'paid', ?, ?, ?, 'ok', 0.5, '2026-10-01T10:00:00.000Z')",
+    "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, response_sha256, item, round, status, cost_usd, started_at) VALUES (?, ?, 'paid', ?, ?, ?, 'p1', 1, 'ok', 0.5, '2026-10-01T10:00:00.000Z')",
   )
     .bind(`call-${filename}`, skew.id, `key-${filename}`, request, response)
     .run();
@@ -1859,6 +1859,26 @@ test("import: a call found nowhere is a new row that counts, a config found nowh
   const newer = await importOf({ ...data, format: 2 });
   assert.equal(newer.status, 400);
   assert.match((await json<{ error: string }>(newer)).error, /newer version of score3ly/);
+});
+
+test("a call's place: exported and imported; a call without one (before migration 0004) can't be exported, and a file without places imports with the placeholders", async () => {
+  const { project } = await projectWithACall("place.pdf");
+  const data = await exportOf(project.id);
+  assert.deepEqual([data.llm_calls[0].item, data.llm_calls[0].round], ["p1", 1]);
+
+  // A file made before calls had a place: imported with the placeholders, as the migration left this instance's own.
+  const older = structuredClone(data);
+  for (const c of older.llm_calls) delete c.item, delete c.round;
+  older.llm_calls[0].request_key = "older-here";
+  for (const s of older.stages) if (s.stage_key) s.stage_key = "e".repeat(64);
+  const imported = await json<{ id: string }>(await importOf(older));
+  const row = await env.DB.prepare("SELECT item, round FROM llm_calls WHERE request_key = 'older-here'").first<Record<string, unknown>>();
+  assert.deepEqual({ ...row }, { item: "?", round: 0 });
+
+  // Such a project can't be exported until the one-time script fills the places.
+  const refused = await app.request(`/api/projects/${imported.id}/export`, {}, env);
+  assert.equal(refused.status, 500);
+  assert.match((await json<{ error: string }>(refused)).error, /has no place .*fill-call-places/);
 });
 
 test("import: a stage's config names the model config it was mapped to, as its column does", async () => {

@@ -497,6 +497,11 @@ export type LlmRequest = {
   jsonSchema?: Record<string, unknown>;
 };
 
+// Where a call belongs in its stage (docs/overview.md §12, "Each call records its place"): the item, in the outputs'
+// form ("p3" for a page, "p3/s2" for a system, "" for the whole score), and the round, from 1. Recorded with the call,
+// not part of its key.
+export type CallPlace = { item: string; round: number };
+
 export type LlmAnswer = {
   callId: string;
   cached: boolean; // served from an earlier identical request: nothing was paid
@@ -526,6 +531,7 @@ export async function callLlm(
   project: Project,
   stageId: string,
   request: LlmRequest,
+  place: CallPlace,
   label?: string,
   signal?: AbortSignal,
   onEvent?: (event: CallEvent) => void,
@@ -534,7 +540,7 @@ export async function callLlm(
     method: "POST",
     signal,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ request, ...(label ? { label } : {}) }),
+    body: JSON.stringify({ request, item: place.item, round: place.round, ...(label ? { label } : {}) }),
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string; code?: string } | null;

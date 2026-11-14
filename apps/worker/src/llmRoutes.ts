@@ -812,7 +812,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (unsupported) return c.json({ error: `The model config "${row.name}" ${unsupported}.`, code: "unsupported_model_config" }, 409);
     if (row.provider === "fake" || row.provider === "fake-dev") return c.json({ error: "Only configs of real providers can be tested." }, 400);
     const startedAt = Date.now();
-    const sent = await sendCall(c.env, row, TEST_REQUEST, `test:${crypto.randomUUID()}`, null, llmTimeoutMs("test"), c.req.raw.signal);
+    const sent = await sendCall(c.env, row, TEST_REQUEST, `test:${crypto.randomUUID()}`, null, TEST_PLACE, llmTimeoutMs("test"), c.req.raw.signal);
     if ("refusal" in sent) {
       // A test is never served from the record: the cap's note about calls already paid for doesn't apply.
       const error = sent.refusal.code === "spending_cap" ? sent.refusal.error.replace(" Calls already paid for are still served.", "") : sent.refusal.error;
@@ -852,9 +852,11 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const problem = requestProblem(body?.request);
     if (problem) return c.json({ error: problem }, 400);
     const request = body.request as CallRequest;
+    const place = placeOf(body);
+    if (typeof place === "string") return c.json({ error: place }, 400);
     // For the request's log line: what the browser calls the call ("System 12"), and how many images it carries.
     const images = request.messages.reduce((n, m) => n + m.content.filter((part) => part.type === "image" && part.image).length, 0);
-    logFields(c.req.raw, { ...(typeof body.label === "string" ? { label: body.label.slice(0, 100) } : {}), images });
+    logFields(c.req.raw, { ...(typeof body.label === "string" ? { label: body.label.slice(0, 100) } : {}), item: place.item, round: place.round, images });
 
     const stage = await db
       .prepare(
@@ -940,7 +942,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const write = (data: StreamEvent) => writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`)).catch(() => {});
     const done = (async () => {
       try {
-        const answer = await runCall(c.env, prepared, request, requestKey, sid, llmTimeoutMs(stage.step), c.req.raw.signal, (event) => void write(event));
+        const answer = await runCall(c.env, prepared, request, requestKey, sid, place, llmTimeoutMs(stage.step), c.req.raw.signal, (event) => void write(event));
         logFields(c.req.raw, { status: answer.status, outputTokens: answer.usage?.outputTokens });
         await write({ event: "answer", answer });
       } catch (err) {
@@ -977,6 +979,32 @@ export const TEST_REQUEST: CallRequest = {
   maxOutputTokens: 4000,
   jsonSchema: { type: "object", properties: { colour: { type: "string" } }, required: ["colour"], additionalProperties: false },
 };
+
+// A call's place (docs/overview.md §12, "Each call records its place"): the item, in the outputs' form ("p3", "p3/s2",
+// "" for the whole score), and the round, from 1. Recorded with the call, not part of its key. Calls made before it was
+// recorded have the placeholders "?" and 0 until a one-time script fills them (scripts/fill-call-places.ts): an error
+// wherever a place is read (`placeProblem`).
+export type CallPlace = { item: string; round: number };
+
+const TEST_PLACE: CallPlace = { item: "", round: 1 };
+const MAX_ITEM_LENGTH = 100;
+
+// The place a stage's request names, or what is wrong with it.
+function placeOf(body: Record<string, unknown>): CallPlace | string {
+  const { item, round } = body;
+  if (typeof item !== "string" || item.length > MAX_ITEM_LENGTH || item === PLACEHOLDER_ITEM) return "item must be the call's item";
+  if (typeof round !== "number" || !Number.isInteger(round) || round < 1) return "round must be an integer from 1";
+  return { item, round };
+}
+
+export const PLACEHOLDER_ITEM = "?";
+
+// What is wrong with a recorded call's place: a placeholder left by the migration, which the one-time script fills.
+export function placeProblem(call: Record<string, unknown>): string | null {
+  return call.item === PLACEHOLDER_ITEM || call.round === 0
+    ? `The LLM call ${String(call.id)} has no place (item and round) yet: run the one-time script apps/worker/scripts/fill-call-places.ts on this database.`
+    : null;
+}
 
 // A call refused before anything is sent: the spending cap is reached (priced calls only), a secret is missing or the
 // app has no adapter.
@@ -1053,10 +1081,10 @@ type Prepared = {
 
 // Sends a request that wasn't served from the record, and records the call, in one piece (a config's Test; a stage's
 // call is streamed, with `prepareCall` and `runCall`).
-async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, requestKey: string, stageId: string | null, timeoutMs: number, signal?: AbortSignal): Promise<CallAnswer | Refusal> {
+async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, requestKey: string, stageId: string | null, place: CallPlace, timeoutMs: number, signal?: AbortSignal): Promise<CallAnswer | Refusal> {
   const prepared = await prepareCall(env, row);
   if ("refusal" in prepared) return prepared;
-  return runCall(env, prepared, request, requestKey, stageId, timeoutMs, signal);
+  return runCall(env, prepared, request, requestKey, stageId, place, timeoutMs, signal);
 }
 
 // What a call needs before anything is sent: a price, room under the spending cap, the secrets and an adapter.
@@ -1100,6 +1128,7 @@ async function runCall(
   request: CallRequest,
   requestKey: string,
   stageId: string | null,
+  place: CallPlace,
   timeoutMs: number,
   signal?: AbortSignal,
   onEvent?: (event: CallEvent) => void,
@@ -1110,9 +1139,9 @@ async function runCall(
   const requestSha = await putJson(env.PDFS, await recordedRequest(request));
   await db
     .prepare(
-      "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, status, started_at) VALUES (?, ?, ?, ?, ?, 'running', ?)",
+      "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, item, round, status, started_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?)",
     )
-    .bind(callId, stageId, config.id, requestKey, requestSha, startedAt)
+    .bind(callId, stageId, config.id, requestKey, requestSha, place.item, place.round, startedAt)
     .run();
   onEvent?.({ event: "started", callId, startedAt, timeoutMs });
   const startedMs = Date.parse(startedAt);

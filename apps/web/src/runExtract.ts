@@ -157,7 +157,7 @@ export async function runExtract(run: StageRun): Promise<void> {
           };
 
           const kept = s.number > 1 ? ` The answers for systems 1–${s.number - 1} are kept.` : "";
-          const answer = await ask(run, request, `System ${s.number}`, { config });
+          const answer = await ask(run, request, `System ${s.number}`, { config, place: { item: s.item, round: 1 } });
           // The answer as it reads back from storage (canonical JSON): what the next systems' requests are built from
           // is then the same in this run and in a retry, and the cache finds them. Its sentinels ("", -1) and merged fields
           // become the lens as code uses it first (lensFromExtract).

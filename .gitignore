@@ -24,4 +24,5 @@ release/
 # Cloudflare account's parts, written by `npm run setup:cloudflare` (apps/worker/scripts/config.ts).
 /apps/worker/wrangler.local-dev.jsonc
 /apps/worker/wrangler.deploy.jsonc
+/apps/worker/wrangler.fill-call-places.jsonc
 /apps/worker/cloudflare.env

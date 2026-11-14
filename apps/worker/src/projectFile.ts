@@ -10,6 +10,7 @@
 import type { Hono } from "hono";
 import { firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 import { anyRunning, withModelConfig } from "./pipeline.ts";
+import { PLACEHOLDER_ITEM, placeProblem } from "./llmRoutes.ts";
 
 // The export format's own version (`format` in the file), apart from the app's: raised when an export can't be read
 // the same way any more. Imports read only the formats listed here.
@@ -87,6 +88,8 @@ const CALL_COLUMNS = [
   "cost_usd",
   "vat_percent",
   "price_json",
+  "item",
+  "round",
   "started_at",
   "finished_at",
 ] as const;
@@ -127,8 +130,8 @@ const PIPELINE_STAGES = "SELECT stage_id FROM pipeline_entries WHERE project_id 
 // The rows of a project's current pipeline (docs/database.md, "Exporting and importing a project"): its stages, whatever
 // their state, with their outputs, inputs, calls, the calls their outputs were served from, their manual saves, the
 // model configs of those stages and calls, and the PDF's fingerprints. Links to anything outside are cut. Null when no
-// such project; "running" while a stage of it runs.
-export async function exportProject(db: D1Database, projectId: string, now = Date.now()): Promise<ProjectExport | null | "running"> {
+// such project; "running" while a stage of it runs; `{ problem }` when a call has no place yet (`placeProblem`).
+export async function exportProject(db: D1Database, projectId: string, now = Date.now()): Promise<ProjectExport | null | "running" | { problem: string }> {
   const project = await db
     .prepare("SELECT name, pdf_sha256, pdf_filename, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at FROM projects WHERE id = ? AND deleted_at IS NULL")
     .bind(projectId)
@@ -162,6 +165,10 @@ export async function exportProject(db: D1Database, projectId: string, now = Dat
   // imported where nothing matches it, it is that stage's call, as a run here would have made it.
   const servedTo = new Map<string, string>();
   for (const o of outputs.results) if (o.call_id && !servedTo.has(o.call_id as string)) servedTo.set(o.call_id as string, o.stage_id as string);
+  for (const c of calls.results) {
+    const problem = placeProblem(c);
+    if (problem) return { problem };
+  }
   const exportedCalls = calls.results.map((c) => (stageIds.has(c.stage_id as string) ? c : { ...c, stage_id: servedTo.get(c.id as string) ?? null }));
   const configIds = new Set<string>();
   for (const s of stages.results) if (s.model_config_id) configIds.add(s.model_config_id as string);
@@ -321,7 +328,10 @@ export async function importProject(db: D1Database, bucket: R2Bucket, data: Proj
     // A deleted call comes back to life: its request and response stored again, its cost where it was paid.
     if (here.deleted_at) {
       callStatements.push(
-        db.prepare("UPDATE llm_calls SET deleted_at = NULL, imported_at = ?, request_sha256 = ?, response_sha256 = ? WHERE id = ?").bind(iso, c.request_sha256 ?? null, c.response_sha256, here.id),
+        // A file that knows the call's place gives it to a row that may not have it yet (made before migration 0004).
+        c.item !== undefined && c.round !== undefined
+          ? db.prepare("UPDATE llm_calls SET deleted_at = NULL, imported_at = ?, request_sha256 = ?, response_sha256 = ?, item = ?, round = ? WHERE id = ?").bind(iso, c.request_sha256 ?? null, c.response_sha256, c.item, c.round, here.id)
+          : db.prepare("UPDATE llm_calls SET deleted_at = NULL, imported_at = ?, request_sha256 = ?, response_sha256 = ? WHERE id = ?").bind(iso, c.request_sha256 ?? null, c.response_sha256, here.id),
       );
     }
   });
@@ -337,6 +347,10 @@ export async function importProject(db: D1Database, bucket: R2Bucket, data: Proj
         model_config_id: configMap.get(c.model_config_id as string) ?? c.model_config_id,
         // Files exported before VAT was recorded (docs/llm.md, "VAT") have no rate: their calls had none.
         vat_percent: c.vat_percent ?? 0,
+        // Files exported before calls had a place (docs/overview.md §12) have none: the placeholders, as for this
+        // instance's own older calls.
+        item: c.item ?? PLACEHOLDER_ITEM,
+        round: c.round ?? 0,
         imported_at: iso,
       }),
     );
@@ -433,6 +447,7 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
     const data = await exportProject(c.env.DB, c.req.param("id"));
     if (data === null) return c.json({ error: "no such project" }, 404);
     if (data === "running") return c.json({ error: "a stage of this project is running", code: "running" }, 409);
+    if ("problem" in data) return c.json({ error: data.problem }, 500);
     return c.json(data);
   });
 

@@ -186,7 +186,7 @@ export async function runReview(run: StageRun): Promise<void> {
         };
 
         const kept = s.number > 1 ? ` The review of systems 1–${s.number - 1} is kept.` : "";
-        const answer = await ask(run, planned, `System ${s.number}`, { config });
+        const answer = await ask(run, planned, `System ${s.number}`, { config, place: { item: s.item, round: 1 } });
         const parsed = JSON.parse(canonicalJson(answer.json));
         const context = { system: s.number, issues, systems: placed, images: sources, stageId: stage.id };
         const checked = checkReview(parsed, context, 1);

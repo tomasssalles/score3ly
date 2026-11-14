@@ -48,7 +48,7 @@ import {
   type RequestContent,
 } from "./llm";
 import { layoutPage, modelPage, type LayoutPageRecipe, type ModelPageRecipe } from "./pageImages";
-import { pageOfItem, type PageRecipe } from "./rasterize";
+import { pageItem, pageOfItem, type PageRecipe } from "./rasterize";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 
 // The steps whose layout `analyze` reads: the latest before it counts.
@@ -146,7 +146,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
   const scoreAnswer = () =>
     (score ??= (async () => {
       const all = await Promise.all(pages.map((p) => resultOf(p.output.item)));
-      const answer = await ask(run, scoreRequest(all), "The whole score", { config, beforeImages });
+      const answer = await ask(run, scoreRequest(all), "The whole score", { config, place: { item: "", round: 1 }, beforeImages });
       const checked = checkScoreAnswer(answer.json, { systems: allSystems, pages: pages.map((p) => p.page), items: pageItems(all) });
       if ("problem" in checked) {
         await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
@@ -195,7 +195,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
             maxOutputTokens: ANALYZE_PAGE_MAX_OUTPUT_TOKENS,
             jsonSchema: ANALYZE_PAGE_SCHEMA as unknown as Record<string, unknown>,
           };
-          const answer = await ask(run, request, `Page ${page}`, { config, beforeImages });
+          const answer = await ask(run, request, `Page ${page}`, { config, place: { item: pageItem(page), round: 1 }, beforeImages });
           const onPage = new Map(labels[i].map((n) => [n, allSystems.get(n)!]));
           const checked = checkPageAnswer(answer.json, { systems: onPage });
           if ("problem" in checked) {

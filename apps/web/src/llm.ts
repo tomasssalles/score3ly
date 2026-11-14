@@ -2,7 +2,7 @@
 // depends on it, images for requests, and asking the model.
 
 import { CLAUDE_IMAGE_LIMIT, type SizeLimit } from "@score3ly/imaging";
-import { callLlm, fetchModelConfig, type LlmAnswer, type LlmRequest, type ModelConfig } from "./api";
+import { type CallPlace, callLlm, fetchModelConfig, type LlmAnswer, type LlmRequest, type ModelConfig } from "./api";
 import { keyOf } from "@score3ly/core";
 import { noteAnswer } from "./itemTiming";
 import { keepFingerprints } from "./pageImages";
@@ -135,17 +135,17 @@ export async function ask(
   run: StageRun,
   request: PlannedRequest,
   what: string,
-  options: { config: ModelConfig; beforeImages?: () => Promise<void> },
+  options: { config: ModelConfig; place: CallPlace; beforeImages?: () => Promise<void> },
 ): Promise<LlmAnswer> {
   const tracked = trackCall(run, what);
-  let answer = await callLlm(run.project, run.stage.id, await withImages(request, null), what, run.signal, tracked.onEvent);
+  let answer = await callLlm(run.project, run.stage.id, await withImages(request, null), options.place, what, run.signal, tracked.onEvent);
   if ("imagesNeeded" in answer) {
     await options.beforeImages?.();
     const images: { recipe: unknown; png: Blob }[] = [];
     const full = await withImages(request, images);
     const tooBig = requestSizeProblem(options.config, full);
     if (tooBig) throw new Error(`${what}: ${tooBig}.`);
-    const made = await callLlm(run.project, run.stage.id, full, what, run.signal, tracked.onEvent);
+    const made = await callLlm(run.project, run.stage.id, full, options.place, what, run.signal, tracked.onEvent);
     if ("imagesNeeded" in made) throw new Error(`${what}: the request was sent without its images.`);
     answer = made;
     // The answer is computed from these images: their fingerprints are kept (§8.3).

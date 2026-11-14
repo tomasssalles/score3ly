@@ -12,7 +12,8 @@
     "test": "node scripts/config.ts local-dev && node --test \"src/**/*.test.ts\" \"scripts/*.test.ts\"",
     "llm:try": "node scripts/try-llm.ts",
     "llm:probe-schemas": "node scripts/probe-schemas.ts",
-    "model-list": "node scripts/generate-model-list.ts"
+    "model-list": "node scripts/generate-model-list.ts",
+    "fill-call-places": "node scripts/fill-call-places.ts"
   },
   "dependencies": {
     "@anthropic-ai/bedrock-sdk": "^0.34.4",

@@ -308,7 +308,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           };
 
           const kept = calls.size > 0 ? " The changes applied on the systems before it are kept." : "";
-          const answer = await ask(run, plannedRequest, `System ${planned.system}`, { config });
+          const answer = await ask(run, plannedRequest, `System ${planned.system}`, { config, place: { item: itemOf(planned.system), round: 1 } });
           const unusable = async (problem: string): Promise<never> => {
             await markUnusable(run.project, run.stage.id, answer.callId, problem).catch(() => {});
             throw new Error(`Couldn't use the answer for system ${planned.system}: ${problem}.${kept}`);

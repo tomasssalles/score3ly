@@ -14,7 +14,7 @@ function fresh(): NodeD1 {
 test("the Worker's migrations apply, once", () => {
   const db = fresh();
   const applied = migrate(db, MIGRATIONS);
-  assert.deepEqual(applied, ["0001_initial.sql", "0002_imported.sql", "0003_vat.sql"]);
+  assert.deepEqual(applied, ["0001_initial.sql", "0002_imported.sql", "0003_vat.sql", "0004_call_place.sql"]);
   assert.deepEqual(migrate(db, MIGRATIONS), []);
 });
 
