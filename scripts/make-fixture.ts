@@ -16,8 +16,15 @@ const PDF = join(ROOT, "testset/bendel_la_cascade_p4.orig.pdf");
 export const FIXTURES = join(ROOT, "fixtures/replay");
 const NAME = "fake";
 
-async function addManualStage(page: Page, servers: Servers, id: string, after: string, item: string) {
+// The project's page loaded afresh: one left open since a run went on may hold an older version of the project, and
+// its changes would be refused (optimistic locking).
+async function openProject(page: Page, servers: Servers, id: string) {
   await page.goto(`${servers.app}#/projects/${id}`);
+  await page.reload();
+}
+
+async function addManualStage(page: Page, servers: Servers, id: string, after: string, item: string) {
+  await openProject(page, servers, id);
   await page.locator(".stage-card", { has: page.locator(".stage-title", { hasText: new RegExp(`^${after}$`) }) }).getByRole("button", { name: /actions/ }).click();
   await page.getByRole("menuitem", { name: item }).click();
   const confirm = page.locator(".app-dialog .button-primary");
@@ -25,7 +32,7 @@ async function addManualStage(page: Page, servers: Servers, id: string, after: s
 }
 
 async function finishManualStage(page: Page, servers: Servers, id: string, step: string) {
-  await page.goto(`${servers.app}#/projects/${id}`);
+  await openProject(page, servers, id);
   await page.getByRole("button", { name: "Finish" }).click({ timeout: 30_000 });
   for (let i = 0; i < 60; i++) {
     if ((await pipelineOf(servers, id)).find((s) => s.step === step)?.status === "done") return;
@@ -86,6 +93,10 @@ async function main() {
     await (await download).saveAs(path);
     console.log(`Written: ${path}. Make its snapshots with \`npm run replay -- --update\`.`);
     await context.close();
+  } catch (err) {
+    const pages = browser.contexts().flatMap((c) => c.pages());
+    for (const p of pages) console.log("DIALOG:", await p.locator("dialog[open]").first().innerText({ timeout: 1000 }).catch(() => "none"));
+    throw err;
   } finally {
     await browser.close();
   }
