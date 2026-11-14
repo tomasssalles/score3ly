@@ -174,12 +174,37 @@ A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a 
 
 ### Clean up the codebase
 
-Go through the entire codebase and clean it up: dead code, duplicated helpers, names and comments that no longer say what the code does, modules that grew too large, tests that test the same thing twice. Behaviour stays as it is.
+Go through the entire codebase and clean it up: dead code, duplicated helpers, names and comments that no longer say what the code does, modules that grew too large, tests that test the same thing twice, and bugs found on the way. Behaviour stays as it is, bugs aside. A massive rewrite isn't expected.
+
+**The plan** (decided with the project owner, 2026-11-14): a review in levels, bottom-up, then a plan, then the fixes, done over several sessions with as few tokens as possible.
+- **What is reviewed:** the code of `packages/`, `apps/` and `scripts/`, about 54k lines (about 700k tokens) in about 350 files. Left out: generated files (`apps/worker/worker-configuration.d.ts`) and data (`apps/worker/src/llm/modelList.ts`), `package-lock.json`, `THIRD_PARTY_NOTICES.md`, `testset/`, `fixtures/`. `styles.css` is checked against `docs/style.md` (unused rules, values that should be tokens, duplication), not for bugs. Test files get a light pass, mainly for gaps and tests that test the same thing twice.
+- **The notes live in the repo,** in a `review/` folder committed on the working branch, since a container doesn't outlive the sessions this takes; the folder is deleted when the work is done.
+- **A fresh context for every batch:** most of the cost isn't reading the code, but the whole context being sent again with every tool call as a session grows. So each batch of level 1 (about 60–80k tokens of code) and each group of the higher levels gets a fresh session or subagent; only notes go up a level, never the code, which a higher level re-reads selectively, where a finding needs it.
+- **Level 1, every file on its own:** small issues (duplication within the file, low-level bugs, race conditions, overflows, off-by-ones, unhandled errors and promise rejections, wrong types and casts, dead code, names and comments that lie). For each file, a concise description of what's in it, with the names of its exported functions, types and constants and what it imports, so that the next levels work from the notes.
+- **Level 2, groups of about 6–10 files, and on up** (about 3–4 levels in all: files, about 40 groups, about 6 components, the whole app): what should be shared but isn't, architectural improvements, what could be made testable that isn't, how things are built and what depends on what, written down at each level for the next. Each level writes its own list of what to look for before it starts.
+- **The groups are chosen with care,** not by folder alone: dependencies form a complicated graph, and the choices should be smart ones. What is shared by many (e.g. the code all stages share: the pipeline's runner, the Worker's recording of outputs, the cache keys) is more important to see together than all the code one stage uses (e.g. everything about `extract`). A group is code that has to agree with itself: both sides of a request (the web app and the Worker), the writer and the readers of a stored format, the code that computes a key and the code that looks it up.
+- **Findings are marked certain, or to be checked at the next level:** a file read on its own gives false positives ("this looks racy"), which the next level confirms or drops.
+- **The plan:** once every level is done, the findings are made to work together (merged, ordered by what depends on what, conflicts resolved) and written down as steps in `review/`.
+- **The fixes, in batches by priority,** each with the tests run and committed; a bug is reproduced in a test first (CLAUDE.md).
+- **The practices that need reinforcing go into CLAUDE.md,** the most important outcome: what kept going wrong, said as rules short enough to be followed.
+- **The estimate:** about 4–6M tokens for the review up to the plan (mostly cached input, a few hundred thousand of output), and 5–15M for the fixes, depending on how many there are. Done in one long session instead of fresh batches, the review would cost several times more.
 
 ### Clean up the docs before the first release tag
 `#next-release` `#docs`
 
 Right before the first release tag (§11, "Branches and releases"): go through the entire `docs/` folder and clean it up: what is outdated, repeated or contradicts the code or another file, notes of decisions that no longer need their history, and the overview's summaries against the files they sum up.
+
+**The plan** (decided with the project owner, 2026-11-14): the same as the code's ("Clean up the codebase"): a review in levels, bottom-up, then a plan, then the fixes, done over several sessions with as few tokens as possible.
+- **What is reviewed:** `docs/` (about 750 kB, about 200k tokens; `tasks.md` only for tasks that are done or say what belongs in the other docs), the READMEs (the root's, `apps/worker`'s, `apps/desktop`'s, `testset/`'s, `apps/worker/model-list/gather/`'s) and CLAUDE.md. Not the copies of providers' pages under `apps/worker/model-list/gather/sources/`.
+- **The notes live in the repo,** in a `review/` folder committed on the working branch, deleted when the work is done.
+- **A fresh context for every batch** (a large file split by its sections, small files together), and only notes go up a level.
+- **Level 1, every file or section on its own:** statements that the code contradicts (checked against the code, with the code review's notes of each file as an index where they still exist), what is outdated, unclear or wrong, history that no longer needs telling, the style the docs keep (`docs/overview.md`, "The docs"; `docs/tasks.md`'s top). For each file or section, a concise description of what it covers and its main decisions.
+- **Level 2, by topic across files, and on up:** the same topic in several files (e.g. the cache in the overview, `database.md` and `llm.md`), what is repeated, what contradicts, what is in the wrong file, the overview's summaries against the files; and at the top, the structure of the docs as a whole: what goes where, what could be shorter. The topics are chosen with care, like the code's groups. Each level writes its own list of what to look for before it starts.
+- **Findings are marked certain, or to be checked at the next level.**
+- **The plan:** the findings made to work together and written down as steps in `review/`; **a contradiction between the docs and the code, or a decision that isn't clear, is put to the project owner,** not settled by the review (CLAUDE.md: the docs can contain mistakes).
+- **The fixes, in batches,** each committed.
+- **The practices that need reinforcing go into CLAUDE.md:** how the docs are kept, said as short rules.
+- **The estimate:** about 1–2M tokens for the docs, and 1–2M more for checking them against the code (less if the code review's notes still exist), then 1–3M for the fixes.
 
 ### Run the whole manual test suite before the first release tag
 `#next-release` `#manual-test` `#owner`
