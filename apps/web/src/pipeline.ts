@@ -1,6 +1,7 @@
 // The project's pipeline as the UI shows it (docs/project-view.md): its stages, first to last, each with its artifacts.
 // Built from what the Worker stores (api.ts) and what the code declares about each step (steps.ts).
 
+import type { CallProgress } from "./callProgress";
 import type { ApiPipeline, ApiStage, RunMode } from "./api";
 import type { EngraveConfig } from "./engrave.ts";
 import type { PageRecipe } from "./rasterize.ts";
@@ -84,6 +85,7 @@ export type Stage = {
   runningHere: boolean; // running on this device (else its progress is unknown here)
   interrupted: boolean; // failed because it stopped running unexpectedly (its heartbeat stopped)
   imagesDiffer: boolean; // while running here: an image it made differs from the one a stored result was computed from (§8.3)
+  call?: CallProgress; // while running here: the LLM call it waits for, or its last (docs/llm.md, "A call's progress")
   artifacts: Artifact[]; // the first is the main one; shown once the stage is done (or while a manual one is worked on)
   config: Record<string, string>;
   fixes: { step: string; title: string }[]; // the manual stages that can be added after it, e.g. "Fix skew"
@@ -109,7 +111,7 @@ export type Progress = { stage: number | null; pipeline: number };
 export const STALE_MS = 3 * 60 * 1000;
 
 // The stage this device is running, and how far it is: only the device that runs a stage knows (§5.1).
-export type LocalRun = { stageId: string; progress: number; imagesDiffer?: boolean };
+export type LocalRun = { stageId: string; progress: number; imagesDiffer?: boolean; call?: CallProgress };
 
 // The pipeline as the Worker stores it, made ready to show. The first planned stage after the finished ones is
 // the one whose turn it is: "ready" (but a carried manual stage, which is kept or dropped as soon as its turn comes). A stage running elsewhere shows no progress; one whose heartbeat stopped
@@ -118,7 +120,7 @@ export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun |
   const stages = stored.stages.map((s, i) => {
     const stage = toStage(s, stored.stages.slice(0, i), fixesAfter(stored.stages, i), stored.stages.slice(i + 1));
     if (local?.stageId === s.id) {
-      return { ...stage, status: "running" as const, progress: local.progress, runningHere: true, imagesDiffer: local.imagesDiffer ?? false };
+      return { ...stage, status: "running" as const, progress: local.progress, runningHere: true, imagesDiffer: local.imagesDiffer ?? false, call: local.call };
     }
     if (s.status === "running" && (s.heartbeatAt === null || now - Date.parse(s.heartbeatAt) > STALE_MS)) {
       return { ...stage, status: "failed" as const, interrupted: true, error: "Interrupted: the app was closed while this stage ran." };

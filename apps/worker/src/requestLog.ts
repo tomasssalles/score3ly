@@ -23,14 +23,28 @@ export function shortIds(path: string): string {
 // version's Node server, which run the same app.
 const inWorkers = typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 
+// Requests whose line is logged by the route itself, later (`deferLog`).
+const deferred = new WeakSet<Request>();
+
+function logLine(request: Request, status: number): void {
+  if (!inWorkers) return;
+  const bytes = Number(request.headers.get("content-length"));
+  console.log({
+    request: `${request.method} ${shortIds(new URL(request.url).pathname)}`,
+    status,
+    ...(bytes > 0 ? { bytes } : {}),
+    ...fields.get(request),
+  });
+}
+
+// For a response that goes on after the route returns (a streamed answer, docs/llm.md, "A call's progress"): the line
+// is logged when the returned function is called, with the fields added until then, instead of when the route returns.
+export function deferLog(request: Request): (status: number) => void {
+  deferred.add(request);
+  return (status) => logLine(request, status);
+}
+
 export const requestLog: MiddlewareHandler = async (c, next) => {
   await next();
-  if (!inWorkers) return;
-  const bytes = Number(c.req.header("content-length"));
-  console.log({
-    request: `${c.req.method} ${shortIds(new URL(c.req.url).pathname)}`,
-    status: c.res.status,
-    ...(bytes > 0 ? { bytes } : {}),
-    ...fields.get(c.req.raw),
-  });
+  if (!deferred.has(c.req.raw)) logLine(c.req.raw, c.res.status);
 };

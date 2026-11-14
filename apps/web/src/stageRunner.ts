@@ -16,6 +16,7 @@ import {
   type StageStart,
 } from "./api";
 import { timed } from "./itemTiming";
+import type { CallProgress } from "./callProgress";
 
 export type StageRun = {
   project: Project;
@@ -23,6 +24,7 @@ export type StageRun = {
   pipeline: ApiPipeline; // the project's pipeline as stored, for the stage's inputs
   signal: AbortSignal; // aborted when the user stops the stage
   progress: (fraction: number) => void;
+  call?: (call: CallProgress) => void; // the stage's current LLM call, as it goes (docs/llm.md, "A call's progress")
 };
 
 // A stage that can't start, e.g. a page selection beyond the PDF's last page. Nothing has been recorded.

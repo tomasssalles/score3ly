@@ -83,6 +83,8 @@ How an instance on Cloudflare is made and upgraded (decided and built 2026-11-09
 - `status`, and `bytes`, the request body's size (its `Content-Length`);
 - what the route adds (`logFields`): a stage's `step` (every request about a stage); on `/outputs`, the number of `outputs` and their `items`; on `/llm`, the `label` the browser names the call by ("System 12", "Page 3", "The whole score"; sent beside the request, not part of it or its key), the number of `images` it carries, the `answer` (`cached`, `images needed`, or `sent`, with the `provider`, the call's `status` and its `outputTokens`, or `refused` with the code).
 
+A streamed answer's line (a stage's call that was sent, `docs/llm.md`, "A call's progress") is written when the stream ends, not when the route returns, so it has the answer's status and tokens (`deferLog`).
+
 Only where Workers Logs collects them: when the Worker runs on Cloudflare's runtime (deployed, and `wrangler dev`, whose terminal shows them), not in the tests or cadenza's Node server, which run the same app. One `console.log` of a small object per request costs microseconds of CPU time, nothing against the 10 ms limit.
 
 ## Exporting and importing a project

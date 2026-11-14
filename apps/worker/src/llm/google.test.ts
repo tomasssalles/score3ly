@@ -167,3 +167,17 @@ test("a response that isn't JSON is unreadable, a failed fetch is the network", 
     await assert.rejects(provider.send(request), (err: unknown) => err instanceof LlmError && err.kind === kind && err.status === undefined);
   }
 });
+
+test("progress as the chunks arrive: the parts' characters, thoughts apart, and the output tokens where a chunk counts them", async () => {
+  const chunks = [
+    { candidates: [{ content: { role: "model", parts: [{ text: "thinking…", thought: true }] } }] },
+    { candidates: [{ content: { role: "model", parts: [{ text: '{"systems":6}' }] }, finishReason: "STOP" }], usageMetadata: { candidatesTokenCount: 12, thoughtsTokenCount: 500 }, modelVersion: "gemini-3-pro" },
+  ];
+  const seen: unknown[] = [];
+  const response = await new GoogleProvider({ apiKey: "g-key", fetch: fakeFetch(chunks, []) }).send(request, undefined, (p) => seen.push(p));
+  assert.deepEqual(response.json, { systems: 6 });
+  assert.deepEqual(seen, [
+    { textChars: 0, thinkingChars: 9 },
+    { textChars: 13, thinkingChars: 9, outputTokens: 512 },
+  ]);
+});

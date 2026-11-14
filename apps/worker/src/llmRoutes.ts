@@ -4,11 +4,12 @@
 // calls the provider, and records the call with its tokens and cost.
 
 import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
-import { logFields } from "./requestLog.ts";
+import { deferLog, logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
-import { canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
+import { type CallEvent, canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
+import type { LlmProgress, LlmProvider } from "./llm/types.ts";
 import { cloudflareTimeoutMessage } from "./llm/types.ts";
 import { llmTimeoutMs, timedOutMessage, withTimeout } from "./llm/timeouts.ts";
 import { costOf, type Price } from "./llm/prices.ts";
@@ -924,10 +925,38 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     }
 
     logFields(c.req.raw, { answer: "sent", provider: config.provider });
-    const sent = await sendCall(c.env, row, request, requestKey, sid, llmTimeoutMs(stage.step), c.req.raw.signal);
-    logFields(c.req.raw, "refusal" in sent ? { refused: sent.refusal.code } : { status: sent.status, outputTokens: sent.usage?.outputTokens });
-    if ("refusal" in sent) return c.json({ error: sent.refusal.error, code: sent.refusal.code }, sent.refusal.status);
-    return c.json(sent);
+    const prepared = await prepareCall(c.env, row);
+    if ("refusal" in prepared) {
+      logFields(c.req.raw, { refused: prepared.refusal.code });
+      return c.json({ error: prepared.refusal.error, code: prepared.refusal.code }, prepared.refusal.status);
+    }
+    // Sent: the answer is streamed as server-sent events, the call's start and its progress while it runs, then the
+    // answer (docs/llm.md, "A call's progress"). The request's log line is written at the end.
+    const log = deferLog(c.req.raw);
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
+    // A browser that went away can't be written to: the call is stopped by its signal, and recorded all the same.
+    const write = (data: StreamEvent) => writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`)).catch(() => {});
+    const done = (async () => {
+      try {
+        const answer = await runCall(c.env, prepared, request, requestKey, sid, llmTimeoutMs(stage.step), c.req.raw.signal, (event) => void write(event));
+        logFields(c.req.raw, { status: answer.status, outputTokens: answer.usage?.outputTokens });
+        await write({ event: "answer", answer });
+      } catch (err) {
+        logFields(c.req.raw, { error: String(err) });
+        await write({ event: "error", error: err instanceof Error ? err.message : String(err) });
+      } finally {
+        await writer.close().catch(() => {});
+        log(200);
+      }
+    })();
+    try {
+      c.executionCtx.waitUntil(done);
+    } catch {
+      // No execution context (the desktop version, the tests): the stream keeps the work going.
+    }
+    return new Response(readable, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store" } });
   });
 }
 
@@ -949,18 +978,83 @@ export const TEST_REQUEST: CallRequest = {
   jsonSchema: { type: "object", properties: { colour: { type: "string" } }, required: ["colour"], additionalProperties: false },
 };
 
-// Sends a request that wasn't served from the record, and records the call: what a stage's request and a config's
-// test have in common. Refused before anything is sent where the spending cap is reached (priced calls only), a secret
-// is missing or the app has no adapter.
+// A call refused before anything is sent: the spending cap is reached (priced calls only), a secret is missing or the
+// app has no adapter.
 type Refusal = { refusal: { error: string; code: string; status: 409 | 429 } };
 
 // A call cancelled because the browser stopped waiting for it: of unknown cost (docs/llm.md, "Stopped calls").
 const ABORTED_CALL = "Stopped: the app stopped waiting for this call (Stop, or the app was closed). Whether the provider billed it is unknown.";
 
-// `signal`: the browser's request, which aborts when the browser stops waiting (Stop, a closed tab), and with it the
-// provider's call (docs/llm.md, "Stopped calls"). `timeoutMs`: the call is stopped the same way when it takes longer
-// (docs/llm.md, "Timeouts").
+// What the browser is sent while a stage's call runs (docs/llm.md, "A call's progress"), as server-sent events: the
+// call's start and progress (`CallEvent`, at most every PROGRESS_INTERVAL_MS), then the answer, or an error that kept
+// the call from being recorded.
+export type StreamEvent = CallEvent | { event: "answer"; answer: CallAnswer } | { event: "error"; error: string };
+
+export const PROGRESS_INTERVAL_MS = 1000;
+
+// A token per 4 characters: about what the providers count for English and JSON.
+const CHARS_PER_TOKEN = 4;
+
+function progressEvent(progress: LlmProgress, startedMs: number): CallEvent {
+  const exact = progress.outputTokens !== undefined;
+  return {
+    event: "progress",
+    elapsedMs: Date.now() - startedMs,
+    outputTokens: exact ? progress.outputTokens! : Math.ceil((progress.textChars + progress.thinkingChars) / CHARS_PER_TOKEN),
+    exact,
+    textChars: progress.textChars,
+    thinkingChars: progress.thinkingChars,
+  };
+}
+
+// Passes progress on at most every `intervalMs`, the latest when it is due: the providers send far more often than
+// anyone needs to know, and every event costs the Worker CPU time. `stop` drops what is still waiting.
+export function throttled<T>(send: (value: T) => void, intervalMs: number): { push: (value: T) => void; stop: () => void } {
+  let last = -Infinity;
+  let waiting: T | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const flush = () => {
+    timer = undefined;
+    if (waiting === undefined) return;
+    last = Date.now();
+    const value = waiting;
+    waiting = undefined;
+    send(value);
+  };
+  return {
+    push(value) {
+      waiting = value;
+      const wait = last + intervalMs - Date.now();
+      if (wait <= 0) flush();
+      else timer ??= setTimeout(flush, wait);
+    },
+    stop() {
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+      waiting = undefined;
+    },
+  };
+}
+
+type Prepared = {
+  row: ModelConfigRow;
+  config: ModelConfig;
+  adapter: LlmProvider;
+  sentModel: string;
+  priced: ReturnType<typeof priceOfConfig>;
+  price: Price | null;
+};
+
+// Sends a request that wasn't served from the record, and records the call, in one piece (a config's Test; a stage's
+// call is streamed, with `prepareCall` and `runCall`).
 async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, requestKey: string, stageId: string | null, timeoutMs: number, signal?: AbortSignal): Promise<CallAnswer | Refusal> {
+  const prepared = await prepareCall(env, row);
+  if ("refusal" in prepared) return prepared;
+  return runCall(env, prepared, request, requestKey, stageId, timeoutMs, signal);
+}
+
+// What a call needs before anything is sent: a price, room under the spending cap, the secrets and an adapter.
+async function prepareCall(env: Env, row: ModelConfigRow): Promise<Prepared | Refusal> {
   const db = env.DB;
   const config = toModelConfig(row);
   // Then what a priced call needs: a price, room under the spending cap, and the secrets. Free and unpriced calls
@@ -987,7 +1081,24 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
   // On Bedrock the routing is a prefix of the model string sent (llm/index.ts).
   const geography = MODEL_LIST.regions.find((r) => r.provider === config.provider && r.region === config.region)?.geography;
   const sentModel = config.provider === "bedrock" ? bedrockModel(config.model, config.routing, geography) : config.model;
+  return { row, config, adapter, sentModel, priced, price };
+}
 
+// Sends the call and records it. `signal`: the browser's request, which aborts when the browser stops waiting (Stop, a
+// closed tab), and with it the provider's call (docs/llm.md, "Stopped calls"). `timeoutMs`: the call is stopped the
+// same way when it takes longer (docs/llm.md, "Timeouts"). `onEvent` hears of the call's start and progress (docs/llm.md,
+// "A call's progress").
+async function runCall(
+  env: Env,
+  { row, config, adapter, sentModel, priced, price }: Prepared,
+  request: CallRequest,
+  requestKey: string,
+  stageId: string | null,
+  timeoutMs: number,
+  signal?: AbortSignal,
+  onEvent?: (event: CallEvent) => void,
+): Promise<CallAnswer> {
+  const db = env.DB;
   const callId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
   const requestSha = await putJson(env.PDFS, await recordedRequest(request));
@@ -997,6 +1108,9 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
     )
     .bind(callId, stageId, config.id, requestKey, requestSha, startedAt)
     .run();
+  onEvent?.({ event: "started", callId, startedAt, timeoutMs });
+  const startedMs = Date.parse(startedAt);
+  const progress = onEvent ? throttled<LlmProgress>((p) => onEvent(progressEvent(p, startedMs)), PROGRESS_INTERVAL_MS) : null;
 
   let answer: CallAnswer;
   const timeout = withTimeout(signal, timeoutMs);
@@ -1009,7 +1123,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
       messages: providerMessages(request),
       maxOutputTokens: request.maxOutputTokens,
       jsonSchema: request.jsonSchema,
-    }, timeout.signal);
+    }, timeout.signal, progress?.push);
     // An answer that isn't valid JSON comes back with its usage like any other, so its cost is counted.
     const status =
       response.unexpectedModel !== undefined ? "error"
@@ -1080,6 +1194,7 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
     answer = { callId, cached: false, status: "error", text: null, json: null, error: message, usage: null, costUsd: null, vatPercent: 0 };
   } finally {
     timeout.clear();
+    progress?.stop();
   }
   return answer;
 }

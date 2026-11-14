@@ -5,6 +5,7 @@ import {
   type Fetch,
   kindForStatus,
   LlmError,
+  type LlmProgress,
   type LlmProvider,
   type LlmRequest,
   type LlmResponse,
@@ -26,10 +27,26 @@ export class ClaudeProvider implements LlmProvider {
     this.#client = client;
   }
 
-  async send(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse> {
+  async send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse> {
     let message: Message;
     try {
-      message = await this.#client.messages.stream(toParams(request), { signal }).finalMessage();
+      const stream = this.#client.messages.stream(toParams(request), { signal });
+      if (onProgress) {
+        // The deltas' characters, thinking apart (summaries, where shown), and the output tokens once `message_delta`
+        // counts them, near the end (docs/llm.md, "A call's progress").
+        const progress: LlmProgress = { textChars: 0, thinkingChars: 0 };
+        stream.on("streamEvent", (event) => {
+          if (event.type === "content_block_delta") {
+            if (event.delta.type === "text_delta") progress.textChars += event.delta.text.length;
+            else if (event.delta.type === "thinking_delta") progress.thinkingChars += event.delta.thinking.length;
+            else return;
+          } else if (event.type === "message_delta") {
+            progress.outputTokens = event.usage.output_tokens;
+          } else return;
+          onProgress({ ...progress });
+        });
+      }
+      message = await stream.finalMessage();
     } catch (err) {
       throw toLlmError(err);
     }

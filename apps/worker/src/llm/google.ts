@@ -11,12 +11,14 @@ import {
   type Fetch,
   kindForStatus,
   LlmError,
+  type LlmProgress,
   type LlmProvider,
   type LlmRequest,
   type LlmResponse,
   withJson,
 } from "./types.ts";
 import { parseServiceAccount, sharedTokenSource, type TokenSource } from "./googleServiceAccount.ts";
+import { readSse } from "@score3ly/core";
 
 // Gemini's thinking levels are fewer than our efforts.
 const THINKING_LEVELS: Record<Effort, ThinkingLevel> = {
@@ -53,10 +55,10 @@ export class GoogleProvider implements LlmProvider {
     this.#fetch = (input, init) => fetchFn(input, init);
   }
 
-  async send(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse> {
+  async send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse`;
     const headers = new Headers({ "x-goog-api-key": this.#apiKey });
-    const result = await streamGemini(this.#fetch, url, async () => headers, request, signal, "Gemini API");
+    const result = await streamGemini(this.#fetch, url, async () => headers, request, signal, "Gemini API", onProgress);
     const response = fromResult(result, request);
     return request.jsonSchema ? withJson(response) : response;
   }
@@ -209,9 +211,9 @@ export class VertexGeminiProvider implements LlmProvider {
     this.#projectId = options.projectId ?? account.projectId;
   }
 
-  async send(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse> {
+  async send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse> {
     const url = `https://${vertexHost(this.#location)}/v1/projects/${encodeURIComponent(this.#projectId)}/locations/${encodeURIComponent(this.#location)}/publishers/google/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse`;
-    const result = await streamGemini(this.#fetch, url, () => this.#auth.getRequestHeaders(), request, signal, "Vertex AI");
+    const result = await streamGemini(this.#fetch, url, () => this.#auth.getRequestHeaders(), request, signal, "Vertex AI", onProgress);
     const answer = { ...fromResult(result, request), provider: "google-vertex" as const };
     return request.jsonSchema ? withJson(answer) : answer;
   }
@@ -222,7 +224,7 @@ type GeminiError = { error?: { code?: number; message?: string } };
 // Sends a request to `streamGenerateContent` and puts the streamed answer together. Streamed, so that something arrives
 // before Cloudflare cuts a Worker's request that gets no response within 125 seconds (524; found 2026-11-12, `extract`
 // calls with Gemini 3.1 Pro on Vertex AI; streaming alone didn't help, docs/llm.md). `label` starts every error's
-// message.
+// message. The chunks are read as they arrive, and `onProgress` told how much has (docs/llm.md, "A call's progress").
 async function streamGemini(
   fetchFn: Fetch,
   url: string,
@@ -230,18 +232,35 @@ async function streamGemini(
   request: LlmRequest,
   signal: AbortSignal | undefined,
   label: string,
+  onProgress?: (progress: LlmProgress) => void,
 ): Promise<GenerateContentResponse> {
   let response: Response;
-  let text: string;
+  const chunks: GenerateContentResponse[] = [];
+  const progress: LlmProgress = { textChars: 0, thinkingChars: 0 };
   try {
     const headers = await headersFor();
     headers.set("content-type", "application/json");
     response = await fetchFn(url, { method: "POST", headers, body: JSON.stringify(toRestBody(request)), signal });
-    text = await response.text();
+    if (response.ok) {
+      await readSse(response, (data) => {
+        const chunk = parseChunk(data, label);
+        chunks.push(chunk);
+        if (onProgress) {
+          addProgress(progress, chunk);
+          onProgress({ ...progress });
+        }
+      });
+    }
   } catch (err) {
     throw toLlmError(err);
   }
   if (!response.ok) {
+    let text: string;
+    try {
+      text = await response.text();
+    } catch (err) {
+      throw toLlmError(err);
+    }
     let message = text;
     try {
       const parsed = JSON.parse(text) as GeminiError | GeminiError[];
@@ -251,28 +270,34 @@ async function streamGemini(
     }
     throw new LlmError(kindForStatus(response.status), `${label}: ${message}`, response.status);
   }
-  return mergeChunks(sseChunks(text, label));
+  return mergeChunks(chunks);
 }
 
-// A streamed answer ("data: {chunk}" events) as its chunks. An error after the stream began comes as a chunk of its own,
-// with the error's code and message.
-export function sseChunks(text: string, label: string): GenerateContentResponse[] {
-  const chunks: GenerateContentResponse[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.startsWith("data:")) continue;
-    const data = line.slice(5).trim();
-    if (data === "") continue;
-    let chunk: GenerateContentResponse & GeminiError;
-    try {
-      chunk = JSON.parse(data);
-    } catch {
-      throw new LlmError("unreadable_response", `${label}: a chunk of the answer isn't JSON: ${data.slice(0, 200)}`);
-    }
-    if (chunk.error) {
-      const status = typeof chunk.error.code === "number" ? chunk.error.code : undefined;
-      throw new LlmError(status ? kindForStatus(status) : "server", `${label}: ${chunk.error.message ?? JSON.stringify(chunk.error)}`, status);
-    }
-    chunks.push(chunk);
+// Adds a chunk to what has arrived: its parts' characters, thoughts apart, and the output tokens where the chunk counts
+// them (Gemini's counts so far, thinking included as everywhere else, `fromResult`).
+function addProgress(progress: LlmProgress, chunk: GenerateContentResponse): void {
+  for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+    if (typeof part.text !== "string") continue;
+    if (part.thought) progress.thinkingChars += part.text.length;
+    else progress.textChars += part.text.length;
   }
-  return chunks;
+  const usage = chunk.usageMetadata;
+  if (usage && (usage.candidatesTokenCount !== undefined || usage.thoughtsTokenCount !== undefined)) {
+    progress.outputTokens = (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0);
+  }
+}
+
+// One event's data as its chunk, or the error it carries.
+function parseChunk(data: string, label: string): GenerateContentResponse {
+  let chunk: GenerateContentResponse & GeminiError;
+  try {
+    chunk = JSON.parse(data);
+  } catch {
+    throw new LlmError("unreadable_response", `${label}: a chunk of the answer isn't JSON: ${data.slice(0, 200)}`);
+  }
+  if (chunk.error) {
+    const status = typeof chunk.error.code === "number" ? chunk.error.code : undefined;
+    throw new LlmError(status ? kindForStatus(status) : "server", `${label}: ${chunk.error.message ?? JSON.stringify(chunk.error)}`, status);
+  }
+  return chunk;
 }

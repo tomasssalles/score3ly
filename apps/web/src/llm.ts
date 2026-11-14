@@ -7,6 +7,7 @@ import { keyOf } from "@score3ly/core";
 import { noteAnswer } from "./itemTiming";
 import { keepFingerprints } from "./pageImages";
 import { CannotStart, type StageRun } from "./stageRunner";
+import { trackCall } from "./callProgress";
 
 // The model config of an LLM stage: the one its config names (`modelConfigId`), which it got when it was created, the
 // default then unless it was given one (docs/llm.md, "Which config a stage uses"). It is never looked up later.
@@ -136,19 +137,21 @@ export async function ask(
   what: string,
   options: { config: ModelConfig; beforeImages?: () => Promise<void> },
 ): Promise<LlmAnswer> {
-  let answer = await callLlm(run.project, run.stage.id, await withImages(request, null), what, run.signal);
+  const tracked = trackCall(run, what);
+  let answer = await callLlm(run.project, run.stage.id, await withImages(request, null), what, run.signal, tracked.onEvent);
   if ("imagesNeeded" in answer) {
     await options.beforeImages?.();
     const images: { recipe: unknown; png: Blob }[] = [];
     const full = await withImages(request, images);
     const tooBig = requestSizeProblem(options.config, full);
     if (tooBig) throw new Error(`${what}: ${tooBig}.`);
-    const made = await callLlm(run.project, run.stage.id, full, what, run.signal);
+    const made = await callLlm(run.project, run.stage.id, full, what, run.signal, tracked.onEvent);
     if ("imagesNeeded" in made) throw new Error(`${what}: the request was sent without its images.`);
     answer = made;
     // The answer is computed from these images: their fingerprints are kept (§8.3).
     if (answer.status === "ok") await keepFingerprints(images);
   }
+  tracked.ended();
   if (answer.status !== "ok") throw new Error(`${what}: ${answer.error ?? answer.status}`);
   noteAnswer(answer.cached);
   return answer;

@@ -5,3 +5,5 @@
 export { canonicalJson, keyOf, sha256Hex } from "./keys.ts";
 export type { ListedProject, PipelinePosition, Project, RunMode } from "./project.ts";
 export { formatPages, parsePages, selectPages } from "./pageSelection.ts";
+export { readSse } from "./sse.ts";
+export type { CallEvent } from "./callEvents.ts";

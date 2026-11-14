@@ -1,6 +1,6 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, type Project } from "./api.ts";
+import { ApiError, callLlm, createProject, listProjects, lookUpPdf, markOpened, renameProject, type Project } from "./api.ts";
 
 // The tests replace the browser's fetch with a fake that records each request and answers with a fixed response.
 const realFetch = globalThis.fetch;
@@ -118,4 +118,26 @@ test("a refused request fails with an ApiError that carries the HTTP status", as
     answerWith(500, { error: "broken" });
     await assert.rejects(call(), (err) => err instanceof ApiError && err.status === 500, name);
   }
+});
+
+test("a sent call's streamed answer: its start and progress go to the listener, its answer is returned", async () => {
+  const events = [
+    { event: "started", callId: "c1", startedAt: "2026-11-14T10:00:00.000Z", timeoutMs: 3_600_000 },
+    { event: "progress", elapsedMs: 1000, outputTokens: 50, exact: false, textChars: 0, thinkingChars: 200 },
+    { event: "answer", answer: { callId: "c1", cached: false, status: "ok", text: "{}", json: {}, error: null, usage: null, costUsd: 0 } },
+  ];
+  globalThis.fetch = async () =>
+    new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
+  const seen: unknown[] = [];
+  const answer = await callLlm(project, "s1", { messages: [] }, "Page 1", undefined, (e) => seen.push(e));
+  assert.deepEqual(seen, events.slice(0, 2));
+  assert.equal("callId" in answer && answer.callId, "c1");
+});
+
+test("a streamed answer that ends without one fails with the server's error, or says the connection ended", async () => {
+  globalThis.fetch = async () =>
+    new Response(`data: ${JSON.stringify({ event: "error", error: "D1 is down" })}\n\n`, { headers: { "Content-Type": "text/event-stream" } });
+  await assert.rejects(callLlm(project, "s1", { messages: [] }), /D1 is down/);
+  globalThis.fetch = async () => new Response(`data: ${JSON.stringify({ event: "started", callId: "c", startedAt: "", timeoutMs: 1 })}\n\n`, { headers: { "Content-Type": "text/event-stream" } });
+  await assert.rejects(callLlm(project, "s1", { messages: [] }), /ended before the answer came/);
 });

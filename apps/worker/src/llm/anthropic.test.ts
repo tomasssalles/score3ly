@@ -207,3 +207,15 @@ test("adaptive thinking is asked for only where the request says so", () => {
   assert.deepEqual(toParams({ ...request, adaptiveThinking: true }).thinking, { type: "adaptive" });
   assert.equal(toParams(request).thinking, undefined);
 });
+
+test("progress as the answer arrives: the text's and the thinking's characters, and the output tokens once counted", async () => {
+  const events = answer('{"systems":6}');
+  events.splice(2, 0, { type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "Counting." } });
+  const seen: unknown[] = [];
+  await anthropicProvider({ apiKey: "k", fetch: fakeFetch(events, []), maxRetries: 0 }).send(request, undefined, (p) => seen.push(p));
+  assert.deepEqual(seen, [
+    { textChars: 0, thinkingChars: 9 },
+    { textChars: 13, thinkingChars: 9 },
+    { textChars: 13, thinkingChars: 9, outputTokens: 42 },
+  ]);
+});

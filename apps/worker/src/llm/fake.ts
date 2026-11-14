@@ -3,7 +3,8 @@
 // option), and its "tokens" are estimated from the request's text and images. Some model names make it fail on purpose:
 // "fake-error" (a server error), "fake-refusal", "fake-cut-off", "fake-unparseable", "fake-other-model" (another model
 // answers). "fake-slow" answers as the fake does, but only after FAKE_SLOW_MS, unless its call is stopped first: for
-// trying Stop on a call that is under way (docs/llm.md, "Stopped calls").
+// trying Stop on a call that is under way (docs/llm.md, "Stopped calls"), and reports a little more of its "thinking"
+// every second meanwhile (docs/llm.md, "A call's progress"). Every fake call reports its answer's length once, at the end.
 // Three steps get more than that, so the pipeline runs end to end: `layout` (six systems on every page, as many as on a
 // real page of piano music, each with three bar lines, so that the later stages have systems to work on), `extract`,
 // whose answer must cover exactly the stretches asked for, with a voice on every staff (the fake reads the request's JSON and answers with whole-measure
@@ -13,7 +14,7 @@
 // first stretch under it; on an even one, each reverted, with a made-up reason, by a made-up new answer where none is
 // applied; a person's answers, resolved, are applied on either).
 
-import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse } from "./types.ts";
+import { LlmError, type LlmProgress, type LlmProvider, type LlmRequest, type LlmResponse } from "./types.ts";
 
 // Long, with JSON and an unbroken word, as providers' errors are, so the screenshots show how the app wraps them.
 const FAKE_ERROR =
@@ -27,13 +28,14 @@ export class FakeProvider implements LlmProvider {
     this.id = id;
   }
 
-  async send(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse> {
+  async send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse> {
     if (request.model === "fake-error") throw new LlmError("server", FAKE_ERROR, 500);
-    if (request.model === "fake-slow") await slowly(FAKE_SLOW_MS, signal);
+    if (request.model === "fake-slow") await slowly(FAKE_SLOW_MS, signal, onProgress);
     const unparseable = request.model === "fake-unparseable" && request.jsonSchema;
     const answer = unparseable ? "Not JSON, as asked." : request.jsonSchema ? (fakeLayout(request) ?? fakeExtract(request) ?? fakeReview(request) ?? fakeApplyReview(request) ?? simplest(request.jsonSchema)) : "Fake answer.";
     const text = typeof answer === "string" ? answer : JSON.stringify(answer);
     const stop = request.model === "fake-refusal" ? "refusal" : request.model === "fake-cut-off" ? "max_tokens" : "end";
+    onProgress?.({ textChars: text.length, thinkingChars: 0, outputTokens: Math.ceil(text.length / 4) });
     return {
       provider: this.id,
       model: request.model,
@@ -50,14 +52,25 @@ export class FakeProvider implements LlmProvider {
 
 export const FAKE_SLOW_MS = 30_000;
 
-// Waits, or stops as a provider's call does when its request is aborted.
-function slowly(ms: number, signal?: AbortSignal): Promise<void> {
+// Waits, thinking FAKE_THINKING_CHARS more every second, or stops as a provider's call does when its request is aborted.
+const FAKE_THINKING_CHARS = 200;
+
+function slowly(ms: number, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const stopped = () => reject(new LlmError("aborted", "The request was aborted."));
     if (signal?.aborted) return stopped();
-    const timer = setTimeout(resolve, ms);
+    let thinking = 0;
+    const ticks = setInterval(() => {
+      thinking += FAKE_THINKING_CHARS;
+      onProgress?.({ textChars: 0, thinkingChars: thinking });
+    }, 1000);
+    const timer = setTimeout(() => {
+      clearInterval(ticks);
+      resolve();
+    }, ms);
     signal?.addEventListener("abort", () => {
       clearTimeout(timer);
+      clearInterval(ticks);
       stopped();
     });
   });

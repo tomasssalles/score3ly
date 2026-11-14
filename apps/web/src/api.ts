@@ -1,6 +1,6 @@
 import type { Fingerprint } from "@score3ly/imaging";
 import type { Timing } from "./itemTiming";
-import { sha256Hex } from "@score3ly/core";
+import { type CallEvent, readSse, sha256Hex } from "@score3ly/core";
 
 // Mirrors the Worker's Project type (apps/worker/src/index.ts).
 export type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
@@ -528,6 +528,7 @@ export async function callLlm(
   request: LlmRequest,
   label?: string,
   signal?: AbortSignal,
+  onEvent?: (event: CallEvent) => void,
 ): Promise<LlmAnswer | { imagesNeeded: true }> {
   const response = await fetch(stageUrl(project, stageId, "llm"), {
     method: "POST",
@@ -540,7 +541,23 @@ export async function callLlm(
     if (body?.code) throw new LlmRefused(body.code, body.error ?? body.code);
     throw new ApiError(response.status);
   }
+  if (response.headers.get("Content-Type")?.startsWith("text/event-stream")) return streamedAnswer(response, onEvent);
   return response.json();
+}
+
+// A call that was sent is streamed (docs/llm.md, "A call's progress"): its start and progress go to `onEvent` as they
+// come, and its answer ends the stream.
+async function streamedAnswer(response: Response, onEvent?: (event: CallEvent) => void): Promise<LlmAnswer> {
+  let answer: LlmAnswer | null = null;
+  let error: string | null = null;
+  await readSse(response, (data) => {
+    const event = JSON.parse(data) as CallEvent | { event: "answer"; answer: LlmAnswer } | { event: "error"; error: string };
+    if (event.event === "answer") answer = event.answer;
+    else if (event.event === "error") error = event.error;
+    else onEvent?.(event);
+  });
+  if (answer) return answer;
+  throw new Error(error ?? "The connection to the server ended before the answer came.");
 }
 
 // Fingerprints of the images from which stored results were computed (apps/worker/src/fingerprints.ts, 

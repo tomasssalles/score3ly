@@ -6,7 +6,7 @@ import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList, type Provider } from "./llm/models.ts";
-import { convertAddedConfigs, modelOptions, providerCost, secretNames, spentInLastDay, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
+import { convertAddedConfigs, modelOptions, providerCost, secretNames, spentInLastDay, throttled, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 
@@ -48,8 +48,19 @@ function send(path: string, body?: unknown, method = "POST") {
   );
 }
 
+// A response's JSON; for a streamed answer (a stage's call that was sent, docs/llm.md, "A call's progress"), the answer
+// at its end, after checking that the call's start came first.
 async function json<T = Record<string, unknown>>(response: Response): Promise<T> {
-  return (await response.json()) as T;
+  if (!response.headers.get("Content-Type")?.startsWith("text/event-stream")) return (await response.json()) as T;
+  const events = sseEvents(await response.text());
+  assert.equal(events[0].event, "started");
+  const last = events.at(-1)!;
+  assert.equal(last.event, "answer", JSON.stringify(last));
+  return last.answer as T;
+}
+
+function sseEvents(text: string): Record<string, any>[] {
+  return text.split("\n").filter((line) => line.startsWith("data: ")).map((line) => JSON.parse(line.slice(6)));
 }
 
 // The fake provider for development by default: "fake-model", a model added by hand priced as the listed fake model,
@@ -306,6 +317,49 @@ test("a call that takes longer than its timeout is stopped, down to the provider
   } finally {
     Object.assign(LLM_TIMEOUT_MINUTES, saved);
   }
+});
+
+test("a sent call streams its start, its progress at most every second, and its answer; a cached one answers at once", async () => {
+  const config = await modelConfig({ model: "fake-slow" });
+  const stage = await runningStage(config.id);
+  const saved = { ...LLM_TIMEOUT_MINUTES };
+  // fake-slow thinks 200 characters a second; its call stopped by the timeout after 3.5 s.
+  for (const step of Object.keys(LLM_TIMEOUT_MINUTES)) LLM_TIMEOUT_MINUTES[step] = 3.5 / 60;
+  try {
+    const response = await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`, { request: request() });
+    assert.equal(response.headers.get("Content-Type"), "text/event-stream");
+    const events = sseEvents(await response.text());
+    const [started, ...rest] = events;
+    assert.equal(started.event, "started");
+    assert.equal(started.timeoutMs, 3500);
+    assert.equal(started.callId, (await calls()).at(-1)!.id);
+    const progress = rest.filter((e) => e.event === "progress");
+    assert.ok(progress.length >= 2 && progress.length <= 4, JSON.stringify(progress));
+    for (const [i, p] of progress.entries()) {
+      assert.equal(p.exact, false);
+      assert.equal(p.textChars, 0);
+      assert.equal(p.outputTokens, Math.ceil(p.thinkingChars / 4));
+      if (i > 0) assert.ok(p.elapsedMs - progress[i - 1].elapsedMs >= 900);
+    }
+    assert.deepEqual(rest.at(-1)!.answer.status, "error");
+  } finally {
+    Object.assign(LLM_TIMEOUT_MINUTES, saved);
+  }
+});
+
+test("throttled: the first value at once, then the latest at most every interval, and nothing after stop", async () => {
+  const sent: number[] = [];
+  const t = throttled<number>((v) => sent.push(v), 50);
+  t.push(1);
+  t.push(2);
+  t.push(3);
+  assert.deepEqual(sent, [1]);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.deepEqual(sent, [1, 3]);
+  t.push(4);
+  t.stop();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.deepEqual(sent, [1, 3]);
 });
 
 test("Stop, and a new start of an interrupted stage, close the stage's calls still marked running", async () => {

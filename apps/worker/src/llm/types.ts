@@ -99,9 +99,15 @@ export class LlmError extends Error {
   }
 }
 
+// How much of a streamed answer has arrived so far (docs/llm.md, "A call's progress"): the characters of the answer and
+// of the thinking the provider shows (summaries, where it shows any), and the output tokens, thinking included, where
+// the provider counts them as it goes (Gemini in every chunk, Claude near the end, OpenRouter only at the end).
+export type LlmProgress = { textChars: number; thinkingChars: number; outputTokens?: number };
+
 export interface LlmProvider {
   readonly id: ProviderId;
-  send(request: LlmRequest, signal?: AbortSignal): Promise<LlmResponse>;
+  // `onProgress` is called as the answer arrives, as often as the provider sends something: cheap work only.
+  send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse>;
 }
 
 export type Fetch = typeof fetch;
