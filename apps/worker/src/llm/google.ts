@@ -236,7 +236,7 @@ async function streamGemini(
 ): Promise<GenerateContentResponse> {
   let response: Response;
   const chunks: GenerateContentResponse[] = [];
-  const progress: LlmProgress = { textChars: 0, thinkingChars: 0 };
+  const progress: LlmProgress = { textChars: 0, thinkingChars: 0, outputTokens: null };
   try {
     const headers = await headersFor();
     headers.set("content-type", "application/json");
@@ -273,8 +273,8 @@ async function streamGemini(
   return mergeChunks(chunks);
 }
 
-// Adds a chunk to what has arrived: its parts' characters, thoughts apart, and the output tokens where the chunk counts
-// them (Gemini's counts so far, thinking included as everywhere else, `fromResult`).
+// Adds a chunk to what has arrived: its parts' characters, thoughts apart, and the output tokens if the chunk counts
+// them (Gemini's counts so far, thinking included as everywhere else, `fromResult`), else null.
 function addProgress(progress: LlmProgress, chunk: GenerateContentResponse): void {
   for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
     if (typeof part.text !== "string") continue;
@@ -282,9 +282,10 @@ function addProgress(progress: LlmProgress, chunk: GenerateContentResponse): voi
     else progress.textChars += part.text.length;
   }
   const usage = chunk.usageMetadata;
-  if (usage && (usage.candidatesTokenCount !== undefined || usage.thoughtsTokenCount !== undefined)) {
-    progress.outputTokens = (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0);
-  }
+  progress.outputTokens =
+    usage && (usage.candidatesTokenCount !== undefined || usage.thoughtsTokenCount !== undefined)
+      ? (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0)
+      : null;
 }
 
 // One event's data as its chunk, or the error it carries.

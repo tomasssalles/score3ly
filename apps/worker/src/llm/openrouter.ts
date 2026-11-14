@@ -140,7 +140,7 @@ type Chunk = {
 // at the end) put together as one completion: the text of the deltas, the last finish reason, and the usage, which
 // comes in the last chunk. An error after the stream began comes as a chunk of its own. Chunks are added as they
 // arrive (`add`), with how much has arrived so far (`progress`: the answer's and the reasoning's characters, and the
-// output tokens once the usage has come).
+// output tokens if this chunk carried the usage, else null).
 export class CompletionStream {
   #model: string | undefined;
   #provider: string | undefined;
@@ -150,7 +150,7 @@ export class CompletionStream {
   #nativeFinish: string | null = null;
   #usage: Completion["usage"];
   #chunks = 0;
-  readonly progress: LlmProgress = { textChars: 0, thinkingChars: 0 };
+  readonly progress: LlmProgress = { textChars: 0, thinkingChars: 0, outputTokens: null };
 
   // One event's data.
   add(data: string): void {
@@ -176,10 +176,8 @@ export class CompletionStream {
     this.#refusal = choice?.delta?.refusal ?? this.#refusal;
     this.#finish = choice?.finish_reason ?? this.#finish;
     this.#nativeFinish = choice?.native_finish_reason ?? this.#nativeFinish;
-    if (chunk.usage) {
-      this.#usage = chunk.usage;
-      if (typeof chunk.usage.completion_tokens === "number") this.progress.outputTokens = chunk.usage.completion_tokens;
-    }
+    if (chunk.usage) this.#usage = chunk.usage;
+    this.progress.outputTokens = typeof chunk.usage?.completion_tokens === "number" ? chunk.usage.completion_tokens : null;
   }
 
   completion(): Completion {

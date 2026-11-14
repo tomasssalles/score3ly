@@ -2,15 +2,15 @@ import type { CallEvent } from "@score3ly/core";
 import type { StageRun } from "./stageRunner";
 
 // The LLM call a stage running here waits for (docs/llm.md, "A call's progress"): what it is for (`label`, e.g. "System
-// 4"), when it started and its timeout, and how far its answer has got: the output tokens so far (exact, or estimated
-// from the characters received) and those characters. `endedAt` once its answer has come. Times are this device's.
+// 4"), when it started and its timeout, and how far its answer has got, as the latest report said: the characters so
+// far, and the output tokens so far, or null where the report had no count (what to show then is the view's choice).
+// `endedAt` once its answer has come. Times are this device's.
 export type CallProgress = {
   callId: string;
   label: string;
   startedAt: number;
   timeoutMs: number;
-  outputTokens: number;
-  exact: boolean;
+  outputTokens: number | null;
   textChars: number;
   thinkingChars: number;
   endedAt?: number;
@@ -23,9 +23,9 @@ export function trackCall(run: Pick<StageRun, "call">, label: string, now: () =>
   return {
     onEvent(event) {
       if (event.event === "started") {
-        call = { callId: event.callId, label, startedAt: now(), timeoutMs: event.timeoutMs, outputTokens: 0, exact: false, textChars: 0, thinkingChars: 0 };
+        call = { callId: event.callId, label, startedAt: now(), timeoutMs: event.timeoutMs, outputTokens: null, textChars: 0, thinkingChars: 0 };
       } else if (call) {
-        call = { ...call, outputTokens: event.outputTokens, exact: event.exact, textChars: event.textChars, thinkingChars: event.thinkingChars };
+        call = { ...call, outputTokens: event.outputTokens, textChars: event.textChars, thinkingChars: event.thinkingChars };
       } else return;
       run.call?.(call);
     },

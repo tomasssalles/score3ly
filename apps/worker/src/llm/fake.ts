@@ -62,7 +62,7 @@ function slowly(ms: number, signal?: AbortSignal, onProgress?: (progress: LlmPro
     let thinking = 0;
     const ticks = setInterval(() => {
       thinking += FAKE_THINKING_CHARS;
-      onProgress?.({ textChars: 0, thinkingChars: thinking });
+      onProgress?.({ textChars: 0, thinkingChars: thinking, outputTokens: null });
     }, 1000);
     const timer = setTimeout(() => {
       clearInterval(ticks);

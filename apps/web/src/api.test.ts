@@ -123,7 +123,7 @@ test("a refused request fails with an ApiError that carries the HTTP status", as
 test("a sent call's streamed answer: its start and progress go to the listener, its answer is returned", async () => {
   const events = [
     { event: "started", callId: "c1", startedAt: "2026-11-14T10:00:00.000Z", timeoutMs: 3_600_000 },
-    { event: "progress", elapsedMs: 1000, outputTokens: 50, exact: false, textChars: 0, thinkingChars: 200 },
+    { event: "progress", elapsedMs: 1000, outputTokens: null, textChars: 0, thinkingChars: 200 },
     { event: "answer", answer: { callId: "c1", cached: false, status: "ok", text: "{}", json: {}, error: null, usage: null, costUsd: 0 } },
   ];
   globalThis.fetch = async () =>

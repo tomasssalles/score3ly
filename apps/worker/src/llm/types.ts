@@ -99,10 +99,11 @@ export class LlmError extends Error {
   }
 }
 
-// How much of a streamed answer has arrived so far (docs/llm.md, "A call's progress"): the characters of the answer and
-// of the thinking the provider shows (summaries, where it shows any), and the output tokens, thinking included, where
-// the provider counts them as it goes (Gemini in every chunk, Claude near the end, OpenRouter only at the end).
-export type LlmProgress = { textChars: number; thinkingChars: number; outputTokens?: number };
+// How much of a streamed answer has arrived so far, reported with each chunk (docs/llm.md, "A call's progress"): the
+// characters of the answer and of the thinking the provider shows (summaries, where it shows any), and the output
+// tokens so far, thinking included, as the provider counts them, null where this chunk carries no count (Gemini counts
+// in its chunks, Claude near the end, OpenRouter only at the end). Never an estimate.
+export type LlmProgress = { textChars: number; thinkingChars: number; outputTokens: number | null };
 
 export interface LlmProvider {
   readonly id: ProviderId;

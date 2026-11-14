@@ -178,10 +178,8 @@ test("a model OpenRouter lists as free: all its prices 0; not free where they ca
   assert.equal(await freeOnOpenRouter("google/gemma-5:free", "", unreachable, 1), false);
 });
 
-test("progress as the chunks arrive: the answer's characters, and the output tokens once the usage has come", async () => {
-  const seen: { textChars: number; outputTokens?: number }[] = [];
+test("progress as the chunks arrive: the answer's characters, and the output tokens in the chunk with the usage", async () => {
+  const seen: { textChars: number; outputTokens: number | null }[] = [];
   await provider([], completion()).send(request, undefined, (p) => seen.push(p));
-  assert.deepEqual(seen.map((p) => p.textChars), [7, 13, 13, 13]);
-  assert.equal(seen.at(-1)!.outputTokens, 25);
-  assert.equal(seen[0].outputTokens, undefined);
+  assert.deepEqual(seen.map((p) => [p.textChars, p.outputTokens]), [[7, null], [13, null], [13, null], [13, 25]]);
 });

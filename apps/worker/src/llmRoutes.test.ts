@@ -6,7 +6,7 @@ import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList, type Provider } from "./llm/models.ts";
-import { convertAddedConfigs, modelOptions, providerCost, secretNames, spentInLastDay, throttled, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
+import { convertAddedConfigs, modelOptions, providerCost, secretNames, spentInLastDay, throttled, throttledProgress, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 
@@ -336,9 +336,10 @@ test("a sent call streams its start, its progress at most every second, and its 
     const progress = rest.filter((e) => e.event === "progress");
     assert.ok(progress.length >= 2 && progress.length <= 4, JSON.stringify(progress));
     for (const [i, p] of progress.entries()) {
-      assert.equal(p.exact, false);
+      // The fake's thinking carries no token count: null, never an estimate.
+      assert.equal(p.outputTokens, null);
       assert.equal(p.textChars, 0);
-      assert.equal(p.outputTokens, Math.ceil(p.thinkingChars / 4));
+      if (i > 0) assert.ok(p.thinkingChars > progress[i - 1].thinkingChars);
       if (i > 0) assert.ok(p.elapsedMs - progress[i - 1].elapsedMs >= 900);
     }
     assert.deepEqual(rest.at(-1)!.answer.status, "error");
@@ -360,6 +361,19 @@ test("throttled: the first value at once, then the latest at most every interval
   t.stop();
   await new Promise((resolve) => setTimeout(resolve, 80));
   assert.deepEqual(sent, [1, 3]);
+});
+
+test("throttled progress: a token count a skipped chunk had is kept until the next report, then null again", async () => {
+  const sent: (number | null)[] = [];
+  const t = throttledProgress((p) => sent.push(p.outputTokens), 50);
+  const chunk = (outputTokens: number | null) => t.push({ textChars: 0, thinkingChars: 0, outputTokens });
+  chunk(null); // sent at once
+  chunk(7); // waits
+  chunk(null); // waits, keeping the 7
+  await new Promise((resolve) => setTimeout(resolve, 130));
+  chunk(null); // sent at once: no count since the last report
+  assert.deepEqual(sent, [null, 7, null]);
+  t.stop();
 });
 
 test("Stop, and a new start of an interrupted stage, close the stage's calls still marked running", async () => {

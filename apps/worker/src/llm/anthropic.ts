@@ -32,18 +32,20 @@ export class ClaudeProvider implements LlmProvider {
     try {
       const stream = this.#client.messages.stream(toParams(request), { signal });
       if (onProgress) {
-        // The deltas' characters, thinking apart (summaries, where shown), and the output tokens once `message_delta`
+        // The deltas' characters, thinking apart (summaries, where shown), and the output tokens where `message_delta`
         // counts them, near the end (docs/llm.md, "A call's progress").
-        const progress: LlmProgress = { textChars: 0, thinkingChars: 0 };
+        let textChars = 0;
+        let thinkingChars = 0;
         stream.on("streamEvent", (event) => {
+          let outputTokens: number | null = null;
           if (event.type === "content_block_delta") {
-            if (event.delta.type === "text_delta") progress.textChars += event.delta.text.length;
-            else if (event.delta.type === "thinking_delta") progress.thinkingChars += event.delta.thinking.length;
+            if (event.delta.type === "text_delta") textChars += event.delta.text.length;
+            else if (event.delta.type === "thinking_delta") thinkingChars += event.delta.thinking.length;
             else return;
           } else if (event.type === "message_delta") {
-            progress.outputTokens = event.usage.output_tokens;
+            outputTokens = event.usage.output_tokens;
           } else return;
-          onProgress({ ...progress });
+          onProgress({ textChars, thinkingChars, outputTokens });
         });
       }
       message = await stream.finalMessage();

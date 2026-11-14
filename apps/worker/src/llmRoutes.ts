@@ -992,19 +992,8 @@ export type StreamEvent = CallEvent | { event: "answer"; answer: CallAnswer } | 
 
 export const PROGRESS_INTERVAL_MS = 1000;
 
-// A token per 4 characters: about what the providers count for English and JSON.
-const CHARS_PER_TOKEN = 4;
-
 function progressEvent(progress: LlmProgress, startedMs: number): CallEvent {
-  const exact = progress.outputTokens !== undefined;
-  return {
-    event: "progress",
-    elapsedMs: Date.now() - startedMs,
-    outputTokens: exact ? progress.outputTokens! : Math.ceil((progress.textChars + progress.thinkingChars) / CHARS_PER_TOKEN),
-    exact,
-    textChars: progress.textChars,
-    thinkingChars: progress.thinkingChars,
-  };
+  return { event: "progress", elapsedMs: Date.now() - startedMs, ...progress };
 }
 
 // Passes progress on at most every `intervalMs`, the latest when it is due: the providers send far more often than
@@ -1033,6 +1022,23 @@ export function throttled<T>(send: (value: T) => void, intervalMs: number): { pu
       timer = undefined;
       waiting = undefined;
     },
+  };
+}
+
+// The chunks' reports passed on at most every `intervalMs`: the latest characters, and the latest token count among
+// the chunks since the previous report (null if none had one), so that a count isn't lost to the throttle.
+export function throttledProgress(send: (progress: LlmProgress) => void, intervalMs: number): { push: (progress: LlmProgress) => void; stop: () => void } {
+  let tokensSince: number | null = null;
+  const throttle = throttled<LlmProgress>((p) => {
+    tokensSince = null;
+    send(p);
+  }, intervalMs);
+  return {
+    push(p) {
+      if (p.outputTokens !== null) tokensSince = p.outputTokens;
+      throttle.push({ ...p, outputTokens: tokensSince });
+    },
+    stop: throttle.stop,
   };
 }
 
@@ -1110,7 +1116,7 @@ async function runCall(
     .run();
   onEvent?.({ event: "started", callId, startedAt, timeoutMs });
   const startedMs = Date.parse(startedAt);
-  const progress = onEvent ? throttled<LlmProgress>((p) => onEvent(progressEvent(p, startedMs)), PROGRESS_INTERVAL_MS) : null;
+  const progress = onEvent ? throttledProgress((p) => onEvent(progressEvent(p, startedMs)), PROGRESS_INTERVAL_MS) : null;
 
   let answer: CallAnswer;
   const timeout = withTimeout(signal, timeoutMs);

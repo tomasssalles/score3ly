@@ -177,7 +177,7 @@ test("progress as the chunks arrive: the parts' characters, thoughts apart, and 
   const response = await new GoogleProvider({ apiKey: "g-key", fetch: fakeFetch(chunks, []) }).send(request, undefined, (p) => seen.push(p));
   assert.deepEqual(response.json, { systems: 6 });
   assert.deepEqual(seen, [
-    { textChars: 0, thinkingChars: 9 },
+    { textChars: 0, thinkingChars: 9, outputTokens: null },
     { textChars: 13, thinkingChars: 9, outputTokens: 512 },
   ]);
 });
