@@ -10,18 +10,11 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Page } from "playwright";
-import { launchBrowser, newProject, pipelineOf, ROOT, runToEnd, type Servers, startServers, stopAll } from "./appServers.ts";
+import { launchBrowser, newProject, openProject, pipelineOf, ROOT, runToEnd, type Servers, startServers, stopAll } from "./appServers.ts";
 
 const PDF = join(ROOT, "testset/bendel_la_cascade_p4.orig.pdf");
 export const FIXTURES = join(ROOT, "fixtures/replay");
 const NAME = "fake";
-
-// The project's page loaded afresh: one left open since a run went on may hold an older version of the project, and
-// its changes would be refused (optimistic locking).
-async function openProject(page: Page, servers: Servers, id: string) {
-  await page.goto(`${servers.app}#/projects/${id}`);
-  await page.reload();
-}
 
 async function addManualStage(page: Page, servers: Servers, id: string, after: string, item: string) {
   await openProject(page, servers, id);

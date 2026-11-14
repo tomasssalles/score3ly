@@ -135,10 +135,17 @@ export async function newProject(page: Page, servers: Servers, file: string): Pr
   return page.url().split("#/projects/")[1].split("/")[0];
 }
 
+// The project's page loaded afresh: one left open while the project changed elsewhere (a run, the API) holds an older
+// version of it, shows an older pipeline, and its changes would be refused (optimistic locking).
+export async function openProject(page: Page, servers: Servers, id: string) {
+  await page.goto(`${servers.app}#/projects/${id}`);
+  await page.reload();
+}
+
 // Runs the project in Auto mode until the last stage is done or one fails. Run is pressed only when nothing runs: in
 // Auto mode, finishing a manual stage starts the rest by itself.
 export async function runToEnd(page: Page, servers: Servers, id: string, timeoutSeconds = 600) {
-  await page.goto(`${servers.app}#/projects/${id}`);
+  await openProject(page, servers, id);
   for (let i = 0; i < timeoutSeconds; i++) {
     const stages = await pipelineOf(servers, id);
     if (stages.at(-1)!.status === "done" || stages.some((s) => s.status === "failed")) return;
