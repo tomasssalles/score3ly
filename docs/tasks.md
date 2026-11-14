@@ -139,6 +139,8 @@ The tasks below, in the file's order.
 - [Keeping manual fixes per item](#keeping-manual-fixes-per-item)
 - [Forking a project](#forking-a-project)
 - [Timeouts for LLM calls](#timeouts-for-llm-calls)
+- [Gemini's `extract` calls cut off](#geminis-extract-calls-cut-off)
+- [The first fixture, and replay tests](#the-first-fixture-and-replay-tests)
 - [The Worker reports the current call's progress](#the-worker-reports-the-current-calls-progress)
 - [Show that a long call is making progress](#show-that-a-long-call-is-making-progress)
 - [The model configs' list on the settings page](#the-model-configs-list-on-the-settings-page)
@@ -229,7 +231,7 @@ Proposed 2026-10-30. While a manual stage's editor is open, the browser sends a 
 The tabs measure different targets in different ways, because the data offers no single clean one (the reasons, from the project owner: `docs/statistics.md`, "Why the tabs differ"). Some day, perhaps: one concept for the whole page, with consistent definitions of a project, a page, work and time across the tabs. Not now (decided 2026-10-30): the statistics aren't a scientific experiment, and what is built is probably good enough for a while. Two optional tasks would help it: "Tags for projects" and "A "done" mark for projects".
 
 ### Change the human review's screen to work like the Transcription
-`#decision` `#next-release`
+`#next` `#decision` `#next-release`
 
 The project owner, after using the deployed app (2026-11-10): `human_review`'s screen (`docs/stages/music.md`, `human_review`, "The screen"; `HumanReviewEditor`: the original and the rendering in two panes, the boxes dimmed on the original, one issue's panel at a time over the rendering, arrows from box to box) is very hard to use for a person, while the Transcription (`ExtractionView.tsx`: a filmstrip of the systems, each crop above its rendering, the issues' cards below it) is already excellent for comparing the original with the transcription. The human review should become something very similar to the Transcription. The linked scrolling of the two panes doesn't work well either (the project owner, same day). And unlinked, the zoom buttons zoom only the original, and pinching on the touchpad zooms the original correctly but, on the rendering, zooms the whole page (the browser's zoom). Bugs of the screen as it is, to fix only if it stays. The project owner's thoughts on how come later.
 - **Fit width back on a phone** (the project owner, 2026-11-12): the toolbar's tools don't fit on one row at 390 px, so "Fit width" is hidden there (`.human-review-toolbar .zoom-fit` in `styles.css`); the new screen should make room for it again.
@@ -262,7 +264,7 @@ Proposed by the project owner (2026-10-29). A toggle on each project, set by the
 An import sends all the rows of a project's pipeline to the Worker in one request (`POST /api/projects/import`), which parses them and writes them in one D1 batch; an export hands them out in one answer (`docs/database.md`, "Exporting and importing a project"). Tried only on the one-page Bach prelude (2026-11-11). On a long score (a Beethoven sonata: a few hundred systems, each with its outputs and calls) that may hit the Workers free plan's limits: the 10 ms of CPU time (parsing a large JSON body and building the statements), the size of a D1 batch and of its statements, and the number of calls to R2 in one request (`POST /api/content/missing` heads at most 200 objects per request for that reason). **Without paying for a real run:** the fake model draws six systems on every page since 2026-11-12 (as a real page of piano music; two before), so the longest PDFs in `testset/` (Liszt's Consolations, Schumann's Kinderszenen, 22 pages each) give 132 systems, close to a long sonata's 150 to 200 (its answers stay whole-measure rests, shorter than real music). Run such a score with it on the deployed app, export it, import it there and into a fresh local instance, and read the requests' CPU time in the dashboard. If it is over or close, split the import into several requests (stages first, then calls and outputs in chunks), as the export's content is already fetched object by object.
 
 ### Measure the Worker's CPU time per LLM request
-`#research` `#next-release`
+`#next` `#research` `#next-release`
 
 The Workers free plan allows 10 ms of CPU time per request; waiting for the provider doesn't count, but everything the Worker does with the request does: parsing the JSON with the images in base64, the cache key, writing the call record to R2, building the provider's request (and on Bedrock with an access key pair, signing it, which hashes the whole body), reading the answer. `review` sends the whole score with every call. `wrangler dev` doesn't enforce the limit, so it can only be measured on a deployed Worker (its CPU time per request in the dashboard's metrics or Workers Logs): a large `extract` and a `review` call on a long score, cached and not. If it is over, or close, fix what the measurement shows to be expensive (discussed 2026-11-06).
 - **Measured with the fake model** (the project owner, 2026-11-12, a 30-page score on the deployed app; the dashboard's percentiles, every request of the Worker together): no errors of any kind, although p90 was about 25 ms in `layout` and 40 ms in `analyze`, and p999 about 50 and 60 ms. Cloudflare tolerates a Worker that runs over "infrequently" and stops it only when it does so "consistently", without saying where that line is, so the leeway can't be relied on. The fake model doesn't exercise building a provider's body or reading a streamed answer.
@@ -799,16 +801,27 @@ From a given stage: a new, separate project that starts with the original's pipe
 - **The statistics with forks** (the project owner's thought, 2026-10-30): a manual stage a fork shares with its original counts in both, each with the stage's whole work time and its own page count (Effort, "Average manual work per page"): what matters is the effort a new score needs, and the shared stage's work was needed for both. The statistics' queries find a project's stages by the project they were created in (`created_in`) or its pipeline; a fork's shared stages were created in the original, so they need a look whenever forks are built.
 
 ### Timeouts for LLM calls
-`#decision` `#owner`
+`#next` `#decision` `#owner`
 
-No LLM call has a timeout today: the Worker calls the adapter without an abort signal (`llmRoutes.ts`), Google's SDK and OpenRouter's `fetch` have none, Anthropic's SDK bounds at most the wait for the stream to start, and the browser's request to the Worker has none either. So a call can hang for good, and the stage's bar can't fill with the time elapsed out of the call's timeout, as §5.1 intends (today it moves only when an item is done, `stageRunner.ts`). Long calls are normal: a `layout` of 3 pages with Gemini 4 Argon at medium effort took 21 minutes (2026-11-09). **Decided** (the project owner, 2026-11-09): use the app for a while first, then choose a reasonable timeout for each kind of call (stage, perhaps provider and effort) from the recorded calls' times. Also check, while at it, whether Stop in the browser cancels the provider's call in the Worker (no signal is passed, so probably not; the provider may still bill the answer).
+No LLM call has a timeout today: the abort signal the adapters get (`llmRoutes.ts`) carries only Stop (built 2026-11-13, `docs/llm.md`, "Stopped calls"), Anthropic's SDK bounds at most the wait for the stream to start, and the browser's request to the Worker has no timeout either. So a call can hang for good, and the stage's bar can't fill with the time elapsed out of the call's timeout, as §5.1 intends (today it moves only when an item is done, `stageRunner.ts`). Long calls are normal: a `layout` of 3 pages with Gemini 4 Argon at medium effort took 21 minutes (2026-11-09). **Decided** (the project owner, 2026-11-09): use the app for a while first, then choose a reasonable timeout for each kind of call (stage, perhaps provider and effort) from the recorded calls' times.
+
+### Gemini's `extract` calls cut off
+`#next` `#bug` `#owner`
+
+`extract` with Gemini 3.1 Pro on Vertex AI failed with HTTP 524, each call cut at 125.7 seconds by Cloudflare's limit on a Worker's request without a response (`docs/llm.md`, "Calling the providers"). Streaming alone didn't help; since 2026-11-12 thought summaries are asked for (`includeThoughts`), so the stream carries something while the model thinks. Left to do: deploy, retry `extract` with Gemini, and find out what else goes wrong: whether the summaries keep the connection alive, and anything else Gemini's answers show. The calls' times are data for "Timeouts for LLM calls", and the run is the measurement "Measure the Worker's CPU time per LLM request" still needs with a real, streamed model.
+
+### The first fixture, and replay tests
+`#next` `#next-release`
+
+§12 and §16: a real project recorded as a fixture in `fixtures/` (its LLM call records, requests and responses, and its human operations: angles, boxes, answers to issues), and a test that runs it end to end with a replay `LlmProvider` (none exists yet): computed stages must reproduce identical output hashes, LLM and manual stages return their recordings, and a request that misses names the stale recording. Wanted before the reviews ("Clean up the codebase"), as the safety net for their fixes. To work out: which project (small, but through every stage, a manual stage or two included, ideally run on Claude), how a fixture is made from a project (the export, `<name>.s3l`, may already be most of it: `fixtures/exports/` keeps exports, made with the fake model, for the import's tests, `docs/database.md`), and how the browser's side runs in Node (the stages run in the browser and Web Workers today).
 
 ### The Worker reports the current call's progress
+`#next`
 
 The Worker sends the browser, while an LLM call runs: when it started, when it ended, and how many tokens of the answer have arrived so far. Today the Worker puts the streamed answer together and answers the browser's request only at the end, so the browser knows nothing until then. To work out how: e.g. the Worker's response streamed as events (progress, then the answer), which keeps it to one request; mind the CPU time ("Measure the Worker's CPU time per LLM request"). Every provider streams (Gemini since 2026-11-12).
 
 ### Show that a long call is making progress
-`#decision` `#style`
+`#next` `#decision` `#style`
 
 A call can take minutes with nothing on the screen moving, and the user can't tell whether to wait or to stop the stage and try another model. Use what is known (the number of calls made and expected, the tokens received on the current call, the time elapsed on it, its timeout, perhaps more) to show that progress is being made, or not. A clock alone only shows that the browser is alive, not that the provider is answering, though it does help decide when to give up. Note `docs/project-view.md`'s rule: progress indicators never show numbers. Waits for "Timeouts for LLM calls" and "The Worker reports the current call's progress".
 
