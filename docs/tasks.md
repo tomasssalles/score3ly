@@ -139,7 +139,7 @@ The tasks below, in the file's order.
 - [Keeping manual fixes per item](#keeping-manual-fixes-per-item)
 - [Forking a project](#forking-a-project)
 - [Timeouts for LLM calls](#timeouts-for-llm-calls)
-- [Gemini's `extract` calls cut off](#geminis-extract-calls-cut-off)
+- [Gemini's `extract`: an early empty answer, and the new schemas](#geminis-extract-an-early-empty-answer-and-the-new-schemas)
 - [The first fixture, and replay tests](#the-first-fixture-and-replay-tests)
 - [The Worker reports the current call's progress](#the-worker-reports-the-current-calls-progress)
 - [Show that a long call is making progress](#show-that-a-long-call-is-making-progress)
@@ -805,15 +805,20 @@ From a given stage: a new, separate project that starts with the original's pipe
 
 No LLM call has a timeout today: the abort signal the adapters get (`llmRoutes.ts`) carries only Stop (built 2026-11-13, `docs/llm.md`, "Stopped calls"), Anthropic's SDK bounds at most the wait for the stream to start, and the browser's request to the Worker has no timeout either. So a call can hang for good, and the stage's bar can't fill with the time elapsed out of the call's timeout, as §5.1 intends (today it moves only when an item is done, `stageRunner.ts`). Long calls are normal: a `layout` of 3 pages with Gemini 4 Argon at medium effort took 21 minutes (2026-11-09). **Decided** (the project owner, 2026-11-09): use the app for a while first, then choose a reasonable timeout for each kind of call (stage, perhaps provider and effort) from the recorded calls' times.
 
-### Gemini's `extract` calls cut off
+### Gemini's `extract`: an early empty answer, and the new schemas
 `#next` `#bug` `#owner`
 
-`extract` with Gemini 3.1 Pro on Vertex AI failed with HTTP 524, each call cut at 125.7 seconds by Cloudflare's limit on a Worker's request without a response (`docs/llm.md`, "Calling the providers"). Streaming alone didn't help; since 2026-11-12 thought summaries are asked for (`includeThoughts`), so the stream carries something while the model thinks. Left to do: deploy, retry `extract` with Gemini, and find out what else goes wrong: whether the summaries keep the connection alive, and anything else Gemini's answers show. The calls' times are data for "Timeouts for LLM calls", and the run is the measurement "Measure the Worker's CPU time per LLM request" still needs with a real, streamed model.
+Recent runs of `extract` with Gemini (the project owner, around 2026-11-13):
+- **The 524s are solved:** a call that thought for longer than Cloudflare's 125 seconds went through, kept alive by the streamed thought summaries (`includeThoughts`, `docs/llm.md`, "Calling the providers").
+- **A call answered early with invalid or empty JSON.** To inspect: its call record (the stored raw response, the stop reason, the tokens), to find out whether the stream was put together wrongly (`mergeChunks`), the answer cut short, the model refused, or something else.
+- **A call got the voices' descriptions wrong,** which led to the descriptions on every schema's fields (2026-11-13, `docs/llm.md`, "Descriptions in the schemas"). To test: `extract` again with Gemini on the new schemas, after deploying.
+
+The calls' times are data for "Timeouts for LLM calls", and the run is the measurement "Measure the Worker's CPU time per LLM request" still needs with a real, streamed model.
 
 ### The first fixture, and replay tests
 `#next` `#next-release`
 
-§12 and §16: a real project recorded as a fixture in `fixtures/` (its LLM call records, requests and responses, and its human operations: angles, boxes, answers to issues), and a test that runs it end to end with a replay `LlmProvider` (none exists yet): computed stages must reproduce identical output hashes, LLM and manual stages return their recordings, and a request that misses names the stale recording. Wanted before the reviews ("Clean up the codebase"), as the safety net for their fixes. To work out: which project (small, but through every stage, a manual stage or two included, ideally run on Claude), how a fixture is made from a project (the export, `<name>.s3l`, may already be most of it: `fixtures/exports/` keeps exports, made with the fake model, for the import's tests, `docs/database.md`), and how the browser's side runs in Node (the stages run in the browser and Web Workers today).
+§12 and §16: a real project recorded as a fixture in `fixtures/` (its LLM call records, requests and responses, and its human operations: angles, boxes, answers to issues), and a test that runs it end to end with a replay `LlmProvider` (none exists yet): computed stages must reproduce identical output hashes, LLM and manual stages return their recordings, and a request that misses names the stale recording. Wanted before the reviews ("Clean up the codebase"), as the safety net for their fixes. **The projects** (the project owner, 2026-11-14): once the human review's new screen is built, the project owner finishes a first complete project of one page, then a second of five pages, both with the manual stages that were really needed, and exports them. An export holds what a replay needs: the current pipeline's rows, the calls' requests and responses, the manual saves, the PDF (`docs/database.md`, "Exporting and importing a project"). **Recordings go stale** with every change to a prompt or a schema (§12), so while the prompts are still being verified, the fixtures will need recording again; to decide: run the stages again with a real model, or replay what still matches and report the rest. To work out: how a fixture is made from a project (the export, `<name>.s3l`, may already be most of it: `fixtures/exports/` keeps exports, made with the fake model, for the import's tests, `docs/database.md`), and how the browser's side runs in Node (the stages run in the browser and Web Workers today).
 
 ### The Worker reports the current call's progress
 `#next`
