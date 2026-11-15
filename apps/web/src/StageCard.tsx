@@ -160,14 +160,14 @@ export function StageCard({
 }
 
 // What a stage running here works on, and for a stage that calls a model, the characters received for it: grey, and
-// flashing to the text's colour each time the count grows, so that a call that answers pulses and one that doesn't
-// looks still (docs/project-view.md, "The pipeline panel").
+// flashing to the text's colour at every step forward (a new item, its first call sent, more characters), so that a
+// call that answers pulses and one that doesn't looks still (docs/project-view.md, "The pipeline panel").
 function ItemLine({ progress, llm }: { progress: ItemProgress; llm: boolean }) {
   const [before, setBefore] = useState(progress);
   const [flashes, setFlashes] = useState(0);
   if (before !== progress) {
     setBefore(progress);
-    if (progress.item === before.item && progress.chars !== null && progress.chars > (before.chars ?? 0)) setFlashes(flashes + 1);
+    if (progress.item !== before.item || progress.chars !== before.chars) setFlashes(flashes + 1);
   }
   // A new key restarts the flash's animation.
   return (
