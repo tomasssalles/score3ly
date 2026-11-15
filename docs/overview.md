@@ -275,7 +275,7 @@ Every stage runs in the browser, its heavy work in Web Workers; an LLM stage sen
 
 While it runs, a stage **reports its own progress** as a fraction from 0 to 1, which the UI shows (§5.6):
 - Only the code that performs the stage knows how far it is. It is handed a function to call whenever it has got further (e.g. after each system), and doesn't know about the bar or the circle that show the value. A stage running in a Web Worker can't call into the page, so there the function passes the value on as a message.
-- **A single LLM call has nothing to report while it waits,** so its share of the bar fills with the time elapsed out of the call's timeout, and jumps to full when the answer arrives. If the timeout is reached, the call has failed. For a stage that is one call, the share is the whole bar; for a stage with a call per system, each call fills its own slice.
+- **The bar doesn't move during a single LLM call:** a call fills its share of the bar when its answer arrives. (Filling it with the time elapsed out of the call's timeout was considered and decided against, 2026-11-15, the project owner.) What shows that a long call is making progress is the task "Show that a long call is making progress".
 
 ### 5.2 Outputs, artifacts and provenance
 
