@@ -42,7 +42,7 @@ The tasks below, in the file's order.
 - [The costs view: the order of long lists](#the-costs-view-the-order-of-long-lists)
 - [Heartbeats of manual stages being edited](#heartbeats-of-manual-stages-being-edited)
 - [Rethink the Statistics page as one concept](#rethink-the-statistics-page-as-one-concept)
-- [Change the human review's screen to work like the Transcription](#change-the-human-reviews-screen-to-work-like-the-transcription)
+- [Zoom on the human review's screen](#zoom-on-the-human-reviews-screen)
 - [Decide how the Transcription's boxes should look on a phone](#decide-how-the-transcriptions-boxes-should-look-on-a-phone)
 - [Tags for projects](#tags-for-projects)
 - [A "done" mark for projects](#a-done-mark-for-projects)
@@ -230,21 +230,10 @@ Proposed 2026-10-30. While a manual stage's editor is open, the browser sends a 
 
 The tabs measure different targets in different ways, because the data offers no single clean one (the reasons, from the project owner: `docs/statistics.md`, "Why the tabs differ"). Some day, perhaps: one concept for the whole page, with consistent definitions of a project, a page, work and time across the tabs. Not now (decided 2026-10-30): the statistics aren't a scientific experiment, and what is built is probably good enough for a while. Two optional tasks would help it: "Tags for projects" and "A "done" mark for projects".
 
-### Change the human review's screen to work like the Transcription
-`#next` `#decision` `#next-release`
+### Zoom on the human review's screen
+`#decision` `#manual-test` `#owner` `#next-release`
 
-The project owner, after using the deployed app (2026-11-10): `human_review`'s screen (`docs/stages/music.md`, `human_review`, "The screen"; `HumanReviewEditor`: the original and the rendering in two panes, the boxes dimmed on the original, one issue's panel at a time over the rendering, arrows from box to box) is very hard to use for a person, while the Transcription (`ExtractionView.tsx`: a filmstrip of the systems, each crop above its rendering, the issues' cards below it) is already excellent for comparing the original with the transcription. The human review should become something very similar to the Transcription. The linked scrolling of the two panes doesn't work well either (the project owner, same day). And unlinked, the zoom buttons zoom only the original, and pinching on the touchpad zooms the original correctly but, on the rendering, zooms the whole page (the browser's zoom). Bugs of the screen as it is, to fix only if it stays. The project owner's thoughts on how come later.
-- **Fit width back on a phone** (the project owner, 2026-11-12): the toolbar's tools don't fit on one row at 390 px, so "Fit width" is hidden there (`.human-review-toolbar .zoom-fit` in `styles.css`); the new screen should make room for it again.
-- **Why the Transcription works** (the project owner, 2026-11-15): each crop paired with its rendering; two things read left to right are easier to compare stacked than side by side; the issues below their systems; scrolling with everything in view beats clicking through pages and showing and hiding parts; and one familiar view across the stages, which the user learns once.
-- **Decided so far** (2026-11-15, the project owner):
-  - **The human review while WIP is the Transcription, with its issue cards editable:** the answers a list to pick from (a radio mark on each; tapping the chosen one again takes it back), the last row the "Other" field as in today's panel; warnings' cards as they are. **The suffixes and the Choices line follow the user's decisions as they are made** ("[confirmed by Human review 1]", "Human review 1 → c").
-  - **Clarifications:** "Add clarification" under each system's cards adds a card there (the text field, its boxes, Delete) and lets boxes be drawn on that system's crop (drag, or two taps as in `fix_layout`; handles to resize), and on a neighbouring system's crop while the clarification is selected. The rules and Finish as the gate stay.
-  - **Everything clickable may be too much on touchscreens;** if it is, the cards look as in any Transcription and get a small pencil button that turns one card into the editable one.
-  - **Zoom: the browser's own pinch zoom, to begin with.** To test (on a phone above all: is drawing a clarification's boxes on a crop precise enough?) and decide whether the screen needs a zoom of its own, e.g. a crop opened larger.
-  - **Navigation is scrolling:** no arrows, no "next unanswered".
-  - **No Δ toggle while WIP.** The finished stage's artifact keeps it, as every review's, with the same behaviour.
-  - **What goes:** the two panes, linked scrolling, the view picker, page chevrons, zoom buttons, the panel over the rendering, the arrows; with the toolbar, the problem of "Fit width" on a phone (above).
-  - **Built before it** (2026-11-15): every Transcription's rendering as wide as its crop (`docs/stages/music.md`, "The Transcription").
+The human review's screen is the editable Transcription (`docs/stages/music.md`, `human_review`, built 2026-11-15), whose crops are as wide as the view, with no zoom of its own: the browser's pinch zoom is all there is for now (decided 2026-11-15, the project owner). To try on a phone above all: can an issue's details be seen well enough on a crop, and can a clarification's boxes be drawn precisely enough (two taps at opposite corners, the handles)? Then decide whether the screen needs a zoom of its own, e.g. a crop opened larger to draw on. Also to judge on a touchscreen: whether every card being editable is too much (the fallback decided: the cards look as in any Transcription, with a small pencil button that turns one into the editable one).
 
 ### Decide how the Transcription's boxes should look on a phone
 `#decision` `#style`

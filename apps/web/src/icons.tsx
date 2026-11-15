@@ -487,36 +487,6 @@ function GlyphC() {
   return <path d="M5 1C4.4.35 3.6 0 2.7 0 1.1 0 0 1.4 0 3.25S1.1 6.5 2.7 6.5c.9 0 1.7-.35 2.3-1" />;
 }
 
-// Three links of a chain, drawn along a horizontal line and turned to the diagonal: two open loops at the ends, and
-// the middle link seen edge-on, a bar through both. Scrolling and zooming are linked between two panels
-// (`human_review`); the button unlinks them.
-export function LinkIcon() {
-  return (
-    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <g transform="rotate(-45 12 12)">
-        <path d="M10.2 8.6H4.6a3.4 3.4 0 0 0 0 6.8h5.6" />
-        <path d="M13.8 8.6h5.6a3.4 3.4 0 0 1 0 6.8h-5.6" />
-        <path d="M5.4 12h13.2" />
-      </g>
-    </svg>
-  );
-}
-
-// The chain broken: the middle link in two, with the marks of the break. The panels scroll and zoom on their own;
-// the button links them again.
-export function UnlinkIcon() {
-  return (
-    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <g transform="rotate(-45 12 12)">
-        <path d="M9.6 8.6H4a3.4 3.4 0 0 0 0 6.8h5.6" />
-        <path d="M14.4 8.6H20a3.4 3.4 0 0 1 0 6.8h-5.6" />
-        <path d="M4.8 12h5.4M13.8 12h5.4" />
-        <path d="M12 5.2v1.6M12 17.2v1.6" />
-      </g>
-    </svg>
-  );
-}
-
 // A delta, the sign of change: shows only what a stage changed (the Transcription of a review). Drawn as math fonts
 // draw it, its left side thin, its right side and base heavy, so that it doesn't read as a plain triangle: the
 // outline filled, its inside cut out.

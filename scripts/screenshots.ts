@@ -109,28 +109,25 @@ async function seed(browser: Browser): Promise<Seed> {
   const wipEditor = new URL(page.url()).hash;
 
   // A human review in progress (on the same PDF: everything before it is reused): an answer chosen on the first issue, and
-  // a clarification without its text yet, so its panel shows what keeps the stage from being finished.
+  // a clarification with a box but without its text yet, so its card shows what keeps the stage from being finished.
   const human = await newProject(page, PDF);
   await runToEnd(page, human);
   await page.goto(`${APP}#/projects/${human}`);
   await page.locator(".stage-card", { has: page.locator(".stage-title", { hasText: /^Apply review$/ }) }).getByRole("button", { name: /actions/ }).click();
   await page.getByRole("menuitem", { name: "Add Human review" }).click();
   if (await confirm.isVisible({ timeout: 2000 }).catch(() => false)) await confirm.click();
-  await page.locator(".human-review .editor-content img").waitFor({ timeout: 60_000 });
+  await page.locator(".transcription.editing .film-item img").first().waitFor({ timeout: 60_000 });
   const humanReview = new URL(page.url()).hash;
   await page.waitForTimeout(1000);
-  await page.getByRole("button", { name: "Next annotation" }).click();
-  await page.locator(".answer-list .answer-option").nth(1).click();
-  await page.getByRole("button", { name: "Hide the issue" }).click();
-  await page.getByRole("radio", { name: "Add clarification" }).click();
-  await page.getByText("to add a clarification about it").waitFor();
-  await page.getByRole("button", { name: "Fit width" }).click();
-  await page.waitForTimeout(500);
-  const viewport = (await page.locator(".human-review .editor-viewport").boundingBox())!;
-  await page.mouse.click(viewport.x + viewport.width * 0.55, viewport.y + viewport.height * 0.3);
-  await page.waitForTimeout(300);
-  await page.mouse.click(viewport.x + viewport.width * 0.62, viewport.y + viewport.height * 0.36);
-  await page.locator(".issue-panel", { hasText: "[clarification]" }).waitFor();
+  await page.locator(".answer-list").first().locator(".answer-option").nth(1).click();
+  await page.getByRole("button", { name: "Add clarification" }).first().click();
+  await page.locator(".draw-layer").first().scrollIntoViewIfNeeded();
+  const layer = (await page.locator(".draw-layer").first().boundingBox())!;
+  await page.mouse.move(layer.x + layer.width * 0.55, layer.y + layer.height * 0.3);
+  await page.mouse.down();
+  await page.mouse.move(layer.x + layer.width * 0.62, layer.y + layer.height * 0.6, { steps: 5 });
+  await page.mouse.up();
+  await page.locator(".issue-card.clarification .own-boxes").waitFor();
   await page.waitForTimeout(1500); // saved
 
   // A stage that failed: the layout with a model config that fails on purpose.
@@ -221,20 +218,14 @@ async function projectActions(page: Page, id: string) {
   await page.getByRole("button", { name: "Project actions" }).click();
 }
 
-// The human review in one of its views, with an annotation's panel open: the first whose head has `head` ("[unclear]",
-// "[clarification]"), found with the annotation arrows; or none.
-const VIEW_LABELS = { both: "Show both", original: "Original only", transcription: "Transcription only" };
-async function humanReviewPanel(page: Page, hash: string, view: keyof typeof VIEW_LABELS, head: string | null) {
+// The human review in progress, scrolled to the first card whose head has `head` ("[unclear]", "[clarification]"); a
+// clarification's card selected, so that its boxes have their handles.
+async function humanReviewCard(page: Page, hash: string, head: string) {
   await open(page, hash);
-  if (view !== "both") {
-    await page.getByRole("button", { name: "What to show" }).click();
-    await page.getByRole("menuitem", { name: VIEW_LABELS[view] }).click();
-  }
-  if (head) {
-    for (let i = 0; i < 20 && !(await page.locator(".issue-panel", { hasText: head }).isVisible()); i++) {
-      await page.getByRole("button", { name: "Next annotation" }).click();
-    }
-  }
+  const card = page.locator(".issue-card", { hasText: head }).first();
+  await card.scrollIntoViewIfNeeded();
+  if (head === "[clarification]") await card.getByRole("button", { name: "Edit boxes" }).click();
+  await card.evaluate((el) => el.closest(".film-item")?.scrollIntoView({ block: "start" }));
   await settled(page);
 }
 
@@ -301,25 +292,20 @@ function shots(seed: Seed): Shot[] {
         await p.waitForTimeout(300);
       },
     },
-    // A human review in progress (docs/stages/music.md, `human_review`): its screen, an issue's panel, the clarification's
-    // panel with what keeps it from being finished, the confirmation before deleting it, and the two single views.
+    // A human review in progress (docs/stages/music.md, `human_review`): its screen, an issue's answers to pick from, the
+    // clarification's card with what keeps it from being finished, and the confirmation before deleting it.
     { name: "20-human-review", take: (p) => open(p, seed.humanReview) },
-    // An issue's and the clarification's panels, in each of the three views.
-    ...(["both", "original", "transcription"] as const).flatMap((view) => [
-      { name: `21-human-review-issue-${view}`, take: (p: Page) => humanReviewPanel(p, seed.humanReview, view, "[unclear]") },
-      { name: `22-human-review-clarification-${view}`, take: (p: Page) => humanReviewPanel(p, seed.humanReview, view, "[clarification]") },
-    ]),
+    { name: "21-human-review-issue", take: (p) => humanReviewCard(p, seed.humanReview, "[unclear]") },
+    { name: "22-human-review-clarification", take: (p) => humanReviewCard(p, seed.humanReview, "[clarification]") },
     {
       name: "23-dialog-delete-clarification",
       layouts: ["wide", "narrow"],
       take: async (p) => {
-        await humanReviewPanel(p, seed.humanReview, "both", "[clarification]");
+        await humanReviewCard(p, seed.humanReview, "[clarification]");
         await p.getByRole("button", { name: "Delete clarification" }).click();
         await p.waitForTimeout(300);
       },
     },
-    { name: "24-human-review-original-only", layouts: ["wide", "narrow"], take: (p) => humanReviewPanel(p, seed.humanReview, "original", null) },
-    { name: "25-human-review-transcription-only", layouts: ["wide", "narrow"], take: (p) => humanReviewPanel(p, seed.humanReview, "transcription", null) },
     // Dialogs, cancelled afterwards (each shot starts from a fresh page anyway).
     { name: "14-dialog-rename", layouts: ["wide", "narrow"], take: (p) => projectActions(p, seed.done).then(() => p.getByRole("menuitem", { name: "Rename" }).click()).then(() => p.waitForTimeout(300)) },
     {

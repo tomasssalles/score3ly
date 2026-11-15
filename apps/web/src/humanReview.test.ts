@@ -58,7 +58,7 @@ test("a human review reads the transcription of the Apply review it follows", ()
   assert.deepEqual(humanReviewStart(after), { stepVersion: HUMAN_REVIEW_VERSION, pageCount: 2, inputIds: ["e1", "c"] });
 });
 
-import { chooseAnswer, clearChoice, scoreOrder, userChoice, writeAnswer } from "./humanReview.ts";
+import { chooseAnswer, clearChoice, userChoice, writeAnswer } from "./humanReview.ts";
 
 test("the user's choice: one per issue, an existing answer or a written one, taken back", () => {
   let stored = chooseAnswer({ entries: [] }, issue(1), "b");
@@ -74,16 +74,6 @@ test("the user's choice: one per issue, an existing answer or a written one, tak
   stored = clearChoice(stored, 1);
   assert.equal(userChoice(stored, 1), null);
   assert.deepEqual(userChoice(stored, 2), { key: "a", newAnswer: null });
-});
-
-test("issues in the score's order: page, then system, then from left to right", () => {
-  const at = (id: number, page: number, left: number, top: number) => issue(id, { boxes: [{ page, box: { left, right: left + 0.1, top, bottom: top + 0.05 } }] });
-  const systems = [
-    { left: 0, right: 1, top: 0.1, bottom: 0.3 },
-    { left: 0, right: 1, top: 0.5, bottom: 0.7 },
-  ];
-  const order = scoreOrder([at(1, 2, 0.1, 0.15), at(2, 1, 0.5, 0.55), at(3, 1, 0.8, 0.15), at(4, 1, 0.2, 0.55), at(5, 1, 0.1, 0.15)], () => systems);
-  assert.deepEqual(order.map((i) => i.id), [5, 3, 4, 2, 1]);
 });
 
 import { boxProblems, ownIssue, ownIssueProblems, ownIssues, placedSystems, putOwnIssue, removeOwnIssue } from "./humanReview.ts";
@@ -127,16 +117,4 @@ test("a clarification's boxes: at least one, each on a system, on one system or 
   assert.match(boxProblems([on(1, 0.15), on(1, 0.55), on(2, 0.15)], systems).problem!, /neighbouring/);
   assert.deepEqual(boxProblems([on(1, 0.15), off], systems), { problem: "Boxes must be on top of systems.", bad: [1] });
   assert.equal(boxProblems([], systems).problem, "A clarification needs at least one box.");
-});
-
-import { mapThrough } from "./humanReview.ts";
-
-test("positions map through matching anchors, piecewise linear, extrapolated at the ends", () => {
-  const from = [10, 30, 50, 70];
-  const to = [100, 200, 260, 460];
-  assert.equal(mapThrough(from, to, 20), 150); // 50% into the first system
-  assert.equal(mapThrough(from, to, 40), 230); // halfway through the gap
-  assert.equal(mapThrough(from, to, 80), 560); // beyond the end, the last slope
-  assert.equal(mapThrough(from, to, 0), 50); // before the start, the first slope
-  assert.equal(mapThrough([], [], 5), null);
 });

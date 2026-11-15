@@ -72,27 +72,6 @@ export function clearChoice(stored: StoredHumanReview, issue: number): StoredHum
   return { entries: others(stored, issue) };
 }
 
-// Issues and warnings in the score's order (docs/stages/music.md, `human_review`: the arrows go from box to box): by the
-// page of their first box, then the system it falls on (the layout's order on the page), then from left to right, then
-// as given.
-export function scoreOrder<T extends { boxes: { page: number; box: Box }[] }>(items: T[], systemsOn: (page: number) => Box[]): T[] {
-  const place = (item: T, index: number) => {
-    const first = item.boxes[0];
-    if (!first) return [Infinity, Infinity, Infinity, index];
-    const systems = systemsOn(first.page);
-    const middle = (first.box.top + first.box.bottom) / 2;
-    let system = systems.findIndex((b) => middle >= b.top && middle <= b.bottom);
-    if (system < 0) system = systems.filter((b) => b.bottom < middle).length - 0.5;
-    return [first.page, system, first.box.left, index];
-  };
-  const placed = items.map((issue, i) => ({ issue, at: place(issue, i) }));
-  placed.sort((a, b) => {
-    for (let i = 0; i < 4; i++) if (a.at[i] !== b.at[i]) return a.at[i] - b.at[i];
-    return 0;
-  });
-  return placed.map((p) => p.issue);
-}
-
 // A clarification, the user's own issue (docs/notation.md, "Issues", "from the user"): its boxes and what the original
 // score has there as its one answer,
 // chosen by the human review, resolved; nothing is known of what the transcription has (`applied` null), and the
@@ -171,16 +150,3 @@ export function placedSystems(pages: { page: number; systems: { box: Box; barLin
     .flatMap((p) => p.systems.map((layout) => ({ number: ++n, page: p.page, layout })));
 }
 
-// Maps a position through matching anchors (docs/stages/music.md, `human_review`, linked scrolling: system by system,
-// piecewise linear): `from` and `to` are increasing positions that correspond one to one (each system's top and bottom
-// on both sides); between two anchors linearly, beyond the ends with the slope of the nearest segment. Null without
-// anchors.
-export function mapThrough(from: number[], to: number[], v: number): number | null {
-  if (from.length === 0 || from.length !== to.length) return null;
-  if (from.length === 1) return to[0] + (v - from[0]);
-  let i = 0;
-  while (i < from.length - 2 && v > from[i + 1]) i++;
-  const span = from[i + 1] - from[i];
-  const slope = span > 0 ? (to[i + 1] - to[i]) / span : 1;
-  return to[i] + (v - from[i]) * slope;
-}

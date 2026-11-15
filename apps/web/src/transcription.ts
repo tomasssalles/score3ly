@@ -44,15 +44,17 @@ export function homeOf(note: Note, systems: ShownSystem[]): number | null {
   return best?.system ?? null;
 }
 
-// The boxes that fall on a crop, as fractions of the crop (cut at its edges).
-export function boxesOnCrop(notes: Note[], page: number, crop: Box): { note: Note; box: Box }[] {
+// The boxes that fall on a crop, as fractions of the crop (cut at its edges), each with its index among its note's.
+export function boxesOnCrop(notes: Note[], page: number, crop: Box): { note: Note; box: Box; k: number }[] {
   const w = crop.right - crop.left;
   const h = crop.bottom - crop.top;
   return notes.flatMap((note) =>
     note.boxes
+      .map((b, k) => ({ ...b, k }))
       .filter((b) => b.page === page && overlap(b.box, crop) > 0)
       .map((b) => ({
         note,
+        k: b.k,
         box: {
           left: Math.max(0, (b.box.left - crop.left) / w),
           right: Math.min(1, (b.box.right - crop.left) / w),

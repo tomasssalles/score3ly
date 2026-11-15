@@ -3,12 +3,15 @@
 // debugging, the raw source as the lens has it. The boxes of the issues and warnings are drawn on every crop they fall
 // on (numbered and solid for issues, dashed with "!" for warnings), and their text is below the system; tapping a box
 // brings its text into view. Both toggles are remembered on the device.
+// A human review in progress is its Transcription, editable (`edit`; docs/stages/music.md, `human_review`, "The
+// screen"): the issues' answers to pick from, clarifications of the user's own below the systems, every change saved
+// at once.
 
 import { ImagesDiffer } from "./ImagesDiffer";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CLAUDE_IMAGE_LIMIT, CROP_VERSION, DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { buildMei, serialize, type Box, type LensStretch, type Score } from "@score3ly/notation";
-import { fetchJsonContent } from "./api";
+import { fetchJsonContent, putContent, recordOutputs, reserveIssueNumbers, type Project } from "./api";
 import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
 import { BoxesIcon, ChangesIcon, InfoIcon, MusicIcon, SourceIcon } from "./icons";
@@ -21,7 +24,24 @@ import { attributionCache } from "./imageCache";
 import { fittedOptions, renderMei } from "./rendering";
 import { applyEntries, changedBy, withKept, type StoredReview } from "./review";
 import type { StoredApplyCall } from "./applyReview";
-import { humanReviewedIssues, ownIssues, type StoredHumanReview } from "./humanReview";
+import {
+  boxProblems,
+  chooseAnswer,
+  clearChoice,
+  humanReviewedIssues,
+  ownIssue,
+  ownIssues,
+  placedSystems,
+  putOwnIssue,
+  removeOwnIssue,
+  userChoice,
+  writeAnswer,
+  type StoredHumanReview,
+} from "./humanReview";
+import { AnswerPicker, ClarificationCard, DrawLayer } from "./HumanReviewCards";
+import { jsonBytes } from "./finishFixMetadata";
+import type { PlacedSystem } from "./review";
+import type { Who } from "./attribution";
 import { stepInfo } from "./steps";
 import { answerTags, type AnswerTag, boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
 
@@ -29,6 +49,8 @@ import { answerTags, type AnswerTag, boxesOnCrop, homeOf, notesOf, scoreOf, show
 // chose on (its kept agreements aren't changes). Null in `extract`'s, where everything is new.
 // `reverted`: in an Apply review's, the issues it couldn't apply as given, with its reasons; `changedMeasures`: the
 // measures whose stretches it changed ("p1m3": piece 1, its third measure), tinted in the renderings.
+// `human`: a human review's, the transcription it reviews (its issues before the review's answers) and what it stored,
+// from which its issues are worked out as the answers change (`withHumanReview`).
 type Loaded = {
   changedMeasures: Set<string>;
   systems: (ShownSystem & { recipe: CropRecipe })[];
@@ -37,9 +59,38 @@ type Loaded = {
   changed: Set<string> | null;
   reverted: { issue: StoredIssue; reason: string }[];
   attribution: Attribution; // who added each issue's choices and applications (attribution.ts)
+  human: HumanBase | null;
 };
 
-function useTranscription(artifact: Artifact): Loaded | "error" | null {
+type HumanBase = {
+  systems: (ShownSystem & { recipe: CropRecipe })[];
+  checks: StoredScoreChecks | null;
+  issues: Map<number, StoredIssue>; // before the review's answers, which choices are made on
+  stored: StoredHumanReview;
+  before: Attribution;
+  placed: PlacedSystem[]; // the systems as Finish checks the clarifications' boxes against them
+};
+
+// What a human review in progress saved on this device that the pipeline the app has doesn't show yet, by stage.
+const savedReviews = new Map<string, StoredHumanReview>();
+
+// A human review's Transcription: the issues with the user's answers, each answered issue resolved, the user's own
+// issues below the systems their boxes fall on (with the checks'); the issues answered or raised are its changes.
+function withHumanReview(h: HumanBase, stored: StoredHumanReview, who: Who): Pick<Loaded, "systems" | "notes" | "attribution" | "changed"> {
+  const issues = humanReviewedIssues(h.issues, stored);
+  const systems = h.systems.map((s) => ({ ...s, extraction: { ...s.extraction, issues: s.extraction.issues.map((i) => issues.get(i.id)!) } }));
+  const own = ownIssues(stored).map((i) => issues.get(i.id)!);
+  const checks = { issues: [...(h.checks?.issues.map((i) => issues.get(i.id)!) ?? []), ...own], warnings: h.checks?.warnings ?? [] };
+  const shownIssues = [...systems.flatMap((s) => s.extraction.issues), ...checks.issues];
+  return {
+    systems,
+    notes: notesOf(systems, checks),
+    attribution: extend(h.before, shownIssues, who),
+    changed: new Set([...changedBy([{ system: 0, entries: stored.entries }])].map((id) => `issue-${id}`)),
+  };
+}
+
+function useTranscription(artifact: Artifact, stageId: string | null): Loaded | "error" | null {
   const [loaded, setLoaded] = useState<Loaded | "error" | null>(null);
   const data = artifact.extraction!;
   useEffect(() => {
@@ -70,19 +121,11 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
         if (checks) shownChecks = { ...checks, issues: checks.issues.map((i) => issues.get(i.id)!) };
         changed = new Set([...changedBy(calls)].map((id) => `issue-${id}`));
       }
-      // A human review's Transcription: the issues with the user's answers (docs/stages/music.md, `human_review`); the
-      // issues answered are its changes.
-      if (data.human) {
-        const human = data.human;
-        const stored: StoredHumanReview = human.sha256 ? ((await fetchJsonContent(human.sha256)) as StoredHumanReview) : { entries: [] };
-        const base = [...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])];
-        const issues = humanReviewedIssues(new Map(base.map((i) => [i.id, i])), stored);
-        for (const e of extractions) e.extraction = { ...e.extraction, issues: e.extraction.issues.map((i) => issues.get(i.id)!) };
-        // The user's own issues go with the checks' (each is shown below the system its boxes fall on).
-        const own = ownIssues(stored).map((i) => issues.get(i.id)!);
-        shownChecks = { issues: [...(checks?.issues.map((i) => issues.get(i.id)!) ?? []), ...own], warnings: checks?.warnings ?? [] } as StoredScoreChecks;
-        changed = new Set([...changedBy([{ system: 0, entries: stored.entries }])].map((id) => `issue-${id}`));
-      }
+      // A human review's: what it stored (the latest saved on this device first), its issues worked out below.
+      const stored: StoredHumanReview | null = data.human
+        ? ((stageId ? savedReviews.get(stageId) : undefined) ??
+          (data.human.sha256 ? ((await fetchJsonContent(data.human.sha256)) as StoredHumanReview) : { entries: [] }))
+        : null;
       // An Apply review's Transcription: the issues it applied or reverted are its changes.
       let reverted: Loaded["reverted"] = [];
       let changedStretches: { system: number; stretch: number }[] = [];
@@ -118,7 +161,20 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
       const { attribution: before } = await attributionOf(data.chain, { json: fetchJsonContent, ...(pdf ? attributionCache(pdf) : {}) });
       const shownIssues = [...extractions.flatMap((e) => e.extraction.issues), ...(shownChecks?.issues ?? [])];
       const attribution = extend(before, shownIssues, data.who);
-      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, shownChecks), score, changed, reverted, changedMeasures: measuresOf(score, changedStretches), attribution });
+      const changedMeasures = measuresOf(score, changedStretches);
+      let result: Loaded = { systems, notes: notesOf(systems, shownChecks), score, changed, reverted, changedMeasures, attribution, human: null };
+      if (stored) {
+        const human: HumanBase = {
+          systems,
+          checks,
+          issues: new Map(shownIssues.map((i) => [i.id, i])),
+          stored,
+          before,
+          placed: placedSystems(pages.map((p) => ({ page: p.page, systems: layouts.get(p.page)?.systems ?? [] }))),
+        };
+        result = { ...result, ...withHumanReview(human, stored, data.who), human };
+      }
+      if (!cancelled) setLoaded(result);
     })().catch(() => !cancelled && setLoaded("error"));
     return () => {
       cancelled = true;
@@ -162,8 +218,11 @@ const VIEWS = [
   { value: "raw" as const, label: "Raw source", title: "The raw source (LilyPond-based)", icon: <SourceIcon /> },
 ];
 
-export function ExtractionView({ artifact }: { artifact: Artifact }) {
-  const loaded = useTranscription(artifact);
+// A human review in progress: its stage, to save to, and what to tell when something is saved.
+export type TranscriptionEdit = { project: Project; stageId: string; onEdited?: () => void };
+
+export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: TranscriptionEdit }) {
+  const base = useTranscription(artifact, edit?.stageId ?? null);
   const [view, setView] = useRemembered<View>("score3ly.transcription.view", "rendered", ["rendered", "raw"]);
   const [boxes, setBoxes] = useRemembered<"shown" | "hidden">("score3ly.transcription.boxes", "shown", ["shown", "hidden"]);
   // In a later stage's Transcription: only the issues it changed, or everything. Only the changes when the view opens
@@ -171,22 +230,44 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
   const [onlyChanges, setOnlyChanges] = useState(true);
   const frame = useRef<HTMLDivElement>(null);
   const anchor = useRef<{ element: Element; offset: number } | null>(null);
+
+  // A human review in progress: what the user did, as it changes (the latest for changes that follow each other before
+  // a render), saved one save after the other.
+  const [stored, setStored] = useState<StoredHumanReview | null>(null);
+  const latest = useRef<StoredHumanReview | null>(null);
+  const chain = useRef(Promise.resolve());
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // The clarification being edited (its boxes drawn on the crops), and the system each new one was added below, until
+  // it has a box.
+  const [selected, setSelected] = useState<number | null>(null);
+  const [addedBelow, setAddedBelow] = useState<Map<number, number>>(new Map());
+  const loaded = useMemo(() => {
+    if (!base || base === "error" || !base.human || !stored) return base;
+    return { ...base, ...withHumanReview(base.human, stored, artifact.extraction!.who) };
+  }, [base, stored]);
+
   // Each note's text below its system, and its colour: the layout's 7 colours (§6, `fix_layout`), in turn in the
-  // order the texts are shown, so neighbouring boxes differ. The box, its label and its card share it.
+  // order the texts are shown, so neighbouring boxes differ; the user's own issues continue the cycle in the order
+  // raised, so that adding one changes no other's colour. The box, its label and its card share it.
   const { homes, colors } = useMemo(() => {
     const homes = new Map<number, Note[]>();
     const colors = new Map<string, string>();
     if (loaded && loaded !== "error") {
       for (const note of loaded.notes) {
-        const home = homeOf(note, loaded.systems) ?? loaded.systems[0]?.extraction.system;
+        const home =
+          homeOf(note, loaded.systems) ?? (note.kind === "issue" ? addedBelow.get(note.issue.id) : undefined) ?? loaded.systems[0]?.extraction.system;
         if (home !== undefined) homes.set(home, [...(homes.get(home) ?? []), note]);
       }
+      const own = (note: Note) => note.kind === "issue" && note.issue.source === "user";
       for (const s of loaded.systems) {
-        for (const note of homes.get(s.extraction.system) ?? []) colors.set(note.key, LAYOUT_COLOR_HEX[colors.size % LAYOUT_COLOR_HEX.length]);
+        for (const note of homes.get(s.extraction.system) ?? []) if (!own(note)) colors.set(note.key, LAYOUT_COLOR_HEX[colors.size % LAYOUT_COLOR_HEX.length]);
+      }
+      for (const note of [...loaded.notes].filter(own).sort((a, b) => (a.kind === "issue" && b.kind === "issue" ? a.issue.id - b.issue.id : 0))) {
+        colors.set(note.key, LAYOUT_COLOR_HEX[colors.size % LAYOUT_COLOR_HEX.length]);
       }
     }
     return { homes, colors };
-  }, [loaded]);
+  }, [loaded, addedBelow]);
 
   // After the toggle, the element that was at the top of the view (a system or a changed issue's card, which both modes
   // show) is put back where it was, so the user goes on seeing the same part of the score.
@@ -200,8 +281,10 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
 
   if (loaded === "error") return <div className="text-view"><p>The transcription couldn't be loaded.</p></div>;
   if (!loaded) return <div className="text-view"><p>Loading the transcription…</p></div>;
-  const { systems, score, changed, reverted, changedMeasures } = loaded;
-  const filtering = changed !== null && onlyChanges;
+  const { systems, score, changed, reverted, changedMeasures, human } = loaded;
+  const editing = edit && human ? { ...edit, human, stored: stored ?? human.stored } : null;
+  // No Δ while the human review is in progress: everything is shown.
+  const filtering = changed !== null && onlyChanges && !editing;
   const shown = (note: Note) => !filtering || note.kind !== "issue" || changed!.has(note.key);
   const notes = loaded.notes.filter(shown);
   const toggleChanges = () => {
@@ -218,8 +301,52 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
     setOnlyChanges(!onlyChanges);
   };
   const reveal = (key: string) => document.getElementById(key)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  // --- Editing (a human review in progress).
+  function change(update: (current: StoredHumanReview) => StoredHumanReview) {
+    if (!editing) return;
+    const current = latest.current ?? editing.stored;
+    const next = update(current);
+    if (next === current) return;
+    latest.current = next;
+    setStored(next);
+    savedReviews.set(editing.stageId, next);
+    const { project, stageId, onEdited } = editing;
+    chain.current = chain.current
+      .then(async () => {
+        const sha256 = await putContent(jsonBytes(next), "application/json");
+        await recordOutputs(project, stageId, [{ item: "", type: "human_review", contentSha256: sha256 }]);
+        setSaveError(null);
+        onEdited?.();
+      })
+      .catch((err) => setSaveError(`Saving failed: ${err instanceof Error ? err.message : err}`));
+  }
+  const ownById = (id: number) => (editing ? ownIssues(latest.current ?? editing.stored).find((i) => i.id === id) : undefined);
+  const textOf = (issue: StoredIssue) => issue.answers[0]?.text ?? "";
+  async function addClarification(system: number) {
+    if (!editing) return;
+    try {
+      const known = [...editing.human.issues.values(), ...ownIssues(latest.current ?? editing.stored)];
+      const id = await reserveIssueNumbers(editing.project, 1, known);
+      setAddedBelow((m) => new Map(m).set(id, system));
+      change((current) => putOwnIssue(current, ownIssue(id, [], "")));
+      setSelected(id);
+    } catch (err) {
+      setSaveError(`The clarification couldn't be added: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+  const selectedOwn = selected === null ? undefined : ownById(selected);
+  const selectedHome = selectedOwn ? (homeOf({ key: "", boxes: selectedOwn.boxes, kind: "issue", issue: selectedOwn }, systems) ?? addedBelow.get(selectedOwn.id) ?? null) : null;
+  const problems = new Map(editing ? ownIssues(editing.stored).map((i) => [i.id, boxProblems(i.boxes, editing.human.placed)]) : []);
+  // Labels on the crops: an answered issue's with "✓", a clarification's box that breaks a rule with "!" (in red).
+  const labelOf = (note: Note, k: number) => {
+    if (!editing || note.kind !== "issue") return null;
+    if (note.issue.source === "user") return problems.get(note.issue.id)?.bad.includes(k) ? { text: `${note.issue.id} !`, invalid: true } : null;
+    return userChoice(editing.stored, note.issue.id) ? { text: `${note.issue.id} ✓`, invalid: false } : null;
+  };
+
   return (
-    <div className="transcription" ref={frame}>
+    <div className={editing ? "transcription editing" : "transcription"} ref={frame}>
       <div className="editor-toolbar">
         <ModeToggle modes={VIEWS} mode={view} onChange={setView} />
         <div className="editor-tools editor-modes">
@@ -234,7 +361,7 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
             <BoxesIcon />
           </button>
         </div>
-        {changed !== null && (
+        {changed !== null && !editing && (
           <div className="editor-tools editor-modes">
             <button
               type="button"
@@ -249,6 +376,7 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
           </div>
         )}
       </div>
+      {saveError && <p className="panel-error error-text transcription-error">{saveError}</p>}
       {reverted.length > 0 && (
         <div className="reverted-block error-text" role="note">
           <p className="reverted-head">
@@ -273,30 +401,96 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
         overlay={
           // Over the filmstrip, not above it, and only hidden with the boxes, so that toggling them moves nothing.
           <p className="editor-hint" style={{ visibility: boxes === "shown" ? "visible" : "hidden" }}>
-            Numbered boxes are questions about what the page says. Dashed boxes mark places where the transcription doesn't add up.
+            {editing
+              ? "Pick an answer for any issue below its system. To say what the original has where nobody asked, add a clarification."
+              : "Numbered boxes are questions about what the page says. Dashed boxes mark places where the transcription doesn't add up."}
           </p>
         }
         render={(i) => {
           const s = systems[i];
           const { extraction } = s;
           const own = (homes.get(extraction.system) ?? []).filter(shown);
+          const drawing = editing && selectedOwn && selectedHome !== null && Math.abs(extraction.system - selectedHome) <= 1;
           return (
             <figure className="film-item">
               <figcaption>
                 System {extraction.system} · page {extraction.page}
               </figcaption>
               <CropView recipe={s.recipe} label={`System ${extraction.system}`}>
-                {boxes === "shown" && <BoxOverlay boxes={boxesOnCrop(notes, extraction.page, s.crop)} colors={colors} onPick={reveal} />}
+                {boxes === "shown" && <BoxOverlay boxes={boxesOnCrop(notes, extraction.page, s.crop)} colors={colors} onPick={reveal} labelOf={labelOf} />}
+                {drawing && (
+                  <DrawLayer
+                    crop={s.crop}
+                    boxes={selectedOwn.boxes.flatMap((b, k) => (b.page === extraction.page ? [{ k, box: b.box }] : []))}
+                    onAdd={(box) => {
+                      const issue = ownById(selectedOwn.id)!;
+                      change((current) => putOwnIssue(current, ownIssue(issue.id, [...issue.boxes, { page: extraction.page, box }], textOf(issue))));
+                    }}
+                    onResize={(k, box) => {
+                      const issue = ownById(selectedOwn.id)!;
+                      change((current) => putOwnIssue(current, ownIssue(issue.id, issue.boxes.map((b, j) => (j === k ? { ...b, box } : b)), textOf(issue))));
+                    }}
+                  />
+                )}
               </CropView>
               {view === "rendered" ? <SystemRendering score={score} system={extraction.system} changed={changedMeasures} fit={{ box: s.layout.box, crop: s.crop }} /> : <RawSource extraction={extraction} />}
-              {own.length > 0 && (
+              {(own.length > 0 || editing) && (
                 <div className="system-notes">
-                  {own.map((note) =>
-                    note.kind === "issue" ? (
-                      <IssueCard key={note.key} id={note.key} issue={note.issue} color={colors.get(note.key)} who={loaded.attribution[note.issue.id]} />
-                    ) : (
-                      <WarningCard key={note.key} id={note.key} warning={note.warning} color={colors.get(note.key)} />
-                    ),
+                  {own.map((note) => {
+                    if (note.kind === "warning") return <WarningCard key={note.key} id={note.key} warning={note.warning} color={colors.get(note.key)} />;
+                    const issue = note.issue;
+                    if (editing && issue.source === "user") {
+                      const ownIssueNow = ownById(issue.id) ?? issue;
+                      return (
+                        <ClarificationCard
+                          key={note.key}
+                          id={note.key}
+                          issue={ownIssueNow}
+                          color={colors.get(note.key)}
+                          systems={editing.human.placed}
+                          problem={problems.get(issue.id) ?? { problem: null, bad: [] }}
+                          selected={selected === issue.id}
+                          onSelect={(on) => setSelected(on ? issue.id : null)}
+                          onWrite={(text) => change((current) => putOwnIssue(current, ownIssue(issue.id, ownById(issue.id)!.boxes, text)))}
+                          onRemoveBox={(k) => {
+                            const now = ownById(issue.id)!;
+                            change((current) => putOwnIssue(current, ownIssue(issue.id, now.boxes.filter((_, j) => j !== k), textOf(now))));
+                          }}
+                          onDelete={() => {
+                            change((current) => removeOwnIssue(current, issue.id));
+                            if (selected === issue.id) setSelected(null);
+                          }}
+                        />
+                      );
+                    }
+                    const original = editing?.human.issues.get(issue.id);
+                    return (
+                      <IssueCard
+                        key={note.key}
+                        id={note.key}
+                        issue={issue}
+                        color={colors.get(note.key)}
+                        who={loaded.attribution[issue.id]}
+                        answers={
+                          editing && original ? (
+                            <AnswerPicker
+                              issue={issue}
+                              original={original}
+                              who={loaded.attribution[issue.id]}
+                              mine={userChoice(editing.stored, issue.id)}
+                              onChoose={(key) => change((current) => chooseAnswer(current, original, key))}
+                              onWrite={(text) => change((current) => writeAnswer(current, original, text))}
+                              onClear={() => change((current) => clearChoice(current, issue.id))}
+                            />
+                          ) : undefined
+                        }
+                      />
+                    );
+                  })}
+                  {editing && (
+                    <button type="button" className="button-secondary add-clarification" onClick={() => void addClarification(extraction.system)}>
+                      Add clarification
+                    </button>
                   )}
                 </div>
               )}
@@ -357,10 +551,12 @@ function BoxOverlay({
   boxes,
   colors,
   onPick,
+  labelOf,
 }: {
-  boxes: { note: Note; box: { left: number; right: number; top: number; bottom: number } }[];
+  boxes: { note: Note; box: { left: number; right: number; top: number; bottom: number }; k: number }[];
   colors: Map<string, string>;
   onPick: (key: string) => void;
+  labelOf?: (note: Note, k: number) => { text: string; invalid: boolean } | null; // another label than the number
 }) {
   if (boxes.length === 0) return null;
   return (
@@ -379,18 +575,21 @@ function BoxOverlay({
           />
         ))}
       </svg>
-      {boxes.map(({ note, box }, i) => (
-        <button
-          key={i}
-          type="button"
-          className={note.kind === "issue" ? "note-label issue" : "note-label warning"}
-          style={{ left: `${box.left * 100}%`, top: `${box.top * 100}%`, background: colors.get(note.key) }}
-          title={note.kind === "issue" ? `Issue #${note.issue.id}` : "Warning"}
-          onClick={() => onPick(note.key)}
-        >
-          {note.kind === "issue" ? note.issue.id : "!"}
-        </button>
-      ))}
+      {boxes.map(({ note, box, k }, i) => {
+        const label = labelOf?.(note, k);
+        return (
+          <button
+            key={i}
+            type="button"
+            className={`${note.kind === "issue" ? "note-label issue" : "note-label warning"}${label?.invalid ? " invalid" : ""}`}
+            style={{ left: `${box.left * 100}%`, top: `${box.top * 100}%`, background: label?.invalid ? undefined : colors.get(note.key) }}
+            title={note.kind === "issue" ? `Issue #${note.issue.id}` : "Warning"}
+            onClick={() => onPick(note.key)}
+          >
+            {label?.text ?? (note.kind === "issue" ? note.issue.id : "!")}
+          </button>
+        );
+      })}
     </>
   );
 }
@@ -522,7 +721,8 @@ function RawSource({ extraction }: { extraction: StoredExtraction }) {
 export const ISSUE_CLASS_LABELS: Record<StoredIssue["class"], string> = { reading: "[unclear]", format: "[cannot be encoded]" };
 
 
-function IssueCard({ id, issue, color, who }: { id: string; issue: StoredIssue; color?: string; who: IssueWho | undefined }) {
+// `answers`: in place of the list of answers (a human review in progress: AnswerPicker).
+function IssueCard({ id, issue, color, who, answers }: { id: string; issue: StoredIssue; color?: string; who: IssueWho | undefined; answers?: ReactNode }) {
   return (
     <div className="issue-card" id={id} style={{ borderLeftColor: color }}>
       <p className="issue-head">
@@ -533,7 +733,8 @@ function IssueCard({ id, issue, color, who }: { id: string; issue: StoredIssue; 
         {issue.location ? `${issue.location}: ` : ""}
         {issue.question}
       </p>
-      {issue.answers.length > 0 && (
+      {answers ??
+        (issue.answers.length > 0 && (
         <ul>
           {issue.answers.map((a) => {
             const tags = answerTags(issue, a.key, who);
@@ -545,7 +746,7 @@ function IssueCard({ id, issue, color, who }: { id: string; issue: StoredIssue; 
             );
           })}
         </ul>
-      )}
+        ))}
       {issue.lilypond && issue.lilypond.length > 0 && (
         <p className="issue-facts">
           LilyPond equivalent: <span className="issue-tokens">{issue.lilypond.join(" ")}</span>
