@@ -149,8 +149,8 @@ export async function runToEnd(page: Page, servers: Servers, id: string, timeout
   await openProject(page, servers, id);
   const run = page.getByRole("button", { name: /^(Run|Retry)$/ }).first();
   await run.waitFor({ timeout: 30_000 }).catch(() => {});
-  const stages = await pipelineOf(servers, id);
-  if (!stages.some((s) => s.status === "running") && (await run.isEnabled().catch(() => false))) await run.click();
+  const atStart = await pipelineOf(servers, id);
+  if (!atStart.some((s) => s.status === "running") && (await run.isEnabled().catch(() => false))) await run.click();
   for (let i = 0; i < timeoutSeconds; i++) {
     const stages = await pipelineOf(servers, id);
     if (stages.at(-1)!.status === "done" || stages.some((s) => s.status === "failed")) return;
