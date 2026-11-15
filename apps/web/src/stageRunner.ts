@@ -16,7 +16,7 @@ import {
   type StageStart,
 } from "./api";
 import { timed } from "./itemTiming";
-import type { CallProgress } from "./callProgress";
+import type { CallProgress, ItemProgress } from "./callProgress";
 
 export type StageRun = {
   project: Project;
@@ -25,6 +25,7 @@ export type StageRun = {
   signal: AbortSignal; // aborted when the user stops the stage
   progress: (fraction: number) => void;
   call?: (call: CallProgress) => void; // the stage's current LLM call, as it goes (docs/llm.md, "A call's progress")
+  item?: (item: ItemProgress) => void; // the item it works on, and the characters received for it (callProgress.ts)
 };
 
 // A stage that can't start, e.g. a page selection beyond the PDF's last page. Nothing has been recorded.
@@ -53,6 +54,7 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
     for (const [i, item] of items.entries()) {
       if (signal.aborted) return;
       if (!recorded.has(`${item.type}\u0000${item.item}`)) {
+        run.item?.({ item: item.item, chars: null });
         const { value: output, timing } = await timed(item.make);
         if (signal.aborted) return;
         await recordOutputs(project, stage.id, [{ ...output, item: item.item, type: item.type, timing }]);

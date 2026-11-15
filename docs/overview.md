@@ -275,7 +275,7 @@ Every stage runs in the browser, its heavy work in Web Workers; an LLM stage sen
 
 While it runs, a stage **reports its own progress** as a fraction from 0 to 1, which the UI shows (§5.6):
 - Only the code that performs the stage knows how far it is. It is handed a function to call whenever it has got further (e.g. after each system), and doesn't know about the bar or the circle that show the value. A stage running in a Web Worker can't call into the page, so there the function passes the value on as a message.
-- **The bar doesn't move during a single LLM call:** a call fills its share of the bar when its answer arrives. (Filling it with the time elapsed out of the call's timeout was considered and decided against, 2026-11-15, the project owner.) What shows that a long call is making progress is the task "Show that a long call is making progress".
+- **The bar doesn't move during a single LLM call:** a call fills its share of the bar when its answer arrives. (Filling it with the time elapsed out of the call's timeout was considered and decided against, 2026-11-15, the project owner.) What shows that a long call is making progress is a line under the bar: the item and the characters received for it (`docs/project-view.md`, "The pipeline panel").
 
 ### 5.2 Outputs, artifacts and provenance
 

@@ -366,6 +366,19 @@ test("throttled: the first value at once, then the latest at most every interval
   assert.deepEqual(sent, [1, 3]);
 });
 
+test("throttled: flush sends the value still waiting at once, and nothing when none waits", async () => {
+  const sent: number[] = [];
+  const t = throttled<number>((v) => sent.push(v), 50);
+  t.push(1);
+  t.push(2);
+  t.flush();
+  assert.deepEqual(sent, [1, 2]);
+  t.flush();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.deepEqual(sent, [1, 2]);
+  t.stop();
+});
+
 test("throttled progress: a token count a skipped chunk had is kept until the next report, then null again", async () => {
   const sent: (number | null)[] = [];
   const t = throttledProgress((p) => sent.push(p.outputTokens), 50);

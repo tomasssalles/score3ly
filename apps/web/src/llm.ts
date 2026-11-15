@@ -137,7 +137,7 @@ export async function ask(
   what: string,
   options: { config: ModelConfig; place: CallPlace; beforeImages?: () => Promise<void> },
 ): Promise<LlmAnswer> {
-  const tracked = trackCall(run, what);
+  const tracked = trackCall(run, what, options.place.item);
   let answer = await callLlm(run.project, run.stage.id, await withImages(request, null), options.place, what, run.signal, tracked.onEvent);
   if ("imagesNeeded" in answer) {
     await options.beforeImages?.();

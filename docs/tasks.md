@@ -143,7 +143,6 @@ The tasks below, in the file's order.
 - [Replay fixtures of real projects](#replay-fixtures-of-real-projects)
 - [Scenario tests with the fake model](#scenario-tests-with-the-fake-model)
 - [Run the one-time script that fills the calls' places](#run-the-one-time-script-that-fills-the-calls-places)
-- [Show that a long call is making progress](#show-that-a-long-call-is-making-progress)
 - [The model configs' list on the settings page](#the-model-configs-list-on-the-settings-page)
 - [Check what stopped calls cost at the providers](#check-what-stopped-calls-cost-at-the-providers)
 
@@ -834,11 +833,6 @@ What the replay can't cover (§12): replacing, adding and dropping stages in way
 `#next` `#owner`
 
 Built 2026-11-14 (§12, "Each call records its place"): once migration 0004 is deployed (`npm run deploy`, or the workflow "Deploy"), the calls made before it have the placeholders `"?"` and 0, and a project with such a call can't be exported. On a computer logged in with Wrangler (`npx wrangler login`) and with `apps/worker/cloudflare.env`: `npm run fill-call-places -w apps/worker -- --remote`. It reads and writes the deployed D1 and R2 directly (Wrangler's remote bindings, not tried yet: if they fail, say so, and the script reads and writes through `wrangler d1 execute` and `wrangler r2 object get` instead). It lists the calls whose place it can't tell (no output names them, nor any call that asked the same; a deleted project's `layout` calls), which keep the placeholders: decide then what to do with those that matter (the first project's, for the fixture). A local database: `-- --local` (wrangler dev's), or start it anew.
-
-### Show that a long call is making progress
-`#next` `#decision` `#style`
-
-A call can take minutes with nothing on the screen moving, and the user can't tell whether to wait or to stop the stage and try another model. Use what is known (the number of calls made and expected, the tokens received on the current call, the time elapsed on it, its timeout, perhaps more) to show that progress is being made, or not. A clock alone only shows that the browser is alive, not that the provider is answering, though it does help decide when to give up. Note `docs/project-view.md`'s rule: progress indicators never show numbers. What is known is there (built 2026-11-14): every running stage's current call, with its start, its timeout, the characters received so far and the output tokens so far where the provider counted them, null where it didn't (`Stage.call`, `docs/llm.md`, "A call's progress"); the timeouts are placeholders for now ("Timeouts for LLM calls"). Claude shows nothing while it thinks, unless its thinking is shown.
 
 ### The model configs' list on the settings page
 `#decision` `#style`

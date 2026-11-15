@@ -417,6 +417,7 @@ export function ProjectView({
         signal: abort.signal,
         progress: (fraction) => setLocal((l) => l && { ...l, progress: fraction }),
         call: (call) => setLocal((l) => l && { ...l, call }),
+        item: (item) => setLocal((l) => l && { ...l, item }),
       });
     } catch (err) {
       if (!abort.signal.aborted) {

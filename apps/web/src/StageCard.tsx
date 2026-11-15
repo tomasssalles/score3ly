@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { itemText, type ItemProgress } from "./callProgress";
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
 import { DOWNLOADS, type DownloadKind } from "./downloads";
 import { FittedText } from "./FittedText";
@@ -131,6 +132,7 @@ export function StageCard({
       {stage.status === "running" && (
         <ProgressBar value={stage.runningHere ? stage.progress : null} label={`${stage.title}: progress`} />
       )}
+      {stage.status === "running" && stage.runningHere && stage.item && <ItemLine progress={stage.item} llm={stage.kind === "llm"} />}
       {stage.status === "running" && stage.imagesDiffer && (
         <p className="stage-warning">
           Some images differ from the ones the stored results were made from ({differsCause(desktop)}); boxes or answers may
@@ -154,6 +156,24 @@ export function StageCard({
         </ul>
       )}
     </li>
+  );
+}
+
+// What a stage running here works on, and for a stage that calls a model, the characters received for it: grey, and
+// flashing to the text's colour each time the count grows, so that a call that answers pulses and one that doesn't
+// looks still (docs/project-view.md, "The pipeline panel").
+function ItemLine({ progress, llm }: { progress: ItemProgress; llm: boolean }) {
+  const [before, setBefore] = useState(progress);
+  const [flashes, setFlashes] = useState(0);
+  if (before !== progress) {
+    setBefore(progress);
+    if (progress.item === before.item && progress.chars !== null && progress.chars > (before.chars ?? 0)) setFlashes(flashes + 1);
+  }
+  // A new key restarts the flash's animation.
+  return (
+    <p key={flashes} className={flashes > 0 ? "stage-item flash" : "stage-item"}>
+      {itemText(progress, llm)}
+    </p>
   );
 }
 

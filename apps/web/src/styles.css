@@ -956,6 +956,29 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* What a running stage works on, and the characters received for it (StageCard's ItemLine). */
+.stage-item {
+  margin: -4px 0 0;
+  font: 12px var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* Each time the count grows: the text's colour, fading back to grey. */
+.stage-item.flash {
+  animation: item-flash 1s ease-out;
+}
+
+@keyframes item-flash {
+  from {
+    color: var(--fg);
+  }
+  to {
+    color: var(--muted);
+  }
+}
+
 .stage-error {
   margin: 0;
   font-size: 13px;
