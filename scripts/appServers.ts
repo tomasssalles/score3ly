@@ -142,15 +142,18 @@ export async function openProject(page: Page, servers: Servers, id: string) {
   await page.reload();
 }
 
-// Runs the project in Auto mode until the last stage is done or one fails. Run is pressed only when nothing runs: in
-// Auto mode, finishing a manual stage starts the rest by itself.
+// Runs the project in Auto mode until the last stage is done or one fails. Run is pressed once, unless a run is going
+// already (in Auto mode, finishing a manual stage starts the rest by itself); never again in between, when a stage has
+// ended and the next not yet started, which would start a second run.
 export async function runToEnd(page: Page, servers: Servers, id: string, timeoutSeconds = 600) {
   await openProject(page, servers, id);
+  const run = page.getByRole("button", { name: /^(Run|Retry)$/ }).first();
+  await run.waitFor({ timeout: 30_000 }).catch(() => {});
+  const stages = await pipelineOf(servers, id);
+  if (!stages.some((s) => s.status === "running") && (await run.isEnabled().catch(() => false))) await run.click();
   for (let i = 0; i < timeoutSeconds; i++) {
     const stages = await pipelineOf(servers, id);
     if (stages.at(-1)!.status === "done" || stages.some((s) => s.status === "failed")) return;
-    const run = page.getByRole("button", { name: /^(Run|Retry)$/ }).first();
-    if (!stages.some((s) => s.status === "running") && (await run.isEnabled().catch(() => false))) await run.click();
     await page.waitForTimeout(1000);
   }
   const stages = await pipelineOf(servers, id);
