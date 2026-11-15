@@ -225,7 +225,8 @@ async function humanReviewCard(page: Page, hash: string, head: string) {
   const card = page.locator(".issue-card", { hasText: head }).first();
   await card.scrollIntoViewIfNeeded();
   if (head === "[clarification]") await card.getByRole("button", { name: "Edit boxes" }).click();
-  await card.evaluate((el) => el.closest(".film-item")?.scrollIntoView({ block: "start" }));
+  // The card at the bottom of the view, with the crop and its boxes above it where there is room.
+  await card.evaluate((el) => el.scrollIntoView({ block: "end" }));
   await settled(page);
 }
 
