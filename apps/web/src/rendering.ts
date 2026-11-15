@@ -5,6 +5,7 @@
 import { cachedSvg, cachedSvgs, cacheSvg, cacheSvgs } from "./imageCache.ts";
 import { keyOf } from "@score3ly/core";
 import type { RenderRequest, RenderResponse } from "./renderWorker.ts";
+import type { Box } from "@score3ly/imaging";
 
 // Verovio's version, in the cache key: a new version renders anew. A test keeps it equal to the installed one.
 export const VEROVIO_VERSION = "6.3.0";
@@ -28,6 +29,21 @@ export const SYSTEM_OPTIONS = {
   pageMarginRight: 20,
 };
 
+// The page a system of the original is assumed to be on, in Verovio's units: its default page width, an A4 page at its
+// default staff size. A system is rendered on its crop's share of it, with the crop's margins, and shown as wide as
+// the crop, so that the two have about the same scale and their left and right edges about meet (docs/stages/music.md,
+// "The Transcription").
+export const REFERENCE_PAGE_WIDTH = 2100;
+
+// The page width and margins of a system's rendering, from its box and its crop (fractions of the page's width).
+export function fittedOptions(box: Box, crop: Box): { options: typeof SYSTEM_OPTIONS; pageWidth: number } {
+  const units = (fraction: number) => Math.max(0, Math.round(fraction * REFERENCE_PAGE_WIDTH));
+  return {
+    options: { ...SYSTEM_OPTIONS, pageMarginLeft: units(box.left - crop.left), pageMarginRight: units(crop.right - box.right) },
+    pageWidth: units(crop.right - crop.left),
+  };
+}
+
 let worker: Worker | null = null;
 let nextId = 1;
 const pending = new Map<number, { resolve: (svgs: string[]) => void; reject: (error: Error) => void }>();
@@ -50,20 +66,20 @@ function getWorker(): Worker {
   return worker;
 }
 
-function ask(mei: string, options: Record<string, unknown>, allPages: boolean): Promise<string[]> {
+function ask(mei: string, options: Record<string, unknown>, allPages: boolean, pageWidth?: number): Promise<string[]> {
   const id = nextId++;
   return new Promise<string[]>((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    getWorker().postMessage({ id, mei, options, allPages } satisfies RenderRequest);
+    getWorker().postMessage({ id, mei, options, allPages, ...(pageWidth !== undefined ? { pageWidth } : {}) } satisfies RenderRequest);
   });
 }
 
-// One system on one line (the Transcription).
-export async function renderMei(mei: string, options: Record<string, unknown> = SYSTEM_OPTIONS): Promise<string> {
-  const key = await keyOf({ mei, options, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION });
+// One system on one line (the Transcription), as wide as `pageWidth` where it is given (fittedOptions).
+export async function renderMei(mei: string, options: Record<string, unknown> = SYSTEM_OPTIONS, pageWidth?: number): Promise<string> {
+  const key = await keyOf({ mei, options, pageWidth: pageWidth ?? null, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION });
   const cached = await cachedSvg(key);
   if (cached) return cached;
-  const [svg] = await ask(mei, options, false);
+  const [svg] = await ask(mei, options, false, pageWidth);
   await cacheSvg(key, svg);
   return svg;
 }

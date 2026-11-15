@@ -7,7 +7,7 @@
 import { ImagesDiffer } from "./ImagesDiffer";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CLAUDE_IMAGE_LIMIT, CROP_VERSION, DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
-import { buildMei, serialize, type LensStretch, type Score } from "@score3ly/notation";
+import { buildMei, serialize, type Box, type LensStretch, type Score } from "@score3ly/notation";
 import { fetchJsonContent } from "./api";
 import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
@@ -18,7 +18,7 @@ import { cropImage, type CropRecipe } from "./pageImages";
 import type { Artifact } from "./pipeline";
 import { attributionOf, extend, type Attribution, type IssueWho } from "./attribution";
 import { attributionCache } from "./imageCache";
-import { renderMei } from "./rendering";
+import { fittedOptions, renderMei } from "./rendering";
 import { applyEntries, changedBy, withKept, type StoredReview } from "./review";
 import type { StoredApplyCall } from "./applyReview";
 import { humanReviewedIssues, ownIssues, type StoredHumanReview } from "./humanReview";
@@ -288,7 +288,7 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
               <CropView recipe={s.recipe} label={`System ${extraction.system}`}>
                 {boxes === "shown" && <BoxOverlay boxes={boxesOnCrop(notes, extraction.page, s.crop)} colors={colors} onPick={reveal} />}
               </CropView>
-              {view === "rendered" ? <SystemRendering score={score} system={extraction.system} changed={changedMeasures} /> : <RawSource extraction={extraction} />}
+              {view === "rendered" ? <SystemRendering score={score} system={extraction.system} changed={changedMeasures} fit={{ box: s.layout.box, crop: s.crop }} /> : <RawSource extraction={extraction} />}
               {own.length > 0 && (
                 <div className="system-notes">
                   {own.map((note) =>
@@ -396,9 +396,22 @@ function BoxOverlay({
 }
 
 // The system rendered by Verovio from a small MEI of its own, once it scrolls near the view.
-// `width`: its width in screen px (linked to the original's zoom, Human review), else its own size, narrower where the
-// view is.
-export function SystemRendering({ score, system, changed, width }: { score: Score | { problem: string }; system: number; changed: Set<string>; width?: number }) {
+// `fit`: the system's box and crop on the page (the Transcription): rendered on the crop's share of a page and shown as
+// wide as the crop (fittedOptions). Else `width`: its width in screen px (linked to the original's zoom, Human review),
+// or its own size, narrower where the view is.
+export function SystemRendering({
+  score,
+  system,
+  changed,
+  width,
+  fit,
+}: {
+  score: Score | { problem: string };
+  system: number;
+  changed: Set<string>;
+  width?: number;
+  fit?: { box: Box; crop: Box };
+}) {
   const { ref, near } = useNear();
   const frame = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string | null>(null);
@@ -422,18 +435,25 @@ export function SystemRendering({ score, system, changed, width }: { score: Scor
     let cancelled = false;
     (async () => {
       const mei = serialize(buildMei(score, { systems: [system] }));
-      const rendered = await renderMei(mei);
+      const fitted = fit && fittedOptions(fit.box, fit.crop);
+      const rendered = fitted ? await renderMei(mei, fitted.options, fitted.pageWidth) : await renderMei(mei);
       if (!cancelled) setSvg(rendered);
     })().catch((err) => !cancelled && setError(`This system can't be rendered: ${err instanceof Error ? err.message : err}`));
     return () => {
       cancelled = true;
     };
-  }, [near, score, system]);
+    // The box and crop by their values: a new object for the same system mustn't render it again.
+  }, [near, score, system, fit && JSON.stringify(fit)]);
   return (
     <div ref={ref} className="system-rendering">
       {svg ? (
-        // At its own size (its view box, in pixels), narrower where the view is: a short system isn't blown up.
-        <div ref={frame} className="rendering" style={width ? { width } : { maxWidth: naturalWidth(svg) }} dangerouslySetInnerHTML={{ __html: svg }} />
+        // As wide as the crop above it (`fit`), or at its own size (its view box, in pixels), narrower where the view is.
+        <div
+          ref={frame}
+          className={fit ? "rendering fitted" : "rendering"}
+          style={fit ? undefined : width ? { width } : { maxWidth: naturalWidth(svg) }}
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
       ) : (
         <div className="rendering-placeholder error-text">{error ?? "Rendering the music…"}</div>
       )}

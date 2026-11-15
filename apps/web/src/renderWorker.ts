@@ -3,10 +3,10 @@
 
 import createVerovioModule from "verovio/wasm";
 import { VerovioToolkit } from "verovio/esm";
-import { renderWith } from "./verovioRender";
+import { renderFitted, renderWith } from "./verovioRender";
 
-// One page (a system alone), or every page (an engraving).
-export type RenderRequest = { id: number; mei: string; options: Record<string, unknown>; allPages?: boolean };
+// One page (a system alone, as wide as `pageWidth` where it is given: renderFitted), or every page (an engraving).
+export type RenderRequest = { id: number; mei: string; options: Record<string, unknown>; allPages?: boolean; pageWidth?: number };
 export type RenderResponse = { id: number; svgs: string[] } | { id: number; error: string };
 
 let toolkit: Promise<VerovioToolkit> | null = null;
@@ -17,7 +17,8 @@ self.addEventListener("message", async (event: MessageEvent<RenderRequest>) => {
   try {
     toolkit ??= createVerovioModule().then((module) => new VerovioToolkit(module));
     const tk = await toolkit;
-    post({ id, svgs: renderWith(tk, mei, options, event.data.allPages ?? false) });
+    const { pageWidth } = event.data;
+    post({ id, svgs: pageWidth !== undefined ? [renderFitted(tk, mei, options, pageWidth)] : renderWith(tk, mei, options, event.data.allPages ?? false) });
   } catch (err) {
     post({ id, error: err instanceof Error ? err.message : String(err) });
   }

@@ -2734,6 +2734,11 @@ textarea.field-input {
   stroke: none;
 }
 
+/* As wide as the crop above it, the margins inside the rendering as in the crop (fittedOptions). */
+.rendering.fitted {
+  padding: 0;
+}
+
 .rendering > svg {
   display: block;
   width: 100%;
