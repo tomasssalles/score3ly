@@ -142,7 +142,6 @@ The tasks below, in the file's order.
 - [Gemini's `extract`: an early empty answer, and the new schemas](#geminis-extract-an-early-empty-answer-and-the-new-schemas)
 - [Replay fixtures of real projects](#replay-fixtures-of-real-projects)
 - [Scenario tests with the fake model](#scenario-tests-with-the-fake-model)
-- [Check that attributed steps match the stored ones](#check-that-attributed-steps-match-the-stored-ones)
 - [Run the one-time script that fills the calls' places](#run-the-one-time-script-that-fills-the-calls-places)
 - [Show that a long call is making progress](#show-that-a-long-call-is-making-progress)
 - [The model configs' list on the settings page](#the-model-configs-list-on-the-settings-page)
@@ -830,11 +829,6 @@ The replay tests are built (2026-11-15, §12, "Replay tests run in a real browse
 `#optional`
 
 What the replay can't cover (§12): replacing, adding and dropping stages in ways the fixture never had: an extra review, a manual stage dropped at its turn, a config changed in the middle. With the fake model, in the same Playwright setup as the replay (`scripts/appServers.ts`), scripting stories of `docs/manual-tests.md` and checking the pipeline's state after each step; some stories could move from the hand to these.
-
-### Check that attributed steps match the stored ones
-`#optional`
-
-The project owner's idea (2026-11-15): the attribution of who chose (`apps/web/src/attribution.ts`) gives each entry of an issue's `choices` and `applications` to a stage; that stage's step must be the entry's stored `by` (Extract's entries aside). A mismatch can only be a bug (the walk giving entries to the wrong stage, a stage storing another step's name). `Who` would carry the step; in the app a `console.error`, keeping the label; in the tests an assertion, so the attribution tests and the replay catch it.
 
 ### Run the one-time script that fills the calls' places
 `#next` `#owner`

@@ -10,7 +10,9 @@
 //    original numbers): worked out from the fixture, the smallest number that first appears in the stage's outputs. A
 //    stage that lost numbers within itself (reserved, then a failure and a retry) can't be replayed so, and fails,
 //    naming the issue;
-// 4. the result compared with the fixture's snapshots in fixtures/replay/<name>/: `requests/`, every request the
+// 4. every Transcription opened, which works out who chose and applied each answer along the chain of stages
+//    (apps/web/src/attribution.ts), and fails on any entry given to a stage of another step than its stored one;
+// 5. the result compared with the fixture's snapshots in fixtures/replay/<name>/: `requests/`, every request the
 //    replay was asked (the prompts, the schemas, the images by their recipe keys), and `outputs/`, every output of the
 //    pipeline (its stored content, or its recipe). A change made on purpose is accepted with `--update`, and the diff
 //    of the snapshots shows what it did.
@@ -194,9 +196,27 @@ async function replay(name: string): Promise<string[]> {
     if (!layout) throw new Error("the fixture has no layout stage");
     await servers.api(`/projects/${id}/stages/${layout.id}/config`, { config: { ...layout.config, modelConfigId: replayConfig.id }, applyModelConfigToLater: true }, "PUT");
     await runStageByStage(page, servers, id, numberingStarts(join(FIXTURES, `${name}.s3l`)));
+    const problems: string[] = [];
+    // Each Transcription opened, which works out who chose and applied along the real chain of stages
+    // (apps/web/src/attribution.ts): an entry given to a stage of another step is reported on the console.
+    page.on("console", (message) => {
+      if (message.type() === "error" && message.text().startsWith("Attribution:")) problems.push(message.text());
+    });
+    for (const stage of await pipelineOf(servers, id)) {
+      if (!["extract", "review", "apply_review", "human_review"].includes(stage.step)) continue;
+      await page.goto(`${servers.app}#/projects/${id}/artifacts/${stage.id}.music`);
+      // The view shows its systems only once the attribution is worked out.
+      await page
+        .getByText(/^System 1 · page/)
+        .first()
+        .waitFor({ timeout: 60_000 })
+        .catch(async () => {
+          problems.push(`${stage.step}'s Transcription (${stage.id}) didn't load`);
+          if (process.env.REPLAY_KEEP) await page.screenshot({ path: join(process.env.REPLAY_KEEP, `${stage.id}.png`), fullPage: true });
+        });
+    }
     await context.close();
 
-    const problems: string[] = [];
     const { stages, dropped } = await servers.api<{ stages: { step: string; status: string; error: string | null }[]; dropped: { step: string }[] }>(`/projects/${id}/pipeline`);
     for (const s of stages) if (s.status !== "done") problems.push(`${s.step} is ${s.status}${s.error ? `: ${s.error}` : ""}`);
     for (const d of dropped) problems.push(`${d.step} was dropped: the replay should have kept every manual stage`);

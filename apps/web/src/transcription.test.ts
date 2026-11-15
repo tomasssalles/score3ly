@@ -1,3 +1,4 @@
+import { whoOf } from "./attribution.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { StoredExtraction, StoredIssue } from "./extract.ts";
@@ -44,13 +45,7 @@ test("issues and warnings of the systems and of the whole score, each with its o
 });
 
 test("an answer's suffixes: who put it in the transcription, and who chose it last; a revert is a choice like any other", () => {
-  const choosers = {
-    extract: { label: "Extract", person: false },
-    r1: { label: "Review 1", person: false },
-    a1: { label: "Apply review 1", person: false },
-    r2: { label: "Review 2", person: false },
-    h1: { label: "Human review 1", person: true },
-  };
+  const choosers = { extract: whoOf("extract", 1), r1: whoOf("review", 1), a1: whoOf("apply_review", 1), r2: whoOf("review", 2), h1: whoOf("human_review", 1) };
   const base: StoredIssue = {
     id: 1,
     source: "extract",

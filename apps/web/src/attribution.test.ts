@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { attributionOf, extend, whoOf, type Attribution, type ChainStage } from "./attribution.ts";
+import { attributionOf, extend, whoOf, type Attribution, type ChainStage, type Mismatch } from "./attribution.ts";
 import type { StoredIssue } from "./extract.ts";
 import type { StoredReview } from "./review.ts";
 
@@ -30,7 +30,12 @@ function issue(id: number, choices: StoredIssue["choices"], applications: Stored
 // Stored content, by made-up hashes; counts the reads.
 function store(content: Record<string, unknown>) {
   const reads: string[] = [];
-  return { reads, json: async (sha256: string) => (reads.push(sha256), structuredClone(content[sha256])) };
+  return {
+    reads,
+    json: async (sha256: string) => (reads.push(sha256), structuredClone(content[sha256])),
+    // Every walk here is a correct one: a mismatch fails the test.
+    report: (m: Mismatch) => assert.fail(`mismatch: ${JSON.stringify(m)}`),
+  };
 }
 
 const extracted = issue(1, [{ by: "extract", key: "a", reason: null }], [{ by: "extract", key: "a" }]);
@@ -52,7 +57,7 @@ const apply = (sha256: string, turn: number): ChainStage => ({ who: whoOf("apply
 const labels = (a: Attribution, id: number) => ({ choices: a[id].choices.map((w) => w.label), applications: a[id].applications.map((w) => w.label) });
 
 test("every choice and application is named by the stage, in the pipeline's order, after which the issue first has it", async () => {
-  const { attribution, issues } = await attributionOf([E, review("r1", 1), apply("a1", 1), review("r2", 2)], { json: store(content).json });
+  const { attribution, issues } = await attributionOf([E, review("r1", 1), apply("a1", 1), review("r2", 2)], store(content));
   assert.deepEqual(labels(attribution, 1), {
     choices: ["Extract", "Review 1", "Review 2"], // Review 2's agreement, kept
     applications: ["Extract", "Apply review 1"],
@@ -63,7 +68,7 @@ test("every choice and application is named by the stage, in the pipeline's orde
 
 test("the same stored content gets the label of its turn now: a review moved up by a stage dropped before it", async () => {
   // Review r2's output is the same either way (found in the cache): only its place in the pipeline changed.
-  const { attribution } = await attributionOf([E, review("r2", 1)], { json: store(content).json });
+  const { attribution } = await attributionOf([E, review("r2", 1)], store(content));
   assert.deepEqual(labels(attribution, 1).choices, ["Extract", "Review 1"]);
 });
 
@@ -72,18 +77,18 @@ test("each prefix of the chain is kept on the device, and a walk starts again fr
   const sources = { cached: async (key: string) => cache.get(key) ?? null, cache: async (key: string, a: Attribution) => void cache.set(key, a) };
   const first = store(content);
   const chain = [E, review("r1", 1), apply("a1", 1)];
-  const before = await attributionOf(chain, { json: first.json, ...sources });
+  const before = await attributionOf(chain, { ...first, ...sources });
   assert.equal(cache.size, 3);
   // One more stage: the cached prefix is used; only what the last stage needs is read again (from the latest
   // transcription on).
   const second = store(content);
-  const after = await attributionOf([...chain, review("r2", 2)], { json: second.json, ...sources });
+  const after = await attributionOf([...chain, review("r2", 2)], { ...second, ...sources });
   assert.deepEqual(second.reads, ["a1", "r2"]);
   assert.deepEqual(labels(after.attribution, 1).applications, labels(before.attribution, 1).applications);
   assert.deepEqual(labels(after.attribution, 1).choices, ["Extract", "Review 1", "Review 2"]);
   // A stage dropped before: another chain, another key; nothing stale is used.
   const third = store(content);
-  await attributionOf([E, review("r2", 1)], { json: third.json, ...sources });
+  await attributionOf([E, review("r2", 1)], { ...third, ...sources });
   assert.deepEqual(third.reads, ["e1", "r2"]);
 });
 
@@ -93,4 +98,13 @@ test("extend names only the entries beyond those already named; Extract's own st
   const more = extend(named, [issue(1, [...extracted.choices, { by: "human_review", key: "b", reason: null }], extracted.applications)], whoOf("human_review", 1));
   assert.deepEqual(labels(more, 1).choices, ["Extract", "Human review 1"]);
   assert.equal(more[1].choices[1].person, true);
+});
+
+test("an entry given to a stage of another step than its stored one is reported, and keeps the stage's label", () => {
+  const found: Mismatch[] = [];
+  // A choice stored as a review's, but first found after an Apply review: a bug somewhere.
+  const named = extend({}, [issue(1, [...extracted.choices, { by: "review", key: "b", reason: null }], extracted.applications)], whoOf("apply_review", 1), (m) => found.push(m));
+  assert.deepEqual(found, [{ issue: 1, list: "choices", index: 1, stored: "review", stage: "Apply review 1" }]);
+  assert.equal(named[1].choices[1].label, "Apply review 1");
+  assert.equal(named[1].choices[0].label, "Extract"); // Extract's own: no mismatch
 });

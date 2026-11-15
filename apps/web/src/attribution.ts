@@ -15,14 +15,14 @@ import type { StoredExtraction, StoredIssue, StoredScoreChecks } from "./extract
 import { reviewedIssues, type StoredReview } from "./review.ts";
 import { humanReviewedIssues, type StoredHumanReview } from "./humanReview.ts";
 
-// A stage as an issue's card names it; `person`: a human review.
-export type Who = { label: string; person: boolean };
+// A stage as an issue's card names it, and its step; `person`: a human review.
+export type Who = { label: string; person: boolean; step: string };
 
 // Who added each entry of an issue's `choices` and `applications`, by index.
 export type IssueWho = { choices: Who[]; applications: Who[] };
 export type Attribution = Record<number, IssueWho>;
 
-export const EXTRACT: Who = { label: "Extract", person: false };
+export const EXTRACT: Who = { label: "Extract", person: false, step: "extract" };
 
 // The stages that choose or apply, in the pipeline's order, with what they stored: the transcriptions (`extract`'s,
 // `apply_review`'s: every system's extraction and the checks of the whole score), a review's calls (its agreements
@@ -39,16 +39,31 @@ const TITLES: Record<string, string> = { review: "Review", apply_review: "Apply 
 
 // The stage's label: its title, numbered among the pipeline's stages of its step before it ("Review 2").
 export function whoOf(step: string, turn: number): Who {
-  return step === "extract" ? EXTRACT : { label: `${TITLES[step] ?? step} ${turn}`, person: step === "human_review" };
+  return step === "extract" ? EXTRACT : { label: `${TITLES[step] ?? step} ${turn}`, person: step === "human_review", step };
 }
 
-// Gives `who` the entries the issues have beyond those already named.
-export function extend(attribution: Attribution, issues: Iterable<StoredIssue>, who: Who): Attribution {
+// An entry given to a stage of another step than the one it was stored with: only a bug can make one (the walk giving
+// entries to the wrong stage, a stage storing another step's name). The label stays the stage's it was found at.
+export type Mismatch = { issue: number; list: "choices" | "applications"; index: number; stored: string; stage: string };
+
+export const reportMismatch = (m: Mismatch) =>
+  console.error(`Attribution: entry ${m.index} of issue ${m.issue}'s ${m.list} is stored as "${m.stored}" but was given to ${m.stage}.`);
+
+// Gives `who` the entries the issues have beyond those already named; Extract's own stay Extract's. Each entry's stored
+// step must be the stage's: a mismatch is reported (`report`).
+export function extend(attribution: Attribution, issues: Iterable<StoredIssue>, who: Who, report: (m: Mismatch) => void = reportMismatch): Attribution {
   const out = { ...attribution };
   for (const issue of issues) {
     const before = attribution[issue.id] ?? { choices: [], applications: [] };
-    const named = (entries: { by: string }[], known: Who[]) => [...known, ...entries.slice(known.length).map((e) => (e.by === "extract" ? EXTRACT : who))];
-    out[issue.id] = { choices: named(issue.choices, before.choices), applications: named(issue.applications ?? [], before.applications) };
+    const named = (list: Mismatch["list"], entries: { by: string }[], known: Who[]) => [
+      ...known,
+      ...entries.slice(known.length).map((e, i) => {
+        const named = e.by === "extract" ? EXTRACT : who;
+        if (e.by !== named.step) report({ issue: issue.id, list, index: known.length + i, stored: e.by, stage: named.label });
+        return named;
+      }),
+    ];
+    out[issue.id] = { choices: named("choices", issue.choices, before.choices), applications: named("applications", issue.applications ?? [], before.applications) };
   }
   return out;
 }
@@ -57,6 +72,7 @@ export type Sources = {
   json: (sha256: string) => Promise<unknown>; // stored content
   cached?: (key: string) => Promise<Attribution | null>; // the device's cache
   cache?: (key: string, attribution: Attribution) => Promise<void>;
+  report?: (m: Mismatch) => void; // a stored step that doesn't match its stage's (`extend`)
 };
 
 // The issues after a stage, from those after the stage before it.
@@ -102,7 +118,7 @@ export async function attributionOf(chain: ChainStage[], sources: Sources): Prom
   }
   for (let i = from; i < chain.length; i++) {
     issues = await issuesAfter(chain[i], issues, sources);
-    attribution = extend(attribution, issues.values(), chain[i].who);
+    attribution = extend(attribution, issues.values(), chain[i].who, sources.report);
     await sources.cache?.(keys[i], attribution);
   }
   return { attribution, issues };
