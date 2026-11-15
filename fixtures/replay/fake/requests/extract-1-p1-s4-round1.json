@@ -1,0 +1,423 @@
+{
+  "jsonSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "groups": {
+        "description": "The braces and brackets that join staves.",
+        "items": {
+          "additionalProperties": false,
+          "description": "A brace or bracket that joins staves, as printed.",
+          "properties": {
+            "label": {
+              "description": "Its label as printed (\"Piano I\"), or \"\".",
+              "type": "string"
+            },
+            "staves": {
+              "description": "The numbers of the staves it joins.",
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "symbol": {
+              "description": "The symbol, as printed.",
+              "enum": [
+                "brace",
+                "bracket",
+                "bracketsq",
+                "line"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "staves",
+            "symbol",
+            "label"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "issues": {
+        "description": "Your doubts, and what the format can't express: each a question about what the page says at one place.",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "answers": {
+              "description": "The answers you considered, each with its evidence.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "description": "\"a\", \"b\", \"c\", …",
+                    "type": "string"
+                  },
+                  "text": {
+                    "description": "The answer, about what the page might show; never refers to the transcription.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "text"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "applied": {
+              "description": "The key of the answer your music reflects.",
+              "type": "string"
+            },
+            "boxes": {
+              "description": "Where it is: one or more boxes, each on one of the images you were sent.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "box": {
+                    "additionalProperties": false,
+                    "description": "As fractions of that image, from 0 to 1.",
+                    "properties": {
+                      "bottom": {
+                        "type": "number"
+                      },
+                      "left": {
+                        "type": "number"
+                      },
+                      "right": {
+                        "type": "number"
+                      },
+                      "top": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "left",
+                      "right",
+                      "top",
+                      "bottom"
+                    ],
+                    "type": "object"
+                  },
+                  "image": {
+                    "description": "The label of the image it is on: \"system\", \"stretch 3\", \"previous system\", \"next system\".",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "image",
+                  "box"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "class": {
+              "description": "\"reading\": what the page says is hard to tell; \"format\": the page is clear, but the format can't express it.",
+              "enum": [
+                "reading",
+                "format"
+              ],
+              "type": "string"
+            },
+            "lilypond": {
+              "description": "For a format issue, the LilyPond tokens that would express what is printed (empty when no new token would); for a reading issue always empty.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "location": {
+              "description": "What in the box is meant, when the box alone doesn't say, simple and local to the box (\"the middle note of the chord\"); else \"\".",
+              "type": "string"
+            },
+            "question": {
+              "description": "What the page says at this place, as a plain sentence a musician understands. Never refers to the transcription.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "boxes",
+            "location",
+            "question",
+            "answers",
+            "applied",
+            "class",
+            "lilypond"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "lastMeasureContinues": {
+        "description": "Whether the system's last measure continues on the next system.",
+        "type": "boolean"
+      },
+      "startRepeat": {
+        "description": "Whether the system begins with a start-repeat bar line (not the line that joins the staves at the left edge).",
+        "type": "boolean"
+      },
+      "staves": {
+        "description": "The system's staves, top to bottom.",
+        "items": {
+          "additionalProperties": false,
+          "description": "A staff of the system, with its clef, key and time as printed at the system's start.",
+          "properties": {
+            "clef": {
+              "description": "The clef printed at the system's start, by LilyPond's name.",
+              "type": "string"
+            },
+            "description": {
+              "description": "For a staff new in the piece: a short description (\"piano right hand\", \"violin I\"), never \"\". \"\" for a staff from the list.",
+              "type": "string"
+            },
+            "key": {
+              "description": "The key signature printed at the system's start: \"0\", \"1s\" … \"7s\", \"1f\" … \"7f\".",
+              "type": "string"
+            },
+            "label": {
+              "description": "The instrument name printed at its left, as printed, or \"\".",
+              "type": "string"
+            },
+            "staff": {
+              "description": "Its number in the piece: from the list where the staff continues (also after systems without it), a new number for a new staff.",
+              "type": "integer"
+            },
+            "time": {
+              "description": "The time signature printed at the system's start, as printed (\"3/4\", \"C\"), or \"\" when none is printed there.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "staff",
+            "description",
+            "label",
+            "clef",
+            "key",
+            "time"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "stretches": {
+        "description": "One per stretch of the request, in order: exactly these stretches.",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "changes": {
+              "description": "Key and time signatures printed at the stretch's start, per staff; an empty list where there are none. Never clef changes: those are \\clef in the music.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "description": "The new key signature (\"2f\"), or \"\" where it doesn't change.",
+                    "type": "string"
+                  },
+                  "staff": {
+                    "description": "The staff's number.",
+                    "type": "integer"
+                  },
+                  "time": {
+                    "description": "The new time signature (\"3/4\"), or \"\" where it doesn't change.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "staff",
+                  "key",
+                  "time"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "class": {
+              "description": "Whether the stretch starts a measure, and of which kind (\"new-…\"), is part of the same measure as the stretch before it (\"continues\", even on the previous system), or of none (\"none\").",
+              "enum": [
+                "new-normal",
+                "new-incomplete",
+                "new-unmeasured",
+                "continues",
+                "none"
+              ],
+              "type": "string"
+            },
+            "ending": {
+              "description": "The \"1.\" / \"2.\" bracket over the stretch: where it starts and ends, or \"none\".",
+              "enum": [
+                "none",
+                "start",
+                "middle",
+                "end",
+                "whole"
+              ],
+              "type": "string"
+            },
+            "endingLabel": {
+              "description": "The ending's label as printed where it is visible over this stretch (\"1.\"), else \"\".",
+              "type": "string"
+            },
+            "measureNumber": {
+              "description": "The number it gives the measure (12), or -1.",
+              "type": "integer"
+            },
+            "printedNumber": {
+              "description": "A measure number printed at the stretch, as printed (\"12\"), else \"\".",
+              "type": "string"
+            },
+            "rightBarLine": {
+              "description": "The bar line at the stretch's right; \"none\" for the last stretch when the system ends without one.",
+              "enum": [
+                "single",
+                "double",
+                "final",
+                "startRepeat",
+                "endRepeat",
+                "bothRepeats",
+                "dashed",
+                "none"
+              ],
+              "type": "string"
+            },
+            "stretch": {
+              "description": "Its number, from 1.",
+              "type": "integer"
+            },
+            "voices": {
+              "description": "The music, one entry per voice. Every staff has a voice in every stretch that is part of a measure; all voices of a stretch last the same time.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "description": {
+                    "description": "For a voice new in the piece, where it first appears: a short description (\"melody\", \"inner alto line\", \"left-hand bass\"), never \"\". \"\" for a voice from the list.",
+                    "type": "string"
+                  },
+                  "music": {
+                    "description": "The voice's music in the stretch: one string, as in \"The music of a voice\".",
+                    "type": "string"
+                  },
+                  "staff": {
+                    "description": "The staff the voice starts on in the stretch.",
+                    "type": "integer"
+                  },
+                  "voice": {
+                    "description": "The voice's id in the piece: from the list where it continues, a new number otherwise.",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "voice",
+                  "staff",
+                  "description",
+                  "music"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "stretch",
+            "class",
+            "printedNumber",
+            "measureNumber",
+            "changes",
+            "ending",
+            "endingLabel",
+            "voices",
+            "rightBarLine"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "startRepeat",
+      "staves",
+      "groups",
+      "stretches",
+      "lastMeasureContinues",
+      "issues"
+    ],
+    "type": "object"
+  },
+  "maxOutputTokens": 32000,
+  "messages": [
+    {
+      "content": [
+        {
+          "text": "System 4:",
+          "type": "text"
+        },
+        {
+          "mediaType": "image/png",
+          "recipeKey": "d9fdb2afd875c02f91b3b0e5dd2f98224add0c3462b09dec5df5fbea0afc4b05",
+          "type": "image"
+        },
+        {
+          "text": "System 4, stretch 1:",
+          "type": "text"
+        },
+        {
+          "mediaType": "image/png",
+          "recipeKey": "9bfca07b29536f630cc03767dbd4b58a9eb112d054f7dd60c878fafcbb712da9",
+          "type": "image"
+        },
+        {
+          "text": "System 4, stretch 2:",
+          "type": "text"
+        },
+        {
+          "mediaType": "image/png",
+          "recipeKey": "3e858297081030d8444a9cdf5b0b70976aa55f12549d33191770fd3d97fdf85d",
+          "type": "image"
+        },
+        {
+          "text": "System 4, stretch 3:",
+          "type": "text"
+        },
+        {
+          "mediaType": "image/png",
+          "recipeKey": "08706c1e5893c5c6cf077730c95a3e06125384f0d1ce204c72a325106e771fe2",
+          "type": "image"
+        },
+        {
+          "text": "System 4, stretch 4:",
+          "type": "text"
+        },
+        {
+          "mediaType": "image/png",
+          "recipeKey": "cc50bfd70ea3252b050237c76f9ad99fedf3affb5e25df85e76c3f670c18c5d3",
+          "type": "image"
+        },
+        {
+          "text": "Previous system (3):",
+          "type": "text"
+        },
+        {
+          "mediaType": "image/png",
+          "recipeKey": "a8460eff557e40315d98f9da8c6f5a9beb18f69d97c77e918dc08c576dc73267",
+          "type": "image"
+        },
+        {
+          "text": "Next system (5):",
+          "type": "text"
+        },
+        {
+          "mediaType": "image/png",
+          "recipeKey": "07bad24e33b62b668d5c8e148f695d056c327c03c59fb593f3e5927ab752c724",
+          "type": "image"
+        },
+        {
+          "text": "Transcribe this system. The request:\n\n{\n \"system\": 4,\n \"page\": 1,\n \"stretches\": 4,\n \"firstOfPiece\": false,\n \"lastOfPiece\": false,\n \"previousMeasureContinues\": false,\n \"staves\": [\n  {\n   \"staff\": 1,\n   \"description\": \"staff 1\",\n   \"lastSeen\": 3\n  },\n  {\n   \"staff\": 2,\n   \"description\": \"staff 2\",\n   \"lastSeen\": 3\n  }\n ],\n \"voices\": [\n  {\n   \"voice\": 1,\n   \"description\": \"voice on staff 1\",\n   \"lastSeen\": 3\n  },\n  {\n   \"voice\": 2,\n   \"description\": \"voice on staff 2\",\n   \"lastSeen\": 3\n  }\n ],\n \"signatures\": [\n  {\n   \"staff\": 1,\n   \"clef\": \"treble\",\n   \"key\": \"0\",\n   \"time\": \"4/4\"\n  },\n  {\n   \"staff\": 2,\n   \"clef\": \"bass\",\n   \"key\": \"0\",\n   \"time\": \"4/4\"\n  }\n ],\n \"openMarks\": [],\n \"openEnding\": false,\n \"hints\": {\n  \"staves\": null,\n  \"onThisSystem\": [],\n  \"spans\": [],\n  \"pageNotes\": []\n },\n \"observations\": {\n  \"pages\": [\n   {\n    \"changes\": [],\n    \"directions\": [],\n    \"endings\": [],\n    \"notes\": [],\n    \"ottavas\": [],\n    \"page\": 1,\n    \"specialBarLines\": [],\n    \"systems\": []\n   }\n  ],\n  \"score\": {\n   \"form\": [],\n   \"instrumentation\": [],\n   \"notesForTranscription\": [],\n   \"recurringMaterial\": [],\n   \"style\": []\n  }\n }\n}",
+          "type": "text"
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "system": "You transcribe printed music exactly, one system at a time, so that code can build a faithful encoding of the score. You report the symbols that are printed, and code works out what they mean. Your understanding of music is how you read well: it fills gaps and decides what isn't fully clear on the page (a smudged accidental, a faint note). But where the page is clear, what is printed wins over what would be likely.\n\n## What you get\n- Images, each after a label: the system (\"System 17:\"), then each of its stretches with generous margins, so that a slur crossing a bar line shows where it ends (\"System 17, stretch 2:\"), and the previous and the next system, for context only (\"Previous system (16):\", \"Next system (18):\").\n- A request (JSON, below the images) in the same field names as your answer: the system's number and how many stretches it has; the piece's staves and voices so far; the clefs, keys and times in effect when the system begins; the marks left open by the previous system; whether the previous system's last measure continues here; and hints from an earlier look at the whole score.\n\n**Stretches:** code cut the system at its bar lines. Stretch 1 runs from the start of the system to the first bar line, stretch k from bar line k - 1 to bar line k, and the last from the last bar line to the end of the system. You fill exactly these stretches, no more, no less. A stretch is usually a measure, but not always: a measure can be split across systems, or by a repeat bar line or a double bar in its middle, and courtesy signatures at the end of a system come after the last bar line and belong to no measure.\n\n**Hints are hints, never ground truth:** the observations of the whole score and of this system (each with its confidence, or \"confirmed\" when a person checked it: then you can rely on it), the staves and voices so far, what the previous system said continues or left open. They are the current best guess, given to help. Where the page clearly says otherwise, trust your eyes, and where you contradict a hint, say so in an issue.\n\n## What is music, and what is typesetting\nTranscribe the music, never its appearance. The test: would a player read it differently? If yes, it is musical and is encoded exactly as printed: pitches, rhythms, rests, voices, which hand plays what, ties, slurs (one per chord note where there are several), articulations, dynamics and hairpins with the notes they start and end on, ottava extents, clefs, repeats, beam grouping, and stem direction where it separates voices or hands. Typesetting is ignored: spacing, the shapes of slurs and beams, the exact height of marks, fonts, the default stem direction of a single voice. Attach every dynamic, hairpin, articulation and slur to the notes it applies to; never let the layout influence what you encode (never attach a crescendo to a pedal line because it would print lower); never simplify to suit the format.\n\n## Your answer\n**A text with no value is the empty string \"\"**, never null (a description, a label, a time, a printed number, a location), and a number with no value is -1.\n\n- **startRepeat:** whether the system begins with a start-repeat bar line (not the line that joins the staves at the left edge).\n- **staves:** the system's staves, top to bottom, each with:\n  - **staff:** its number in the piece: the number of a staff from the request's list that continues here, or a new number for a staff that is new (a staff that comes back after systems without it takes its old number);\n  - **description:** for a new staff, a short description (\"piano right hand\", \"violin I\", \"orchestra reduction\"); \"\" for a staff from the list;\n  - **label:** the instrument name printed at its left, as printed, or \"\";\n  - **clef**, **key** and **time** as printed at the system's start: the clef (LilyPond's names), the key signature as the number of sharps or flats (\"0\", \"1s\" … \"7s\", \"1f\" … \"7f\"; no mode), and the time signature as printed (\"3/4\", \"6/8\", \"C\", \"C|\", \"3+2/8\"), or \"\" when none is printed there. Clefs and key signatures are printed on every system: report them as you see them, never \"as before\". The first system of a piece has a time signature on every staff.\n- **groups:** the braces and brackets that join staves, as printed: the staves' numbers, the symbol (\"brace\", \"bracket\", \"bracketsq\", \"line\") and its label (e.g. \"Piano I\") or \"\".\n- **stretches:** one per stretch, in order, each with:\n  - **stretch:** its number;\n  - **class:** whether the stretch starts a measure, and of which kind:\n    - \"new-normal\", \"new-incomplete\", \"new-unmeasured\": it starts a measure, which is normal, incomplete (a pickup, or the short measure that completes one before a repeat or at the end of a section) or unmeasured (a cadenza, a passage without bar lines);\n    - \"continues\": it is part of the same measure as the stretch before it that is part of a measure, even on the previous system;\n    - \"none\": part of no measure, e.g. courtesy signatures at the end of the system;\n  - **printedNumber:** a measure number printed at the stretch, as printed (e.g. \"12\", \"12-16\"), else \"\"; **measureNumber:** the number it gives the measure, e.g. 12, or -1;\n  - **changes:** key and time signatures printed at the stretch's start, per staff (`{ \"staff\": 1, \"key\": \"2f\", \"time\": \"3/4\" }`, \"\" for what doesn't change), an empty list where there are none. Clef changes are never here: they are `\\clef` in the strings. A courtesy signature at the end of a system goes on the \"none\" stretch that holds it;\n  - **ending:** the \"1.\" / \"2.\" bracket over the stretch: \"none\" (no ending over it), \"start\" (an ending starts here and runs on into the next stretch), \"middle\" (it runs on from the stretch before and into the next), \"end\" (it runs on from the stretch before and ends here), or \"whole\" (it starts and ends here); **endingLabel:** the ending's label as printed where it is visible over this stretch (\"1.\", \"2.\"), else \"\";\n  - **voices:** the music, one entry per voice: **voice** (its id in the piece: from the request's list where it continues, a new number otherwise; traditionally 1 the upper voice, stems up, 2 the lower), **staff** (the staff it starts on), **description** (for a new voice, where it first appears: a short description, \"melody\", \"inner alto line\", \"left-hand bass\"; else \"\") and **music** (a string, below). Every staff has a voice in every stretch that is part of a measure: where a staff has no notes, a voice with `s` or `R` of the stretch's length. All voices of a stretch last the same time. A \"none\" stretch has no notes or rests (an empty list, or voices with only a `\\clef`);\n  - **rightBarLine:** the bar line at the stretch's right: \"single\", \"double\", \"final\", \"startRepeat\", \"endRepeat\", \"bothRepeats\", \"dashed\", or \"none\" (the last stretch, when the system ends without a bar line).\n- **lastMeasureContinues:** whether the system's last measure continues on the next system.\n- **issues:** your doubts and what the format can't express (below).\n\n## The music of a voice\n\nEach voice of each stretch is one string: LilyPond with these differences. Write only what is listed here: the parser rejects anything else. Spaces are as in LilyPond (`<c' e'>4`, `c'4-.\\=1(` and `c'4 -. \\=1(` are all fine). Quoted text runs to its closing quote, spaces included; `\\\"` is a quote inside it.\n\n### Notes, rests, chords\n- **Note:** letter, octave, duration: `g'4.`. Octaves are absolute (LilyPond's absolute mode): `c'` is middle C, `c''` the C above, `c` the C below, `c,` the one below that. Name the note from its place on the staff and the current clef.\n- **Accidentals are printed symbols, never part of the name** (no `fis`, `bes`). Write each printed accidental as a token right before its note: `\\sharp`, `\\flat`, `\\natural`, `\\doublesharp`, `\\doubleflat`. Write exactly the accidentals printed, courtesy ones included (without their parentheses), and none that aren't: a G that sounds G♭ because of the key signature or an earlier accidental is written `g`. Code works out the sounding pitch.\n- **Durations:** `1 2 4 8 16 32 64 128 \\breve`, with dots. Every note and rest has its own; never leave one out.\n- **Rests:** `r4` printed, `s4` invisible (the voice has nothing there and no rest is printed). A whole-measure rest has the measure's duration (`R1` in 4/4, `R2.` in 3/4); a multi-measure rest adds the count (`R1*12`), and then every voice of the stretch is the same multi-measure rest.\n- **Chords:** `<c' \\flat e' g'>4`, the duration after `>`. Inside the brackets, after a note, only that note's own marks: its fingering and its curves (`<c'\\=1( e'\\=2(>4`).\n\n### Marks, after the note, rest or chord they belong to\n- **Curves:** every tie, slur and phrasing slur is a curve, `\\=N(` where it starts and `\\=N)` where it ends. A new curve takes any number not open at that moment in its voice; an open curve keeps its number until it ends, also across bar lines and systems (close the curves the request lists as open with their numbers). Never `~`, `(` or `\\(`. Curves are on notes and chords, never on rests.\n- **Articulations:** `-.` (staccato) `-!` (staccatissimo) `->` (accent) `-^` (marcato) `--` (tenuto) `-_` (portato) `\\fermata`\n- **Ornaments:** `\\trill` `\\mordent` `\\prall` `\\turn`; a trill line `\\startTrillSpan` … `\\stopTrillSpan`\n- **Other:** `\\arpeggio` `\\glissando` `\\laissezVibrer` (a tie to nothing, \"let ring\")\n- **Fingering:** `-1` to `-5`\n- **Dynamics:** `\\ppp` … `\\fff`, `\\sf` `\\sfz` `\\fz` `\\fp` `\\sfp` `\\rfz`; hairpins `\\<` `\\>`, ended by `\\!` or the next dynamic. A dynamic or hairpin printed between the two staves of a braced instrument (piano, harp, organ): write it in a voice of the upper staff, below it with `_` (`c'4_\\p`); it applies to both staves. Every other dynamic applies to its own staff. Dynamics in words (\"cresc.\", \"dim.\", \"p dolce\") are quoted text, as printed.\n- **Beams:** `[` after the first note, `]` after the last\n- **Tremolo on one note:** on its duration, `c'4:32`\n- **Pedal:** `\\sustainOn` `\\sustainOff` `\\unaCorda` `\\treCorde`\n- **Navigation:** a jump instruction as quoted text, exactly one of `\"D.C.\"`, `\"D.C. al Fine\"`, `\"D.C. al Coda\"`, `\"D.S.\"`, `\"D.S. al Fine\"`, `\"D.S. al Coda\"`, `\"To Coda\"`. A printed instruction not on the list: the closest one, and a format issue naming the printed text\n- **Text:** `^\"dolce\"` above, `_\"rit.\"` below, `-\"…\"` either. Placement prefixes (`-`, `^`, `_`) are allowed on every mark.\n\n### Between notes, where they are printed\n- **Pauses:** `\\breathe` (a breath mark), `\\caesura` (a full stop of the music, //): `c4 \\breathe d4`\n- **Navigation signs:** `\\segnoMark`, `\\codaMark`, `\\fine` where the sign or \"Fine\" is printed\n- **Tempo marks:** `\\tempo` as in LilyPond, where the mark is printed, with its text as printed, its metronome mark, or both: `\\tempo \"Allegro\" 4 = 132`, `\\tempo 4. = 60`, `\\tempo 4 = 120-132` (a range), `\\tempo \"Andante\"`, `\\tempo \"a tempo\"`. Words such as \"ca.\" or \"M.M.\" go in the text; the metronome mark never does (not `\\tempo \"Allegro ♩ = 132\"`). Gradual changes (\"rit.\", \"accel.\") aren't tempo marks: quoted text. An equation at a change of metre (♩ = ♩.) can't be written: quoted text, and a format issue. Where the same mark is printed above several staves (an orchestral score), write it on each of them.\n\n### Commands, before the notes they apply to\n- `\\clef` with `treble`, `bass`, `alto`, `tenor`, `soprano`, `mezzosoprano`, `baritone`, `varbaritone`, `subbass`, `french`, and octave suffixes in quotes (`\\clef \"treble_8\"`, `\"bass^8\"`, `_15`, `^15`). A clef change is always written here, also at the start of a stretch; the clefs at the system's start are in the JSON.\n- `\\ottava #1` (8va), `#-1` (8vb), `#2` (15ma), `#-2` (15mb); `\\ottava #0` ends it. Write the notes where they are printed under the line; code transposes them.\n- `\\change Staff = \"3\"`: the following notes are on staff 3 (the staff's number in the piece), until the next change.\n- `\\stemUp` `\\stemDown` `\\stemNeutral`, only where the stem direction separates voices or hands.\n- `\\tuplet 3/2 { … }` (not nested), `\\repeat tremolo 4 { c'16 e'16 }` (two alternating notes)\n- `\\grace`, `\\acciaccatura`, `\\appoggiatura`, before one note or `{ … }`\n\n**Clef, ottava, pedal, breath marks, caesuras, navigation and tempo marks belong to the staff:** write them in the voice they are printed at, in their place above; they apply to every voice on that staff (a caesura and navigation to every staff).\n\n**Brackets close in the stretch where they open:** beams `[ ]`, tuplets, grace groups and tremolos `{ }`. If a beam or tuplet crosses a bar line, split it there and raise a format issue. Curves, hairpins, ottavas, pedal and trill lines may continue into the next stretch, and into the next system.\n\n**If something printed can't be written with these tokens,** write your best workaround and raise a format issue.\n\n## Issues\nReport every doubt as an issue, not silently: a question about what the page says at one place, with the answers you considered, each with its evidence (\"dot near the A♭: staccato or smudge?\"), and **applied**: the key of the answer your music reflects. Answers have keys: \"a\", \"b\", \"c\", …\n- **boxes:** where it is: one or more boxes, each on one of the images you were sent, named by its label (\"system\", \"stretch 3\", \"previous system\", \"next system\"), as fractions of that image (left, right, top, bottom from 0 to 1).\n- **People read them too:** the question, the location and the answers are shown to the user in the app, not only to the stages after you. Write them as plain sentences that a musician understands without the request: each starts with a capital letter. **Never refer to the transcription** (\"as transcribed\", \"the current reading\", \"what you wrote\"): a later stage may apply another answer, and the text would then be wrong. Say only what the page might show: \"A D\", not \"A D, as transcribed\".\n- **location:** what in the box is meant, when the box alone doesn't say: simple and local to the box (\"the middle note of the chord\"), never depending on your reading of the score (\"the left hand on beat 3\"). Else \"\".\n- **class:** \"reading\" when what the page says is hard to tell; \"format\" when the page is clear but the format can't express it (a mark that isn't in the list, lyrics, an ossia, a beam across a bar line). For a format issue, the answers are the workarounds (dropping the mark is one), and **lilypond** lists the LilyPond tokens that would express what is printed (e.g. [\"\\\\harmonic\"]), or is empty when no new token would (the tokens exist, but the format's rules don't allow what is printed, e.g. a beam across a bar line); for a reading issue it is always empty. Format issues cost nothing and are wanted.\n\n## How to read\n- Read first, compare afterwards: transcribe a stretch from the image before you look at any passage it seems to repeat. The differences are then things to look at again, never a reason to copy.\n- Plan ahead within the system: follow every long mark (slur, hairpin, ottava, pedal) to its end before you write it down. Slurs and ties crossing bar lines and system breaks are the commonest mistake: look at the margins of the stretch crops and at the next system.\n- A checklist per note: its accidental, dots, accents, fingering, where its slurs start and end.\n- No unprinted tuplets: if the durations don't add up, read again; if they still don't, raise an issue.\n- Telling marks from smudges is the hard part: neither keep every speck nor drop marks by default; raise an issue where you are unsure.\n- Only the main text: ignore ossias and other alternative versions of a passage (an ossia is a format issue).\n\n## Before you answer: where this format differs from LilyPond\nThe format looks like LilyPond, but differs where LilyPond's habits are strongest. Check every string you write against these before you answer: one mistake makes the whole answer unusable. (✗ wrong, ✓ right.)\n\n- **No accidentals in note names.** A printed accidental is a token before its note, and only where it is printed:\n  - an F that sounds F♯ only because of the key signature (G major): ✗ `fis'4` ✓ `f'4`\n  - an F with a sharp printed before it: ✗ `fis'4` ✓ `\\sharp f'4`\n  - the same F again later in the measure, with no sharp printed before it: ✗ `\\sharp f'4 \\sharp f'4` ✓ `\\sharp f'4 f'4`\n  - flats the same way: ✗ `bes4`, `ees'4` ✓ `\\flat b4`, `\\flat e'4`\n- **Absolute octaves, never `\\relative`:** `c'` is always middle C. ✗ `\\relative c' { c4 e4 g4 }` ✓ `c'4 e'4 g'4`\n- **Every note and rest has its own duration,** never carried over from the one before. ✗ `c'4 d' e' r` ✓ `c'4 d'4 e'4 r4`\n- In a chord, the duration goes after `>`: ✗ `<c'4 e'4>` ✓ `<c' e'>4`\n- **Ties and slurs are numbered curves,** closed with the number they opened with (curves left open by the previous system keep theirs). ✗ `c'2~ c'2`, `c'4( d'4)`, `c'4\\( d'4\\)` ✓ `c'2\\=1( c'2\\=1)`, `c'4\\=1( d'4\\=1)`\n- **One voice per string:** no simultaneous voices inside a string; each voice is its own entry in `voices`. ✗ `<< { c''4 } \\\\ { a'4 } >>`, `\\voiceOne c''4` ✓ `c''4`\n- **Only the tokens listed above.** ✗ `\\key g \\major c'4`, `\\time 3/4 c'4`, `\\bar \"||\" c'4`, `\\partial 4 c'4`, `\\times 2/3 { c'8 d'8 e'8 }`, `c'4-\\markup { dolce }`, `c'4 % comment` ✓ `\\tuplet 3/2 { c'8 d'8 e'8 }`, `c'4^\"dolce\"` Key and time signatures go in the JSON (the staves at the system's start, `changes` on a stretch), bar lines in `rightBarLine`, a pickup is a stretch of class \"new-incomplete\". A clef change is the exception: `\\clef bass` in the string.\n\n**In the JSON:** \"\" means no value, but a staff or a voice that is new in the piece (not in the lists you were given) needs its description, never \"\". Every staff has a voice in every stretch that is part of a measure (with `s` or `R` where it has no notes)."
+}

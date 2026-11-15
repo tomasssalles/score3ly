@@ -1,0 +1,108 @@
+{
+  "jsonSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "note": {
+        "description": "On the last check, if the layout still isn't right: what is wrong with it, for a person to fix. Else \"\".",
+        "type": "string"
+      },
+      "satisfied": {
+        "description": "true only when you have seen this layout drawn on the page and nothing needs changing.",
+        "type": "boolean"
+      },
+      "severelySkewed": {
+        "description": "Whether the page is so crooked that upright rectangles can't hold its systems well.",
+        "type": "boolean"
+      },
+      "systems": {
+        "description": "Every system on the page, top to bottom; an empty list for a page without music.",
+        "items": {
+          "additionalProperties": false,
+          "description": "A system: its box, tight around everything printed that belongs to it, without a margin, and its bar lines.",
+          "properties": {
+            "barLines": {
+              "description": "x of every bar line inside the system, from 0 to 1, left to right. Not the line at the system's start or at its end.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "bottom": {
+              "description": "y of the box's bottom edge, from 0 to 1: the lowest thing printed that belongs to the system.",
+              "type": "number"
+            },
+            "left": {
+              "description": "x of the box's left edge, from 0 to 1: the brace or bracket at the system's start, with the instrument names beside it.",
+              "type": "number"
+            },
+            "right": {
+              "description": "x of the box's right edge, from 0 to 1: the system's last bar line.",
+              "type": "number"
+            },
+            "top": {
+              "description": "y of the box's top edge, from 0 to 1: the highest thing printed that belongs to the system.",
+              "type": "number"
+            }
+          },
+          "required": [
+            "left",
+            "right",
+            "top",
+            "bottom",
+            "barLines"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "severelySkewed",
+      "systems",
+      "satisfied",
+      "note"
+    ],
+    "type": "object"
+  },
+  "maxOutputTokens": 16000,
+  "messages": [
+    {
+      "content": [
+        {
+          "mediaType": "image/png",
+          "recipeKey": "faeb77f21f131ad7cac4834c0952e04f2f9bbb1ef5b707606edfc87008ba87ee",
+          "type": "image"
+        },
+        {
+          "text": "Find the layout of this page. Give \"satisfied\": false: you will see your answer drawn on the page next, to check it.",
+          "type": "text"
+        }
+      ],
+      "role": "user"
+    },
+    {
+      "content": [
+        {
+          "text": "{\"severelySkewed\":false,\"systems\":[{\"left\":0.1,\"right\":0.9,\"top\":0.04,\"bottom\":0.16,\"barLines\":[0.3,0.5,0.7]},{\"left\":0.1,\"right\":0.9,\"top\":0.2,\"bottom\":0.32,\"barLines\":[0.3,0.5,0.7]},{\"left\":0.1,\"right\":0.9,\"top\":0.36,\"bottom\":0.48,\"barLines\":[0.3,0.5,0.7]},{\"left\":0.1,\"right\":0.9,\"top\":0.52,\"bottom\":0.64,\"barLines\":[0.3,0.5,0.7]},{\"left\":0.1,\"right\":0.9,\"top\":0.68,\"bottom\":0.8,\"barLines\":[0.3,0.5,0.7]},{\"left\":0.1,\"right\":0.9,\"top\":0.84,\"bottom\":0.96,\"barLines\":[0.3,0.5,0.7]}],\"satisfied\":true,\"note\":\"\"}",
+          "type": "text"
+        }
+      ],
+      "role": "assistant"
+    },
+    {
+      "content": [
+        {
+          "mediaType": "image/png",
+          "recipeKey": "afba0c13f9a97640d3303056e5affba7080359b43a5f1519cac5b5a4f51545c6",
+          "type": "image"
+        },
+        {
+          "text": "This is the page with your answer drawn on it: each system's box and its bar lines in its own colour, drawn thin, with its number in a label at the top left corner of its box. Check every box: does it hold the whole system, with everything printed around it that belongs to it, without cutting anything off, and is it tight around it, from the brace or bracket to the last bar line? Check every bar line: is it exactly on a bar line of the page inside the system, is none missing and none extra, and is none drawn at the system's start or end, where the box's edges stand for the lines? Is any system missing, or is one box holding two systems?\n\nIf anything needs changing, answer with the whole corrected layout and \"satisfied\": false: you will see it drawn again. If nothing needs changing, answer with the same layout and \"satisfied\": true.",
+          "type": "text"
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "system": "You find the layout of pages of printed music, so that code can cut each system out of the page and each system into the stretches between its bar lines. You are precise: what you give is used as is, and a box that cuts something off makes everything after it worse.\n\nAll positions are fractions of the image: x from 0 (left edge) to 1 (right edge), y from 0 (top edge) to 1 (bottom edge).\n\nA system is a group of staves played together, joined by a brace, a bracket or a line at the left, read left to right before the next system starts. For each system on the page, top to bottom:\n- Its box: left, right, top, bottom, tight around everything printed that belongs to the system. Left to right: from the brace or bracket at its start (with the instrument names beside it, if any) to its last bar line. Top to bottom: its staves, and everything above and below them that belongs to it, such as ledger lines, notes, stems and beams far above or below the staves, slurs, ties, dynamics, hairpins, fingerings, pedal marks, ottava lines, lyrics and tempo marks. Don't add a margin: code adds the room it needs when it cuts the system out. Boxes of neighbouring systems may overlap where their symbols do: it is better to include a little of the next system than to cut off part of this one. Don't include the page's title, headers, footers or page numbers unless they are part of the system's music.\n- Its bar lines: the x position of every vertical line inside the system that separates measures, left to right, including double bar lines, repeat signs (one position each, at the middle of the sign) and a bar line that splits a measure. Not the line at the very start of the system, and not the one at its very end: the box's left and right edges stand for those. Read them from the bar lines on the page, not from where measures probably are.\n\nA page without music (a cover, text, an empty page) has no systems.\n\nAlso say whether the page is severely skewed: so crooked that upright rectangles can't hold its systems well."
+}

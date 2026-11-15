@@ -1,0 +1,202 @@
+{
+  "answer": {
+    "groups": [],
+    "issues": [
+      {
+        "answers": [
+          {
+            "key": "a",
+            "text": "A staccato"
+          },
+          {
+            "key": "b",
+            "text": "A smudge"
+          }
+        ],
+        "applied": "b",
+        "boxes": [
+          {
+            "box": {
+              "bottom": 0.6,
+              "left": 0.1,
+              "right": 0.4,
+              "top": 0.2
+            },
+            "image": "stretch 1"
+          }
+        ],
+        "class": "reading",
+        "lilypond": null,
+        "location": "The first note",
+        "question": "Is the dot after the first note a staccato or a smudge? (A made-up doubt from the fake model.)"
+      }
+    ],
+    "lastMeasureContinues": false,
+    "startRepeat": false,
+    "staves": [
+      {
+        "clef": "treble",
+        "description": null,
+        "key": "0",
+        "label": null,
+        "staff": 1,
+        "time": null
+      },
+      {
+        "clef": "bass",
+        "description": null,
+        "key": "0",
+        "label": null,
+        "staff": 2,
+        "time": null
+      }
+    ],
+    "stretches": [
+      {
+        "changes": [],
+        "class": "new",
+        "ending": null,
+        "kind": "normal",
+        "measureNumber": null,
+        "printedNumber": null,
+        "rightBarLine": "single",
+        "stretch": 1,
+        "voices": [
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 1,
+            "voice": 1
+          },
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 2,
+            "voice": 2
+          }
+        ]
+      },
+      {
+        "changes": [],
+        "class": "new",
+        "ending": null,
+        "kind": "normal",
+        "measureNumber": null,
+        "printedNumber": null,
+        "rightBarLine": "single",
+        "stretch": 2,
+        "voices": [
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 1,
+            "voice": 1
+          },
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 2,
+            "voice": 2
+          }
+        ]
+      },
+      {
+        "changes": [],
+        "class": "new",
+        "ending": null,
+        "kind": "normal",
+        "measureNumber": null,
+        "printedNumber": null,
+        "rightBarLine": "single",
+        "stretch": 3,
+        "voices": [
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 1,
+            "voice": 1
+          },
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 2,
+            "voice": 2
+          }
+        ]
+      },
+      {
+        "changes": [],
+        "class": "new",
+        "ending": null,
+        "kind": "normal",
+        "measureNumber": null,
+        "printedNumber": null,
+        "rightBarLine": "single",
+        "stretch": 4,
+        "voices": [
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 1,
+            "voice": 1
+          },
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 2,
+            "voice": 2
+          }
+        ]
+      }
+    ]
+  },
+  "issues": [
+    {
+      "answers": [
+        {
+          "key": "a",
+          "text": "A staccato"
+        },
+        {
+          "key": "b",
+          "text": "A smudge"
+        }
+      ],
+      "applications": [
+        {
+          "by": "extract",
+          "key": "b"
+        }
+      ],
+      "applied": "b",
+      "boxes": [
+        {
+          "box": {
+            "bottom": 0.9156,
+            "left": 0.121,
+            "right": 0.21400000000000002,
+            "top": 0.8532
+          },
+          "page": 1
+        }
+      ],
+      "choices": [
+        {
+          "by": "extract",
+          "key": "b",
+          "reason": null
+        }
+      ],
+      "class": "reading",
+      "id": 7,
+      "lilypond": null,
+      "location": "The first note",
+      "question": "Is the dot after the first note a staccato or a smudge? (A made-up doubt from the fake model.)",
+      "resolved": false,
+      "source": "extract"
+    }
+  ],
+  "page": 1,
+  "system": 6,
+  "warnings": []
+}

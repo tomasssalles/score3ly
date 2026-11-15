@@ -1,0 +1,306 @@
+{
+  "jsonSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "metadata": {
+        "description": "What is printed about the work and the edition, one item per thing, in any order. Only what is printed.",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "category": {
+              "description": "What the item is: one of the categories of the metadata.",
+              "enum": [
+                "mainTitle",
+                "subtitle",
+                "alternativeTitle",
+                "translatedTitle",
+                "composer",
+                "arranger",
+                "editor",
+                "lyricist",
+                "librettist",
+                "translator",
+                "otherPerson",
+                "piece",
+                "catalogueNumber",
+                "dedication",
+                "instrumentation",
+                "compositionDate",
+                "publisher",
+                "editionPlace",
+                "editionDate",
+                "plateNumber",
+                "notice"
+              ],
+              "type": "string"
+            },
+            "confidence": {
+              "description": "\"high\": clearly legible or clearly right; \"medium\": a reasonable guess; \"low\": very unsure (stained, faded, cut off).",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "type": "string"
+            },
+            "system": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "For a piece: the system where it starts. Null for every other category."
+            },
+            "text": {
+              "description": "As printed, in the page's language and spelling. For a person, the name, with the printed role in parentheses where it says more.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "category",
+            "text",
+            "system",
+            "confidence"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "observations": {
+        "additionalProperties": false,
+        "description": "This page's observations, for the later transcription.",
+        "properties": {
+          "items": {
+            "description": "Everything else, one item per thing, each where it is printed, in any order. A field its kind doesn't use is null (the text \"\").",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "description": "\"high\": clearly legible or clearly right; \"medium\": a reasonable guess; \"low\": very unsure (stained, faded, cut off).",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                "end": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "at": {
+                          "description": "Where in the system: its start, one of its bar lines, a stretch, or its end.",
+                          "enum": [
+                            "start",
+                            "barLine",
+                            "stretch",
+                            "end"
+                          ],
+                          "type": "string"
+                        },
+                        "number": {
+                          "description": "The bar line's or the stretch's number, read from the labels; 0 for start and end.",
+                          "type": "integer"
+                        },
+                        "system": {
+                          "description": "The system's number, from its label.",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "system",
+                        "at",
+                        "number"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Where an ottava or ending ends. Null where it ends after this page, and for an item at one place."
+                },
+                "kind": {
+                  "description": "What the item is: one of the kinds of observations.",
+                  "enum": [
+                    "clef",
+                    "key",
+                    "time",
+                    "tempo",
+                    "otherChange",
+                    "ottava",
+                    "doubleBarLine",
+                    "finalBarLine",
+                    "startRepeat",
+                    "endRepeat",
+                    "startEndRepeat",
+                    "dashedBarLine",
+                    "ending",
+                    "direction",
+                    "note"
+                  ],
+                  "type": "string"
+                },
+                "staff": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "description": "Staff k of n in its system.",
+                      "properties": {
+                        "number": {
+                          "description": "k: the staff's position in its system, from the top.",
+                          "type": "integer"
+                        },
+                        "of": {
+                          "description": "n: the number of staves you give for that system.",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "number",
+                        "of"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "For a clef or an ottava, and a change on one staff only: its staff. Else null."
+                },
+                "start": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "at": {
+                          "description": "Where in the system: its start, one of its bar lines, a stretch, or its end.",
+                          "enum": [
+                            "start",
+                            "barLine",
+                            "stretch",
+                            "end"
+                          ],
+                          "type": "string"
+                        },
+                        "number": {
+                          "description": "The bar line's or the stretch's number, read from the labels; 0 for start and end.",
+                          "type": "integer"
+                        },
+                        "system": {
+                          "description": "The system's number, from its label.",
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "system",
+                        "at",
+                        "number"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Its place, or where it starts. Null for a note, and for an ottava or ending that starts before this page."
+                },
+                "text": {
+                  "description": "What it is, as its kind says (\"bass clef\", \"3/4\", the sign or numbers as printed, the note); \"\" where the kind uses none.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "text",
+                "staff",
+                "start",
+                "end",
+                "confidence"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "systems": {
+            "description": "Every system on the page.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "description": "\"high\": clearly legible or clearly right; \"medium\": a reasonable guess; \"low\": very unsure (stained, faded, cut off).",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                "instruments": {
+                  "description": "The probable instrument of each staff, top to bottom (\"piano right hand\", \"violin\", \"voice\").",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "staves": {
+                  "description": "Its number of staves.",
+                  "type": "integer"
+                },
+                "system": {
+                  "description": "The system's number, from its label.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "system",
+                "staves",
+                "instruments",
+                "confidence"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "systems",
+          "items"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "metadata",
+      "observations"
+    ],
+    "type": "object"
+  },
+  "maxOutputTokens": 16000,
+  "messages": [
+    {
+      "content": [
+        {
+          "mediaType": "image/png",
+          "recipeKey": "faeb77f21f131ad7cac4834c0952e04f2f9bbb1ef5b707606edfc87008ba87ee",
+          "type": "image"
+        },
+        {
+          "mediaType": "image/png",
+          "recipeKey": "8d6273065708b6bba2635d2409ff51c7e9711328b789d71166e0e50f7e21824e",
+          "type": "image"
+        },
+        {
+          "text": "This is page 1 of the PDF. Its systems are numbers 1 to 6. Analyse it.",
+          "type": "text"
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "system": "You analyse pages of printed music (sheet music, usually for piano, sometimes for other instruments or voices), so that later steps can transcribe the music exactly. You report only what is printed on the pages, never what you know about the work from elsewhere: if the composer's name, an opus number or a date isn't printed, leave it out, even for a famous piece.\n\nThe pages come with their layout drawn on them: each system in a box of its own colour, labelled at its top left corner with its number in the whole score, and the bar lines inside it drawn in the same colour, each numbered within its system (1, 2, …) in a small label just above the box. The box's left and right edges stand for the system's start and end, which have no bar line drawn and no number. You name a system by its number, and a place in a system (\"at\") as one of:\n- \"start\": the start of the system (the box's left edge), e.g. for a start repeat or a key signature at the beginning;\n- \"barLine\" with its number: one of the bar lines drawn inside the system;\n- \"end\": the end of the system (the box's right edge), e.g. for a final bar line;\n- \"stretch\" with its number: the music between two of these. Stretch 1 runs from the start to bar line 1, stretch k from bar line k - 1 to bar line k, and the last from the last bar line to the end: a system with n bar lines drawn has n + 1 stretches (one stretch when it has none).\nGive \"number\" 0 for \"start\" and \"end\". Read the numbers from the labels; don't count.\n\nA staff is named by its position in its system: staff k of n, numbered from the top, where n is the number of staves you give for that system (\"number\": 2, \"of\": 3 for the middle staff of three).\n\nMetadata: what is printed about the work and the edition, as one list of items, each with its category, its text as printed (keep the page's language and spelling), a system, and your confidence. Report each thing as you come to it, in any order. The categories:\n- titles: mainTitle, subtitle, alternativeTitle (another title of the same work), translatedTitle (the title in another language, e.g. \"Kinderscenen / Scènes d'enfants\");\n- people, by role: composer, arranger, editor, lyricist, librettist, translator, otherPerson; the text is the name. Where the printed role says more than the category does, or for otherPerson, add it after the name in parentheses, as printed (\"H. Germer (Fingersatz)\", \"J. Schmidt (Stecher)\");\n- piece: a piece or movement, its title or number as printed. The only category with a system: the one where the piece starts. Every other category has system null;\n- catalogueNumber (e.g. \"Op. 15\", \"BWV 846\", \"No. 3\"), dedication, instrumentation as printed (e.g. \"für Klavier zu vier Händen\");\n- compositionDate: when or where the work was written, as printed (e.g. \"komponiert 1838\", \"Wien, im März 1825\"); rarely printed;\n- the edition: publisher, editionPlace, editionDate (of its publication or printing, not of the composition), plateNumber (e.g. \"E. 1234 B.\"), and notice (copyright, printer, anything else).\n\nGive every item, metadata and observations alike, free texts too, your confidence in it: \"high\" when it is clearly legible or clearly right, \"medium\" when it is a reasonable guess (partly legible, an unusual spelling, a judgment you are unsure of), \"low\" when you are very unsure (stained, faded, cut off).\n\nObservations of a page, for the later transcription. They are a bird's-eye view for someone who will transcribe one system at a time: close is useful, exact is better.\n- systems: for every system on the page, its number of staves, and the probable instrument of each staff, top to bottom (e.g. \"piano right hand\", \"violin\", \"voice\");\n- items: everything else, as one list, each item as you come to it, in any order. Every item has a kind, a text, a staff, a start, an end and your confidence; a field the kind doesn't use is null (the text empty). The kinds:\n  - clef, key, time, tempo, otherChange: every clef, key signature and time signature at the start of the page's first system, and every change of them, or of tempo. Text: what it is (\"bass clef\", \"G major\", \"3/4\", \"Allegro\"); start: its place. A clef belongs to one staff: give it; for the others, give the staff only when the change is on one staff only, else null;\n  - ottava (8va, 8vb, 15ma, …): text: the sign as printed; staff: its staff; start and end: where it starts and ends;\n  - doubleBarLine, finalBarLine, startRepeat, endRepeat, startEndRepeat (start and end repeat together), dashedBarLine: special bar lines only, not the ordinary single ones. Start: its place, at the start, at a bar line or at the end of a system, never in a stretch;\n  - ending (the brackets \"1.\" and \"2.\" of a repeat, or \"1.-3.\"): text: its numbers as printed; start and end: where it starts and ends;\n  - direction, such as \"D.C. al Fine\", \"Fine\", \"D.S.\", a segno, a coda sign: text: as printed; start: its place;\n  - note: anything else that will help to transcribe the music: voices per staff, the texture, large-scale dynamics, a melody that repeats on the page, cross-staff writing, ossias, lyrics. Text only, brief, one note per thing.\nAn item at one place gives it as its start, and its end is null. Ottavas and endings can run on beyond the page: give their start as null when it is before this page, their end as null when it is after it, both null when one runs through the whole page. Report each thing once, where it is printed: don't join or link items to each other (a repeat is its bar lines and its endings).\n\nYou see one page: first the page as it is, then the same page with its layout drawn on it. Use the first to read what the drawing might hide (repeat dots beside a bar line, text under a label), and the second for the labels. The page is one of several, and you don't see the others: report what this page shows, nothing else."
+}

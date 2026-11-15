@@ -140,7 +140,9 @@ The tasks below, in the file's order.
 - [Forking a project](#forking-a-project)
 - [Timeouts for LLM calls](#timeouts-for-llm-calls)
 - [Gemini's `extract`: an early empty answer, and the new schemas](#geminis-extract-an-early-empty-answer-and-the-new-schemas)
-- [The first fixture, and replay tests](#the-first-fixture-and-replay-tests)
+- [Replay fixtures of real projects](#replay-fixtures-of-real-projects)
+- [Scenario tests with the fake model](#scenario-tests-with-the-fake-model)
+- [Check that attributed steps match the stored ones](#check-that-attributed-steps-match-the-stored-ones)
 - [Run the one-time script that fills the calls' places](#run-the-one-time-script-that-fills-the-calls-places)
 - [Show that a long call is making progress](#show-that-a-long-call-is-making-progress)
 - [The model configs' list on the settings page](#the-model-configs-list-on-the-settings-page)
@@ -816,14 +818,23 @@ Recent runs of `extract` with Gemini (the project owner, around 2026-11-13):
 
 The calls' times are data for "Timeouts for LLM calls", and the run is the measurement "Measure the Worker's CPU time per LLM request" still needs with a real, streamed model.
 
-### The first fixture, and replay tests
-`#next` `#next-release`
+### Replay fixtures of real projects
+`#next` `#next-release` `#owner`
 
-§12 and §16: a real project recorded as a fixture in `fixtures/` (its LLM call records, requests and responses, and its human operations: angles, boxes, answers to issues), and a test that runs it end to end with a replay `LlmProvider` (none exists yet): computed stages must reproduce identical output hashes, LLM and manual stages return their recordings, and every request built is compared with its snapshot. Wanted before the reviews ("Clean up the codebase"), as the safety net for their fixes.
-- **Decided** (2026-11-14, §12): answers replayed by their place, requests as snapshots ("Recordings don't go stale with the prompts"); the test in a real browser with Playwright, against `wrangler dev` and Vite, the fixture imported as a project file, the replay provider one more provider in the Worker, Run pressed once in Auto mode and the pipeline followed through the API ("Replay tests run in a real browser, not in Node").
-- **To build:** the replay provider (answers by stage, item and round; a request that has no recording fails the stage, naming it); the request snapshots and the command that rewrites them; the Playwright test. **The code doesn't wait for the project owner's exports:** it is built and tried on a fixture made with the fake model (`fixtures/exports/` keeps such exports for the import's tests). Each call records its place (built 2026-11-14); the project owner's older calls get theirs from a one-time script ("Run the one-time script that fills the calls' places").
-- **The projects** (the project owner, 2026-11-14): once the human review's new screen is built, the project owner finishes a first complete project of one page, then a second of five pages, both with the manual stages that were really needed, and exports them: they add real content (music, issues, manual fixes). An export holds what a replay needs: the current pipeline's rows, the calls' requests and responses, the manual saves, the PDF (`docs/database.md`, "Exporting and importing a project").
-- **To decide:** whether the test runs in CI ("Typecheck and test"), at the cost of minutes and Chromium there.
+The replay tests are built (2026-11-15, §12, "Replay tests run in a real browser, not in Node"), with one fixture made with the fake model (`fixtures/replay/fake.s3l`). Left:
+- **The project owner's projects** (2026-11-14): once the human review's new screen is built, a first complete project of one page, then a second of five pages, both with the manual stages that were really needed, run after "Run the one-time script that fills the calls' places" if their calls were made before migration 0004; exported, copied to `fixtures/replay/<name>.s3l`, and their snapshots made with `npm run replay -- --update`.
+- **The fake fixture's human review needs nothing applied** (its answer is the one already applied), so the `apply_review` after it makes no calls and its replay isn't really exercised; a real project's will be.
+- **To decide:** whether the replay runs in CI ("Typecheck and test"), at the cost of minutes and Chromium there.
+
+### Scenario tests with the fake model
+`#optional`
+
+What the replay can't cover (§12): replacing, adding and dropping stages in ways the fixture never had: an extra review, a manual stage dropped at its turn, a config changed in the middle. With the fake model, in the same Playwright setup as the replay (`scripts/appServers.ts`), scripting stories of `docs/manual-tests.md` and checking the pipeline's state after each step; some stories could move from the hand to these.
+
+### Check that attributed steps match the stored ones
+`#optional`
+
+The project owner's idea (2026-11-15): the attribution of who chose (`apps/web/src/attribution.ts`) gives each entry of an issue's `choices` and `applications` to a stage; that stage's step must be the entry's stored `by` (Extract's entries aside). A mismatch can only be a bug (the walk giving entries to the wrong stage, a stage storing another step's name). `Who` would carry the step; in the app a `console.error`, keeping the label; in the tests an assertion, so the attribution tests and the replay catch it.
 
 ### Run the one-time script that fills the calls' places
 `#next` `#owner`

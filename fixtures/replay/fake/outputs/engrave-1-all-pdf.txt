@@ -1,0 +1,12 @@
+{
+  "recipeKey": "83c313769391b04cbf56dad757cf45c3f93855416bd9f333ba128ed8b5535b3e",
+  "recipe": {
+    "mei": "0c7d0d14048ebc694e569139572c69ca6e2de14b69b8d37b08a015850eabf4b6",
+    "config": {
+      "pageSize": "a4"
+    },
+    "verovio": "6.3.0",
+    "rendering": 2,
+    "pdf": 1
+  }
+}

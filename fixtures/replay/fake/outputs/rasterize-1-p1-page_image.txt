@@ -1,0 +1,11 @@
+{
+  "recipeKey": "d6f896b43d6286c641bacaff306e17dc278a172ae5a50e9e8dfdae62ca8dc51f",
+  "recipe": {
+    "step": "rasterize",
+    "version": 1,
+    "pdf": "b9c26a8f8d3f294f75f370bc0f91aac078da5e16e6ffc3507d1767eb1383fdf9",
+    "page": 1,
+    "dpi": 300,
+    "pdfjs": "6.4.299"
+  }
+}

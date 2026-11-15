@@ -1,0 +1,45 @@
+{
+  "entries": [
+    {
+      "newIssue": {
+        "answers": [
+          {
+            "key": "a",
+            "text": "A D"
+          },
+          {
+            "key": "b",
+            "text": "An E"
+          }
+        ],
+        "applied": "a",
+        "boxes": [
+          {
+            "box": {
+              "bottom": 0.13119999999999998,
+              "left": 0.28,
+              "right": 0.43999999999999995,
+              "top": 0.0688
+            },
+            "page": 1
+          }
+        ],
+        "choices": [
+          {
+            "by": "review",
+            "key": "b",
+            "reason": "Its head sits on the space above the line, as the E in the next measure does."
+          }
+        ],
+        "class": "reading",
+        "id": 8,
+        "lilypond": null,
+        "location": "The second note of the upper staff",
+        "question": "Is this note a D or an E? (A made-up correction from the fake model.)",
+        "resolved": false,
+        "source": "review"
+      }
+    }
+  ],
+  "system": 1
+}

@@ -1,0 +1,30 @@
+{
+  "applied": [
+    8
+  ],
+  "changed": [
+    {
+      "stretch": 1,
+      "system": 1
+    }
+  ],
+  "choices": [],
+  "stretches": [],
+  "system": 1,
+  "systems": [],
+  "voices": [
+    {
+      "description": "voice on staff 1",
+      "music": "c''1",
+      "reason": null,
+      "staff": 1,
+      "stretch": 1,
+      "system": 1,
+      "voice": 1
+    }
+  ],
+  "warnings": [],
+  "window": [
+    1
+  ]
+}

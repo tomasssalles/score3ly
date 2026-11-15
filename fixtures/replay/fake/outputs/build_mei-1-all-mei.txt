@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1">
+  <meiHead>
+    <fileDesc>
+      <titleStmt>
+        <title>Untitled</title>
+      </titleStmt>
+      <pubStmt/>
+    </fileDesc>
+    <encodingDesc>
+      <appInfo>
+        <application version="0.1.0">
+          <name>score3ly</name>
+          <ptr target="https://github.com/tomasssalles/score3ly"/>
+        </application>
+      </appInfo>
+    </encodingDesc>
+    <workList>
+      <work xml:id="work">
+        <title>Untitled</title>
+      </work>
+    </workList>
+    <manifestationList>
+      <manifestation>
+        <titleStmt>
+          <title>Untitled</title>
+        </titleStmt>
+      </manifestation>
+    </manifestationList>
+  </meiHead>
+  <music>
+    <facsimile>
+      <surface xml:id="surface-1" n="1" ulx="0" uly="0" lrx="10000" lry="10000">
+        <zone xml:id="z1t1-1" ulx="1000" uly="400" lrx="3000" lry="1600"/>
+        <zone xml:id="z1t2-2" ulx="3000" uly="400" lrx="5000" lry="1600"/>
+        <zone xml:id="z1t3-3" ulx="5000" uly="400" lrx="7000" lry="1600"/>
+        <zone xml:id="z1t4-4" ulx="7000" uly="400" lrx="9000" lry="1600"/>
+        <zone xml:id="z2t1-1" ulx="1000" uly="2000" lrx="3000" lry="3200"/>
+        <zone xml:id="z2t2-2" ulx="3000" uly="2000" lrx="5000" lry="3200"/>
+        <zone xml:id="z2t3-3" ulx="5000" uly="2000" lrx="7000" lry="3200"/>
+        <zone xml:id="z2t4-4" ulx="7000" uly="2000" lrx="9000" lry="3200"/>
+        <zone xml:id="z3t1-1" ulx="1000" uly="3600" lrx="3000" lry="4800"/>
+        <zone xml:id="z3t2-2" ulx="3000" uly="3600" lrx="5000" lry="4800"/>
+        <zone xml:id="z3t3-3" ulx="5000" uly="3600" lrx="7000" lry="4800"/>
+        <zone xml:id="z3t4-4" ulx="7000" uly="3600" lrx="9000" lry="4800"/>
+        <zone xml:id="z4t1-1" ulx="1000" uly="5200" lrx="3000" lry="6400"/>
+        <zone xml:id="z4t2-2" ulx="3000" uly="5200" lrx="5000" lry="6400"/>
+        <zone xml:id="z4t3-3" ulx="5000" uly="5200" lrx="7000" lry="6400"/>
+        <zone xml:id="z4t4-4" ulx="7000" uly="5200" lrx="9000" lry="6400"/>
+        <zone xml:id="z5t1-1" ulx="1000" uly="6800" lrx="3000" lry="8000"/>
+        <zone xml:id="z5t2-2" ulx="3000" uly="6800" lrx="5000" lry="8000"/>
+        <zone xml:id="z5t3-3" ulx="5000" uly="6800" lrx="7000" lry="8000"/>
+        <zone xml:id="z5t4-4" ulx="7000" uly="6800" lrx="9000" lry="8000"/>
+        <zone xml:id="z6t1-1" ulx="1000" uly="8400" lrx="3000" lry="9600"/>
+        <zone xml:id="z6t2-2" ulx="3000" uly="8400" lrx="5000" lry="9600"/>
+        <zone xml:id="z6t3-3" ulx="5000" uly="8400" lrx="7000" lry="9600"/>
+        <zone xml:id="z6t4-4" ulx="7000" uly="8400" lrx="9000" lry="9600"/>
+      </surface>
+    </facsimile>
+    <body>
+      <mdiv xml:id="piece-1" n="1">
+        <score>
+          <scoreDef>
+            <staffGrp>
+              <staffDef xml:id="p1staff1" n="1" lines="5" clef.shape="G" clef.line="2" keysig="0" meter.count="4" meter.unit="4"/>
+              <staffDef xml:id="p1staff2" n="2" lines="5" clef.shape="F" clef.line="4" keysig="0" meter.count="4" meter.unit="4"/>
+            </staffGrp>
+          </scoreDef>
+          <section>
+            <measure xml:id="p1m1" n="1" facs="#z1t1-1">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <note xml:id="s1t1v1e0" dur="1" pname="c" oct="5"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s1t1v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m2" n="2" facs="#z1t2-2">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s1t2v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s1t2v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m3" n="3" facs="#z1t3-3">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s1t3v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s1t3v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m4" n="4" facs="#z1t4-4">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s1t4v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s1t4v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <sb/>
+            <measure xml:id="p1m5" n="5" facs="#z2t1-1">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s2t1v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s2t1v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m6" n="6" facs="#z2t2-2">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s2t2v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s2t2v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m7" n="7" facs="#z2t3-3">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s2t3v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s2t3v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m8" n="8" facs="#z2t4-4">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s2t4v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s2t4v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <sb/>
+            <measure xml:id="p1m9" n="9" facs="#z3t1-1">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s3t1v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s3t1v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m10" n="10" facs="#z3t2-2">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s3t2v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s3t2v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m11" n="11" facs="#z3t3-3">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s3t3v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s3t3v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m12" n="12" facs="#z3t4-4">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s3t4v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s3t4v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <sb/>
+            <measure xml:id="p1m13" n="13" facs="#z4t1-1">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s4t1v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s4t1v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m14" n="14" facs="#z4t2-2">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s4t2v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s4t2v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m15" n="15" facs="#z4t3-3">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s4t3v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s4t3v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m16" n="16" facs="#z4t4-4">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s4t4v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s4t4v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <sb/>
+            <measure xml:id="p1m17" n="17" facs="#z5t1-1">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s5t1v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s5t1v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m18" n="18" facs="#z5t2-2">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s5t2v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s5t2v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m19" n="19" facs="#z5t3-3">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s5t3v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s5t3v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m20" n="20" facs="#z5t4-4">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s5t4v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s5t4v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <sb/>
+            <measure xml:id="p1m21" n="21" facs="#z6t1-1">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s6t1v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s6t1v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m22" n="22" facs="#z6t2-2">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s6t2v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s6t2v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m23" n="23" facs="#z6t3-3">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s6t3v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s6t3v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+            <measure xml:id="p1m24" n="24" facs="#z6t4-4">
+              <staff n="1">
+                <layer n="1" label="voice on staff 1">
+                  <mRest xml:id="s6t4v1e0"/>
+                </layer>
+              </staff>
+              <staff n="2">
+                <layer n="1" label="voice on staff 2">
+                  <mRest xml:id="s6t4v2e0"/>
+                </layer>
+              </staff>
+            </measure>
+          </section>
+        </score>
+      </mdiv>
+    </body>
+  </music>
+</mei>

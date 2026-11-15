@@ -1,0 +1,21 @@
+{
+  "pages": [
+    {
+      "changes": [],
+      "directions": [],
+      "endings": [],
+      "notes": [],
+      "ottavas": [],
+      "page": 1,
+      "specialBarLines": [],
+      "systems": []
+    }
+  ],
+  "score": {
+    "form": [],
+    "instrumentation": [],
+    "notesForTranscription": [],
+    "recurringMaterial": [],
+    "style": []
+  }
+}

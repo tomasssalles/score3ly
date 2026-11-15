@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "choice": {
+        "issue": 3,
+        "key": "a",
+        "newAnswer": null,
+        "reason": null
+      }
+    }
+  ],
+  "system": 2
+}

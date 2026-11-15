@@ -1,0 +1,19 @@
+{
+  "applied": [],
+  "changed": [],
+  "choices": [
+    {
+      "issue": 3,
+      "key": "b",
+      "reason": "The fake model can't apply this answer (a made-up reason)."
+    }
+  ],
+  "stretches": [],
+  "system": 2,
+  "systems": [],
+  "voices": [],
+  "warnings": [],
+  "window": [
+    2
+  ]
+}

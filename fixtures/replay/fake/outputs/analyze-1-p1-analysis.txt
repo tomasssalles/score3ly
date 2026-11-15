@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "catalogueNumbers": [],
+    "compositionDates": [],
+    "dates": [],
+    "dedications": [],
+    "instrumentation": [],
+    "notices": [],
+    "people": [],
+    "pieces": [],
+    "places": [],
+    "plateNumbers": [],
+    "publishers": [],
+    "titles": []
+  },
+  "observations": {
+    "changes": [],
+    "directions": [],
+    "endings": [],
+    "notes": [],
+    "ottavas": [],
+    "specialBarLines": [],
+    "systems": []
+  },
+  "page": 1,
+  "systems": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ]
+}

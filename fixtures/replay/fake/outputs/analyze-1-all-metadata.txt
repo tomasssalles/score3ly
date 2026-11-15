@@ -1,0 +1,14 @@
+{
+  "catalogueNumbers": [],
+  "compositionDates": [],
+  "dates": [],
+  "dedications": [],
+  "instrumentation": [],
+  "notices": [],
+  "people": [],
+  "pieces": [],
+  "places": [],
+  "plateNumbers": [],
+  "publishers": [],
+  "titles": []
+}

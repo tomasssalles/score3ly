@@ -1,0 +1,339 @@
+{
+  "answer": {
+    "groups": [],
+    "issues": [
+      {
+        "answers": [
+          {
+            "key": "a",
+            "text": "A staccato"
+          },
+          {
+            "key": "b",
+            "text": "A smudge"
+          }
+        ],
+        "applied": "b",
+        "boxes": [
+          {
+            "box": {
+              "bottom": 0.6,
+              "left": 0.1,
+              "right": 0.4,
+              "top": 0.2
+            },
+            "image": "stretch 1"
+          }
+        ],
+        "class": "reading",
+        "lilypond": null,
+        "location": "The first note",
+        "question": "Is the dot after the first note a staccato or a smudge? (A made-up doubt from the fake model.)"
+      },
+      {
+        "answers": [
+          {
+            "key": "a",
+            "text": "Left out"
+          },
+          {
+            "key": "b",
+            "text": "Written as a plain note"
+          }
+        ],
+        "applied": "a",
+        "boxes": [
+          {
+            "box": {
+              "bottom": 0.6,
+              "left": 0.1,
+              "right": 0.4,
+              "top": 0.2
+            },
+            "image": "system"
+          }
+        ],
+        "class": "format",
+        "lilypond": [
+          "\\harmonic"
+        ],
+        "location": null,
+        "question": "A harmonic is printed here, which the format can't write. (A made-up format issue from the fake model.)"
+      }
+    ],
+    "lastMeasureContinues": false,
+    "startRepeat": false,
+    "staves": [
+      {
+        "clef": "treble",
+        "description": "staff 1",
+        "key": "0",
+        "label": null,
+        "staff": 1,
+        "time": "4/4"
+      },
+      {
+        "clef": "bass",
+        "description": "staff 2",
+        "key": "0",
+        "label": null,
+        "staff": 2,
+        "time": "4/4"
+      }
+    ],
+    "stretches": [
+      {
+        "changes": [],
+        "class": "new",
+        "ending": null,
+        "kind": "normal",
+        "measureNumber": null,
+        "printedNumber": null,
+        "rightBarLine": "single",
+        "stretch": 1,
+        "voices": [
+          {
+            "description": "voice on staff 1",
+            "music": "c''1",
+            "staff": 1,
+            "voice": 1
+          },
+          {
+            "description": "voice on staff 2",
+            "music": "R1",
+            "staff": 2,
+            "voice": 2
+          }
+        ]
+      },
+      {
+        "changes": [],
+        "class": "new",
+        "ending": null,
+        "kind": "normal",
+        "measureNumber": null,
+        "printedNumber": null,
+        "rightBarLine": "single",
+        "stretch": 2,
+        "voices": [
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 1,
+            "voice": 1
+          },
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 2,
+            "voice": 2
+          }
+        ]
+      },
+      {
+        "changes": [],
+        "class": "new",
+        "ending": null,
+        "kind": "normal",
+        "measureNumber": null,
+        "printedNumber": null,
+        "rightBarLine": "single",
+        "stretch": 3,
+        "voices": [
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 1,
+            "voice": 1
+          },
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 2,
+            "voice": 2
+          }
+        ]
+      },
+      {
+        "changes": [],
+        "class": "new",
+        "ending": null,
+        "kind": "normal",
+        "measureNumber": null,
+        "printedNumber": null,
+        "rightBarLine": "single",
+        "stretch": 4,
+        "voices": [
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 1,
+            "voice": 1
+          },
+          {
+            "description": null,
+            "music": "R1",
+            "staff": 2,
+            "voice": 2
+          }
+        ]
+      }
+    ]
+  },
+  "issues": [
+    {
+      "answers": [
+        {
+          "key": "a",
+          "text": "A staccato"
+        },
+        {
+          "key": "b",
+          "text": "A smudge"
+        }
+      ],
+      "applications": [
+        {
+          "by": "extract",
+          "key": "b"
+        }
+      ],
+      "applied": "b",
+      "boxes": [
+        {
+          "box": {
+            "bottom": 0.11560000000000001,
+            "left": 0.121,
+            "right": 0.21400000000000002,
+            "top": 0.0532
+          },
+          "page": 1
+        }
+      ],
+      "choices": [
+        {
+          "by": "extract",
+          "key": "b",
+          "reason": null
+        },
+        {
+          "by": "review",
+          "kept": true,
+          "key": "b",
+          "reason": null
+        },
+        {
+          "by": "human_review",
+          "key": "b",
+          "reason": null
+        }
+      ],
+      "class": "reading",
+      "id": 1,
+      "lilypond": null,
+      "location": "The first note",
+      "question": "Is the dot after the first note a staccato or a smudge? (A made-up doubt from the fake model.)",
+      "resolved": true,
+      "source": "extract"
+    },
+    {
+      "answers": [
+        {
+          "key": "a",
+          "text": "Left out"
+        },
+        {
+          "key": "b",
+          "text": "Written as a plain note"
+        }
+      ],
+      "applications": [
+        {
+          "by": "extract",
+          "key": "a"
+        }
+      ],
+      "applied": "a",
+      "boxes": [
+        {
+          "box": {
+            "bottom": 0.11560000000000001,
+            "left": 0.17200000000000001,
+            "right": 0.41800000000000004,
+            "top": 0.0532
+          },
+          "page": 1
+        }
+      ],
+      "choices": [
+        {
+          "by": "extract",
+          "key": "a",
+          "reason": null
+        },
+        {
+          "by": "review",
+          "kept": true,
+          "key": "a",
+          "reason": null
+        }
+      ],
+      "class": "format",
+      "id": 2,
+      "lilypond": [
+        "\\harmonic"
+      ],
+      "location": null,
+      "question": "A harmonic is printed here, which the format can't write. (A made-up format issue from the fake model.)",
+      "resolved": false,
+      "source": "extract"
+    },
+    {
+      "answers": [
+        {
+          "key": "a",
+          "text": "A D"
+        },
+        {
+          "key": "b",
+          "text": "An E"
+        }
+      ],
+      "applications": [
+        {
+          "by": "apply_review",
+          "key": "b"
+        }
+      ],
+      "applied": "b",
+      "boxes": [
+        {
+          "box": {
+            "bottom": 0.13119999999999998,
+            "left": 0.28,
+            "right": 0.43999999999999995,
+            "top": 0.0688
+          },
+          "page": 1
+        }
+      ],
+      "choices": [
+        {
+          "by": "review",
+          "key": "b",
+          "reason": "Its head sits on the space above the line, as the E in the next measure does."
+        }
+      ],
+      "class": "reading",
+      "id": 8,
+      "lilypond": null,
+      "location": "The second note of the upper staff",
+      "question": "Is this note a D or an E? (A made-up correction from the fake model.)",
+      "resolved": false,
+      "source": "review"
+    }
+  ],
+  "page": 1,
+  "system": 1,
+  "warnings": []
+}
