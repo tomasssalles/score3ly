@@ -421,7 +421,7 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
                 {drawing && (
                   <DrawLayer
                     crop={s.crop}
-                    boxes={selectedOwn.boxes.flatMap((b, k) => (b.page === extraction.page ? [{ k, box: b.box }] : []))}
+                    boxes={selectedOwn.boxes.flatMap((b, k) => (b.page === extraction.page && overlaps(b.box, s.crop) ? [{ k, box: b.box }] : []))}
                     onAdd={(box) => {
                       const issue = ownById(selectedOwn.id)!;
                       change((current) => putOwnIssue(current, ownIssue(issue.id, [...issue.boxes, { page: extraction.page, box }], textOf(issue))));
@@ -501,6 +501,9 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
     </div>
   );
 }
+
+// Whether two boxes on a page overlap (a clarification's box and a crop: its handles only on the crops it falls on).
+const overlaps = (a: Box, b: Box) => Math.min(a.right, b.right) > Math.max(a.left, b.left) && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
 
 // Starts work for an element once it scrolls near the view: a filmstrip of 50 systems would otherwise cut and render
 // every one at once.
