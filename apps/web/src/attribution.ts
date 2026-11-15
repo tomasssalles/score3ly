@@ -1,0 +1,119 @@
+// Who chose and who applied each answer of an issue, as the app names them now ("Review 2", "Human review 1";
+// docs/stages/music.md, "Who chose"). What is stored says only the step (`by`: "extract", "review", "apply_review",
+// "human_review"), never a stage's id or turn: a stage that gives the same answers again then stores the same content,
+// so its output is found in the cache and what comes after it is kept (§5.2), whatever its turn is now. The turns come
+// from the pipeline as it is now: an entry of an issue's `choices` or `applications` belongs to the first stage, in the
+// pipeline's order, after which the issue has it. Choices and applications are only ever appended, so walking the
+// stages that choose or apply, in order, and giving each the entries it added, names every entry.
+//
+// The walk reads the stages' stored outputs; what it found is kept on the device, by a key of the chain of stages up
+// to there (as images are, by their recipes): a stage dropped or added before changes the key, so a stale one is never
+// used.
+
+import { keyOf } from "@score3ly/core";
+import type { StoredExtraction, StoredIssue, StoredScoreChecks } from "./extract.ts";
+import { reviewedIssues, type StoredReview } from "./review.ts";
+import { humanReviewedIssues, type StoredHumanReview } from "./humanReview.ts";
+
+// A stage as an issue's card names it; `person`: a human review.
+export type Who = { label: string; person: boolean };
+
+// Who added each entry of an issue's `choices` and `applications`, by index.
+export type IssueWho = { choices: Who[]; applications: Who[] };
+export type Attribution = Record<number, IssueWho>;
+
+export const EXTRACT: Who = { label: "Extract", person: false };
+
+// The stages that choose or apply, in the pipeline's order, with what they stored: the transcriptions (`extract`'s,
+// `apply_review`'s: every system's extraction and the checks of the whole score), a review's calls (its agreements
+// only once it is done), a human review's entries.
+export type ChainStage = { who: Who } & (
+  | { step: "extract" | "apply_review"; systems: string[]; checks: string | null }
+  | { step: "review"; calls: string[]; done: boolean }
+  | { step: "human_review"; sha256: string | null }
+);
+
+const ATTRIBUTION_VERSION = 1;
+
+const TITLES: Record<string, string> = { review: "Review", apply_review: "Apply review", human_review: "Human review" };
+
+// The stage's label: its title, numbered among the pipeline's stages of its step before it ("Review 2").
+export function whoOf(step: string, turn: number): Who {
+  return step === "extract" ? EXTRACT : { label: `${TITLES[step] ?? step} ${turn}`, person: step === "human_review" };
+}
+
+// Gives `who` the entries the issues have beyond those already named.
+export function extend(attribution: Attribution, issues: Iterable<StoredIssue>, who: Who): Attribution {
+  const out = { ...attribution };
+  for (const issue of issues) {
+    const before = attribution[issue.id] ?? { choices: [], applications: [] };
+    const named = (entries: { by: string }[], known: Who[]) => [...known, ...entries.slice(known.length).map((e) => (e.by === "extract" ? EXTRACT : who))];
+    out[issue.id] = { choices: named(issue.choices, before.choices), applications: named(issue.applications ?? [], before.applications) };
+  }
+  return out;
+}
+
+export type Sources = {
+  json: (sha256: string) => Promise<unknown>; // stored content
+  cached?: (key: string) => Promise<Attribution | null>; // the device's cache
+  cache?: (key: string, attribution: Attribution) => Promise<void>;
+};
+
+// The issues after a stage, from those after the stage before it.
+async function issuesAfter(stage: ChainStage, before: Map<number, StoredIssue>, sources: Sources): Promise<Map<number, StoredIssue>> {
+  switch (stage.step) {
+    case "extract":
+    case "apply_review": {
+      const systems = await Promise.all(stage.systems.map(async (s) => (await sources.json(s)) as StoredExtraction));
+      const checks = stage.checks ? ((await sources.json(stage.checks)) as StoredScoreChecks) : null;
+      return new Map([...systems.flatMap((s) => s.issues), ...(checks?.issues ?? [])].map((i) => [i.id, i]));
+    }
+    case "review": {
+      const calls = await Promise.all(stage.calls.map(async (c) => (await sources.json(c)) as StoredReview));
+      return reviewedIssues([...before.values()], calls, stage.done);
+    }
+    case "human_review":
+      return stage.sha256 ? humanReviewedIssues(before, (await sources.json(stage.sha256)) as StoredHumanReview) : before;
+  }
+}
+
+// The chain's attribution, and the issues after its last stage. Each prefix's attribution is looked up in the cache
+// first; where the walk starts again from a cached one, the issues it needs are made again from the latest
+// transcription before it.
+export async function attributionOf(chain: ChainStage[], sources: Sources): Promise<{ attribution: Attribution; issues: Map<number, StoredIssue> }> {
+  const keys: string[] = [];
+  for (const stage of chain) keys.push(await keyOf({ v: ATTRIBUTION_VERSION, before: keys.at(-1) ?? null, stage }));
+  let from = 0;
+  let attribution: Attribution = {};
+  for (let i = chain.length - 1; i >= 0 && sources.cached; i--) {
+    const found = await sources.cached(keys[i]);
+    if (found) {
+      attribution = found;
+      from = i + 1;
+      break;
+    }
+  }
+  // The issues where the walk starts: from the latest transcription at or before it, without naming anything again.
+  let issues = new Map<number, StoredIssue>();
+  if (from > 0) {
+    let start = from - 1;
+    while (start > 0 && chain[start].step !== "extract" && chain[start].step !== "apply_review") start--;
+    for (let i = start; i < from; i++) issues = await issuesAfter(chain[i], issues, sources);
+  }
+  for (let i = from; i < chain.length; i++) {
+    issues = await issuesAfter(chain[i], issues, sources);
+    attribution = extend(attribution, issues.values(), chain[i].who);
+    await sources.cache?.(keys[i], attribution);
+  }
+  return { attribution, issues };
+}
+
+// The label of an issue's latest choice, or of its latest application; null where none is named (an entry added after
+// the attribution was made, of a stage still running).
+export function whoChose(attribution: Attribution, issue: StoredIssue, index: number): Who | null {
+  return attribution[issue.id]?.choices[index] ?? null;
+}
+
+export function whoApplied(attribution: Attribution, issue: StoredIssue, index: number): Who | null {
+  return attribution[issue.id]?.applications[index] ?? null;
+}

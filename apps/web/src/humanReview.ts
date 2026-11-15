@@ -19,8 +19,8 @@ export type StoredHumanReview = { entries: ReviewEntry[] };
 
 // The issues after a human review: its entries applied, and every issue it chose on or raised resolved (a person
 // decided it, docs/notation.md, "Issues").
-export function humanReviewedIssues(issues: Map<number, StoredIssue>, stored: StoredHumanReview, stageId: string): Map<number, StoredIssue> {
-  const out = applyEntries(issues, { system: 0, entries: stored.entries }, stageId);
+export function humanReviewedIssues(issues: Map<number, StoredIssue>, stored: StoredHumanReview): Map<number, StoredIssue> {
+  const out = applyEntries(issues, { system: 0, entries: stored.entries }, "human_review");
   for (const e of stored.entries) {
     const issue = out.get("choice" in e ? e.choice.issue : e.newIssue.id);
     if (issue) out.set(issue.id, { ...issue, resolved: true });
@@ -97,7 +97,7 @@ export function scoreOrder<T extends { boxes: { page: number; box: Box }[] }>(it
 // score has there as its one answer,
 // chosen by the human review, resolved; nothing is known of what the transcription has (`applied` null), and the
 // question may be missing. Without its text yet, it has no answer: it can't be finished like that (`ownIssueProblems`).
-export function ownIssue(stageId: string, id: number, boxes: { page: number; box: Box }[], text: string): StoredIssue {
+export function ownIssue(id: number, boxes: { page: number; box: Box }[], text: string): StoredIssue {
   const written = text.trim();
   return {
     id,
@@ -107,7 +107,7 @@ export function ownIssue(stageId: string, id: number, boxes: { page: number; box
     location: null,
     question: "",
     answers: written ? [{ key: "a", text: written }] : [],
-    choices: written ? [{ by: stageId, key: "a", reason: null }] : [],
+    choices: written ? [{ by: "human_review", key: "a", reason: null }] : [],
     applied: null,
     resolved: true,
     lilypond: null,

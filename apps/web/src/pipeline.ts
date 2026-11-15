@@ -1,6 +1,7 @@
 // The project's pipeline as the UI shows it (docs/project-view.md): its stages, first to last, each with its artifacts.
 // Built from what the Worker stores (api.ts) and what the code declares about each step (steps.ts).
 
+import type { ChainStage, Who } from "./attribution";
 import type { CallProgress } from "./callProgress";
 import type { ApiPipeline, ApiStage, RunMode } from "./api";
 import type { EngraveConfig } from "./engrave.ts";
@@ -39,12 +40,14 @@ export type Artifact = {
   analysis?: { view: "metadata" | "observations"; sha256: string; parents?: { metadata?: string; pieces?: string; observations?: string } };
   // `extract`'s Transcription: its systems (their stored extractions, by item: page and index on it), the checks of the
   // whole score, and where the pieces start (for the renderings); `pages` has their pages with their layouts.
-  // `choosers`: the stages that may have chosen answers of its issues, by id, as the view names them ("Review 2").
+  // `chain`: the stages before it that chose or applied answers of its issues, and `who`, this stage, as the view names
+  // them ("Review 2"; attribution.ts).
   extraction?: {
     systems: { item: string; sha256: string; index: number }[];
     checksSha256: string | null;
     piecesSha256: string | null;
-    choosers: Record<string, Chooser>;
+    chain: ChainStage[];
+    who: Who;
     // A review's Transcription: its calls (their stored entries, by item), applied to the issues of the
     // transcription it reviewed; its agreements only once it is `done`.
     review?: { stageId: string; calls: { item: string; sha256: string }[]; done: boolean };
@@ -61,10 +64,6 @@ export type Artifact = {
   // theirs). Shown as the MEI view, editable while the stage is WIP (with `editor`).
   fixMei?: { stage: ApiStage; earlier: ApiStage[] };
 };
-
-// A stage that chose an answer of an issue, as an issue's card names it: its title, reviews and human reviews with
-// their number among them ("Review 2", "Human review 1"); `person`: a human review.
-export type Chooser = { label: string; person: boolean };
 
 export type Stage = {
   id: string; // unique within the project, used in the URL

@@ -68,9 +68,22 @@ test("an answer's suffixes: who put it in the transcription, and who chose it la
     resolved: false,
     lilypond: null,
   };
-  const tags = (issue: StoredIssue) => issue.answers.map((a) => answerTags(issue, a.key, choosers).map((t) => (t.stage ? `${t.words} ${t.stage}` : t.words)));
+  // The entries below name their stage ("r1"); what is stored names only its step, and who it was comes apart (attribution.ts).
+  const STEPS: Record<string, string> = { extract: "extract", r1: "review", a1: "apply_review", r2: "review", h1: "human_review" };
+  type Named = keyof typeof choosers;
+  const stored = (issue: StoredIssue): StoredIssue => ({
+    ...issue,
+    choices: issue.choices.map((c) => ({ ...c, by: STEPS[c.by] })),
+    applications: issue.applications?.map((a) => ({ ...a, by: STEPS[a.by] })),
+  });
+  const who = (issue: StoredIssue) => ({
+    choices: issue.choices.map((c) => choosers[c.by as Named]),
+    applications: (issue.applications ?? []).map((a) => choosers[a.by as Named]),
+  });
+  const tags = (issue: StoredIssue) =>
+    issue.answers.map((a) => answerTags(stored(issue), a.key, who(issue)).map((t) => (t.stage ? `${t.words} ${t.stage}` : t.words)));
   // The stage's name apart, to be shown in bold.
-  assert.deepEqual(answerTags(base, "a", choosers), [{ words: "written by", stage: "Extract" }]);
+  assert.deepEqual(answerTags(stored(base), "a", who(base)), [{ words: "written by", stage: "Extract" }]);
   assert.deepEqual(tags(base), [["written by Extract"], []]);
   const kept = { ...base, choices: [...base.choices, { by: "r1", key: "a", reason: null, kept: true as const }] };
   assert.deepEqual(tags(kept), [["written by Extract", "kept by Review 1"], []]);

@@ -26,20 +26,19 @@ function issue(id: number, over: Partial<StoredIssue> = {}): StoredIssue {
 
 test("a human review with no entries leaves the issues as they were", () => {
   const issues = new Map([issue(1), issue(2)].map((i) => [i.id, i]));
-  assert.deepEqual(humanReviewedIssues(issues, { entries: [] }, "h1"), issues);
+  assert.deepEqual(humanReviewedIssues(issues, { entries: [] }), issues);
   assert.equal(humanReviewNote({ entries: [] }), "0 changes");
 });
 
 test("a human review's choices and own issues are applied, and resolve their issues", () => {
   const issues = new Map([issue(1), issue(2)].map((i) => [i.id, i]));
-  const own = issue(3, { source: "code", choices: [{ by: "h1", key: "a", reason: null }], applied: null, answers: [{ key: "a", text: "A C flat" }] });
+  const own = issue(3, { source: "code", choices: [{ by: "human_review", key: "a", reason: null }], applied: null, answers: [{ key: "a", text: "A C flat" }] });
   const out = humanReviewedIssues(
     issues,
     { entries: [{ choice: { issue: 1, key: "c", newAnswer: { key: "c", text: "An accent" }, reason: null } }, { newIssue: own }] },
-    "h1",
   );
   assert.deepEqual(out.get(1)!.answers.map((a) => a.key), ["a", "b", "c"]);
-  assert.deepEqual(out.get(1)!.choices.at(-1), { by: "h1", key: "c", reason: null });
+  assert.deepEqual(out.get(1)!.choices.at(-1), { by: "human_review", key: "c", reason: null });
   assert.equal(out.get(1)!.resolved, true);
   assert.equal(out.get(2)!.resolved, false);
   assert.equal(out.get(3)!.resolved, true);
@@ -91,19 +90,19 @@ import { boxProblems, ownIssue, ownIssueProblems, ownIssues, placedSystems, putO
 
 test("clarifications: raised, written, replaced in place, removed; one without text keeps Finish waiting", () => {
   const box = { page: 1, box: { left: 0.2, right: 0.3, top: 0.15, bottom: 0.25 } };
-  const draft = ownIssue("h1", 7, [box], "  ");
+  const draft = ownIssue(7, [box], "  ");
   assert.deepEqual([draft.source, draft.answers, draft.choices, draft.applied, draft.resolved], ["user", [], [], null, true]);
   let stored = putOwnIssue(chooseAnswer({ entries: [] }, issue(1), "b"), draft);
   const systems = placedSystems([{ page: 1, systems: [{ box: { left: 0.1, right: 0.9, top: 0.1, bottom: 0.3 }, barLines: [] }] }]);
   assert.deepEqual(ownIssueProblems(stored, systems), [{ id: 7, problem: "The clarification text cannot be empty." }]);
-  const written = ownIssue("h1", 7, [box], " A C flat ");
-  assert.deepEqual([written.answers, written.choices], [[{ key: "a", text: "A C flat" }], [{ by: "h1", key: "a", reason: null }]]);
+  const written = ownIssue(7, [box], " A C flat ");
+  assert.deepEqual([written.answers, written.choices], [[{ key: "a", text: "A C flat" }], [{ by: "human_review", key: "a", reason: null }]]);
   stored = putOwnIssue(stored, written);
   assert.equal(stored.entries.length, 2);
   assert.deepEqual(ownIssues(stored), [written]);
   assert.deepEqual(ownIssueProblems(stored, systems), []);
   // Applied like a review's new issue, resolved.
-  assert.equal(humanReviewedIssues(new Map(), stored, "h1").get(7)!.resolved, true);
+  assert.equal(humanReviewedIssues(new Map(), stored).get(7)!.resolved, true);
   stored = removeOwnIssue(stored, 7);
   assert.deepEqual(ownIssues(stored), []);
   assert.equal(stored.entries.length, 1);

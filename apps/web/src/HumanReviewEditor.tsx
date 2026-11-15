@@ -39,7 +39,9 @@ import { ImagesDiffer } from "./ImagesDiffer";
 import type { PageLayout } from "./layout";
 import { BoxHandles, handleAt, ModeToggle, PageCanvas, PageNav, ShowToggle, usePageImage, useViewport, ZoomTools, type Point } from "./pageEditor";
 import { straightPage } from "./pageImages";
-import type { Artifact, Chooser } from "./pipeline";
+import type { Artifact } from "./pipeline";
+import { attributionOf, extend, type Attribution, type IssueWho, type Who } from "./attribution";
+import { attributionCache } from "./imageCache";
 import type { PageRecipe } from "./rasterize";
 import type { PlacedSystem } from "./review";
 import { answerTags, scoreOf, shownSystem, type ShownSystem } from "./transcription";
@@ -55,6 +57,7 @@ type Loaded = {
   systems: ShownSystem[];
   pieces: number[];
   stored: StoredHumanReview;
+  before: Attribution; // who chose and applied, in the stages before this one (attribution.ts)
 };
 
 export function HumanReviewEditor({ project, artifact, onEdited }: { project: Project; artifact: Artifact; onEdited?: () => void }) {
@@ -84,7 +87,9 @@ export function HumanReviewEditor({ project, artifact, onEdited }: { project: Pr
         ...systems.flatMap((s) => s.extraction.warnings.map((warning, i) => ({ key: `warning-${s.extraction.system}-${i}`, warning }))),
         ...(checks?.warnings ?? []).map((warning, i) => ({ key: `warning-score-${i}`, warning })),
       ];
-      if (!cancelled) setLoaded({ pages: pages.sort((a, b) => a.page - b.page), issues, warnings, systems, pieces, stored });
+      const pdf = pages[0]?.recipe.pdf;
+      const { attribution: before } = await attributionOf(data.chain, { json: fetchJsonContent, ...(pdf ? attributionCache(pdf) : {}) });
+      if (!cancelled) setLoaded({ pages: pages.sort((a, b) => a.page - b.page), issues, warnings, systems, pieces, stored, before });
     })().catch(() => !cancelled && setLoaded("error"));
     return () => {
       cancelled = true;
@@ -93,7 +98,7 @@ export function HumanReviewEditor({ project, artifact, onEdited }: { project: Pr
   if (loaded === "error") return <div className="text-view"><p>The transcription couldn't be loaded.</p></div>;
   if (!loaded) return <div className="text-view"><p>Loading the transcription…</p></div>;
   if (loaded.pages.length === 0) return <div className="text-view"><p>There are no pages to review.</p></div>;
-  return <Screen project={project} stageId={stageId} loaded={loaded} choosers={data.choosers} onEdited={onEdited} />;
+  return <Screen project={project} stageId={stageId} loaded={loaded} who={data.who} onEdited={onEdited} />;
 }
 
 // In screen px: a label's size, per character and fixed.
@@ -113,13 +118,13 @@ function Screen({
   project,
   stageId,
   loaded,
-  choosers,
+  who,
   onEdited,
 }: {
   project: Project;
   stageId: string;
   loaded: Loaded;
-  choosers: Record<string, Chooser>;
+  who: Who; // this human review, as the cards name it
   onEdited?: () => void;
 }) {
   const { pages } = loaded;
@@ -164,7 +169,8 @@ function Screen({
     ownIssues(stored).forEach((issue, i) => c.set(`issue-${issue.id}`, LAYOUT_COLOR_HEX[(c.size + i) % LAYOUT_COLOR_HEX.length]));
     return c;
   }, [loaded, stored]);
-  const answered = useMemo(() => humanReviewedIssues(new Map(loaded.issues.map((i) => [i.id, i])), stored, stageId), [loaded.issues, stored]);
+  const answered = useMemo(() => humanReviewedIssues(new Map(loaded.issues.map((i) => [i.id, i])), stored), [loaded.issues, stored]);
+  const attribution = useMemo(() => extend(loaded.before, answered.values(), who), [loaded.before, answered]);
   const selectedItem = items.find((i) => i.key === selected) ?? null;
   const selectedOwn = selectedItem?.kind === "issue" && selectedItem.own ? selectedItem.issue : null;
 
@@ -216,12 +222,12 @@ function Screen({
     const placedBox = { page: page.page, box };
     if (selectedOwn) {
       const next = [...selectedOwn.boxes, placedBox];
-      change((current) => putOwnIssue(current, ownIssue(stageId, selectedOwn.id, next, selectedOwn.answers[0]?.text ?? "")));
+      change((current) => putOwnIssue(current, ownIssue(selectedOwn.id, next, selectedOwn.answers[0]?.text ?? "")));
       return;
     }
     try {
       const id = await reserveIssueNumbers(project, 1, [...loaded.issues, ...ownIssues(latest.current)]);
-      change((current) => putOwnIssue(current, ownIssue(stageId, id, [placedBox], "")));
+      change((current) => putOwnIssue(current, ownIssue(id, [placedBox], "")));
       setSelected(`issue-${id}`);
     } catch (err) {
       setError(`The clarification couldn't be added: ${err instanceof Error ? err.message : err}`);
@@ -249,7 +255,7 @@ function Screen({
       const current = liveRef.current;
       setLive(null);
       if (!current || !selectedOwn) return;
-      change((stored) => putOwnIssue(stored, ownIssue(stageId, selectedOwn.id, current, selectedOwn.answers[0]?.text ?? "")));
+      change((stored) => putOwnIssue(stored, ownIssue(selectedOwn.id, current, selectedOwn.answers[0]?.text ?? "")));
     },
     tap: (q, scale) => {
       if (mode === "hand") return setSelected(itemAt(q, scale));
@@ -629,8 +635,8 @@ function Screen({
             color={colors.get(`issue-${selectedOwn.id}`)}
             systems={placed}
             problem={boxProblems(selectedOwn.boxes, placed)}
-            onWrite={(text) => change((current) => putOwnIssue(current, ownIssue(stageId, selectedOwn.id, selectedOwn.boxes, text)))}
-            onRemoveBox={(k) => change((current) => putOwnIssue(current, ownIssue(stageId, selectedOwn.id, selectedOwn.boxes.filter((_, j) => j !== k), selectedOwn.answers[0]?.text ?? "")))}
+            onWrite={(text) => change((current) => putOwnIssue(current, ownIssue(selectedOwn.id, selectedOwn.boxes, text)))}
+            onRemoveBox={(k) => change((current) => putOwnIssue(current, ownIssue(selectedOwn.id, selectedOwn.boxes.filter((_, j) => j !== k), selectedOwn.answers[0]?.text ?? "")))}
             onAddBox={() => switchMode("box")}
             onDelete={() => {
               change((current) => removeOwnIssue(current, selectedOwn.id));
@@ -645,7 +651,7 @@ function Screen({
             issue={issue}
             original={loaded.issues.find((i) => i.id === issue.id)!}
             color={colors.get(`issue-${issue.id}`)}
-            choosers={choosers}
+            who={attribution[issue.id]}
             mine={userChoice(stored, issue.id)}
             onChoose={(key) => change((current) => chooseAnswer(current, loaded.issues.find((i) => i.id === issue.id)!, key))}
             onWrite={(text) => change((current) => writeAnswer(current, loaded.issues.find((i) => i.id === issue.id)!, text))}
@@ -820,7 +826,7 @@ function IssuePanel({
   issue,
   original,
   color,
-  choosers,
+  who,
   mine,
   onChoose,
   onWrite,
@@ -830,7 +836,7 @@ function IssuePanel({
   issue: StoredIssue;
   original: StoredIssue;
   color?: string;
-  choosers: Record<string, Chooser>;
+  who: IssueWho | undefined;
   mine: { key: string; newAnswer: { key: string; text: string } | null } | null;
   onChoose: (key: string) => void;
   onWrite: (text: string) => void;
@@ -914,7 +920,7 @@ function IssuePanel({
             <span className="answer-mark" aria-hidden="true" />
             <span>
               {a.key}) {a.text}
-              <AnswerTags tags={answerTags(issue, a.key, choosers)} />
+              <AnswerTags tags={answerTags(issue, a.key, who)} />
             </span>
           </button>
         ))}
@@ -948,7 +954,7 @@ function IssuePanel({
           />
           {mine?.newAnswer && (
             <span className="answer-other-tags">
-              <AnswerTags tags={answerTags(issue, mine.newAnswer.key, choosers)} />
+              <AnswerTags tags={answerTags(issue, mine.newAnswer.key, who)} />
             </span>
           )}
           </span>
@@ -959,7 +965,7 @@ function IssuePanel({
           LilyPond equivalent: <span className="issue-tokens">{issue.lilypond.join(" ")}</span>
         </p>
       )}
-      {issue.choices.length > 0 && <Choices choices={issue.choices} choosers={choosers} />}
+      {issue.choices.length > 0 && <Choices choices={issue.choices} who={who} />}
     </aside>
   );
 }

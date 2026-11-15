@@ -57,9 +57,10 @@ import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type Stored
 import { ask, imageLimit, imageLimitFor, modelKey, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
 import { musicInputs, type MusicSystem } from "./musicInputs";
 import { markedCrop, type MarkedCropRecipe } from "./pageImages";
-import { placesOf, reviewedIssues, reviewIssues, reviewScore, reviewWarnings, systemsOf, type StoredReview } from "./review";
+import { modelName, placesOf, reviewedIssues, reviewIssues, reviewScore, reviewWarnings, systemsOf, type StoredReview } from "./review";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
-import { choosers } from "./steps";
+import { choosingChain } from "./steps";
+import { attributionOf } from "./attribution";
 import { boxesOnCrop } from "./transcription";
 
 const json = (value: unknown) => new TextEncoder().encode(canonicalJson(value));
@@ -107,10 +108,6 @@ export async function runApplyReview(run: StageRun): Promise<void> {
     ),
   );
 
-  // Who chose, as the model and the cards read it.
-  const named = choosers([...[...inputs.earlier].reverse(), stage]);
-  const chooser = (by: string) => named[by]?.label ?? by;
-  const person = (by: string) => named[by]?.person ?? false;
   const placed = systems.map((s) => ({ number: s.number, page: s.page, layout: s.layout }));
 
   // The issues as the reviews left them: the transcription's, with each review's entries and agreements.
@@ -119,8 +116,8 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   for (const r of reviewers) {
     issues =
       r.step === "human_review"
-        ? reviewCalls.get(r.id)!.reduce((map, call) => humanReviewedIssues(map, call, r.id), issues)
-        : reviewedIssues([...issues.values()], reviewCalls.get(r.id)!, r.id, person);
+        ? reviewCalls.get(r.id)!.reduce((map, call) => humanReviewedIssues(map, call), issues)
+        : reviewedIssues([...issues.values()], reviewCalls.get(r.id)!);
   }
   const startIssues = issues;
   const startWarnings = [...systems.flatMap((s) => extractions.get(s.number)!.warnings), ...checks.warnings];
@@ -174,7 +171,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   const scorePart: RequestContent = { type: "text", text: reviewScoreText(reviewScore(scoreOf(startAnswers)), observations) };
   const issuesPart: RequestContent = {
     type: "text",
-    text: applyReviewIssuesText(reviewIssues([...startIssues.values()], placed, chooser), reviewWarnings(startWarnings, placed)),
+    text: applyReviewIssuesText(reviewIssues([...startIssues.values()], placed), reviewWarnings(startWarnings, placed)),
     cacheUpTo: true,
   };
 
@@ -209,7 +206,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   const finalTranscription = () => {
     if (!final) {
       const answers = answersBefore(Infinity);
-      final = { answers, checked: checkedOrFail(answers, "the applied transcription"), issues: appliedIssues(startIssues, [...calls.values()], stage.id) };
+      final = { answers, checked: checkedOrFail(answers, "the applied transcription"), issues: appliedIssues(startIssues, [...calls.values()]) };
     }
     return final;
   };
@@ -292,7 +289,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
                 question: i.question,
                 answers: i.answers,
                 chosen: chosen.key,
-                chosenBy: chooser(chosen.by),
+                chosenBy: modelName(chosen.by),
                 applied: i.applied,
                 resolved: i.resolved,
               };
@@ -320,8 +317,10 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           const blocked = patch.choices.find((c) => startIssues.get(c.issue)?.resolved);
           if (blocked) {
             const issue = startIssues.get(blocked.issue)!;
-            const by = [...issue.choices].reverse().find((c) => person(c.by))?.by;
-            const who = by ? chooser(by) : "a person";
+            // The human review that gave it, as its card names it (attribution.ts).
+            const index = issue.choices.map((c) => c.by).lastIndexOf("human_review");
+            const { attribution } = await attributionOf(choosingChain([...inputs.earlier].reverse()), { json: fetchJsonContent });
+            const who = attribution[issue.id]?.choices[index]?.label ?? "a person";
             throw new Error(`The answer ${who} gave to issue ${blocked.issue} can't be applied: ${blocked.reason} Edit ${who} to answer it again.`);
           }
           const after = applyPatch(answers, patch);

@@ -222,7 +222,7 @@ An **issue** is one question about what the printed score says at one place (or 
   - `boxes`: page and box, one or more (above);
   - `location` (optional, above) and `question`: prose, e.g. "the middle note of the chord" and "not sure which duration it has";
   - `answers`: a list of `{ key, text }`, the key a letter, the text free, possibly empty (see "The lens", "Answers of issues have keys");
-  - `choices`: who chose which answer (by its key), one entry per stage that chose (the extraction, each review, the user), each with an optional `reason` (below). The answer that counts is the latest one, but nothing is overwritten, so disagreement between reviewers stays visible and the human review can show those issues first. Possibly empty;
+  - `choices`: who chose which answer (by its key), one entry per stage that chose (the extraction, each review, the user), each naming only its step (`by`; which stage of the pipeline it was is worked out, `docs/stages/music.md`, "Who chose"), each with an optional `reason` (below). The answer that counts is the latest one, but nothing is overwritten, so disagreement between reviewers stays visible and the human review can show those issues first. Possibly empty;
   - `applied`: the key of the answer the current MEI reflects, or **null** when that isn't known. It is null for an issue the user added: the user only says what is right, not what the MEI has now;
   - `resolved`: set when a human chose or wrote the answer.
 - **One schema for every source** (decided): `location`, `question` and `applied` are optional, `answers` and `choices` may be empty. Which may be missing depends on `source`, and code checks it, e.g.:

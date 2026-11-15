@@ -243,3 +243,12 @@ export const cacheSvgs = (key: string, svgs: string[]): Promise<void> => cacheFi
 export const cachedPdfFile = (key: string): Promise<Blob | null> => cachedFile(`${key}.pdf`);
 
 export const cachePdfFile = (key: string, pdf: Blob): Promise<void> => cacheFile(`${key}.pdf`, pdf);
+
+// Who chose and applied answers of issues, by the key of the chain of stages it was worked out for (attribution.ts):
+// kept like the images, as derived data, with the PDF's other files.
+export function attributionCache(pdf: string) {
+  return {
+    cached: async (key: string) => (await cachedJson(`attribution-${key}`, pdf).catch(() => null)) as Record<number, never> | null,
+    cache: (key: string, value: unknown) => cacheJson(`attribution-${key}`, value, pdf).catch(() => {}),
+  };
+}

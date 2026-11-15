@@ -15,9 +15,11 @@ import { BoxesIcon, ChangesIcon, InfoIcon, MusicIcon, SourceIcon } from "./icons
 import type { PageLayout } from "./layout";
 import { ModeToggle } from "./pageEditor";
 import { cropImage, type CropRecipe } from "./pageImages";
-import type { Artifact, Chooser } from "./pipeline";
+import type { Artifact } from "./pipeline";
+import { attributionOf, extend, type Attribution, type IssueWho } from "./attribution";
+import { attributionCache } from "./imageCache";
 import { renderMei } from "./rendering";
-import { applyEntries, withKept, type StoredReview } from "./review";
+import { applyEntries, changedBy, withKept, type StoredReview } from "./review";
 import type { StoredApplyCall } from "./applyReview";
 import { humanReviewedIssues, ownIssues, type StoredHumanReview } from "./humanReview";
 import { stepInfo } from "./steps";
@@ -34,6 +36,7 @@ type Loaded = {
   score: Score | { problem: string };
   changed: Set<string> | null;
   reverted: { issue: StoredIssue; reason: string }[];
+  attribution: Attribution; // who added each issue's choices and applications (attribution.ts)
 };
 
 function useTranscription(artifact: Artifact): Loaded | "error" | null {
@@ -58,19 +61,14 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
         const calls = await Promise.all(review.calls.map(async (c) => (await fetchJsonContent(c.sha256)) as StoredReview));
         const base = [...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])];
         let issues = new Map(base.map((i) => [i.id, i]));
-        for (const call of [...calls].sort((a, b) => a.system - b.system)) issues = applyEntries(issues, call, review.stageId);
-        if (review.done) issues = withKept(issues, review.stageId, (by) => data.choosers[by]?.person ?? false);
+        for (const call of [...calls].sort((a, b) => a.system - b.system)) issues = applyEntries(issues, call);
+        if (review.done) issues = withKept(issues, changedBy(calls));
         const raised = new Map(calls.map((c) => [c.system, c.entries.flatMap((e) => ("newIssue" in e ? [issues.get(e.newIssue.id)!] : []))]));
         for (const e of extractions) {
           e.extraction = { ...e.extraction, issues: [...e.extraction.issues.map((i) => issues.get(i.id)!), ...(raised.get(e.extraction.system) ?? [])] };
         }
         if (checks) shownChecks = { ...checks, issues: checks.issues.map((i) => issues.get(i.id)!) };
-        changed = new Set(
-          [...issues.values()]
-            // A raised issue carries the review's choice too.
-            .filter((i) => i.choices.some((c) => c.by === review.stageId && !c.kept))
-            .map((i) => `issue-${i.id}`),
-        );
+        changed = new Set([...changedBy(calls)].map((id) => `issue-${id}`));
       }
       // A human review's Transcription: the issues with the user's answers (docs/stages/music.md, `human_review`); the
       // issues answered are its changes.
@@ -78,12 +76,12 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
         const human = data.human;
         const stored: StoredHumanReview = human.sha256 ? ((await fetchJsonContent(human.sha256)) as StoredHumanReview) : { entries: [] };
         const base = [...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])];
-        const issues = humanReviewedIssues(new Map(base.map((i) => [i.id, i])), stored, human.stageId);
+        const issues = humanReviewedIssues(new Map(base.map((i) => [i.id, i])), stored);
         for (const e of extractions) e.extraction = { ...e.extraction, issues: e.extraction.issues.map((i) => issues.get(i.id)!) };
         // The user's own issues go with the checks' (each is shown below the system its boxes fall on).
         const own = ownIssues(stored).map((i) => issues.get(i.id)!);
         shownChecks = { issues: [...(checks?.issues.map((i) => issues.get(i.id)!) ?? []), ...own], warnings: checks?.warnings ?? [] } as StoredScoreChecks;
-        changed = new Set([...issues.values()].filter((i) => i.choices.some((c) => c.by === human.stageId)).map((i) => `issue-${i.id}`));
+        changed = new Set([...changedBy([{ system: 0, entries: stored.entries }])].map((id) => `issue-${id}`));
       }
       // An Apply review's Transcription: the issues it applied or reverted are its changes.
       let reverted: Loaded["reverted"] = [];
@@ -115,7 +113,12 @@ function useTranscription(artifact: Artifact): Loaded | "error" | null {
           return [{ ...shown, recipe }];
         });
       const score = scoreOf(systems, pieces);
-      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, shownChecks), score, changed, reverted, changedMeasures: measuresOf(score, changedStretches) });
+      // Who chose and applied: the stages before this one, kept on the device, and this one's own entries.
+      const pdf = pages[0]?.recipe.pdf;
+      const { attribution: before } = await attributionOf(data.chain, { json: fetchJsonContent, ...(pdf ? attributionCache(pdf) : {}) });
+      const shownIssues = [...extractions.flatMap((e) => e.extraction.issues), ...(shownChecks?.issues ?? [])];
+      const attribution = extend(before, shownIssues, data.who);
+      if (!cancelled) setLoaded({ systems, notes: notesOf(systems, shownChecks), score, changed, reverted, changedMeasures: measuresOf(score, changedStretches), attribution });
     })().catch(() => !cancelled && setLoaded("error"));
     return () => {
       cancelled = true;
@@ -290,7 +293,7 @@ export function ExtractionView({ artifact }: { artifact: Artifact }) {
                 <div className="system-notes">
                   {own.map((note) =>
                     note.kind === "issue" ? (
-                      <IssueCard key={note.key} id={note.key} issue={note.issue} color={colors.get(note.key)} choosers={artifact.extraction!.choosers} />
+                      <IssueCard key={note.key} id={note.key} issue={note.issue} color={colors.get(note.key)} who={loaded.attribution[note.issue.id]} />
                     ) : (
                       <WarningCard key={note.key} id={note.key} warning={note.warning} color={colors.get(note.key)} />
                     ),
@@ -499,7 +502,7 @@ function RawSource({ extraction }: { extraction: StoredExtraction }) {
 export const ISSUE_CLASS_LABELS: Record<StoredIssue["class"], string> = { reading: "[unclear]", format: "[cannot be encoded]" };
 
 
-function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIssue; color?: string; choosers: Record<string, Chooser> }) {
+function IssueCard({ id, issue, color, who }: { id: string; issue: StoredIssue; color?: string; who: IssueWho | undefined }) {
   return (
     <div className="issue-card" id={id} style={{ borderLeftColor: color }}>
       <p className="issue-head">
@@ -513,7 +516,7 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
       {issue.answers.length > 0 && (
         <ul>
           {issue.answers.map((a) => {
-            const tags = answerTags(issue, a.key, choosers);
+            const tags = answerTags(issue, a.key, who);
             return (
               <li key={a.key}>
                 {a.key}) {a.text}
@@ -528,7 +531,7 @@ function IssueCard({ id, issue, color, choosers }: { id: string; issue: StoredIs
           LilyPond equivalent: <span className="issue-tokens">{issue.lilypond.join(" ")}</span>
         </p>
       )}
-      {issue.choices.length > 0 && <Choices choices={issue.choices} choosers={choosers} />}
+      {issue.choices.length > 0 && <Choices choices={issue.choices} who={who} />}
     </div>
   );
 }
@@ -555,9 +558,9 @@ export function AnswerTags({ tags }: { tags: AnswerTag[] }) {
 
 // Who chose which answer, in order; a choice with a reason has an "i" after it that shows the reason on a line below
 // (docs/stages/music.md, "An issue's card": the reasons are for later reviewers, shown only on request).
-export function Choices({ choices, choosers }: { choices: StoredIssue["choices"]; choosers: Record<string, Chooser> }) {
+export function Choices({ choices, who }: { choices: StoredIssue["choices"]; who: IssueWho | undefined }) {
   const [open, setOpen] = useState<Set<number>>(new Set());
-  const name = (by: string) => choosers[by]?.label ?? stepInfo(by).title;
+  const named = choices.map((c, i) => who?.choices[i]?.label ?? stepInfo(c.by).title);
   const toggle = (i: number) => {
     const next = new Set(open);
     if (!next.delete(i)) next.add(i);
@@ -570,13 +573,13 @@ export function Choices({ choices, choosers }: { choices: StoredIssue["choices"]
         {choices.map((c, i) => (
           <span key={i}>
             {i > 0 ? " • " : ""}
-            {name(c.by)} → {c.key}
+            {named[i]} → {c.key}
             {c.reason && (
               <button
                 type="button"
                 className="reason-toggle"
                 aria-expanded={open.has(i)}
-                aria-label={`${open.has(i) ? "Hide" : "Show"} the reason of ${name(c.by)}`}
+                aria-label={`${open.has(i) ? "Hide" : "Show"} the reason of ${named[i]}`}
                 title={`${open.has(i) ? "Hide" : "Show"} the reason`}
                 onClick={() => toggle(i)}
               >
@@ -589,7 +592,7 @@ export function Choices({ choices, choosers }: { choices: StoredIssue["choices"]
       {choices.map((c, i) =>
         c.reason && open.has(i) ? (
           <p key={i} className="issue-reason">
-            {name(c.by)}: {c.reason}
+            {named[i]}: {c.reason}
           </p>
         ) : null,
       )}

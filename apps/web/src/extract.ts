@@ -103,13 +103,14 @@ export type StoredIssue = {
   location: string | null;
   question: string;
   answers: { key: string; text: string }[];
-  // `by`: the stage that chose, by its id (`extract`'s own choice: "extract"); `kept`: a review's agreement, added
+  // `by`: the step of the stage that chose ("extract", "review", "apply_review", "human_review"), never its id or turn:
+  // which stage of the pipeline that is, the app works out (attribution.ts); `kept`: a review's agreement, added
   // by code for an issue it left as it was (docs/stages/music.md, `review`); `reverted`: `apply_review`'s choice of the
   // answer already applied, for an answer it couldn't apply as given (docs/stages/music.md, `apply_review`).
   choices: { by: string; key: string; reason: string | null; kept?: true; reverted?: true }[];
   applied: string | null;
-  // Who put which answer in the transcription, in order: "extract" for Extract's own issues and those its checks raised,
-  // an Apply review by its stage id (docs/stages/music.md, "An issue's card"). None for an issue raised after its
+  // Who put which answer in the transcription, in order, by step as in `choices`: "extract" for Extract's own issues and
+  // those its checks raised, "apply_review" for an Apply review (docs/stages/music.md, "An issue's card"). None for an issue raised after its
   // transcription was written (a review's new issue, code's on an Apply review's transcription).
   applications?: { by: string; key: string }[];
   resolved: boolean;

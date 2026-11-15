@@ -74,9 +74,14 @@ export function reviewScore(score: Score): unknown {
   };
 }
 
+// Who made a choice, as a model reads it: the kind of stage, never which one (a request must stay the same when an
+// earlier stage is dropped or added, so that the cache still finds it; docs/stages/music.md, "Who chose").
+const MODEL_NAMES: Record<string, string> = { extract: "Extract", review: "a review", apply_review: "Apply review", human_review: "a person" };
+export const modelName = (by: string) => MODEL_NAMES[by] ?? by;
+
 // The issues as the model reads them: their places as systems and stretches, the choices by who made them, a text with
 // no value "" (only `applied` is null, where it isn't known).
-export function reviewIssues(issues: StoredIssue[], systems: PlacedSystem[], chooser: (by: string) => string): unknown {
+export function reviewIssues(issues: StoredIssue[], systems: PlacedSystem[]): unknown {
   return issues.map((i) => ({
     id: i.id,
     source: i.source,
@@ -85,7 +90,7 @@ export function reviewIssues(issues: StoredIssue[], systems: PlacedSystem[], cho
     location: i.location ?? "",
     question: i.question,
     answers: i.answers,
-    choices: i.choices.map((c) => ({ by: chooser(c.by), key: c.key, reason: c.reason ?? "", ...(c.kept ? { kept: true } : {}) })),
+    choices: i.choices.map((c) => ({ by: modelName(c.by), key: c.key, reason: c.reason ?? "", ...(c.kept ? { kept: true } : {}) })),
     applied: i.applied,
     resolved: i.resolved,
     ...(i.lilypond ? { lilypond: i.lilypond } : {}),
@@ -135,7 +140,6 @@ export type ReviewContext = {
   issues: Map<number, StoredIssue>;
   systems: PlacedSystem[];
   images: Map<string, ImageSource & { system: number }>;
-  stageId: string;
 };
 
 // Checks an answer (docs/stages/music.md, `review`, "The answer"): what can't be used comes back as a problem, which
@@ -214,15 +218,16 @@ function newIssue(n: ReviewNewIssueEntry["newIssue"], ctx: ReviewContext, id: nu
     location: n.location,
     question: n.question,
     answers: n.answers,
-    choices: [{ by: ctx.stageId, key: n.chosen, reason: n.reason }],
+    choices: [{ by: "review", key: n.chosen, reason: n.reason }],
     applied: n.applied,
     resolved: false,
     lilypond: n.class === "format" ? n.lilypond : null,
   };
 }
 
-// The issues after a call's entries (a new map; the issues in it are new objects where they changed).
-export function applyEntries(issues: Map<number, StoredIssue>, stored: StoredReview, stageId: string): Map<number, StoredIssue> {
+// The issues after a call's entries (a new map; the issues in it are new objects where they changed). `by`: the step
+// whose entries they are (a human review's are a review's entries too).
+export function applyEntries(issues: Map<number, StoredIssue>, stored: StoredReview, by: "review" | "human_review" = "review"): Map<number, StoredIssue> {
   const out = new Map(issues);
   for (const e of stored.entries) {
     if ("choice" in e) {
@@ -231,7 +236,7 @@ export function applyEntries(issues: Map<number, StoredIssue>, stored: StoredRev
       out.set(issue.id, {
         ...issue,
         answers: e.choice.newAnswer ? [...issue.answers, e.choice.newAnswer] : issue.answers,
-        choices: [...issue.choices, { by: stageId, key: e.choice.key, reason: e.choice.reason }],
+        choices: [...issue.choices, { by, key: e.choice.key, reason: e.choice.reason }],
       });
     } else {
       out.set(e.newIssue.id, e.newIssue);
@@ -240,24 +245,29 @@ export function applyEntries(issues: Map<number, StoredIssue>, stored: StoredRev
   return out;
 }
 
+// The issues a review's calls chose on or raised: its changes (its agreements aren't).
+export function changedBy(calls: StoredReview[]): Set<number> {
+  return new Set(calls.flatMap((c) => c.entries.map((e) => ("choice" in e ? e.choice.issue : e.newIssue.id))));
+}
+
 // The review's agreements (docs/stages/music.md, `review`, "Agreement counts"): every unresolved issue the review
-// made no choice on, whose latest choice is a model's, gets a choice repeating it, marked `kept`. `person`: whether a
-// stage is a person's (a human review).
-export function withKept(issues: Map<number, StoredIssue>, stageId: string, person: (by: string) => boolean): Map<number, StoredIssue> {
+// made no choice on (`chose`: those it did), whose latest choice is a model's, gets a choice repeating it, marked `kept`.
+export function withKept(issues: Map<number, StoredIssue>, chose: Set<number>): Map<number, StoredIssue> {
   const out = new Map(issues);
   for (const issue of issues.values()) {
     const last = latest(issue);
-    if (issue.resolved || !last || person(last.by) || issue.choices.some((c) => c.by === stageId)) continue;
-    out.set(issue.id, { ...issue, choices: [...issue.choices, { by: stageId, key: last.key, reason: null, kept: true }] });
+    if (issue.resolved || !last || last.by === "human_review" || chose.has(issue.id)) continue;
+    out.set(issue.id, { ...issue, choices: [...issue.choices, { by: "review", key: last.key, reason: null, kept: true }] });
   }
   return out;
 }
 
-// The issues as a review leaves them: the reviewed ones, the calls' entries in score order, the agreements.
-export function reviewedIssues(issues: StoredIssue[], calls: StoredReview[], stageId: string, person: (by: string) => boolean): Map<number, StoredIssue> {
+// The issues as a review leaves them: the reviewed ones, the calls' entries in score order, and once it is done
+// (`done`), the agreements.
+export function reviewedIssues(issues: StoredIssue[], calls: StoredReview[], done = true): Map<number, StoredIssue> {
   let map = new Map(issues.map((i) => [i.id, i]));
-  for (const call of [...calls].sort((a, b) => a.system - b.system)) map = applyEntries(map, call, stageId);
-  return withKept(map, stageId, person);
+  for (const call of [...calls].sort((a, b) => a.system - b.system)) map = applyEntries(map, call);
+  return done ? withKept(map, changedBy(calls)) : map;
 }
 
 // The proposed changes of a review: its new issues and its choices.

@@ -46,7 +46,7 @@ function issue(id: number, boxes: StoredIssue["boxes"], over: Partial<StoredIssu
     ],
     choices: [
       { by: "extract", key: "a", reason: null },
-      { by: "review-1", key: "b", reason: null },
+      { by: "review", key: "b", reason: null },
     ],
     applied: "a",
     resolved: false,
@@ -258,10 +258,10 @@ test("warnings: a change beyond the boxes of the issues applied, with its reason
 test("after the calls: a reverted issue gets the stage's choice of its applied answer, an applied one its chosen answer as applied", () => {
   const issues = new Map([issue(1, [on(1)]), issue(2, [on(1, 2)]), issue(3, [on(3)])].map((i) => [i.id, i]));
   const call: StoredApplyCall = { system: 1, window: [1], ...empty, choices: [{ issue: 2, key: "a", reason: "They conflict." }], applied: [1], changed: [], warnings: [] };
-  const after = appliedIssues(issues, [call], "apply-1");
+  const after = appliedIssues(issues, [call]);
   assert.equal(after.get(1)!.applied, "b");
   assert.equal(needsApplying(after.get(1)!), false);
-  assert.deepEqual(after.get(2)!.choices.at(-1), { by: "apply-1", key: "a", reason: "They conflict.", reverted: true });
+  assert.deepEqual(after.get(2)!.choices.at(-1), { by: "apply_review", key: "a", reason: "They conflict.", reverted: true });
   assert.equal(after.get(2)!.applied, "a");
   assert.equal(needsApplying(after.get(2)!), false);
   assert.equal(after.get(3), issues.get(3)); // untouched
@@ -298,7 +298,7 @@ test("reverts of an issue with no applied answer choose what the transcription h
   assert.deepEqual(written.choices, [{ issue: 1, key: "c", newAnswer: { key: "c", text: "An E" }, reason: "No D there." }]);
   // After the calls: the new answer is there, chosen and applied, with no application ("[in this transcription]").
   const call: StoredApplyCall = { system: 2, window: [2], ...empty, choices: written.choices, applied: [], changed: [], warnings: [] };
-  const after = appliedIssues(issues, [call], "apply-1").get(1)!;
+  const after = appliedIssues(issues, [call]).get(1)!;
   assert.deepEqual(after.answers.at(-1), { key: "c", text: "An E" });
   assert.equal(after.applied, "c");
   assert.equal(after.applications, undefined);

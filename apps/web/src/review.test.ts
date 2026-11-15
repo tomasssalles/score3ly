@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { StoredIssue } from "./extract.ts";
-import { applyEntries, checkReview, logEntries, placesOf, proposedChanges, reviewedIssues, reviewNote, withKept, type PlacedSystem, type ReviewContext, type StoredReview } from "./review.ts";
+import { applyEntries, changedBy, checkReview, logEntries, placesOf, proposedChanges, reviewedIssues, reviewNote, withKept, type PlacedSystem, type ReviewContext, type StoredReview } from "./review.ts";
 
 // Three systems: 1 and 2 on page 1 (each with one bar line at 0.5), 3 on page 2.
 const systems: PlacedSystem[] = [
@@ -51,7 +51,6 @@ function context(system = 2): ReviewContext {
       ["previous system", crop(system - 1)],
       ["next system", crop(system + 1)],
     ]),
-    stageId: "review-1",
   };
 }
 
@@ -99,7 +98,7 @@ test("a usable answer: choices on the system's own issues and new issues, number
   assert.equal(n1.newIssue.id, 10);
   assert.equal(n2.newIssue.id, 11);
   assert.equal(n1.newIssue.source, "review");
-  assert.deepEqual(n1.newIssue.choices, [{ by: "review-1", key: "b", reason: null }]);
+  assert.deepEqual(n1.newIssue.choices, [{ by: "review", key: "b", reason: null }]);
   assert.equal(n1.newIssue.applied, "a");
   // The box on the system's crop, on the page.
   assert.deepEqual(n1.newIssue.boxes[0].page, 1);
@@ -142,26 +141,28 @@ test("the entries apply in order; agreements are added where the latest choice i
     system: 2,
     entries: [
       { choice: { issue: 2, key: "c", newAnswer: { key: "c", text: "A dot" }, reason: "Like m. 3." } },
-      { newIssue: { ...issue(10, 2), source: "review", choices: [{ by: "review-1", key: "b", reason: null }] } },
+      { newIssue: { ...issue(10, 2), source: "review", choices: [{ by: "review", key: "b", reason: null }] } },
     ],
   };
-  const after = applyEntries(issues(), call, "review-1");
+  const after = applyEntries(issues(), call);
   assert.deepEqual(after.get(2)!.answers.map((a) => a.key), ["a", "b", "c"]);
-  assert.deepEqual(after.get(2)!.choices.at(-1), { by: "review-1", key: "c", reason: "Like m. 3." });
+  assert.deepEqual(after.get(2)!.choices.at(-1), { by: "review", key: "c", reason: "Like m. 3." });
   assert.ok(after.has(10));
 
   // Issue 1 (a model's choice, left alone) is kept; 2 and 10 were chosen on; 3 is resolved; 4 has no choice.
-  const human = issue(5, 1, { choices: [{ by: "human-1", key: "b", reason: null }] });
+  const human = issue(5, 1, { choices: [{ by: "human_review", key: "b", reason: null }] });
   after.set(5, human);
-  const kept = withKept(after, "review-1", (by) => by === "human-1");
-  assert.deepEqual(kept.get(1)!.choices.at(-1), { by: "review-1", key: "a", reason: null, kept: true });
+  const kept = withKept(after, changedBy([call]));
+  assert.deepEqual(kept.get(1)!.choices.at(-1), { by: "review", key: "a", reason: null, kept: true });
   assert.equal(kept.get(2)!.choices.length, after.get(2)!.choices.length);
   assert.equal(kept.get(3)!.choices.length, 1);
   assert.equal(kept.get(4)!.choices.length, 0);
   assert.equal(kept.get(5)!.choices.length, 1);
 
-  const all = reviewedIssues([...issues().values()], [call], "review-1", () => false);
+  const all = reviewedIssues([...issues().values()], [call]);
   assert.equal(all.get(1)!.choices.at(-1)!.kept, true);
+  // Not done yet: no agreements.
+  assert.equal(reviewedIssues([...issues().values()], [call], false).get(1)!.choices.at(-1)!.kept, undefined);
   assert.equal(proposedChanges([call]), 2);
   assert.equal(reviewNote(2), "2 proposed changes");
   assert.equal(reviewNote(1), "1 proposed change");

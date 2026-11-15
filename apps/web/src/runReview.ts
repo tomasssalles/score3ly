@@ -32,7 +32,7 @@ import {
   type StoredReview,
 } from "./review";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
-import { choosers, reviewInputIds } from "./steps";
+import { reviewInputIds } from "./steps";
 import { boxesOnCrop } from "./transcription";
 
 const json = (value: unknown) => new TextEncoder().encode(canonicalJson(value));
@@ -72,14 +72,11 @@ export async function runReview(run: StageRun): Promise<void> {
     pieces,
   );
 
-  // Who chose, as the model reads it: stages by their titles, reviews and human reviews numbered.
-  const named = choosers([...[...inputs.earlier].reverse(), stage]);
-  const chooser = (by: string) => named[by]?.label ?? by;
   const placed = systems.map((s) => ({ number: s.number, page: s.page, layout: s.layout }));
 
   // The shared start of every call's prompt.
   const scorePart: RequestContent = { type: "text", text: reviewScoreText(reviewScore(score), observations) };
-  const issuesPart: RequestContent = { type: "text", text: reviewIssuesText(reviewIssues(baseIssues, placed, chooser), reviewWarnings(warnings, placed)), cacheUpTo: true };
+  const issuesPart: RequestContent = { type: "text", text: reviewIssuesText(reviewIssues(baseIssues, placed), reviewWarnings(warnings, placed)), cacheUpTo: true };
 
   const config = await stageModelConfig(stage.config);
   const imageRecipe = {
@@ -113,7 +110,7 @@ export async function runReview(run: StageRun): Promise<void> {
   // The issues before a system's call: the reviewed ones with the earlier calls' entries applied, in score order.
   const issuesBefore = (n: number) => {
     let map = new Map(baseIssues.map((i) => [i.id, i]));
-    for (const call of [...calls.values()].filter((c) => c.system < n).sort((a, b) => a.system - b.system)) map = applyEntries(map, call, stage.id);
+    for (const call of [...calls.values()].filter((c) => c.system < n).sort((a, b) => a.system - b.system)) map = applyEntries(map, call);
     return map;
   };
 
@@ -188,7 +185,7 @@ export async function runReview(run: StageRun): Promise<void> {
         const kept = s.number > 1 ? ` The review of systems 1–${s.number - 1} is kept.` : "";
         const answer = await ask(run, planned, `System ${s.number}`, { config, place: { item: s.item, round: 1 } });
         const parsed = JSON.parse(canonicalJson(answer.json));
-        const context = { system: s.number, issues, systems: placed, images: sources, stageId: stage.id };
+        const context = { system: s.number, issues, systems: placed, images: sources };
         const checked = checkReview(parsed, context, 1);
         if ("problem" in checked) {
           await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});

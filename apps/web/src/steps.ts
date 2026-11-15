@@ -2,7 +2,8 @@
 // outputs are shown as artifacts. The database only stores a stage's step id.
 
 import type { ApiStage } from "./api";
-import type { Artifact, Chooser, StageKind } from "./pipeline";
+import type { Artifact, StageKind } from "./pipeline";
+import { whoOf, type ChainStage } from "./attribution.ts";
 import { configError, configOf, resolveConfig, MAX_DPI, MIN_DPI, pageOfItem, type PageRecipe } from "./rasterize.ts";
 import { FIX_LAYOUT_VERSION } from "./fixLayout.ts";
 import { analyzeOutputs, FIX_METADATA_VERSION } from "./fixMetadata.ts";
@@ -373,7 +374,8 @@ function transcription(
     .find((s) => (s.step === "fix_metadata" || s.step === "analyze") && s.outputs.some((o) => o.item === "" && o.type === "pieces" && o.contentSha256));
   const piecesSha256 = pieces?.outputs.find((o) => o.item === "" && o.type === "pieces")?.contentSha256 ?? null;
   const pages = layoutPages(earlier);
-  const extraction = { systems, checksSha256, piecesSha256, choosers: choosers([...earlier, stage]), ...extra };
+  const chain = choosingChain([...earlier, stage]);
+  const extraction = { systems, checksSha256, piecesSha256, chain: chain.slice(0, -1), who: chain.at(-1)!.who, ...extra };
   return [{ id: `${stage.id}.music`, title: "Transcription", kind: "music", count: systems.length, item: "System", pages, extraction }];
 }
 
@@ -433,19 +435,26 @@ STEPS.human_review = {
   },
 };
 
-// The stages that may have chosen answers of issues, up to a stage: reviews and human reviews numbered in their order
-// (docs/stages/music.md, "An issue's card").
-export function choosers(stages: ApiStage[]): Record<string, Chooser> {
-  const result: Record<string, Chooser> = { extract: { label: "Extract", person: false } };
-  let reviews = 0;
-  let humans = 0;
-  let applies = 0;
+// The stages that choose or apply answers of issues, in the pipeline's order, with what they stored and their labels
+// as the cards name them ("Review 2", "Human review 1"; attribution.ts).
+export function choosingChain(stages: ApiStage[]): ChainStage[] {
+  const turns = new Map<string, number>();
+  const chain: ChainStage[] = [];
   for (const stage of stages) {
-    if (stage.step === "review") result[stage.id] = { label: `Review ${++reviews}`, person: false };
-    if (stage.step === "apply_review") result[stage.id] = { label: `Apply review ${++applies}`, person: false };
-    if (stage.step === "human_review") result[stage.id] = { label: `Human review ${++humans}`, person: true };
+    const turn = (turns.get(stage.step) ?? 0) + 1;
+    const who = whoOf(stage.step, turn);
+    const sha256s = (type: string) => stage.outputs.filter((o) => o.type === type && o.contentSha256).map((o) => o.contentSha256!);
+    if (stage.step === "extract" || stage.step === "apply_review") {
+      const checks = stage.outputs.find((o) => o.item === "" && o.type === "score_checks")?.contentSha256 ?? null;
+      chain.push({ who, step: stage.step, systems: sha256s("extraction"), checks });
+    } else if (stage.step === "review") {
+      chain.push({ who, step: "review", calls: sha256s("review"), done: stage.status === "done" });
+    } else if (stage.step === "human_review") {
+      chain.push({ who, step: "human_review", sha256: sha256s("human_review")[0] ?? null });
+    } else continue;
+    turns.set(stage.step, turn);
   }
-  return result;
+  return chain;
 }
 
 STEPS.build_mei = {

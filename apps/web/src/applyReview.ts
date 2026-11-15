@@ -274,7 +274,7 @@ export function callWarnings(input: {
 // of its applied answer, with the reason; one without an applied answer gets the answer chosen as `applied` (a new one
 // added first), with no application (who wrote that music isn't known: "[in this transcription]"); every other issue a
 // call applied has its latest choice as `applied`.
-export function appliedIssues(issues: Map<number, StoredIssue>, calls: StoredApplyCall[], stageId: string): Map<number, StoredIssue> {
+export function appliedIssues(issues: Map<number, StoredIssue>, calls: StoredApplyCall[]): Map<number, StoredIssue> {
   const out = new Map(issues);
   for (const call of [...calls].sort((a, b) => a.system - b.system)) {
     for (const c of call.choices) {
@@ -283,14 +283,14 @@ export function appliedIssues(issues: Map<number, StoredIssue>, calls: StoredApp
       out.set(c.issue, {
         ...issue,
         answers: c.newAnswer ? [...issue.answers, c.newAnswer] : issue.answers,
-        choices: [...issue.choices, { by: stageId, key: c.key, reason: c.reason, reverted: true }],
+        choices: [...issue.choices, { by: "apply_review", key: c.key, reason: c.reason, reverted: true }],
         applied: issue.applied ?? c.key,
       });
     }
     for (const id of call.applied) {
       const issue = out.get(id);
       const last = issue && latest(issue);
-      if (issue && last) out.set(id, { ...issue, applied: last.key, applications: [...(issue.applications ?? []), { by: stageId, key: last.key }] });
+      if (issue && last) out.set(id, { ...issue, applied: last.key, applications: [...(issue.applications ?? []), { by: "apply_review", key: last.key }] });
     }
   }
   return out;

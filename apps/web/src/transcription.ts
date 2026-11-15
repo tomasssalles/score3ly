@@ -5,7 +5,7 @@
 import { buildScore, type Box, type Score } from "@score3ly/notation";
 import type { LayoutSystem } from "@score3ly/prompts";
 import { systemCropBox, type StoredExtraction, type StoredIssue, type StoredWarning } from "./extract.ts";
-import type { Chooser } from "./pipeline.ts";
+import type { IssueWho } from "./attribution.ts";
 
 export type ShownSystem = { extraction: StoredExtraction; layout: LayoutSystem; crop: Box };
 
@@ -84,23 +84,25 @@ export function scoreOf(systems: ShownSystem[], pieces: number[]): Score | { pro
 // the latest choice, who chose it, when a stage other than Extract or a person did. A revert is a choice like any
 // other: "chosen by Apply review 1".
 // Each suffix is its words and the stage they name, shown in bold ("written by **Extract**"); null where none is named.
+// `who`: who added the issue's choices and applications, by index (attribution.ts).
 export type AnswerTag = { words: string; stage: string | null };
 
-export function answerTags(issue: StoredIssue, key: string, choosers: Record<string, Chooser>): AnswerTag[] {
+export function answerTags(issue: StoredIssue, key: string, who: IssueWho | undefined): AnswerTag[] {
   const tags: AnswerTag[] = [];
   if (key === issue.applied) {
-    const last = issue.applications?.at(-1);
+    const applications = issue.applications ?? [];
+    const last = applications.at(-1);
     const by = last?.key === key ? last.by : null;
     tags.push(
       by === null
         ? { words: "in this transcription", stage: null }
         : by === "extract"
           ? { words: "written by", stage: "Extract" }
-          : { words: "applied by", stage: choosers[by]?.label ?? by },
+          : { words: "applied by", stage: who?.applications[applications.length - 1]?.label ?? null },
     );
   }
   const latest = issue.choices[issue.choices.length - 1];
-  const chooser = latest && latest.by !== "extract" ? choosers[latest.by] : undefined;
+  const chooser = latest && latest.by !== "extract" ? who?.choices[issue.choices.length - 1] : undefined;
   if (latest?.key === key && chooser) tags.push({ words: `${chooser.person ? "confirmed" : latest.kept ? "kept" : "chosen"} by`, stage: chooser.label });
   return tags;
 }
