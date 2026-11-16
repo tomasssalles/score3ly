@@ -52,7 +52,7 @@ About 45–80k tokens each. Grouped by area, so that a subagent reads related fi
 | 02 | prompts | done |
 | 03 | worker: routes and storage | done |
 | 04 | worker: LLM routes and scripts | done |
-| 05 | worker: LLM providers and models | pending |
+| 05 | worker: LLM providers and models | done |
 | 06 | web: running the pipeline | pending |
 | 07 | web: stage logic | pending |
 | 08 | web: project screens | done |
