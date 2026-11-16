@@ -78,3 +78,106 @@ About 45–80k tokens each. Grouped by area, so that a subagent reads related fi
 **09 web: settings, statistics, styles:** apps/web/src/SettingsPage.tsx apps/web/src/ConfigDialog.tsx apps/web/src/NewModelConfig.tsx apps/web/src/configForm.ts apps/web/src/configForm.test.ts apps/web/src/configList.ts apps/web/src/configList.test.ts apps/web/src/TestConfigDialog.tsx apps/web/src/testResult.ts apps/web/src/testResult.test.ts apps/web/src/effort.ts apps/web/src/effort.test.ts apps/web/src/pricing.ts apps/web/src/pricing.test.ts apps/web/src/money.ts apps/web/src/money.test.ts apps/web/src/time.ts apps/web/src/time.test.ts apps/web/src/StatsPage.tsx apps/web/src/statsParts.tsx apps/web/src/costs.ts apps/web/src/costs.test.ts apps/web/src/UsageTab.tsx apps/web/src/usage.ts apps/web/src/usage.test.ts apps/web/src/RunTimesTab.tsx apps/web/src/EffortTab.tsx apps/web/src/TimeChart.tsx apps/web/src/chart.ts apps/web/src/chart.test.ts apps/web/src/themes.ts apps/web/src/themes.test.ts apps/web/src/colors.test.ts apps/web/src/themes.css apps/web/src/styles.css
 
 **10 web's shell, desktop, eval, scripts:** apps/web/index.html apps/web/vite.config.ts apps/web/src/main.tsx apps/web/src/buildInfo.d.ts apps/web/src/verovio.d.ts apps/web/src/App.tsx apps/web/src/Header.tsx apps/web/src/Menu.tsx apps/web/src/DropdownMenu.tsx apps/web/src/Info.tsx apps/web/src/Home.tsx apps/web/src/home.ts apps/web/src/home.test.ts apps/web/src/ProjectPicker.tsx apps/web/src/ProjectFilter.tsx apps/web/src/ConfirmDialog.tsx apps/web/src/RenameDialog.tsx apps/web/src/DeleteProjectDialog.tsx apps/web/src/ExportDialog.tsx apps/web/src/KnownPdfDialog.tsx apps/web/src/AboutPage.tsx apps/web/src/about.ts apps/web/src/about.test.ts apps/web/src/icon.test.ts apps/web/scripts/icons.ts apps/web/scripts/leipzig.ts apps/web/scripts/metronomeFont.ts apps/desktop/build.ts apps/desktop/src/main.ts apps/desktop/src/server.ts apps/desktop/src/d1.ts apps/desktop/src/d1.test.ts apps/desktop/src/r2.ts apps/desktop/src/r2.test.ts apps/desktop/src/secrets.ts apps/desktop/src/secrets.test.ts apps/desktop/src/leaving.ts apps/desktop/src/leaving.test.ts apps/desktop/src/version.test.ts apps/eval/index.html apps/eval/vite.config.ts apps/eval/src/main.tsx apps/eval/src/verovio.d.ts apps/eval/src/Viewer.tsx apps/eval/src/PdfPane.tsx apps/eval/src/engrave.ts apps/eval/src/lilypond.ts apps/eval/src/lilypond.test.ts apps/eval/src/highlighter.ts apps/eval/src/highlighter.test.ts apps/eval/src/marks.ts apps/eval/src/marks.test.ts apps/eval/src/useMarks.ts apps/eval/src/scrollAnchor.ts apps/eval/src/scrollAnchor.test.ts apps/eval/src/testset.ts apps/eval/src/testset.test.ts apps/eval/src/testsetServer.ts scripts/appServers.ts scripts/make-fixture.ts scripts/replay.ts scripts/screenshots.ts scripts/seedStats.ts scripts/notices.ts scripts/notices.test.ts scripts/syntax.test.ts
+
+## Level 2: groups of files that have to agree
+
+A group is code that has to agree with itself: both sides of a request (the web app and the Worker), the writer and the readers of a stored format, the code that computes a key and the code that looks it up, or the copies of one piece of functionality. Level 1 saw each file alone; level 2 sees them together.
+
+### What to look for
+1. **Contracts:** do both sides agree (request and response, writer and readers of a stored format, key computed and key looked up, a DB `CHECK` and the type that restates it)? A type or constant written on both sides (the Worker's and the web's `Stage`, `StageStatus`, `STALE_MS`, error kinds, …): should it live in one place, e.g. `@score3ly/core`?
+2. **Duplication across files,** confirmed: level 1 flagged it, level 2 says whether the copies must really behave the same, and where one shared version would live, given what each package may depend on (e.g. `imaging` doesn't depend on `core`) and where it runs (browser, Worker, Node).
+3. **Level 1's "check" findings** for the group's files: confirmed (then certain) or dropped, with a word why.
+4. **Structure:** files doing two jobs and how they would split; logic buried in components or routes that could be pure and tested; dependencies going the wrong way; modules in the wrong place.
+5. **Tests at the seams:** is each side of a contract tested, does any test pin the two together, tests that test the same thing twice across files.
+6. **Bugs** that only show when the files are read together.
+
+### How a subagent works
+- Read first the level 1 notes of the group's files (`review/level1/<batch>.md`, the `##` section of each file, and the batch-wide notes at the top), then re-read the code only where a question needs it: the parts, not whole files, especially of the large ones (`apps/worker/src/index.ts`, `llmRoutes.ts`, `apps/web/src/api.ts`, `steps.ts`), which several groups share, each for its own part.
+- A quick `grep` across the repo to settle a doubt is fine. Files outside the group are read only as far as a question needs.
+- Don't read the docs beyond what a comment or a question points to. `docs/overview.md` is the background.
+- Change no code, run no tests.
+- Write the notes to `review/level2/<group number>.md`, and nothing else:
+  - **Map:** the group's modules in a few lines each, what depends on what, the contracts between them.
+  - **Findings,** each with file and line, one or two sentences, and **certain** or **check** (for level 3). For duplication: where the shared version would live and who would use it.
+  - **Level 1 checks settled:** one line each, confirmed or dropped.
+  - **For level 3:** what this group's notes suggest about the components above it (what crosses into other groups).
+  - Concise: notes, not prose.
+
+## Level 2: the groups
+
+One subagent per group, strictly one after the other. A large file appears in several groups, each for the part named.
+
+| # | Group | Status |
+|---|---|---|
+| 01 | Hashes, keys, canonical JSON | |
+| 02 | Boxes and geometry | |
+| 03 | Page images and the image cache | |
+| 04 | Web Worker RPC | |
+| 05 | Pipeline state, both sides | |
+| 06 | Running a stage | |
+| 07 | Errors and request plumbing | |
+| 08 | The LLM request path | |
+| 09 | Provider adapters | |
+| 10 | JSON Schemas and validating answers | |
+| 11 | The model list and prices | |
+| 12 | Model configs | |
+| 13 | Costs and money | |
+| 14 | Statistics and time | |
+| 15 | Projects: names, export, import, deletion | |
+| 16 | The lens and its writers | |
+| 17 | Score structure and linking | |
+| 18 | Issues across the stages | |
+| 19 | Layout and skew, from analysis to editors | |
+| 20 | Analyze and its forms | |
+| 21 | MEI: build, view, edit, engrave, render | |
+| 22 | The UI kit and styles | |
+| 23 | Routing, navigation, the desktop shell | |
+| 24 | Hosts, deployment, scripts, eval | |
+
+**01 Hashes, keys, canonical JSON.** What agrees: content keys and recipe keys (computed and looked up), the hex-64 checks (four copies), `canonicalJson` (two), `sha256Hex` (four). Files: packages/core/src/keys.ts (+test, sha256.test.ts), packages/imaging/src/fingerprint.ts, apps/worker/src/fingerprints.ts, apps/worker/src/index.ts (`isSha256`), apps/worker/src/pipeline.ts (`isKey`, the stage key), apps/worker/src/projectFile.ts (`isSha256`, `canonicalJson`), apps/worker/src/llmRoutes.ts (the request key, hex check, `sameValues`), apps/web/src/imageCache.ts (keys), apps/web/src/steps.ts (stage key parts), apps/web/src/fixLayout.ts (`systemsChanged`), apps/web/scripts/leipzig.ts.
+
+**02 Boxes and geometry.** What agrees: `Box` (three definitions), box validation, area and overlap, crop↔page mapping, clamp and round to N digits. Files: packages/imaging/src/crop.ts, draw.ts, regions.ts; packages/notation/src/lens.ts (Box); packages/prompts/src/layout.ts (LayoutBox), review.ts (ReviewBox); apps/web/src/fit.ts, handles.ts, viewBounds.ts, transcription.ts, review.ts, extract.ts (`onPage`), fixSkew.ts, fixLayout.ts (clamp, round); the box parts of HumanReviewCards.tsx and ExtractionView.tsx.
+
+**03 Page images and the image cache.** What agrees: recipe → pixels → OPFS, two LRU evictions, the pdf.js entry points, the PDF's URL written in three places, gray-to-RGBA expansion (three). Files: packages/imaging/src/image.ts, pdfPages.ts, png.ts, rotate.ts, scale.ts, skew.ts (`rotateGray`), fingerprint.ts (`asStored`), testPages.ts; packages/core/src/pdf.ts, pdfjsAssets.ts; apps/web/src/pdf.ts, pageImages.ts, pageImageWorker.ts, imageCache.ts, cacheLru.ts, rasterize.ts, runRasterize.ts, PdfView.tsx, ImagesDiffer.tsx; apps/eval/src/PdfPane.tsx.
+
+**04 Web Worker RPC.** What agrees: three clients with an id counter and a pending Map, and their workers; error handling, termination, cleanup. Files: apps/web/src/pageImages.ts, rendering.ts, meiValidation.ts, pageImageWorker.ts, renderWorker.ts, meiCheckWorker.ts.
+
+**05 Pipeline state, both sides.** What agrees: stage statuses, planned/carried/dropped stages, the "first stage not done" rule, the `Stage` type on both sides, `modelConfig.unsupported`, `STALE_MS`. Files: apps/worker/migrations/0001_initial.sql (stages, pipeline_entries, outputs), apps/worker/src/pipeline.ts (types, reading the pipeline), failures.ts; apps/web/src/api.ts (types), pipeline.ts, steps.ts (state and artifacts); packages/core/src/project.ts.
+
+**06 Running a stage.** What agrees: the start/output/heartbeat/end requests, marking an answer unusable, resuming from recorded outputs, "the latest stage of step X before this one" (about 20 copies), the step lists (`LAYOUT_STEPS`, `PIECE_STEPS`/`METADATA_STEPS`, `EXTRACTION_STEPS`, `MANUAL`), putting JSON content. Files: apps/web/src/stageRunner.ts, runners.ts, finishers.ts, steps.ts, musicInputs.ts (lookups), engrave.ts (`withOutput`, step lists), leaveGuard.ts, wakeLock.ts, toasts.ts (lookups), the run*.ts and finish*.ts files for those patterns only; apps/worker/src/pipeline.ts (the routes), index.ts (the lock's route table).
+
+**07 Errors and request plumbing.** What agrees: the four ways a failed response becomes an error (`ApiError`/`checked`, `LlmRefused`, `WorkerRefusal`/`refusedOr`, plain `Error`), what the Worker sends on failure, error text in the UI, toasts, the request log, `err instanceof Error ? …` idioms. Files: apps/web/src/api.ts (error paths), llm.ts (refusals), toasts.ts, errorText.test.ts; apps/worker/src/requestLog.ts, the error responses of index.ts, pipeline.ts and llmRoutes.ts.
+
+**08 The LLM request path.** What agrees: browser ↔ Worker ↔ provider: SSE, call events, progress, cache lookup before images, item and round places, the replay model. Files: packages/core/src/sse.ts, callEvents.ts; apps/web/src/llm.ts, callProgress.ts, itemTiming.ts; apps/worker/src/llmRoutes.ts (the call route, the cache, recording), llm/index.ts, llm/types.ts, llm/fake.ts, llm/replay.ts.
+
+**09 Provider adapters.** What agrees: one request/answer shape for every provider, timeouts, streaming, usage and cost, base64 and JWT. Files: apps/worker/src/llm/adapters.ts, anthropic.ts, google.ts, openrouter.ts, googleServiceAccount.ts, timeouts.ts, types.ts, and their tests (anthropic, bedrock, google, vertex, openrouter, timeouts).
+
+**10 JSON Schemas and validating answers.** What agrees: the schema builders (four copies), the two hand-written validators (`shapeProblem`, `schemaProblems`), `layout`'s own validation, the `*FromModel` conversions, Zod named in the docs but not a dependency, Claude's schema limits. Files: packages/prompts/src/* (schemas and conversions), apps/worker/src/llm/jsonSchema.ts, apps/worker/scripts/probe-schemas.ts.
+
+**11 The model list and prices.** What agrees: gather → generate → `modelList.ts` → lookups; dollar parsers (three), HTML table scrapers (two), `priceKey` (two). Files: apps/worker/src/llm/models.ts, prices.ts, generateModelList.ts (+tests), apps/worker/model-list/gather/*.ts, apps/worker/scripts/generate-model-list.ts.
+
+**12 Model configs.** What agrees: config rows ↔ the browser's shape ↔ the form; secrets' labels (three), routing labels (two), `secrets_json` parsed three times, the providers' `CHECK`. Files: apps/worker/src/llmRoutes.ts (configs, Test), migration 0001 (`model_configs`); apps/web/src/configForm.ts, configList.ts, ConfigDialog.tsx, NewModelConfig.tsx, TestConfigDialog.tsx, testResult.ts, effort.ts, SettingsPage.tsx (the configs part), api.ts (config types).
+
+**13 Costs and money.** What agrees: costs computed, rounded to micro-dollars and shown; the spending cap; VAT; the run report; `ZOMBIE_MS` (two). Files: apps/worker/src/costs.ts, vat.ts, migration 0003, llmRoutes.ts (cost, cap); apps/web/src/costs.ts, money.ts, pricing.ts, runReport.ts; scripts/seedStats.ts (its cost).
+
+**14 Statistics and time.** What agrees: active time (quarters), run times, usage and its reasons vs the Worker's error kinds, the two `duration`s, `MONTHS` (two), the "finished" subquery and rasterize page parse (duplicated), the tab and filter state. Files: apps/worker/src/activity.ts, activeTime.ts, runTimes.ts, projectStats.ts; apps/web/src/runTimes.ts, usage.ts, time.ts, chart.ts, StatsPage.tsx, UsageTab.tsx, RunTimesTab.tsx, EffortTab.tsx, TimeChart.tsx, statsParts.tsx.
+
+**15 Projects: names, export, import, deletion.** What agrees: names (the retry loop twice, `isNameConflict`, `MAX_NAME_LENGTH` twice), the PDF upload (twice), the `.s3l` writer and reader, deletion and the orphans, call places. Files: apps/worker/src/names.ts, index.ts (projects), projectFile.ts, deletion.ts, migrations 0002 and 0004, scripts/callPlaces.ts, fill-call-places.ts; apps/web/src/names.ts, projectFile.ts, api.ts (projects), ExportDialog.tsx, DeleteProjectDialog.tsx, KnownPdfDialog.tsx, RenameDialog.tsx, App.tsx (picking a PDF or a project file).
+
+**16 The lens and its writers.** What agrees: the lens's types and constants and the prompts that restate them (`*_VALUES`, `Apply*Unit`), the symbolic format and its description in the prompt, measure building (lens.ts vs score.ts), the dynamics list. Files: packages/notation/src/lens.ts, symbolic.ts, durations.ts, fraction.ts; packages/prompts/src/lensForm.ts, extract.ts, applyReview.ts (types).
+
+**17 Score structure and linking.** What agrees: piece splitting (three), the first measure stretch (two), spans and links, the score checks, system numbering (three). Files: packages/notation/src/score.ts, spans.ts, links.ts, scoreChecks.ts; apps/web/src/linking.ts, musicInputs.ts, fixLayout.ts (`firstNumbers`), humanReview.ts (`placedSystems`).
+
+**18 Issues across the stages.** What agrees: issue numbering, answer letters (four), `latest(issue)` (three), the two-systems rule (two), the review and apply-review logs (two), code's issues (two copies in runExtract), the issue boxes on crops. Files: packages/prompts/src/review.ts, applyReview.ts; apps/web/src/review.ts, applyReview.ts, humanReview.ts, transcription.ts, extract.ts, runExtract.ts, runReview.ts, runApplyReview.ts, finishHumanReview.ts, HumanReviewCards.tsx, ExtractionView.tsx.
+
+**19 Layout and skew, from analysis to editors.** What agrees: `skew_analysis` and `layout`, their notes and finishers, the page editors' shared parts, `LINE_REACH` (two), the save chain (four copies, with group 20). Files: packages/imaging/src/skew.ts; packages/prompts/src/layout.ts; apps/web/src/skewAnalysis.ts, runSkewAnalysis.ts, layout.ts, runLayout.ts, fixSkew.ts, fixLayout.ts, finishFixSkew.ts, finishFixLayout.ts, pageEditor.tsx, SkewEditor.tsx, LayoutEditor.tsx, PageView.tsx.
+
+**20 Analyze and its forms.** What agrees: metadata and observations from the prompt through the checks to the forms and views; confidence shown three ways; place labels (two). Files: packages/prompts/src/analyze.ts; apps/web/src/analyze.ts, runAnalyze.ts, fixMetadata.ts, fixObservations.ts, finishFixMetadata.ts, finishFixObservations.ts, AnalysisView.tsx, MetadataView.tsx, ObservationsView.tsx, fieldList.tsx, CheckList.tsx.
+
+**21 MEI: build, view, edit, engrave, render.** What agrees: the builder ↔ the view ↔ the checks ↔ Verovio; measure ranges parsed twice; `verovio.d.ts` (web and eval). Files: packages/notation/src/mei.ts, xml.ts; apps/web/src/runBuildMei.ts, meiView.ts, meiChecks.ts, meiSchema.ts, fixMei.ts, engrave.ts, engraving.ts, runEngrave.ts, verovioRender.ts, rendering.ts, metronomeFont.ts, downloads.ts, attribution.ts, MeiWorkspace.tsx, MeiCode.tsx, FixMeiView.tsx, EngravingView.tsx, verovio.d.ts; apps/eval/src/engrave.ts, verovio.d.ts.
+
+**22 The UI kit and styles.** What agrees: the dialog shell (five), tabs (two), filter panels (two), pickers (four or more), the info toggle (three), click outside (two), `useMediaQuery` (three), `useNear` (two), the save chain, `plural` (ten or more), `styles.css` against `docs/style.md`, the CSS-regex tests (two). Files: apps/web/src/DropdownMenu.tsx, ProjectPicker.tsx, ProjectFilter.tsx, Info.tsx, ConfirmDialog.tsx, RenameDialog.tsx, DeleteProjectDialog.tsx, ExportDialog.tsx, KnownPdfDialog.tsx, Header.tsx, Home.tsx, icons.tsx, FittedText.tsx, ProgressBar.tsx, ProgressRing.tsx, useWide.ts, themes.ts, navigation.ts (`useNoBrowserBar`), StatsPage.tsx and SettingsPage.tsx (tabs, filters, pickers), fieldList.tsx (`Picker`), styles.css, themes.css, stageCardStyles.test.ts, checkListStyles.test.ts, errorText.test.ts.
+
+**23 Routing, navigation, the desktop shell.** What agrees: hash routes and tabs from the hash, history, the leave guard, the "leave while running" text (web and desktop). Files: apps/web/src/route.ts, navigation.ts, history.ts, useHash.ts, App.tsx, Menu.tsx, ProjectView.tsx, ArtifactView.tsx, StageDetails.tsx, leaveGuard.ts; apps/desktop/src/main.ts, leaving.ts.
+
+**24 Hosts, deployment, scripts, eval.** What agrees: the Worker on Cloudflare and on Node (D1, R2, secrets, `/api/info`, versions), `wrangler()` (three), argument parsing (four), the seeded PRNG (two), `FIXTURES` (two), eval vs web (`PdfPane`/`PdfView`). Files: apps/desktop/build.ts, src/server.ts, d1.ts, r2.ts, secrets.ts; apps/worker/src/testPlatform.ts, versions.ts, wrangler.jsonc.template, scripts/config.ts, setup-cloudflare.ts, try-llm.ts; scripts/appServers.ts, replay.ts, make-fixture.ts, screenshots.ts, seedStats.ts, notices.ts; apps/eval/src/* (its own coherence, and what it shares with the web app).
