@@ -28,3 +28,8 @@ jobs:
         run: npm run typecheck --workspaces --if-present
       - name: Test
         run: npm test
+      # The replay tests (docs/overview.md §12) drive the real app in Chromium, the version this Playwright expects.
+      - name: Install Chromium for the replay tests
+        run: npx playwright install --with-deps chromium
+      - name: Replay tests
+        run: npm run replay

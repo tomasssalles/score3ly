@@ -821,7 +821,6 @@ The calls' times are data for "Timeouts for LLM calls", and the run is the measu
 The replay tests are built (2026-11-15, §12, "Replay tests run in a real browser, not in Node"), with one fixture made with the fake model (`fixtures/replay/fake.s3l`). Left:
 - **The project owner's projects** (2026-11-14): once the human review's new screen is built, a first complete project of one page, then a second of five pages, both with the manual stages that were really needed, run after "Run the one-time script that fills the calls' places" if their calls were made before migration 0004; exported, copied to `fixtures/replay/<name>.s3l`, and their snapshots made with `npm run replay -- --update`.
 - **The fake fixture's human review needs nothing applied** (its answer is the one already applied), so the `apply_review` after it makes no calls and its replay isn't really exercised; a real project's will be.
-- **To decide:** whether the replay runs in CI ("Typecheck and test"), at the cost of minutes and Chromium there.
 
 ### Scenario tests with the fake model
 `#optional`
