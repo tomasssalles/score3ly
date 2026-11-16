@@ -115,7 +115,7 @@ One subagent per group, strictly one after the other. A large file appears in se
 | # | Group | Status |
 |---|---|---|
 | 01 | Hashes, keys, canonical JSON | done |
-| 02 | Boxes and geometry | |
+| 02 | Boxes and geometry | done |
 | 03 | Page images and the image cache | |
 | 04 | Web Worker RPC | |
 | 05 | Pipeline state, both sides | |
