@@ -4,7 +4,7 @@ The working notes of the task "Clean up the codebase" (`docs/tasks.md`): a revie
 
 ## How it runs
 
-- **One orchestrating session, one fresh subagent per batch.** The orchestrator gives a subagent its batch (the instructions below and the batch's file list), checks that the notes arrived, marks the batch done here, and commits and pushes to the working branch after each batch. Only notes go up a level, never the code; a higher level re-reads code selectively, where a finding needs it.
+- **One orchestrating session, one fresh subagent per batch, strictly one after the other** (the project owner's rule: subagents in parallel all hit the session's usage limit at once, and their work is lost). The orchestrator gives a subagent its batch (the instructions below and the batch's file list), checks that the notes arrived, marks the batch done here, and commits and pushes to the working branch after each batch. Only notes go up a level, never the code; a higher level re-reads code selectively, where a finding needs it.
 - **After a `/clear`:** read this file and continue with the first batch not done.
 - **Levels:** 1, every file on its own (below); 2, groups of files chosen by what has to agree with itself; then components; then the whole app. Each level writes its own instructions here before it starts.
 
