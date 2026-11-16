@@ -12,6 +12,10 @@ The working notes of the task "Clean up the codebase" (`docs/tasks.md`): a revie
 
 The code of `packages/`, `apps/` and `scripts/`, tests included, about 2.6 MB (about 650k tokens). Left out: `apps/worker/worker-configuration.d.ts` (generated), `apps/worker/src/llm/modelList.ts` and the JSON under `apps/worker/model-list/` (data), `packages/notation/schemas/` (MEI's schemas), `scripts/licenses/`, `apps/worker/model-list/gather/sources/`, `package-lock.json`, `THIRD_PARTY_NOTICES.md`, `testset/`, `fixtures/`.
 
+## The final summary
+
+**At the end of the review** (after the plan, and updated after the fixes), `review/summary.md` sums it up for the project owner, for two uses: judging how effective the review was, and deciding the rules that go into CLAUDE.md. It holds: the most important findings and their fixes; the most common kinds of problem, with counts across all levels; the most problematic ones (bugs, things that misled); how many findings each level made, confirmed and dropped (how many of level 1's checks held); the likely causes in how the code was written; and the CLAUDE.md rules proposed. So **every level keeps what this needs:** findings marked certain or check, checks settled later recorded with their outcome, and each level's notes end with its patterns. `summary.md` is kept (moved out of `review/` before the folder is deleted) until it has been discussed.
+
 ## Level 1: every file on its own
 
 **The main worry is duplication.** Coding agents tend to write what they need from scratch, so the same functionality exists in several places, and code is written by hand that a small package or the platform provides. Level 1 reads one batch and can't see the other files, so its job is mainly to take the notes from which the later levels can see it: they will ask "these two modules need similar functionality; do they share code as they should?".
@@ -101,6 +105,7 @@ A group is code that has to agree with itself: both sides of a request (the web 
   - **Findings,** each with file and line, one or two sentences, and **certain** or **check** (for level 3). For duplication: where the shared version would live and who would use it.
   - **Level 1 checks settled:** one line each, confirmed or dropped.
   - **For level 3:** what this group's notes suggest about the components above it (what crosses into other groups).
+  - **Patterns:** the kinds of problem found in this group (e.g. a helper written again, a type restated on both sides, a stale comment, a race), each with a count and the likely cause in how the code came to be written (e.g. "a stage's code written without looking for the helper the previous stage used"). These feed the final summary and the new rules for CLAUDE.md.
   - Concise: notes, not prose.
 
 ## Level 2: the groups
