@@ -37,6 +37,8 @@ The tasks below, in the file's order.
 - [Delete the tasks file](#delete-the-tasks-file)
 - [A manual test suite](#a-manual-test-suite)
 - [Fix the replay tests on GitHub's ubuntu-latest](#fix-the-replay-tests-on-githubs-ubuntu-latest)
+- [Select a field's text when it is clicked](#select-a-fields-text-when-it-is-clicked)
+- [Human review: where clarifications and issue cards are](#human-review-where-clarifications-and-issue-cards-are)
 - [Clean up the codebase](#clean-up-the-codebase)
 - [Clean up the docs before the first release tag](#clean-up-the-docs-before-the-first-release-tag)
 - [Run the whole manual test suite before the first release tag](#run-the-whole-manual-test-suite-before-the-first-release-tag)
@@ -179,6 +181,19 @@ A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a 
 `#next` `#bug`
 
 The workflow "Typecheck and test" failed on main (2026-11-16) at `npx playwright install --with-deps chromium`: `ubuntu-latest` is now Ubuntu 26.04, which Playwright 1.56.1 doesn't support ("Playwright does not support chromium on ubuntu26.04-x64"). Options: pin the runner (`runs-on: ubuntu-24.04`) until Playwright supports it, or update Playwright to a version that does (`.github/workflows/tests.yml`).
+
+### Select a field's text when it is clicked
+`#next` `#style`
+
+Clicking a field such as the VAT rate or the spending cap should select its text, so that typing replaces the value.
+
+### Human review: where clarifications and issue cards are
+`#next` `#style`
+
+From the project owner (2026-11-16):
+- "Add clarification" doesn't look like a button, and it isn't clear whether it is meant for the system above it or below it.
+- It sits below all the issues of its system, so by the time it is reached the system is often out of sight. The same goes for where the card of a new issue appears.
+- In general, issue cards can be so far below their system that the score is no longer visible.
 
 ### Clean up the codebase
 
