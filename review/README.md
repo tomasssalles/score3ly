@@ -126,7 +126,7 @@ One subagent per group, strictly one after the other. A large file appears in se
 | 10 | JSON Schemas and validating answers | done |
 | 11 | The model list and prices | done |
 | 12 | Model configs | done |
-| 13 | Costs and money | |
+| 13 | Costs and money | done |
 | 14 | Statistics and time | |
 | 15 | Projects: names, export, import, deletion | |
 | 16 | The lens and its writers | |
