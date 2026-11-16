@@ -130,7 +130,7 @@ One subagent per group, strictly one after the other. A large file appears in se
 | 14 | Statistics and time | done |
 | 15 | Projects: names, export, import, deletion | done |
 | 16 | The lens and its writers | done |
-| 17 | Score structure and linking | |
+| 17 | Score structure and linking | done |
 | 18 | Issues across the stages | |
 | 19 | Layout and skew, from analysis to editors | |
 | 20 | Analyze and its forms | |
