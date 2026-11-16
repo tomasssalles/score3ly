@@ -4047,68 +4047,21 @@ textarea.field-input {
   background: var(--mark);
 }
 
-/* Drawing a clarification's boxes on a crop: over the crop and its boxes; a finger's drag still scrolls. */
+/* Drawing a clarification's boxes on a crop: over the crop and its boxes, with the page editors' handles, rubber band
+   and first corner. A finger doesn't scroll the page there; two still zoom. */
 .draw-layer {
   position: absolute;
   inset: 0;
   z-index: 1;
   cursor: crosshair;
+  touch-action: pinch-zoom;
 }
 
-.draw-box {
-  position: absolute;
-  pointer-events: none;
-}
-
-/* The handles as in the page editors (`.editor-handle`, handles.ts): corner squares of 14 px, an edge's a bar 10 px
-   thick along 60% of it (at least a corner's length), in the accent; each easier to hit than it looks. */
-.draw-handle {
-  position: absolute;
-  box-sizing: border-box;
-  transform: translate(-50%, -50%);
-  border: 1px solid var(--accent);
-  background: color-mix(in srgb, var(--accent) 35%, transparent);
-  pointer-events: auto;
-  touch-action: none;
-}
-
-.draw-handle.corner {
-  width: 14px;
-  height: 14px;
-}
-
-.draw-handle.edge-y {
-  width: 60%;
-  min-width: 14px;
-  height: 10px;
-}
-
-.draw-handle.edge-x {
-  width: 10px;
-  height: 60%;
-  min-height: 14px;
-}
-
-.draw-handle::before {
-  content: "";
-  position: absolute;
-  inset: -6px;
-}
-
-.draw-rubber {
-  position: absolute;
-  border: 2px dashed var(--accent);
-  pointer-events: none;
-}
-
-.draw-anchor {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
-  border-radius: 50%;
-  background: var(--accent);
-  pointer-events: none;
+.draw-layer > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
 .button-secondary.button-small {

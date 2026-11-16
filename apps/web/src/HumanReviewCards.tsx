@@ -7,6 +7,8 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { AnswerTags } from "./ExtractionView";
 import type { StoredIssue } from "./extract";
 import { boxThrough, resizeBox, type BoxHandle } from "./fixLayout";
+import { handleAt } from "./handles";
+import { BoxHandles } from "./pageEditor";
 import { NO_TEXT } from "./humanReview";
 import { Info } from "./Info";
 import type { PlacedSystem } from "./review";
@@ -302,20 +304,17 @@ export function ClarificationCard({
 }
 
 type CropPoint = { x: number; y: number }; // fractions of the crop
-const HANDLES: BoxHandle[] = [
-  { x: "left", y: "top" },
-  { x: null, y: "top" },
-  { x: "right", y: "top" },
-  { x: "right", y: null },
-  { x: "right", y: "bottom" },
-  { x: null, y: "bottom" },
-  { x: "left", y: "bottom" },
-  { x: "left", y: null },
-];
 
-// Drawing a selected clarification's boxes on a crop: a box is dragged with a mouse, or set by two taps at opposite
-// corners (a finger's drag scrolls the page, as anywhere else); the clarification's boxes on the crop get handles that
-// resize them. Boxes are in the page's fractions outside, the crop's inside.
+// The cursor over a handle: which way it resizes.
+function handleCursor(handle: BoxHandle): string {
+  if (handle.x && handle.y) return (handle.x === "left") === (handle.y === "top") ? "nwse-resize" : "nesw-resize";
+  return handle.x ? "ew-resize" : "ns-resize";
+}
+
+// Drawing a selected clarification's boxes on a crop: a box is dragged, or set by two taps at opposite corners; the
+// clarification's boxes on the crop get the page editors' handles (BoxHandles, handleAt), which resize them. A finger
+// doesn't scroll the page on such a crop (two still zoom). Boxes are in the page's fractions outside, the crop's inside;
+// the handles are drawn in the crop's screen pixels, as the page editors draw them at a zoom of 1.
 export function DrawLayer({
   crop,
   boxes,
@@ -328,10 +327,20 @@ export function DrawLayer({
   onResize: (k: number, box: Box) => void;
 }) {
   const layer = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 1, height: 1 });
   const [anchor, setAnchor] = useState<CropPoint | null>(null);
   const [rubber, setRubber] = useState<CropPoint | null>(null);
   const [resizing, setResizing] = useState<{ k: number; handle: BoxHandle; box: Box } | null>(null);
-  const down = useRef<{ at: CropPoint; mouse: boolean; moved: boolean } | null>(null);
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const down = useRef<{ at: CropPoint; moved: boolean } | null>(null);
+  useLayoutEffect(() => {
+    const el = layer.current!;
+    const measure = () => setSize({ width: el.clientWidth || 1, height: el.clientHeight || 1 });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const w = crop.right - crop.left;
   const h = crop.bottom - crop.top;
   const toCrop = (b: Box): Box => ({ left: (b.left - crop.left) / w, right: (b.right - crop.left) / w, top: (b.top - crop.top) / h, bottom: (b.bottom - crop.top) / h });
@@ -339,6 +348,14 @@ export function DrawLayer({
   const pointAt = (e: { clientX: number; clientY: number }): CropPoint => {
     const r = layer.current!.getBoundingClientRect();
     return { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) };
+  };
+  const px = (p: CropPoint) => ({ x: p.x * size.width, y: p.y * size.height });
+  const handleUnder = (p: CropPoint) => {
+    for (const b of boxes) {
+      const handle = handleAt(toCrop(b.box), px(p), size, 1);
+      if (handle) return { k: b.k, handle, box: b.box };
+    }
+    return null;
   };
   // Escape lets go of a first corner.
   useEffect(() => {
@@ -349,97 +366,86 @@ export function DrawLayer({
   }, [anchor]);
   function finish(a: CropPoint, b: CropPoint) {
     const box = boxThrough(a, b);
-    if (!box) return false; // too small to be meant
+    if (!box) return; // too small to be meant
     setAnchor(null);
     setRubber(null);
     onAdd(toPage(box));
-    return true;
   }
   function onPointerDown(e: ReactPointerEvent) {
     if (e.button !== 0) return;
-    down.current = { at: pointAt(e), mouse: e.pointerType === "mouse", moved: false };
-    if (e.pointerType === "mouse") layer.current?.setPointerCapture(e.pointerId);
+    const p = pointAt(e);
+    layer.current?.setPointerCapture(e.pointerId);
+    const grabbed = handleUnder(p);
+    if (grabbed) setResizing(grabbed);
+    else down.current = { at: p, moved: false };
   }
   function onPointerMove(e: ReactPointerEvent) {
     const p = pointAt(e);
-    if (down.current?.mouse) {
-      down.current.moved ||= Math.hypot(p.x - down.current.at.x, (p.y - down.current.at.y) * (h / w)) > 0.01;
+    if (resizing) {
+      setResizing({ ...resizing, box: resizeBox(resizing.box, resizing.handle, { x: crop.left + p.x * w, y: crop.top + p.y * h }) });
+      return;
+    }
+    if (down.current) {
+      const q = px(p);
+      const at = px(down.current.at);
+      down.current.moved ||= Math.hypot(q.x - at.x, q.y - at.y) > 8;
       if (down.current.moved) setRubber(p);
-    } else if (anchor && e.pointerType === "mouse") setRubber(p);
+      return;
+    }
+    if (e.pointerType === "mouse") {
+      const over = handleUnder(p);
+      setCursor(over ? handleCursor(over.handle) : undefined);
+      if (anchor) setRubber(p);
+    }
   }
   function onPointerUp(e: ReactPointerEvent) {
+    if (resizing) {
+      onResize(resizing.k, resizing.box);
+      setResizing(null);
+      return;
+    }
     const start = down.current;
     down.current = null;
     if (!start) return;
     const p = pointAt(e);
-    if (start.mouse && start.moved) {
-      finish(start.at, p);
-      return;
-    }
+    if (start.moved) finish(start.at, p);
     // A tap or a click: the first corner, or the second.
-    if (anchor) finish(anchor, p);
+    else if (anchor) finish(anchor, p);
     else setAnchor(p);
   }
-  function startResize(e: ReactPointerEvent, k: number, handle: BoxHandle, box: Box) {
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    setResizing({ k, handle, box });
-  }
-  function moveResize(e: ReactPointerEvent) {
-    if (!resizing) return;
-    e.stopPropagation();
-    const p = pointAt(e);
-    const page = { x: crop.left + p.x * w, y: crop.top + p.y * h };
-    setResizing({ ...resizing, box: resizeBox(resizing.box, resizing.handle, page) });
-  }
-  function endResize(e: ReactPointerEvent) {
-    if (!resizing) return;
-    e.stopPropagation();
-    onResize(resizing.k, resizing.box);
-    setResizing(null);
-  }
   const shown = boxes.map((b) => (resizing?.k === b.k ? { ...b, box: resizing.box } : b));
-  const band = anchor && rubber ? boxThrough(anchor, rubber) : down.current?.mouse && rubber ? boxThrough(down.current.at, rubber) : null;
+  const from = anchor ?? (down.current?.moved ? down.current.at : null);
+  const band = from && rubber ? boxThrough(from, rubber) : null;
   return (
     <div
       ref={layer}
       className="draw-layer"
+      style={{ cursor: resizing ? handleCursor(resizing.handle) : cursor }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={() => {
         down.current = null;
+        setResizing(null);
       }}
-      onPointerLeave={() => !down.current && setRubber(null)}
+      onPointerLeave={() => !down.current && !resizing && setRubber(null)}
     >
-      {shown.map(({ k, box }) => {
-        const c = toCrop(box);
-        return (
-          <div key={k} className="draw-box" style={{ left: `${c.left * 100}%`, top: `${c.top * 100}%`, width: `${(c.right - c.left) * 100}%`, height: `${(c.bottom - c.top) * 100}%` }}>
-            {HANDLES.map((handle, i) => (
-              <span
-                key={i}
-                className={`draw-handle ${handle.x && handle.y ? "corner" : handle.x ? "edge-x" : "edge-y"}`}
-                style={{
-                  left: handle.x === "left" ? "0%" : handle.x === "right" ? "100%" : "50%",
-                  top: handle.y === "top" ? "0%" : handle.y === "bottom" ? "100%" : "50%",
-                  cursor: handle.x && handle.y ? (handle.x === handle.y.replace("top", "left").replace("bottom", "right") ? "nwse-resize" : "nesw-resize") : handle.x ? "ew-resize" : "ns-resize",
-                }}
-                onPointerDown={(e) => startResize(e, k, handle, box)}
-                onPointerMove={moveResize}
-                onPointerUp={endResize}
-              />
-            ))}
-          </div>
-        );
-      })}
-      {band && (
-        <div
-          className="draw-rubber"
-          style={{ left: `${band.left * 100}%`, top: `${band.top * 100}%`, width: `${(band.right - band.left) * 100}%`, height: `${(band.bottom - band.top) * 100}%` }}
-        />
-      )}
-      {anchor && <span className="draw-anchor" style={{ left: `${anchor.x * 100}%`, top: `${anchor.y * 100}%` }} />}
+      <svg viewBox={`0 0 ${size.width} ${size.height}`} style={{ "--px": "1px" } as React.CSSProperties} aria-hidden="true">
+        {shown.map(({ k, box }) => (
+          <BoxHandles key={k} box={toCrop(box)} size={size} scale={1} />
+        ))}
+        {band && (
+          <rect
+            className="editor-rubber"
+            x={band.left * size.width}
+            y={band.top * size.height}
+            width={(band.right - band.left) * size.width}
+            height={(band.bottom - band.top) * size.height}
+            fill="none"
+          />
+        )}
+        {anchor && <circle className="editor-anchor" cx={anchor.x * size.width} cy={anchor.y * size.height} r={5} />}
+      </svg>
     </div>
   );
 }
