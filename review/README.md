@@ -123,7 +123,7 @@ One subagent per group, strictly one after the other. A large file appears in se
 | 07 | Errors and request plumbing | done |
 | 08 | The LLM request path | done |
 | 09 | Provider adapters | done |
-| 10 | JSON Schemas and validating answers | |
+| 10 | JSON Schemas and validating answers | done |
 | 11 | The model list and prices | |
 | 12 | Model configs | |
 | 13 | Costs and money | |
