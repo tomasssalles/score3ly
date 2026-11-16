@@ -186,3 +186,43 @@ One subagent per group, strictly one after the other. A large file appears in se
 **23 Routing, navigation, the desktop shell.** What agrees: hash routes and tabs from the hash, history, the leave guard, the "leave while running" text (web and desktop). Files: apps/web/src/route.ts, navigation.ts, history.ts, useHash.ts, App.tsx, Menu.tsx, ProjectView.tsx, ArtifactView.tsx, StageDetails.tsx, leaveGuard.ts; apps/desktop/src/main.ts, leaving.ts.
 
 **24 Hosts, deployment, scripts, eval.** What agrees: the Worker on Cloudflare and on Node (D1, R2, secrets, `/api/info`, versions), `wrangler()` (three), argument parsing (four), the seeded PRNG (two), `FIXTURES` (two), eval vs web (`PdfPane`/`PdfView`). Files: apps/desktop/build.ts, src/server.ts, d1.ts, r2.ts, secrets.ts; apps/worker/src/testPlatform.ts, versions.ts, wrangler.jsonc.template, scripts/config.ts, setup-cloudflare.ts, try-llm.ts; scripts/appServers.ts, replay.ts, make-fixture.ts, screenshots.ts, seedStats.ts, notices.ts; apps/eval/src/* (its own coherence, and what it shares with the web app).
+
+## After level 2: the rest of the review
+
+Decided with the project owner (2026-11-16). **When the project owner says "go":** finish level 2 (the first group not done), then write level 3's instructions here (below, filled in), then run level 3, level 4, the plan and the summary draft, one subagent at a time, committing and pushing after each. **Stop before any fix:** the fixes wait for the project owner's review of the plan. If the usage limit interrupts, the next "go" continues from the first step not done in the tables.
+
+### Level 3: components
+One subagent per component. It reads the level 2 notes of its groups (and the level 1 notes only where a level 2 note points), and re-reads code only where a question needs it. It writes `review/level3/<letter>.md`.
+
+| # | Component | Level 2 groups | Status |
+|---|---|---|---|
+| A | Foundations and contracts | 01, 05, 07 | |
+| B | Images and the page stages | 02, 03, 04, 19 | |
+| C | LLM calls and money | 08, 09, 10, 11, 12, 13 | |
+| D | Music | 16, 17, 18, 20, 21 | |
+| E | Projects, hosts, tooling | 15, 24 | |
+| F | UI and statistics | 14, 22, 23 | |
+
+What level 3 looks for:
+- **Proposals that conflict or overlap** across groups, merged into one: above all the many "move it to `@score3ly/core`" proposals, into one layout of what `core` holds (and of other shared modules).
+- **Findings corrected by later groups** (e.g. group 15 found group 08's finding 5 wrong): the notes of each group are read with the later ones that refer to them.
+- **The order of the fixes:** what depends on what, what must come first (shared modules before their users), what is risky (anything that changes a schema, a prompt or a stored format changes request keys and is paid for again).
+- **The component's boundaries:** what crosses into other components, what should move.
+- **Priority:** bugs that hurt now, bugs that will hurt, structural work that prevents more bugs, cleanups.
+- Ends with its **Patterns**, merged from its groups', with counts.
+
+### Level 4: the whole app
+One subagent, from the level 3 notes (and below only where needed). It writes `review/level4.md`: the architecture and how the components fit; the final shape of `core` and the shared modules; the draft answer to "if we started from scratch, what big things would we do differently?"; all the Patterns merged, with counts, as candidate rules for CLAUDE.md.
+
+### The plan
+One subagent writes `review/plan.md` from levels 3 and 4: the fixes as batches, ordered by priority and dependency, bugs first, each bug reproduced in a test (CLAUDE.md). **The project owner reviews only the major points:** the plan opens with a short summary of them (decisions to make, bugs that matter, structural changes, anything that changes request keys or stored formats), and the many small, low-level fixes are grouped into batches named by what they clean up, not listed one by one for review.
+
+### The summary draft
+One subagent writes the first draft of `review/summary.md` (see "The final summary"), from all the notes and the plan; updated after the fixes.
+
+| Step | Status |
+|---|---|
+| Level 3's instructions written (this section filled in where needed) | done |
+| Level 4 | |
+| The plan | |
+| The summary draft | |
