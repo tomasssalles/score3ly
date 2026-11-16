@@ -419,7 +419,7 @@ export function DrawLayer({
             {HANDLES.map((handle, i) => (
               <span
                 key={i}
-                className="draw-handle"
+                className={`draw-handle ${handle.x && handle.y ? "corner" : handle.x ? "edge-x" : "edge-y"}`}
                 style={{
                   left: handle.x === "left" ? "0%" : handle.x === "right" ? "100%" : "50%",
                   top: handle.y === "top" ? "0%" : handle.y === "bottom" ? "100%" : "50%",
