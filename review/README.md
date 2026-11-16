@@ -118,7 +118,7 @@ One subagent per group, strictly one after the other. A large file appears in se
 | 02 | Boxes and geometry | done |
 | 03 | Page images and the image cache | done |
 | 04 | Web Worker RPC | done |
-| 05 | Pipeline state, both sides | |
+| 05 | Pipeline state, both sides | done |
 | 06 | Running a stage | |
 | 07 | Errors and request plumbing | |
 | 08 | The LLM request path | |
