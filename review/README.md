@@ -128,7 +128,7 @@ One subagent per group, strictly one after the other. A large file appears in se
 | 12 | Model configs | done |
 | 13 | Costs and money | done |
 | 14 | Statistics and time | done |
-| 15 | Projects: names, export, import, deletion | |
+| 15 | Projects: names, export, import, deletion | done |
 | 16 | The lens and its writers | |
 | 17 | Score structure and linking | |
 | 18 | Issues across the stages | |
