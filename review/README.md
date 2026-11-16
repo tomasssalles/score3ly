@@ -120,7 +120,7 @@ One subagent per group, strictly one after the other. A large file appears in se
 | 04 | Web Worker RPC | done |
 | 05 | Pipeline state, both sides | done |
 | 06 | Running a stage | done |
-| 07 | Errors and request plumbing | |
+| 07 | Errors and request plumbing | done |
 | 08 | The LLM request path | |
 | 09 | Provider adapters | |
 | 10 | JSON Schemas and validating answers | |
