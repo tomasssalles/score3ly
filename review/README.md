@@ -55,7 +55,7 @@ About 45–80k tokens each. Grouped by area, so that a subagent reads related fi
 | 05 | worker: LLM providers and models | pending |
 | 06 | web: running the pipeline | pending |
 | 07 | web: stage logic | pending |
-| 08 | web: project screens | pending |
+| 08 | web: project screens | done |
 | 09 | web: settings, statistics, styles | pending |
 | 10 | web's shell, desktop, eval, scripts | pending |
 
