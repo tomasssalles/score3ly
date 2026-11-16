@@ -36,6 +36,7 @@ The tasks below, in the file's order.
 - [Move the tasks to GitHub issues](#move-the-tasks-to-github-issues)
 - [Delete the tasks file](#delete-the-tasks-file)
 - [A manual test suite](#a-manual-test-suite)
+- [Fix the replay tests on GitHub's ubuntu-latest](#fix-the-replay-tests-on-githubs-ubuntu-latest)
 - [Clean up the codebase](#clean-up-the-codebase)
 - [Clean up the docs before the first release tag](#clean-up-the-docs-before-the-first-release-tag)
 - [Run the whole manual test suite before the first release tag](#run-the-whole-manual-test-suite-before-the-first-release-tag)
@@ -173,6 +174,11 @@ A first version is in `docs/manual-tests.md` (2026-11-01): nine stories, each a 
 - **Multi-device tests wait for a real deployment** (§16, "Deployment"): listed at the end of the file, to be written as stories then, with real phones, Firefox and Safari.
 - **Stories to add** once built: the format gap report. (The model configs: story 10, 2026-11-05; `apply_review` and further reviews: in stories 1 and 3, 2026-11-02; `human_review`: in stories 2 and 3, 2026-11-04.)
 - **The setup becomes a test environment** once those exist ("Build the test environments"), so the stories start with one command.
+
+### Fix the replay tests on GitHub's ubuntu-latest
+`#next` `#bug`
+
+The workflow "Typecheck and test" failed on main (2026-11-16) at `npx playwright install --with-deps chromium`: `ubuntu-latest` is now Ubuntu 26.04, which Playwright 1.56.1 doesn't support ("Playwright does not support chromium on ubuntu26.04-x64"). Options: pin the runner (`runs-on: ubuntu-24.04`) until Playwright supports it, or update Playwright to a version that does (`.github/workflows/tests.yml`).
 
 ### Clean up the codebase
 
