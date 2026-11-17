@@ -7,7 +7,7 @@ export function resultText(result: TestResult, model: string, config: Pick<Model
   if (result.status !== "ok") return `Failed (after ${seconds}): ${result.error ?? "The answer ended unexpectedly."}`;
   const cost =
     config.price.kind === "free" ? "$0.00 (free tier)"
-    : result.costUsd === null ? "unknown (unpriced)"
-    : `${dollars(result.costUsd)} incl. VAT`;
+    : result.costUsd === null ? (config.price.kind === "provider" ? "unknown (the provider didn't report it)" : config.price.kind === "unpriced" ? "unknown (unpriced)" : "unknown")
+    : `${dollars(result.costUsd)}${result.vatPercent > 0 ? " incl. VAT" : ""}`;
   return `Success: ${model} responded in the requested format in ${seconds}. Cost: ${cost}.`;
 }

@@ -6,7 +6,7 @@ import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList, type Provider } from "./llm/models.ts";
-import { convertAddedConfigs, modelOptions, providerCost, secretNames, spentInLastDay, throttled, throttledProgress, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
+import { capAmount, convertAddedConfigs, modelOptions, providerCost, secretNames, spentInLastDay, throttled, throttledProgress, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 
@@ -1057,7 +1057,7 @@ test("a config's test is a real request, sent every time, recorded without a sta
   await send("/api/settings/spendingCapUsd", { value: 0.0001 }, "PUT");
   const capped = await send(`/api/model-configs/${opus.id}/test`);
   assert.equal(capped.status, 429);
-  assert.equal((await json(capped)).error, "The spending cap has been reached: $0.00 within 24 hours."); // a test is never served from the record
+  assert.equal((await json(capped)).error, "The spending cap has been reached: $0.0001 within 24 hours."); // a test is never served from the record
   await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
 
   // Deleted configs aren't tested.
@@ -1183,4 +1183,8 @@ test("a stopped call is recorded as stopped, whatever error the adapter's cut co
   const row = (await calls()).at(-1)!;
   assert.deepEqual([row.status, row.error_kind], ["error", "aborted"]);
   assert.match(row.error as string, /^Stopped: /);
+});
+
+test("the spending cap's amount reads as the settings show it, never a cap above 0 as 0.00", () => {
+  assert.deepEqual([1, 1.5, 0.25, 0.004, 0.0001].map(capAmount), ["1.00", "1.50", "0.25", "0.004", "0.0001"]);
 });

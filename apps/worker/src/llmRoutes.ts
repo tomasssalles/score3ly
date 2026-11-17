@@ -1094,6 +1094,12 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
   return runCall(env, prepared, request, requestKey, stageId, place, timeoutMs, signal);
 }
 
+// The spending cap's amount as the settings show it (SettingsPage.tsx, `amount`): two decimals where they are enough
+// ("1.50"), else all of it ("0.004", which two decimals would show as "0.00").
+export function capAmount(usd: number): string {
+  return Number.isInteger(Math.round(usd * 1e6) / 1e4) ? usd.toFixed(2) : String(usd);
+}
+
 // What a call needs before anything is sent: a price, room under the spending cap, the secrets and an adapter.
 async function prepareCall(env: Env, row: ModelConfigRow): Promise<Prepared | Refusal> {
   const db = env.DB;
@@ -1108,7 +1114,7 @@ async function prepareCall(env: Env, row: ModelConfigRow): Promise<Prepared | Re
     // A model the provider itself lists as free (OpenRouter's ":free" models: all its prices 0) costs nothing, so the
     // cap doesn't stop it (decided 2026-11-08); its calls are still recorded at what they report.
     if ((await spentInLastDay(db)) >= spendingCapUsd && !(priced.kind === "provider" && (await freeOnOpenRouter(config.model, config.region)))) {
-      return { refusal: { error: `The spending cap has been reached: $${spendingCapUsd.toFixed(2)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap", status: 429 } };
+      return { refusal: { error: `The spending cap has been reached: $${capAmount(spendingCapUsd)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap", status: 429 } };
     }
   }
   const secrets = secretValues(config, env);
