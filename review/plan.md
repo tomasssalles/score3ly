@@ -18,6 +18,7 @@ These override the recommendations below where they differ.
 - **dec. 23, `imported_at`:** **kept** (`docs/database.md` 105: room for later choices about imported projects, e.g. their costs in the statistics).
 - **E1, the import on the deployed instance:** the owner's test, in `docs/tasks.md` ("Check export and import on a large project"); nothing to do in the review.
 - **dec. 2–3, run ids:** yes.
+- **B3, bar lines:** as planned, **plus a small minimum distance** between bar lines, and between a bar line and the box's sides (closer ones merged or dropped).
 - **dec. 4, the R2 binding:** renamed to `STORE` (a config change on the deployed instance).
 - **dec. 18, orphan collection:** a "Free up storage" button in the settings, plus the collection that already runs when a project is deleted; no cron, nothing at the desktop's start-up.
 - **Everything else in the summary below** that the owner didn't comment on: as recommended.
@@ -104,6 +105,7 @@ B7 (`PAGE_IMAGE_VERSION`), B8 (`DESKEW_VERSION` out), B3 (`normalizeBarLines`, `
 ## How every batch is done
 
 - Read `review/README.md`, this plan's batch, and the level 3 entries it cites (they cite level 2; go down only where a step needs it). The batch's scope is a guide: follow the finding to wherever it lives.
+- **Be critical of the batch itself** (the project owner, 2026-11-17): the findings come from reading, nothing was run, so some are wrong or overstated. Before fixing anything, confirm the finding in the code as it is now. A finding that doesn't hold, or a planned fix that doesn't make sense once the code is in front of you (too costly for what it gains, a better fix, a conflict with another batch), isn't done as planned: it is **reported** in the batch's row of the Status table and in `review/fixes.md` (one line each: the finding, what was found, what was done instead). These feed the final summary: how many planned fixes held is the best signal of the review's quality.
 - **A bug is reproduced in a test first,** then fixed and the test seen to pass (CLAUDE.md). Structural moves keep behaviour; where a move has no test at its seam, write one before moving.
 - **The replay guards requests:** a batch that touches prompts, schemas, recipes, image making or how requests are built runs `npm run replay` (with `CHROMIUM_PATH` in a cloud session) and must leave the request snapshots unchanged. Only the paid release (33–34) may run `-- --update`.
 - End: `npm run typecheck --workspaces` (and the root typecheck once batch 1 added it), `npm test`, the replay where it applies; anything writing `package-lock.json` through `npx npm@12.2.2`; update the docs named under "Docs to update"; commit (one commit per batch, or a few). Mark the batch done in the table at the end.
@@ -362,6 +364,8 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 - **Batch 38:** style.md: body size and control radii as decided.
 
 ## Status
+
+Each row ends with what was done, and the findings dropped or changed at fix time (details in `review/fixes.md`).
 
 | # | Batch | Status |
 |---|---|---|

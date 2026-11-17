@@ -40,6 +40,7 @@ The tasks below, in the file's order.
 - [Select a field's text when it is clicked](#select-a-fields-text-when-it-is-clicked)
 - [Human review: where clarifications and issue cards are](#human-review-where-clarifications-and-issue-cards-are)
 - [Clean up the codebase](#clean-up-the-codebase)
+- [A guide to periodic code reviews](#a-guide-to-periodic-code-reviews)
 - [Clean up the docs before the first release tag](#clean-up-the-docs-before-the-first-release-tag)
 - [Run the whole manual test suite before the first release tag](#run-the-whole-manual-test-suite-before-the-first-release-tag)
 - [The costs view: the order of long lists](#the-costs-view-the-order-of-long-lists)
@@ -211,6 +212,11 @@ Go through the entire codebase and clean it up: dead code, duplicated helpers, n
 - **The fixes, in batches by priority,** each with the tests run and committed; a bug is reproduced in a test first (CLAUDE.md).
 - **The practices that need reinforcing go into CLAUDE.md,** the most important outcome: what kept going wrong, said as rules short enough to be followed.
 - **The estimate:** about 4–6M tokens for the review up to the plan (mostly cached input, a few hundred thousand of output), and 5–15M for the fixes, depending on how many there are. Done in one long session instead of fresh batches, the review would cost several times more.
+
+### A guide to periodic code reviews
+`#docs` `#decision`
+
+If the code review of November 2026 ("Clean up the codebase") turns out well, write a doc on doing such reviews once in a while: the levels, the subagents one at a time, the notes in the repo, the plan and the fixes, adjusted by what went well or poorly (`review/summary.md`, "How effective was the review", and the planned fixes that didn't hold, `review/fixes.md`). One thing to add that this review didn't ask for explicitly: **brittle tests, hacky testing and testability** as things to look for at every level (the project owner cares about them a lot).
 
 ### Clean up the docs before the first release tag
 `#next-release` `#docs`
