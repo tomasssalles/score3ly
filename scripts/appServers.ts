@@ -15,23 +15,62 @@ export const ROOT = join(import.meta.dirname, "..");
 
 const children: ChildProcess[] = [];
 
-function start(command: string, args: string[], cwd: string, env: Record<string, string> = {}): void {
+export function start(command: string, args: string[], cwd: string, env: Record<string, string> = {}): void {
   // Its own process group, so that stopping it stops what it started (workerd, esbuild).
   const child = spawn(command, args, { cwd, env: { ...process.env, ...env }, detached: true, stdio: "ignore" });
   children.push(child);
 }
 
-export function stopAll() {
-  for (const child of children) {
-    try {
-      process.kill(-child.pid!, "SIGTERM");
-    } catch {
-      // Gone already.
-    }
+// Stops everything started, and returns once it is gone, with its ports free: the next fixture's servers take the same
+// ports right away (review E5). A process that ignores SIGTERM for 10 s is killed. Without `await` (in an "exit"
+// handler) the signals are still sent at once.
+export async function stopAll(): Promise<void> {
+  const stopping = children.splice(0);
+  for (const child of stopping) signal(child, "SIGTERM");
+  await Promise.all(
+    stopping.map(async (child) => {
+      if (!(await gone(child, 10_000))) {
+        signal(child, "SIGKILL");
+        await gone(child, 5_000);
+      }
+    }),
+  );
+}
+
+function signal(child: ChildProcess, name: NodeJS.Signals) {
+  try {
+    process.kill(-child.pid!, name); // the whole process group
+  } catch {
+    // Gone already.
   }
 }
 
-function portFree(port: number): Promise<boolean> {
+// Whether the child's whole process group has ended within `ms`: the child itself (awaited through its exit) and what
+// it started (npx → wrangler → workerd), which may outlive it for a moment and hold the ports.
+async function gone(child: ChildProcess, ms: number): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  if (child.exitCode === null && child.signalCode === null) {
+    const exited = await new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), ms);
+      child.once("exit", () => {
+        clearTimeout(timer);
+        resolve(true);
+      });
+    });
+    if (!exited) return false;
+  }
+  while (Date.now() < deadline) {
+    try {
+      process.kill(-child.pid!, 0);
+    } catch {
+      return true; // no process left in the group
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  return false;
+}
+
+export function portFree(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = createServer().once("error", () => resolve(false));
     server.listen(port, "127.0.0.1", () => server.close(() => resolve(true)));

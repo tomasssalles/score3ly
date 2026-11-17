@@ -252,7 +252,7 @@ async function replay(name: string): Promise<string[]> {
     return problems;
   } finally {
     await browser.close();
-    stopAll();
+    await stopAll(); // the next fixture's servers take the same ports
     rmSync(stateDir, { recursive: true, force: true });
   }
 }
