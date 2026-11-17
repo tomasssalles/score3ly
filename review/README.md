@@ -201,7 +201,7 @@ One subagent per component. It reads the level 2 notes of its groups (and the le
 | C | LLM calls and money | 08, 09, 10, 11, 12, 13 | done |
 | D | Music | 16, 17, 18, 20, 21 | done |
 | E | Projects, hosts, tooling | 15, 24 | done |
-| F | UI and statistics | 14, 22, 23 | |
+| F | UI and statistics | 14, 22, 23 | done |
 
 What level 3 looks for:
 - **Proposals that conflict or overlap** across groups, merged into one: above all the many "move it to `@score3ly/core`" proposals, into one layout of what `core` holds (and of other shared modules).
