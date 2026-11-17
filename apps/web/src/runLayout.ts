@@ -16,9 +16,9 @@ import {
   type LayoutAnswer,
 } from "@score3ly/prompts";
 import { fetchJsonContent, markUnusable, putContent } from "./api";
-import { canonicalJson } from "@score3ly/core";
+import { canonicalJson, modelKeyOf } from "@score3ly/core";
 import { LAYOUT_VERSION, layoutNote, layoutStageKey, type PageLayout } from "./layout";
-import { ask, imageLimit, modelKey, requestImage, stageModelConfig, type PlannedRequest } from "./llm";
+import { ask, imageLimit, requestImage, stageModelConfig, type PlannedRequest } from "./llm";
 import { drawnPage, modelPage, pageImage, pngSize, type ModelPageRecipe } from "./pageImages";
 import { pageOfItem, type PageRecipe } from "./rasterize";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
@@ -43,7 +43,7 @@ export async function runLayout(run: StageRun): Promise<void> {
   const imageRecipe = { limit: imageLimit(config), scale: SCALE_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION, draw: DRAW_VERSION };
   const stageKey = await layoutStageKey({
     promptVersion: LAYOUT_PROMPT_VERSION,
-    model: modelKey(config),
+    model: modelKeyOf(config),
     imageRecipe,
     pages: pages.map((p) => ({ pageImageKey: p.output.recipeKey!, linesSha256: p.lines?.contentSha256 ?? null })),
   });

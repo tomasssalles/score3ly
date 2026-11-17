@@ -7,6 +7,7 @@
 // is used (no row), a deleted one is brought back to life (its cost stays where it was paid), and only a call found
 // nowhere becomes a new row, which counts like any call. Original times are kept.
 
+import { isSha256Hex } from "@score3ly/core";
 import type { Hono } from "hono";
 import { firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 import { anyRunning, withModelConfig } from "./pipeline.ts";
@@ -222,15 +223,11 @@ export function exportProblem(data: unknown): string | null {
   const arrays = ["pipeline", "stages", "outputs", "output_inputs", "stage_inputs", "llm_calls", "model_configs", "manual_saves", "image_fingerprints", "content"] as const;
   for (const key of arrays) if (!Array.isArray(d[key])) return `The file is incomplete: no ${key}.`;
   const p = d.project as Row | undefined;
-  if (!p || typeof p.name !== "string" || !isSha256(p.pdf_sha256) || typeof p.pdf_filename !== "string") return "The file is incomplete: no project.";
-  if (!(d.content as unknown[]).every(isSha256)) return "The file's content list is damaged.";
+  if (!p || typeof p.name !== "string" || !isSha256Hex(p.pdf_sha256) || typeof p.pdf_filename !== "string") return "The file is incomplete: no project.";
+  if (!(d.content as unknown[]).every(isSha256Hex)) return "The file's content list is damaged.";
   const stageIds = new Set((d.stages as Row[]).map((s) => s.id));
   if (!(d.pipeline as Row[]).every((e) => stageIds.has(e.stage_id) && Number.isInteger(e.position))) return "The file's pipeline names stages it doesn't hold.";
   return null;
-}
-
-function isSha256(value: unknown): value is string {
-  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
 }
 
 // The same JSON with its keys sorted, so that two configs' secrets compare by content.
@@ -455,7 +452,7 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
   // request may make only so many: the browser asks for at most 200 at a time.
   app.post("/api/content/missing", async (c) => {
     const body = (await c.req.json().catch(() => null)) as { sha256s?: unknown } | null;
-    if (!Array.isArray(body?.sha256s) || !body.sha256s.every(isSha256) || body.sha256s.length > 200) {
+    if (!Array.isArray(body?.sha256s) || !body.sha256s.every(isSha256Hex) || body.sha256s.length > 200) {
       return c.json({ error: "expected 'sha256s', at most 200 SHA-256s in lowercase hex" }, 400);
     }
     const missing: string[] = [];
@@ -466,7 +463,7 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
   // Stores a PDF under its hash (R2 checks the bytes), for an import.
   app.put("/api/pdfs/:sha256", async (c) => {
     const sha256 = c.req.param("sha256");
-    if (!isSha256(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
+    if (!isSha256Hex(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
     try {
       await c.env.PDFS.put(`pdfs/${sha256}.pdf`, await c.req.arrayBuffer(), { sha256 });
     } catch {

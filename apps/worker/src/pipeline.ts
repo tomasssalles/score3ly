@@ -4,6 +4,7 @@
 
 import { COST_WITH_VAT } from "./vat.ts";
 import { logFields } from "./requestLog.ts";
+import { isSha256Hex } from "@score3ly/core";
 import type { Hono } from "hono";
 import { QUARTER_MS } from "./activeTime.ts";
 import { deletedConfigMessage, readSettings, resolvedModel, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
@@ -384,10 +385,6 @@ function touchProject(db: D1Database, projectId: string, now: string): D1Prepare
   return db.prepare("UPDATE projects SET last_modified_at = ? WHERE id = ?").bind(now, projectId);
 }
 
-function isKey(value: unknown): value is string {
-  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
-}
-
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
@@ -470,7 +467,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       !Number.isInteger(stepVersion) ||
       typeof config !== "object" ||
       config === null ||
-      !isKey(stageKey) ||
+      !isSha256Hex(stageKey) ||
       !(pageCount === null || Number.isInteger(pageCount)) ||
       !isStringArray(inputIds) ||
       !(modelConfigId === null || typeof modelConfigId === "string")
@@ -540,8 +537,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
         (o) =>
           typeof o?.item === "string" &&
           typeof o?.type === "string" &&
-          (o.contentSha256 === undefined || isKey(o.contentSha256)) &&
-          (o.recipeKey === undefined || isKey(o.recipeKey)) &&
+          (o.contentSha256 === undefined || isSha256Hex(o.contentSha256)) &&
+          (o.recipeKey === undefined || isSha256Hex(o.recipeKey)) &&
           (o.contentSha256 !== undefined || o.recipeKey !== undefined) &&
           (o.inputIds === undefined || isStringArray(o.inputIds)) &&
           (o.callId === undefined || typeof o.callId === "string") &&

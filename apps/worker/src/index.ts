@@ -15,6 +15,7 @@ import { requestLog } from "./requestLog.ts";
 
 export type { ListedProject, Project, RunMode } from "@score3ly/core";
 import type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
+import { isSha256Hex } from "@score3ly/core";
 
 type ProjectRow = {
   id: string;
@@ -114,10 +115,6 @@ async function takenNames(db: D1Database): Promise<string[]> {
   return results.map((row) => row.name);
 }
 
-function isSha256(value: unknown): value is string {
-  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
-}
-
 function pdfKey(sha256: string): string {
   return `pdfs/${sha256}.pdf`;
 }
@@ -127,7 +124,7 @@ function pdfKey(sha256: string): string {
 app.get("/api/pdfs/:sha256", async (c) => {
   const sha256 = c.req.param("sha256");
   const filename = c.req.query("filename");
-  if (!isSha256(sha256) || filename === undefined) {
+  if (!isSha256Hex(sha256) || filename === undefined) {
     return c.json({ error: "expected a SHA-256 in lowercase hex and a 'filename'" }, 400);
   }
   const { results } = await c.env.DB.prepare(
@@ -145,7 +142,7 @@ app.get("/api/pdfs/:sha256", async (c) => {
 // The PDF itself. Its key is its content's hash, so it never changes and can be cached for good.
 app.get("/api/pdfs/:sha256/file", async (c) => {
   const sha256 = c.req.param("sha256");
-  if (!isSha256(sha256)) {
+  if (!isSha256Hex(sha256)) {
     return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
   }
   const object = await c.env.PDFS.get(pdfKey(sha256));
@@ -169,7 +166,7 @@ function contentKey(sha256: string): string {
 
 app.put("/api/content/:sha256", async (c) => {
   const sha256 = c.req.param("sha256");
-  if (!isSha256(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
+  if (!isSha256Hex(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
   const body = await c.req.arrayBuffer();
   try {
     await c.env.PDFS.put(contentKey(sha256), body, {
@@ -184,7 +181,7 @@ app.put("/api/content/:sha256", async (c) => {
 
 app.get("/api/content/:sha256", async (c) => {
   const sha256 = c.req.param("sha256");
-  if (!isSha256(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
+  if (!isSha256Hex(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
   const object = await c.env.PDFS.get(contentKey(sha256));
   if (!object) return c.json({ error: "no such content" }, 404);
   return new Response(object.body, {
@@ -205,7 +202,7 @@ app.post("/api/projects", async (c) => {
   const pdf = form.get("pdf");
   const sha256 = form.get("sha256");
   const filenameField = form.get("filename");
-  if (!isSha256(sha256) || !(pdf instanceof File || typeof filenameField === "string")) {
+  if (!isSha256Hex(sha256) || !(pdf instanceof File || typeof filenameField === "string")) {
     return c.json({ error: "expected a 'pdf' file or its 'filename', and its 'sha256' in lowercase hex" }, 400);
   }
 

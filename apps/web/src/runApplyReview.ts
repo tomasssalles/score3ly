@@ -31,7 +31,7 @@ import {
   staffForModel,
   stretchForModel,
 } from "@score3ly/prompts";
-import { canonicalJson } from "@score3ly/core";
+import { canonicalJson, modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers, type ApiStage } from "./api";
 import {
   appliedCount,
@@ -54,7 +54,7 @@ import {
 import { EXTRACTION_STEPS } from "./engrave";
 import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
 import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks, type StoredWarning } from "./extract";
-import { ask, imageLimit, imageLimitFor, modelKey, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { ask, imageLimit, imageLimitFor, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
 import { musicInputs, type MusicSystem } from "./musicInputs";
 import { markedCrop, type MarkedCropRecipe } from "./pageImages";
 import { modelName, placesOf, reviewedIssues, reviewIssues, reviewScore, reviewWarnings, systemsOf, type StoredReview } from "./review";
@@ -158,7 +158,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   const stageKey = await applyReviewStageKey({
     promptVersion: APPLY_REVIEW_PROMPT_VERSION,
     lensVersion: LENS_VERSION,
-    model: modelKey(config),
+    model: modelKeyOf(config),
     imageRecipe,
     transcription,
     reviews: reviewOutputs.map((o) => o.contentSha256!).sort(),
@@ -310,7 +310,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
             await markUnusable(run.project, run.stage.id, answer.callId, problem).catch(() => {});
             throw new Error(`Couldn't use the answer for system ${planned.system}: ${problem}.${kept}`);
           };
-          const patch = checkPatch(JSON.parse(canonicalJson(answer.json)), { window: planned.window, allowed, answers, toApply: planned.issues, issues: startIssues });
+          const patch = checkPatch(normalized(answer.json), { window: planned.window, allowed, answers, toApply: planned.issues, issues: startIssues });
           if ("problem" in patch) return unusable(patch.problem);
           // An answer of a person's that can't be applied: the stage stops, for the person to answer again (docs/stages/
           // music.md, `apply_review`, "A resolved issue"). The answer is usable, so a retry gets the same.
@@ -347,7 +347,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           };
           // As it reads back from storage (canonical JSON): the later calls' log is then the same in this run and in a
           // retry, and the cache finds them.
-          calls.set(planned.system, JSON.parse(canonicalJson(result)) as StoredApplyCall);
+          calls.set(planned.system, normalized(result) as StoredApplyCall);
           const contentSha256 = await putContent(json(result), "application/json");
           return { contentSha256, inputIds, callId: answer.callId };
         },

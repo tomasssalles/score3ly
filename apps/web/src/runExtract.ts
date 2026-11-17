@@ -24,10 +24,10 @@ import {
   type ScoreSystem,
   type StoredExtraction,
 } from "./extract";
-import { canonicalJson } from "@score3ly/core";
+import { canonicalJson, modelKeyOf, normalized } from "@score3ly/core";
 import { linkSpans, systemHints } from "./linking";
 import { musicInputs } from "./musicInputs";
-import { ask, imageLimit, imageLimitFor, modelKey, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { ask, imageLimit, imageLimitFor, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
 import { cropImage, type CropRecipe } from "./pageImages";
 import { runPlan, type StageRun } from "./stageRunner";
 
@@ -53,7 +53,7 @@ export async function runExtract(run: StageRun): Promise<void> {
   const stageKey = await extractStageKey({
     promptVersion: EXTRACT_PROMPT_VERSION,
     lensVersion: LENS_VERSION,
-    model: modelKey(config),
+    model: modelKeyOf(config),
     imageRecipe,
     pages: pages.map((p) => ({ pageImageKey: p.image.recipeKey!, layoutSha256: p.output.contentSha256! })),
     observationsSha256: obs.output.contentSha256!,
@@ -161,7 +161,7 @@ export async function runExtract(run: StageRun): Promise<void> {
           // The answer as it reads back from storage (canonical JSON): what the next systems' requests are built from
           // is then the same in this run and in a retry, and the cache finds them. Its sentinels ("", -1) and merged fields
           // become the lens as code uses it first (lensFromExtract).
-          const checked = checkSystem(lensFromExtract(JSON.parse(canonicalJson(answer.json))), contextOf(s, first, labels), before);
+          const checked = checkSystem(lensFromExtract(normalized(answer.json)), contextOf(s, first, labels), before);
           if ("problem" in checked) {
             await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
             throw new Error(`Couldn't use the answer for system ${s.number}: ${checked.problem}.${kept}`);

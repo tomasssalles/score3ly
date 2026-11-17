@@ -6,7 +6,7 @@
 import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
 import { deferLog, logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
-import { type CallEvent, canonicalJson, keyOf, sameValuesMessage, sha256Hex } from "@score3ly/core";
+import { type CallEvent, canonicalJson, isSha256Hex, keyOf, modelKeyOf, sameValuesMessage, sha256Hex } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import type { LlmProgress, LlmProvider } from "./llm/types.ts";
@@ -483,8 +483,7 @@ function requestProblem(request: unknown): string | null {
       const ok =
         (c?.type === "text" && typeof c.text === "string") ||
         (c?.type === "image" &&
-          typeof c.recipeKey === "string" &&
-          /^[0-9a-f]{64}$/.test(c.recipeKey) &&
+          isSha256Hex(c.recipeKey) &&
           (c.image === undefined ||
             (typeof c.image?.base64 === "string" && ["image/png", "image/jpeg", "image/webp"].includes(c.image?.mediaType))));
       if (!ok) return "content must be text or an image named by its recipe key (PNG, JPEG or WebP, base64)";
@@ -881,12 +880,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
 
     // The request key: the exact request, images by their recipe keys, with the model's provider, model and effort.
     // Not the config's id, region, routing, project or secrets: they don't change the answer (§5.2).
-    const requestKey = await keyOf({
-      provider: config.provider,
-      model: config.model,
-      effort: config.effort,
-      request: keyedRequest(request),
-    });
+    const requestKey = await keyOf({ ...modelKeyOf(config), request: keyedRequest(request) });
 
     // The cache first: an answer already paid for is served even when the spending cap is reached.
     const earlier = await db

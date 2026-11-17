@@ -35,13 +35,12 @@ import {
 } from "./analyze";
 import { fetchJsonContent, markUnusable, putContent } from "./api";
 import { firstNumbers } from "./fixLayout";
-import { canonicalJson } from "@score3ly/core";
+import { canonicalJson, modelKeyOf, normalized } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 import {
   ask,
   imageLimit,
   imageLimitFor,
-  modelKey,
   plannedSizeProblem,
   requestImage,
   stageModelConfig,
@@ -85,7 +84,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
   const imageRecipe = { limit: pageLimit, scoreLimit, scale: SCALE_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION, draw: DRAW_VERSION };
   const stageKey = await analyzeStageKey({
     promptVersion: ANALYZE_PROMPT_VERSION,
-    model: modelKey(config),
+    model: modelKeyOf(config),
     imageRecipe,
     pages: pages.map((p) => ({ pageImageKey: p.image.recipeKey!, layoutSha256: p.output.contentSha256! })),
   });
@@ -206,7 +205,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
           }
           // As it reads back from storage (canonical JSON), so the whole score's request is the same whether a page's
           // result was made in this run or an earlier one, and the cache finds it.
-          const result = JSON.parse(canonicalJson({ page, systems: labels[i], ...checked })) as PageAnalysis;
+          const result = normalized({ page, systems: labels[i], ...checked }) as PageAnalysis;
           results.set(output.item, result);
           const contentSha256 = await putContent(json(result), "application/json");
           return { contentSha256, inputIds: pageInputs(i), callId: answer.callId };

@@ -21,12 +21,6 @@ export async function stageModelConfig(stageConfig: Record<string, unknown> | nu
   return config;
 }
 
-// What of a model config goes into stage and request keys (§5.2): provider, model and effort. Not its name,
-// parameters or secrets, which don't change the answer.
-export function modelKey(config: ModelConfig): { provider: string; model: string; effort: string | null } {
-  return { provider: config.provider, model: config.model, effort: config.effort };
-}
-
 // The largest image to send, by the model's family (not its model string, which the app doesn't interpret, §7.2):
 // Claude on any of its providers sees at most 2576 px and about 3.75 megapixels (Opus 4.7 and later; older
 // Claude models shrink further on their own). Gemini's limits aren't checked yet: Claude's are used for it too, and for

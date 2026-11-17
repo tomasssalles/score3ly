@@ -8,11 +8,11 @@
 import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { buildScore, checkSystem, LENS_VERSION, pieceStart, systemLinks, type LinkedSystem, type ScoreState } from "@score3ly/notation";
 import { REVIEW_MAX_OUTPUT_TOKENS, REVIEW_PROMPT_VERSION, REVIEW_SCHEMA, REVIEW_SYSTEM, reviewIssuesText, reviewLogText, reviewScoreText, reviewText } from "@score3ly/prompts";
-import { canonicalJson } from "@score3ly/core";
+import { canonicalJson, modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers } from "./api";
 import { EXTRACTION_STEPS } from "./engrave";
 import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks } from "./extract";
-import { ask, imageLimit, imageLimitFor, modelKey, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { ask, imageLimit, imageLimitFor, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
 import { musicInputs, type MusicSystem } from "./musicInputs";
 import { markedCrop, type MarkedCropRecipe } from "./pageImages";
 import {
@@ -93,7 +93,7 @@ export async function runReview(run: StageRun): Promise<void> {
   const stageKey = await reviewStageKey({
     promptVersion: REVIEW_PROMPT_VERSION,
     lensVersion: LENS_VERSION,
-    model: modelKey(config),
+    model: modelKeyOf(config),
     imageRecipe,
     transcription,
     pages: pages.map((p) => ({ pageImageKey: p.image.recipeKey!, layoutSha256: p.output.contentSha256! })),
@@ -184,7 +184,7 @@ export async function runReview(run: StageRun): Promise<void> {
 
         const kept = s.number > 1 ? ` The review of systems 1–${s.number - 1} is kept.` : "";
         const answer = await ask(run, planned, `System ${s.number}`, { config, place: { item: s.item, round: 1 } });
-        const parsed = JSON.parse(canonicalJson(answer.json));
+        const parsed = normalized(answer.json);
         const context = { system: s.number, issues, systems: placed, images: sources };
         const checked = checkReview(parsed, context, 1);
         if ("problem" in checked) {
@@ -198,7 +198,7 @@ export async function runReview(run: StageRun): Promise<void> {
         const result: StoredReview = { system: s.number, entries };
         // As it reads back from storage (canonical JSON): the later calls' log is then the same in this run and in a
         // retry, and the cache finds them.
-        calls.set(s.number, JSON.parse(canonicalJson(result)) as StoredReview);
+        calls.set(s.number, normalized(result) as StoredReview);
         const contentSha256 = await putContent(json(result), "application/json");
         return { contentSha256, inputIds, callId: answer.callId };
       },

@@ -2,7 +2,7 @@
 // app and the evaluation tools. Runs in browsers, Workers and Node alike; the parts that don't are separate entry
 // points: `@score3ly/core/pdf` (browsers) and `@score3ly/core/pdfjs-assets` (Vite, in Node).
 
-export { canonicalJson, keyOf, sha256Hex } from "./keys.ts";
+export { canonicalJson, isSha256Hex, keyOf, modelKeyOf, normalized, sha256Hex } from "./keys.ts";
 export type { ListedProject, PipelinePosition, Project, RunMode } from "./project.ts";
 export { formatPages, parsePages, selectPages } from "./pageSelection.ts";
 export { readSse } from "./sse.ts";

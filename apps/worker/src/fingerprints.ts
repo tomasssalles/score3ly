@@ -1,6 +1,7 @@
 // Fingerprints of the images from which stored results were computed (docs/images.md §8.3): stored once per recipe key,
 // by the first device that computed a result from the image, and read by any device that makes the image again.
 
+import { isSha256Hex } from "@score3ly/core";
 import type { Hono } from "hono";
 
 export type Fingerprint = {
@@ -27,11 +28,10 @@ type Row = {
   thumbnail_height: number;
 };
 
-const HEX64 = /^[0-9a-f]{64}$/;
 const positive = (n: unknown) => Number.isInteger(n) && (n as number) > 0;
 
 function problem(f: Fingerprint): string | null {
-  if (!HEX64.test(f?.recipeKey ?? "") || !HEX64.test(f?.pdfSha256 ?? "") || !HEX64.test(f?.pixelsSha256 ?? "")) {
+  if (!isSha256Hex(f?.recipeKey) || !isSha256Hex(f?.pdfSha256) || !isSha256Hex(f?.pixelsSha256)) {
     return "'recipeKey', 'pdfSha256' and 'pixelsSha256' must be SHA-256 hashes";
   }
   if (![f.version, f.width, f.height, f.thumbnailWidth, f.thumbnailHeight].every(positive)) return "sizes and version must be whole numbers above 0";
