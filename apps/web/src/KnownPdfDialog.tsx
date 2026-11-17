@@ -29,12 +29,6 @@ export function KnownPdfDialog({
       handle={dialog}
       title="Projects already based on this file"
       className="known-pdf"
-      // Its own ×, a little bolder than CloseIcon, the other dialogs' (kept: a change of looks is the owner's, review F12).
-      closeIcon={
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <path d="M5 5l10 10M15 5L5 15" />
-        </svg>
-      }
       // Opening a project or creating one unmounts the dialog: only Esc, × and the backdrop end up here.
       onClose={onCancel}
     >

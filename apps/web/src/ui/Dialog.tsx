@@ -36,7 +36,6 @@ export function Dialog<R>({
   className = "",
   busy = false,
   closeLabel = "Cancel",
-  closeIcon = <CloseIcon />,
   onSubmit,
   onClose,
   children,
@@ -46,7 +45,6 @@ export function Dialog<R>({
   className?: string;
   busy?: boolean; // a request is on its way: the dialog can't be closed but by `handle.close`
   closeLabel?: string; // ×'s name
-  closeIcon?: ReactNode;
   onSubmit?: (e: React.FormEvent) => void; // the content is a form, with the head inside it
   onClose: (result: R | undefined) => void;
   children: ReactNode;
@@ -61,7 +59,7 @@ export function Dialog<R>({
     <div className="dialog-head">
       <h2 id={titleId}>{title}</h2>
       <button type="button" className="dialog-close" aria-label={closeLabel} disabled={busy} onClick={() => handle.close()}>
-        {closeIcon}
+        <CloseIcon />
       </button>
     </div>
   );
