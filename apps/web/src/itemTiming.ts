@@ -33,6 +33,7 @@ export async function timed<T>(make: () => Promise<T>): Promise<{ value: T; timi
     const value = await make();
     return { value, timing: { durationMs: Math.round(performance.now() - start), ...counts } };
   } finally {
-    current = null;
+    // Only its own: an older item stopped but still running (Stop doesn't cancel image work) may end during a newer one.
+    if (current === counts) current = null;
   }
 }

@@ -20,3 +20,20 @@ test("an item is timed, and the answers and images it looked up are counted, wit
   const next = await timed(async () => "ok");
   assert.deepEqual({ ...next.timing, durationMs: 0 }, { durationMs: 0, calls: 0, callsCached: 0, images: 0, imagesCached: 0 });
 });
+
+test("an older item that ends while a newer one runs (after Stop) leaves the newer one's counts alone", async () => {
+  let endOld!: () => void;
+  const old = timed(() => new Promise<void>((resolve) => (endOld = resolve)));
+  let endNew!: () => void;
+  const newer = timed(async () => {
+    noteAnswer(true);
+    await new Promise<void>((resolve) => (endNew = resolve));
+    noteAnswer(true); // after the old item ended
+    noteImage(false);
+  });
+  endOld();
+  await old;
+  endNew();
+  const { timing } = await newer;
+  assert.deepEqual({ ...timing, durationMs: 0 }, { durationMs: 0, calls: 2, callsCached: 2, images: 1, imagesCached: 0 });
+});
