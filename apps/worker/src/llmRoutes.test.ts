@@ -643,7 +643,7 @@ test("a config the app no longer supports: marked, its stages can't start, it ca
   });
   assert.equal(start.status, 409);
   assert.deepEqual(await json(start), {
-    error: 'its model config, "Fable EU", uses Claude Fable 5.1 on Bedrock in eu-central-1 (geographic routing), which the app no longer supports.',
+    error: 'The stage can\'t start: its model config, "Fable EU", uses Claude Fable 5.1 on Bedrock in eu-central-1 (geographic routing), which the app no longer supports. Pick another with "Change config" in the stage\'s ⋮.',
     code: "unsupported_model_config",
   });
   // A model added by hand priced as a listed one where that one has no price: the same.
@@ -691,7 +691,7 @@ test("a stage whose model config was deleted can't start, says why, and its card
     modelConfigId: config.id,
   });
   assert.equal(refused.status, 409);
-  assert.deepEqual(await json(refused), { error: 'its model config, "Opus EU", was deleted.', code: "deleted_model_config" });
+  assert.deepEqual(await json(refused), { error: 'The stage can\'t start: its model config, "Opus EU", was deleted. Pick another with "Change config" in the stage\'s ⋮.', code: "deleted_model_config" });
 });
 
 

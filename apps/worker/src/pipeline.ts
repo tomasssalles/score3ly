@@ -4,6 +4,7 @@
 
 import { COST_WITH_VAT } from "./vat.ts";
 import { logFields } from "./requestLog.ts";
+import { BAD_REQUEST, badRequest, NO_PROJECT, NO_STAGE, notRunning, PICK_ANOTHER, refuse, RELOAD, STAGE_RUNNING, WAITS_FOR_TURN } from "./refusals.ts";
 import { isSha256Hex, quarterOf, RECIPE, stepsOfKind, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StageModelConfig, type StageStatus, type StartAnswer } from "@score3ly/core";
 import type { Hono } from "hono";
 import { deletedConfigMessage, readSettings, resolvedModel, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
@@ -356,7 +357,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const id = c.req.param("id");
     const project = await db.prepare("SELECT id FROM projects WHERE id = ? AND deleted_at IS NULL").bind(id).first();
-    if (!project) return c.json({ error: "no such project" }, 404);
+    if (!project) return refuse(c, 404, NO_PROJECT);
     return c.json<Pipeline>(await readPipeline(db, id));
   });
 
@@ -368,14 +369,14 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
     if (body === null || !("config" in body) || (body.config !== null && typeof body.config !== "object")) {
-      return c.json({ error: "expected a 'config' object or null" }, 400);
+      return badRequest(c, "expected a 'config' object or null");
     }
     // "Apply to the remaining stages planned in this pipeline": the LLM stages after this one get its model config too.
     if (body.applyModelConfigToLater !== undefined && typeof body.applyModelConfigToLater !== "boolean") {
-      return c.json({ error: "'applyModelConfigToLater' must be true or false" }, 400);
+      return badRequest(c, "'applyModelConfigToLater' must be true or false");
     }
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found) return refuse(c, 404, NO_STAGE);
     const now = new Date().toISOString();
     const { stage, position } = found;
     // An LLM stage's config names its model config: the one given, else the default now (docs/llm.md).
@@ -386,18 +387,18 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     );
     if (modelConfigId !== null) {
       const picked = await db.prepare("SELECT * FROM model_configs WHERE id = ?").bind(modelConfigId).first<ModelConfigRow>();
-      if (!picked) return c.json({ error: "no such model config" }, 400);
+      if (!picked) return refuse(c, 400, "That model config doesn't exist any more: it may have been deleted on another device. Pick another.");
       // A stage that names a deleted or unsupported config keeps it until another is picked; such a one can't be picked anew.
       const before = stage.config_json === null ? null : (JSON.parse(stage.config_json) as { modelConfigId?: string }).modelConfigId;
-      if (picked.deleted_at && before !== modelConfigId) return c.json({ error: "that model config was deleted" }, 400);
-      if (unsupportedOf(picked) && before !== modelConfigId) return c.json({ error: `"${picked.name}" ${unsupportedOf(picked)}` }, 400);
+      if (picked.deleted_at && before !== modelConfigId) return refuse(c, 400, `The model config "${picked.name}" was deleted. Pick another.`);
+      if (unsupportedOf(picked) && before !== modelConfigId) return refuse(c, 400, `The model config "${picked.name}" ${unsupportedOf(picked)}. Pick another.`);
     }
     const toLater = body.applyModelConfigToLater === true && modelConfigId !== null ? modelConfigId : null;
     if (stage.status === "running" && !isStale(stage, Date.now())) {
-      return c.json({ error: "the stage is running" }, 409);
+      return refuse(c, 409, "The config can't be changed while the stage is running. Stop it, or let it finish, then try again.", "running");
     }
-    if (stage.step === "ingest") return c.json({ error: "Ingest has no config" }, 409);
-    if (isManual(stage.step)) return c.json({ error: "a manual stage has no config" }, 409);
+    if (stage.step === "ingest") return refuse(c, 409, "Ingest has no config to change.");
+    if (isManual(stage.step)) return refuse(c, 409, "A manual stage has no config to change.");
     const statements: D1PreparedStatement[] = [touchProject(db, pid, now)];
     if (stage.status === "planned") {
       statements.push(db.prepare("UPDATE stages SET config_json = ?, model_config_id = ? WHERE id = ?").bind(configJson, modelConfigId, sid));
@@ -434,24 +435,24 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       !isStringArray(inputIds) ||
       !(modelConfigId === null || typeof modelConfigId === "string")
     ) {
-      return c.json({ error: "expected 'stepVersion', 'config', 'stageKey', 'pageCount' and 'inputIds'" }, 400);
+      return badRequest(c, "expected 'stepVersion', 'config', 'stageKey', 'pageCount' and 'inputIds'");
     }
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found) return refuse(c, 404, NO_STAGE);
     const { stage, position } = found;
     const now = new Date();
     if (!(stage.status === "planned" || stage.status === "failed" || isStale(stage, now.getTime()))) {
-      return c.json({ error: `the stage can't start: it is ${stage.status}` }, 409);
+      return refuse(c, 409, `The stage can't start now. ${RELOAD} Details: its status is "${stage.status}".`);
     }
     const iso = now.toISOString();
     if (modelConfigId !== null) {
       const config = await db.prepare("SELECT * FROM model_configs WHERE id = ?").bind(modelConfigId).first<ModelConfigRow>();
-      if (!config) return c.json({ error: "no such model config" }, 404);
+      if (!config) return refuse(c, 404, `The stage can't start: its model config doesn't exist. ${PICK_ANOTHER}`);
       // A deleted config is never used again (docs/llm.md, "Managing model configs"), nor one the app no longer
       // supports ("No longer supported"): the run stops here, failed.
-      if (config.deleted_at) return c.json({ error: deletedConfigMessage(config.name), code: "deleted_model_config" }, 409);
+      if (config.deleted_at) return refuse(c, 409, `The stage can't start: ${deletedConfigMessage(config.name)} ${PICK_ANOTHER}`, "deleted_model_config");
       const unsupported = unsupportedOf(config);
-      if (unsupported) return c.json({ error: unsupportedConfigMessage(config.name, unsupported), code: "unsupported_model_config" }, 409);
+      if (unsupported) return refuse(c, 409, `The stage can't start: ${unsupportedConfigMessage(config.name, unsupported)} ${PICK_ANOTHER}`, "unsupported_model_config");
     }
     const reusable = await db
       .prepare("SELECT id FROM stages WHERE stage_key = ? AND status = 'done' AND deleted_at IS NULL AND id != ? LIMIT 1")
@@ -507,13 +508,13 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
           (o.parentOutputId === undefined || typeof o.parentOutputId === "string") &&
           (o.timing === undefined || isTiming(o.timing)),
       );
-    if (!valid) return c.json({ error: "expected 'outputs' with an item, a type, and a content hash or a recipe key" }, 400);
+    if (!valid) return badRequest(c, "expected 'outputs' with an item, a type, and a content hash or a recipe key");
     logFields(c.req.raw, { outputs: outputs.length, items: outputs.map((o: { item: string }) => o.item).join(" ").slice(0, 200) });
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found) return refuse(c, 404, NO_STAGE);
     const wip = found.stage.status === "wip";
-    if (found.stage.status !== "running" && !wip) return c.json({ error: "the stage isn't running" }, 409);
-    if (found.carried) return c.json({ error: "the stage waits for its turn" }, 409);
+    if (found.stage.status !== "running" && !wip) return refuse(c, 409, notRunning(found.stage.status));
+    if (found.carried) return refuse(c, 409, WAITS_FOR_TURN);
     const now = new Date().toISOString();
     const ids = outputs.map(() => crypto.randomUUID());
     // A WIP stage's item saved again: the new content replaces the old, in the same row.
@@ -578,8 +579,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
-    if (found.stage.status !== "running") return c.json({ error: "the stage isn't running" }, 409);
+    if (!found) return refuse(c, 404, NO_STAGE);
+    if (found.stage.status !== "running") return refuse(c, 409, notRunning(found.stage.status));
     await db.prepare("UPDATE stages SET heartbeat_at = ? WHERE id = ?").bind(new Date().toISOString(), sid).run();
     return c.body(null, 204);
   });
@@ -599,15 +600,15 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       (error !== null && typeof error !== "string") ||
       (status === "failed") !== (error !== null)
     ) {
-      return c.json({ error: "expected 'status' 'done' (with an optional 'note') or 'failed' with an 'error'" }, 400);
+      return badRequest(c, "expected 'status' 'done' (with an optional 'note') or 'failed' with an 'error'");
     }
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found) return refuse(c, 404, NO_STAGE);
     const { stage } = found;
     if (stage.status !== "running" && !(stage.status === "wip" && status === "done")) {
-      return c.json({ error: "the stage isn't running" }, 409);
+      return refuse(c, 409, notRunning(stage.status));
     }
-    if (found.carried) return c.json({ error: "the stage waits for its turn" }, 409);
+    if (found.carried) return refuse(c, 409, WAITS_FOR_TURN);
     const now = new Date().toISOString();
     await db.batch([
       db
@@ -625,9 +626,9 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found) return refuse(c, 404, NO_STAGE);
     const { stage, position } = found;
-    if (stage.status !== "running") return c.json({ error: "the stage isn't running" }, 409);
+    if (stage.status !== "running") return refuse(c, 409, notRunning(stage.status));
     const now = new Date().toISOString();
     const defaultModelConfigId = await defaultForNewStages(db);
     await db.batch([
@@ -661,23 +662,23 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       !(pageCount === null || Number.isInteger(pageCount)) ||
       !isStringArray(inputIds)
     ) {
-      return c.json({ error: "expected a manual 'step', 'stepVersion', 'pageCount' and 'inputIds'" }, 400);
+      return badRequest(c, "expected a manual 'step', 'stepVersion', 'pageCount' and 'inputIds'");
     }
-    if (step === "human_review") return c.json({ error: "a Human review is added with its Apply review" }, 409);
+    if (step === "human_review") return refuse(c, 409, `${BAD_REQUEST} Details: a Human review is added with its Apply review (POST …/human-review), not as a fix.`);
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found) return refuse(c, 404, NO_STAGE);
     const { stage, position } = found;
-    if (stage.status !== "done") return c.json({ error: "a fix can only follow a done stage" }, 409);
+    if (stage.status !== "done") return refuse(c, 409, `A fix can only follow a stage that is done. ${RELOAD}`);
     const { results: following } = await db
       .prepare("SELECT e.position, s.step FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position > ? ORDER BY e.position")
       .bind(pid, position)
       .all<{ position: number; step: string }>();
     const end = following.findIndex((s) => !isManual(s.step));
     const run = end < 0 ? following : following.slice(0, end);
-    if (run.some((s) => s.step === step)) return c.json({ error: "this fix already follows that stage" }, 409);
+    if (run.some((s) => s.step === step)) return refuse(c, 409, `This fix already follows that stage. ${RELOAD}`);
     const last = run.at(-1)?.position ?? position;
     const now = new Date();
-    if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
+    if (await anyRunning(db, pid, now.getTime())) return refuse(c, 409, STAGE_RUNNING, "running");
     const iso = now.toISOString();
     const id = crypto.randomUUID();
     await db.batch([
@@ -707,14 +708,14 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found) return refuse(c, 404, NO_STAGE);
     const { stage, position } = found;
     if (!isManual(stage.step) || stage.status !== "done") {
-      return c.json({ error: "only a finished manual stage can be edited" }, 409);
+      return refuse(c, 409, `Only a finished manual stage can be edited. ${RELOAD}`);
     }
-    if (found.carried) return c.json({ error: "the stage waits for its turn" }, 409);
+    if (found.carried) return refuse(c, 409, WAITS_FOR_TURN);
     const now = new Date();
-    if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
+    if (await anyRunning(db, pid, now.getTime())) return refuse(c, 409, STAGE_RUNNING, "running");
     const iso = now.toISOString();
     const id = crypto.randomUUID();
     await db.batch([
@@ -751,15 +752,15 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
-    if (!isStringArray(body?.inputIds)) return c.json({ error: "expected 'inputIds'" }, 400);
+    if (!isStringArray(body?.inputIds)) return badRequest(c, "expected 'inputIds'");
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
-    if (!found.carried) return c.json({ error: "the stage isn't waiting to be kept or dropped" }, 409);
+    if (!found) return refuse(c, 404, NO_STAGE);
+    if (!found.carried) return refuse(c, 409, `The stage isn't waiting to be kept or dropped any more. ${RELOAD}`);
     const before = await db
       .prepare("SELECT COUNT(*) AS n FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position < ? AND (s.status != 'done' OR e.carried = 1)")
       .bind(pid, found.position)
       .first<{ n: number }>();
-    if ((before?.n ?? 0) > 0) return c.json({ error: "the stages before it aren't all done" }, 409);
+    if ((before?.n ?? 0) > 0) return refuse(c, 409, "The stage can't be kept or dropped yet: the stages before it aren't all done.");
     const contentOf = async (sql: string, binds: unknown[]) =>
       (
         await db
@@ -804,12 +805,12 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found) return refuse(c, 404, NO_STAGE);
     const { stage, position } = found;
-    if (stage.step !== "apply_review") return c.json({ error: "a review can only be added after an Apply review" }, 409);
-    if (found.carried) return c.json({ error: "the stage waits for its turn" }, 409);
+    if (stage.step !== "apply_review") return refuse(c, 409, "A Review can only be added after an Apply review.");
+    if (found.carried) return refuse(c, 409, WAITS_FOR_TURN);
     const now = new Date();
-    if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
+    if (await anyRunning(db, pid, now.getTime())) return refuse(c, 409, STAGE_RUNNING, "running");
     const iso = now.toISOString();
     const defaultModelConfigId = await defaultForNewStages(db);
     const ids = [crypto.randomUUID(), crypto.randomUUID()];
@@ -834,16 +835,16 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const body = await c.req.json().catch(() => null);
     const { stepVersion, pageCount, inputIds } = body ?? {};
     if (!Number.isInteger(stepVersion) || !(pageCount === null || Number.isInteger(pageCount)) || !isStringArray(inputIds)) {
-      return c.json({ error: "expected 'stepVersion', 'pageCount' and 'inputIds'" }, 400);
+      return badRequest(c, "expected 'stepVersion', 'pageCount' and 'inputIds'");
     }
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found) return refuse(c, 404, NO_STAGE);
     const { stage, position } = found;
-    if (stage.step !== "apply_review") return c.json({ error: "a Human review can only be added after an Apply review" }, 409);
-    if (stage.status !== "done") return c.json({ error: "a Human review can only follow a done stage" }, 409);
-    if (found.carried) return c.json({ error: "the stage waits for its turn" }, 409);
+    if (stage.step !== "apply_review") return refuse(c, 409, "A Human review can only be added after an Apply review.");
+    if (stage.status !== "done") return refuse(c, 409, `A Human review can only follow an Apply review that is done. ${RELOAD}`);
+    if (found.carried) return refuse(c, 409, WAITS_FOR_TURN);
     const now = new Date();
-    if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
+    if (await anyRunning(db, pid, now.getTime())) return refuse(c, 409, STAGE_RUNNING, "running");
     const iso = now.toISOString();
     const ids = [crypto.randomUUID(), crypto.randomUUID()];
     const apply = newStageConfig("apply_review", null, await defaultForNewStages(db));
@@ -877,11 +878,11 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!found) return refuse(c, 404, NO_STAGE);
     const { stage, position } = found;
-    if (!isManual(stage.step) && !isFurtherReview(stage)) return c.json({ error: "only stages outside the recipe can be dropped" }, 409);
+    if (!isManual(stage.step) && !isFurtherReview(stage)) return refuse(c, 409, "Only stages outside the recipe can be dropped.");
     const now = new Date();
-    if (await anyRunning(db, pid, now.getTime())) return c.json({ error: "a stage is running" }, 409);
+    if (await anyRunning(db, pid, now.getTime())) return refuse(c, 409, STAGE_RUNNING, "running");
     const iso = now.toISOString();
     const last = await withItsApply(db, pid, position);
     await db.batch([...(await rewriteFrom(db, pid, position, [], last, iso)), touchProject(db, pid, iso)]);
@@ -896,7 +897,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       .prepare("DELETE FROM dropped_stages WHERE id = ? AND project_id = ? AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)")
       .bind(Number(id), pid)
       .run();
-    if (!result.meta.changes) return c.json({ error: "no such card in this project" }, 404);
+    if (!result.meta.changes) return refuse(c, 404, `This card isn't in the project any more. ${RELOAD}`);
     return c.json<Pipeline>(await readPipeline(db, pid));
   });
 }

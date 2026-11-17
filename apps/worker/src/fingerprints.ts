@@ -3,6 +3,7 @@
 
 import { isSha256Hex, type StoredFingerprint } from "@score3ly/core";
 import type { Hono } from "hono";
+import { badRequest } from "./refusals.ts";
 
 // A fingerprint as stored, by its image's recipe key (`StoredFingerprint`, core).
 type Fingerprint = StoredFingerprint;
@@ -55,9 +56,9 @@ export function fingerprintRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/fingerprints", async (c) => {
     const body = await c.req.json().catch(() => null);
     const list = body?.fingerprints as Fingerprint[] | undefined;
-    if (!Array.isArray(list) || list.length === 0 || list.length > 100) return c.json({ error: "expected 1 to 100 'fingerprints'" }, 400);
+    if (!Array.isArray(list) || list.length === 0 || list.length > 100) return badRequest(c, "expected 1 to 100 'fingerprints'");
     const bad = list.map(problem).find((p) => p);
-    if (bad) return c.json({ error: bad }, 400);
+    if (bad) return badRequest(c, bad);
     const db = c.env.DB;
     const now = new Date().toISOString();
     await db.batch(

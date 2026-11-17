@@ -12,10 +12,11 @@
 // outputs, heartbeats and LLM calls, which change nothing another page could act on.
 
 import type { Context, Hono, Next } from "hono";
+import { refuse } from "./refusals.ts";
 
 export const VERSION_HEADER = "X-Project-Version";
 
-export const STALE_MESSAGE = "This project was changed on another device or in another tab since this page loaded it. Reload to see the changes, then try again.";
+export const STALE_MESSAGE = "This project was changed on another device or in another tab since this page loaded it, so this change wasn't made. Reload to see the project as it is now, then make the change again.";
 
 type What = "checked" | "raised" | null;
 
@@ -57,7 +58,7 @@ export function versionRoutes(app: Hono<{ Bindings: Env }>) {
         const current = await versionOf(db, projectId);
         if (current !== null && String(current) !== sent.trim()) {
           c.header(VERSION_HEADER, String(current));
-          return c.json({ error: STALE_MESSAGE, code: "stale_version" }, 409);
+          return refuse(c, 409, STALE_MESSAGE, "stale_version");
         }
       }
     }

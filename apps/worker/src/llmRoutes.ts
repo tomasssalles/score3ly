@@ -5,6 +5,7 @@
 
 import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
 import { deferLog, logFields } from "./requestLog.ts";
+import { badRequest, NO_MODEL_CONFIG, NO_STAGE, notRunning, PICK_ONE, problemText, refuse } from "./refusals.ts";
 import type { Hono } from "hono";
 import { amount, type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, firstFreeName, fromBase64, isSha256Hex, keyOf, MAX_NAME_LENGTH, modelKeyOf, nameTooLong, roundUsd, sameConfigValues, sameValuesMessage, sha256Hex, type ModelConfig, type ModelOptions, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
@@ -588,7 +589,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   // "OpenRouter"): the range of its providers' input and output prices, or null.
   app.get("/api/model-configs/:id/price-range", async (c) => {
     const row = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(c.req.param("id")).first<ModelConfigRow>();
-    if (!row) return c.json({ error: "no such model config" }, 404);
+    if (!row) return refuse(c, 404, NO_MODEL_CONFIG);
     if (row.provider !== "openrouter") return c.json<{ range: PriceRange | null }>({ range: null });
     const { model } = resolvedModel(row);
     return c.json<{ range: PriceRange | null }>({ range: model ? await fetchPriceRange(model, row.region) : null });
@@ -603,11 +604,11 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const key = c.req.param("key");
     const body = await c.req.json().catch(() => null);
     const problem = body && "value" in body ? settingProblem(key, body.value) : "expected a 'value'";
-    if (problem) return c.json({ error: problem }, 400);
+    if (problem) return refuse(c, 400, problemText(problem));
     if (key === "defaultModelConfigId") {
       const exists = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(body.value).first<ModelConfigRow>();
-      if (!exists) return c.json({ error: "no such model config" }, 404);
-      if (unsupportedOf(exists)) return c.json({ error: `"${exists.name}" ${unsupportedOf(exists)}: it can't be the default` }, 400);
+      if (!exists) return refuse(c, 404, NO_MODEL_CONFIG);
+      if (unsupportedOf(exists)) return refuse(c, 400, `The model config "${exists.name}" ${unsupportedOf(exists)}, so it can't be the default.`);
     }
     await c.env.DB.prepare("INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)")
       .bind(key, JSON.stringify(body.value), new Date().toISOString())
@@ -626,7 +627,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   // One model config, deleted or not: stages and calls refer to the config they used.
   app.get("/api/model-configs/:id", async (c) => {
     const row = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(c.req.param("id")).first<ModelConfigRow>();
-    return row ? c.json<ModelConfig>(toModelConfig(row)) : c.json({ error: "no such model config" }, 404);
+    return row ? c.json<ModelConfig>(toModelConfig(row)) : refuse(c, 404, NO_MODEL_CONFIG);
   });
 
   // Creates a config, or clones one: `replaces` names the original to delete with it ("Delete the original"; the clone
@@ -636,23 +637,23 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const body = await c.req.json().catch(() => null);
     const problem = configProblem(body);
-    if (problem) return c.json({ error: problem }, 400);
+    if (problem) return refuse(c, 400, problemText(problem));
     if (body.provider === "fake-dev" && !devProviders(c.env)) {
-      return c.json({ error: "Fake with costs is a provider for development: start the Worker with DEV_PROVIDERS=true to use it." }, 400);
+      return refuse(c, 400, "Fake with costs is a provider for development: start the Worker with DEV_PROVIDERS=true to use it.");
     }
-    if (body.replaces !== undefined && typeof body.replaces !== "string") return c.json({ error: "'replaces' must be a model config's id" }, 400);
+    if (body.replaces !== undefined && typeof body.replaces !== "string") return badRequest(c, "'replaces' must be a model config's id");
     const original =
       typeof body.replaces === "string"
         ? await db.prepare("SELECT id, name FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(body.replaces).first<{ id: string; name: string }>()
         : null;
-    if (typeof body.replaces === "string" && !original) return c.json({ error: "the config to replace doesn't exist" }, 404);
+    if (typeof body.replaces === "string" && !original) return refuse(c, 404, "The config to replace doesn't exist any more: it may have been deleted on another device.");
     const draft = newConfigRow(body, "");
     const same = (await db.prepare("SELECT * FROM model_configs WHERE deleted_at IS NULL").all<ModelConfigRow>()).results.find((row) => sameConfigValues(row, draft));
     if (same) {
-      return c.json({ error: sameValuesMessage(same.name), code: "same_values" }, 409);
+      return refuse(c, 409, sameValuesMessage(same.name), "same_values");
     }
     const name = await configName(db, body, original?.id ?? null);
-    if (name === null) return c.json({ error: NAME_TAKEN }, 409);
+    if (name === null) return refuse(c, 409, NAME_TAKEN, "name_taken");
     const row = { ...draft, name };
     // The original is deleted first, so that the clone can take its name (the names' unique index counts live configs).
     const statements: D1PreparedStatement[] = [];
@@ -678,15 +679,15 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const id = c.req.param("id");
     const body = await c.req.json().catch(() => null);
     const name = typeof body?.name === "string" ? body.name.trim() : "";
-    if (!name) return c.json({ error: "expected a 'name'" }, 400);
-    if (nameTooLong(name)) return c.json({ error: `'name' must be at most ${MAX_NAME_LENGTH} characters` }, 400);
+    if (!name) return badRequest(c, "expected a 'name'");
+    if (nameTooLong(name)) return badRequest(c, `'name' must be at most ${MAX_NAME_LENGTH} characters`);
     const row = await db.prepare("SELECT * FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(id).first<ModelConfigRow>();
-    if (!row) return c.json({ error: "no such model config" }, 404);
+    if (!row) return refuse(c, 404, NO_MODEL_CONFIG);
     const taken = await db
       .prepare("SELECT id FROM model_configs WHERE deleted_at IS NULL AND id <> ? AND name = ? COLLATE NOCASE")
       .bind(id, name)
       .first();
-    if (taken) return c.json({ error: NAME_TAKEN }, 409);
+    if (taken) return refuse(c, 409, NAME_TAKEN, "name_taken");
     await db.prepare("UPDATE model_configs SET name = ? WHERE id = ?").bind(name, id).run();
     return c.json<ModelConfig>(toModelConfig({ ...row, name }));
   });
@@ -699,16 +700,13 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         .bind(defaultModelConfigId)
         .first<{ name: string }>();
       if (row) {
-        return c.json(
-          { error: `"${row.name}" is the default model config: make another config the default first.`, code: "default_model_config" },
-          409,
-        );
+        return refuse(c, 409, `"${row.name}" is the default model config: make another config the default first.`, "default_model_config");
       }
     }
     const result = await c.env.DB.prepare("UPDATE model_configs SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
       .bind(new Date().toISOString(), c.req.param("id"))
       .run();
-    return result.meta.changes === 0 ? c.json({ error: "no such model config" }, 404) : c.body(null, 204);
+    return result.meta.changes === 0 ? refuse(c, 404, NO_MODEL_CONFIG) : c.body(null, 204);
   });
 
   // A config's test (docs/llm.md, "The settings page"): one small real request, with an image and a JSON schema, that
@@ -717,17 +715,17 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   // Real providers only (decided 2026-11-06): the fake ones need no test.
   app.post("/api/model-configs/:id/test", async (c) => {
     const row = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(c.req.param("id")).first<ModelConfigRow>();
-    if (!row) return c.json({ error: "no such model config" }, 404);
-    if (row.deleted_at) return c.json({ error: `The model config "${row.name}" was deleted.`, code: "deleted_model_config" }, 409);
+    if (!row) return refuse(c, 404, NO_MODEL_CONFIG);
+    if (row.deleted_at) return refuse(c, 409, `The model config "${row.name}" was deleted.`, "deleted_model_config");
     const unsupported = unsupportedOf(row);
-    if (unsupported) return c.json({ error: `The model config "${row.name}" ${unsupported}.`, code: "unsupported_model_config" }, 409);
-    if (row.provider === "fake" || row.provider === "fake-dev") return c.json({ error: "Only configs of real providers can be tested." }, 400);
+    if (unsupported) return refuse(c, 409, `The model config "${row.name}" ${unsupported}.`, "unsupported_model_config");
+    if (row.provider === "fake" || row.provider === "fake-dev") return refuse(c, 400, "Only configs of real providers can be tested.");
     const startedAt = Date.now();
     const sent = await sendCall(c.env, row, TEST_REQUEST, `test:${crypto.randomUUID()}`, null, TEST_PLACE, llmTimeoutMs("test"), c.req.raw.signal);
     if ("refusal" in sent) {
       // A test is never served from the record: the cap's note about calls already paid for doesn't apply.
       const error = sent.refusal.code === "spending_cap" ? sent.refusal.error.replace(" Calls already paid for are still served.", "") : sent.refusal.error;
-      return c.json({ error, code: sent.refusal.code }, sent.refusal.status);
+      return refuse(c, sent.refusal.status, error, sent.refusal.code);
     }
     const durationMs = Date.now() - startedAt;
     // An answer outside the schema fails the test, as a stage couldn't use it either: recorded as unusable, like a
@@ -746,13 +744,13 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/llm-calls/:callId/unusable", async (c) => {
     const { pid, sid, callId } = c.req.param();
     const body = await c.req.json().catch(() => null);
-    if (typeof body?.reason !== "string" || body.reason.trim() === "") return c.json({ error: "expected a 'reason'" }, 400);
+    if (typeof body?.reason !== "string" || body.reason.trim() === "") return badRequest(c, "expected a 'reason'");
     const result = await c.env.DB.prepare(
       "UPDATE llm_calls SET status = 'unparseable', error = ? WHERE id = ? AND status = 'ok' AND EXISTS (SELECT 1 FROM pipeline_entries e WHERE e.project_id = ? AND e.stage_id = ?)",
     )
       .bind(body.reason.trim(), callId, pid, sid)
       .run();
-    return result.meta.changes === 0 ? c.json({ error: "no such usable call" }, 404) : c.body(null, 204);
+    return result.meta.changes === 0 ? refuse(c, 404, `The answer can't be marked unusable: it isn't a usable call of this project. Details: no call ${callId} with status "ok" in the project's pipeline.`) : c.body(null, 204);
   });
 
   // One LLM request of a running stage. Errors the stage can act on carry a `code`.
@@ -761,10 +759,10 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
     const problem = requestProblem(body?.request);
-    if (problem) return c.json({ error: problem }, 400);
+    if (problem) return refuse(c, 400, problemText(problem));
     const request = body.request as CallRequest;
     const place = placeOf(body);
-    if (typeof place === "string") return c.json({ error: place }, 400);
+    if (typeof place === "string") return badRequest(c, place);
     // For the request's log line: what the browser calls the call ("System 12"), and how many images it carries.
     const images = request.messages.reduce((n, m) => n + m.content.filter((part) => part.type === "image" && part.image).length, 0);
     logFields(c.req.raw, { ...(typeof body.label === "string" ? { label: body.label.slice(0, 100) } : {}), item: place.item, round: place.round, images });
@@ -775,18 +773,18 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       )
       .bind(pid, sid)
       .first<{ step: string; status: string; model_config_id: string | null }>();
-    if (!stage) return c.json({ error: "no such stage in this project's pipeline" }, 404);
+    if (!stage) return refuse(c, 404, NO_STAGE);
     logFields(c.req.raw, { step: stage.step });
-    if (stage.status !== "running") return c.json({ error: "the stage isn't running" }, 409);
-    if (!stage.model_config_id) return c.json({ error: "the stage has no model config", code: "no_model_config" }, 409);
+    if (stage.status !== "running") return refuse(c, 409, notRunning(stage.status));
+    if (!stage.model_config_id) return refuse(c, 409, `The stage has no model config. ${PICK_ONE}`, "no_model_config");
     const row = await db.prepare("SELECT * FROM model_configs WHERE id = ?").bind(stage.model_config_id).first<ModelConfigRow>();
-    if (!row) return c.json({ error: "the stage's model config doesn't exist", code: "no_model_config" }, 409);
+    if (!row) return refuse(c, 409, `The stage's model config doesn't exist. Pick another with "Change config" in the stage's ⋮, then retry.`, "no_model_config");
     // Checked before every request, the cache included: a config deleted while its stage runs is never used again.
-    if (row.deleted_at) return c.json({ error: deletedWhileRunningMessage(row.name), code: "deleted_model_config" }, 409);
+    if (row.deleted_at) return refuse(c, 409, deletedWhileRunningMessage(row.name), "deleted_model_config");
     // So is one the app no longer supports (a new list of models), the cache included; its stage wasn't allowed to start.
     const unsupported = unsupportedOf(row);
     if (unsupported) {
-      return c.json({ error: `The model config "${row.name}" ${unsupported}. Pick another with "Change config" in the stage's ⋮, then retry.`, code: "unsupported_model_config" }, 409);
+      return refuse(c, 409, `The model config "${row.name}" ${unsupported}. Pick another with "Change config" in the stage's ⋮, then retry.`, "unsupported_model_config");
     }
     const config = toModelConfig(row);
 
@@ -835,8 +833,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     logFields(c.req.raw, { answer: "sent", provider: config.provider });
     const prepared = await prepareCall(c.env, row);
     if ("refusal" in prepared) {
-      logFields(c.req.raw, { refused: prepared.refusal.code });
-      return c.json({ error: prepared.refusal.error, code: prepared.refusal.code }, prepared.refusal.status);
+      return refuse(c, prepared.refusal.status, prepared.refusal.error, prepared.refusal.code);
     }
     // Sent: the answer is streamed as server-sent events, the call's start and its progress while it runs, then the
     // answer (docs/llm.md, "A call's progress"). The request's log line is written at the end.
@@ -853,7 +850,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         await write({ event: "answer", answer });
       } catch (err) {
         logFields(c.req.raw, { error: String(err) });
-        await write({ event: "error", error: err instanceof Error ? err.message : String(err) });
+        await write({ event: "error", error: `The server failed while making the call. Details: ${err instanceof Error ? err.message : String(err)}` });
       } finally {
         await writer.close().catch(() => {});
         log(200);

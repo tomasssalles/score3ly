@@ -5,6 +5,7 @@
 export type ErrorCode =
   | "stale_version" // the project changed elsewhere since the page read it (optimistic locking)
   | "running" // a stage of the project is running
+  | "name_taken" // another project or model config has that name (ignoring case)
   | "missing" // the PDF or content an import needs isn't uploaded yet
   | "same_values" // a model config with exactly these values exists
   | "default_model_config" // the default model config can't be deleted

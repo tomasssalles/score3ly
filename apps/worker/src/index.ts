@@ -12,7 +12,7 @@ import { defaultForNewStages, newPipeline, pipelineRoutes } from "./pipeline.ts"
 import { versionRoutes } from "./versions.ts";
 import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
-import { failed, refuse } from "./refusals.ts";
+import { badRequest, failed, NO_PROJECT, refuse } from "./refusals.ts";
 import { putChecked } from "./storage.ts";
 
 export type { ListedProject, Project, RunMode } from "@score3ly/core";
@@ -42,6 +42,8 @@ function toProject(row: ProjectRow): Project {
     runMode: row.run_mode,
   };
 }
+
+const PROJECT_NAME_TAKEN = "A project with that name already exists. Names must be unique (case-insensitive).";
 
 function isNameConflict(err: unknown): boolean {
   return String(err).includes("UNIQUE constraint failed: projects.name");
@@ -83,8 +85,8 @@ app.get("/api/info", (c) => c.json<Info>({ host: "cloudflare" }));
 // Deletes a project (docs/database.md, "Deleting a project"): refused while one of its stages runs, here or on another device.
 app.delete("/api/projects/:id", async (c) => {
   const result = await deleteProject(c.env, c.req.param("id"));
-  if (result === "not_found") return c.json({ error: "no such project" }, 404);
-  if (result === "running") return refuse(c, 409, "a stage of the project is running", "running");
+  if (result === "not_found") return refuse(c, 404, NO_PROJECT);
+  if (result === "running") return refuse(c, 409, "The project can't be deleted while one of its stages is running. Stop it, or let it finish, then try again.", "running");
   return c.json<Deleted>(result);
 });
 
@@ -130,7 +132,7 @@ app.get("/api/pdfs/:sha256", async (c) => {
   const sha256 = c.req.param("sha256");
   const filename = c.req.query("filename");
   if (!isSha256Hex(sha256) || filename === undefined) {
-    return c.json({ error: "expected a SHA-256 in lowercase hex and a 'filename'" }, 400);
+    return badRequest(c, "expected a SHA-256 in lowercase hex and a 'filename'");
   }
   const { results } = await c.env.DB.prepare(
     "SELECT * FROM projects WHERE pdf_sha256 = ? AND deleted_at IS NULL ORDER BY last_opened_at DESC, created_at DESC",
@@ -148,11 +150,11 @@ app.get("/api/pdfs/:sha256", async (c) => {
 app.get("/api/pdfs/:sha256/file", async (c) => {
   const sha256 = c.req.param("sha256");
   if (!isSha256Hex(sha256)) {
-    return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
+    return badRequest(c, "expected a SHA-256 in lowercase hex");
   }
   const object = await c.env.PDFS.get(pdfKey(sha256));
   if (!object) {
-    return c.json({ error: "no such PDF" }, 404);
+    return refuse(c, 404, "The server doesn't have this PDF.");
   }
   return new Response(object.body, {
     headers: {
@@ -171,20 +173,20 @@ function contentKey(sha256: string): string {
 
 app.put("/api/content/:sha256", async (c) => {
   const sha256 = c.req.param("sha256");
-  if (!isSha256Hex(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
+  if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
   const body = await c.req.arrayBuffer();
   const stored = await putChecked(c.env.PDFS, contentKey(sha256), body, sha256, {
     httpMetadata: { contentType: c.req.header("Content-Type") ?? "application/octet-stream" },
   });
-  if (stored === "mismatch") return c.json({ error: "the content doesn't match its SHA-256" }, 400);
+  if (stored === "mismatch") return refuse(c, 400, "The content arrived damaged. Try again. Details: it doesn't match its SHA-256.");
   return c.body(null, 204);
 });
 
 app.get("/api/content/:sha256", async (c) => {
   const sha256 = c.req.param("sha256");
-  if (!isSha256Hex(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
+  if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
   const object = await c.env.PDFS.get(contentKey(sha256));
-  if (!object) return c.json({ error: "no such content" }, 404);
+  if (!object) return refuse(c, 404, "The server doesn't have this stored content.");
   return new Response(object.body, {
     headers: {
       "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
@@ -204,19 +206,19 @@ app.post("/api/projects", async (c) => {
   const sha256 = form.get("sha256");
   const filenameField = form.get("filename");
   if (!isSha256Hex(sha256) || !(pdf instanceof File || typeof filenameField === "string")) {
-    return c.json({ error: "expected a 'pdf' file or its 'filename', and its 'sha256' in lowercase hex" }, 400);
+    return badRequest(c, "expected a 'pdf' file or its 'filename', and its 'sha256' in lowercase hex");
   }
 
   let filename: string;
   if (pdf instanceof File) {
     // R2 checks the bytes against the hash and refuses the upload if they differ.
     if ((await putChecked(c.env.PDFS, pdfKey(sha256), await pdf.arrayBuffer(), sha256)) === "mismatch") {
-      return c.json({ error: "the PDF doesn't match its SHA-256" }, 400);
+      return refuse(c, 400, "The PDF arrived damaged. Try again. Details: it doesn't match its SHA-256.");
     }
     filename = pdf.name;
   } else {
     if (!(await c.env.PDFS.head(pdfKey(sha256)))) {
-      return c.json({ error: "this PDF isn't stored yet: send the file itself" }, 409);
+      return refuse(c, 409, "The server doesn't have this PDF yet. Try again. Details: send the file itself, not only its 'filename'.");
     }
     filename = filenameField as string;
   }
@@ -273,20 +275,20 @@ app.patch("/api/projects/:id", async (c) => {
   if (body?.name !== undefined) {
     name = typeof body.name === "string" ? body.name.trim() : "";
     if (!name || nameTooLong(name)) {
-      return c.json({ error: `expected a 'name' of 1 to ${MAX_NAME_LENGTH} characters` }, 400);
+      return badRequest(c, `expected a 'name' of 1 to ${MAX_NAME_LENGTH} characters`);
     }
     sets.push("name = ?");
     values.push(name);
   }
   if (body?.runMode !== undefined) {
     if (body.runMode !== "auto" && body.runMode !== "manual") {
-      return c.json({ error: "expected a 'runMode' of 'auto' or 'manual'" }, 400);
+      return badRequest(c, "expected a 'runMode' of 'auto' or 'manual'");
     }
     sets.push("run_mode = ?");
     values.push(body.runMode);
   }
   if (sets.length === 0) {
-    return c.json({ error: "expected a 'name' or a 'runMode'" }, 400);
+    return badRequest(c, "expected a 'name' or a 'runMode'");
   }
   try {
     const result = await c.env.DB.prepare(
@@ -294,9 +296,9 @@ app.patch("/api/projects/:id", async (c) => {
     )
       .bind(...values, new Date().toISOString(), c.req.param("id"))
       .run();
-    if (result.meta.changes === 0) return c.json({ error: "no such project" }, 404);
+    if (result.meta.changes === 0) return refuse(c, 404, NO_PROJECT);
   } catch (err) {
-    if (isNameConflict(err)) return c.json({ error: `another project is already called "${name}"` }, 409);
+    if (isNameConflict(err)) return refuse(c, 409, PROJECT_NAME_TAKEN, "name_taken");
     throw err;
   }
   return c.json<Project | null>(await getProject(c.env.DB, c.req.param("id")));
@@ -307,7 +309,7 @@ app.post("/api/projects/:id/opened", async (c) => {
   const result = await c.env.DB.prepare("UPDATE projects SET last_opened_at = ? WHERE id = ? AND deleted_at IS NULL")
     .bind(new Date().toISOString(), c.req.param("id"))
     .run();
-  if (result.meta.changes === 0) return c.json({ error: "no such project" }, 404);
+  if (result.meta.changes === 0) return refuse(c, 404, NO_PROJECT);
   return c.body(null, 204);
 });
 
@@ -319,14 +321,14 @@ app.post("/api/projects/:id/issue-numbers", async (c) => {
   const body = await c.req.json().catch(() => null);
   const count = body?.count;
   const above = body?.above ?? 0;
-  if (!Number.isInteger(count) || count < 1 || count > 1000) return c.json({ error: "expected a 'count' from 1 to 1000" }, 400);
-  if (!Number.isInteger(above) || above < 0) return c.json({ error: "'above' must be a number of 0 or more" }, 400);
+  if (!Number.isInteger(count) || count < 1 || count > 1000) return badRequest(c, "expected a 'count' from 1 to 1000");
+  if (!Number.isInteger(above) || above < 0) return badRequest(c, "'above' must be a number of 0 or more");
   const row = await c.env.DB.prepare(
     "UPDATE projects SET next_issue_number = MAX(next_issue_number, ? + 1) + ? WHERE id = ? AND deleted_at IS NULL RETURNING next_issue_number",
   )
     .bind(above, count, c.req.param("id"))
     .first<{ next_issue_number: number }>();
-  if (!row) return c.json({ error: "no such project" }, 404);
+  if (!row) return refuse(c, 404, NO_PROJECT);
   return c.json({ first: row.next_issue_number - count });
 });
 

@@ -189,7 +189,7 @@ test("a hash that doesn't match the PDF creates nothing, and says so", async () 
   const response = await postProject({ pdf, sha256: wrongSha256 });
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: "the PDF doesn't match its SHA-256" });
+  assert.deepEqual(await response.json(), { error: "The PDF arrived damaged. Try again. Details: it doesn't match its SHA-256." });
   assert.deepEqual(await projectRows(), []);
   assert.equal(await env.PDFS.get(`pdfs/${wrongSha256}.pdf`), null);
 });

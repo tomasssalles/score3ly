@@ -11,7 +11,7 @@ import { CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, type Impor
 import type { Hono } from "hono";
 import { anyRunning, withModelConfig } from "./pipeline.ts";
 import { PLACEHOLDER_ITEM, placeProblem } from "./llmRoutes.ts";
-import { refuse } from "./refusals.ts";
+import { badRequest, NO_PROJECT, problemText, refuse } from "./refusals.ts";
 import { putChecked } from "./storage.ts";
 
 // The export format (`EXPORT_FORMAT`) and what an export holds (`ProjectExport`) are in core (api/projectExport.ts).
@@ -397,9 +397,9 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
   // The rows of the project's current pipeline, for the browser to make the file with.
   app.get("/api/projects/:id/export", async (c) => {
     const data = await exportProject(c.env.DB, c.req.param("id"));
-    if (data === null) return c.json({ error: "no such project" }, 404);
-    if (data === "running") return c.json({ error: "a stage of this project is running", code: "running" }, 409);
-    if ("problem" in data) return refuse(c, 409, data.problem, "unplaced_calls");
+    if (data === null) return refuse(c, 404, NO_PROJECT);
+    if (data === "running") return refuse(c, 409, "The project can't be exported while one of its stages is running. Stop it, or let it finish, then try again.", "running");
+    if ("problem" in data) return refuse(c, 409, `The project can't be exported yet: some of its LLM calls were recorded before calls had a place. Details: ${data.problem}`, "unplaced_calls");
     return c.json<ProjectExport>(data);
   });
 
@@ -408,7 +408,7 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/content/missing", async (c) => {
     const body = (await c.req.json().catch(() => null)) as { sha256s?: unknown } | null;
     if (!Array.isArray(body?.sha256s) || !body.sha256s.every(isSha256Hex) || body.sha256s.length > 200) {
-      return c.json({ error: "expected 'sha256s', at most 200 SHA-256s in lowercase hex" }, 400);
+      return badRequest(c, "expected 'sha256s', at most 200 SHA-256s in lowercase hex");
     }
     const missing: string[] = [];
     for (const sha of body.sha256s as string[]) if (!(await c.env.PDFS.head(`content/${sha}`))) missing.push(sha);
@@ -418,9 +418,9 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
   // Stores a PDF under its hash (R2 checks the bytes), for an import.
   app.put("/api/pdfs/:sha256", async (c) => {
     const sha256 = c.req.param("sha256");
-    if (!isSha256Hex(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
+    if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
     if ((await putChecked(c.env.PDFS, `pdfs/${sha256}.pdf`, await c.req.arrayBuffer(), sha256)) === "mismatch") {
-      return c.json({ error: "the PDF doesn't match its SHA-256" }, 400);
+      return refuse(c, 400, "The PDF arrived damaged. Try again. Details: it doesn't match its SHA-256.");
     }
     return c.body(null, 204);
   });
@@ -429,9 +429,9 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/import", async (c) => {
     const data = await c.req.json().catch(() => null);
     const problem = exportProblem(data);
-    if (problem) return c.json({ error: problem }, 400);
+    if (problem) return refuse(c, 400, problemText(problem));
     const result = await importProject(c.env.DB, c.env.PDFS, data as ProjectExport);
-    if ("missing" in result) return c.json({ error: `upload ${result.missing} first`, code: "missing" }, 409);
+    if ("missing" in result) return refuse(c, 409, `The project can't be imported yet: some of what it needs isn't on the server. Try again. Details: upload ${result.missing} first.`, "missing");
     return c.json<Imported>(result, 201);
   });
 }
