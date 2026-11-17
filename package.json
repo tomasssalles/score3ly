@@ -16,6 +16,7 @@
     "deploy": "npm run build && npm run deploy -w apps/worker",
     "eval:engrave": "npm run engrave -w apps/eval",
     "eval:view": "npm run view -w apps/eval",
+    "typecheck": "tsc --noEmit",
     "test": "npm test --workspaces --if-present && node --test \"scripts/*.test.ts\"",
     "icons": "npm run icons -w apps/web",
     "notices": "node scripts/notices.ts",
@@ -36,7 +37,8 @@
     "workerd@1.20261023.1": true
   },
   "devDependencies": {
-    "playwright": "^1.56.1"
+    "playwright": "^1.56.1",
+    "typescript": "^7.0.2"
   },
   "overrides": {
     "minimatch@>=7.0.0 <11.0.1": "^11.0.8"

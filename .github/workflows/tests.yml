@@ -26,6 +26,9 @@ jobs:
       - run: npm ci
       - name: Typecheck every workspace
         run: npm run typecheck --workspaces --if-present
+      # The root's own scripts (scripts/: the replay, the screenshots, the fixtures, seedStats), which no workspace covers.
+      - name: Typecheck the root's scripts
+        run: npm run typecheck
       - name: Test
         run: npm test
       # The replay tests (docs/overview.md §12) drive the real app in Chromium, the version this Playwright expects.
