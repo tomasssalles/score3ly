@@ -199,7 +199,7 @@ One subagent per component. It reads the level 2 notes of its groups (and the le
 | A | Foundations and contracts | 01, 05, 06, 07 | done |
 | B | Images and the page stages | 02, 03, 04, 19 | done |
 | C | LLM calls and money | 08, 09, 10, 11, 12, 13 | done |
-| D | Music | 16, 17, 18, 20, 21 | |
+| D | Music | 16, 17, 18, 20, 21 | done |
 | E | Projects, hosts, tooling | 15, 24 | |
 | F | UI and statistics | 14, 22, 23 | |
 
