@@ -21,6 +21,9 @@ These override the recommendations below where they differ.
 - **B3, bar lines:** as planned, **plus a small minimum distance** between bar lines, and between a bar line and the box's sides (closer ones merged or dropped).
 - **C5, a config with the same values:** **no rename dialog any more** (creating or cloning). When a config with exactly the form's values exists, saving fails with a message that names it, says duplicates aren't allowed, and points to renaming, e.g. "A config with these settings already exists: "Opus 5.5 · high". Two configs can't have the same settings; you can rename a config from its ⋮ menu." `docs/llm.md` ("Managing model configs") updated with it.
 - **E3, numbered names over 200 characters:** the 200-character limit is checked **after removing one number at the end of the name**, `/ \(\d{1,3}\)$/` (a space, then 1 to 3 digits in brackets). So a 200-character name can be numbered up to " (999)", and the same rule holds when a person renames a project. One rule in `@score3ly/core`, used by the Worker and the web app (today each has its own `MAX_NAME_LENGTH`), **for project names and model config names alike** (both are 200 and numbered the same way). **A test:** the default name of every listed model, on every provider it has, at every effort, fits the limit. (An unlisted model's default name uses the model string the user typed; the Worker cuts that base to 200 before numbering, which the rule allows.)
+- **B2, D3, failed saves:** an edit that fails to save stays in the editor, marked "not saved" with the error and a Retry, and is retried with the next edit; Finish is refused while anything is unsaved; leaving the editor with unsaved edits warns; a form never replaces a row being typed when it reloads.
+- **The paid release:** independently of the §16 "Check the prompt …" tasks.
+- **No extra pass over the tests** in this review (brittle tests and testability are in the task "A guide to periodic code reviews").
 - **dec. 4, the R2 binding:** renamed to `STORE` (a config change on the deployed instance).
 - **dec. 18, orphan collection:** a "Free up storage" button in the settings, plus the collection that already runs when a project is deleted; no cron, nothing at the desktop's start-up.
 - **Everything else in the summary below** that the owner didn't comment on: as recommended.
@@ -30,7 +33,7 @@ These override the recommendations below where they differ.
 ### Decisions to make (important first, each with the recommendation)
 
 **1. The paid release** (it changes request keys: every LLM call is paid again on one re-run of the projects the owner keeps testing on)
-- Release it as **one release**, together with the open §16 tasks "Check the prompt and the response schema of …", which re-key every call anyway. Rec: yes (level 4 §4).
+- Release it as **one release**. (Decided: **independently** of the §16 "Check the prompt …" tasks.)
 - dec. 6: drop `DESKEW_VERSION` from straightened-page recipes (B8; the docs decided to keep it). Rec: drop, in the paid release.
 - dec. 29, 31, 32 (prompt content): "pieces only on this page" in analyze's page call *and* drop others silently; rename `startEndRepeat` → `bothRepeats`; let the review see reverts. Rec: all three yes.
 - dec. 27: `prompts` imports notation's lens types and enums (ends the copies). Rec: yes.
@@ -89,10 +92,10 @@ These override the recommendations below where they differ.
 - **One error contract** (`refuse` → `{error, code}` → one `ApiError` → `errorText`), **one write path** for edits (per-project queue, monotonic versions, a saver that Finish awaits), **Worker-derived pipeline state** and later a **run id**.
 - **The Worker's big files split by concern:** `llmCalls`, `modelConfigs`, `settings`, `spending`, `callRecords`, `pipelineRules`, `projects`, `storage`, `statsSql`, `node/`.
 - **notation owns the whole score** (`splitPieces`, `checkSystems`, the stretch walk); **web gains** `recipes`, `crops`, `workerClient`, `stageInputs`, `issues`, `files`, `format`, `ui/`, `editor/`, `saving`.
-- **Tests at the seams and on both hosts:** NodeD1 with D1's limits, root `scripts/` typechecked, an adapter contract test, the replay's request snapshots as the guard for every move.
+- **Tests at the seams and on both hosts:** NodeD1 with D1's limits, root `scripts/` typechecked, an adapter contract test, request snapshots of realistic inputs (plus the replay) as the guard for every move.
 
 ### The paid batch
-B7 (`PAGE_IMAGE_VERSION`), B8 (`DESKEW_VERSION` out), B3 (`normalizeBarLines`, `layout` version), C31 (`lilypond` of reading issues to the model), D18a–d, D9's prompt sentence, D19, D7/D8 if the prompts state the rules; all version constants bumped once. **When:** after every batch that must keep requests byte-identical (schemas, model form, recipes) and after call ownership (E4) and the replay fix (E5), merged together with the §16 prompt-check tasks; then `npm run replay -- --update` reviewed as the diff of every request, and one re-run of the owner's projects. Stored formats change in other batches too (`llm_calls.served_from`, `EXPORT_FORMAT` 2, places required, `projects.page_count`, `StoredIssue.code`, `PdfRecipe.options`); none needs a migration of old data.
+B7 (`PAGE_IMAGE_VERSION`), B8 (`DESKEW_VERSION` out), B3 (`normalizeBarLines`, `layout` version), C31 (`lilypond` of reading issues to the model), D18a–d, D9's prompt sentence, D19, D7/D8 if the prompts state the rules; all version constants bumped once. **When:** after every batch that must keep requests byte-identical (schemas, model form, recipes) and after call ownership (E4) and the replay fix (E5), on its own (not with the §16 prompt-check tasks, decided); then `npm run replay -- --update` reviewed as the diff of every request, and one re-run of the owner's projects. Stored formats change in other batches too (`llm_calls.served_from`, `EXPORT_FORMAT` 2, places required, `projects.page_count`, `StoredIssue.code`, `PdfRecipe.options`); none needs a migration of old data.
 
 ### The order of the batches
 1. **Guards first:** tooling under checks and a replay that survives a second fixture (1).
@@ -109,7 +112,7 @@ B7 (`PAGE_IMAGE_VERSION`), B8 (`DESKEW_VERSION` out), B3 (`normalizeBarLines`, `
 - Read `review/README.md`, this plan's batch, and the level 3 entries it cites (they cite level 2; go down only where a step needs it). The batch's scope is a guide: follow the finding to wherever it lives.
 - **Be critical of the batch itself** (the project owner, 2026-11-17): the findings come from reading, nothing was run, so some are wrong or overstated. Before fixing anything, confirm the finding in the code as it is now. A finding that doesn't hold, or a planned fix that doesn't make sense once the code is in front of you (too costly for what it gains, a better fix, a conflict with another batch), isn't done as planned: it is **reported** in the batch's row of the Status table and in `review/fixes.md` (one line each: the finding, what was found, what was done instead). These feed the final summary: how many planned fixes held is the best signal of the review's quality.
 - **A bug is reproduced in a test first,** then fixed and the test seen to pass (CLAUDE.md). Structural moves keep behaviour; where a move has no test at its seam, write one before moving.
-- **The replay guards requests:** a batch that touches prompts, schemas, recipes, image making or how requests are built runs `npm run replay` (with `CHROMIUM_PATH` in a cloud session) and must leave the request snapshots unchanged. Only the paid release (33–34) may run `-- --update`.
+- **What guards requests** (the project owner, 2026-11-17): **the replay is not enough on its own.** Its only fixture is one page run with the fake model (six systems of whole-measure rests), so its request snapshots cover few shapes of request. A batch that must leave requests byte-identical (prompts, schemas, the lens's model form, recipes, image making, how requests are built: batches 7, 13, 17, 18, 22, 24, 28) first adds **unit tests that snapshot the requests it touches, built from realistic inputs** (e.g. notation's rich score from `mei.test.ts`, the observations and metadata of a real page, issues of every kind, several pieces, a page with several systems and bar lines), taken **before** the change and unchanged after it; then it also runs `npm run replay` (with `CHROMIUM_PATH` in a cloud session), whose snapshots must stay unchanged too. Only the paid release (33–34) may update snapshots, and then reviews their diff.
 - End: `npm run typecheck --workspaces` (and the root typecheck once batch 1 added it), `npm test`, the replay where it applies; anything writing `package-lock.json` through `npx npm@12.2.2`; update the docs named under "Docs to update"; commit (one commit per batch, or a few). Mark the batch done in the table at the end.
 - A batch marked **waits on dec. N** starts only once the owner has decided; where it says "else", the rest of the batch can go ahead.
 
@@ -156,7 +159,7 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 ### 7. Core ground
 - **Scope:** `packages/core` (`keys.ts`, new `base64.ts`, `names.ts`, `items.ts`, `time.ts`, `texts.ts`, `money.ts`); `package.json` of imaging, notation, prompts, desktop gain core; private copies removed in imaging, worker, web, desktop.
 - **Closes:** A5, A28, A22 (incl. `modelKeyOf`), B25, A20's `normalized`, A18's `isSha256Hex`, E16's names part with **E3** (`firstFreeName(base, taken, max)` cutting the base), D23/F16's `items.ts`, F16's `QUARTER_MS`, `LEAVING_A_RUN` (F23), `roundUsd` (C24's ×4).
-- **Depends on:** nothing. **Keys:** – (canonicalJson changes only invalid output; `modelKeyOf` same three fields: verify with the replay). **Size:** L.
+- **Depends on:** nothing. **Keys:** – (canonicalJson changes only invalid output; `modelKeyOf` same three fields: verify with a key snapshot and the replay). **Size:** L.
 - **Tests:** canonicalJson with `undefined` in arrays and at top level (A5); a 200-character base numbered (E3); items round trip; replay snapshots unchanged.
 
 ### 8. Wire types into core
@@ -192,7 +195,7 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 ### 13. Worker: the LLM routes split; what a call row means
 - **Scope:** `llmRoutes.ts` → `llmCalls.ts`, `throttle.ts`, `modelConfigs.ts`, `settings.ts`, `spending.ts` (`vat.ts` grown), `callRecords.ts`; `modelGroupOf`/`resolvedModel` → `llm/models.ts`; `PLACEHOLDER_ITEM` once.
 - **Closes:** C19 (move-only first, then fixes), C24, C8 (record in a second step), C9 (skip a cached row whose object is missing), C7's `capRefusal` without `.replace`.
-- **Depends on:** 2, 8, 9. **Keys:** – (request keys untouched: replay snapshots unchanged). **Size:** L (seam: the move | C8, C9, C24).
+- **Depends on:** 2, 8, 9. **Keys:** – (request keys untouched: request snapshots and the replay unchanged). **Size:** L (seam: the move | C8, C9, C24).
 - **Tests:** provider ok + R2 put failure → call `ok` with its tokens (C8); a cached row with a missing answer is skipped (C9); one outcome CASE shared by Costs and Usage, pinned on rows written by `runCall`.
 
 ### 14. Worker: projects and storage modules
@@ -216,7 +219,7 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 ### 17. Schemas and the lens's model form, byte-identical
 - **Scope:** `core/jsonSchema.ts` (union of `shapeProblem` and `schemaProblems`; Worker `llm/jsonSchema.ts` goes); `packages/prompts/src/schema.ts` (builders; casts go); `lensForm.ts` grows the whole model form (system converters ×5, `LENS_SCHEMA_PARTS`, `issueForModel` *placement only*); prompts imports notation's enums (stretch-class enum **in today's order**), `Apply*Unit` derived; prompts `analyze.ts` split (texts / types+conversion / checks), `places.ts`; `probe-schemas.ts` through the adapter.
 - **Closes:** C20, D22, C31 (placement; the `lilypond` fix is batch 34), D26's prompts part, C18's strictness test over all six schemas.
-- **Waits on:** dec. 5, 27. **Depends on:** 7. **Keys:** **must stay byte-identical**: the acceptance test is `npm run replay` with snapshots unchanged. **Size:** L (seam: validator + builders | model form + analyze split).
+- **Waits on:** dec. 5, 27. **Depends on:** 7. **Keys:** **must stay byte-identical**: the acceptance tests are the request snapshots of realistic inputs (see "What guards requests") and `npm run replay`, both unchanged. **Size:** L (seam: validator + builders | model form + analyze split).
 - **Tests:** emitted schemas deep-equal to today's (snapshot before moving); round trip of the model form for every system converter.
 
 ### 18. Checked answers
@@ -246,7 +249,7 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 ### 22. Geometry in core; imaging internals
 - **Scope:** `core/box.ts` (`Box`, `boxProblem`, `LayoutSystem`, `normalizeBarLines` *written and tested, not yet used where it would change stored layouts*, `stretchEdges`, `area`, `intersection`, `overlaps`, `onPage`, `onCrop`, `clamp`, `roundTo`); its users in imaging, notation (`mei.ts` `partBox`), prompts, web (`extract.ts`, `review.ts`, `transcription.ts`, HumanReviewCards' `toPage`/`toCrop`); imaging `grayToRgba`, `pngSize`, skew.ts split.
 - **Closes:** B22, B24.
-- **Depends on:** 7. **Keys:** – (rounding digits kept: 5 for layouts and lines, 6 for crop recipes; replay unchanged). **Size:** M.
+- **Depends on:** 7. **Keys:** – (rounding digits kept: 5 for layouts and lines, 6 for crop recipes; snapshots and replay unchanged). **Size:** M.
 - **Tests:** `onPage`/`onCrop` inverses; `stretchEdges` shared by extract.ts and mei.ts; fingerprints unchanged.
 
 ### 23. One Web Worker client; image cache and pdf.js plumbing
@@ -258,7 +261,7 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 ### 24. The recipes module
 - **Scope:** `apps/web/src/recipes.ts` (all recipe types, constructors `pageRecipe`, `straightRecipe`, `modelPageRecipe`, `cropRecipe`, `markedCropRecipe`, `IMAGE_VERSIONS`); `crops.ts` out of `extract.ts`; the 17 recipe literals replaced; one `llmStageKey`.
 - **Closes:** B19, B10, B11, A13 (keep `modelConfigId` out), 06 #7.
-- **Depends on:** 22, 23. **Keys:** – (shapes kept exactly; replay unchanged); A13: S. **Size:** M.
+- **Depends on:** 22, 23. **Keys:** – (shapes kept exactly; recipe snapshots of realistic inputs and the replay unchanged); A13: S. **Size:** M.
 - **Tests:** each constructor gives today's literal (canonical JSON equal); a null angle gives the page recipe.
 
 ### 25. The UI kit
@@ -316,7 +319,7 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 - **Tests:** a recipe change in pdfPages changes the page recipe key; the fingerprint check doesn't warn on a fresh image.
 
 ### 34. Paid release, part 2: prompts and layout rules
-- **Scope:** `normalizeBarLines` used by `checkLayoutAnswer`, `addBarLine`/`moveBarLine`/`withinBox`, `layout` version bumped; `issueForModel` sends `lilypond` for reading issues; `MUSIC` on rests (D18a); analyze page call "only this page" and other pieces dropped (D18b); `bothRepeats` (D18c); review sees reverts (D18d); start-repeat sentence (D9); linking stops at piece starts (D19); the answer-key and two-systems rules stated where the prompts need them (D7, D8); every prompt version bumped once; combined with the §16 "Check the prompt …" tasks; `npm run replay -- --update` reviewed as the diff of every request.
+- **Scope:** `normalizeBarLines` used by `checkLayoutAnswer`, `addBarLine`/`moveBarLine`/`withinBox`, `layout` version bumped; `issueForModel` sends `lilypond` for reading issues; `MUSIC` on rests (D18a); analyze page call "only this page" and other pieces dropped (D18b); `bothRepeats` (D18c); review sees reverts (D18d); start-repeat sentence (D9); linking stops at piece starts (D19); the answer-key and two-systems rules stated where the prompts need them (D7, D8); every prompt version bumped once; `npm run replay -- --update` reviewed as the diff of every request.
 - **Closes:** B3, C31 (the fix), D18 a–d, D9 (sentence), D19, D7/D8 (wording).
 - **Waits on:** dec. 29, 31, 32, and the owner's go. **Depends on:** 17, 18, 22, 27, 29, 33. **Keys:** **R** (extract, review, apply_review, analyze; layouts where normalized). **Size:** M.
 - **Tests first:** a line at the box's end, past it, and two at one place → normalized (B3); a piece on another page dropped (D18b); a span across a piece start stops (D19). Afterwards: the owner's re-run of his projects.
