@@ -1121,3 +1121,39 @@ test("a cost the provider reports, raised by the fee on credits; unknown where i
   assert.equal(providerCost(1, 0.08), 1.08);
   assert.equal(providerCost(undefined, 0.055), null);
 });
+
+// The costs view's calls of unknown cost, from rows as the calls record them (docs/llm.md, "Calling the providers").
+async function unknownCosts(): Promise<[string, string, number, number][]> {
+  return ((await (await app.request("/api/costs", {}, env)).json()) as { unknown: [string, string, number, number][] }).unknown;
+}
+
+test("a call cut off by Cloudflare (524) is of unknown cost: the provider may have billed it", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const gemini = await modelConfig({ provider: "ai-studio", modelId: "gemini-4-argon", pricing: { kind: "list" }, secrets: { apiKey: "TEST_GEMINI_KEY" }, name: "Gemini 524" });
+  const stage = await runningStage(gemini.id);
+  (env as unknown as Record<string, string>).TEST_GEMINI_KEY = "g-test";
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response("error code: 524", { status: 524 })) as unknown as typeof fetch;
+  try {
+    assert.equal((await json(await call(stage))).status, "error");
+  } finally {
+    globalThis.fetch = realFetch;
+    delete (env as unknown as Record<string, string>).TEST_GEMINI_KEY;
+  }
+  assert.deepEqual((await unknownCosts()).map(([s, config, , n]) => [s, config, n]), [[stage.stageId, gemini.id, 1]]);
+});
+
+test("an unpriced call stays of unknown cost after the list gives its config a price", async () => {
+  const unpriced = await modelConfig({ name: "Unpriced", pricing: { kind: "unpriced" } });
+  const stage = await runningStage(unpriced.id);
+  assert.equal((await json(await call(stage))).costUsd, null);
+  assert.deepEqual((await unknownCosts()).map(([s, config, , n]) => [s, config, n]), [[stage.stageId, unpriced.id, 1]]);
+  const list: ModelList = {
+    ...MODEL_LIST,
+    models: [...MODEL_LIST.models, { id: "fake-model", name: "Fake model", family: "fake", strings: { "fake-dev": "fake-model" } }],
+    prices: [...MODEL_LIST.prices, { model: "fake-model", provider: "fake-dev", region: "", routing: null, price: { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 } }],
+  };
+  assert.equal(await convertAddedConfigs(env.DB, list), 1);
+  assert.equal((await env.DB.prepare("SELECT pricing_kind FROM model_configs WHERE id = ?").bind(unpriced.id).first<{ pricing_kind: string }>())!.pricing_kind, "list");
+  assert.deepEqual((await unknownCosts()).map(([s, config, , n]) => [s, config, n]), [[stage.stageId, unpriced.id, 1]]);
+});

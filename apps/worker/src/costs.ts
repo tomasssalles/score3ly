@@ -14,19 +14,12 @@
 
 import { COST_WITH_VAT } from "./vat.ts";
 import type { Hono } from "hono";
-import { zombieBefore } from "./callRecords.ts";
+import { UNKNOWN_COST, zombieBefore } from "./callRecords.ts";
 import { parsePages } from "@score3ly/core";
 import { modelGroupOf, readSettings, resolvedModel, spentInLastDay, type ModelConfigRow } from "./llmRoutes.ts";
 
 export const BUCKET_SECONDS = 15 * 60;
 
-
-// A call of unknown cost: an unpriced config's call with its tokens (docs/llm.md, "Models the user adds"), or a call
-// priced by the provider whose answer didn't say what it cost; or no tokens,
-// and neither an HTTP error status (the provider's refusal, which isn't billed) nor an `auth` error without a status
-// (the credentials failed before anything was sent).
-const UNKNOWN_COST = `((m.pricing_kind = 'unpriced' AND c.input_tokens IS NOT NULL) OR (m.pricing_kind = 'provider' AND c.input_tokens IS NOT NULL AND c.cost_usd IS NULL) OR (c.input_tokens IS NULL AND (c.http_status IS NULL OR c.http_status < 400) AND (c.error_kind IS NOT 'auth' OR c.http_status IS NOT NULL)
-  AND (c.status <> 'running' OR c.started_at < ?)))`;
 
 export function costRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/costs", async (c) => {
