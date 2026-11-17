@@ -4,6 +4,7 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 import sharp from "sharp";
 
 // 180: iPhone and iPad home screen. 192 and 512: Android, listed in public/manifest.webmanifest.
@@ -14,7 +15,7 @@ const publicDir = join(import.meta.dirname, "../public");
 const targets = ["icon", "icon-cadenza"].flatMap((name) =>
   SIZES.map((size) => ({ size, svg: join(publicDir, `${name}.svg`), file: join(publicDir, `${name}-${size}.png`) })),
 );
-const force = process.argv.includes("--force");
+const force = parseArgs({ options: { force: { type: "boolean", default: false } } }).values.force;
 
 for (const { size, svg, file } of targets) {
   if (existsSync(file) && !force) {

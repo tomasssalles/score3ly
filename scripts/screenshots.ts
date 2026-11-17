@@ -1,6 +1,6 @@
 // Screenshots of the app, to compare versions and themes at a glance without clicking through it (docs/overview.md §5.7,
-// "Screenshots"): `npm run screenshots` (optionally `-- --out <folder>`, default `screenshots/`, which git ignores, and
-// `--only <text>` for the shots whose names contain it, `--desktop` for the desktop version's server).
+// "Screenshots"): `npm run screenshots` (optionally `-- --out <folder>`, default `screenshots/`, which git ignores; it is
+// replaced, so another folder must be empty, new, or one the script wrote before; and `--only <text>` for the shots whose names contain it, `--desktop` for the desktop version's server).
 //
 // It starts its own Worker and Vite on the test ports (8887 and 5273), with a database and storage of their own in a
 // temporary folder, so nothing of the usual local data is touched; seeds them through the app with the fake model
@@ -19,6 +19,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import type { Browser, BrowserContext, Locator, Page } from "playwright";
 import { THEMES } from "../apps/web/src/themes.ts";
+import { markFolder, mayReplace, scriptArgs } from "./cli.ts";
 import { type ApiStage, launchBrowser, newProject as newProjectIn, pipelineOf as pipelineIn, ROOT, runToEnd as runToEndIn, type Servers, startServers, stopAll } from "./appServers.ts";
 
 const WORKER_PORT = 8887;
@@ -28,15 +29,31 @@ let servers: Servers;
 const api = <T = unknown>(path: string, body?: unknown, method?: string) => servers.api<T>(path, body, method);
 const PDF = join(ROOT, "testset/bendel_la_cascade_p4.orig.pdf"); // one page, scanned
 const VECTOR_PDF = join(ROOT, "testset/debussy_clair_de_lune_mutopia.orig.pdf"); // four vector pages
-const outArg = process.argv.indexOf("--out");
-const OUT = outArg > 0 ? process.argv[outArg + 1] : join(ROOT, "screenshots");
-// `--only <text>`: only the shots whose names contain it, or one of its parts separated by "|" (the seeding still
-// takes its time).
-const onlyArg = process.argv.indexOf("--only");
-const ONLY = onlyArg > 0 ? process.argv[onlyArg + 1] : null;
-// `--desktop`: the desktop version's server (apps/desktop, built first) instead of Wrangler: the same app on Node,
-// with SQLite and a folder of files; so the seeding also tests it end to end.
-const DESKTOP = process.argv.includes("--desktop");
+const DEFAULT_OUT = join(ROOT, "screenshots");
+const MARKER = ".score3ly-screenshots"; // in a folder the script wrote, which a later run may replace
+const args = scriptArgs(
+  {
+    options: {
+      out: { type: "string", default: DEFAULT_OUT },
+      // `--only <text>`: only the shots whose names contain it, or one of its parts separated by "|" (the seeding still
+      // takes its time).
+      only: { type: "string" },
+      // `--desktop`: the desktop version's server (apps/desktop, built first) instead of Wrangler: the same app on Node,
+      // with SQLite and a folder of files; so the seeding also tests it end to end.
+      desktop: { type: "boolean", default: false },
+    },
+  },
+  "Usage: npm run screenshots [-- [--out <folder>] [--only <text>] [--desktop]]",
+);
+const OUT = args.values.out;
+const ONLY = args.values.only ?? null;
+const DESKTOP = args.values.desktop;
+// The folder is replaced at the end: refused now, not after minutes of seeding, if it isn't one this script wrote.
+const notReplaceable = mayReplace(OUT, MARKER, { ownDefault: DEFAULT_OUT });
+if (notReplaceable) {
+  console.error(notReplaceable);
+  process.exit(1);
+}
 
 const LAYOUTS = [
   { id: "wide", viewport: { width: 1440, height: 900 }, collapsed: false },
@@ -443,6 +460,8 @@ async function main() {
     const seeded = await seed(browser);
     const list = shots(seeded).filter((s) => !ONLY || ONLY.split("|").some((part) => s.name.includes(part)));
     rmSync(OUT, { recursive: true, force: true });
+    mkdirSync(OUT, { recursive: true });
+    markFolder(OUT, MARKER);
     const taken = new Set<string>();
     const columns: { theme: string; layout: string }[] = [];
     for (const theme of THEMES) {

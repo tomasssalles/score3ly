@@ -9,11 +9,13 @@
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 import { crop, parseRegions } from "../src/index.ts";
 import { readPng, userPath, writePng } from "./common.ts";
 
-const [pagesArg, regionsArg, outArg] = process.argv.slice(2);
-if (!pagesArg || !regionsArg || !outArg || !pagesArg.includes("{n}")) {
+const args = parseArgs({ allowPositionals: true }).positionals;
+const [pagesArg, regionsArg, outArg] = args;
+if (args.length !== 3 || !pagesArg || !regionsArg || !outArg || !pagesArg.includes("{n}")) {
   console.error('Usage: crops.ts "<page images, with {n} for the page number>" <regions.json> <output folder>');
   process.exit(1);
 }

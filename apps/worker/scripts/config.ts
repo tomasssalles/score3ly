@@ -13,6 +13,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 
 export const workerDir = join(import.meta.dirname, "..");
 export const templatePath = join(workerDir, "wrangler.jsonc.template");
@@ -89,11 +90,15 @@ export function writeDeployConfig(): void {
 }
 
 if (import.meta.main) {
-  const which = process.argv[2];
   try {
+    // Checked before anything is written.
+    const args = parseArgs({ allowPositionals: true }).positionals;
+    const which = args[0];
+    if (args.length > 1 || (which !== undefined && which !== "deploy" && which !== "local-dev")) {
+      throw new Error(`Usage: config.ts [local-dev|deploy] (given: ${args.join(" ")})`);
+    }
     if (which !== "deploy") writeLocalDevConfig();
     if (which === "deploy" || (which === undefined && existsSync(accountPath))) writeDeployConfig();
-    if (which !== undefined && which !== "deploy" && which !== "local-dev") throw new Error(`Unknown config: ${which}`);
   } catch (err) {
     console.error((err as Error).message);
     process.exit(1);

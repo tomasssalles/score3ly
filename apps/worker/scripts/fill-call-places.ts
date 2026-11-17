@@ -14,19 +14,24 @@
 
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 import { getPlatformProxy } from "wrangler";
 import { accountPath, localDevConfigPath, parseAccount, templatePath, withAccount, workerDir, writeLocalDevConfig } from "./config.ts";
 import { fillCallPlaces } from "./callPlaces.ts";
 
-const args = process.argv.slice(2);
-const remote = args.includes("--remote");
-const local = args.includes("--local");
+const { values: args } = parseArgs({
+  options: { remote: { type: "boolean", default: false }, local: { type: "boolean", default: false }, "persist-to": { type: "string" } },
+});
+const { remote, local } = args;
 if (remote === local) {
   console.error("Say which database: --remote (the deployed one) or --local (wrangler dev's).");
   process.exit(1);
 }
-const persistAt = args.indexOf("--persist-to");
-const persistTo = persistAt >= 0 ? args[persistAt + 1] : undefined;
+const persistTo = args["persist-to"];
+if (remote && persistTo !== undefined) {
+  console.error("--persist-to is for --local only.");
+  process.exit(1);
+}
 
 // The remote run's config: the deploy config with both bindings remote, written next to the others and removed after.
 const remoteConfigPath = join(workerDir, "wrangler.fill-call-places.jsonc");

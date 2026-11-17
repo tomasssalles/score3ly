@@ -17,6 +17,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 
 const PRICING_URL = "https://platform.claude.com/docs/en/about-claude/pricing.md";
 const DEPRECATIONS_URL = "https://platform.claude.com/docs/en/about-claude/model-deprecations.md";
@@ -161,7 +162,7 @@ function parse(): void {
   console.log(`anthropic.json: ${models.length} models, ${prices.length} prices.`);
 }
 
-if (process.argv.includes("--download")) {
+if (parseArgs({ options: { download: { type: "boolean", default: false } } }).values.download) {
   await download();
   excerpt();
 }

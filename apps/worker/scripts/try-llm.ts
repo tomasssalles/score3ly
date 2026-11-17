@@ -22,12 +22,14 @@
 
 import { readFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
+import { parseArgs } from "node:util";
 import { createProvider, type LlmImage, type ProviderConfig } from "../src/llm/index.ts";
 
-const args = process.argv.slice(2);
-const json = args.includes("--json");
-const [provider, model, imagePath, prompt] = args.filter((a) => a !== "--json");
+const args = parseArgs({ options: { json: { type: "boolean", default: false } }, allowPositionals: true });
+const json = args.values.json;
+const [provider, model, imagePath, prompt] = args.positionals;
 if (
+  args.positionals.length !== 4 ||
   !provider ||
   !model ||
   !imagePath ||

@@ -27,15 +27,28 @@
 // its artifacts.
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
+import { mayReplace, markFolder, scriptArgs } from "./cli.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER = join(ROOT, "apps/worker");
-const STATE = process.argv[2] ?? ".wrangler/seed-stats"; // relative to apps/worker, like --persist-to there
+const DEFAULT_STATE = ".wrangler/seed-stats";
+const MARKER = ".score3ly-seed-stats"; // in a folder this script wrote, which a later run may replace
+// The folder to seed, relative to apps/worker like --persist-to there; inside apps/worker/.wrangler, and deleted first.
+const folders = scriptArgs({ allowPositionals: true }, "Usage: npm run seed:stats [-- <folder in apps/worker/.wrangler>]").positionals;
+const STATE = folders[0] ?? DEFAULT_STATE;
+{
+  const problem =
+    folders.length > 1 ? "Give at most one folder." : mayReplace(resolve(WORKER, STATE), MARKER, { ownDefault: join(WORKER, DEFAULT_STATE), within: join(WORKER, ".wrangler") });
+  if (problem) {
+    console.error(problem);
+    process.exit(1);
+  }
+}
 const TODAY = Date.parse("2026-10-27T16:00:00Z");
 const CAP_USD = 15;
 
@@ -552,8 +565,10 @@ if (paid.some((c) => c.t > TODAY)) throw new Error("The simulation ran past toda
 
 // ---- Write it ----
 
-const stateDir = join(WORKER, STATE);
+const stateDir = resolve(WORKER, STATE);
 rmSync(stateDir, { recursive: true, force: true });
+mkdirSync(stateDir, { recursive: true });
+markFolder(stateDir, MARKER);
 // Wrangler reports its errors on stdout, which is only shown when it fails.
 function wrangler(args: string[]) {
   try {

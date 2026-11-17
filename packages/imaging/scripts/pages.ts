@@ -7,11 +7,13 @@
 
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 import { deskew, deskewAngle, findSkew, pageImage } from "../src/index.ts";
 import { nodeCanvas, openPdfFile, userPath, writePng } from "./common.ts";
 
-const [pdfArg, outArg] = process.argv.slice(2);
-if (!pdfArg || !outArg) {
+const args = parseArgs({ allowPositionals: true }).positionals;
+const [pdfArg, outArg] = args;
+if (args.length !== 2 || !pdfArg || !outArg) {
   console.error("Usage: pages.ts <file.pdf> <output folder>");
   process.exit(1);
 }

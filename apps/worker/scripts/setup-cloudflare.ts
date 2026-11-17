@@ -16,6 +16,7 @@
 
 import { execFileSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
+import { parseArgs } from "node:util";
 import { accountPath, formatAccount, type Jurisdiction, JURISDICTIONS, workerDir, writeDeployConfig } from "./config.ts";
 
 const BUCKET = "score3ly-pdfs";
@@ -29,9 +30,12 @@ it is wrong (the bucket and the database it names stay on Cloudflare).`);
 
 // --jurisdiction <value> or --jurisdiction=<value>; required, since it can't be changed afterwards.
 function jurisdictionArg(): Jurisdiction {
-  const args = process.argv.slice(2);
-  const i = args.findIndex((a) => a === "--jurisdiction" || a.startsWith("--jurisdiction="));
-  const value = i < 0 ? undefined : args[i].includes("=") ? args[i].split("=")[1] : args[i + 1];
+  let value: string | undefined;
+  try {
+    value = parseArgs({ options: { jurisdiction: { type: "string" } } }).values.jurisdiction;
+  } catch (err) {
+    console.error((err as Error).message);
+  }
   if (!value || !(JURISDICTIONS as readonly string[]).includes(value)) {
     console.error(`Say where Cloudflare stores the data, which can't be changed later:
   --jurisdiction eu        in the EU

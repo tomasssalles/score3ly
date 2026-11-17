@@ -7,6 +7,7 @@
 // nothing; one that is accepted costs its prompt (the schema is part of it, about 0.5k to 3k tokens) and 64 output
 // tokens, a fraction of a cent on Sonnet.
 
+import { parseArgs } from "node:util";
 import Anthropic from "@anthropic-ai/sdk";
 import { ANALYZE_PAGE_SCHEMA, ANALYZE_SCORE_SCHEMA } from "../../../packages/prompts/src/analyze.ts";
 import { APPLY_REVIEW_SCHEMA } from "../../../packages/prompts/src/applyReview.ts";
@@ -84,7 +85,12 @@ const variants: [string, Schema][] = [
   ["analyze score, no anyOf", withoutAnyOf(score)],
 ];
 
-const [model = "claude-sonnet-5-5", prefix = ""] = process.argv.slice(2);
+const positionals = parseArgs({ allowPositionals: true }).positionals;
+if (positionals.length > 2) {
+  console.error("Usage: probe-schemas.ts [model] [prefix]");
+  process.exit(1);
+}
+const [model = "claude-sonnet-5-5", prefix = ""] = positionals;
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {
   console.error("Set ANTHROPIC_API_KEY.");

@@ -26,12 +26,17 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { unzipSync } from "fflate";
 import type { Page } from "playwright";
+import { scriptArgs } from "./cli.ts";
 import { launchBrowser, newProject, openProject, pipelineOf, ROOT, type Servers, startServers, stopAll } from "./appServers.ts";
 
 const FIXTURES = join(ROOT, "fixtures/replay");
-const UPDATE = process.argv.includes("--update");
-const onlyArg = process.argv.indexOf("--only");
-const ONLY = onlyArg > 0 ? process.argv[onlyArg + 1] : null;
+const args = scriptArgs(
+  // `--update` accepts what changed as the new snapshots; `--only <name>` replays one fixture.
+  { options: { update: { type: "boolean", default: false }, only: { type: "string" } } },
+  "Usage: npm run replay [-- [--update] [--only <fixture>]]",
+);
+const UPDATE = args.values.update;
+const ONLY = args.values.only ?? null;
 
 type Row = Record<string, unknown>;
 type Export = { pipeline: Row[]; stages: Row[]; outputs: Row[]; llm_calls: Row[] };

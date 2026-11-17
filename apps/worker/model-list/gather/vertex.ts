@@ -22,6 +22,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 
 const GEMINI_PRICES_URL = "https://cloud.google.com/vertex-ai/generative-ai/pricing?hl=en";
 const LOCATIONS_URL = "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations?hl=en";
@@ -270,7 +271,7 @@ function parse(): void {
   if (notes.length > 0) console.log(`Left out:\n${notes.map((n) => `  ${n}`).join("\n")}`);
 }
 
-if (process.argv.includes("--download")) {
+if (parseArgs({ options: { download: { type: "boolean", default: false } } }).values.download) {
   await download();
   excerpt();
 }

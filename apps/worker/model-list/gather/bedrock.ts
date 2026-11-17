@@ -19,6 +19,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 
 const PRICE_LIST_URL = "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrockFoundationModels/current/index.json";
 const cardUrl = (id: string) => `https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-${id}.html`;
@@ -273,7 +274,7 @@ function parse(): void {
   console.log(`bedrock.json: ${listed.length} models, ${regions.length} regions, ${prices.length} prices.`);
 }
 
-if (process.argv.includes("--download")) {
+if (parseArgs({ options: { download: { type: "boolean", default: false } } }).values.download) {
   await download();
   excerpt();
 }

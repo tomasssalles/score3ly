@@ -18,6 +18,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 
 const HOSTS = { "": "https://openrouter.ai/api/v1/models", eu: "https://eu.openrouter.ai/api/v1/models" } as const;
 
@@ -88,7 +89,7 @@ function parse(): void {
   console.log(`openrouter.json: ${models.length} models, ${file.prices.filter((p) => p.region === "eu").length} of them in the EU.`);
 }
 
-if (process.argv.includes("--download")) {
+if (parseArgs({ options: { download: { type: "boolean", default: false } } }).values.download) {
   await download();
   excerpt();
 }

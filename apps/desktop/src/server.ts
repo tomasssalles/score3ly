@@ -7,6 +7,7 @@ import { serve, type ServerType } from "@hono/node-server";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import { extname, join, normalize, relative } from "node:path";
+import { parseArgs } from "node:util";
 import worker from "../../worker/src/index.ts";
 import { migrate, NodeD1 } from "./d1.ts";
 import { NodeR2 } from "./r2.ts";
@@ -115,21 +116,24 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
 
 // Run alone, for development: `node dist/server.js [--data <folder>] [--port <port>] [--dev-providers]`, as a plain
 // local server.
-function argument(name: string): string | undefined {
-  const i = process.argv.indexOf(name);
-  return i > 0 ? process.argv[i + 1] : undefined;
-}
-
 if (process.argv[1] && /server\.(js|ts)$/.test(process.argv[1]) && !process.versions.electron) {
   const here = import.meta.dirname;
-  const dataDir = argument("--data") ?? join(process.env.HOME ?? process.env.USERPROFILE ?? ".", ".score3ly");
+  let args;
+  try {
+    args = parseArgs({ options: { data: { type: "string" }, port: { type: "string", default: "8790" }, "dev-providers": { type: "boolean", default: false } } }).values;
+    if (!/^\d+$/.test(args.port) || Number(args.port) > 65535) throw new Error(`--port takes a port number, not ${args.port}`);
+  } catch (err) {
+    console.error(`${(err as Error).message}\nUsage: node dist/server.js [--data <folder>] [--port <port>] [--dev-providers]`);
+    process.exit(1);
+  }
+  const dataDir = args.data ?? join(process.env.HOME ?? process.env.USERPROFILE ?? ".", ".score3ly");
   startServer({
     dataDir,
     webDir: join(here, "web"),
     migrationsDir: join(here, "migrations"),
     host: "local",
-    port: Number(argument("--port") ?? 8790),
-    devProviders: process.argv.includes("--dev-providers"),
+    port: Number(args.port),
+    devProviders: args["dev-providers"],
   }).then(
     ({ url, secretsPath }) => console.log(`score3ly at ${url}\ndata in ${dataDir}\nsecrets in ${secretsPath}`),
     (err) => {

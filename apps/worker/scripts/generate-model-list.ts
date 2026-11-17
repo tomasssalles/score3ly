@@ -9,6 +9,7 @@
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 import { buildModelList, listChanges, modelListModule, type ProviderFile } from "../src/llm/generateModelList.ts";
 import { schemaProblems, type Schema } from "../src/llm/jsonSchema.ts";
 import type { ModelList } from "../src/llm/models.ts";
@@ -16,7 +17,7 @@ import type { ModelList } from "../src/llm/models.ts";
 const workerDir = join(import.meta.dirname, "..");
 const dataDir = join(workerDir, "model-list");
 const modulePath = join(workerDir, "src", "llm", "modelList.ts");
-const check = process.argv.includes("--check");
+const check = parseArgs({ options: { check: { type: "boolean", default: false } } }).values.check;
 
 const schema = JSON.parse(readFileSync(join(dataDir, "schema.json"), "utf8")) as Schema;
 const files: ProviderFile[] = [];

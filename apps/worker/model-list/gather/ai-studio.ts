@@ -19,6 +19,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseArgs } from "node:util";
 
 const PAGE_URL = "https://ai.google.dev/gemini-api/docs/pricing.md.txt";
 
@@ -174,7 +175,7 @@ function parse(): void {
   if (changes.length > 0) console.log(`Prices that change after ${fetched} (the list has the current ones; note them in docs/tasks.md):\n${changes.map((c) => `  ${c}`).join("\n")}`);
 }
 
-if (process.argv.includes("--download")) {
+if (parseArgs({ options: { download: { type: "boolean", default: false } } }).values.download) {
   await download();
   excerpt();
 }
