@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Message } from "@anthropic-ai/sdk/resources/messages";
 import { anthropicProvider, fromMessage, toParams } from "./anthropic.ts";
+import { createProvider } from "./index.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 
 type Captured = { url: string; headers: Headers; body: any };
@@ -149,7 +150,7 @@ test("HTTP errors become typed errors that say whether to retry", async () => {
     [529, "overloaded", true],
     [500, "server", true],
   ] as const) {
-    const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch([], [], status), maxRetries: 0 });
+    const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch([], [], status) });
     await assert.rejects(provider.send(request), (err: unknown) => {
       assert.ok(err instanceof LlmError);
       assert.deepEqual([err.kind, err.status, err.retryable], [kind, status, retryable]);
@@ -161,7 +162,7 @@ test("HTTP errors become typed errors that say whether to retry", async () => {
 // The provider's whole answer, not a part of it (decided 2026-11-06): a parsed message can break, or leave out what
 // matters, when something unexpected comes back.
 test("an HTTP error's message keeps the provider's whole answer, after the status", async () => {
-  const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch([], [], 401), maxRetries: 0 });
+  const provider = anthropicProvider({ apiKey: "k", fetch: fakeFetch([], [], 401) });
   await assert.rejects(provider.send(request), (err: unknown) => err instanceof LlmError && err.message.startsWith("401 ") && err.message.includes('"message":"nope"'));
 });
 
@@ -180,7 +181,7 @@ test("failures without an HTTP status say what went wrong", async () => {
     ],
   ];
   for (const [what, fetch, kind] of cases) {
-    const provider = anthropicProvider({ apiKey: "k", fetch, maxRetries: 0 });
+    const provider = anthropicProvider({ apiKey: "k", fetch });
     await assert.rejects(provider.send(request), (err: unknown) => {
       assert.ok(err instanceof LlmError, what);
       assert.deepEqual([err.kind, err.status], [kind, undefined], what);
@@ -212,10 +213,24 @@ test("progress as the answer arrives: the text's and the thinking's characters, 
   const events = answer('{"systems":6}');
   events.splice(2, 0, { type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "Counting." } });
   const seen: unknown[] = [];
-  await anthropicProvider({ apiKey: "k", fetch: fakeFetch(events, []), maxRetries: 0 }).send(request, undefined, (p) => seen.push(p));
+  await anthropicProvider({ apiKey: "k", fetch: fakeFetch(events, []) }).send(request, undefined, (p) => seen.push(p));
   assert.deepEqual(seen, [
     { textChars: 0, thinkingChars: 9, outputTokens: null },
     { textChars: 13, thinkingChars: 9, outputTokens: null },
     { textChars: 13, thinkingChars: 9, outputTokens: 42 },
   ]);
+});
+
+// One recorded call is one request (decided 2026-11-17): the SDK's own retries are off, so a call the provider may
+// bill isn't sent again unseen; the stage's Retry is the retry policy.
+test("Claude's adapters send a call once, also when the provider answers with a status the SDK would retry", async () => {
+  for (const config of [{ provider: "anthropic", apiKey: "k" }, { provider: "anthropic-bedrock", region: "eu-central-1", apiKey: "k" }] as const) {
+    let sent = 0;
+    const overloaded = (async () => {
+      sent++;
+      return new Response(JSON.stringify({ type: "error", error: { type: "overloaded_error", message: "busy" } }), { status: 529, headers: { "content-type": "application/json" } });
+    }) as unknown as typeof fetch;
+    await assert.rejects(createProvider(config, { fetch: overloaded }).send(request), (err: unknown) => err instanceof LlmError && err.kind === "overloaded");
+    assert.equal(sent, 1, config.provider);
+  }
 });

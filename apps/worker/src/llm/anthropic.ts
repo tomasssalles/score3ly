@@ -60,9 +60,14 @@ export class ClaudeProvider implements LlmProvider {
   }
 }
 
+// The SDK's own retries are off (it would resend a call up to twice on 408, 409, 429, 5xx and lost connections, a 524
+// included, each possibly billed, under one recorded call): one recorded call is one request, and the stage's Retry is
+// the retry policy (docs/llm.md, "Calling the providers").
+const MAX_RETRIES = 0;
+
 // Anthropic's own API, with an API key.
-export function anthropicProvider(options: { apiKey: string; fetch?: Fetch; maxRetries?: number }): ClaudeProvider {
-  const client = new Anthropic({ apiKey: options.apiKey, fetch: options.fetch, maxRetries: options.maxRetries });
+export function anthropicProvider(options: { apiKey: string; fetch?: Fetch }): ClaudeProvider {
+  const client = new Anthropic({ apiKey: options.apiKey, fetch: options.fetch, maxRetries: MAX_RETRIES });
   return new ClaudeProvider("anthropic", client);
 }
 
@@ -76,7 +81,6 @@ export function bedrockClaudeProvider(options: {
   accessKeyId?: string;
   secretAccessKey?: string;
   fetch?: Fetch;
-  maxRetries?: number;
 }): ClaudeProvider {
   const { region, apiKey, accessKeyId, secretAccessKey } = options;
   const keyPair = accessKeyId !== undefined || secretAccessKey !== undefined;
@@ -85,7 +89,7 @@ export function bedrockClaudeProvider(options: {
     throw new LlmError("auth", "Bedrock needs either an API key or an access key pair (key ID and secret), not both.");
   }
   // Explicit credentials only: the client would otherwise look for them in the environment and AWS's files.
-  const common = { awsRegion: region, fetch: options.fetch, maxRetries: options.maxRetries };
+  const common = { awsRegion: region, fetch: options.fetch, maxRetries: MAX_RETRIES };
   const client =
     apiKey !== undefined
       ? new AnthropicBedrock({ ...common, apiKey })
