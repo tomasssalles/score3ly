@@ -14,7 +14,7 @@ These override the recommendations below where they differ.
 - **dec. 25, same answer:** **case matters** everywhere ("schumann" and "Schumann" are different answers); the review's case-insensitive comparison changes to match the others.
 - **dec. 33, a done `engrave` whose recipe can't be made again:** not marked; it stays shown as done.
 - **dec. 7, a tab older than the deployed app:** nothing is done (deploys are rare, and almost any action soon loads or fails something).
-- **dec. 11, retired models:** configs of retired models never run (as `docs/llm.md`, "No longer supported", already says; done stages are still served from the stage cache). The narrower point (hand-added configs naming a retired model's string) is still being discussed.
+- **dec. 11, retired models:** option (b). A retired model's string can be **added again by hand as an unlisted model** (today refused, `llmRoutes.ts` 320–324). Nothing else changes: configs of retired models never run (`docs/llm.md`, "No longer supported"), and a hand-added config the list adopted and later retired becomes unsupported, as today. The new unlisted config's calls are served from the call cache where the request matches, since the request key holds the provider, the model string and the effort, not the config. The one-provider case (a model that leaves only one provider's file) already behaves this way.
 - **dec. 23, `imported_at`:** **kept** (`docs/database.md` 105: room for later choices about imported projects, e.g. their costs in the statistics).
 - **E1, the import on the deployed instance:** the owner's test, in `docs/tasks.md` ("Check export and import on a large project"); nothing to do in the review.
 - **dec. 2–3, run ids:** yes.
