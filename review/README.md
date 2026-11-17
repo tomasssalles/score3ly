@@ -225,4 +225,4 @@ One subagent writes the first draft of `review/summary.md` (see "The final summa
 | Level 3's instructions written (this section filled in where needed) | done |
 | Level 4 | done |
 | The plan | done |
-| The summary draft | |
+| The summary draft | done |
