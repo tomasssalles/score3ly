@@ -690,7 +690,6 @@ export type TestResult = {
   status: "ok" | "cut_off" | "refused" | "unparseable" | "error";
   error: string | null;
   costUsd: number | null; // VAT included
-  vatPercent: number; // the VAT in it, a percentage (0: none)
   durationMs: number;
 };
 

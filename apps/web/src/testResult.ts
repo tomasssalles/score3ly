@@ -8,6 +8,6 @@ export function resultText(result: TestResult, model: string, config: Pick<Model
   const cost =
     config.price.kind === "free" ? "$0.00 (free tier)"
     : result.costUsd === null ? (config.price.kind === "provider" ? "unknown (the provider didn't report it)" : config.price.kind === "unpriced" ? "unknown (unpriced)" : "unknown")
-    : `${dollars(result.costUsd)}${result.vatPercent > 0 ? " incl. VAT" : ""}`;
+    : `${dollars(result.costUsd)} incl. VAT`; // at 0% too (docs/llm.md, "VAT")
   return `Success: ${model} responded in the requested format in ${seconds}. Cost: ${cost}.`;
 }
