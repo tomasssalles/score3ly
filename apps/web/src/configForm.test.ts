@@ -20,6 +20,7 @@ import {
   regionsOf,
   requestOf,
   routingsOf,
+  sameValuesProblem,
   servedAtRegion,
   settled,
   type FormState,
@@ -347,4 +348,15 @@ test("OpenRouter: priced by the provider, a Standard account at first, the EU on
   assert.deepEqual([free.pricing, requestOf(free).pricing], ["free", { kind: "free" }]);
   const bedrock = step(standard, { provider: "bedrock", model: { kind: "listed", id: "opus" } });
   assert.deepEqual([bedrock.pricing, bedrock.account], ["list", null]);
+});
+
+test("a config with exactly the values of another is refused, naming it and pointing to renaming; no rename is offered", () => {
+  const original = config({ name: "Opus 5.5 · high" });
+  const message = 'A config with these settings already exists: "Opus 5.5 · high". Two configs can\'t have the same settings; you can rename a config from its ⋮ menu.';
+  // A clone left unchanged, its name as typed, or its default name (which would be numbered).
+  const clone = formFromConfig(OPTIONS, original);
+  assert.equal(sameValuesProblem([original], requestOf(clone)), message);
+  assert.equal(sameValuesProblem([original], requestOf({ ...clone, useDefaultName: true })), message);
+  // Another value is another config.
+  assert.equal(sameValuesProblem([original], requestOf({ ...clone, effort: "low" })), null);
 });

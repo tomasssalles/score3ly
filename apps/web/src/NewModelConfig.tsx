@@ -3,7 +3,7 @@
 // Its logic is in configForm.ts.
 
 import { useEffect, useRef, useState } from "react";
-import { createModelConfig, deleteModelConfig, putSetting, renameModelConfig, WorkerRefusal, type ModelConfig, type ModelOptions } from "./api";
+import { createModelConfig, putSetting, type ModelConfig, type ModelOptions } from "./api";
 import {
   confirmationOf,
   defaultName,
@@ -13,7 +13,7 @@ import {
   formFromConfig,
   initialForm,
   pinnedModel,
-  sameValues,
+  sameValuesProblem,
   hasRegions,
   listedModel,
   missing,
@@ -94,8 +94,6 @@ export function NewModelConfig({
   // The default name as the Worker will number it: the original's name is free when it is deleted with the clone.
   const taken = (configs ?? []).filter((c) => !(deletesOriginal && c.id === from?.id)).map((c) => c.name);
   const shownDefault = name === null ? "" : firstFreeName(name, taken);
-  // The name the config gets: its default name ("Use default"), else the one typed.
-  const finalName = form.useDefaultName ? shownDefault : form.name.trim();
   // Deleting the default needs another default: the clone becomes it (the Worker does it too).
   const makeDefault = form.makeDefault || (deletesOriginal && isDefault);
 
@@ -106,8 +104,7 @@ export function NewModelConfig({
       if (makeDefault) await putSetting("defaultModelConfigId", config.id);
       done();
     } catch (err) {
-      if (err instanceof WorkerRefusal && err.code === "same_values" && err.config) offerRename(err.config);
-      else setError(err instanceof Error ? err.message : String(err));
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -118,43 +115,13 @@ export function NewModelConfig({
     dialog.current?.close();
   }
 
-  // A config with exactly these values exists: instead of a second one, renaming it is offered (docs/llm.md,
-  // "Managing model configs"), and deleting the original with it where that was asked.
-  function offerRename(same: { id: string; name: string }) {
-    if (same.name.toLowerCase() === finalName.toLowerCase()) {
-      setError(`This config already exists, with this name: "${same.name}".`);
-      return;
-    }
-    const isOriginal = from !== null && same.id === from.id;
-    const text =
-      isOriginal && deletesOriginal ? `Rename "${same.name}" to "${finalName}" instead of deleting it?`
-      : deletesOriginal ? `A config with these settings already exists: "${same.name}". Rename "${same.name}" to "${finalName}" and delete "${from!.name}"?`
-      : `A config with these settings already exists: "${same.name}". Rename "${same.name}" to "${finalName}" instead?`;
-    setConfirming({
-      text: [text],
-      label: "Rename config",
-      run: () => {
-        setBusy(true);
-        (async () => {
-          await renameModelConfig(same.id, finalName);
-          if (deletesOriginal && !isOriginal) {
-            if (isDefault || makeDefault) await putSetting("defaultModelConfigId", same.id);
-            await deleteModelConfig(from!.id);
-          } else if (makeDefault) await putSetting("defaultModelConfigId", same.id);
-        })().then(done, (err) => {
-          setError(err instanceof Error ? err.message : String(err));
-          setBusy(false);
-        });
-      },
-    });
-  }
-
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (problem !== null || busy) return;
-    const same = sameValues(configs, requestOf(form));
+    // A config with exactly these values exists: refused before anything is asked (docs/llm.md, "Managing model configs").
+    const same = sameValuesProblem(configs, requestOf(form));
     if (same) {
-      offerRename(same);
+      setError(same);
       return;
     }
     const texts = [

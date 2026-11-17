@@ -914,14 +914,13 @@ test("the secrets' names: the Worker's text values, sorted, never a value; not i
   assert.deepEqual(answer, { names: ["GEMINI_KEY"] });
 });
 
-test("a config with exactly the same values as another isn't created: the other is named, to offer renaming it", async () => {
-  const first = await modelConfig({ name: "Claude" });
+test("a config with exactly the same values as another isn't created: the other is named, and renaming pointed to", async () => {
+  await modelConfig({ name: "Claude" });
   const again = await send("/api/model-configs", configBody({ name: "Opus 5.5" }));
   assert.equal(again.status, 409);
   assert.deepEqual(await json(again), {
-    error: 'A config with these settings already exists: "Claude".',
+    error: 'A config with these settings already exists: "Claude". Two configs can\'t have the same settings; you can rename a config from its ⋮ menu.',
     code: "same_values",
-    config: { id: first.id, name: "Claude" },
   });
   // Another effort is another config; the same secrets in another order are the same.
   assert.equal((await send("/api/model-configs", configBody({ effort: "low" }))).status, 201);

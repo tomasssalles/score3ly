@@ -2,6 +2,7 @@
 // offers given the others, the default name it would get, what is still missing, and the request it makes. Pure, so the
 // dialog (NewModelConfig.tsx) only shows it.
 
+import { sameValuesMessage } from "@score3ly/core";
 import type { Account, Family, ModelConfig, ModelOptions, NewModelConfig, Place, Provider, Routing } from "./api";
 
 type Effort = NonNullable<ModelConfig["effort"]>;
@@ -381,9 +382,15 @@ export function confirmationOf(options: ModelOptions, form: FormState): string |
   return null;
 }
 
-// The config that already has exactly the values the form would create, if any (the Worker refuses a second one,
-// docs/llm.md, "Managing model configs"): found before anything is asked, so that renaming it can be offered first.
-export function sameValues(configs: ModelConfig[], request: NewModelConfig): ModelConfig | null {
+// Why the form can't create its config: another has exactly its values (the Worker refuses a second one, docs/llm.md,
+// "Managing model configs"), found before anything is asked. Null where none has.
+export function sameValuesProblem(configs: ModelConfig[], request: NewModelConfig): string | null {
+  const same = sameValues(configs, request);
+  return same ? sameValuesMessage(same.name) : null;
+}
+
+// The config that already has exactly the values the form would create, if any.
+function sameValues(configs: ModelConfig[], request: NewModelConfig): ModelConfig | null {
   const secrets = (s: Record<string, string>) => JSON.stringify(Object.entries(s).sort(([a], [b]) => a.localeCompare(b)));
   const reference = (p: ModelConfig["pricing"]) => (p.kind === "list" ? p.reference : null);
   return (

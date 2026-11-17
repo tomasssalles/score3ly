@@ -6,7 +6,7 @@
 import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
 import { deferLog, logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
-import { type CallEvent, canonicalJson, keyOf, sha256Hex } from "@score3ly/core";
+import { type CallEvent, canonicalJson, keyOf, sameValuesMessage, sha256Hex } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import type { LlmProgress, LlmProvider } from "./llm/types.ts";
@@ -720,8 +720,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
 
   // Creates a config, or clones one: `replaces` names the original to delete with it ("Delete the original"; the clone
   // becomes the default if the original was). A config with exactly the same values as one that isn't deleted isn't
-  // created (docs/llm.md, "Managing model configs"): 409 with `code` "same_values" and that config, so the browser can
-  // offer to rename it instead.
+  // created (docs/llm.md, "Managing model configs"): 409 with `code` "same_values", naming it.
   app.post("/api/model-configs", async (c) => {
     const db = c.env.DB;
     const body = await c.req.json().catch(() => null);
@@ -739,7 +738,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const draft = newConfigRow(body, "");
     const same = (await db.prepare("SELECT * FROM model_configs WHERE deleted_at IS NULL").all<ModelConfigRow>()).results.find((row) => sameValues(row, draft));
     if (same) {
-      return c.json({ error: `A config with these settings already exists: "${same.name}".`, code: "same_values", config: { id: same.id, name: same.name } }, 409);
+      return c.json({ error: sameValuesMessage(same.name), code: "same_values" }, 409);
     }
     const name = await configName(db, body, original?.id ?? null);
     if (name === null) return c.json({ error: NAME_TAKEN }, 409);

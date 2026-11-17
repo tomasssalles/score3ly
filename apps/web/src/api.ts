@@ -656,25 +656,21 @@ export type NewModelConfig = {
 };
 
 // Creates a model config, or clones one (`replaces`: the original, deleted with it). A refusal comes back as a
-// WorkerRefusal with the Worker's message, to show in the form, and for a config with the same values as another,
-// "same_values" and that config.
+// WorkerRefusal with the Worker's message, to show in the form.
 export async function createModelConfig(body: NewModelConfig & { replaces?: string }): Promise<ModelConfig> {
   const response = await fetch("/api/model-configs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return (await refusedOr(response)).json();
 }
 
-// A refusal from the Worker, with its message and, where it has one, its code and what it names (the config with the
-// same values, "same_values").
+// A refusal from the Worker, with its message and, where it has one, its code.
 export class WorkerRefusal extends Error {
   readonly status: number;
   readonly code: string | null;
-  readonly config: { id: string; name: string } | null;
 
-  constructor(status: number, body: { error?: string; code?: string; config?: { id: string; name: string } } | null) {
+  constructor(status: number, body: { error?: string; code?: string } | null) {
     super(body?.error ?? `HTTP ${status}`);
     this.status = status;
     this.code = body?.code ?? null;
-    this.config = body?.config ?? null;
   }
 }
 
