@@ -16,21 +16,25 @@ export async function runEngrave(run: StageRun): Promise<void> {
   const config = engraveConfigOf(stage.config);
   const recipe = pdfRecipe(mei.sha256, config);
   const recipeKey = await keyOf(recipe);
-  let pages = 0;
+  let pages: number | null = null;
+  const countPages = async () => pdfPageCount(new TextDecoder("latin1").decode(await (await engravedPdf({ view: "pdf", meiSha256: mei.sha256, config })).arrayBuffer()));
   await runPlan(run, {
     stepVersion: ENGRAVE_VERSION,
     config,
     stageKey: await keyOf({ step: "engrave", version: ENGRAVE_VERSION, recipe }),
     pageCount: rasterize?.outputs.filter((o) => o.type === "page_image").length ?? null,
     inputIds: [mei.id],
-    note: () => `${pages} page${pages === 1 ? "" : "s"}`,
+    // Counted from the PDF, made again (or found on the device) when an earlier run recorded it.
+    note: async () => {
+      const count = pages ?? (await countPages());
+      return `${count} page${count === 1 ? "" : "s"}`;
+    },
     items: [
       {
         item: "",
         type: "pdf",
         make: async () => {
-          const pdf = await engravedPdf({ view: "pdf", meiSha256: mei.sha256, config });
-          pages = pdfPageCount(new TextDecoder("latin1").decode(await pdf.arrayBuffer()));
+          pages = await countPages();
           return { recipeKey, recipe, inputIds: [mei.id] };
         },
       },

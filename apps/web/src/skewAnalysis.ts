@@ -35,9 +35,12 @@ export function skewStageKey(config: SkewConfig, pageImageKeys: string[]): Promi
 // What is stored for a page: everything findSkew measured.
 export type PageSkew = Skew;
 
-// The card's short result, e.g. "lines on 10 of 12 pages".
-export function skewNote(pagesWithLines: number, pages: number): string {
-  return pages === 1 ? (pagesWithLines === 1 ? "lines found" : "no lines found") : `lines on ${pagesWithLines} of ${pages} pages`;
+// The card's short result, e.g. "lines on 10 of 12 pages", and how many pages had their angle at the limit of the
+// search (no lines reported, docs/stages/pages.md): "lines on 9 of 10 pages · 1 at the angle limit".
+export function skewNote(pagesWithLines: number, pages: number, atLimit = 0): string {
+  const text = pages === 1 ? (pagesWithLines === 1 ? "lines found" : "no lines found") : `lines on ${pagesWithLines} of ${pages} pages`;
+  if (atLimit === 0) return text;
+  return pages === 1 ? `${text} · at the angle limit` : `${text} · ${atLimit} at the angle limit`;
 }
 
 // A line's angle as its label shows it: "+0.42°", "−1.30°", "0.00°".

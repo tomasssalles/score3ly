@@ -30,6 +30,7 @@ import {
   pageResultsForScore,
   piecesOf,
   type PageAnalysis,
+  type StoredPieces,
   type StoredObservations,
 } from "./analyze";
 import { fetchJsonContent, markUnusable, putContent } from "./api";
@@ -49,7 +50,7 @@ import {
 } from "./llm";
 import { layoutPage, modelPage, type LayoutPageRecipe, type ModelPageRecipe } from "./pageImages";
 import { pageItem, pageOfItem, type PageRecipe } from "./rasterize";
-import { CannotStart, runPlan, type StageRun } from "./stageRunner";
+import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
 
 // The steps whose layout `analyze` reads: the latest before it counts.
 const LAYOUT_STEPS = ["layout", "fix_layout"];
@@ -166,7 +167,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
     })());
 
   const pageInputs = (i: number): string[] => [pages[i].output.id, pages[i].image.id];
-  let pieces = 0;
+  const madePieces = new Map<string, StoredPieces>();
   await runPlan(run, {
     stepVersion: ANALYZE_VERSION,
     config: { ...(stage.config ?? {}), modelConfigId: config.id }, // the stage's config, its model config included
@@ -174,7 +175,8 @@ export async function runAnalyze(run: StageRun): Promise<void> {
     stageKey,
     pageCount: pages.length,
     inputIds: pages.flatMap((_, i) => pageInputs(i)),
-    note: () => analyzeNote(pages.length, pieces),
+    // The pieces as stored (piecesOf: system 1 added, duplicates merged), whichever run made them.
+    note: async (outputs) => analyzeNote(pages.length, (await contentsOf(outputs, "pieces", madePieces))[0]?.length ?? 0),
     items: [
       ...pages.map(({ output, page }, i) => ({
         item: output.item,
@@ -215,7 +217,6 @@ export async function runAnalyze(run: StageRun): Promise<void> {
         type: "metadata",
         make: async () => {
           const { answer, callId } = await scoreAnswer();
-          pieces = answer.metadata.pieces.length;
           return { contentSha256: await putContent(json(answer.metadata), "application/json"), callId };
         },
       },
@@ -223,8 +224,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
         item: "",
         type: "observations",
         make: async () => {
-          const { answer, callId, observations: stored } = await scoreAnswer();
-          pieces = answer.metadata.pieces.length;
+          const { callId, observations: stored } = await scoreAnswer();
           return { contentSha256: await putContent(json(stored), "application/json"), callId };
         },
       },
@@ -233,8 +233,9 @@ export async function runAnalyze(run: StageRun): Promise<void> {
         type: "pieces",
         make: async () => {
           const { answer, callId } = await scoreAnswer();
-          pieces = answer.metadata.pieces.length;
-          return { contentSha256: await putContent(json(piecesOf(answer.metadata)), "application/json"), callId };
+          const pieces = piecesOf(answer.metadata);
+          madePieces.set("", pieces);
+          return { contentSha256: await putContent(json(pieces), "application/json"), callId };
         },
       },
     ],

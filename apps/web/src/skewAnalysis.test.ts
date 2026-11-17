@@ -28,4 +28,7 @@ test("labels and the card's note", () => {
   assert.equal(skewNote(10, 12), "lines on 10 of 12 pages");
   assert.equal(skewNote(1, 1), "lines found");
   assert.equal(skewNote(0, 1), "no lines found");
+  // Pages whose angle was at the limit of the search (dec. 8): said, since they have no lines for that reason.
+  assert.equal(skewNote(9, 10, 1), "lines on 9 of 10 pages · 1 at the angle limit");
+  assert.equal(skewNote(0, 1, 1), "no lines found · at the angle limit");
 });

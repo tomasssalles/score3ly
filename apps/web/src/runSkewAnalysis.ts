@@ -2,13 +2,14 @@
 // device's cache, or drawn again) is measured in the Web Worker, and what was found is stored as JSON in R2: the
 // lines are what later stages and `fix_skew` build on, and must not move when measured again on another device.
 
+import type { Skew } from "@score3ly/imaging";
 import { putContent } from "./api";
 import { canonicalJson } from "@score3ly/core";
 import { keepFingerprints, measureSkew, pageImage } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
 import { pageOfItem } from "./rasterize";
 import { SKEW_ANALYSIS_VERSION, skewConfigError, skewConfigOf, skewNote, skewStageKey } from "./skewAnalysis";
-import { CannotStart, runPlan, type StageRun } from "./stageRunner";
+import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
 
 export async function runSkewAnalysis(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
@@ -28,7 +29,7 @@ export async function runSkewAnalysis(run: StageRun): Promise<void> {
   const error = skewConfigError(config);
   if (error) throw new CannotStart(error);
 
-  let withLines = 0;
+  const made = new Map<string, Skew>();
   await runPlan(run, {
     stepVersion: SKEW_ANALYSIS_VERSION,
     config,
@@ -38,8 +39,11 @@ export async function runSkewAnalysis(run: StageRun): Promise<void> {
     ),
     pageCount: pages.length,
     inputIds: pages.map((p) => p.output.id),
-    // Pages recorded by a failed run aren't measured again, so they aren't counted: the note may then say less.
-    note: () => skewNote(withLines, pages.length),
+    // Pages recorded by a failed run aren't measured again: their results are read back.
+    note: async (outputs) => {
+      const skews = await contentsOf(outputs, "skew", made);
+      return skewNote(skews.filter((s) => s.lines.length > 0).length, pages.length, skews.filter((s) => s.atLimit).length);
+    },
     items: pages.map(({ output, recipe }) => ({
       item: output.item,
       type: "skew",
@@ -47,7 +51,7 @@ export async function runSkewAnalysis(run: StageRun): Promise<void> {
         const { png } = await pageImage(recipe);
         const skew = await measureSkew(png, config.maxAngle);
         await keepFingerprints([{ recipe, png }]);
-        if (skew.lines.length > 0) withLines++;
+        made.set(output.item, skew);
         const json = new TextEncoder().encode(canonicalJson(skew));
         const contentSha256 = await putContent(json, "application/json");
         return { contentSha256, inputIds: [output.id] };

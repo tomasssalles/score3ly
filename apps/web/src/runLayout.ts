@@ -21,7 +21,7 @@ import { LAYOUT_VERSION, layoutNote, layoutStageKey, type PageLayout } from "./l
 import { ask, imageLimit, modelKey, requestImage, stageModelConfig, type PlannedRequest } from "./llm";
 import { drawnPage, modelPage, pageImage, pngSize, type ModelPageRecipe } from "./pageImages";
 import { pageOfItem, type PageRecipe } from "./rasterize";
-import { CannotStart, runPlan, type StageRun } from "./stageRunner";
+import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
 
 // The steps whose lines say how to straighten the pages: the latest before `layout` counts.
 const LINE_STEPS = ["skew_analysis", "fix_skew"];
@@ -48,8 +48,7 @@ export async function runLayout(run: StageRun): Promise<void> {
     pages: pages.map((p) => ({ pageImageKey: p.output.recipeKey!, linesSha256: p.lines?.contentSha256 ?? null })),
   });
 
-  let systemCount = 0;
-  let flaggedCount = 0;
+  const made = new Map<string, PageLayout>();
   await runPlan(run, {
     stepVersion: LAYOUT_VERSION,
     config: { ...(stage.config ?? {}), modelConfigId: config.id }, // the stage's config, its model config included
@@ -57,7 +56,11 @@ export async function runLayout(run: StageRun): Promise<void> {
     stageKey,
     pageCount: pages.length,
     inputIds: pages.flatMap((p) => [p.output.id, ...(p.lines ? [p.lines.id] : [])]),
-    note: () => layoutNote(systemCount, pages.length, flaggedCount),
+    note: async (outputs) => {
+      const layouts = await contentsOf(outputs, "layout", made);
+      const systems = layouts.reduce((sum, l) => sum + l.systems.length, 0);
+      return layoutNote(systems, pages.length, layouts.filter((l) => l.flagged).length);
+    },
     items: pages.map(({ output, page, recipe, lines: pageLines }) => ({
       item: output.item,
       type: "layout",
@@ -111,8 +114,7 @@ export async function runLayout(run: StageRun): Promise<void> {
           note: layout!.note,
           rounds: round,
         };
-        systemCount += result.systems.length;
-        if (result.flagged) flaggedCount++;
+        made.set(output.item, result);
         const contentSha256 = await putContent(new TextEncoder().encode(canonicalJson(result)), "application/json");
         return { contentSha256, inputIds: [output.id, ...(pageLines ? [pageLines.id] : [])], callId };
       },

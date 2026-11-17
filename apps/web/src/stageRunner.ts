@@ -5,6 +5,7 @@
 // finishes the stage: done, or failed with the error.
 
 import {
+  fetchJsonContent,
   finishStage,
   recordOutputs,
   sendHeartbeat,
@@ -14,9 +15,9 @@ import {
   type NewOutput,
   type Project,
   type StageStart,
-} from "./api";
-import { timed } from "./itemTiming";
-import type { CallProgress, ItemProgress } from "./callProgress";
+} from "./api.ts";
+import { timed } from "./itemTiming.ts";
+import type { CallProgress, ItemProgress } from "./callProgress.ts";
 
 export type StageRun = {
   project: Project;
@@ -37,8 +38,23 @@ export type StageItem = {
   make: () => Promise<Omit<NewOutput, "item" | "type" | "timing">>;
 };
 
-// The note is the card's short result, e.g. "12 pages": text, or computed once the items are done.
-export type StagePlan = StageStart & { items: StageItem[]; note: string | (() => string) };
+// One of the stage's outputs once its items are done: made in this run, or recorded by an earlier one that failed or
+// was interrupted.
+export type FinalOutput = { item: string; type: string; contentSha256: string | null; recipe: unknown };
+
+// The note is the card's short result, e.g. "12 pages": text, or computed once the items are done, from the stage's
+// final outputs (all of them, not only this run's: a resumed run makes only the missing items).
+export type StagePlan = StageStart & { items: StageItem[]; note: string | ((outputs: FinalOutput[]) => string | Promise<string>) };
+
+// The stored JSON of the outputs of one type, in their order: from `made` (what this run made, by item) where it is
+// there, else fetched.
+export function contentsOf<T>(outputs: FinalOutput[], type: string, made: ReadonlyMap<string, T>): Promise<T[]> {
+  return Promise.all(
+    outputs
+      .filter((o) => o.type === type)
+      .map(async (o) => made.get(o.item) ?? ((await fetchJsonContent(o.contentSha256!)) as T)),
+  );
+}
 
 const HEARTBEAT_MS = 60 * 1000;
 
@@ -48,21 +64,26 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
   const started = await startStage(project, stage.id, start);
   if (started.reused) return;
   // A failed or interrupted run's outputs stay: only the missing items are made.
-  const recorded = new Set(stage.outputs.map((o) => `${o.type}\u0000${o.item}`));
+  const recorded = new Map(stage.outputs.map((o) => [`${o.type}\u0000${o.item}`, o]));
+  const final: FinalOutput[] = [];
   const heartbeat = setInterval(() => sendHeartbeat(project, stage.id).catch(() => {}), HEARTBEAT_MS);
   try {
     for (const [i, item] of items.entries()) {
       if (signal.aborted) return;
-      if (!recorded.has(`${item.type}\u0000${item.item}`)) {
+      const earlier = recorded.get(`${item.type}\u0000${item.item}`);
+      if (earlier) final.push(earlier);
+      else {
         run.item?.({ item: item.item, chars: null });
         const { value: output, timing } = await timed(item.make);
         if (signal.aborted) return;
         await recordOutputs(project, stage.id, [{ ...output, item: item.item, type: item.type, timing }]);
+        final.push({ item: item.item, type: item.type, contentSha256: output.contentSha256 ?? null, recipe: output.recipe ?? null });
       }
       run.progress((i + 1) / items.length);
     }
     if (!signal.aborted) {
-      await finishStage(project, stage.id, { status: "done", note: typeof note === "function" ? note() : note });
+      const text = typeof note === "function" ? await note(final) : note;
+      if (!signal.aborted) await finishStage(project, stage.id, { status: "done", note: text });
     }
   } catch (err) {
     if (signal.aborted) return;
