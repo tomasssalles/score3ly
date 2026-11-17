@@ -19,6 +19,8 @@ These override the recommendations below where they differ.
 - **E1, the import on the deployed instance:** the owner's test, in `docs/tasks.md` ("Check export and import on a large project"); nothing to do in the review.
 - **dec. 2–3, run ids:** yes.
 - **B3, bar lines:** as planned, **plus a small minimum distance** between bar lines, and between a bar line and the box's sides (closer ones merged or dropped).
+- **C5, a config with the same values:** **no rename dialog any more** (creating or cloning). When a config with exactly the form's values exists, saving fails with a message that names it, says duplicates aren't allowed, and points to renaming, e.g. "A config with these settings already exists: "Opus 5.5 · high". Two configs can't have the same settings; to call it something else, rename it." `docs/llm.md` ("Managing model configs") updated with it.
+- **E3, numbered names over 200 characters:** the owner is deciding (options: shorten the base with "…", shorten without, or allow numbered names past 200).
 - **dec. 4, the R2 binding:** renamed to `STORE` (a config change on the deployed instance).
 - **dec. 18, orphan collection:** a "Free up storage" button in the settings, plus the collection that already runs when a project is deleted; no cron, nothing at the desktop's start-up.
 - **Everything else in the summary below** that the owner didn't comment on: as recommended.
