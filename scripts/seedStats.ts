@@ -31,6 +31,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pageItem, roundUsd, systemItem } from "@score3ly/core";
 import { writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
 import { mayReplace, markFolder, scriptArgs } from "./cli.ts";
 
@@ -173,7 +174,7 @@ function call(stageId: string, cfg: Config, t: number, tokens: Tokens, deleted: 
   const end = t + seconds * 1000;
   const price = cfg.free || cfg.family === "fake" || cfg.family === "gemini" ? null : PRICES[cfg.family];
   const usage = status === "error" ? null : { ...tokens, output };
-  const cost = usage === null ? null : price === null ? 0 : Math.round(((usage.input * price.input + usage.output * price.output + usage.cacheRead * price.cacheRead + usage.cacheWrite * price.cacheWrite) / 1_000_000) * 1e6) / 1e6;
+  const cost = usage === null ? null : price === null ? 0 : roundUsd((usage.input * price.input + usage.output * price.output + usage.cacheRead * price.cacheRead + usage.cacheWrite * price.cacheWrite) / 1_000_000);
   if (cost && !cfg.free) paid.push({ t, cost });
   insert("llm_calls", {
     id: uuid(),
@@ -254,7 +255,7 @@ function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, st
   const id = uuid();
   type Item = { item: string; type: string; images: number; requests: () => Tokens[] };
   const items: Item[] = [];
-  const pages = Array.from({ length: p.pages }, (_, i) => `p${i + 1}`);
+  const pages = Array.from({ length: p.pages }, (_, i) => pageItem(i + 1));
   if (step === "layout") {
     for (const item of pages) {
       const rounds = random() < 0.55 ? 1 : random() < 0.8 ? 2 : 3;
@@ -267,7 +268,7 @@ function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, st
   }
   if (step === "extract") {
     p.systems.forEach((n, page) => {
-      for (let s = 0; s < n; s++) items.push({ item: `p${page + 1}/s${s + 1}`, type: "extraction", images: 12, requests: () => [EXTRACT_SYSTEM(p.staves)] });
+      for (let s = 0; s < n; s++) items.push({ item: systemItem(page + 1, s + 1), type: "extraction", images: 12, requests: () => [EXTRACT_SYSTEM(p.staves)] });
     });
   }
   let t = start;
@@ -328,7 +329,7 @@ function computed(p: Project, step: string, start: number, inPipeline = true, fo
   const stageId = uuid();
   const outputs: { item: string; type: string; end: number; timing: Timing }[] = [];
   let t = start;
-  const pages = Array.from({ length: p.pages }, (_, i) => `p${i + 1}`);
+  const pages = Array.from({ length: p.pages }, (_, i) => pageItem(i + 1));
   if (step === "rasterize") {
     for (const item of pages) {
       const ms = found ? between(0.04, 0.2) * 1000 : between(0.4, 2.8) * 1000;

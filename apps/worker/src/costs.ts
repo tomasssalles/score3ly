@@ -15,10 +15,10 @@
 import { COST_WITH_VAT } from "./vat.ts";
 import type { Hono } from "hono";
 import { UNKNOWN_COST, zombieBefore } from "./callRecords.ts";
-import { parsePages } from "@score3ly/core";
+import { parsePages, QUARTER_MS } from "@score3ly/core";
 import { modelGroupOf, readSettings, resolvedModel, spentInLastDay, type ModelConfigRow } from "./llmRoutes.ts";
 
-export const BUCKET_SECONDS = 15 * 60;
+export const BUCKET_SECONDS = QUARTER_MS / 1000; // the statistics' quarters of an hour
 
 
 export function costRoutes(app: Hono<{ Bindings: Env }>) {

@@ -4,9 +4,8 @@
 
 import { COST_WITH_VAT } from "./vat.ts";
 import { logFields } from "./requestLog.ts";
-import { isSha256Hex } from "@score3ly/core";
+import { isSha256Hex, quarterOf } from "@score3ly/core";
 import type { Hono } from "hono";
-import { QUARTER_MS } from "./activeTime.ts";
 import { deletedConfigMessage, readSettings, resolvedModel, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
 import type { Family, Pricing, Provider, Routing } from "./llm/models.ts";
 
@@ -594,7 +593,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     );
     // A manual stage's save, counted in its quarter of an hour: its active time, for the statistics .
     if (wip) {
-      const quarter = Math.floor(Date.parse(now) / QUARTER_MS) * QUARTER_MS;
+      const quarter = quarterOf(Date.parse(now));
       statements.push(
         db
           .prepare("INSERT INTO manual_saves (stage_id, quarter, saves) VALUES (?, ?, 1) ON CONFLICT (stage_id, quarter) DO UPDATE SET saves = saves + 1")

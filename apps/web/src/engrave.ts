@@ -9,10 +9,9 @@ import { REPOSITORY_URL } from "./about.ts";
 import type { ApiStage } from "./api";
 import type { StoredExtraction } from "./extract.ts";
 import { normalizeMetadata } from "./fixMetadata.ts";
-import { keyOf } from "@score3ly/core";
+import { keyOf, pageOfItem, systemOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 import { indexMei } from "./meiView.ts";
-import { pageOfItem } from "./rasterize.ts";
 import { count } from "./format.ts";
 
 export const BUILD_MEI_VERSION = 1;
@@ -128,7 +127,7 @@ export async function loadScore(sources: EngraveSources, fetch: (sha256: string)
     fetch(sources.pieces.sha256) as Promise<number[]>,
   ]);
   const systems = extractions.map(({ item, extraction }) => {
-    const index = Number(item.split("/s")[1] ?? 1);
+    const index = systemOfItem(item)?.index ?? 1;
     const layout = layouts.get(extraction.page)?.systems[index - 1];
     return { number: extraction.system, page: extraction.page, box: layout?.box ?? null, barLines: layout?.barLines ?? [], answer: extraction.answer };
   });

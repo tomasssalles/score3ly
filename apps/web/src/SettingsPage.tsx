@@ -4,6 +4,7 @@
 // limit, §8.5). A pick is saved at once, an amount when it is left or Enter is pressed. "Model configs": the configs,
 // in the order picked and as filtered, each with its actions, and the "+" that makes one.
 
+import { amount } from "@score3ly/core";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import {
   fetchModelConfigs,
@@ -25,7 +26,6 @@ import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { CACHE_LIMITS_MB, cacheLimitMb, setCacheLimitMb } from "./cacheLru";
 import { count, formatSize } from "./format";
-import { amount } from "./money";
 import { useHost } from "./host";
 import { ACCOUNT_NAMES, pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";

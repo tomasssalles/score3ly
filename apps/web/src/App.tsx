@@ -13,7 +13,7 @@ import { ProjectView } from "./ProjectView";
 import { PageView } from "./PageView";
 import { RenameDialog } from "./RenameDialog";
 import { HOME_HASH, hashForArtifact, hashForProject, hashForStage, pageFromHash, parseRoute } from "./route";
-import { sha256Hex } from "@score3ly/core";
+import { LEAVING_A_RUN, sha256Hex } from "@score3ly/core";
 import { useAppNavigation } from "./navigation";
 import { makeAndOpen } from "./newProjectFlow";
 
@@ -258,7 +258,7 @@ export function App() {
           <ConfirmDialog
             title="Leave the project?"
             text={[
-              "A stage is running. Leaving the project stops it. What is done so far is kept, and Run picks up from there; an answer from a model still on its way is lost, although it is paid for.",
+              `A stage is running. Leaving the project stops it. ${LEAVING_A_RUN}`,
             ]}
             confirmLabel="Leave"
             onConfirm={leaving}

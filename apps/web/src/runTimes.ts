@@ -16,6 +16,7 @@
 // out, not counted as nothing. Projects on the same PDF needn't be merged, as the costs per page merge them: the cache
 // is already left out item by item.
 
+import { itemKind, type ItemKind, QUARTER_MS } from "@score3ly/core";
 import type { ActivityData, RunTimeData } from "./api";
 import { stepTitle } from "./costs.ts";
 import { endedNote } from "./format.ts";
@@ -42,8 +43,6 @@ export const STEPS = [
 const MANUAL = new Set(["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"]);
 const LLM = new Set(["layout", "analyze", "extract", "review", "apply_review"]);
 
-type Kind = "whole" | "page" | "system";
-const kindOf = (item: string): Kind => (item === "" ? "whole" : item.includes("/") ? "system" : "page");
 
 // Whether an item really ran: no answer from the record (LLM steps), its image made (`rasterize`).
 function ranAnew(step: string, calls: number, callsCached: number, images: number, imagesCached: number): boolean {
@@ -70,16 +69,16 @@ export function perProject(data: RunTimeData, selected: Set<string>, activity: A
 function perPage(data: RunTimeData, stages: RunTimeData["stages"]): number | null {
   if (stages.some((s) => s.manual)) return manualPerPage(stages);
   const byId = new Map(stages.map((s) => [s.id, s]));
-  const durations: Record<Kind, number[]> = { whole: [], page: [], system: [] };
+  const durations: Record<ItemKind, number[]> = { whole: [], page: [], system: [] };
   for (const [stage, item, ms, calls, callsCached, images, imagesCached] of data.items) {
     const s = byId.get(stage);
-    if (s && ranAnew(s.step, calls, callsCached, images, imagesCached)) durations[kindOf(item)].push(ms);
+    if (s && ranAnew(s.step, calls, callsCached, images, imagesCached)) durations[itemKind(item)].push(ms);
   }
   const done = stages.filter((s) => s.done && s.pageCount > 0);
   const pages = done.reduce((n, s) => n + s.pageCount, 0);
   if (pages === 0) return null;
   let total = 0;
-  for (const kind of ["whole", "page", "system"] as Kind[]) {
+  for (const kind of ["whole", "page", "system"] as ItemKind[]) {
     const count = done.reduce((n, s) => n + s.items[kind], 0);
     if (count === 0) continue;
     if (durations[kind].length === 0) return null;
@@ -88,8 +87,6 @@ function perPage(data: RunTimeData, stages: RunTimeData["stages"]): number | nul
   }
   return total;
 }
-
-export const QUARTER_MS = 15 * 60 * 1000;
 
 // A manual step's time per page: its finished stages' active time, over their pages.
 function manualPerPage(stages: RunTimeData["stages"]): number | null {

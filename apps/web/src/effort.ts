@@ -13,7 +13,7 @@
 
 import type { RunTimeData } from "./api";
 import { stepTitle } from "./costs.ts";
-import { QUARTER_MS } from "./runTimes.ts";
+import { QUARTER_MS } from "@score3ly/core";
 
 const MANUAL = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"];
 

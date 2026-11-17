@@ -2,12 +2,12 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sha256Hex } from "@score3ly/core";
+import { amount, sha256Hex } from "@score3ly/core";
 import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList, type Provider } from "./llm/models.ts";
-import { capAmount, convertAddedConfigs, modelOptions, providerCost, secretNames, spentInLastDay, throttled, throttledProgress, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
+import { convertAddedConfigs, modelOptions, providerCost, secretNames, spentInLastDay, throttled, throttledProgress, unsupportedOf, type ModelConfigRow, type ModelOptions } from "./llmRoutes.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 
@@ -1188,5 +1188,5 @@ test("a stopped call is recorded as stopped, whatever error the adapter's cut co
 });
 
 test("the spending cap's amount reads as the settings show it, never a cap above 0 as 0.00", () => {
-  assert.deepEqual([1, 1.5, 0.25, 0.004, 0.0001].map(capAmount), ["1.00", "1.50", "0.25", "0.004", "0.0001"]);
+  assert.deepEqual([1, 1.5, 0.25, 0.004, 0.0001].map(amount), ["1.00", "1.50", "0.25", "0.004", "0.0001"]);
 });

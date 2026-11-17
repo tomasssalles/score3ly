@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filledQuarters, QUARTER_MS } from "./activeTime.ts";
+import { QUARTER_MS } from "@score3ly/core";
+import { filledQuarters } from "./activeTime.ts";
 
 test("active quarters: a single empty quarter between two active ones is filled, a longer gap is a break", () => {
   const q = (n: number) => n * QUARTER_MS;

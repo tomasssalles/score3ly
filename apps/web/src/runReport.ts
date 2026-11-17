@@ -2,6 +2,7 @@
 // can read it back. The app that made them, the original PDF, and every stage of the pipeline that led to them: its
 // step and version, its config, the model config of an LLM stage (never its secrets), its times, cost and result.
 
+import { roundUsd } from "@score3ly/core";
 import type { ApiStage, ModelConfig, Project } from "./api";
 import type { EngraveConfig } from "./engrave";
 import type { StageKind } from "./pipeline";
@@ -85,6 +86,6 @@ export function runReport(input: ReportInput): RunReport {
     mei: { sha256: input.meiSha256 },
     engraving: input.engraving,
     stages,
-    totalCostUsd: Math.round(stages.reduce((t, s) => t + (s.costUsd ?? 0), 0) * 1e6) / 1e6,
+    totalCostUsd: roundUsd(stages.reduce((t, s) => t + (s.costUsd ?? 0), 0)),
   };
 }

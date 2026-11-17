@@ -35,7 +35,7 @@ import {
 } from "./analyze";
 import { fetchJsonContent, markUnusable, putContent } from "./api";
 import { firstNumbers } from "./fixLayout";
-import { canonicalJson, modelKeyOf, normalized } from "@score3ly/core";
+import { canonicalJson, modelKeyOf, normalized, pageItem, pageOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 import {
   ask,
@@ -48,7 +48,7 @@ import {
   type RequestContent,
 } from "./llm";
 import { layoutPage, modelPage, type LayoutPageRecipe, type ModelPageRecipe } from "./pageImages";
-import { pageItem, pageOfItem, type PageRecipe } from "./rasterize";
+import type { PageRecipe } from "./rasterize";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
 
 // The steps whose layout `analyze` reads: the latest before it counts.

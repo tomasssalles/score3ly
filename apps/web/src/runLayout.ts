@@ -16,11 +16,11 @@ import {
   type LayoutAnswer,
 } from "@score3ly/prompts";
 import { fetchJsonContent, markUnusable, putContent } from "./api";
-import { canonicalJson, modelKeyOf } from "@score3ly/core";
+import { canonicalJson, modelKeyOf, pageOfItem } from "@score3ly/core";
 import { LAYOUT_VERSION, layoutNote, layoutStageKey, type PageLayout } from "./layout";
 import { ask, imageLimit, requestImage, stageModelConfig, type PlannedRequest } from "./llm";
 import { drawnPage, modelPage, pageImage, pngSize, type ModelPageRecipe } from "./pageImages";
-import { pageOfItem, type PageRecipe } from "./rasterize";
+import type { PageRecipe } from "./rasterize";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
 
 // The steps whose lines say how to straighten the pages: the latest before `layout` counts.

@@ -6,7 +6,7 @@
 import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
 import { deferLog, logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
-import { type CallEvent, canonicalJson, firstFreeName, fromBase64, isSha256Hex, keyOf, MAX_NAME_LENGTH, modelKeyOf, nameTooLong, sameValuesMessage, sha256Hex } from "@score3ly/core";
+import { amount, type CallEvent, canonicalJson, firstFreeName, fromBase64, isSha256Hex, keyOf, MAX_NAME_LENGTH, modelKeyOf, nameTooLong, roundUsd, sameValuesMessage, sha256Hex } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import type { LlmProgress, LlmProvider } from "./llm/types.ts";
@@ -225,7 +225,7 @@ function pricingOf(row: ModelConfigRow): Pricing {
 // charged when credits are bought, on top of them, so a dollar of credits costs 1 + fee); unknown (null) where the
 // answer doesn't say.
 export function providerCost(reportedUsd: number | undefined, fee: number): number | null {
-  return reportedUsd === undefined ? null : Math.round(reportedUsd * (1 + fee) * 1_000_000) / 1_000_000;
+  return reportedUsd === undefined ? null : roundUsd(reportedUsd * (1 + fee));
 }
 
 // The share a call's reported cost is raised by for the provider's fee on credits (OpenRouter's, by the account's
@@ -1079,12 +1079,6 @@ async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, req
   return runCall(env, prepared, request, requestKey, stageId, place, timeoutMs, signal);
 }
 
-// The spending cap's amount as the settings show it (SettingsPage.tsx, `amount`): two decimals where they are enough
-// ("1.50"), else all of it ("0.004", which two decimals would show as "0.00").
-export function capAmount(usd: number): string {
-  return Number.isInteger(Math.round(usd * 1e6) / 1e4) ? usd.toFixed(2) : String(usd);
-}
-
 // What a call needs before anything is sent: a price, room under the spending cap, the secrets and an adapter.
 async function prepareCall(env: Env, row: ModelConfigRow): Promise<Prepared | Refusal> {
   const db = env.DB;
@@ -1099,7 +1093,7 @@ async function prepareCall(env: Env, row: ModelConfigRow): Promise<Prepared | Re
     // A model the provider itself lists as free (OpenRouter's ":free" models: all its prices 0) costs nothing, so the
     // cap doesn't stop it (decided 2026-11-08); its calls are still recorded at what they report.
     if ((await spentInLastDay(db)) >= spendingCapUsd && !(priced.kind === "provider" && (await freeOnOpenRouter(config.model, config.region)))) {
-      return { refusal: { error: `The spending cap has been reached: $${capAmount(spendingCapUsd)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap", status: 429 } };
+      return { refusal: { error: `The spending cap has been reached: $${amount(spendingCapUsd)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap", status: 429 } };
     }
   }
   const secrets = secretValues(config, env);

@@ -7,7 +7,8 @@
 // (docs/database.md).
 
 import type { Hono } from "hono";
-import { manualQuarters, QUARTER_MS } from "./activeTime.ts";
+import { QUARTER_MS, quarterOf } from "@score3ly/core";
+import { manualQuarters } from "./activeTime.ts";
 
 export function activityRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/activity", async (c) => {
@@ -25,13 +26,13 @@ export function activityRoutes(app: Hono<{ Bindings: Env }>) {
     const mark = (project: string, iso: string | null) => {
       if (!iso) return;
       const t = Date.parse(iso);
-      if (Number.isFinite(t)) quarters.add(`${project}\u0000${Math.floor(t / QUARTER_MS) * QUARTER_MS}`);
+      if (Number.isFinite(t)) quarters.add(`${project}\u0000${quarterOf(t)}`);
     };
     for (const call of calls.results as { project: string; start: string; end: string | null }[]) {
       const start = Date.parse(call.start);
       // A call that never ended (the tab was closed while it waited) counts only where it started.
       const end = call.end ? Date.parse(call.end) : start;
-      for (let q = Math.floor(start / QUARTER_MS) * QUARTER_MS; q <= end; q += QUARTER_MS) quarters.add(`${call.project}\u0000${q}`);
+      for (let q = quarterOf(start); q <= end; q += QUARTER_MS) quarters.add(`${call.project}\u0000${q}`);
     }
     for (const s of stages.results as { project: string; started_at: string; finished_at: string | null; heartbeat_at: string | null }[]) {
       mark(s.project, s.started_at);

@@ -3,9 +3,9 @@
 // the stage's artifact, shown when it finishes, and a page that can't be drawn should fail this stage, not a later
 // one.
 
-import { keyOf } from "@score3ly/core";
+import { keyOf, pageItem } from "@score3ly/core";
 import { openPdfForImages, pageImage } from "./pageImages";
-import { configOf, pageItem, pageRecipe, RASTERIZE_VERSION, resolveConfig, stageKey } from "./rasterize";
+import { configOf, pageRecipe, RASTERIZE_VERSION, resolveConfig, stageKey } from "./rasterize";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 import { count } from "./format.ts";
 

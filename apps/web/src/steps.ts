@@ -1,10 +1,11 @@
 // What the code declares about each step (docs/overview.md §5.1): its title, its kind, its config form, and how its
 // outputs are shown as artifacts. The database only stores a stage's step id.
 
+import { pageOfItem, systemOfItem } from "@score3ly/core";
 import type { ApiStage } from "./api";
 import type { Artifact, StageKind } from "./pipeline";
 import { whoOf, type ChainStage } from "./attribution.ts";
-import { configError, configOf, resolveConfig, MAX_DPI, MIN_DPI, pageOfItem, type PageRecipe } from "./rasterize.ts";
+import { configError, configOf, resolveConfig, MAX_DPI, MIN_DPI, type PageRecipe } from "./rasterize.ts";
 import { FIX_LAYOUT_VERSION } from "./fixLayout.ts";
 import { analyzeOutputs, FIX_METADATA_VERSION } from "./fixMetadata.ts";
 import { FIX_OBSERVATIONS_VERSION } from "./fixObservations.ts";
@@ -366,7 +367,7 @@ function transcription(
 ): Artifact[] {
   const systems = transcribed.outputs
     .filter((o) => o.type === "extraction" && o.contentSha256 !== null)
-    .map((o) => ({ item: o.item, sha256: o.contentSha256!, index: Number(o.item.split("/s")[1] ?? 1) }));
+    .map((o) => ({ item: o.item, sha256: o.contentSha256!, index: systemOfItem(o.item)?.index ?? 1 }));
   if (systems.length === 0) return [];
   const checksSha256 = transcribed.outputs.find((o) => o.item === "" && o.type === "score_checks")?.contentSha256 ?? null;
   const pieces = [...earlier]

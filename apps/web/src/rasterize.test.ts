@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { keyOf } from "@score3ly/core";
-import { configError, configOf, pageOfItem, pageRecipe, resolveConfig, stageKey } from "./rasterize.ts";
+import { configError, configOf, pageRecipe, resolveConfig, stageKey } from "./rasterize.ts";
 
 test("a stored config gets defaults for what it lacks", () => {
   assert.deepEqual(configOf(null), { pages: "", dpi: 300 });
@@ -32,6 +32,4 @@ test("a page's recipe says everything its image depends on", async () => {
   const recipe = pageRecipe("a".repeat(64), 2, 300, "6.4.299");
   assert.deepEqual(recipe, { step: "rasterize", version: 1, pdf: "a".repeat(64), page: 2, dpi: 300, pdfjs: "6.4.299" });
   assert.notEqual(await keyOf(recipe), await keyOf({ ...recipe, page: 3 }));
-  assert.equal(pageOfItem("p12"), 12);
-  assert.equal(pageOfItem("p3/s2"), null);
 });

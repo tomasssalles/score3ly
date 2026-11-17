@@ -66,12 +66,3 @@ export function stageKey(config: RasterizeConfig, pdfSha256: string, pdfjsVersio
     inputs: [pdfSha256],
   });
 }
-
-export function pageItem(page: number): string {
-  return `p${page}`;
-}
-
-export function pageOfItem(item: string): number | null {
-  const match = /^p(\d+)$/.exec(item);
-  return match ? Number(match[1]) : null;
-}
