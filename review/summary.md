@@ -119,6 +119,7 @@ Not big, but would do from the start: a UI kit, a formatting module and a home f
 | **Writes.** Every write to a project goes through `api.ts`'s queue; editors and forms use the shared saver; Finish waits for pending saves. | Concurrency (23) |
 | **Test the seam.** When two modules must agree (writer and reader, both sides of a request, a key computed and looked up), one test runs both. A test that reads source or CSS asserts that it found its target. | One-sided tests (14), lint-like tests (4) |
 | **Production's limits locally.** Worker tests run on both hosts, with D1's limits on; every script is typechecked and parses its arguments with `parseArgs`. | Platform limits (6), unchecked scripts (5), trusted input (7) |
+| **Ask before changing what the user sees, or anything big.** A change that is big (even a clear improvement keeping behaviour), or that changes what the user sees or gets (texts, labels, URLs, looks, defaults, what an action does) without fixing something clearly broken, however small, is put to the project owner first, never made by preference. Size alone is never the test. | Batch 2 of the fixes dropped "incl. VAT" at 0 % by preference, against a recorded decision (reverted) |
 | **Leave it clean.** When changing code, grep its names in comments and docs; delete what nothing uses. | Wrong comments (~30), dead code (23) |
 
 ## 7. How effective was the review
@@ -137,10 +138,13 @@ Not big, but would do from the start: a UI kit, a formatting module and a home f
 - **Counts are rough:** level 1 marked findings in free text, so its numbers count mentions, not unique findings.
 - **One group fell between components:** "running a stage" was assigned to no level 3 component and had to be shared out by hand.
 
+- **The review proposed behaviour changes by preference without flagging them** (found at fix time, 2026-11-17): the plan tucked "no 'incl. VAT' at 0 %" into C7 among "small wrong texts", so it never reached the owner's summary of decisions, and batch 2 made the change, reverting it only on finding the owner's earlier decision in docs/llm.md. The levels judged changes by size and by whether a finding *held*, not by their kind. From batch 4 on, the fixes follow the rule "What needs the owner's ok" (plan, "How every batch is done").
+
 **What to do differently next time:**
 - Give every finding an id and a fixed format from level 1 on, so counts are exact and later levels can cite them.
 - Confirm each P1 bug with a quick failing test at level 3, before the plan.
 - Check that every level 2 group belongs to a level 3 component before starting.
 - Review the docs alongside the code they describe.
+- **Flag the kind of every proposed change, not only its size:** the plan's summary for the owner lists every change of what the user sees or gets that isn't a fix of something clearly broken, and every big change; nothing of either kind hides in a batch of small fixes.
 - Record the tokens of each run, to judge the cost.
 - Keep the bottom-up shape: the bugs that mattered most were found at levels 2 and 3, by reading files together.
