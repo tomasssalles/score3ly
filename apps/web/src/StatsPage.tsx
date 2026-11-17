@@ -37,7 +37,7 @@ import { ChartModes, Picker, ProjectChecks, StatHead, type ChartMode } from "./s
 import { EffortTab } from "./EffortTab";
 import { RunTimesTab } from "./RunTimesTab";
 import { UsageTab } from "./UsageTab";
-import { hashForStatsTab, statsTabFromHash, type StatsTab } from "./route";
+import { hashForTab, tabFromHash, type TabOf } from "./route";
 import { useHash } from "./useHash";
 import { CheckList } from "./CheckList";
 import { ChevronDownIcon, ExpandIcon, FilterIcon, InfoIcon, SplitIcon } from "./icons";
@@ -45,9 +45,9 @@ import { dollars } from "./money";
 import { shortDate } from "./time";
 import { TimeChart, type ChartSeries } from "./TimeChart";
 
-// The page's tabs, each with its own URL ("#/stats/usage"). Switching tabs replaces the URL rather than adding to the
+// The page's tabs, each with its own URL ("#/stats/usage"; "#/stats" opens the first). Switching tabs replaces the URL rather than adding to the
 // history, so back leaves the page, as from any other page of the menu.
-const TABS: { id: StatsTab; label: string }[] = [
+const TABS: { id: TabOf<"stats">; label: string }[] = [
   { id: "costs", label: "Costs" },
   { id: "usage", label: "Usage" },
   { id: "times", label: "Run times" },
@@ -55,7 +55,7 @@ const TABS: { id: StatsTab; label: string }[] = [
 ];
 
 export function StatsPage() {
-  const tab = statsTabFromHash(useHash().hash);
+  const tab = tabFromHash("stats", useHash().hash);
   return (
     <div className="page-view stats">
       <h2>Statistics</h2>
@@ -67,7 +67,7 @@ export function StatsPage() {
             role="tab"
             aria-selected={t.id === tab}
             className="stats-tab"
-            onClick={() => window.location.replace(hashForStatsTab(t.id))}
+            onClick={() => window.location.replace(hashForTab("stats", t.id))}
           >
             {t.label}
           </button>

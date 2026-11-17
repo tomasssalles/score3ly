@@ -13,7 +13,7 @@ import { ProjectPicker } from "./ProjectPicker";
 import { ProjectView } from "./ProjectView";
 import { PageView } from "./PageView";
 import { RenameDialog } from "./RenameDialog";
-import { hashForArtifact, hashForProject, hashForStage, pageFromHash, parseRoute } from "./route";
+import { HOME_HASH, hashForArtifact, hashForProject, hashForStage, pageFromHash, parseRoute } from "./route";
 import { sha256Hex } from "@score3ly/core";
 import { useHash } from "./useHash";
 
@@ -257,7 +257,7 @@ export function App() {
               setDeleting(false);
               setDeleted(current.name);
               // The project's URL leads nowhere now: replaced, so that going back doesn't land on it.
-              window.location.replace("#/");
+              window.location.replace(HOME_HASH);
               refresh();
             }}
             onCancel={() => setDeleting(false)}

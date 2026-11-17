@@ -9,4 +9,6 @@ test("leaving a project: a page of the menu, another project or none; not anothe
   assert.equal(leavesProject("#/projects/b", "a"), true);
   assert.equal(leavesProject("#/", "a"), true);
   assert.equal(leavesProject("#/settings", "a"), true);
+  assert.equal(leavesProject("#/stats/usage", "a"), true);
+  assert.equal(leavesProject("", "a"), true);
 });

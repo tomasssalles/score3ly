@@ -5,16 +5,15 @@ import {
   hashForPage,
   hashForProject,
   hashForStage,
-  hashForStatsTab,
+  hashForTab,
+  HOME_HASH,
   PAGES,
   pageFromHash,
   parseRoute,
   projectIdFromHash,
   STATS_TABS,
-  statsTabFromHash,
+  tabFromHash,
   SETTINGS_TABS,
-  hashForSettingsTab,
-  settingsTabFromHash,
 } from "./route.ts";
 
 test("a project's hash leads back to its ID", () => {
@@ -68,20 +67,30 @@ test("other hashes are no page", () => {
   }
 });
 
-test("each tab of the Statistics page has its hash; the page's own opens the first", () => {
+test("each tab of a page has its hash; the Settings page's own is its first tab's", () => {
   for (const tab of STATS_TABS) {
-    assert.equal(pageFromHash(hashForStatsTab(tab)), "stats");
-    assert.equal(statsTabFromHash(hashForStatsTab(tab)), tab);
+    assert.equal(pageFromHash(hashForTab("stats", tab)), "stats");
+    assert.equal(tabFromHash("stats", hashForTab("stats", tab)), tab);
   }
-  assert.equal(statsTabFromHash("#/stats"), "costs");
+  for (const tab of SETTINGS_TABS) {
+    assert.equal(pageFromHash(hashForTab("settings", tab)), "settings");
+    assert.equal(tabFromHash("settings", hashForTab("settings", tab)), tab);
+  }
+  assert.equal(hashForTab("stats", "costs"), "#/stats/costs");
+  assert.equal(hashForTab("stats", "usage"), "#/stats/usage");
+  assert.equal(hashForTab("settings", "general"), "#/settings");
+  assert.equal(hashForTab("settings", "configs"), "#/settings/configs");
+  assert.equal(pageFromHash("#/settings/costs"), null);
 });
 
-test("each tab of the Settings page has its hash; the page's own is the first's", () => {
-  for (const tab of SETTINGS_TABS) {
-    assert.equal(pageFromHash(hashForSettingsTab(tab)), "settings");
-    assert.equal(settingsTabFromHash(hashForSettingsTab(tab)), tab);
-  }
-  assert.equal(hashForSettingsTab("general"), "#/settings");
-  assert.equal(hashForSettingsTab("configs"), "#/settings/configs");
-  assert.equal(pageFromHash("#/settings/costs"), null);
+test("a page's hash naming its first tab, or no tab of it, opens the first tab", () => {
+  assert.equal(tabFromHash("stats", "#/stats"), "costs");
+  assert.equal(tabFromHash("stats", "#/stats/costs"), "costs");
+  assert.equal(tabFromHash("stats", "#/stats/configs"), "costs");
+  assert.equal(tabFromHash("settings", "#/stats/usage"), "general");
+});
+
+test("the home is no project and no page", () => {
+  assert.equal(parseRoute(HOME_HASH), null);
+  assert.equal(pageFromHash(HOME_HASH), null);
 });

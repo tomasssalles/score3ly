@@ -23,3 +23,7 @@ One line per finding that didn't hold as planned, or whose fix was done differen
 - **B6, D6** (notes from this run's items only): held; done as planned, `runPlan` giving the note the stage's final outputs. Extract, review and apply_review weren't affected (they read their recorded outputs back before running).
 - **D17** (closed token lists copied by hand): held as a risk, not a live bug: every token has its MEI today. Fixed so a new token is a type error; the MEI is byte-identical.
 - **B17** (small geometry bugs): held. For `fixSkew`, the line is cut at the page's edges along its direction (keeping the drawn angle) rather than computing the angle after clamping the ends, which would have changed the angle the person drew.
+
+## Batch 4
+
+- **For the owner:** the Statistics page's first tab has two URLs (`#/stats` from the menu, `#/stats/costs` once a tab is clicked), while the Settings page's first tab has one (`#/settings`). Proposed (F11): the first tab without a suffix on both pages. Not made, since it changes a URL the user sees and isn't a bug; the tab functions are now one pair (`tabFromHash`, `hashForTab`), with the difference written down in route.ts (`FIRST_TAB_NAMED`), so the change is one line.
