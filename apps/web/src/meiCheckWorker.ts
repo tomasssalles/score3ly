@@ -4,23 +4,18 @@
 
 import schemaUrl from "../../../packages/notation/schemas/mei-all.rng?url";
 import { checkMei, type MeiProblem } from "./meiChecks";
+import { keptUntilFailure } from "./keptUntilFailure";
 import { meiValidator } from "./meiSchema";
 
 export type CheckRequest = { id: number; text: string };
 export type CheckResponse = { listening: true } | { id: number; problems: MeiProblem[] } | { id: number; error: string };
 
-let validator: Promise<(text: string) => MeiProblem[]> | null = null;
-
-function ready() {
-  validator ??= fetch(schemaUrl)
+// Compiled once; a failure (the schema not fetched) is tried again at the next check.
+const ready = keptUntilFailure(() =>
+  fetch(schemaUrl)
     .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`the MEI schema couldn't be loaded (${r.status})`))))
-    .then(meiValidator)
-    .catch((err) => {
-      validator = null;
-      throw err;
-    });
-  return validator;
-}
+    .then(meiValidator),
+);
 
 self.addEventListener("message", async (event: MessageEvent<CheckRequest>) => {
   const { id, text } = event.data;

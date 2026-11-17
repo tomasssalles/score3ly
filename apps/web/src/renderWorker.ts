@@ -3,20 +3,21 @@
 
 import createVerovioModule from "verovio/wasm";
 import { VerovioToolkit } from "verovio/esm";
+import { keptUntilFailure } from "./keptUntilFailure";
 import { renderFitted, renderWith } from "./verovioRender";
 
 // One page (a system alone, as wide as `pageWidth` where it is given: renderFitted), or every page (an engraving).
 export type RenderRequest = { id: number; mei: string; options: Record<string, unknown>; allPages?: boolean; pageWidth?: number };
 export type RenderResponse = { id: number; svgs: string[] } | { id: number; error: string };
 
-let toolkit: Promise<VerovioToolkit> | null = null;
+// Loaded at the first rendering; a failed load (the WASM not fetched) is tried again at the next one.
+const toolkit = keptUntilFailure(() => createVerovioModule().then((module) => new VerovioToolkit(module)));
 
 self.addEventListener("message", async (event: MessageEvent<RenderRequest>) => {
   const { id, mei, options } = event.data;
   const post = (response: RenderResponse) => self.postMessage(response);
   try {
-    toolkit ??= createVerovioModule().then((module) => new VerovioToolkit(module));
-    const tk = await toolkit;
+    const tk = await toolkit();
     const { pageWidth } = event.data;
     post({ id, svgs: pageWidth !== undefined ? [renderFitted(tk, mei, options, pageWidth)] : renderWith(tk, mei, options, event.data.allPages ?? false) });
   } catch (err) {
