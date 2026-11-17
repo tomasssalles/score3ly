@@ -4,6 +4,7 @@
 
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { drawPage, type PdfDocument, usePdf } from "./pdf";
+import { errorText } from "@score3ly/core";
 
 const RESIZE_DELAY = 150; // ms to wait for resizing to settle before redrawing
 
@@ -28,7 +29,7 @@ export function PdfView({ url }: { url: string }) {
         }
       })
       .catch((e) => {
-        if (!cancelled) setDrawError(String(e));
+        if (!cancelled) setDrawError(errorText(e));
       });
     return () => {
       cancelled = true;

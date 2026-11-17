@@ -9,16 +9,17 @@ import type { AddedStage, Deleted, ListedProject, OutputsAnswer, PdfLookup, Proj
 export type { Dropped as ApiDropped, Output as ApiOutput, Pipeline as ApiPipeline, Stage as ApiStage } from "@score3ly/core";
 import type { Pipeline as ApiPipeline } from "@score3ly/core";
 
-// A failed request. `status` is the HTTP status, so callers can react to e.g. 409 (conflict); `code` the Worker's
-// code for it, where it gives one.
+// A failed request (docs/style.md, "Error texts"): its message is the Worker's text, to show as it is; `code` the
+// Worker's code for it, where it gives one, which is what callers react to (never the status alone). An answer that
+// isn't the Worker's JSON (a proxy's error page, a lost connection's) says what came back.
 export class ApiError extends Error {
   readonly status: number;
   readonly code: ErrorCode | null;
 
-  constructor(status: number, code: ErrorCode | null = null) {
-    super(`HTTP ${status}`);
+  constructor(status: number, body: Partial<ApiErrorBody> | null = null) {
+    super(typeof body?.error === "string" ? body.error : `The server couldn't answer this request. Details: HTTP ${status}, without the server's reason.`);
     this.status = status;
-    this.code = code;
+    this.code = body?.code ?? null;
   }
 
   // The project changed elsewhere since this page read it (optimistic locking): the change was refused.
@@ -30,11 +31,14 @@ export class ApiError extends Error {
 // Fired when the Worker refused a change because the project changed elsewhere; the app offers to reload.
 export const STALE_EVENT = "score3ly:stale-project";
 
-async function checked(response: Response): Promise<Response> {
+// The response, if it is ok; else the Worker's refusal as an ApiError. A stale change also fires STALE_EVENT, for the
+// "Changed elsewhere" dialog.
+export async function checked(response: Response): Promise<Response> {
   if (!response.ok) {
-    const code = response.status === 409 ? (((await response.clone().json().catch(() => null)) as ApiErrorBody | null)?.code ?? null) : null;
-    if (code === "stale_version") window.dispatchEvent(new Event(STALE_EVENT));
-    throw new ApiError(response.status, code);
+    const body = (await response.json().catch(() => null)) as Partial<ApiErrorBody> | null;
+    const error = new ApiError(response.status, body && typeof body === "object" ? body : null);
+    if (error.stale) globalThis.dispatchEvent?.(new Event(STALE_EVENT));
+    throw error;
   }
   return response;
 }
@@ -322,16 +326,6 @@ export async function fetchCosts(): Promise<CostData> {
 // An LLM call's request, place and answer, as the Worker takes and gives them (`@score3ly/core`, docs/llm.md).
 export type { CallAnswer, CallContent, CallPlace, CallRequest } from "@score3ly/core";
 
-// A call the Worker refused to make: `code` says why (e.g. "spending_cap", "unsupported_model_config", "missing_secret").
-export class LlmRefused extends Error {
-  readonly code: ErrorCode;
-
-  constructor(code: ErrorCode, message: string) {
-    super(message);
-    this.code = code;
-  }
-}
-
 // One LLM request of a running stage. The Worker serves an identical earlier answer, or makes the call. A request
 // whose images come without their bytes is only looked up: if it isn't cached, the answer asks for the images.
 // `label` names the call in the Worker's log ("System 12"); it isn't part of the request or its key. `signal`: the stage's
@@ -351,11 +345,7 @@ export async function callLlm(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ request, item: place.item, round: place.round, ...(label ? { label } : {}) } satisfies CallBody),
   });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
-    if (body?.code) throw new LlmRefused(body.code, body.error ?? body.code);
-    throw new ApiError(response.status);
-  }
+  await checked(response);
   if (response.headers.get("Content-Type")?.startsWith("text/event-stream")) return streamedAnswer(response, onEvent);
   return response.json();
 }
@@ -419,44 +409,27 @@ export async function fetchSecretNames(): Promise<string[]> {
   return ((await (await checked(await fetch("/api/secrets"))).json()) as SecretNames).names;
 }
 
-// Creates a model config, or clones one (`replaces`: the original, deleted with it). A refusal comes back as a
-// WorkerRefusal with the Worker's message, to show in the form.
+// Creates a model config, or clones one (`replaces`: the original, deleted with it). A refusal's message is the
+// Worker's, to show in the form.
 export async function createModelConfig(body: NewModelConfig): Promise<ModelConfig> {
   const response = await fetch("/api/model-configs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  return (await refusedOr(response)).json();
+  return (await checked(response)).json();
 }
 
-// A refusal from the Worker, with its message and, where it has one, its code.
-export class WorkerRefusal extends Error {
-  readonly status: number;
-  readonly code: ErrorCode | null;
-
-  constructor(status: number, body: Partial<ApiErrorBody> | null) {
-    super(body?.error ?? `HTTP ${status}`);
-    this.status = status;
-    this.code = body?.code ?? null;
-  }
-}
-
-async function refusedOr(response: Response): Promise<Response> {
-  if (!response.ok) throw new WorkerRefusal(response.status, await response.json().catch(() => null));
-  return response;
-}
-
-// Renames a model config; a taken name is refused (WorkerRefusal with the Worker's message).
+// Renames a model config; a taken name is refused, with the Worker's message.
 export async function renameModelConfig(id: string, name: string): Promise<ModelConfig> {
   const response = await fetch(`/api/model-configs/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
-  return (await refusedOr(response)).json();
+  return (await checked(response)).json();
 }
 
 // Sends a config's test request; refusals before anything is sent (a missing secret, the spending cap) throw.
 export async function testModelConfig(id: string): Promise<TestResult> {
-  return (await refusedOr(await fetch(`/api/model-configs/${id}/test`, { method: "POST" }))).json();
+  return (await checked(await fetch(`/api/model-configs/${id}/test`, { method: "POST" }))).json();
 }
 
 // Deletes a model config; the default is refused.
 export async function deleteModelConfig(id: string): Promise<void> {
-  await refusedOr(await fetch(`/api/model-configs/${id}`, { method: "DELETE" }));
+  await checked(await fetch(`/api/model-configs/${id}`, { method: "DELETE" }));
 }
 
 // Exporting and importing a project (docs/database.md, "Exporting and importing a project"). The rows of the project's
@@ -493,9 +466,5 @@ export async function missingContent(sha256s: string[]): Promise<string[]> {
 // Imports the rows (the PDF and the content uploaded first). Refusals come with the Worker's own message.
 export async function importRows(rows: ProjectExport): Promise<Imported> {
   const response = await fetch("/api/projects/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rows) });
-  if (!response.ok) {
-    const error = ((await response.json().catch(() => null)) as ApiErrorBody | null)?.error;
-    throw new Error(error ?? `HTTP ${response.status}`);
-  }
-  return response.json();
+  return (await checked(response)).json();
 }

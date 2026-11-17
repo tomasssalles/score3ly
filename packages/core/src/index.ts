@@ -20,6 +20,7 @@ export { QUARTER_MS, quarterOf } from "./time.ts";
 export { LEAVING_A_RUN } from "./texts.ts";
 export { amount, roundUsd } from "./money.ts";
 export type { ApiErrorBody, ErrorCode } from "./api/errors.ts";
+export { errorText } from "./api/errors.ts";
 export type { CallErrorKind, CostOutcome, Outcome } from "./api/outcomes.ts";
 export type { ActivityData, CostData, FailureData, ProjectStats, RunTimeData } from "./api/stats.ts";
 export { EXPORT_FORMAT, formatProblem } from "./api/projectExport.ts";

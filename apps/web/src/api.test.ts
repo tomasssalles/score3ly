@@ -1,6 +1,6 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { ApiError, callLlm, createProject, listProjects, lookUpPdf, markOpened, renameProject, type Project } from "./api.ts";
+import { ApiError, callLlm, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type Project, type ProjectExport } from "./api.ts";
 
 // The tests replace the browser's fetch with a fake that records each request and answers with a fixed response.
 const realFetch = globalThis.fetch;
@@ -117,6 +117,43 @@ test("a refused request fails with an ApiError that carries the HTTP status", as
   for (const [name, call] of calls) {
     answerWith(500, { error: "broken" });
     await assert.rejects(call(), (err) => err instanceof ApiError && err.status === 500, name);
+  }
+});
+
+// The error contract (docs/style.md, "Error texts"): every refusal is one ApiError whose message is the Worker's text,
+// with its code, whichever request it was (the code review's A1, A6).
+test("a refusal's ApiError carries the Worker's text and code, for every kind of request", async () => {
+  const refusal = { error: "A project with that name already exists. Names must be unique (case-insensitive).", code: "name_taken" };
+  const calls: [string, () => Promise<unknown>][] = [
+    ["renameProject", () => renameProject(project, "Taken")],
+    ["callLlm", () => callLlm(project, "s1", { messages: [] }, { item: "p1", round: 1 })],
+    ["createModelConfig", () => createModelConfig({} as never)],
+    ["importRows", () => importRows({} as ProjectExport)],
+  ];
+  for (const [name, call] of calls) {
+    answerWith(409, refusal);
+    await assert.rejects(call(), (err) => err instanceof ApiError && err.message === refusal.error && err.code === "name_taken" && err.status === 409, name);
+  }
+});
+
+test("an answer that isn't the Worker's JSON still fails with a sentence, not a bare status", async () => {
+  requests = [];
+  globalThis.fetch = async () => new Response("<html>Bad gateway</html>", { status: 502 });
+  await assert.rejects(listProjects(), (err) => err instanceof ApiError && err.code === null && /^The server couldn't answer this request\. Details: HTTP 502/.test(err.message));
+});
+
+test("a stale change fires the event for the \"Changed elsewhere\" dialog, whatever the request", async () => {
+  const fired: string[] = [];
+  const g = globalThis as unknown as { dispatchEvent?: (event: Event) => boolean };
+  g.dispatchEvent = (event) => (fired.push(event.type), true); // the window's, in the browser
+  try {
+    answerWith(409, { error: "changed", code: "stale_version" });
+    await assert.rejects(renameProject(project, "New"), (err) => err instanceof ApiError && err.stale);
+    answerWith(409, { error: "taken", code: "name_taken" });
+    await assert.rejects(renameProject(project, "New"), (err) => err instanceof ApiError && !err.stale);
+    assert.deepEqual(fired, [STALE_EVENT]);
+  } finally {
+    delete g.dispatchEvent;
   }
 });
 

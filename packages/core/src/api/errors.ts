@@ -20,3 +20,9 @@ export type ErrorCode =
   | "internal"; // the server failed (anything thrown inside a route)
 
 export type ApiErrorBody = { error: string; code?: ErrorCode };
+
+// What an error says, for a person: an Error's message (the Worker's text, for a refused request), anything else as text.
+// Never "Error: …".
+export function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}

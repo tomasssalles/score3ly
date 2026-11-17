@@ -7,6 +7,8 @@ import type * as Pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 // The data files pdf.js loads at runtime, served by the pdfjsAssets plugin (packages/core).
 import { PDFJS_DATA } from "@score3ly/core/pdf";
+import { errorText } from "@score3ly/core";
+import { checked } from "./api";
 
 // The legacy build: the modern one needs very recent browser features (e.g. Map.getOrInsertComputed)
 // that many phones don't have yet.
@@ -33,10 +35,7 @@ export function usePdf(url: string): { doc?: PdfDocument; error?: string } {
     let cancelled = false;
     let loadingTask: Pdfjs.PDFDocumentLoadingTask | undefined;
     async function load() {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      const response = await checked(await fetch(url));
       const bytes = new Uint8Array(await response.arrayBuffer());
       const pdfjs = await loadPdfjs();
       if (cancelled) return;
@@ -45,7 +44,7 @@ export function usePdf(url: string): { doc?: PdfDocument; error?: string } {
       if (!cancelled) setDoc(loaded);
     }
     load().catch((e) => {
-      if (!cancelled) setError(String(e));
+      if (!cancelled) setError(errorText(e));
     });
     return () => {
       cancelled = true;

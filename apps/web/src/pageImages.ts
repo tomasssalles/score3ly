@@ -9,10 +9,10 @@
 // (`keepFingerprints`).
 
 import { compareFingerprints, type Fingerprint } from "@score3ly/imaging";
-import { fetchFingerprint, storeFingerprints } from "./api";
+import { checked, fetchFingerprint, storeFingerprints } from "./api";
 import { cachedImage, cacheImage, cachedJson, cacheJson } from "./imageCache";
 import { noteImage } from "./itemTiming";
-import { keyOf } from "@score3ly/core";
+import { errorText, keyOf } from "@score3ly/core";
 import { pdfUrl } from "./pdf";
 import type { PageImageRequest, PageImageResponse } from "./pageImageWorker";
 import type { PageRecipe } from "./rasterize";
@@ -62,8 +62,9 @@ export function openPdfForImages(sha256: string): Promise<{ pageCount: number; p
   let result = opened.get(sha256);
   if (!result) {
     result = (async () => {
-      const response = await fetch(pdfUrl(sha256));
-      if (!response.ok) throw new Error(`Loading the PDF failed (HTTP ${response.status}).`);
+      const response = await checked(await fetch(pdfUrl(sha256))).catch((err) => {
+        throw new Error(`Loading the PDF failed: ${errorText(err)}`);
+      });
       const pdf = await response.arrayBuffer();
       const answer = await ask({ type: "open", sha256, pdf }, [pdf]);
       if (answer.type !== "opened") throw new Error("Unexpected answer from the page image worker.");
