@@ -132,7 +132,7 @@ One subagent per group, strictly one after the other. A large file appears in se
 | 16 | The lens and its writers | done |
 | 17 | Score structure and linking | done |
 | 18 | Issues across the stages | done |
-| 19 | Layout and skew, from analysis to editors | |
+| 19 | Layout and skew, from analysis to editors | done |
 | 20 | Analyze and its forms | |
 | 21 | MEI: build, view, edit, engrave, render | |
 | 22 | The UI kit and styles | |
