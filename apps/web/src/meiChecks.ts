@@ -5,37 +5,54 @@
 // line: counted from 1. syntax: the file isn't well formed (nothing after it is checked).
 export type MeiProblem = { line: number | null; message: string; syntax?: true };
 
-// Duplicate ids and references to ids nothing has. Attributes are read line by line (the builder writes one element
-// per line, and a person editing it rarely breaks an attribute over lines).
-export function idProblems(text: string): MeiProblem[] {
-  const lines = text.split("\n");
+// An element of the parsed file (meiSchema.ts): the line it starts on and its attributes, by their qualified names
+// ("xml:id").
+export type MeiElement = { line: number; attrs: { name: string; value: string }[] };
+
+// What the schema's check gives: its problems, and the file's elements (none when the file isn't well formed).
+export type Validated = { problems: MeiProblem[]; elements: MeiElement[] };
+
+// The attributes that point to elements: MEI 5's of type data.URI or data.URIs (in mei-all.rng), whose tokens starting
+// with "#" name an id in the file. Every other attribute is text, however it starts (a colour, `label="#1"`).
+// Left out: the namespace's `name`, a URI that is never a fragment.
+const POINTERS = new Set([
+  "altsym", "auth.uri", "chordref", "class", "copyof", "corresp", "data", "decls", "def", "endid", "facs", "follows",
+  "glyph.uri", "hand", "head.altsym", "inner.recto", "inner.verso", "instr", "join", "new", "next", "nymref", "old",
+  "origin.endid", "origin.startid", "outer.recto", "outer.verso", "plist", "precedes", "prev", "recto", "resp",
+  "sameas", "scheme", "since", "source", "startid", "state", "stem.sameas", "synch", "target", "verso", "when",
+  "xlink:role", "xml:base",
+]);
+
+// Duplicate ids and references to ids nothing has, on the elements as libxml2 parsed them (any quoting, any layout).
+export function idProblems(elements: MeiElement[]): MeiProblem[] {
   const ids = new Map<string, number>();
   const problems: MeiProblem[] = [];
-  for (const [i, line] of lines.entries()) {
-    for (const m of line.matchAll(/\sxml:id="([^"]*)"/g)) {
-      const first = ids.get(m[1]);
-      if (first !== undefined) problems.push({ line: i + 1, message: `The id "${m[1]}" is already used on line ${first}.` });
-      else ids.set(m[1], i + 1);
+  for (const e of elements) {
+    for (const a of e.attrs) {
+      if (a.name !== "xml:id") continue;
+      const first = ids.get(a.value);
+      if (first !== undefined) problems.push({ line: e.line, message: `The id "${a.value}" is already used on line ${first}.` });
+      else ids.set(a.value, e.line);
     }
   }
-  for (const [i, line] of lines.entries()) {
-    for (const m of line.matchAll(/\s([\w:.-]+)="([^"]*)"/g)) {
-      if (m[1] === "xml:id") continue;
-      for (const token of m[2].split(/\s+/)) {
+  for (const e of elements) {
+    for (const a of e.attrs) {
+      if (!POINTERS.has(a.name)) continue;
+      for (const token of a.value.split(/\s+/)) {
         if (token.startsWith("#") && token.length > 1 && !ids.has(token.slice(1))) {
-          problems.push({ line: i + 1, message: `@${m[1]} points to "${token}", but no element has that id.` });
+          problems.push({ line: e.line, message: `@${a.name} points to "${token}", but no element has that id.` });
         }
       }
     }
   }
-  return problems.sort((a, b) => (a.line ?? 0) - (b.line ?? 0));
+  return problems.sort((a, b) => a.line! - b.line!);
 }
 
 // Every check: the schema's first (a file that isn't well formed has nothing else worth checking), then the ids.
-export async function checkMei(text: string, validate: (text: string) => Promise<MeiProblem[]>): Promise<MeiProblem[]> {
-  const schema = await validate(text);
-  if (schema.some((p) => p.syntax)) return schema;
-  return [...schema, ...idProblems(text)].sort((a, b) => (a.line ?? 0) - (b.line ?? 0));
+export async function checkMei(text: string, validate: (text: string) => Promise<Validated>): Promise<MeiProblem[]> {
+  const { problems, elements } = await validate(text);
+  if (problems.some((p) => p.syntax)) return problems;
+  return [...problems, ...idProblems(elements)].sort((a, b) => (a.line ?? 0) - (b.line ?? 0));
 }
 
 // The lines that differ between two texts, a changed line counting once: the larger of the lines removed and the lines
