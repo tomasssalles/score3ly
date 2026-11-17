@@ -4,7 +4,7 @@
 import type { ModelList } from "./models.ts";
 
 export const MODEL_LIST: ModelList = {
-  "asOf": "2026-11-05",
+  "asOf": "2026-11-06",
   "models": [
     {
       "id": "claude-fable-5-1",

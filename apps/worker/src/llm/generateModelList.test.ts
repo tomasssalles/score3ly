@@ -145,3 +145,14 @@ test("the changes since the previous list, to spot-check", () => {
   ]);
   assert.deepEqual(listChanges(previous.list, previous.list), []);
 });
+
+test("the list's date is the oldest gathered file's; the hand-written fake providers' files don't date it", () => {
+  const fake = file("fake", { collectedAt: "2026-10-01" });
+  const built = buildModelList([fake, anthropic, bedrock], null);
+  assert.ok("list" in built);
+  assert.equal(built.list.asOf, "2026-11-01");
+  // With no gathered file, the fake files' date is all there is.
+  const alone = buildModelList([fake], null);
+  assert.ok("list" in alone);
+  assert.equal(alone.list.asOf, "2026-10-01");
+});

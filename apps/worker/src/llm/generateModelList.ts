@@ -70,7 +70,7 @@ export function buildModelList(files: ProviderFile[], previous: ModelList | null
     if (!models.has(old.id)) models.set(old.id, { ...old, retired: true });
   }
   const list: ModelList = {
-    asOf: ordered.map((f) => f.collectedAt).sort()[0] ?? "",
+    asOf: dateOf(ordered),
     ...(ordered.some((f) => f.mock) ? { mock: true as const } : {}),
     models: [...models.values()],
     regions,
@@ -78,6 +78,16 @@ export function buildModelList(files: ProviderFile[], previous: ModelList | null
   };
   problems.push(...listProblems(list));
   return problems.length > 0 ? { problems } : { list };
+}
+
+// The fake providers' files are written by hand, not gathered: their dates say nothing about the prices.
+const HAND_WRITTEN: Provider[] = ["fake", "fake-dev"];
+
+// When the list was collected: the oldest gathered file's day (the About page's "prices as of", and every priced
+// call's `asOf`); the fake files' only where there is nothing else.
+function dateOf(files: ProviderFile[]): string {
+  const gathered = files.filter((f) => !HAND_WRITTEN.includes(f.provider));
+  return (gathered.length > 0 ? gathered : files).map((f) => f.collectedAt).sort()[0] ?? "";
 }
 
 // The module the app imports (modelList.ts).
