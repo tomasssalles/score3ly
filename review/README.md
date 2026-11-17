@@ -137,7 +137,7 @@ One subagent per group, strictly one after the other. A large file appears in se
 | 21 | MEI: build, view, edit, engrave, render | done |
 | 22 | The UI kit and styles | done |
 | 23 | Routing, navigation, the desktop shell | done |
-| 24 | Hosts, deployment, scripts, eval | |
+| 24 | Hosts, deployment, scripts, eval | done |
 
 **01 Hashes, keys, canonical JSON.** What agrees: content keys and recipe keys (computed and looked up), the hex-64 checks (four copies), `canonicalJson` (two), `sha256Hex` (four). Files: packages/core/src/keys.ts (+test, sha256.test.ts), packages/imaging/src/fingerprint.ts, apps/worker/src/fingerprints.ts, apps/worker/src/index.ts (`isSha256`), apps/worker/src/pipeline.ts (`isKey`, the stage key), apps/worker/src/projectFile.ts (`isSha256`, `canonicalJson`), apps/worker/src/llmRoutes.ts (the request key, hex check, `sameValues`), apps/web/src/imageCache.ts (keys), apps/web/src/steps.ts (stage key parts), apps/web/src/fixLayout.ts (`systemsChanged`), apps/web/scripts/leipzig.ts.
 
