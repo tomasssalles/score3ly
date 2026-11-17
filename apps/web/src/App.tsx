@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { leavesProject, runningProject } from "./leaveGuard";
 import { ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type ListedProject, type PdfLookup, type Project } from "./api";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { ExportDialog } from "./ExportDialog";
@@ -15,7 +14,7 @@ import { PageView } from "./PageView";
 import { RenameDialog } from "./RenameDialog";
 import { HOME_HASH, hashForArtifact, hashForProject, hashForStage, pageFromHash, parseRoute } from "./route";
 import { sha256Hex } from "@score3ly/core";
-import { useHash } from "./useHash";
+import { useAppNavigation } from "./navigation";
 
 export function App() {
   // Most recently opened first. null until loaded.
@@ -36,37 +35,13 @@ export function App() {
   // In the desktop app everything is on this computer: there is no remote storage to speak of (docs/desktop.md).
   const desktop = useHost() === "desktop";
   useEditionWindow();
-  // Leaving a project while this device runs one of its stages asks first (docs/project-view.md): the URL it was
-  // going to, and what to do once it is there.
-  const [leaving, setLeaving] = useState<{ hash: string; then: () => void } | null>(null);
-  const holds = (next: string) => {
-    const running = runningProject();
-    return running !== null && leavesProject(next, running);
-  };
   // The open project, and the artifact the user picked, are the ones in the URL, if any. A change that leaves a
-  // running project (a link, the back button) is held until the user confirms.
-  const { hash, go } = useHash((next, proceed) => {
-    if (!holds(next)) return false;
-    setLeaving({ hash: next, then: proceed });
-    return true;
-  });
-  // Goes to a URL from within the app, asking first if that leaves a running project.
-  const navigate = (next: string, then?: () => void) => {
-    const goThere = () => {
-      go(next);
-      then?.();
-    };
-    if (holds(next)) return setLeaving({ hash: next, then: goThere });
-    goThere();
-  };
+  // running project (a link, the back button) waits until the user confirms.
+  const { hash, navigate, replace, openDetail, closeDetail, leaving, stay } = useAppNavigation();
   const route = parseRoute(hash);
   // A page from the menu, if one is open instead of a project.
   const page = pageFromHash(hash);
   const current = projects?.find((project) => project.id === route?.projectId) ?? null;
-  // Whether the open artifact (or stage's details) was opened from within the app, so closing it can go back in
-  // history.
-  const openedArtifactHere = useRef(false);
-  if (route?.artifactId == null && route?.stageId == null) openedArtifactHere.current = false;
 
   async function refresh() {
     try {
@@ -167,26 +142,16 @@ export function App() {
   }
 
   function selectArtifact(artifactId: string) {
-    if (!current) return;
-    openedArtifactHere.current = true;
-    window.location.hash = hashForArtifact(current.id, artifactId);
+    if (current) openDetail(hashForArtifact(current.id, artifactId));
   }
 
   function showStage(stageId: string) {
-    if (!current) return;
-    openedArtifactHere.current = true;
-    window.location.hash = hashForStage(current.id, stageId);
+    if (current) openDetail(hashForStage(current.id, stageId));
   }
 
   // Back to the project. Going back in history means the browser's back button won't reopen the artifact.
   function closeArtifact() {
-    if (!current) return;
-    if (openedArtifactHere.current) {
-      openedArtifactHere.current = false;
-      history.back();
-    } else {
-      window.location.replace(hashForProject(current.id));
-    }
+    if (current) closeDetail(hashForProject(current.id));
   }
 
   function open(project: Project) {
@@ -257,7 +222,7 @@ export function App() {
               setDeleting(false);
               setDeleted(current.name);
               // The project's URL leads nowhere now: replaced, so that going back doesn't land on it.
-              window.location.replace(HOME_HASH);
+              replace(HOME_HASH);
               refresh();
             }}
             onCancel={() => setDeleting(false)}
@@ -281,12 +246,8 @@ export function App() {
               "A stage is running. Leaving the project stops it. What is done so far is kept, and Run picks up from there; an answer from a model still on its way is lost, although it is paid for.",
             ]}
             confirmLabel="Leave"
-            onConfirm={() => {
-              const { then } = leaving;
-              setLeaving(null);
-              then();
-            }}
-            onCancel={() => setLeaving(null)}
+            onConfirm={leaving}
+            onCancel={stay}
           />
         )}
         {knownArchive && (
@@ -323,7 +284,7 @@ export function App() {
           />
         )}
         {page ? (
-          <PageView page={page} />
+          <PageView page={page} hash={hash} replace={replace} />
         ) : current ? (
           <ProjectView
             key={current.id}

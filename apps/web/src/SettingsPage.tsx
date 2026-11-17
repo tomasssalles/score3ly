@@ -46,8 +46,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { TestConfigDialog } from "./TestConfigDialog";
 import { MODE_LABELS, MODES } from "./pipeline";
-import { hashForTab, tabFromHash, type TabOf } from "./route";
-import { useHash } from "./useHash";
+import type { TabOf } from "./route";
 import { CHOICES, setThemeChoice, themeChoice } from "./themes";
 
 // The page's tabs, each with its own URL ("#/settings/configs"; docs/project-view.md, "The menu and its pages"):
@@ -57,8 +56,7 @@ const TABS: { id: TabOf<"settings">; label: string }[] = [
   { id: "configs", label: "Model configs" },
 ];
 
-export function SettingsPage() {
-  const tab = tabFromHash("settings", useHash().hash);
+export function SettingsPage({ tab, onTab }: { tab: TabOf<"settings">; onTab: (tab: TabOf<"settings">) => void }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [configs, setConfigs] = useState<ModelConfig[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +88,7 @@ export function SettingsPage() {
             role="tab"
             aria-selected={t.id === tab}
             className="stats-tab"
-            onClick={() => window.location.replace(hashForTab("settings", t.id))}
+            onClick={() => onTab(t.id)}
           >
             {t.label}
           </button>

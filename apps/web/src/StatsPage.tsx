@@ -37,8 +37,7 @@ import { ChartModes, Picker, ProjectChecks, StatHead, type ChartMode } from "./s
 import { EffortTab } from "./EffortTab";
 import { RunTimesTab } from "./RunTimesTab";
 import { UsageTab } from "./UsageTab";
-import { hashForTab, tabFromHash, type TabOf } from "./route";
-import { useHash } from "./useHash";
+import type { TabOf } from "./route";
 import { CheckList } from "./CheckList";
 import { ChevronDownIcon, ExpandIcon, FilterIcon, InfoIcon, SplitIcon } from "./icons";
 import { dollars } from "./money";
@@ -54,8 +53,7 @@ const TABS: { id: TabOf<"stats">; label: string }[] = [
   { id: "effort", label: "Effort" },
 ];
 
-export function StatsPage() {
-  const tab = tabFromHash("stats", useHash().hash);
+export function StatsPage({ tab, onTab }: { tab: TabOf<"stats">; onTab: (tab: TabOf<"stats">) => void }) {
   return (
     <div className="page-view stats">
       <h2>Statistics</h2>
@@ -67,7 +65,7 @@ export function StatsPage() {
             role="tab"
             aria-selected={t.id === tab}
             className="stats-tab"
-            onClick={() => window.location.replace(hashForTab("stats", t.id))}
+            onClick={() => onTab(t.id)}
           >
             {t.label}
           </button>
