@@ -6,29 +6,20 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { fetchCosts, type CostData } from "./api";
+import { axisLabel, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./calendar";
 import {
   averagePerPage,
-  axisLabel,
-  bucketTitle,
   costView,
   createdBefore,
-  deletedNote,
-  defaultGranularity,
   DIMENSIONS,
-  GRANULARITIES,
-  granularitiesFor,
   grouper,
   GROUPINGS,
   allGroups,
   hiddenCount,
   OTHER,
   perPage,
-  RANGES,
-  rangeOf,
   type Dimension,
   type Filters,
-  type Granularity,
-  type RangeId,
   type CostProject,
   type Split,
   unfinished,
@@ -41,7 +32,7 @@ import type { TabOf } from "./route";
 import { CheckList } from "./CheckList";
 import { ChevronDownIcon, ExpandIcon, FilterIcon, InfoIcon, SplitIcon } from "./icons";
 import { dollars } from "./money";
-import { shortDate } from "./time";
+import { count, deletedNote, percent, shortDate } from "./format";
 import { TimeChart, type ChartSeries } from "./TimeChart";
 
 // The page's tabs, each with its own URL ("#/stats/usage"; "#/stats" opens the first). Switching tabs replaces the URL rather than adding to the
@@ -178,7 +169,7 @@ function Costs({ data }: { data: CostData }) {
         {panel === "filters" && <FilterPanel data={data} filters={filters} onChange={setFilters} />}
         {panel !== "filters" && hidden > 0 && (
           <p className="costs-filtered">
-            {hidden === 1 ? "1 group" : `${hidden} groups`} hidden by filters ·{" "}
+            {count(hidden, "group")} hidden by filters ·{" "}
             <button type="button" className="link-button" onClick={() => setFilters({})}>
               Show all
             </button>
@@ -212,7 +203,7 @@ function Costs({ data }: { data: CostData }) {
                     {split && row.note && <span className="menu-note"> {row.note}</span>}
                   </td>
                   <td className="costs-amount">{dollars(row.usd)}</td>
-                  <td className="costs-share">{split && view.filtered > 0 ? `${Math.round((row.usd / view.filtered) * 100)}%` : ""}</td>
+                  <td className="costs-share">{split && view.filtered > 0 ? percent(row.usd, view.filtered) : ""}</td>
                 </tr>
               );
             })}
@@ -266,7 +257,7 @@ function TestCosts({ usd, calls }: { usd: number; calls: number }) {
       </div>
       {open && (
         <p className="settings-hint stat-about">
-          What the model configs' tests cost in this time range ({calls} {calls === 1 ? "request" : "requests"}), from Settings. They belong to no
+          What the model configs' tests cost in this time range ({count(calls, "request")}), from Settings. They belong to no
           project, so they aren't in the chart or the table, and the filters don't apply to them. They count towards the spending cap.
         </p>
       )}
@@ -419,7 +410,7 @@ function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }
         ? "no projects selected"
         : counted === 0
           ? "no selected project has pages"
-          : `taken over ${counted === 1 ? "1 project" : `${counted} projects`}`;
+          : `taken over ${count(counted, "project")}`;
 
   return (
     <section className="stats-section per-page">
@@ -469,7 +460,7 @@ function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }
               <ProjectChecks
                 items={[...projects].reverse().map((p) => {
                   const own = perPage(p);
-                  const facts = [shortDate(p.createdAt, now), `${p.pages.length} ${p.pages.length === 1 ? "page" : "pages"}`, p.finished ? null : "unfinished pipeline"];
+                  const facts = [shortDate(p.createdAt, now), count(p.pages.length, "page"), p.finished ? null : "unfinished pipeline"];
                   return { key: p.id, name: p.name, note: deletedNote(p.deletedAt), facts: facts.filter(Boolean).join(" · "), amounts: [dollars(p.costUsd), own === null ? "–" : `${dollars(own)}/page`] };
                 })}
                 out={out}

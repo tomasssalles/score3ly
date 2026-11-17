@@ -15,6 +15,7 @@ import {
   type ScoreObservations,
 } from "@score3ly/prompts";
 import { keyOf } from "@score3ly/core";
+import { count } from "./format.ts";
 
 export const ANALYZE_VERSION = 3;
 
@@ -130,7 +131,7 @@ export function placeLabel(p: Place): string {
 
 // The card's short result, e.g. "12 pages · 3 pieces".
 export function analyzeNote(pages: number, pieces: number): string {
-  const text = `${pages} page${pages === 1 ? "" : "s"}`;
+  const text = count(pages, "page");
   return pieces > 1 ? `${text} · ${pieces} pieces` : text;
 }
 

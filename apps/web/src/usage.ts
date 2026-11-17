@@ -5,7 +5,8 @@
 // (apps/worker/src/failures.ts). Pure functions; the tab is UsageTab.tsx.
 
 import type { ActivityData, FailureData, ProjectStats } from "./api";
-import type { Bucket } from "./costs";
+import type { Bucket } from "./calendar";
+import { plural } from "./format.ts";
 
 // The quarters of an hour (their start, in ms) with any activity of the project, or of any project. Every time zone's
 // hours start on a quarter, so they fall into the viewer's days as they are.
@@ -30,7 +31,7 @@ export function hoursNumber(h: number): string {
 }
 
 // "1 active hour", "2.5 active hours".
-export const activeHoursText = (h: number) => `${hoursNumber(h)} active ${h === 1 ? "hour" : "hours"}`;
+export const activeHoursText = (h: number) => `${hoursNumber(h)} active ${plural(h, "hour")}`;
 
 // The projects created in a time range: done (finished now, not deleted), unfinished (not deleted) and deleted, which
 // add up to the total.

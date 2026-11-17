@@ -52,7 +52,3 @@ export function effectiveLimit(limitMb: number, quota: number | undefined): numb
   return quota && quota > 0 ? Math.min(chosen, Math.floor(quota * 0.8)) : chosen;
 }
 
-// "120 MB", "1.4 GB".
-export function formatSize(bytes: number): string {
-  return bytes >= 1000 * MB ? `${(bytes / (1000 * MB)).toFixed(1)} GB` : `${Math.round(bytes / MB)} MB`;
-}

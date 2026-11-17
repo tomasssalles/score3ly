@@ -14,6 +14,7 @@ import { checkSystem, type CheckedSystem, type LensStretch, type LensSystem, typ
 import { applyReviewFromModel, groupForModel, staffForModel, stretchForModel, voiceForModel, type ApplyReviewAnswer, type ApplyStretchUnit, type ApplySystemUnit, type ApplyVoiceUnit } from "@score3ly/prompts";
 import type { StoredIssue, StoredWarning } from "./extract.ts";
 import { placesOf, systemsOf, type PlacedSystem } from "./review.ts";
+import { count } from "./format.ts";
 
 export const APPLY_REVIEW_VERSION = 1;
 
@@ -318,7 +319,7 @@ export function isNewCodeIssue(issue: { question: string; boxes: StoredIssue["bo
 
 // The card's short result, e.g. "4 changes applied, 2 reverted".
 export function applyNote(applied: number, reverted: number): string {
-  const changes = `${applied} change${applied === 1 ? "" : "s"} applied`;
+  const changes = `${count(applied, "change")} applied`;
   return reverted > 0 ? `${changes}, ${reverted} reverted` : changes;
 }
 

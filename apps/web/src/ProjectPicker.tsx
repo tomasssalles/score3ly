@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Project } from "./api";
 import { FittedText } from "./FittedText";
-import { when } from "./time";
+import { when } from "./format";
 
 // Shows the current project's name, if a project is open. Opening it turns the name into a filter field
 // over all projects, most recently opened first.

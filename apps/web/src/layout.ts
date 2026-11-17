@@ -2,6 +2,7 @@
 
 import type { LayoutSystem } from "@score3ly/prompts";
 import { keyOf } from "@score3ly/core";
+import { count } from "./format.ts";
 
 export const LAYOUT_VERSION = 1;
 
@@ -28,6 +29,6 @@ export function layoutStageKey(input: {
 
 // The card's short result, e.g. "54 systems on 12 pages · 2 flagged".
 export function layoutNote(systems: number, pages: number, flagged: number): string {
-  const text = `${systems} system${systems === 1 ? "" : "s"} on ${pages} page${pages === 1 ? "" : "s"}`;
+  const text = `${count(systems, "system")} on ${count(pages, "page")}`;
   return flagged > 0 ? `${text} · ${flagged} flagged` : text;
 }

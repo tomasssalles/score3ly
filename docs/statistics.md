@@ -13,7 +13,7 @@ Rethinking the whole page as one clean concept would be nice, but the statistics
 
 ## The page
 
-- **One page, four tabs,** each with its own URL (`#/stats/costs`, `#/stats/usage`, `#/stats/times`, `#/stats/effort`; project-view.md, "The menu"), one menu entry. `StatsPage.tsx` holds the tabs and Costs; the others are `UsageTab.tsx`, `RunTimesTab.tsx` and `EffortTab.tsx`, their computations pure functions in `costs.ts`, `usage.ts`, `runTimes.ts` and `effort.ts`.
+- **One page, four tabs,** each with its own URL (`#/stats/costs`, `#/stats/usage`, `#/stats/times`, `#/stats/effort`; project-view.md, "The menu"), one menu entry. `StatsPage.tsx` holds the tabs and Costs; the others are `UsageTab.tsx`, `RunTimesTab.tsx` and `EffortTab.tsx`, their computations pure functions in `costs.ts`, `usage.ts`, `runTimes.ts` and `effort.ts`; the calendar (ranges, bars and their labels) is `calendar.ts`, and how numbers, dates and durations are written `format.ts`.
 - **Blocks with the same head** (`StatHead` in `statsParts.tsx`; docs/style.md, "Blocks of a statistics page"): a title and an "i" on the left, the controls and the value on the right, a note under the value; a smaller form for the rows of a block, the "i" only where it is needed. The title, the controls and the value's first line share a text baseline.
 - **Each block's time range is its own** (decided: not shared between tabs or blocks). Changing it keeps the block's other choices.
 - **Deleted projects count everywhere**, marked "(deleted 12 Sep 2026)" where they are listed (docs/style.md); their rows are kept for the statistics (database.md, "Deleting a project"). A deleted or edited model config is marked "(until 15 Sep 2026)".

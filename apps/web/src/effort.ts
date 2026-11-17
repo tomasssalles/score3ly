@@ -60,6 +60,3 @@ export function effortView(data: RunTimeData, selected: Set<string>): EffortView
     extraReviews: data.stages.some((s) => s.step === "review") && chosen.length ? extra / chosen.length : null,
   };
 }
-
-// A share as a whole percentage, "–" without projects.
-export const share = (n: number, of: number) => (of === 0 ? "–" : `${Math.round((n / of) * 100)}%`);

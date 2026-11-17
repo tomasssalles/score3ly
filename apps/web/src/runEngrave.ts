@@ -6,6 +6,7 @@ import { keyOf } from "@score3ly/core";
 import { ENGRAVE_VERSION, engraveConfigOf, latestMei, pdfPageCount } from "./engrave";
 import { engravedPdf, pdfRecipe } from "./engraving";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
+import { count } from "./format.ts";
 
 export async function runEngrave(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
@@ -26,8 +27,7 @@ export async function runEngrave(run: StageRun): Promise<void> {
     inputIds: [mei.id],
     // Counted from the PDF, made again (or found on the device) when an earlier run recorded it.
     note: async () => {
-      const count = pages ?? (await countPages());
-      return `${count} page${count === 1 ? "" : "s"}`;
+      return count(pages ?? (await countPages()), "page");
     },
     items: [
       {

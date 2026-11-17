@@ -33,7 +33,7 @@ import { hasArtifacts, type Artifact, type Dropped, type RunMode, type Stage, ty
 import { differsCause } from "./ImagesDiffer";
 import { ProgressBar } from "./ProgressBar";
 import { KIND_LABELS } from "./StageDetails";
-import { duration } from "./time";
+import { duration } from "./format";
 
 export type StageActions = {
   selectArtifact: (artifactId: string) => void;

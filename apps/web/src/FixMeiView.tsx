@@ -11,6 +11,7 @@ import type { MeiProblem } from "./meiChecks";
 import { MeiWorkspace, type Selection } from "./MeiWorkspace";
 import type { Artifact } from "./pipeline";
 import { renderPages } from "./rendering";
+import { count } from "./format";
 
 const SAVE_AFTER_MS = 2000;
 const PROBLEMS_SHOWN = 20;
@@ -159,7 +160,7 @@ function FixMeiEditor({
       {problems && problems.length > 0 && (
         <div className="fix-mei-problems error-text" role="alert">
           <p>
-            Not applied: the MEI doesn't pass the checks ({problems.length} {problems.length === 1 ? "problem" : "problems"}).
+            Not applied: the MEI doesn't pass the checks ({count(problems.length, "problem")}).
           </p>
           <ul>
             {problems.slice(0, PROBLEMS_SHOWN).map((p, i) => (

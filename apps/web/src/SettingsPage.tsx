@@ -23,7 +23,8 @@ import {
 import { NewModelConfig } from "./NewModelConfig";
 import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
-import { CACHE_LIMITS_MB, cacheLimitMb, formatSize, setCacheLimitMb } from "./cacheLru";
+import { CACHE_LIMITS_MB, cacheLimitMb, setCacheLimitMb } from "./cacheLru";
+import { count, formatSize } from "./format";
 import { useHost } from "./host";
 import { ACCOUNT_NAMES, pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
@@ -483,7 +484,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
       {filterOpen && <ConfigFilterPanel configs={configs} filter={filter} onChange={setFilter} />}
       {!filterOpen && hidden > 0 && (
         <p className="costs-filtered">
-          {hidden === 1 ? "1 config" : `${hidden} configs`} hidden by filters ·{" "}
+          {count(hidden, "config")} hidden by filters ·{" "}
           <button type="button" className="link-button" onClick={() => setFilter(NO_FILTER)}>
             Show all
           </button>

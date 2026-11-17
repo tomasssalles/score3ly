@@ -9,6 +9,7 @@ import type { Box, LensSystem, Score } from "@score3ly/notation";
 import { groupForModel, reviewFromModel, staffForModel, stretchForModel, type LayoutSystem, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
 import { keyOf } from "@score3ly/core";
 import { onPage, stretchBox, systemCropBox, type ImageSource, type StoredIssue, type StoredWarning } from "./extract.ts";
+import { count } from "./format.ts";
 
 export const REVIEW_VERSION = 1;
 
@@ -275,7 +276,7 @@ export const proposedChanges = (calls: StoredReview[]) => calls.reduce((n, c) =>
 
 // The card's short result, e.g. "15 proposed changes".
 export function reviewNote(changes: number): string {
-  return `${changes} proposed change${changes === 1 ? "" : "s"}`;
+  return count(changes, "proposed change");
 }
 
 // The stage key (§5.2): the step, its version, the prompt's and the lens's versions, the model, the images' recipe,

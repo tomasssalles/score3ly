@@ -3,7 +3,7 @@ process.env.TZ = "Europe/Berlin";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ActivityData, RunTimeData } from "./api";
-import { duration, estimatePerPage, perProject, stepTimes } from "./runTimes.ts";
+import { estimatePerPage, perProject, stepTimes } from "./runTimes.ts";
 
 const stage = (id: string, step: string, projectId: string, configId: string | null, pageCount: number, items: Partial<RunTimeData["stages"][number]["items"]>, done = true) => ({
   id,
@@ -97,10 +97,6 @@ test("work time per page split by model config, for the LLM steps only", () => {
     [["Opus EU", undefined, Math.round((20000 * 6) / 2 + 20 / 2)], ["claude-sonnet-5-5", "(until 25 Oct 2026)", Math.round(5000 * 2 + 20)]],
   );
   assert.deepEqual(rows.find((r) => r.step === "rasterize")!.configs, []);
-});
-
-test("durations, short", () => {
-  assert.deepEqual([0, 3, 30, 400, 12_000, 100_000, 120_000, 19_200_000, 3 * 86_400_000 + 4 * 3_600_000].map(duration), ["0 s", "0.01 s", "0.03 s", "0.4 s", "12 s", "1 min 40 s", "2 min", "5 h 20 min", "3 d 4 h"]);
 });
 
 test("work time per page split by model: the configs of one model together", () => {

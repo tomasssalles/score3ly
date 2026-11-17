@@ -2,6 +2,8 @@
 // formed and valid against MEI 5.1 (the full schema, given as `validate`: meiSchema.ts), every `xml:id` unique, every
 // `#id` reference pointing to an element that exists. And how many lines an edit changed, for the card.
 
+import { count } from "./format.ts";
+
 // line: counted from 1. syntax: the file isn't well formed (nothing after it is checked).
 export type MeiProblem = { line: number | null; message: string; syntax?: true };
 
@@ -92,5 +94,5 @@ export function linesChanged(before: string, after: string): number {
 
 // The card's result: "14 lines changed", "1 line changed" or "no changes".
 export function changesNote(lines: number): string {
-  return lines === 0 ? "no changes" : `${lines} line${lines === 1 ? "" : "s"} changed`;
+  return lines === 0 ? "no changes" : `${count(lines, "line")} changed`;
 }

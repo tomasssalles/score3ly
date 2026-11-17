@@ -5,7 +5,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchActivity, fetchRunTimes, type ActivityData, type RunTimeData } from "./api";
 import { FinishedProjectsFilter } from "./ProjectFilter";
-import { duration, estimatePerPage, perProject, stepTimes } from "./runTimes";
+import { statDuration } from "./format";
+import { estimatePerPage, perProject, stepTimes } from "./runTimes";
 import { Picker, StatHead } from "./statsParts";
 import { activeHoursText } from "./usage";
 
@@ -60,7 +61,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
             </p>
           }
           right={value(
-            project.spanMs === null ? "–" : duration(project.spanMs),
+            project.spanMs === null ? "–" : statDuration(project.spanMs),
             project.activeHours === null ? undefined : activeHoursText(project.activeHours),
           )}
         />
@@ -93,14 +94,14 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
         />
         {rows.map((row) => (
           <div key={row.step}>
-            <StatHead row title={row.label} right={value(row.ms === null ? "–" : duration(row.ms))} />
+            <StatHead row title={row.label} right={value(row.ms === null ? "–" : statDuration(row.ms))} />
             {row.configs.map((c) => (
               <div key={c.id} className="stat-subrow">
                 <span className="stat-row-title">
                   {c.label}
                   {c.note && <span className="menu-note"> {c.note}</span>}
                 </span>
-                <span className="stat-subrow-value">{c.ms === null ? "–" : duration(c.ms)}</span>
+                <span className="stat-subrow-value">{c.ms === null ? "–" : statDuration(c.ms)}</span>
               </div>
             ))}
           </div>
@@ -119,7 +120,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
               which should make this estimate more accurate.
             </p>
           }
-          right={value(estimate === null ? "–" : duration(estimate), estimate === null && selected.size > 0 ? "insufficient data" : undefined)}
+          right={value(estimate === null ? "–" : statDuration(estimate), estimate === null && selected.size > 0 ? "insufficient data" : undefined)}
         />
       </section>
     </>

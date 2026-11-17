@@ -6,7 +6,7 @@ import { ChevronDownIcon, CollapseIcon, MoreIcon, StopIcon } from "./icons";
 import { canRun, currentStage, MODE_LABELS, MODES, pipelineState, runningStage, stateLabel, type Pipeline, type Progress, type RunMode } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
 import { DownloadCard, DroppedCard, RunLabel, StageCard, type StageActions } from "./StageCard";
-import { when } from "./time";
+import { when } from "./format";
 
 export type PanelActions = StageActions & {
   setMode: (mode: RunMode) => void;

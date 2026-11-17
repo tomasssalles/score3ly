@@ -13,6 +13,7 @@ import { keyOf } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 import { indexMei } from "./meiView.ts";
 import { pageOfItem } from "./rasterize.ts";
+import { count } from "./format.ts";
 
 export const BUILD_MEI_VERSION = 1;
 export const ENGRAVE_VERSION = 2; // 2: the PDF is made by the stage; the MEI by `build_mei`
@@ -164,8 +165,7 @@ export function meiMetadata(stored: unknown): MeiMetadata {
 // The card's short result, e.g. "96 measures" or "13 pieces · 412 measures".
 export function engraveNote(score: Score): string {
   const measures = score.pieces.reduce((n, p) => n + p.measures.reduce((k, m) => k + m.count, 0), 0);
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-  return [...(score.pieces.length > 1 ? [plural(score.pieces.length, "piece")] : []), plural(measures, "measure")].join(" · ");
+  return [...(score.pieces.length > 1 ? [count(score.pieces.length, "piece")] : []), count(measures, "measure")].join(" · ");
 }
 
 // The same for an MEI file edited by hand (`fix_mei`): its pieces (`mdiv`) and measures (`measure @n`, a
@@ -178,8 +178,7 @@ export function meiNote(text: string): string {
     if (!Number.isInteger(from) || !Number.isInteger(to)) numbers.add(`${m.piece}/line ${m.line}`); // a number edited away
     else for (let n = from; n <= to; n++) numbers.add(`${m.piece}/${n}`);
   }
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-  return [...(index.pieces.length > 1 ? [plural(index.pieces.length, "piece")] : []), plural(numbers.size, "measure")].join(" · ");
+  return [...(index.pieces.length > 1 ? [count(index.pieces.length, "piece")] : []), count(numbers.size, "measure")].join(" · ");
 }
 
 // A file name from the project's name: what a file system would refuse is replaced.

@@ -4,7 +4,7 @@ process.env.TZ = "Asia/Kathmandu";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ActivityData, FailureData, ProjectStats } from "./api";
-import { bucketsOf } from "./costs.ts";
+import { bucketsOf } from "./calendar.ts";
 import { activeHoursText, activeQuarters, createdIn, createdNote, failuresIn, hoursView } from "./usage.ts";
 
 const local = (s: string) => new Date(s).getTime(); // "2026-10-27T10:00" is local time

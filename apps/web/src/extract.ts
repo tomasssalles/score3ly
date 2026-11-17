@@ -5,6 +5,7 @@ import { describeMark, type ScoreState } from "@score3ly/notation";
 import type { LayoutSystem } from "@score3ly/prompts";
 import { keyOf } from "@score3ly/core";
 import type { SystemHints } from "./linking.ts";
+import { count } from "./format.ts";
 
 export const EXTRACT_VERSION = 2;
 
@@ -215,6 +216,5 @@ export function extractStageKey(input: {
 
 // The card's short result, e.g. "54 systems · 12 issues · 3 warnings".
 export function extractNote(systems: number, issues: number, warnings: number): string {
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-  return [plural(systems, "system"), ...(issues ? [plural(issues, "issue")] : []), ...(warnings ? [plural(warnings, "warning")] : [])].join(" · ");
+  return [count(systems, "system"), ...(issues ? [count(issues, "issue")] : []), ...(warnings ? [count(warnings, "warning")] : [])].join(" · ");
 }

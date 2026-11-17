@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { AUTHOR, pricesStale, REPOSITORY_URL, versionParts } from "./about";
 import { fetchPrices } from "./api";
 import { EDITION_TEXT, editionOf, useHost } from "./host";
-import { shortDate } from "./time";
+import { shortDate } from "./format";
 
 export function AboutPage() {
   const host = useHost();

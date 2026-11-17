@@ -7,7 +7,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchActivity, fetchFailures, fetchProjectStats, type ActivityData, type FailureData, type ProjectStats } from "./api";
-import { axisLabel, bucketsOf, deletedNote, endedNote, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./costs";
+import { axisLabel, bucketsOf, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./calendar";
+import { count, deletedNote, endedNote, percent, plural } from "./format";
 import { ChartModes, Picker, StatHead, type ChartMode } from "./statsParts";
 import { TimeChart } from "./TimeChart";
 import { activeHoursText, activeQuarters, createdIn, createdNote, failuresIn, hoursNumber, hoursView } from "./usage";
@@ -76,9 +77,9 @@ function ActiveHours({ data }: { data: ActivityData }) {
             <span className="stat-value">
               <span className="stat-amount">
                 {hoursNumber(allHours.total)}
-                <span className="stat-unit"> {allHours.total === 1 ? "active hour" : "active hours"}</span>
+                <span className="stat-unit"> active {plural(allHours.total, "hour")}</span>
               </span>
-              <span className="stat-note">on {allHours.days === 1 ? "1 day" : `${allHours.days} days`}</span>
+              <span className="stat-note">on {count(allHours.days, "day")}</span>
             </span>
           </>
         }
@@ -181,7 +182,6 @@ function Failures({ data }: { data: FailureData }) {
   const [configId, setConfigId] = useState(ALL);
   const first = data.points.length ? data.points[0][1] : null;
   const view = failuresIn(data, rangeOf(rangeId, now, first), configId === ALL ? null : configId);
-  const share = view.calls ? Math.round((view.failed / view.calls) * 100) : 0;
   // The models first (each with every config of it, whatever the provider), by name; then the configs, newest first, a
   // deleted or edited config marked with the day it ended, as in the costs.
   const models = [...new Map(data.configs.map((m) => [`model:${m.modelKey}`, m.modelLabel]))]
@@ -199,7 +199,7 @@ function Failures({ data }: { data: FailureData }) {
             <Picker label="Model or model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...models, ...configs]} onChange={setConfigId} className="project-select failed-calls-select" headings={{ 1: "Config groups by model", 2: "Individual configs" }} />
             <span className="stat-value">
               <span className="stat-amount">{view.failed}</span>
-              <span className="stat-note">{view.calls ? `of ${view.calls === 1 ? "1 call" : `${view.calls} calls`} (${share}%)` : "no calls"}</span>
+              <span className="stat-note">{view.calls ? `of ${count(view.calls, "call")} (${percent(view.failed, view.calls)})` : "no calls"}</span>
             </span>
           </>
         }

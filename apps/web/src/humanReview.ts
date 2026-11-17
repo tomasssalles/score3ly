@@ -10,6 +10,7 @@ import { EXTRACTION_STEPS } from "./engrave.ts";
 import type { StoredIssue } from "./extract.ts";
 import type { Box } from "@score3ly/notation";
 import { applyEntries, systemsOf, type PlacedSystem, type ReviewEntry } from "./review.ts";
+import { count } from "./format.ts";
 
 export const HUMAN_REVIEW_VERSION = 1;
 
@@ -31,7 +32,7 @@ export function humanReviewedIssues(issues: Map<number, StoredIssue>, stored: St
 // The card's short result, e.g. "3 changes".
 export function humanReviewNote(stored: StoredHumanReview): string {
   const n = stored.entries.length;
-  return `${n} change${n === 1 ? "" : "s"}`;
+  return count(n, "change");
 }
 
 // What a human review reads, added after an `apply_review` (docs/database.md): the transcription it reviews.

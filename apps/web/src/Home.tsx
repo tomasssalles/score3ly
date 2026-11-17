@@ -10,7 +10,7 @@ import { cardsThatFit, HOME_CARDS, positionState, recentProjects } from "./home"
 import { CheckIcon, MenuIcon, PauseIcon, WarningIcon } from "./icons";
 import { stateLabel } from "./pipeline";
 import { hashForProject } from "./route";
-import { when } from "./time";
+import { when } from "./format";
 
 export function Home({
   projects,

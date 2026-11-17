@@ -17,7 +17,8 @@
 // is already left out item by item.
 
 import type { ActivityData, RunTimeData } from "./api";
-import { endedNote, stepTitle } from "./costs.ts";
+import { stepTitle } from "./costs.ts";
+import { endedNote } from "./format.ts";
 import { activeQuarters } from "./usage.ts";
 
 // Every step but `ingest`, in the pipeline's order. The manual ones aren't part of the estimate for a new score.
@@ -144,26 +145,4 @@ export function estimatePerPage(rows: StepRow[], recipe: string[]): number | nul
   const steps = rows.filter((r) => recipe.includes(r.step));
   if (steps.length < recipe.length || steps.some((r) => r.ms === null)) return null;
   return steps.reduce((sum, r) => sum + r.ms!, 0);
-}
-
-// A length of time, short: "0.03 s", "0.4 s", "12 s", "1 min 40 s", "5 h 20 min", "3 d 4 h".
-export function duration(ms: number): string {
-  const s = ms / 1000;
-  if (s === 0) return "0 s";
-  if (s < 0.1) return `${Math.max(s, 0.01).toFixed(2)} s`;
-  if (s < 10) return `${s.toFixed(1)} s`;
-  if (s < 60) return `${Math.round(s)} s`;
-  const min = Math.round(s / 60);
-  if (s < 3600) {
-    const whole = Math.floor(s / 60);
-    const rest = Math.round(s - whole * 60);
-    return rest ? `${whole} min ${rest} s` : `${whole} min`;
-  }
-  if (min < 24 * 60) {
-    const h = Math.floor(min / 60);
-    return min % 60 ? `${h} h ${min % 60} min` : `${h} h`;
-  }
-  const hours = Math.round(min / 60);
-  const d = Math.floor(hours / 24);
-  return hours % 24 ? `${d} d ${hours % 24} h` : `${d} d`;
 }

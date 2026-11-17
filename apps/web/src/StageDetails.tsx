@@ -1,6 +1,6 @@
 import { dollars } from "./money";
 import type { Stage, StageKind, StageStatus } from "./pipeline";
-import { duration } from "./time";
+import { duration } from "./format";
 
 export const KIND_LABELS: Record<StageKind, string> = {
   ingest: "Ingest",

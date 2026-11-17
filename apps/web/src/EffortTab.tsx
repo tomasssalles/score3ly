@@ -4,9 +4,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchRunTimes, type RunTimeData } from "./api";
-import { effortView, share } from "./effort";
+import { effortView } from "./effort";
 import { FinishedProjectsFilter } from "./ProjectFilter";
-import { duration } from "./runTimes";
+import { percent, statDuration } from "./format";
 import { StatHead } from "./statsParts";
 
 export function EffortTab() {
@@ -37,7 +37,7 @@ function Effort({ data }: { data: RunTimeData }) {
   const [out, setOut] = useState<Set<string>>(new Set()); // the projects taken out
   const selected = useMemo(() => new Set(data.projects.filter((p) => !out.has(p.id)).map((p) => p.id)), [data, out]);
   const view = useMemo(() => effortView(data, selected), [data, selected]);
-  const time = (ms: number | null) => (ms === null ? "–" : duration(ms));
+  const time = (ms: number | null) => (ms === null ? "–" : statDuration(ms));
 
   if (data.projects.length === 0) return <p className="costs-empty">No finished projects yet.</p>;
 
@@ -57,7 +57,7 @@ function Effort({ data }: { data: RunTimeData }) {
           right={value(time(view.perPageMs))}
         />
         {view.rows.map((r) => (
-          <StatHead key={r.step} row title={r.label} right={value(time(r.perPageMs), view.projects ? `used in ${share(r.usedIn, view.projects)} of projects` : undefined)} />
+          <StatHead key={r.step} row title={r.label} right={value(time(r.perPageMs), view.projects ? `used in ${percent(r.usedIn, view.projects)} of projects` : undefined)} />
         ))}
       </section>
       <section className="stats-section">

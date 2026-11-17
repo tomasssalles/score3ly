@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { RunTimeData } from "./api";
-import { effortView, share } from "./effort.ts";
+import { effortView } from "./effort.ts";
 
 type Stage = RunTimeData["stages"][number];
 const stage = (id: string, step: string, projectId: string, more: Partial<Stage> = {}): Stage => ({
@@ -58,7 +58,6 @@ test("effort: the manual work of the final pipelines, per page of each project, 
   assert.equal(view.perPageMs, rows.fix_layout[0]! + rows.fix_mei[0]!); // the rows add up to the head
   assert.equal(view.extraReviews, null); // no reviews anywhere yet
   assert.deepEqual(effortView(data, new Set()).perPageMs, null);
-  assert.deepEqual([share(1, 4), share(0, 0)], ["25%", "–"]);
 });
 
 test("effort: extra reviews in the final pipelines, counted, as an average per project", () => {

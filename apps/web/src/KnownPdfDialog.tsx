@@ -1,6 +1,6 @@
 import type { Project } from "./api";
 import { FittedText } from "./FittedText";
-import { when } from "./time";
+import { when } from "./format";
 import { Dialog, useDialog } from "./ui/Dialog";
 
 // Shown when a picked PDF, or the PDF of a picked project file, already has projects: open one of them, or create

@@ -7,6 +7,7 @@ import { keyOf } from "@score3ly/core";
 import { openPdfForImages, pageImage } from "./pageImages";
 import { configOf, pageItem, pageRecipe, RASTERIZE_VERSION, resolveConfig, stageKey } from "./rasterize";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
+import { count } from "./format.ts";
 
 export async function runRasterize(run: StageRun): Promise<void> {
   const { project, stage, pipeline } = run;
@@ -22,7 +23,7 @@ export async function runRasterize(run: StageRun): Promise<void> {
     stageKey: await stageKey(config, project.pdfSha256, pdfjsVersion),
     pageCount: pages.length,
     inputIds: [pdfOutput.id],
-    note: pages.length === 1 ? "1 page" : `${pages.length} pages`,
+    note: count(pages.length, "page"),
     items: pages.map((page) => ({
       item: pageItem(page),
       type: "page_image",

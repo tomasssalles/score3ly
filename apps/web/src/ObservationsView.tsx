@@ -46,6 +46,7 @@ import {
 import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./icons";
 import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
+import { count } from "./format";
 
 export function ObservationsView({ project, artifact, onEdited }: { project: Project; artifact: Artifact; onEdited?: () => void }) {
   const analysis = artifact.analysis!;
@@ -196,7 +197,7 @@ function body(row: ObsRow) {
     case "systems":
       return (
         <>
-          {row.system !== null && <span className="page-link static">system {row.system}</span>} {row.staves} staves
+          {row.system !== null && <span className="page-link static">system {row.system}</span>} {count(row.staves, "staff", "staves")}
           {row.instruments.some((s) => s) && `: ${row.instruments.map((s) => s || "?").join(", ")}`}
         </>
       );
@@ -409,7 +410,7 @@ function ItemEditor({
             <span className="field-edit-label">system</span>
             <Picker value={row.system === null ? "–" : String(row.system)} label="System" groups={groups} headings={headings} className="number-picker system-picker" />
             <span className="field-edit-label">
-              {row.staves} staff{row.staves === 1 ? "" : "s"} (more or fewer with ⋮)
+              {count(row.staves, "staff", "staves")} (more or fewer with ⋮)
             </span>
           </div>
           {row.instruments.map((instrument, k) => (

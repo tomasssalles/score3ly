@@ -44,6 +44,7 @@ import type { PlacedSystem } from "./review";
 import type { Who } from "./attribution";
 import { stepInfo } from "./steps";
 import { answerTags, type AnswerTag, boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
+import { count } from "./format";
 
 // `changed`: in a later stage's Transcription (a review's), the keys of the notes of the issues it changed: raised, or
 // chose on (its kept agreements aren't changes). Null in `extract`'s, where everything is new.
@@ -380,7 +381,7 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
       {reverted.length > 0 && (
         <div className="reverted-block error-text" role="note">
           <p className="reverted-head">
-            {reverted.length === 1 ? "1 answer couldn't be applied" : `${reverted.length} answers couldn't be applied`} as given, and{" "}
+            {count(reverted.length, "answer")} couldn't be applied as given, and{" "}
             {reverted.length === 1 ? "was" : "were"} reverted:
           </p>
           <ul>

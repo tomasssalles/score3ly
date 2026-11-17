@@ -4,10 +4,10 @@
 // without the action on unfinished pipelines: none is listed).
 
 import { useState } from "react";
-import { createdBefore, deletedNote } from "./costs";
+import { createdBefore } from "./costs";
 import { FilterIcon, InfoIcon } from "./icons";
 import { ProjectChecks } from "./statsParts";
-import { shortDate } from "./time";
+import { count, deletedNote, shortDate } from "./format";
 
 export function FinishedProjectsFilter({
   projects,
@@ -33,7 +33,7 @@ export function FinishedProjectsFilter({
           {out.size > 0 && <span className="toggle-dot" />}
         </button>
       </div>
-      <p className="stat-note run-times-selected">{selected === 1 ? "1 project selected" : `${selected} projects selected`}</p>
+      <p className="stat-note run-times-selected">{count(selected, "project")} selected</p>
       {about && (
         <div className="settings-hint stat-about">
           <p>Only projects whose pipeline is finished are listed.</p>
@@ -46,7 +46,7 @@ export function FinishedProjectsFilter({
               key: p.id,
               name: p.name,
               note: deletedNote(p.deletedAt),
-              facts: `${shortDate(p.createdAt, now)} · ${p.pages.length} ${p.pages.length === 1 ? "page" : "pages"}`,
+              facts: `${shortDate(p.createdAt, now)} · ${count(p.pages.length, "page")}`,
             }))}
             out={out}
             onChange={onChange}
