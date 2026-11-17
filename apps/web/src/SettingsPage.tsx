@@ -4,7 +4,7 @@
 // limit, §8.5). A pick is saved at once, an amount when it is left or Enter is pressed. "Model configs": the configs,
 // in the order picked and as filtered, each with its actions, and the "+" that makes one.
 
-import { amount, SECRET_LABELS } from "@score3ly/core";
+import { amount, type Host, SECRET_LABELS } from "@score3ly/core";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import {
   fetchModelConfigs,
@@ -288,7 +288,7 @@ function DefaultConfigPicker({
 }
 
 // Where the secrets are set, under the new config form's secret pickers (the Secrets section below says more).
-const SECRETS_HINTS: Record<"cloudflare" | "desktop" | "local", string> = {
+const SECRETS_HINTS: Record<Host, string> = {
   cloudflare: "The Worker's secrets, by name: set in the Cloudflare dashboard or with wrangler secret put (Secrets, below).",
   desktop: "The secrets file's names: open it with \"Open the secrets file\" (Secrets, below).",
   local: "The names in secrets.env, in the server's data folder (Secrets, below).",

@@ -5,6 +5,7 @@
 import { app, BrowserWindow, dialog, Menu, nativeTheme, shell, type Input } from "electron";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { isWindowTheme } from "@score3ly/core";
 import { leaveQuestion } from "./leaving.ts";
 import { startServer, type RunningServer, type WindowTheme } from "./server.ts";
 
@@ -42,7 +43,7 @@ function themeFile(): string {
 function restoreWindowTheme() {
   try {
     const { theme } = JSON.parse(readFileSync(themeFile(), "utf8")) as { theme?: unknown };
-    if (theme === "system" || theme === "dark" || theme === "light") nativeTheme.themeSource = theme;
+    if (isWindowTheme(theme)) nativeTheme.themeSource = theme;
   } catch {
     // First start: the system's setting, until the page says.
   }

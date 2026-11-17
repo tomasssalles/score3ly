@@ -12,10 +12,12 @@ import worker from "../../worker/src/index.ts";
 import { migrate, NodeD1 } from "./d1.ts";
 import { NodeR2 } from "./r2.ts";
 import { SecretsFile } from "./secrets.ts";
+import { type Host as CoreHost, type Info, isWindowTheme, type WindowTheme } from "@score3ly/core";
 
-export type Host = "desktop" | "local";
+// This server's hosts (`Host`, core: the web app asks which, `GET /api/info`).
+export type Host = Exclude<CoreHost, "cloudflare">;
 
-export type WindowTheme = "system" | "dark" | "light";
+export type { WindowTheme };
 
 export type ServerOptions = {
   dataDir: string; // the database, the stored files and the secrets file
@@ -69,7 +71,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
 
   const fetch = async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
-    if (url.pathname === "/api/info") return Response.json({ host: options.host });
+    if (url.pathname === "/api/info") return Response.json({ host: options.host } satisfies Info);
     if (url.pathname === "/api/secrets-file/open" && request.method === "POST") {
       if (!options.openSecretsFile) return Response.json({ error: "this host can't open files" }, { status: 404 });
       options.openSecretsFile(secrets.path);
@@ -78,7 +80,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     if (url.pathname === "/api/window/theme" && request.method === "POST") {
       const body = (await request.json().catch(() => null)) as { theme?: unknown } | null;
       const theme = body?.theme;
-      if (theme !== "system" && theme !== "dark" && theme !== "light") return Response.json({ error: "expected 'theme'" }, { status: 400 });
+      if (!isWindowTheme(theme)) return Response.json({ error: "expected 'theme'" }, { status: 400 });
       if (!options.setWindowTheme) return Response.json({ error: "this host has no window" }, { status: 404 });
       options.setWindowTheme(theme);
       return Response.json({ theme });

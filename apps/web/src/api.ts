@@ -1,6 +1,5 @@
-import type { Fingerprint } from "@score3ly/imaging";
 import type { Timing } from "./itemTiming";
-import { type ActivityData, type ApiErrorBody, type CostData, type FailureData, type ModelConfig, type ProjectStats, type RunTimeData, type ModelOptions, type NewModelConfig, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult, type CallAnswer, type ErrorCode, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, readSse, sha256Hex, type StreamEvent } from "@score3ly/core";
+import { type ActivityData, type Host, type Info, type WindowTheme, type StoredFingerprint, type Imported, type ProjectExport, type ApiErrorBody, type CostData, type FailureData, type ModelConfig, type ProjectStats, type RunTimeData, type ModelOptions, type NewModelConfig, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult, type CallAnswer, type ErrorCode, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, readSse, sha256Hex, type StreamEvent } from "@score3ly/core";
 
 // A project as the Worker's API sends it (`@score3ly/core`).
 export type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
@@ -56,12 +55,11 @@ async function projectFetch(url: string, init: RequestInit = {}): Promise<Respon
   return response;
 }
 
-// Which host serves the app (docs/desktop.md, "What differs in the app"): Cloudflare, the desktop app (Electron) or the
-// same server run alone on a computer.
-export type Host = "cloudflare" | "desktop" | "local";
+// Which host serves the app (`Host`, core; docs/desktop.md, "What differs in the app").
+export type { Host, WindowTheme } from "@score3ly/core";
 
 export async function fetchHost(): Promise<Host> {
-  return ((await (await checked(await fetch("/api/info"))).json()) as { host: Host }).host;
+  return ((await (await checked(await fetch("/api/info"))).json()) as Info).host;
 }
 
 // The desktop app: opens the secrets file in the system's text editor (the server does it; a page can't).
@@ -69,10 +67,7 @@ export async function openSecretsFile(): Promise<void> {
   await checked(await fetch("/api/secrets-file/open", { method: "POST" }));
 }
 
-// The desktop app: the window's frame, drawn by the system, in the app theme's light or dark, or the system's for
-// Auto (docs/desktop.md).
-export type WindowTheme = "system" | "dark" | "light";
-
+// The desktop app: the window's frame (`WindowTheme`).
 export async function setWindowTheme(theme: WindowTheme): Promise<void> {
   await checked(await fetch("/api/window/theme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ theme }) }));
 }
@@ -382,7 +377,7 @@ async function streamedAnswer(response: Response, onEvent?: (event: CallEvent) =
 
 // Fingerprints of the images from which stored results were computed (apps/worker/src/fingerprints.ts, 
 // docs/images.md §8.3), by the image's recipe key.
-export type StoredFingerprint = Fingerprint & { recipeKey: string; pdfSha256: string };
+export type { StoredFingerprint } from "@score3ly/core";
 
 export async function fetchFingerprint(recipeKey: string): Promise<StoredFingerprint | null> {
   return ((await (await checked(await fetch(`/api/fingerprints/${recipeKey}`))).json()) as { fingerprint: StoredFingerprint | null }).fingerprint;
@@ -466,9 +461,9 @@ export async function deleteModelConfig(id: string): Promise<void> {
 
 // Exporting and importing a project (docs/database.md, "Exporting and importing a project"). The rows of the project's
 // current pipeline, as the Worker hands them out (an object of the export format, `format` in it).
-export type ProjectRows = Record<string, unknown> & { format: number; project: Record<string, unknown> & { name: string; pdf_sha256: string; pdf_filename: string }; content: string[] };
+export type { ProjectExport } from "@score3ly/core";
 
-export async function fetchExport(project: Project): Promise<ProjectRows> {
+export async function fetchExport(project: Project): Promise<ProjectExport> {
   return (await checked(await fetch(`/api/projects/${project.id}/export`))).json();
 }
 
@@ -496,7 +491,7 @@ export async function missingContent(sha256s: string[]): Promise<string[]> {
 }
 
 // Imports the rows (the PDF and the content uploaded first). Refusals come with the Worker's own message.
-export async function importRows(rows: ProjectRows): Promise<{ id: string; name: string }> {
+export async function importRows(rows: ProjectExport): Promise<Imported> {
   const response = await fetch("/api/projects/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rows) });
   if (!response.ok) {
     const error = ((await response.json().catch(() => null)) as ApiErrorBody | null)?.error;

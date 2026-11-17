@@ -7,32 +7,14 @@
 // is used (no row), a deleted one is brought back to life (its cost stays where it was paid), and only a call found
 // nowhere becomes a new row, which counts like any call. Original times are kept.
 
-import { CONFIG_VALUES, firstFreeName, isSha256Hex, sameConfigValues } from "@score3ly/core";
+import { CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, type Imported, isSha256Hex, type ProjectExport, sameConfigValues } from "@score3ly/core";
 import type { Hono } from "hono";
 import { anyRunning, withModelConfig } from "./pipeline.ts";
 import { PLACEHOLDER_ITEM, placeProblem } from "./llmRoutes.ts";
 
-// The export format's own version (`format` in the file), apart from the app's: raised when an export can't be read
-// the same way any more. Imports read only the formats listed here.
-export const EXPORT_FORMAT = 1;
+// The export format (`EXPORT_FORMAT`) and what an export holds (`ProjectExport`) are in core (api/projectExport.ts).
 
-type Row = Record<string, unknown>;
-
-// What an export holds, besides the PDF and the content, which the browser fetches.
-export type ProjectExport = {
-  format: number;
-  project: Row; // name, pdf_sha256, pdf_filename, run_mode, next_issue_number and the times
-  pipeline: Row[]; // position, stage_id, carried
-  stages: Row[];
-  outputs: Row[];
-  output_inputs: Row[];
-  stage_inputs: Row[];
-  llm_calls: Row[];
-  model_configs: Row[];
-  manual_saves: Row[];
-  image_fingerprints: Row[];
-  content: string[]; // every content object the rows refer to, by SHA-256 (outputs, calls' requests and responses)
-};
+type Row = ExportRow;
 
 const STAGE_COLUMNS = [
   "id",
@@ -121,7 +103,7 @@ export async function exportProject(db: D1Database, projectId: string, now = Dat
   const project = await db
     .prepare("SELECT name, pdf_sha256, pdf_filename, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at FROM projects WHERE id = ? AND deleted_at IS NULL")
     .bind(projectId)
-    .first<Row>();
+    .first<ProjectExport["project"]>();
   if (!project) return null;
   if (await anyRunning(db, projectId, now)) return "running";
   const [pipeline, stages, outputs, outputInputs, stageInputs, calls, saves, fingerprints] = await db.batch<Row>([
@@ -200,6 +182,7 @@ async function rowsByIds(db: D1Database, sqlBeforeList: string, ids: string[]): 
 export function exportProblem(data: unknown): string | null {
   if (typeof data !== "object" || data === null) return "The file holds no project.";
   const d = data as Partial<ProjectExport>;
+  // (The browser reads the format from the file's manifest first, and says so in its own words, `formatProblem`.)
   if (d.format !== EXPORT_FORMAT) {
     return typeof d.format === "number" && d.format > EXPORT_FORMAT
       ? `The file was exported by a newer version of score3ly (export format ${d.format}); update the app to import it.`
@@ -214,8 +197,6 @@ export function exportProblem(data: unknown): string | null {
   if (!(d.pipeline as Row[]).every((e) => stageIds.has(e.stage_id) && Number.isInteger(e.position))) return "The file's pipeline names stages it doesn't hold.";
   return null;
 }
-
-export type Imported = { id: string; name: string };
 
 // Imports an export (already checked with `exportProblem`; the PDF and the content already in R2). Returns the new
 // project's id and name, or what is missing.
@@ -417,7 +398,7 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
     if (data === null) return c.json({ error: "no such project" }, 404);
     if (data === "running") return c.json({ error: "a stage of this project is running", code: "running" }, 409);
     if ("problem" in data) return c.json({ error: data.problem }, 500);
-    return c.json(data);
+    return c.json<ProjectExport>(data);
   });
 
   // Which of these content objects aren't stored yet, so that an import uploads only those. Each is one call to R2, of which a
@@ -451,6 +432,6 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
     if (problem) return c.json({ error: problem }, 400);
     const result = await importProject(c.env.DB, c.env.PDFS, data as ProjectExport);
     if ("missing" in result) return c.json({ error: `upload ${result.missing} first`, code: "missing" }, 409);
-    return c.json(result, 201);
+    return c.json<Imported>(result, 201);
   });
 }

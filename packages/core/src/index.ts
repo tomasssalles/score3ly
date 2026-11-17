@@ -22,3 +22,8 @@ export { amount, roundUsd } from "./money.ts";
 export type { ApiErrorBody, ErrorCode } from "./api/errors.ts";
 export type { CallErrorKind, CostOutcome, Outcome } from "./api/outcomes.ts";
 export type { ActivityData, CostData, FailureData, ProjectStats, RunTimeData } from "./api/stats.ts";
+export { EXPORT_FORMAT, formatProblem } from "./api/projectExport.ts";
+export type { ExportRow, Imported, ProjectExport } from "./api/projectExport.ts";
+export type { Fingerprint, StoredFingerprint } from "./api/fingerprint.ts";
+export { isWindowTheme } from "./api/host.ts";
+export type { Host, Info, WindowTheme } from "./api/host.ts";

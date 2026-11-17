@@ -14,7 +14,7 @@ import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
 
 export type { ListedProject, Project, RunMode } from "@score3ly/core";
-import type { Deleted, ListedProject, PdfLookup, PipelinePosition, Project, RunMode } from "@score3ly/core";
+import type { Deleted, Info, ListedProject, PdfLookup, PipelinePosition, Project, RunMode } from "@score3ly/core";
 import { firstFreeName, isSha256Hex, MAX_NAME_LENGTH, nameTooLong } from "@score3ly/core";
 
 type ProjectRow = {
@@ -73,7 +73,7 @@ app.use("/api/*", async (c, next) => {
 // Which host serves the app (docs/desktop.md, "What differs in the app"): here Cloudflare. The desktop version's server
 // answers this itself ("desktop" in Electron, "local" as a plain local server), so the web bundle stays the same and
 // the app asks rather than guessing.
-app.get("/api/info", (c) => c.json({ host: "cloudflare" }));
+app.get("/api/info", (c) => c.json<Info>({ host: "cloudflare" }));
 
 // Deletes a project (docs/database.md, "Deleting a project"): refused while one of its stages runs, here or on another device.
 app.delete("/api/projects/:id", async (c) => {

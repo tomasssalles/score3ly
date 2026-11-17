@@ -2,7 +2,7 @@
 // recipe made again on another device can be checked against it. Three tiers: identical (the same size and raw
 // pixels), close (a small grayscale thumbnail differs only a little), or different.
 
-import { fromBase64, sha256Hex, toBase64 } from "@score3ly/core";
+import { type Fingerprint, fromBase64, sha256Hex, toBase64 } from "@score3ly/core";
 import { luminance, type RgbaImage } from "./image.ts";
 import { resizeArea } from "./scale.ts";
 
@@ -11,15 +11,8 @@ export const FINGERPRINT_VERSION = 1;
 
 const THUMBNAIL = 64; // the thumbnail's width and height (at most), whatever the image's proportions
 
-export type Fingerprint = {
-  version: number;
-  width: number;
-  height: number;
-  pixelsSha256: string; // of the raw RGBA pixels, as decoded (not of the PNG file: encoders differ)
-  thumbnail: string; // base64 of the grayscale thumbnail, row by row
-  thumbnailWidth: number;
-  thumbnailHeight: number;
-};
+// What a fingerprint holds (`Fingerprint`, core: the Worker stores it).
+export type { Fingerprint };
 
 // "Close" (decided in §8.3 as "below about 1 gray level on average, no tile above a few"): each thumbnail pixel is
 // the average of a tile of the image.

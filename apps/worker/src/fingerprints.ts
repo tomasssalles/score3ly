@@ -1,20 +1,11 @@
 // Fingerprints of the images from which stored results were computed (docs/images.md §8.3): stored once per recipe key,
 // by the first device that computed a result from the image, and read by any device that makes the image again.
 
-import { isSha256Hex } from "@score3ly/core";
+import { isSha256Hex, type StoredFingerprint } from "@score3ly/core";
 import type { Hono } from "hono";
 
-export type Fingerprint = {
-  recipeKey: string;
-  pdfSha256: string;
-  version: number;
-  width: number;
-  height: number;
-  pixelsSha256: string;
-  thumbnail: string; // base64, grayscale, row by row
-  thumbnailWidth: number;
-  thumbnailHeight: number;
-};
+// A fingerprint as stored, by its image's recipe key (`StoredFingerprint`, core).
+type Fingerprint = StoredFingerprint;
 
 type Row = {
   recipe_key: string;
@@ -45,7 +36,7 @@ export function fingerprintRoutes(app: Hono<{ Bindings: Env }>) {
   // The fingerprint stored for an image's recipe, or null.
   app.get("/api/fingerprints/:recipeKey", async (c) => {
     const row = await c.env.DB.prepare("SELECT * FROM image_fingerprints WHERE recipe_key = ?").bind(c.req.param("recipeKey")).first<Row>();
-    if (!row) return c.json({ fingerprint: null });
+    if (!row) return c.json<{ fingerprint: StoredFingerprint | null }>({ fingerprint: null });
     const fingerprint: Fingerprint = {
       recipeKey: row.recipe_key,
       pdfSha256: row.pdf_sha256,
@@ -57,7 +48,7 @@ export function fingerprintRoutes(app: Hono<{ Bindings: Env }>) {
       thumbnailWidth: row.thumbnail_width,
       thumbnailHeight: row.thumbnail_height,
     };
-    return c.json({ fingerprint });
+    return c.json<{ fingerprint: StoredFingerprint | null }>({ fingerprint });
   });
 
   // Stores fingerprints; one already stored for a recipe key stays as it is (the first result computed from it).

@@ -7,13 +7,11 @@
 // Made and read here, in the browser: zipping is too much work for a Worker's CPU limit. Images aren't in it (they are
 // made again from their recipes).
 
-import { sha256Hex } from "@score3ly/core";
-import type { Project, ProjectRows } from "./api.ts";
+import { formatProblem, type Imported, type ProjectExport, sha256Hex } from "@score3ly/core";
+import type { Project } from "./api.ts";
 import { fetchContent, fetchExport, fetchPdf, importRows, missingContent, putContent, storePdf } from "./api.ts";
 import { fileBase } from "./engrave.ts";
 
-// The export formats this version reads (the Worker's `EXPORT_FORMAT`; kept equal by a test).
-export const EXPORT_FORMATS = [1];
 export const EXTENSION = ".s3l";
 
 export type Manifest = {
@@ -24,7 +22,7 @@ export type Manifest = {
   contentTypes: Record<string, string>;
 };
 
-export type ProjectArchive = { manifest: Manifest; rows: ProjectRows; pdf: Uint8Array<ArrayBuffer>; content: Map<string, Uint8Array<ArrayBuffer>> };
+export type ProjectArchive = { manifest: Manifest; rows: ProjectExport; pdf: Uint8Array<ArrayBuffer>; content: Map<string, Uint8Array<ArrayBuffer>> };
 
 export function exportName(projectName: string): string {
   return `${fileBase(projectName)}${EXTENSION}`;
@@ -61,14 +59,10 @@ export async function unzipArchive(bytes: Uint8Array): Promise<ProjectArchive> {
     }
   };
   const manifest = json("manifest.json") as Manifest;
-  if (!EXPORT_FORMATS.includes(manifest.format)) {
-    throw new Error(
-      typeof manifest.format === "number" && manifest.format > Math.max(...EXPORT_FORMATS)
-        ? `The file was exported by a newer version of score3ly (export format ${manifest.format}). Update the app to import it.`
-        : `The file's export format (${String(manifest.format)}) isn't one this version of score3ly reads.`,
-    );
-  }
-  const rows = json("project.json") as ProjectRows;
+  // Only the format of this version (`EXPORT_FORMAT`, core) is read.
+  const problem = formatProblem(manifest.format);
+  if (problem) throw new Error(problem);
+  const rows = json("project.json") as ProjectExport;
   const pdf = files[`pdf/${rows.project?.pdf_sha256}.pdf`];
   if (!pdf) throw new Error("The file is incomplete: it has no PDF.");
   const content = new Map<string, Uint8Array<ArrayBuffer>>();
@@ -106,7 +100,7 @@ export async function exportProject(project: Project, progress: (fraction: numbe
 
 // Stores what an archive needs (the PDF, the content the Worker doesn't have), then imports its rows. Returns the new
 // project's id and name.
-export async function importArchive(archive: ProjectArchive, progress: (fraction: number) => void = () => {}): Promise<{ id: string; name: string }> {
+export async function importArchive(archive: ProjectArchive, progress: (fraction: number) => void = () => {}): Promise<Imported> {
   const sha = archive.rows.project.pdf_sha256;
   if ((await sha256Hex(archive.pdf)) !== sha) throw new Error("The file is damaged: its PDF doesn't match its hash.");
   await storePdf(sha, archive.pdf);
