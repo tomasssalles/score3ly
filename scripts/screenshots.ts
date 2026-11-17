@@ -1,6 +1,7 @@
 // Screenshots of the app, to compare versions and themes at a glance without clicking through it (docs/overview.md §5.7,
 // "Screenshots"): `npm run screenshots` (optionally `-- --out <folder>`, default `screenshots/`, which git ignores; it is
-// replaced, so another folder must be empty, new, or one the script wrote before; and `--only <text>` for the shots whose names contain it, `--desktop` for the desktop version's server).
+// replaced, so another folder must be empty, new, or one the script wrote before; `--only <text>` for the shots whose
+// names contain it; `--desktop` for the desktop version's server).
 //
 // It starts its own Worker and Vite on the test ports (8887 and 5273), with a database and storage of their own in a
 // temporary folder, so nothing of the usual local data is touched; seeds them through the app with the fake model
@@ -38,8 +39,8 @@ const args = scriptArgs(
       // `--only <text>`: only the shots whose names contain it, or one of its parts separated by "|" (the seeding still
       // takes its time).
       only: { type: "string" },
-      // `--desktop`: the desktop version's server (apps/desktop, built first) instead of Wrangler: the same app on Node,
-      // with SQLite and a folder of files; so the seeding also tests it end to end.
+      // `--desktop`: the desktop version's server (apps/desktop, built by the script first) instead of Wrangler: the
+      // same app on Node, with SQLite and a folder of files; so the seeding also tests it end to end.
       desktop: { type: "boolean", default: false },
     },
   },

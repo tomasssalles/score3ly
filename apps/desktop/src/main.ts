@@ -183,6 +183,12 @@ if (!app.requestSingleInstanceLock()) {
     app.on("activate", () => {
       if (!window && server) createWindow(server.url);
     });
+  }).catch((err: unknown) => {
+    // A failed start (a migration, a data folder that can't be written) would otherwise leave an app with no window
+    // and no message (review E11).
+    const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
+    dialog.showErrorBox("score3ly couldn't start", `Its data is in ${app.getPath("userData")}.\n\n${detail}`);
+    app.quit();
   });
 
   app.on("window-all-closed", () => {

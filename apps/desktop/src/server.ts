@@ -97,8 +97,17 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     return worker.fetch(request, env, ctx as unknown as ExecutionContext);
   };
 
-  const server: ServerType = await new Promise((resolve) => {
-    const s = serve({ fetch, hostname: "127.0.0.1", port: options.port ?? 0 }, () => resolve(s));
+  // A port in use (another server running) is a refusal the caller reports, not an uncaught exception.
+  const server: ServerType = await new Promise((resolve, reject) => {
+    const failed = (err: Error) => {
+      db.close();
+      reject(err);
+    };
+    const s = serve({ fetch, hostname: "127.0.0.1", port: options.port ?? 0 }, () => {
+      s.off("error", failed); // only the start's errors: once it listens, the server is the caller's
+      resolve(s);
+    });
+    s.once("error", failed);
   });
   const { port } = server.address() as AddressInfo;
   return {

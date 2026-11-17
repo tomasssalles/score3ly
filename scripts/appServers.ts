@@ -111,6 +111,9 @@ export async function startServers(options: { workerPort: number; webPort: numbe
   }
   mkdirSync(join(ROOT, "apps/web/dist"), { recursive: true });
   if (desktop) {
+    // Built now, from the code as it is: whatever dist/ holds may be an older Worker with older migrations (review E11).
+    const build = spawnSync("npm", ["run", "build", "-w", "apps/desktop"], { cwd: ROOT, encoding: "utf8" });
+    if (build.status !== 0) throw new Error(`the desktop version's build failed: ${build.stderr || build.stdout}`);
     start("node", ["dist/server.js", "--data", stateDir, "--port", String(workerPort)], join(ROOT, "apps/desktop"));
   } else {
     writeLocalDevConfig(); // Wrangler's config for local work (apps/worker/scripts/config.ts)
