@@ -374,7 +374,7 @@ Each row ends with what was done, and the findings dropped or changed at fix tim
 
 | # | Batch | Status |
 |---|---|---|
-| 1 | Tooling under checks; replay safe | |
+| 1 | Tooling under checks; replay safe | **Done.** Root `tsconfig.json` + `npm run typecheck` + CI step, `syntax.test.ts` gone (E18); `stopAll` awaits the process groups (E5); strict `parseArgs` everywhere, deletions only of the tools' own folders (E10); desktop start failures reported (E11). Changed: E18 found no errors, but the model-list gatherers were unchecked too (added); E5 waits for the whole group; E10 leaves Electron's `main.ts` as it is. |
 | 2 | LLM call and cost bugs | |
 | 3 | Page, MEI and worker-hang bugs | |
 | 4 | One navigation module | |
