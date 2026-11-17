@@ -25,6 +25,7 @@ import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { CACHE_LIMITS_MB, cacheLimitMb, setCacheLimitMb } from "./cacheLru";
 import { count, formatSize } from "./format";
+import { amount } from "./money";
 import { useHost } from "./host";
 import { ACCOUNT_NAMES, pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
@@ -151,7 +152,7 @@ export function SettingsPage({ tab, onTab }: { tab: TabOf<"settings">; onTab: (t
             </span>
           </dt>
           <dd>
-            <SpendingCap key={settings.spendingCapUsd} value={settings.spendingCapUsd} onSave={(usd) => save("spendingCapUsd", usd)} />
+            <SpendingCapField key={settings.spendingCapUsd} value={settings.spendingCapUsd} onSave={(usd) => save("spendingCapUsd", usd)} />
           </dd>
           <dt>
             VAT
@@ -161,7 +162,7 @@ export function SettingsPage({ tab, onTab }: { tab: TabOf<"settings">; onTab: (t
             </span>
           </dt>
           <dd>
-            <VatRate key={settings.vatPercent} value={settings.vatPercent} onSave={(percent) => save("vatPercent", percent)} />
+            <VatRateField key={settings.vatPercent} value={settings.vatPercent} onSave={(percent) => save("vatPercent", percent)} />
           </dd>
         </dl>
       )}
@@ -614,87 +615,93 @@ function Fact({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-// The VAT rate, a percentage from 0 to 100 with at most two decimals (docs/llm.md, "VAT"), typed; saved like the cap.
-function VatRate({ value, onSave }: { value: number; onSave: (percent: number) => void }) {
-  const [text, setText] = useState(String(value));
-  const [problem, setProblem] = useState<string | null>(null);
-
-  function commit() {
-    const trimmed = text.trim().replace(/%$/, "").trim();
-    const percent = Number(trimmed);
-    if (trimmed === "" || !Number.isFinite(percent) || percent < 0 || percent > 100 || Math.round(percent * 100) / 100 !== percent) {
-      setProblem("Enter a percentage from 0 to 100, with at most two decimals.");
-      return;
-    }
-    setProblem(null);
-    if (percent !== value) onSave(percent);
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") commit();
-    if (e.key === "Escape") {
-      setText(String(value));
-      setProblem(null);
-    }
-  }
-
+// The VAT rate, a percentage from 0 to 100 with at most two decimals (docs/llm.md, "VAT"), typed ("19" or "19%").
+function VatRateField({ value, onSave }: { value: number; onSave: (percent: number) => void }) {
   return (
-    <div className="settings-amount settings-percent">
-      <input
-        className="field-input"
-        inputMode="decimal"
-        value={text}
-        aria-label="VAT in percent"
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={onKeyDown}
-      />
-      <span className="settings-currency">%</span>
-      {problem && <p className="settings-error error-text">{problem}</p>}
-    </div>
+    <NumberField
+      value={value}
+      show={String}
+      read={(text) => {
+        const trimmed = text.trim().replace(/%$/, "").trim();
+        const percent = Number(trimmed);
+        return trimmed === "" || !Number.isFinite(percent) || percent < 0 || percent > 100 || Math.round(percent * 100) / 100 !== percent ? null : percent;
+      }}
+      problem="Enter a percentage from 0 to 100, with at most two decimals."
+      unit={{ text: "%", after: true }}
+      className="settings-percent"
+      label="VAT in percent"
+      onSave={onSave}
+    />
   );
 }
 
-// An amount as shown: two decimals where they are enough ("1.50").
-const amount = (usd: number) => (Number.isInteger(Math.round(usd * 1e6) / 1e4) ? usd.toFixed(2) : String(usd));
+// The spending cap, an amount in US dollars above 0, typed.
+function SpendingCapField({ value, onSave }: { value: number; onSave: (usd: number) => void }) {
+  return (
+    <NumberField
+      value={value}
+      show={amount}
+      read={(text) => {
+        const trimmed = text.trim();
+        const usd = Number(trimmed);
+        return trimmed === "" || !Number.isFinite(usd) || usd <= 0 ? null : usd;
+      }}
+      problem="Enter an amount above $0."
+      unit={{ text: "$", after: false }}
+      label="Spending cap in US dollars per 24 hours"
+      onSave={onSave}
+    />
+  );
+}
 
-// An amount in US dollars above 0, typed. Left empty or invalid, nothing is saved and the reason is shown; Escape
-// brings back the cap as it is (there is always one).
-function SpendingCap({ value, onSave }: { value: number; onSave: (usd: number) => void }) {
-  const [text, setText] = useState(amount(value));
+// A number setting typed in a field, saved when the field is left or Enter is pressed. Left empty or invalid (`read`
+// gives null), nothing is saved and `problem` is shown; Escape brings back the value as it is (there is always one).
+function NumberField({
+  value,
+  show,
+  read,
+  problem: invalid,
+  unit,
+  className = "",
+  label,
+  onSave,
+}: {
+  value: number;
+  show: (value: number) => string;
+  read: (text: string) => number | null;
+  problem: string;
+  unit: { text: string; after: boolean };
+  className?: string;
+  label: string;
+  onSave: (value: number) => void;
+}) {
+  const [text, setText] = useState(show(value));
   const [problem, setProblem] = useState<string | null>(null);
 
   function commit() {
-    const trimmed = text.trim();
-    const usd = Number(trimmed);
-    if (trimmed === "" || !Number.isFinite(usd) || usd <= 0) {
-      setProblem("Enter an amount above $0.");
+    const parsed = read(text);
+    if (parsed === null) {
+      setProblem(invalid);
       return;
     }
     setProblem(null);
-    if (usd !== value) onSave(usd);
+    if (parsed !== value) onSave(parsed);
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") commit();
     if (e.key === "Escape") {
-      setText(amount(value));
+      setText(show(value));
       setProblem(null);
     }
   }
 
+  const unitText = <span className="settings-currency">{unit.text}</span>;
   return (
-    <div className="settings-amount">
-      <span className="settings-currency">$</span>
-      <input
-        className="field-input"
-        inputMode="decimal"
-        value={text}
-        aria-label="Spending cap in US dollars per 24 hours"
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={onKeyDown}
-      />
+    <div className={`settings-amount ${className}`.trim()}>
+      {!unit.after && unitText}
+      <input className="field-input" inputMode="decimal" value={text} aria-label={label} onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={onKeyDown} />
+      {unit.after && unitText}
       {problem && <p className="settings-error error-text">{problem}</p>}
     </div>
   );

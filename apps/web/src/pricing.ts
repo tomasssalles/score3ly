@@ -2,8 +2,9 @@
 
 import type { ModelConfig, ModelPrice, PriceRange } from "./api";
 
-// A price per million tokens: whole dollars without cents ("$4"), else at least the cents ("$0.20", "$0.001").
-export function dollars(amount: number): string {
+// A price per million tokens: whole dollars without cents ("$4"), else at least the cents ("$0.20", "$0.001"). Amounts
+// paid are money.ts's `dollars`.
+function perMillion(amount: number): string {
   if (Number.isInteger(amount)) return `$${amount}`;
   const decimals = String(amount).split(".")[1]?.length ?? 0;
   return `$${amount.toFixed(Math.max(2, decimals))}`;
@@ -20,8 +21,8 @@ export function pricingText(config: ModelConfig, range: PriceRange | null = null
   if (price.kind === "missing") return "No price in the app's list";
   if (price.kind === "provider") {
     const name = PROVIDER_NAMES[config.provider] ?? config.provider;
-    if (!range) return `Priced per call by ${name}, plus its ${percent(price.fee)} fee on credit purchases`;
-    return `${rangeText(range, price.fee)} (including ${name}'s ${percent(price.fee)} fee on credit purchases; the price depends on who runs the model)`;
+    if (!range) return `Priced per call by ${name}, plus its ${feePercent(price.fee)} fee on credit purchases`;
+    return `${rangeText(range, price.fee)} (including ${name}'s ${feePercent(price.fee)} fee on credit purchases; the price depends on who runs the model)`;
   }
   const text = pricesText(price.price);
   return price.borrowedFrom ? `${text} (priced as ${price.borrowedFrom})` : text;
@@ -38,13 +39,13 @@ function withFee(amount: number, fee: number): number {
 export function rangeText(range: PriceRange, fee = 0): string {
   const span = ([low, high]: [number, number]) => {
     const [a, b] = [withFee(low, fee), withFee(high, fee)];
-    return a === b ? dollars(a) : `${dollars(a)}–${dollars(b).slice(1)}`;
+    return a === b ? perMillion(a) : `${perMillion(a)}–${perMillion(b).slice(1)}`;
   };
   return `${span(range.input)} input, ${span(range.output)} output, ${span(range.cacheRead)} cache read, ${span(range.cacheWrite)} cache write, per million tokens`;
 }
 
-// A share as a percentage: 0.055 → "5.5%".
-export function percent(share: number): string {
+// A fee as a percentage, to a tenth: 0.055 → "5.5%".
+export function feePercent(share: number): string {
   return `${Math.round(share * 1000) / 10}%`;
 }
 
@@ -54,5 +55,5 @@ export const ACCOUNT_NAMES: Record<NonNullable<ModelConfig["account"]>, string> 
 
 // The four prices of a model, per million tokens.
 export function pricesText(p: ModelPrice): string {
-  return `${dollars(p.input)} input, ${dollars(p.output)} output, ${dollars(p.cacheRead)} cache read, ${dollars(p.cacheWrite)} cache write, per million tokens`;
+  return `${perMillion(p.input)} input, ${perMillion(p.output)} output, ${perMillion(p.cacheRead)} cache read, ${perMillion(p.cacheWrite)} cache write, per million tokens`;
 }

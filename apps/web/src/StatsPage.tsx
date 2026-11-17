@@ -112,7 +112,7 @@ function Costs({ data }: { data: CostData }) {
 
   return (
     <>
-      <SpendingCap spent={data.spentLastDayUsd} cap={data.capUsd} />
+      <SpendingCapMeter spent={data.spentLastDayUsd} cap={data.capUsd} />
       <CostPerPage projects={data.projects} now={now} />
 
       <section className="stats-section overview">
@@ -266,7 +266,7 @@ function TestCosts({ usd, calls }: { usd: number; calls: number }) {
 }
 
 // The last 24 hours against the cap, as the Worker counts them (docs/llm.md, "Spending cap").
-function SpendingCap({ spent, cap }: { spent: number; cap: number }) {
+function SpendingCapMeter({ spent, cap }: { spent: number; cap: number }) {
   const share = Math.min(1, cap > 0 ? spent / cap : 0);
   const state = spent >= cap ? "reached" : share >= 0.8 ? "near" : "";
   return (

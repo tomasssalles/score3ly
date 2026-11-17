@@ -1,15 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ModelConfig } from "./api";
-import { dollars, pricingText } from "./pricing.ts";
+import { feePercent, pricesText, pricingText } from "./pricing.ts";
 
 test("prices per million tokens: whole dollars without cents, else at least the cents", () => {
-  assert.equal(dollars(4), "$4");
-  assert.equal(dollars(0.2), "$0.20");
-  assert.equal(dollars(4.4), "$4.40");
-  assert.equal(dollars(0.01), "$0.01");
-  assert.equal(dollars(0.001), "$0.001");
-  assert.equal(dollars(0.275), "$0.275");
+  assert.equal(pricesText({ input: 4, output: 0.2, cacheRead: 0.001, cacheWrite: 0.275 }), "$4 input, $0.20 output, $0.001 cache read, $0.275 cache write, per million tokens");
+  assert.equal(pricesText({ input: 4.4, output: 0.01, cacheRead: 0.5, cacheWrite: 5 }), "$4.40 input, $0.01 output, $0.50 cache read, $5 cache write, per million tokens");
+  assert.equal(feePercent(0.055), "5.5%");
 });
 
 test("a config's pricing: its four prices, borrowed or not, else free, unpriced or missing", () => {

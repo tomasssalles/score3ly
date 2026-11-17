@@ -34,7 +34,7 @@ import {
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Picker } from "./fieldList";
 import { Info } from "./Info";
-import { ACCOUNT_NAMES, percent, pricesText } from "./pricing";
+import { ACCOUNT_NAMES, feePercent, pricesText } from "./pricing";
 import { Dialog, useDialog } from "./ui/Dialog";
 
 const FIELD_LABELS: Record<string, string> = {
@@ -221,7 +221,7 @@ export function NewModelConfig({
                 groups={[
                   (["standard", "business"] as const).map((a) => ({
                     label: ACCOUNT_NAMES[a],
-                    note: `(${percent(provider.pricedByProvider!.fees[a])} fee)`,
+                    note: `(${feePercent(provider.pricedByProvider!.fees[a])} fee)`,
                     current: form.account === a,
                     onSelect: () => setForm({ account: a }),
                   })),
@@ -336,7 +336,7 @@ export function NewModelConfig({
               checked={form.pricing === "provider"}
               onCheck={() => setForm({ pricing: "provider" })}
               label={`Priced per call by ${provider.name}`}
-              info={`Each call costs what its answer reports, plus the ${form.account ? percent(provider.pricedByProvider.fees[form.account]) : ""} fee on credit purchases. The price of a model can differ between the companies that run it for ${provider.name}. A model ${provider.name} lists as free keeps running after the spending cap is reached.`}
+              info={`Each call costs what its answer reports, plus the ${form.account ? feePercent(provider.pricedByProvider.fees[form.account]) : ""} fee on credit purchases. The price of a model can differ between the companies that run it for ${provider.name}. A model ${provider.name} lists as free keeps running after the spending cap is reached.`}
             />
             <PricingChoice
               checked={form.pricing === "free"}
