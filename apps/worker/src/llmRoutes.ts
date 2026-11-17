@@ -1226,12 +1226,13 @@ async function runCall(
     // (docs/llm.md, "Calling the providers"). Except a 524: Cloudflare's, not the provider's, which cut off a call the
     // provider may have finished and billed; its message says what happened and what may help.
     // Stopped by its timeout: of unknown cost, like a stopped call.
+    // Stopped by the browser: "aborted", whatever the adapter made of its cut connection (a network error, say).
     const timedOut = timeout.timedOut();
-    const kind = timedOut ? "timeout" : err instanceof LlmError ? err.kind : "unknown";
+    const kind = timedOut ? "timeout" : signal?.aborted ? "aborted" : err instanceof LlmError ? err.kind : "unknown";
     const message =
       httpStatus === 524 ? cloudflareTimeoutMessage(PROVIDER_NAMES[config.provider])
       : timedOut ? timedOutMessage(timeoutMs)
-      : kind === "aborted" || signal?.aborted ? ABORTED_CALL
+      : kind === "aborted" ? ABORTED_CALL
       : err instanceof Error ? err.message : String(err);
     await db
       .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = ?, http_status = ?, finished_at = ? WHERE id = ?")

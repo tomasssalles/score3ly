@@ -1157,3 +1157,30 @@ test("an unpriced call stays of unknown cost after the list gives its config a p
   assert.equal((await env.DB.prepare("SELECT pricing_kind FROM model_configs WHERE id = ?").bind(unpriced.id).first<{ pricing_kind: string }>())!.pricing_kind, "list");
   assert.deepEqual((await unknownCosts()).map(([s, config, , n]) => [s, config, n]), [[stage.stageId, unpriced.id, 1]]);
 });
+
+test("a stopped call is recorded as stopped, whatever error the adapter's cut connection gave", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const gemini = await modelConfig({ provider: "ai-studio", modelId: "gemini-4-argon", pricing: { kind: "list" }, secrets: { apiKey: "TEST_GEMINI_KEY" }, name: "Gemini stopped" });
+  const stage = await runningStage(gemini.id);
+  (env as unknown as Record<string, string>).TEST_GEMINI_KEY = "g-test";
+  const realFetch = globalThis.fetch;
+  // The connection fails when the call is stopped, as a network error rather than an abort.
+  globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) =>
+    new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new TypeError("fetch failed"))))) as unknown as typeof fetch;
+  const stop = new AbortController();
+  try {
+    const pending = app.request(
+      `/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request: request(), ...PLACE }), signal: stop.signal },
+      env,
+    );
+    setTimeout(() => stop.abort(), 100);
+    assert.equal((await json(await pending)).status, "error");
+  } finally {
+    globalThis.fetch = realFetch;
+    delete (env as unknown as Record<string, string>).TEST_GEMINI_KEY;
+  }
+  const row = (await calls()).at(-1)!;
+  assert.deepEqual([row.status, row.error_kind], ["error", "aborted"]);
+  assert.match(row.error as string, /^Stopped: /);
+});
