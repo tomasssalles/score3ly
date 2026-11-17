@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { ModelConfig, ModelOptions } from "./api";
 import {
   confirmationOf,
+  createConfig,
   defaultModel,
   effortsOf,
   familyOf,
@@ -359,4 +360,32 @@ test("a config with exactly the values of another is refused, naming it and poin
   assert.equal(sameValuesProblem([original], requestOf({ ...clone, useDefaultName: true })), message);
   // Another value is another config.
   assert.equal(sameValuesProblem([original], requestOf({ ...clone, effort: "low" })), null);
+});
+
+test("a config created whose default setting fails is reported as created, with what failed", async () => {
+  const made = { id: "c1", name: "Opus · high" };
+  assert.deepEqual(await createConfig(async () => made, null), { created: true, error: null });
+  assert.deepEqual(await createConfig(async () => made, async () => {}), { created: true, error: null });
+  assert.deepEqual(
+    await createConfig(
+      async () => made,
+      async () => {
+        throw new Error("HTTP 500");
+      },
+    ),
+    { created: true, error: '"Opus · high" was created, but making it the default failed: HTTP 500' },
+  );
+  let defaulted = false;
+  assert.deepEqual(
+    await createConfig(
+      async () => {
+        throw new Error("refused");
+      },
+      async () => {
+        defaulted = true;
+      },
+    ),
+    { created: false, error: "refused" },
+  );
+  assert.equal(defaulted, false);
 });

@@ -499,7 +499,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
           from={creating.from}
           isDefault={creating.from !== null && creating.from.id === defaultId}
           onCreated={onChanged}
-          onCancel={() => setCreating(null)}
+          onClose={() => setCreating(null)}
         />
       )}
       {renaming && (

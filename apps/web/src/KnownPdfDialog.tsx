@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
 import type { Project } from "./api";
 import { FittedText } from "./FittedText";
 import { when } from "./time";
+import { Dialog, useDialog } from "./ui/Dialog";
 
 // Shown when a picked PDF, or the PDF of a picked project file, already has projects: open one of them, or create
 // (import) another.
@@ -22,30 +22,22 @@ export function KnownPdfDialog({
   onCreate: () => void;
   onCancel: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
+  const dialog = useDialog();
 
   return (
-    <dialog
-      ref={dialog}
-      className="app-dialog known-pdf"
-      aria-labelledby="known-pdf-title"
-      // Esc closes the dialog.
+    <Dialog
+      handle={dialog}
+      title="Projects already based on this file"
+      className="known-pdf"
+      // Its own ×, a little bolder than CloseIcon, the other dialogs' (kept: a change of looks is the owner's, review F12).
+      closeIcon={
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M5 5l10 10M15 5L5 15" />
+        </svg>
+      }
+      // Opening a project or creating one unmounts the dialog: only Esc, × and the backdrop end up here.
       onClose={onCancel}
-      // A click on the backdrop lands on the dialog element itself.
-      onClick={(e) => e.target === dialog.current && dialog.current.close()}
     >
-      <div className="dialog-head">
-        <h2 id="known-pdf-title">Projects already based on this file</h2>
-        <button type="button" className="dialog-close" aria-label="Cancel" onClick={() => dialog.current?.close()}>
-          <svg viewBox="0 0 20 20" aria-hidden="true">
-            <path d="M5 5l10 10M15 5L5 15" />
-          </svg>
-        </button>
-      </div>
       <p className="dialog-file">
         <FittedText text={filename} lines={3} />
       </p>
@@ -65,6 +57,6 @@ export function KnownPdfDialog({
           </button>
         </li>
       </ul>
-    </dialog>
+    </Dialog>
   );
 }

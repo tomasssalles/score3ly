@@ -410,3 +410,30 @@ function sameValues(configs: ModelConfig[], request: NewModelConfig): ModelConfi
     ) ?? null
   );
 }
+
+// Creating a config, then making it the default when asked: two requests, so the second can fail after the first made
+// the config. Whatever happened is said, and `created` tells the dialog to reload the list then, which shows the new
+// config (review C15: the list wasn't reloaded, and the error didn't say the config existed).
+export async function createConfig(
+  create: () => Promise<{ id: string; name: string }>,
+  makeDefault: ((id: string) => Promise<unknown>) | null,
+): Promise<{ created: boolean; error: string | null }> {
+  let config: { id: string; name: string };
+  try {
+    config = await create();
+  } catch (err) {
+    return { created: false, error: messageOf(err) };
+  }
+  if (makeDefault) {
+    try {
+      await makeDefault(config.id);
+    } catch (err) {
+      return { created: true, error: `"${config.name}" was created, but making it the default failed: ${messageOf(err)}` };
+    }
+  }
+  return { created: true, error: null };
+}
+
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}

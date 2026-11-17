@@ -551,7 +551,7 @@ export function ProjectView({
           (applyModelConfigToLater ? "The remaining stages planned in this pipeline will use its model config too. " : "");
         change(() => saveConfig(stage, values, applyModelConfigToLater), replacesWork(stage.id), "Change config", before);
       }}
-      onCancel={() => setConfiguring(null)}
+      onClose={() => setConfiguring(null)}
     />
   );
 

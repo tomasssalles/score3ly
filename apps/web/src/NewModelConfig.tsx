@@ -2,10 +2,11 @@
 // a config's "Clone", then filled with its values: everything picked but the name and a model added by hand's string.
 // Its logic is in configForm.ts.
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { createModelConfig, putSetting, type ModelConfig, type ModelOptions } from "./api";
 import {
   confirmationOf,
+  createConfig,
   defaultName,
   effortsOf,
   firstFreeName,
@@ -32,9 +33,9 @@ import {
 } from "./configForm";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Picker } from "./fieldList";
-import { CloseIcon } from "./icons";
 import { Info } from "./Info";
 import { ACCOUNT_NAMES, percent, pricesText } from "./pricing";
+import { Dialog, useDialog } from "./ui/Dialog";
 
 const FIELD_LABELS: Record<string, string> = {
   apiKey: "API key",
@@ -56,7 +57,7 @@ export function NewModelConfig({
   from = null,
   isDefault = false,
   onCreated,
-  onCancel,
+  onClose,
 }: {
   options: ModelOptions;
   secretNames: string[];
@@ -64,10 +65,10 @@ export function NewModelConfig({
   configs?: ModelConfig[]; // those that aren't deleted, to find one with the same values
   from?: ModelConfig | null; // a clone's original
   isDefault?: boolean; // the original is the default
-  onCreated: () => void;
-  onCancel: () => void;
+  onCreated: () => void; // a config was made: the list is reloaded
+  onClose: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
+  const dialog = useDialog();
   const [form, setFormRaw] = useState<FormState>(() => (from ? formFromConfig(options, from) : initialForm(options)));
   // What the user is asked before the config is made: its texts, and what confirming does.
   const [confirming, setConfirming] = useState<{ text: string[]; label: string; run: () => void } | null>(null);
@@ -77,10 +78,6 @@ export function NewModelConfig({
     setError(null);
     setFormRaw((f) => settled(options, { ...f, ...change }));
   };
-
-  useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
 
   const provider = providerOf(options, form);
   const family = familyOption(options, form);
@@ -99,20 +96,15 @@ export function NewModelConfig({
 
   async function create() {
     setBusy(true);
-    try {
-      const config = await createModelConfig({ ...requestOf(form), ...(deletesOriginal ? { replaces: from!.id } : {}) });
-      if (makeDefault) await putSetting("defaultModelConfigId", config.id);
-      done();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function done() {
-    onCreated();
-    dialog.current?.close();
+    const { created, error } = await createConfig(
+      () => createModelConfig({ ...requestOf(form), ...(deletesOriginal ? { replaces: from!.id } : {}) }),
+      makeDefault ? (id) => putSetting("defaultModelConfigId", id) : null,
+    );
+    if (created) onCreated();
+    setBusy(false);
+    // A refusal stays in the dialog; so does a config made whose default setting failed, saying so (review C15).
+    if (error !== null) setError(error);
+    else dialog.close();
   }
 
   function submit(e: React.FormEvent) {
@@ -162,21 +154,8 @@ export function NewModelConfig({
     form.pinned?.reference && !references.some((m) => m.id === form.pinned!.reference) ? { id: form.pinned.reference, name: form.pinned.referenceName ?? form.pinned.reference } : null;
 
   return (
-    <dialog
-      ref={dialog}
-      className="app-dialog config-form"
-      aria-labelledby="new-config-title"
-      onClose={onCancel}
-      onClick={(e) => e.target === dialog.current && dialog.current.close()}
-    >
-      <form onSubmit={submit}>
-        <div className="dialog-head">
-          <h2 id="new-config-title">{from ? "Clone model config" : "New model config"}</h2>
-          <button type="button" className="dialog-close" aria-label="Cancel" onClick={() => dialog.current?.close()}>
-            <CloseIcon />
-          </button>
-        </div>
-
+    <>
+      <Dialog handle={dialog} title={from ? "Clone model config" : "New model config"} className="config-form" busy={busy} onSubmit={submit} onClose={onClose}>
         <PickerField label="Provider">
           <Picker
             value={provider?.name ?? NONE}
@@ -476,14 +455,15 @@ export function NewModelConfig({
           {error ?? (form.provider ? problem : null)}
         </p>
         <div className="dialog-buttons">
-          <button type="button" className="button-secondary" onClick={() => dialog.current?.close()}>
+          <button type="button" className="button-secondary" disabled={busy} onClick={() => dialog.close()}>
             Cancel
           </button>
           <button type="submit" className="button-primary" disabled={problem !== null || busy}>
             Create config
           </button>
         </div>
-      </form>
+      </Dialog>
+      {/* Beside the form, not in it: a dialog of its own (both are in the browser's top layer, the confirmation over it). */}
       {confirming && (
         <ConfirmDialog
           title="Are you sure?"
@@ -497,7 +477,7 @@ export function NewModelConfig({
           onCancel={() => setConfirming(null)}
         />
       )}
-    </dialog>
+    </>
   );
 }
 
