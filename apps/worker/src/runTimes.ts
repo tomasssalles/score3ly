@@ -7,6 +7,7 @@
 // what it found in the caches. Unfinished projects are left out: their times would look shorter than they will
 // be. The browser filters by project and averages, so a change of selection needs no request.
 
+import type { RunTimeData } from "@score3ly/core";
 import type { Hono } from "hono";
 import { parsePages, RECIPE } from "@score3ly/core";
 import { manualQuarters } from "./activeTime.ts";
@@ -67,7 +68,7 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
     type ItemRow = { stage_id: string; item: string; duration_ms: number; calls: number; calls_cached: number; images: number; images_cached: number };
     type ConfigRow = Pick<ModelConfigRow, "id" | "name" | "provider" | "model_id" | "model_string" | "family" | "created_at" | "deleted_at">;
     const usedConfigs = new Set((stages.results as StageRow[]).map((s) => s.config));
-    return c.json({
+    return c.json<RunTimeData>({
       // The recipe's steps but Ingest: the estimate for a new score needs data for each.
       recipe: RECIPE.filter((step) => step !== "ingest"),
       projects: (projects.results as ProjectRow[]).map((p) => ({

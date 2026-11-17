@@ -6,6 +6,7 @@
 // work. The browser counts the quarters (they fit every time zone). Deleted projects count too: their rows are kept
 // (docs/database.md).
 
+import type { ActivityData } from "@score3ly/core";
 import type { Hono } from "hono";
 import { QUARTER_MS, quarterOf } from "@score3ly/core";
 import { manualQuarters } from "./activeTime.ts";
@@ -45,7 +46,7 @@ export function activityRoutes(app: Hono<{ Bindings: Env }>) {
     for (const [stage, list] of manualQuarters(saveRows)) for (const q of list) quarters.add(`${projectOf.get(stage)}\u0000${q}`);
     type ProjectRow = { id: string; name: string; created_at: string; deleted_at: string | null };
     for (const p of projects.results as ProjectRow[]) mark(p.id, p.created_at);
-    return c.json({
+    return c.json<ActivityData>({
       // [project, start of the quarter of an hour in ms], by time
       quarters: [...quarters]
         .map((key) => {

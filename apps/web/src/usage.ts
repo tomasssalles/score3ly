@@ -4,6 +4,7 @@
 // (apps/worker/src/projectStats.ts). Its failed calls: by reason, in a time range, for all configs or one
 // (apps/worker/src/failures.ts). Pure functions; the tab is UsageTab.tsx.
 
+import type { Outcome } from "@score3ly/core";
 import type { ActivityData, FailureData, ProjectStats } from "./api";
 import type { Bucket } from "./calendar";
 import { plural } from "./format.ts";
@@ -61,7 +62,7 @@ export function createdNote(counts: { done: number; unfinished: number; deleted:
 
 // Why a call failed, in words: the provider refused it, it got no readable response, its answer couldn't be used, our
 // side was wrong, or the app was closed while it waited.
-const REASONS: Record<string, string> = {
+const REASONS: Record<Exclude<Outcome, "ok">, string> = {
   overloaded: "Overloaded",
   rate_limit: "Rate limited",
   server: "Server error",
@@ -96,7 +97,7 @@ export function failuresIn(
     calls += n;
     if (reason !== "ok") reasons.set(reason, (reasons.get(reason) ?? 0) + n);
   }
-  const list = [...reasons].map(([key, n]) => ({ key, label: REASONS[key] ?? key, calls: n }));
+  const list = [...reasons].map(([key, n]) => ({ key, label: REASONS[key as Exclude<Outcome, "ok">] ?? key, calls: n }));
   list.sort((a, b) => b.calls - a.calls || a.label.localeCompare(b.label));
   return { calls, failed: list.reduce((sum, r) => sum + r.calls, 0), reasons: list };
 }

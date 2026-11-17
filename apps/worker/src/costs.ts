@@ -12,6 +12,7 @@
 // selected, each once. The browser merges the projects of a PDF and averages, so a change of selection needs no
 // request either.
 
+import type { CostData, CostOutcome } from "@score3ly/core";
 import { COST_WITH_VAT } from "./vat.ts";
 import type { Hono } from "hono";
 import { UNKNOWN_COST, zombieBefore } from "./callRecords.ts";
@@ -91,12 +92,12 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
       pagesOf.set(row.project, pages);
     }
     const [{ spendingCapUsd }, spent] = await Promise.all([readSettings(db), spentInLastDay(db)]);
-    type Point = { stage: string; config: string; t: number; usd: number; outcome: string };
+    type Point = { stage: string; config: string; t: number; usd: number; outcome: CostOutcome };
     type Unknown = { stage: string; config: string; t: number; n: number };
     type Stage = { id: string; step: string; project: string; in_recipe: number; kept: number };
     type ProjectRow = { id: string; name: string; pdf_sha256: string; pdf_filename: string; created_at: string; deleted_at: string | null; finished: number | null };
     type ConfigRow = Pick<ModelConfigRow, "id" | "name" | "provider" | "model_id" | "model_string" | "family" | "effort" | "created_at" | "deleted_at">;
-    return c.json({
+    return c.json<CostData>({
       capUsd: spendingCapUsd,
       spentLastDayUsd: spent,
       // [stage, config, start of the quarter of an hour in ms, US dollars, the calls' status: their status, or for an

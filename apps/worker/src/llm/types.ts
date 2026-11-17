@@ -1,4 +1,4 @@
-import { type Effort, type ImageMediaType, MAX_CACHE_MARKS } from "@score3ly/core";
+import { type CallErrorKind, type Effort, type ImageMediaType, MAX_CACHE_MARKS } from "@score3ly/core";
 
 // Calling vision LLMs without caring which provider answers (docs/overview.md §3, the `LlmProvider` port). Requests and
 // responses are our own, small shapes; each provider's adapter translates them. The Worker makes the calls, so the
@@ -71,18 +71,8 @@ export type LlmResponse = {
   raw: unknown; // the provider's whole response, for the call record (§5.2)
 };
 
-export type LlmErrorKind =
-  | "auth" // the key is wrong, or not allowed to use the model
-  | "rate_limit"
-  | "overloaded"
-  | "bad_request" // the request itself is wrong: retrying won't help
-  | "server"
-  | "network" // no connection to the provider
-  | "timeout" // the connection timed out
-  | "aborted" // the request was aborted from our side
-  | "unreadable_response" // the provider answered, but its response couldn't be read (broken JSON, a stream cut short)
-  | "unexpected_model" // another model answered than the one asked: not thrown, the response says so (`unexpectedModel`)
-  | "unknown"; // anything else the client library threw
+// Why a call failed (`CallErrorKind`, core: the statistics name the same kinds).
+export type LlmErrorKind = CallErrorKind;
 
 export class LlmError extends Error {
   readonly kind: LlmErrorKind;

@@ -4,6 +4,7 @@
 // ships with the app is left out: some of its model names fail on purpose. A call still running is counted only once
 // it is older than the longest call timeout plus a margin: it will never answer then ("interrupted", callRecords.ts).
 
+import type { FailureData, Outcome } from "@score3ly/core";
 import type { Hono } from "hono";
 import { zombieBefore } from "./callRecords.ts";
 import { BUCKET_SECONDS } from "./costs.ts";
@@ -36,9 +37,9 @@ export function failureRoutes(app: Hono<{ Bindings: Env }>) {
         "SELECT id, name, provider, model_id, model_string, family, created_at, deleted_at FROM model_configs WHERE provider <> 'fake' AND id IN (SELECT DISTINCT model_config_id FROM llm_calls WHERE stage_id IS NOT NULL) ORDER BY created_at",
       ),
     ]);
-    type Point = { config: string; t: number; reason: string; n: number };
+    type Point = { config: string; t: number; reason: Outcome; n: number };
     type ConfigRow = Pick<ModelConfigRow, "id" | "name" | "provider" | "model_id" | "model_string" | "family" | "created_at" | "deleted_at">;
-    return c.json({
+    return c.json<FailureData>({
       // [config, start of the quarter of an hour in ms, reason, number of calls]
       points: (points.results as Point[]).map((p) => [p.config, p.t * 1000, p.reason, p.n]),
       configs: (configs.results as ConfigRow[]).map((m) => ({ id: m.id, name: m.name, model: resolvedModel(m).model, ...modelGroupOf(m), createdAt: m.created_at, deletedAt: m.deleted_at })),

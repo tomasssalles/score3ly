@@ -2,7 +2,7 @@
 // days, weeks or months, split into groups and filtered by the same groupings. Pure functions over the Worker's data
 // (apps/worker/src/costs.ts); the page is StatsPage.tsx, the chart TimeChart.tsx, the calendar calendar.ts.
 
-import { PROVIDER_NAMES } from "@score3ly/core";
+import { type CostOutcome, PROVIDER_NAMES } from "@score3ly/core";
 import type { CostData } from "./api";
 import { type Bucket, bucketsOf, type Granularity } from "./calendar.ts";
 import { deletedNote, endedNote } from "./format.ts";
@@ -66,7 +66,7 @@ const FAMILIES: Record<string, string> = { claude: "Claude", gemini: "Gemini", f
 const FAMILY_ORDER = ["Claude", "Gemini", "Fake"];
 
 // A call's status as the costs view tells them apart (the Worker's `outcome`), in the order listed.
-const STATUSES: Record<string, string> = {
+const STATUSES: Record<CostOutcome, string> = {
   ok: "Succeeded",
   cut_off: "Cut off",
   refused: "Refused",
@@ -106,7 +106,7 @@ export function grouper(data: CostData, dimension: Dimension, grouping: string, 
   if (dimension === "status") {
     return (_stageId, _configId, status = "") => {
       if (grouping === "success") return status === "ok" ? { key: "ok", label: "Succeeded", rank: 0 } : { key: "failed", label: "Failed", rank: 1 };
-      return { key: status, label: STATUSES[status] ?? status, rank: rankIn(Object.keys(STATUSES), status) };
+      return { key: status, label: STATUSES[status as CostOutcome] ?? status, rank: rankIn(Object.keys(STATUSES), status) };
     };
   }
   const providers = Object.keys(PROVIDERS);

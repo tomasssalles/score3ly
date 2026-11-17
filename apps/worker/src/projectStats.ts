@@ -4,6 +4,7 @@
 // projects included, each page of a PDF once, however many projects are on it. The browser counts the projects
 // created in a time range, so a change of range needs no request.
 
+import type { ProjectStats } from "@score3ly/core";
 import type { Hono } from "hono";
 import { parsePages } from "@score3ly/core";
 
@@ -26,7 +27,7 @@ export function projectStatsRoutes(app: Hono<{ Bindings: Env }>) {
       for (const page of parsed.pages) pages.add(`${row.pdf_sha256}/${page}`);
     }
     type ProjectRow = { id: string; created_at: string; deleted_at: string | null; finished: number | null };
-    return c.json({
+    return c.json<ProjectStats>({
       projects: (projects.results as ProjectRow[]).map((p) => ({ id: p.id, createdAt: p.created_at, deleted: p.deleted_at !== null, finished: p.finished === 1 })),
       pagesProcessed: pages.size,
     });

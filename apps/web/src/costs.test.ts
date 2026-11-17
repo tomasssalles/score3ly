@@ -74,7 +74,7 @@ test("a split gives a series per group, the most expensive first; the table list
 test("more groups than colours: the rest are one series, the table still lists each", () => {
   const many: CostData = {
     ...data,
-    points: Array.from({ length: 9 }, (_, i) => [`s${i}`, "sonnet", local("2026-10-21T10:00"), 9 - i, "ok"] as [string, string, number, number, string]),
+    points: Array.from({ length: 9 }, (_, i) => [`s${i}`, "sonnet", local("2026-10-21T10:00"), 9 - i, "ok"] as CostData["points"][number]),
     stages: Array.from({ length: 9 }, (_, i) => ({ id: `s${i}`, step: `step${i}`, projectId: "p1", inRecipe: true, kept: true })),
   };
   const view = costView(many, range, "day", { dimension: "stage", grouping: "step", byName: false }, {});
