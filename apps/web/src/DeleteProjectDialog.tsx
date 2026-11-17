@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ApiError, deleteProject, type Project } from "./api";
 import { FittedText } from "./FittedText";
 import { useHost } from "./host";
-import { CloseIcon } from "./icons";
 import { deleteCachedPdf } from "./imageCache";
+import { Dialog, useDialog } from "./ui/Dialog";
 
 // Deletes a project (docs/database.md, "Deleting a project"), once its name is typed exactly (case included; pasting doesn't count).
 export function DeleteProjectDialog({
@@ -15,17 +15,12 @@ export function DeleteProjectDialog({
   onDeleted: () => void;
   onCancel: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
+  const dialog = useDialog<"deleted">();
   const [typed, setTyped] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const done = useRef(false);
   // The desktop app is the only device its data is on.
   const desktop = useHost() === "desktop";
-
-  useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
 
   const matches = typed === project.name;
 
@@ -38,8 +33,7 @@ export function DeleteProjectDialog({
       const { pdfUnused } = await deleteProject(project);
       // The images made from its PDF on this device, unless another project still uses the PDF.
       if (pdfUnused) await deleteCachedPdf(project.pdfSha256);
-      done.current = true;
-      dialog.current?.close();
+      dialog.close("deleted");
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409
@@ -53,59 +47,52 @@ export function DeleteProjectDialog({
   const refuse = (e: React.SyntheticEvent) => e.preventDefault();
 
   return (
-    <dialog
-      ref={dialog}
-      className="app-dialog delete-dialog"
-      aria-labelledby="delete-title"
-      onClose={() => (done.current ? onDeleted() : onCancel())}
-      onClick={(e) => e.target === dialog.current && !deleting && dialog.current.close()}
+    <Dialog
+      handle={dialog}
+      title="Delete project"
+      className="delete-dialog"
+      busy={deleting}
+      onSubmit={confirm}
+      onClose={(result) => (result === "deleted" ? onDeleted() : onCancel())}
     >
-      <form onSubmit={confirm}>
-        <div className="dialog-head">
-          <h2 id="delete-title">Delete project</h2>
-          <button type="button" className="dialog-close" aria-label="Cancel" disabled={deleting} onClick={() => dialog.current?.close()}>
-            <CloseIcon />
-          </button>
-        </div>
-        <p className="dialog-file delete-name">
-          <FittedText text={project.name} lines={3} />
-        </p>
-        <p className="dialog-text">
-          The project and all its files will be deleted, along with any data cached on this device (with the exception of
-          files still in use by other projects). Only its costs will still be reported in the Statistics page. This action
-          cannot be undone.
-        </p>
-        <label className="field delete-field">
-          <span className="dialog-text">Type the project's name to confirm:</span>
-          <input
-            type="text"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            autoFocus
-            value={typed}
-            onChange={(e) => {
-              setTyped(e.target.value);
-              setError(null);
-            }}
-            onPaste={refuse}
-            onDrop={refuse}
-            aria-describedby="delete-message"
-          />
-        </label>
-        <p id="delete-message" className="field-message error-text" role="alert">
-          {error}
-        </p>
-        <div className="dialog-buttons">
-          <button type="button" className="button-secondary" disabled={deleting} onClick={() => dialog.current?.close()}>
-            Cancel
-          </button>
-          <button type="submit" className="button-primary" disabled={!matches || deleting}>
-            {deleting ? "Deleting…" : "Delete project"}
-          </button>
-        </div>
-      </form>
-    </dialog>
+      <p className="dialog-file delete-name">
+        <FittedText text={project.name} lines={3} />
+      </p>
+      <p className="dialog-text">
+        The project and all its files will be deleted, along with any data cached on this device (with the exception of
+        files still in use by other projects). Only its costs will still be reported in the Statistics page. This action
+        cannot be undone.
+      </p>
+      <label className="field delete-field">
+        <span className="dialog-text">Type the project's name to confirm:</span>
+        <input
+          type="text"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          autoFocus
+          value={typed}
+          onChange={(e) => {
+            setTyped(e.target.value);
+            setError(null);
+          }}
+          onPaste={refuse}
+          onDrop={refuse}
+          aria-describedby="delete-message"
+        />
+      </label>
+      <p id="delete-message" className="field-message error-text" role="alert">
+        {error}
+      </p>
+      <div className="dialog-buttons">
+        <button type="button" className="button-secondary" disabled={deleting} onClick={() => dialog.close()}>
+          Cancel
+        </button>
+        <button type="submit" className="button-primary" disabled={!matches || deleting}>
+          {deleting ? "Deleting…" : "Delete project"}
+        </button>
+      </div>
+    </Dialog>
   );
 }

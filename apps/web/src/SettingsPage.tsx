@@ -509,7 +509,10 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
           save={async (name) => {
             await renameModelConfig(renaming.id, name);
           }}
-          onDone={onChanged}
+          onDone={() => {
+            setRenaming(null);
+            onChanged();
+          }}
           onCancel={() => setRenaming(null)}
         />
       )}
