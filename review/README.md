@@ -226,3 +226,17 @@ One subagent writes the first draft of `review/summary.md` (see "The final summa
 | Level 4 | done |
 | The plan | done |
 | The summary draft | done |
+
+## The fixes
+
+Decided with the project owner (2026-11-17), after the owner reviewed the plan (`review/plan.md`; the owner's decisions at its top override the rest).
+
+**When the project owner says "go":** run the batches of `review/plan.md` in the order of its Status table, **one subagent per batch, strictly one after the other** (as for the review), continuing without waiting for the owner. Skip a batch that waits on something not yet done or decided (the owner's export/import test for batch 11; the owner's go for the paid release, 33–34), and say so; go on with the next one whose dependencies are done. Stop when every batch that can run has run, or when a batch finds something only the owner can decide (then report it and go on with batches that don't depend on it).
+
+**Progress survives interruptions** (session limits, a restarted container):
+- **Each batch works in steps.** First it writes its steps to `review/progress/<batch number>.md`: a short checklist, each step small enough to finish in well under an hour, leaving typecheck and tests green (the L batches' seams are natural step boundaries). That file is committed and pushed before any code changes.
+- **After each step:** the step's tests and the typecheck pass, the checklist is ticked (with a line on what was done, and any finding dropped or changed, see the plan's "Be critical of the batch itself"), and **the code and the checklist are committed and pushed together**. So an interruption loses at most one step.
+- **Resuming:** the next run reads the Status table and the batch's progress file and continues at its first unticked step. If the working tree has uncommitted changes, they are a half-done step: look at them; finish the step if they're sound, otherwise discard them and redo the step.
+- **At the end of a batch:** its row in the plan's Status table is marked done, with the findings dropped or changed (details in `review/fixes.md`), and the full checks run (`npm run typecheck --workspaces`, the root typecheck once it exists, `npm test`, `npm run replay` where requests are concerned). Committed and pushed. The progress file stays until the review folder is deleted.
+- **The orchestrator** gives a subagent the batch (this section, the plan's "How every batch is done", the batch, the owner's decisions), checks afterwards that the batch's progress file is complete and the Status row is updated, and starts the next. A subagent cut off by the usage limit is started again on the same batch after the reset: the progress file tells it where to go on.
+- **Pushes go to the working branch only;** `dev` and `main` only when the owner says so.
