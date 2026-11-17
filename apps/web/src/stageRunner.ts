@@ -18,6 +18,7 @@ import {
 } from "./api.ts";
 import { timed } from "./itemTiming.ts";
 import type { ItemProgress } from "./callProgress.ts";
+import { errorText } from "@score3ly/core";
 
 export type StageRun = {
   project: Project;
@@ -86,7 +87,7 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
     }
   } catch (err) {
     if (signal.aborted) return;
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorText(err);
     await finishStage(project, stage.id, { status: "failed", error: message }).catch(() => {});
   } finally {
     clearInterval(heartbeat);

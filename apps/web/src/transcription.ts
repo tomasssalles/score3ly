@@ -6,6 +6,7 @@ import { buildScore, type Box, type Score } from "@score3ly/notation";
 import type { LayoutSystem } from "@score3ly/prompts";
 import { systemCropBox, type StoredExtraction, type StoredIssue, type StoredWarning } from "./extract.ts";
 import type { IssueWho } from "./attribution.ts";
+import { errorText } from "@score3ly/core";
 
 export type ShownSystem = { extraction: StoredExtraction; layout: LayoutSystem; crop: Box };
 
@@ -77,7 +78,7 @@ export function scoreOf(systems: ShownSystem[], pieces: number[]): Score | { pro
       pieces,
     );
   } catch (err) {
-    return { problem: err instanceof Error ? err.message : String(err) };
+    return { problem: errorText(err) };
   }
 }
 

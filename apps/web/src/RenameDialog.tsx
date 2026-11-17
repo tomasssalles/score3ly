@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MAX_NAME_LENGTH, nameProblem } from "./names";
 import { Dialog, useDialog } from "./ui/Dialog";
+import { errorText } from "@score3ly/core";
 
 // Renames something whose name must stay unique, ignoring case (a project, a model config): `save` is the request, and
 // its refusal (a taken name) is shown in the dialog, which stays open (docs/style.md, "Dialogs"). `onDone` once renamed,
@@ -41,7 +42,7 @@ export function RenameDialog({
       await save(name.trim());
       dialog.close("renamed");
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err));
       setSaving(false);
     }
   }

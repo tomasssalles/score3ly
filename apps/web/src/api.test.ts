@@ -1,6 +1,6 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { ApiError, callLlm, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type Project, type ProjectExport } from "./api.ts";
+import { ApiError, callLlm, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type Project, type ProjectExport } from "./api.ts";
 
 // The tests replace the browser's fetch with a fake that records each request and answers with a fixed response.
 const realFetch = globalThis.fetch;
@@ -155,6 +155,18 @@ test("a stale change fires the event for the \"Changed elsewhere\" dialog, whate
   } finally {
     delete g.dispatchEvent;
   }
+});
+
+// A stale change is said once, by the "Changed elsewhere" dialog: the screens' banners show nothing for it (the code
+// review's A2); any other error after what was being done, in the Worker's words, never "Error: HTTP 409".
+test("what a screen shows for an error: the Worker's text after what was being done, nothing for a stale change", () => {
+  assert.equal(failure("Dropping the stage failed", new ApiError(409, { error: "changed", code: "stale_version" })), null);
+  assert.equal(
+    failure("Dropping the stage failed", new ApiError(409, { error: "A stage of this project is running.", code: "running" })),
+    "Dropping the stage failed: A stage of this project is running.",
+  );
+  assert.equal(failure(null, new Error("The page can't be drawn.")), "The page can't be drawn.");
+  assert.equal(failure("Saving failed", "lost"), "Saving failed: lost");
 });
 
 test("a sent call's streamed answer: its start and progress go to the listener, its answer is returned", async () => {

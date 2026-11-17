@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ApiError, deleteProject, type Project } from "./api";
+import { failure, ApiError, deleteProject, type Project } from "./api";
 import { FittedText } from "./FittedText";
 import { useHost } from "./host";
 import { deleteCachedPdf } from "./imageCache";
@@ -38,7 +38,7 @@ export function DeleteProjectDialog({
       setError(
         err instanceof ApiError && err.code === "running"
           ? `A stage of this project is running${desktop ? "" : ", here or on another device"}. Stop it, or let it finish, then delete the project.`
-          : `Deleting failed: ${err}`,
+          : failure("Deleting failed", err),
       );
       setDeleting(false);
     }

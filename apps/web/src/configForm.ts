@@ -2,7 +2,7 @@
 // offers given the others, the default name it would get, what is still missing, and the request it makes. Pure, so the
 // dialog (NewModelConfig.tsx) only shows it.
 
-import { SECRET_LABELS, sameConfigValues, sameValuesMessage, valuesOf, valuesOfNew } from "@score3ly/core";
+import { errorText, SECRET_LABELS, sameConfigValues, sameValuesMessage, valuesOf, valuesOfNew } from "@score3ly/core";
 import type { Account, Family, ModelConfig, ModelOptions, NewModelConfig, Place, Provider, Routing } from "./api";
 
 type Effort = NonNullable<ModelConfig["effort"]>;
@@ -403,5 +403,5 @@ export async function createConfig(
 }
 
 function messageOf(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return errorText(err);
 }

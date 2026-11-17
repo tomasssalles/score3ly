@@ -1,6 +1,6 @@
 import { ImagesDiffer } from "./ImagesDiffer";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { fetchJsonContent, type Project } from "./api";
+import { failure, fetchJsonContent, type Project } from "./api";
 import { CloseIcon } from "./icons";
 import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
 import type { PageLayout } from "./layout";
@@ -140,7 +140,7 @@ export function PageImageView({
         objectUrl = URL.createObjectURL(png);
         setUrl(objectUrl);
       },
-      (err) => !cancelled && setError(`This page can't be drawn: ${err instanceof Error ? err.message : err}`),
+      (err) => !cancelled && setError(failure("This page can't be drawn", err)),
     );
     return () => {
       cancelled = true;

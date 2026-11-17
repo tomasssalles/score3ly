@@ -12,6 +12,8 @@ import { MeiWorkspace, type Selection } from "./MeiWorkspace";
 import type { Artifact } from "./pipeline";
 import { renderPages } from "./rendering";
 import { count } from "./format";
+import { failure } from "./api";
+import { errorText } from "@score3ly/core";
 
 const SAVE_AFTER_MS = 2000;
 const PROBLEMS_SHOWN = 20;
@@ -27,7 +29,7 @@ export function FixMeiView({ project, artifact, onEdited }: { project: Project; 
       (err) => {
         if (cancelled) return;
         setTexts("error");
-        setLoadError(err instanceof Error ? err.message : String(err));
+        setLoadError(errorText(err));
       },
     );
     return () => {
@@ -98,7 +100,7 @@ function FixMeiEditor({
           saved.current = t;
           setSaveError(null);
         },
-        (err) => setSaveError(`The text couldn't be saved: ${err instanceof Error ? err.message : err}`),
+        (err) => setSaveError(failure("The text couldn't be saved", err)),
       ),
     [],
   );
@@ -115,7 +117,7 @@ function FixMeiEditor({
     setPagesError(null);
     renderPages(applied, pageOptions(DEFAULT_ENGRAVE_CONFIG)).then(
       (svgs) => !cancelled && setPages(svgs),
-      (err) => !cancelled && setPagesError(`The score can't be engraved: ${err instanceof Error ? err.message : err}`),
+      (err) => !cancelled && setPagesError(failure("The score can't be engraved", err)),
     );
     return () => {
       cancelled = true;
@@ -139,7 +141,8 @@ function FixMeiEditor({
       setApplied(current);
       onEdited?.();
     } catch (err) {
-      setProblems([{ line: null, message: `The text couldn't be checked or applied: ${err instanceof Error ? err.message : err}` }]);
+      const message = failure("The text couldn't be checked or applied", err);
+      setProblems(message === null ? [] : [{ line: null, message }]);
     } finally {
       setApplying(false);
     }

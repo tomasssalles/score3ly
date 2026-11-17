@@ -4,10 +4,9 @@
 // limit, §8.5). A pick is saved at once, an amount when it is left or Enter is pressed. "Model configs": the configs,
 // in the order picked and as filtered, each with its actions, and the "+" that makes one.
 
-import { amount, type Host, SECRET_LABELS } from "@score3ly/core";
+import { errorText, amount, type Host, SECRET_LABELS } from "@score3ly/core";
 import { useEffect, useState, type KeyboardEvent } from "react";
-import {
-  fetchModelConfigs,
+import { failure, fetchModelConfigs,
   fetchModelOptions,
   fetchPriceRange,
   fetchSecretNames,
@@ -19,8 +18,7 @@ import {
   type ModelConfig,
   type ModelOptions,
   type PriceRange,
-  type Settings,
-} from "./api";
+  type Settings, } from "./api";
 import { NewModelConfig } from "./NewModelConfig";
 import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
@@ -75,7 +73,7 @@ export function SettingsPage({ tab, onTab }: { tab: TabOf<"settings">; onTab: (t
     try {
       setSettings(await putSetting(key, value));
     } catch (err) {
-      setError(`Saving failed: ${err instanceof Error ? err.message : err}`);
+      setError(failure("Saving failed", err));
     }
   }
 
@@ -312,7 +310,7 @@ function Secrets() {
           <button
             type="button"
             className="button-secondary"
-            onClick={() => openSecretsFile().then(() => setError(null), (err) => setError(`Opening the file failed: ${err}`))}
+            onClick={() => openSecretsFile().then(() => setError(null), (err) => setError(failure("Opening the file failed", err)))}
           >
             Open the secrets file
           </button>
@@ -435,7 +433,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
   // The default model config, picked here too (as on the General tab and in the config form).
   function makeDefault(config: ModelConfig) {
     setError(null);
-    putSetting("defaultModelConfigId", config.id).then(onChanged, (err) => setError(err instanceof Error ? err.message : String(err)));
+    putSetting("defaultModelConfigId", config.id).then(onChanged, (err) => setError(errorText(err)));
   }
   // A config's actions (docs/llm.md, "Managing model configs"): no Edit. Delete isn't offered for the default (it can't
   // be deleted until another config is the default). Test only for real providers, and configs the app supports.
@@ -525,7 +523,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
           onConfirm={() => {
             const config = deleting;
             setDeleting(null);
-            deleteModelConfig(config.id).then(onChanged, (err) => setError(err instanceof Error ? err.message : String(err)));
+            deleteModelConfig(config.id).then(onChanged, (err) => setError(errorText(err)));
           }}
           onCancel={() => setDeleting(null)}
         />

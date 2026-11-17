@@ -11,7 +11,7 @@ import { ImagesDiffer } from "./ImagesDiffer";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CLAUDE_IMAGE_LIMIT, CROP_VERSION, DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { buildMei, serialize, type Box, type LensStretch, type Score } from "@score3ly/notation";
-import { fetchJsonContent, putContent, recordOutputs, reserveIssueNumbers, type Project } from "./api";
+import { failure, fetchJsonContent, putContent, recordOutputs, reserveIssueNumbers, type Project } from "./api";
 import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
 import { BoxesIcon, ChangesIcon, InfoIcon, MusicIcon, SourceIcon } from "./icons";
@@ -320,7 +320,7 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
         setSaveError(null);
         onEdited?.();
       })
-      .catch((err) => setSaveError(`Saving failed: ${err instanceof Error ? err.message : err}`));
+      .catch((err) => setSaveError(failure("Saving failed", err)));
   }
   const ownById = (id: number) => (editing ? ownIssues(latest.current ?? editing.stored).find((i) => i.id === id) : undefined);
   const textOf = (issue: StoredIssue) => issue.answers[0]?.text ?? "";
@@ -333,7 +333,7 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
       change((current) => putOwnIssue(current, ownIssue(id, [], "")));
       setSelected(id);
     } catch (err) {
-      setSaveError(`The clarification couldn't be added: ${err instanceof Error ? err.message : err}`);
+      setSaveError(failure("The clarification couldn't be added", err));
     }
   }
   const selectedOwn = selected === null ? undefined : ownById(selected);
@@ -534,7 +534,7 @@ function CropView({ recipe, label, children }: { recipe: CropRecipe; label: stri
         objectUrl = URL.createObjectURL(png);
         setUrl(objectUrl);
       },
-      (err) => !cancelled && setError(`This system can't be drawn: ${err instanceof Error ? err.message : err}`),
+      (err) => !cancelled && setError(failure("This system can't be drawn", err)),
     );
     return () => {
       cancelled = true;
@@ -641,7 +641,7 @@ export function SystemRendering({
       const fitted = fit && fittedOptions(fit.box, fit.crop);
       const rendered = fitted ? await renderMei(mei, fitted.options, fitted.pageWidth) : await renderMei(mei);
       if (!cancelled) setSvg(rendered);
-    })().catch((err) => !cancelled && setError(`This system can't be rendered: ${err instanceof Error ? err.message : err}`));
+    })().catch((err) => !cancelled && setError(failure("This system can't be rendered", err)));
     return () => {
       cancelled = true;
     };

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type ListedProject, type PdfLookup, type Project } from "./api";
+import { failure, ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type ListedProject, type PdfLookup, type Project } from "./api";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { ExportDialog } from "./ExportDialog";
 import { EXTENSION, importArchive, type ProjectArchive, unzipArchive } from "./projectFile";
@@ -13,7 +13,7 @@ import { ProjectView } from "./ProjectView";
 import { PageView } from "./PageView";
 import { RenameDialog } from "./RenameDialog";
 import { HOME_HASH, hashForArtifact, hashForProject, hashForStage, pageFromHash, parseRoute } from "./route";
-import { LEAVING_A_RUN, sha256Hex } from "@score3ly/core";
+import { errorText, LEAVING_A_RUN, sha256Hex } from "@score3ly/core";
 import { useAppNavigation } from "./navigation";
 import { makeAndOpen } from "./newProjectFlow";
 
@@ -48,7 +48,7 @@ export function App() {
     try {
       setProjects(await listProjects());
     } catch (err) {
-      setError(`Loading the projects failed: ${err}`);
+      setError(failure("Loading the projects failed", err));
     }
   }
 
@@ -96,7 +96,7 @@ export function App() {
       sha256 = await sha256Hex(await pdf.arrayBuffer());
       lookup = await lookUpPdf(sha256, pdf.name);
     } catch (err) {
-      setError(`Checking the PDF failed: ${err}`);
+      setError(failure("Checking the PDF failed", err));
       return;
     }
     if (lookup.projects.length > 0) {
@@ -114,7 +114,7 @@ export function App() {
       // The name a new project would get: the exported one, numbered if taken.
       lookup = await lookUpPdf(archive.rows.project.pdf_sha256, `${archive.rows.project.name}.pdf`);
     } catch (err) {
-      setError(`Importing the project failed: ${err instanceof Error ? err.message : err}`);
+      setError(failure("Importing the project failed", err));
       return;
     }
     if (lookup.projects.length > 0) {
@@ -139,7 +139,7 @@ export function App() {
       refresh,
       open: (imported) => go(hashForProject(imported.id)),
       failed: async (err) => {
-        setError(`Importing the project failed: ${err instanceof Error ? err.message : err}`);
+        setError(failure("Importing the project failed", err));
         await refresh();
       },
     });
@@ -152,7 +152,7 @@ export function App() {
       make: () => createProject(pdf, sha256, alreadyStored),
       refresh,
       open: (created) => go(hashForProject(created.id)),
-      failed: (err) => setError(`Creating the project failed: ${err}`),
+      failed: (err) => setError(failure("Creating the project failed", err)),
     });
   }
 
@@ -176,7 +176,7 @@ export function App() {
       try {
         await markOpened(project);
       } catch (err) {
-        setError(`Opening the project failed: ${err}`);
+        setError(failure("Opening the project failed", err));
         return;
       }
       await refresh();
@@ -216,9 +216,9 @@ export function App() {
                 throw new Error(
                   err instanceof ApiError && err.stale
                     ? "The project was changed elsewhere: reload first."
-                    : err instanceof ApiError && err.status === 409
-                    ? "A project with that name already exists. Names must be unique (case-insensitive)."
-                    : `Renaming failed: ${err}`,
+                    : err instanceof ApiError && err.code === "name_taken"
+                    ? err.message
+                    : `Renaming failed: ${errorText(err)}`,
                 );
               }
             }}

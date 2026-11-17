@@ -23,6 +23,7 @@ import {
   type SizeLimit,
   type Skew,
 } from "@score3ly/imaging";
+import { errorText } from "@score3ly/core";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
@@ -168,6 +169,6 @@ async function handle(request: PageImageRequest): Promise<void> {
 scope.addEventListener("message", (event) => {
   handle(event.data).catch((err) => {
     if (event.data.type === "open") docs.delete(event.data.sha256);
-    scope.postMessage({ id: event.data.id, type: "error", message: err instanceof Error ? err.message : String(err) });
+    scope.postMessage({ id: event.data.id, type: "error", message: errorText(err) });
   });
 });

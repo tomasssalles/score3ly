@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ApiError, type Project } from "./api";
+import { failure, ApiError, type Project } from "./api";
 import { saveFile } from "./engraving";
 import { FittedText } from "./FittedText";
 import { useHost } from "./host";
@@ -27,7 +27,7 @@ export function ExportDialog({ project, onDone }: { project: Project; onDone: ()
       setError(
         err instanceof ApiError && err.code === "running"
           ? `A stage of this project is running${desktop ? "" : ", here or on another device"}. Stop it, or let it finish, then export the project.`
-          : `Exporting failed: ${err}`,
+          : failure("Exporting failed", err),
       );
       setProgress(null);
     }

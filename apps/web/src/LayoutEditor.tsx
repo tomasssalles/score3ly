@@ -9,7 +9,7 @@ import { useRemembered } from "./ExtractionView";
 import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
 import type { LayoutSystem } from "@score3ly/prompts";
 import { useEffect, useRef, useState } from "react";
-import { fetchJsonContent, putContent, recordOutputs, type Project } from "./api";
+import { failure, fetchJsonContent, putContent, recordOutputs, type Project } from "./api";
 import { layoutBytes } from "./finishFixLayout";
 import {
   addBarLine,
@@ -124,7 +124,7 @@ export function LayoutEditor({
         setError(null);
         onEdited?.();
       })
-      .catch((err) => setError(`Saving failed: ${err instanceof Error ? err.message : err}`));
+      .catch((err) => setError(failure("Saving failed", err)));
   }
 
   const page = pages[Math.min(index, pages.length - 1)];

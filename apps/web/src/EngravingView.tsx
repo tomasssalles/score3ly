@@ -2,7 +2,7 @@
 // beside the score engraved from it; and `engrave`'s PDF, the file itself.
 
 import { useEffect, useState } from "react";
-import { fetchTextContent } from "./api";
+import { failure, fetchTextContent } from "./api";
 import { cachedEngravedPdf, engravedPages, engravedPdf } from "./engraving";
 import { PdfView } from "./PdfView";
 import { MeiWorkspace } from "./MeiWorkspace";
@@ -35,7 +35,7 @@ function EngravedPdf({ engraving }: { engraving: Engraving }) {
       if (cancelled) return;
       made = URL.createObjectURL(pdf);
       setUrl(made);
-    })().catch((err) => !cancelled && setError(`The PDF can't be made: ${err instanceof Error ? err.message : err}`));
+    })().catch((err) => !cancelled && setError(failure("The PDF can't be made", err)));
     return () => {
       cancelled = true;
       if (made) URL.revokeObjectURL(made);
@@ -61,7 +61,7 @@ function MeiView({ engraving }: { engraving: Engraving }) {
     );
     engravedPages(engraving).then(
       (svgs) => !cancelled && setPages(svgs),
-      (err) => !cancelled && setPagesError(`The score can't be engraved: ${err instanceof Error ? err.message : err}`),
+      (err) => !cancelled && setPagesError(failure("The score can't be engraved", err)),
     );
     return () => {
       cancelled = true;

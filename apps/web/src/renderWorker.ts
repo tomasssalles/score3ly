@@ -5,6 +5,7 @@ import createVerovioModule from "verovio/wasm";
 import { VerovioToolkit } from "verovio/esm";
 import { keptUntilFailure } from "./keptUntilFailure";
 import { renderFitted, renderWith } from "./verovioRender";
+import { errorText } from "@score3ly/core";
 
 // One page (a system alone, as wide as `pageWidth` where it is given: renderFitted), or every page (an engraving).
 export type RenderRequest = { id: number; mei: string; options: Record<string, unknown>; allPages?: boolean; pageWidth?: number };
@@ -21,6 +22,6 @@ self.addEventListener("message", async (event: MessageEvent<RenderRequest>) => {
     const { pageWidth } = event.data;
     post({ id, svgs: pageWidth !== undefined ? [renderFitted(tk, mei, options, pageWidth)] : renderWith(tk, mei, options, event.data.allPages ?? false) });
   } catch (err) {
-    post({ id, error: err instanceof Error ? err.message : String(err) });
+    post({ id, error: errorText(err) });
   }
 });

@@ -9,6 +9,7 @@ import { CONFIDENCE_SYMBOLS, type ShownConfidence } from "./analyze";
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { ChevronDownIcon, CloseIcon } from "./icons";
+import { failure } from "./api";
 
 // What forms saved on this device and isn't yet in the pipeline the app has, by stage.
 const saved = new Map<string, unknown[]>();
@@ -53,7 +54,7 @@ export function useFieldList<R extends { confirmed: boolean }>(
         await form.save(next);
         setError(null);
       })
-      .catch((err) => setError(`Saving failed: ${err instanceof Error ? err.message : err}`));
+      .catch((err) => setError(failure("Saving failed", err)));
   }
 
   // The field being edited, ended: saved if it changed (and confirmed, keeping the model's confidence), removed if it

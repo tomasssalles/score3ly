@@ -2,6 +2,7 @@ import { useState } from "react";
 import { testModelConfig, type ModelConfig, type TestResult } from "./api";
 import { resultText } from "./testResult";
 import { Dialog, useDialog } from "./ui/Dialog";
+import { errorText } from "@score3ly/core";
 
 // A model config's test (docs/llm.md, "The settings page"): one small real request, sent when the user asks, with the
 // answer or the error as a stage would show it.
@@ -14,7 +15,7 @@ export function TestConfigDialog({ config, onDone }: { config: ModelConfig; onDo
     try {
       setState({ kind: "done", result: await testModelConfig(config.id) });
     } catch (err) {
-      setState({ kind: "refused", error: err instanceof Error ? err.message : String(err) });
+      setState({ kind: "refused", error: errorText(err) });
     }
   }
 

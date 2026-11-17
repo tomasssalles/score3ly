@@ -15,6 +15,7 @@ import type { Box } from "@score3ly/notation";
 
 export type Point = { x: number; y: number };
 import { clampView, PAD, wholePageScale, type View } from "./viewBounds";
+import { failure } from "./api";
 
 // A pointer that moves less than this between down and up tapped; more, it dragged.
 const TAP_SLOP = { mouse: 4, touch: 10 };
@@ -302,7 +303,7 @@ export function usePageImage(load: () => Promise<Blob>, key: string) {
         url = URL.createObjectURL(png);
         setImage({ url, ...size });
       })
-      .catch((err) => !cancelled && setError(`This page can't be drawn: ${err instanceof Error ? err.message : err}`));
+      .catch((err) => !cancelled && setError(failure("This page can't be drawn", err)));
     return () => {
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
@@ -325,7 +326,7 @@ export function useSaver<T>(cache: Map<string, T>, key: string, store: (value: T
         setError(null);
         onSaved?.();
       })
-      .catch((err) => setError(`Saving failed: ${err instanceof Error ? err.message : err}`));
+      .catch((err) => setError(failure("Saving failed", err)));
   }
   return { save, error };
 }

@@ -1,5 +1,5 @@
 import type { Timing } from "./itemTiming";
-import { type ActivityData, type Host, type Info, type WindowTheme, type StoredFingerprint, type Imported, type ProjectExport, type ApiErrorBody, type CostData, type FailureData, type ModelConfig, type ProjectStats, type RunTimeData, type ModelOptions, type NewModelConfig, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult, type CallAnswer, type ErrorCode, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, readSse, sha256Hex, type StreamEvent } from "@score3ly/core";
+import { type ActivityData, type Host, type Info, type WindowTheme, type StoredFingerprint, type Imported, type ProjectExport, type ApiErrorBody, type CostData, type FailureData, type ModelConfig, type ProjectStats, type RunTimeData, type ModelOptions, type NewModelConfig, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult, type CallAnswer, type ErrorCode, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, errorText, readSse, sha256Hex, type StreamEvent } from "@score3ly/core";
 
 // A project as the Worker's API sends it (`@score3ly/core`).
 export type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
@@ -26,6 +26,13 @@ export class ApiError extends Error {
   get stale(): boolean {
     return this.code === "stale_version";
   }
+}
+
+// What a screen shows for an error (docs/style.md, "Error texts"): the Worker's text, or the error's, after what was
+// being done ("Dropping the stage failed: …"). Null for a stale change: the "Changed elsewhere" dialog says it, once.
+export function failure(doing: string | null, err: unknown): string | null {
+  if (err instanceof ApiError && err.stale) return null;
+  return doing === null ? errorText(err) : `${doing}: ${errorText(err)}`;
 }
 
 // Fired when the Worker refused a change because the project changed elsewhere; the app offers to reload.

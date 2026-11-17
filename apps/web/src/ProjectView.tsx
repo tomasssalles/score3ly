@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  addFixStage,
+import { failure, addFixStage,
   addHumanReviewStage,
   addReviewStage,
   dismissDropped,
@@ -15,8 +14,7 @@ import {
   setStageConfig,
   stopStage,
   type ApiPipeline,
-  type Project,
-} from "./api";
+  type Project, } from "./api";
 import { FINISHERS } from "./finishers";
 import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -51,6 +49,7 @@ import { download } from "./downloads";
 import { StageDetails } from "./StageDetails";
 import { eventsBetween, snapshotOf, toastText, type Segment, type Snapshot, type ToastEvent } from "./toasts";
 import { useWide } from "./useWide";
+import { errorText } from "@score3ly/core";
 
 const COLLAPSED_KEY = "pipelinePanelCollapsed";
 
@@ -126,7 +125,7 @@ export function ProjectView({
   const allDone = pipelineState(pipeline)?.kind === "done";
 
   useEffect(() => {
-    fetchPipeline(project).then(setStored, (err) => setError(`Loading the pipeline failed: ${err}`));
+    fetchPipeline(project).then(setStored, (err) => setError(failure("Loading the pipeline failed", err)));
     // Leaving the project stops nothing on the server: a stage this device ran counts as interrupted once its
     // heartbeat is old, and can run again (docs/database.md).
     return () => controller.current?.abort();
@@ -277,7 +276,7 @@ export function ProjectView({
     try {
       opened(await addFixStage(project, afterId, { step, ...start(stored.stages[index], stored.stages.slice(0, index + 1)) }));
     } catch (err) {
-      setError(`Adding the stage failed: ${err}`);
+      setError(failure("Adding the stage failed", err));
     }
   }
 
@@ -290,7 +289,7 @@ export function ProjectView({
       onChanged();
       scroll();
     } catch (err) {
-      setError(`Adding the review failed: ${err}`);
+      setError(failure("Adding the review failed", err));
     }
   }
 
@@ -302,7 +301,7 @@ export function ProjectView({
     try {
       opened(await addHumanReviewStage(project, afterId, humanReviewStart(after)));
     } catch (err) {
-      setError(`Adding the human review failed: ${err}`);
+      setError(failure("Adding the human review failed", err));
     }
   }
 
@@ -311,7 +310,7 @@ export function ProjectView({
     try {
       opened(await editStage(project, stageId));
     } catch (err) {
-      setError(`Editing the stage failed: ${err}`);
+      setError(failure("Editing the stage failed", err));
     }
   }
 
@@ -322,7 +321,7 @@ export function ProjectView({
       onChanged();
       scroll();
     } catch (err) {
-      setError(`Dropping the stage failed: ${err}`);
+      setError(failure("Dropping the stage failed", err));
     }
   }
 
@@ -331,7 +330,7 @@ export function ProjectView({
     try {
       setStored(await dismissDropped(project, id));
     } catch (err) {
-      setError(`Dismissing the card failed: ${err}`);
+      setError(failure("Dismissing the card failed", err));
     }
   }
 
@@ -354,7 +353,7 @@ export function ProjectView({
       onChanged();
       if (modeRef.current === "auto") await run(next);
     } catch (err) {
-      setError(`Finishing the stage failed: ${err instanceof Error ? err.message : err}`);
+      setError(failure("Finishing the stage failed", err));
     } finally {
       finishing.current = false;
     }
@@ -377,7 +376,7 @@ export function ProjectView({
         onChanged();
         return pipeline;
       } catch (err) {
-        setError(`Checking "${stepInfo(stage.step).title}" failed: ${err}`);
+        setError(failure(`Checking "${stepInfo(stage.step).title}" failed`, err));
         return null;
       } finally {
         resolving.current = null;
@@ -420,7 +419,7 @@ export function ProjectView({
       });
     } catch (err) {
       if (!abort.signal.aborted) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = errorText(err);
         setError(err instanceof CannotStart ? `"${current.title}" can't run: ${message}` : message);
       }
     } finally {
@@ -433,7 +432,7 @@ export function ProjectView({
     try {
       next = await fetchPipeline(project);
     } catch (err) {
-      setError(`Loading the pipeline failed: ${err}`);
+      setError(failure("Loading the pipeline failed", err));
       return;
     }
     setStored(next);
@@ -452,7 +451,7 @@ export function ProjectView({
       setStored(await stopStage(project, running.id));
       onChanged();
     } catch (err) {
-      setError(`Stopping the stage failed: ${err}`);
+      setError(failure("Stopping the stage failed", err));
     }
   }
 
@@ -463,7 +462,7 @@ export function ProjectView({
       onChanged();
       scroll();
     } catch (err) {
-      setError(`Changing the config failed: ${err}`);
+      setError(failure("Changing the config failed", err));
     }
   }
 
@@ -496,7 +495,7 @@ export function ProjectView({
             const laterLlmStages = pipeline.stages.slice(position + 1).filter((s) => s.kind === "llm").length;
             setConfiguring({ stage, context: { pageCount, modelConfigs, laterLlmStages } });
           },
-          (err) => setError(`The model configs couldn't be loaded: ${err}`),
+          (err) => setError(failure("The model configs couldn't be loaded", err)),
         );
       }
       else setError(`"${stage?.title}" has nothing to set.`);
@@ -513,7 +512,7 @@ export function ProjectView({
       try {
         await download(kind, project, stored.stages.slice(0, position + 1), engraving);
       } catch (err) {
-        setError(`The download failed: ${err instanceof Error ? err.message : err}`);
+        setError(failure("The download failed", err));
       }
     },
     // Always asks: the stage's own work is lost.
@@ -528,7 +527,7 @@ export function ProjectView({
         onChanged();
       } catch (err) {
         setMode(previous);
-        setError(`Changing the run mode failed: ${err}`);
+        setError(failure("Changing the run mode failed", err));
       }
     },
   };

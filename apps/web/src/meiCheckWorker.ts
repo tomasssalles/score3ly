@@ -6,6 +6,7 @@ import schemaUrl from "../../../packages/notation/schemas/mei-all.rng?url";
 import { checkMei, type MeiProblem } from "./meiChecks";
 import { keptUntilFailure } from "./keptUntilFailure";
 import { meiValidator } from "./meiSchema";
+import { errorText } from "@score3ly/core";
 
 export type CheckRequest = { id: number; text: string };
 export type CheckResponse = { listening: true } | { id: number; problems: MeiProblem[] } | { id: number; error: string };
@@ -24,7 +25,7 @@ self.addEventListener("message", async (event: MessageEvent<CheckRequest>) => {
     const problems = await checkMei(text, async (t) => validate(t));
     self.postMessage({ id, problems } satisfies CheckResponse);
   } catch (err) {
-    self.postMessage({ id, error: err instanceof Error ? err.message : String(err) } satisfies CheckResponse);
+    self.postMessage({ id, error: errorText(err) } satisfies CheckResponse);
   }
 });
 
