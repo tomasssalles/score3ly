@@ -10,6 +10,8 @@ export type AppNavigation = {
   hash: string;
   // Goes to a URL from within the app, asking first if that leaves a running project; `then` runs once it is there.
   navigate: (next: string, then?: () => void) => void;
+  // Goes to a URL without asking: once the user has answered `whenLeaving`'s question.
+  go: (next: string) => void;
   // Shows a URL in place of the one shown, without asking (hashHistory.ts, `replace`).
   replace: (next: string) => void;
   // Asks first if leaving the project shown would stop a run, then does `then` (nothing if the user stays): for what
@@ -54,6 +56,7 @@ export function useAppNavigation(): AppNavigation {
   return {
     hash,
     navigate: nav.navigate,
+    go: nav.go,
     replace: nav.replace,
     whenLeaving: (then) => (holds("") ? setLeaving({ then }) : then()),
     openDetail: (next) => {

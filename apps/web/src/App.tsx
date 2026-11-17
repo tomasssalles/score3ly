@@ -15,6 +15,7 @@ import { RenameDialog } from "./RenameDialog";
 import { HOME_HASH, hashForArtifact, hashForProject, hashForStage, pageFromHash, parseRoute } from "./route";
 import { sha256Hex } from "@score3ly/core";
 import { useAppNavigation } from "./navigation";
+import { makeAndOpen } from "./newProjectFlow";
 
 export function App() {
   // Most recently opened first. null until loaded.
@@ -37,7 +38,7 @@ export function App() {
   useEditionWindow();
   // The open project, and the artifact the user picked, are the ones in the URL, if any. A change that leaves a
   // running project (a link, the back button) waits until the user confirms.
-  const { hash, navigate, replace, openDetail, closeDetail, leaving, stay } = useAppNavigation();
+  const { hash, navigate, go, replace, whenLeaving, openDetail, closeDetail, leaving, stay } = useAppNavigation();
   const route = parseRoute(hash);
   // A page from the menu, if one is open instead of a project.
   const page = pageFromHash(hash);
@@ -69,6 +70,14 @@ export function App() {
     if (route || page) setDeleted(null);
   }, [hash]);
 
+  // A URL naming a project the list doesn't have (made on another device since the list was loaded, a link pasted
+  // in) loads the list again once, before the app says the project doesn't exist.
+  const [listCheckedFor, setListCheckedFor] = useState<string | null>(null);
+  const missing = route !== null && projects !== null && current === null ? route.projectId : null;
+  useEffect(() => {
+    if (missing !== null && listCheckedFor !== missing) refresh().then(() => setListCheckedFor(missing));
+  }, [missing]);
+
   // The home (no project and no page open) loads the projects again whenever it is shown, so that its cards say where
   // each pipeline is now (docs/project-view.md, "The home"). The first load is the one above.
   const home = !route && !page;
@@ -93,7 +102,7 @@ export function App() {
     if (lookup.projects.length > 0) {
       setKnownPdf({ pdf, sha256, lookup });
     } else {
-      await newProject(pdf, sha256, false);
+      newProject(pdf, sha256, false);
     }
   }
 
@@ -111,34 +120,40 @@ export function App() {
     if (lookup.projects.length > 0) {
       setKnownArchive({ file, archive, lookup });
     } else {
-      await importProject(archive, lookup.newProjectName);
+      importProject(archive, lookup.newProjectName);
     }
   }
 
-  async function importProject(archive: ProjectArchive, name: string) {
+  function importProject(archive: ProjectArchive, name: string) {
     setError(null);
-    setImporting(name);
-    try {
-      const imported = await importArchive(archive);
-      navigate(hashForProject(imported.id));
-    } catch (err) {
-      setError(`Importing the project failed: ${err instanceof Error ? err.message : err}`);
-    } finally {
-      setImporting(null);
-    }
-    await refresh();
+    makeAndOpen({
+      whenLeaving,
+      make: async () => {
+        setImporting(name);
+        try {
+          return await importArchive(archive);
+        } finally {
+          setImporting(null);
+        }
+      },
+      refresh,
+      open: (imported) => go(hashForProject(imported.id)),
+      failed: async (err) => {
+        setError(`Importing the project failed: ${err instanceof Error ? err.message : err}`);
+        await refresh();
+      },
+    });
   }
 
-  async function newProject(pdf: File, sha256: string, alreadyStored: boolean) {
+  function newProject(pdf: File, sha256: string, alreadyStored: boolean) {
     setError(null);
-    try {
-      const created = await createProject(pdf, sha256, alreadyStored);
-      navigate(hashForProject(created.id));
-    } catch (err) {
-      setError(`Creating the project failed: ${err}`);
-      return;
-    }
-    await refresh();
+    makeAndOpen({
+      whenLeaving,
+      make: () => createProject(pdf, sha256, alreadyStored),
+      refresh,
+      open: (created) => go(hashForProject(created.id)),
+      failed: (err) => setError(`Creating the project failed: ${err}`),
+    });
   }
 
   function selectArtifact(artifactId: string) {
@@ -300,7 +315,7 @@ export function App() {
             onChanged={refresh}
           />
         ) : route ? (
-          projects !== null && (
+          listCheckedFor === route.projectId && (
             <div className="empty-state">
               <p>This project doesn't exist (any more).</p>
             </div>
