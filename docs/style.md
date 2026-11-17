@@ -138,12 +138,14 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 **The project picker** turns into a filter field when opened: typing filters, the arrow keys move, Enter picks, Escape closes. Each entry has the name and muted facts (when it was opened, the file name).
 
-**Dialogs** (one component for every dialog, centred over a dimmed backdrop):
+**Dialogs** (one component for every dialog, `apps/web/src/ui/Dialog.tsx`, centred over a dimmed backdrop):
 - a short title, a close button (×) at the top right, the text, then the buttons at the bottom right: secondary first, the main action last, in coral (red when it destroys);
 - the title of a plain confirmation is "Are you sure?"; the text says what will happen, plainly, and ends with "This action cannot be undone." when it can't;
 - the main action is disabled until the input is valid; a refusal from the server is shown in the dialog, and the dialog stays open;
 - **an action that destroys a lot asks for proof of intent:** the user types the name, exactly; pasting doesn't count;
 - Escape and × cancel. A dialog never opens by itself, only in answer to the user.
+- **While its request is on its way** (deleting, renaming, creating, exporting), Escape, ×, the backdrop and Cancel wait for it (2026-11-17, the code review's F2): closing then lost the refusal, or what follows the request (Escape while deleting left the app on the deleted project). A config's Test is the exception: its dialog closes at any time, the answer then unseen.
+- **A dialog opened from another** (a confirmation from a form) is a dialog of its own beside it, over it; closing it leaves the first open.
 
 **Cards** are bordered `--raised` rectangles with a header line (icon, name, badges, "⋮") and their content indented under the name. A card's state shows in its border and its text: green border while running, red border and the error in red when failed, dimmed and only the title while not its turn yet, a coral outline when it is the selection.
 
