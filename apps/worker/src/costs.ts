@@ -14,13 +14,12 @@
 
 import { COST_WITH_VAT } from "./vat.ts";
 import type { Hono } from "hono";
+import { zombieBefore } from "./callRecords.ts";
 import { parsePages } from "@score3ly/core";
 import { modelGroupOf, readSettings, resolvedModel, spentInLastDay, type ModelConfigRow } from "./llmRoutes.ts";
 
 export const BUCKET_SECONDS = 15 * 60;
 
-// A call still running after this long will never answer: its cost is unknown. One that started later may still.
-const ZOMBIE_MS = 15 * 60 * 1000;
 
 // A call of unknown cost: an unpriced config's call with its tokens (docs/llm.md, "Models the user adds"), or a call
 // priced by the provider whose answer didn't say what it cost; or no tokens,
@@ -32,7 +31,7 @@ const UNKNOWN_COST = `((m.pricing_kind = 'unpriced' AND c.input_tokens IS NOT NU
 export function costRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/costs", async (c) => {
     const db = c.env.DB;
-    const zombie = new Date(Date.now() - ZOMBIE_MS).toISOString();
+    const zombie = zombieBefore();
     // The calls the view counts: those with a cost, and those of unknown cost.
     // Not the configs' test requests (no stage): they are summed apart, below.
     const counted = `SELECT c.id FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND (c.cost_usd > 0 OR (${UNKNOWN_COST}))`;

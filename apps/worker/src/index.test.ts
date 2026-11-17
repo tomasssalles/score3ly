@@ -6,6 +6,13 @@ import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { collectOrphans } from "./deletion.ts";
 import { defaultName, firstFreeName } from "./names.ts";
+import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
+
+// A call still running counts as dead in the statistics once it is older than the Worker's longest call timeout plus a
+// margin (decided 2026-11-17): younger, it may still answer.
+const LONGEST_TIMEOUT_MINUTES = Math.max(...Object.values(LLM_TIMEOUT_MINUTES));
+const DEAD_AGO = LONGEST_TIMEOUT_MINUTES + 30; // minutes: surely dead
+const ALIVE_AGO = LONGEST_TIMEOUT_MINUTES - 5; // minutes: within the timeout
 
 // The tests run the API against Wrangler's local R2 and D1, kept in memory.
 const workerDir = join(import.meta.dirname, "..");
@@ -1466,8 +1473,8 @@ test("the costs: paid calls of unknown cost counted per stage, config and quarte
     // id, stage, config, status, input tokens, HTTP status, started
     ["no-connection", layout.id, "paid", "error", null, null, ago(60)],
     ["unreadable", layout.id, "paid", "error", null, 200, ago(60)],
-    ["zombie", "lost-layout", "paid", "running", null, null, ago(20)],
-    ["waiting", layout.id, "paid", "running", null, null, ago(5)], // may still answer: left out
+    ["zombie", "lost-layout", "paid", "running", null, null, ago(DEAD_AGO)],
+    ["waiting", layout.id, "paid", "running", null, null, ago(ALIVE_AGO)], // may still answer: left out
     ["refused", layout.id, "paid", "error", null, 529, ago(60)], // an HTTP error isn't billed: left out
     ["bad-key", layout.id, "paid", "error", null, null, ago(60)], // credentials failed before sending: left out
     ["answered", layout.id, "paid", "ok", 100, null, ago(60)], // known cost: left out
@@ -1490,8 +1497,11 @@ test("the costs: paid calls of unknown cost counted per stage, config and quarte
   const minutes = (t: number) => Math.round((quarter - t) / 900_000) * 15;
   const counted = costs.unknown.map(([stage, config, t, n]) => [stage, config, minutes(t), n]);
   const hourAgo = minutes(Math.floor((Date.now() - 3_600_000) / 900_000) * 900_000);
-  const twentyAgo = minutes(Math.floor((Date.now() - 1_200_000) / 900_000) * 900_000);
-  assert.deepEqual(counted, [[layout.id, "paid", hourAgo, 2], [layout.id, "unpriced", hourAgo, 1], ["lost-layout", "paid", twentyAgo, 1]]);
+  const deadAgo = minutes(Math.floor((Date.now() - DEAD_AGO * 60_000) / 900_000) * 900_000);
+  assert.deepEqual(
+    counted.sort((a, b) => Number(b[2]) - Number(a[2]) || String(a[0]).localeCompare(String(b[0])) || String(a[1]).localeCompare(String(b[1]))),
+    [["lost-layout", "paid", deadAgo, 1], [layout.id, "paid", hourAgo, 2], [layout.id, "unpriced", hourAgo, 1]].sort((a, b) => Number(b[2]) - Number(a[2]) || String(a[0]).localeCompare(String(b[0])) || String(a[1]).localeCompare(String(b[1]))),
+  );
   // The stages and configs they refer to come along, although nothing was paid.
   assert.deepEqual(costs.points, []);
   assert.deepEqual(costs.stages.map((s) => s.id).sort(), [layout.id, "lost-layout"].sort());
@@ -1538,8 +1548,8 @@ test("failures: every call per config, quarter of an hour and reason; the shippe
     ["c", "paid", "error", "overloaded", ago(60)],
     ["d", "paid", "error", null, ago(60)], // an unexpected stop
     ["e", "paid", "cut_off", null, ago(60)],
-    ["f", "paid", "running", null, ago(30)], // interrupted
-    ["g", "paid", "running", null, ago(5)], // may still answer: left out
+    ["f", "paid", "running", null, ago(DEAD_AGO)], // interrupted
+    ["g", "paid", "running", null, ago(ALIVE_AGO)], // may still answer: left out
     ["h", "try", "error", "server", ago(60)], // the shipped fake: left out
   ];
   await env.DB.batch(
@@ -1554,7 +1564,7 @@ test("failures: every call per config, quarter of an hour and reason; the shippe
   assert.deepEqual(
     failures.points.map(([config, t, reason, n]) => [config, t, reason, n]).sort(),
     [
-      ["paid", quarter(30), "interrupted", 1],
+      ["paid", quarter(DEAD_AGO), "interrupted", 1],
       ["paid", quarter(60), "cut_off", 1],
       ["paid", quarter(60), "ok", 2],
       ["paid", quarter(60), "overloaded", 1],

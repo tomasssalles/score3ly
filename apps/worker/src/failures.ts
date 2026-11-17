@@ -2,18 +2,18 @@
 // config, quarter of an hour and reason ("ok" for one that succeeded), so the browser can count them in any time range
 // and for any config without another request. Answers served from the record aren't calls. The fake provider that
 // ships with the app is left out: some of its model names fail on purpose. A call still running is counted only once
-// it is 15 minutes old: it will never answer then ("interrupted").
+// it is older than the longest call timeout plus a margin: it will never answer then ("interrupted", callRecords.ts).
 
 import type { Hono } from "hono";
+import { zombieBefore } from "./callRecords.ts";
 import { BUCKET_SECONDS } from "./costs.ts";
 import { modelGroupOf, resolvedModel, type ModelConfigRow } from "./llmRoutes.ts";
 
-const ZOMBIE_MS = 15 * 60 * 1000;
 
 export function failureRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/failures", async (c) => {
     const db = c.env.DB;
-    const zombie = new Date(Date.now() - ZOMBIE_MS).toISOString();
+    const zombie = zombieBefore();
     const [points, configs] = await db.batch([
       db
         .prepare(
