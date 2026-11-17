@@ -178,7 +178,7 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 - **Scope:** `api.ts` (per-project queue of checked requests, monotonic version map, `putJson`); new `apps/web/src/saving.ts` (`useSaver(stageId)`, the pending-edits registry Finish awaits); SkewEditor, LayoutEditor, pageEditor, FixMeiView, MeiCode, fieldList (`useFieldList`), finishers.
 - **Closes:** A4, A20 (`putJson`), B1, B2, B28 (LayoutEditor's "Saving failed" after a recorded output; fingerprint once per page per session), D1, D2, D3; B21's saver and shell parts (the rest of B21 is batch 26).
 - **Depends on:** 9. **Keys:** –. **Size:** L.
-- **Tests:** two checked requests in parallel → both succeed (A4); a refresh answer arriving after a save doesn't lower the version; Finish awaits a pending save (D1); a form doesn't reload what it saved (D3); a failed save leaves the cache as the server has it (B2).
+- **Tests:** two checked requests in parallel → both succeed (A4); a refresh answer arriving after a save doesn't lower the version; Finish awaits a pending save (D1); a form doesn't reload what it saved (D3); a failed save keeps the edit, marked unsaved, retried with the next edit, and Finish refused while it is (B2, as decided).
 
 ### 11. The Node host as a test platform, with D1's limits
 - **Scope:** `apps/desktop/src/d1.ts`, `r2.ts` → `apps/worker/src/node/` (+ `nodeEnv()` used by server.ts); `testPlatform(host)` returning a migrated database; route tests on both hosts; NodeD1 limits mode; `server.test.ts`; `resolve`, `stage_inputs`, `output_inputs` with `json_each(?)`; the import's lookups (and chunking if E1 failed).
