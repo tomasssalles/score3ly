@@ -8,16 +8,19 @@ These override the recommendations below where they differ.
 - **The paid release:** one release, as recommended; the owner won't review every prompt for it, and accepts the cost (the expensive stages aren't re-run often). Done stages stay done after the key change, and an exported and imported project arrives as it was; nothing is paid until a stage runs again.
 - **No reader for old export formats:** there are no older exports to keep.
 - **dec. 32, the review and reverts:** the review sees that `apply_review` reverted a change, and why. It keeps raising a problem that is still there, but adjusts that issue (and related ones) so that a solution *can* be applied, instead of repeating what was reverted.
-- **dec. 10, dead calls:** decided by **no progress**, not by age: a call whose answer is still streaming is going normally; one with no progress for 15 minutes is dead. (Needs the call row to record its last progress, at most about once a minute.) The Worker's own timeout follows the same idea where it can.
+- **dec. 10, dead calls:** as recommended: a call still "running" counts as dead in the statistics once it is older than the call timeout plus a margin. The timeout is **the same constant the Worker's timeout uses** (`llm/timeouts.ts`), not a new one, so refining the timeout updates the statistics. No progress recorded on the row.
 - **dec. 14, unknown costs on a stage:** no change; the UI stays as it is.
 - **dec. 1, error texts:** the Worker writes them. **Style:** start with a short sentence a user understands; end with what the developer needs to debug it (technical is fine there); not too long overall. Goes into `docs/style.md` with the batch.
 - **dec. 25, same answer:** **case matters** everywhere ("schumann" and "Schumann" are different answers); the review's case-insensitive comparison changes to match the others.
 - **dec. 33, a done `engrave` whose recipe can't be made again:** not marked; it stays shown as done.
-- **dec. 7, a tab older than the deployed app:** at most a banner; the app stays visible and usable, never a dialog that forces a reload.
-- **dec. 11, retired models:** configs of retired models never run (as `docs/llm.md`, "No longer supported", already says; done stages are still served from the stage cache). New configs naming a retired model's string are refused.
+- **dec. 7, a tab older than the deployed app:** nothing is done (deploys are rare, and almost any action soon loads or fails something).
+- **dec. 11, retired models:** configs of retired models never run (as `docs/llm.md`, "No longer supported", already says; done stages are still served from the stage cache). The narrower point (hand-added configs naming a retired model's string) is still being discussed.
 - **dec. 23, `imported_at`:** **kept** (`docs/database.md` 105: room for later choices about imported projects, e.g. their costs in the statistics).
 - **E1, the import on the deployed instance:** the owner's test, in `docs/tasks.md` ("Check export and import on a large project"); nothing to do in the review.
-- **Still to answer** (questions asked, 2026-11-17): the run id (dec. 2–3), the binding's rename (dec. 4), the orphan collection (dec. 18, a "free up storage" button in the settings proposed by the owner), the home card's spinner (dec. 44).
+- **dec. 2–3, run ids:** yes.
+- **dec. 4, the R2 binding:** renamed to `STORE` (a config change on the deployed instance).
+- **dec. 18, orphan collection:** a "Free up storage" button in the settings, plus the collection that already runs when a project is deleted; no cron, nothing at the desktop's start-up.
+- **Everything else in the summary below** that the owner didn't comment on: as recommended.
 
 ## Summary for review
 
