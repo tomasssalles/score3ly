@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { cssRules } from "./cssRules.ts";
 
 // Every colour of the app is a token of the themes (themes.css, docs/style.md), so that a new theme covers everything.
 // Out of reach of this test: the app icon (public/icon.svg, with its own test), the manifest (public/), and the layout's
@@ -47,9 +48,11 @@ test("no colour is written anywhere but in the themes", () => {
 });
 
 test("themes.css holds only themes: blocks for :root of tokens", () => {
-  const css = readFileSync(join(SRC, "themes.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
-    for (const selector of selectors.split(",")) assert.match(selector.trim(), /^:root(\[data-theme="[\w-]+"\])?$/);
+  const rules = cssRules(join(SRC, "themes.css"));
+  assert.ok(rules.length > 0, "no rules found in themes.css");
+  for (const { selectors, body, within } of rules) {
+    assert.deepEqual(within, [], `a theme inside an at-rule: ${within.join(" ")}`);
+    for (const selector of selectors) assert.match(selector, /^:root(\[data-theme="[\w-]+"\])?$/);
     for (const declaration of body.split(";").map((d) => d.trim()).filter(Boolean)) {
       assert.match(declaration, /^(--[\w-]+|color-scheme)\s*:/, `not a token: ${declaration}`);
     }

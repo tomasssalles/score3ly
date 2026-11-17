@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { cssRules } from "./cssRules.ts";
 import { resolveTheme, THEMES } from "./themes.ts";
 
 test("Auto follows the system's preference where a theme matches it, else the first theme", () => {
@@ -12,8 +12,12 @@ test("Auto follows the system's preference where a theme matches it, else the fi
 });
 
 test("every theme in the list has a block in themes.css with every token the first one has", () => {
-  const css = readFileSync(join(import.meta.dirname, "themes.css"), "utf8");
-  const blocks = [...css.matchAll(/:root\[data-theme="([\w-]+)"\]\s*\{([^}]*)\}/g)].map((m) => ({ id: m[1], tokens: new Set([...m[2].matchAll(/(--[\w-]+)\s*:/g)].map((t) => t[1])) }));
+  const blocks = cssRules(join(import.meta.dirname, "themes.css")).flatMap((rule) =>
+    rule.selectors.flatMap((selector) => {
+      const id = /^:root\[data-theme="([\w-]+)"\]$/.exec(selector)?.[1];
+      return id ? [{ id, tokens: new Set([...rule.body.matchAll(/(--[\w-]+)\s*:/g)].map((t) => t[1])) }] : [];
+    }),
+  );
   assert.deepEqual(blocks.map((b) => b.id).sort(), THEMES.map((t) => t.id).sort());
   for (const b of blocks) assert.deepEqual([...b.tokens].sort(), [...blocks[0].tokens].sort(), `the ${b.id} theme's tokens`);
 });

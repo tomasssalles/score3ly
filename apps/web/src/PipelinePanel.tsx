@@ -101,7 +101,8 @@ export function PipelinePanel({
           {/* The bar is the pipeline's; the line under it says where the pipeline is (docs/project-view.md, "Progress"). */}
           <div className="head-progress">
             <ProgressBar value={progress.pipeline} label="Pipeline" />
-            {state && <span className={state.kind === "failed" ? "head-state failed" : "head-state"}>{stateLabel(state)}</span>}
+            {/* Shortened in the middle where it doesn't fit: cut at its end, "Extract failed" would read "Extract…", running. */}
+            {state && <FittedText className={state.kind === "failed" ? "head-state failed" : "head-state"} text={stateLabel(state)} lines={1} />}
           </div>
           {pipeline.mode === "auto" &&
             (busy ? (

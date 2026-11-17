@@ -136,7 +136,7 @@ function ProjectCard({ project, onOpen }: { project: ListedProject; onOpen: () =
         {state.kind === "done" && <CheckIcon />}
         {state.kind === "failed" && <WarningIcon />}
         {state.kind === "waiting" && <PauseIcon />}
-        {state.kind === "running" && <span className="home-card-spinner" aria-hidden="true" />}
+        {state.kind === "running" && <span className="spinner home-card-spinner" aria-hidden="true" />}
         <FittedText text={label} lines={1} />
       </span>
       <span className="home-card-opened">Opened {when(project.lastOpenedAt)}</span>
