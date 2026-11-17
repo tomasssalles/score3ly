@@ -25,7 +25,7 @@ export function ExportDialog({ project, onDone }: { project: Project; onDone: ()
       dialog.close();
     } catch (err) {
       setError(
-        err instanceof ApiError && err.status === 409
+        err instanceof ApiError && err.code === "running"
           ? `A stage of this project is running${desktop ? "" : ", here or on another device"}. Stop it, or let it finish, then export the project.`
           : `Exporting failed: ${err}`,
       );

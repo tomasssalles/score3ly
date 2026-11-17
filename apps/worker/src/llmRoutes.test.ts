@@ -1197,3 +1197,20 @@ test("a stopped call is recorded as stopped, whatever error the adapter's cut co
 test("the spending cap's amount reads as the settings show it, never a cap above 0 as 0.00", () => {
   assert.deepEqual([1, 1.5, 0.25, 0.004, 0.0001].map(amount), ["1.00", "1.50", "0.25", "0.004", "0.0001"]);
 });
+
+// A secret that is set but can't be used (a Vertex AI key file that doesn't parse) is refused like a missing one, with
+// what is wrong, before anything is sent: not a server failure (the code review's A1, level 2 group 09 #1).
+test("a Vertex AI key file that doesn't parse is a 409 bad_secret in the config's Test", async () => {
+  const gemini = await modelConfig({ provider: "vertex", modelId: "gemini-4-argon", region: "global", pricing: { kind: "list" }, secrets: { serviceAccount: "TEST_VERTEX_KEY" }, name: "Gemini Vertex" });
+  (env as unknown as Record<string, string>).TEST_VERTEX_KEY = "not json";
+  try {
+    const response = await send(`/api/model-configs/${gemini.id}/test`);
+    assert.equal(response.status, 409);
+    const body = await json<{ error: string; code: string }>(response);
+    assert.equal(body.code, "bad_secret");
+    assert.match(body.error, /Gemini Vertex/);
+    assert.match(body.error, /isn't valid JSON/);
+  } finally {
+    delete (env as unknown as Record<string, string>).TEST_VERTEX_KEY;
+  }
+});

@@ -12,6 +12,8 @@ import { defaultForNewStages, newPipeline, pipelineRoutes } from "./pipeline.ts"
 import { versionRoutes } from "./versions.ts";
 import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
+import { failed, refuse } from "./refusals.ts";
+import { putChecked } from "./storage.ts";
 
 export type { ListedProject, Project, RunMode } from "@score3ly/core";
 import type { Deleted, Info, ListedProject, PdfLookup, PipelinePosition, Project, RunMode } from "@score3ly/core";
@@ -55,6 +57,9 @@ async function getProject(db: D1Database, id: string): Promise<Project | null> {
 
 const app = new Hono<{ Bindings: Env }>();
 
+// Anything a route throws is answered as JSON like a refusal, with the code "internal" (docs/style.md, "Error texts").
+app.onError(failed);
+
 // A log line of our own per API request, for Workers Logs (requestLog.ts).
 app.use("/api/*", requestLog);
 
@@ -79,7 +84,7 @@ app.get("/api/info", (c) => c.json<Info>({ host: "cloudflare" }));
 app.delete("/api/projects/:id", async (c) => {
   const result = await deleteProject(c.env, c.req.param("id"));
   if (result === "not_found") return c.json({ error: "no such project" }, 404);
-  if (result === "running") return c.json({ error: "a stage of the project is running" }, 409);
+  if (result === "running") return refuse(c, 409, "a stage of the project is running", "running");
   return c.json<Deleted>(result);
 });
 
@@ -168,14 +173,10 @@ app.put("/api/content/:sha256", async (c) => {
   const sha256 = c.req.param("sha256");
   if (!isSha256Hex(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
   const body = await c.req.arrayBuffer();
-  try {
-    await c.env.PDFS.put(contentKey(sha256), body, {
-      sha256,
-      httpMetadata: { contentType: c.req.header("Content-Type") ?? "application/octet-stream" },
-    });
-  } catch {
-    return c.json({ error: "the content doesn't match its SHA-256" }, 400);
-  }
+  const stored = await putChecked(c.env.PDFS, contentKey(sha256), body, sha256, {
+    httpMetadata: { contentType: c.req.header("Content-Type") ?? "application/octet-stream" },
+  });
+  if (stored === "mismatch") return c.json({ error: "the content doesn't match its SHA-256" }, 400);
   return c.body(null, 204);
 });
 
@@ -209,9 +210,7 @@ app.post("/api/projects", async (c) => {
   let filename: string;
   if (pdf instanceof File) {
     // R2 checks the bytes against the hash and refuses the upload if they differ.
-    try {
-      await c.env.PDFS.put(pdfKey(sha256), await pdf.arrayBuffer(), { sha256 });
-    } catch {
+    if ((await putChecked(c.env.PDFS, pdfKey(sha256), await pdf.arrayBuffer(), sha256)) === "mismatch") {
       return c.json({ error: "the PDF doesn't match its SHA-256" }, 400);
     }
     filename = pdf.name;

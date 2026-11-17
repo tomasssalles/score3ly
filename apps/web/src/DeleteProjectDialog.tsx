@@ -36,7 +36,7 @@ export function DeleteProjectDialog({
       dialog.close("deleted");
     } catch (err) {
       setError(
-        err instanceof ApiError && err.status === 409
+        err instanceof ApiError && err.code === "running"
           ? `A stage of this project is running${desktop ? "" : ", here or on another device"}. Stop it, or let it finish, then delete the project.`
           : `Deleting failed: ${err}`,
       );

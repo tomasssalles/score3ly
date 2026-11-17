@@ -408,6 +408,10 @@ export function missingSecretMessage(configName: string, secretName: string): st
   return `The model config "${configName}" needs the secret ${secretName}, which isn't set. Set it where the app's secrets are kept (Settings, "Secrets"), then retry.`;
 }
 
+export function badSecretMessage(configName: string, problem: string): string {
+  return `A secret of the model config "${configName}" can't be used: ${problem} Check it where the app's secrets are kept (Settings, "Secrets"), then retry.`;
+}
+
 // The secrets' values from the Worker's environment, or the name of a missing one.
 function secretValues(config: ModelConfig, env: Env): Record<string, string> | { missing: string } {
   const values: Record<string, string> = {};
@@ -1011,7 +1015,15 @@ async function prepareCall(env: Env, row: ModelConfigRow): Promise<Prepared | Re
   if ("missing" in secrets) {
     return { refusal: { error: missingSecretMessage(config.name, secrets.missing as string), code: "missing_secret", status: 409 } };
   }
-  const adapter = createAdapter({ provider: config.provider, family: config.family, region: config.region, project: config.project, secrets });
+  // An adapter reads its secrets when it is made: one that can't be used (a key file that doesn't parse) is refused here,
+  // like a missing one, before anything is sent.
+  let adapter: LlmProvider | null;
+  try {
+    adapter = createAdapter({ provider: config.provider, family: config.family, region: config.region, project: config.project, secrets });
+  } catch (err) {
+    if (!(err instanceof LlmError)) throw err;
+    return { refusal: { error: badSecretMessage(config.name, err.message), code: "bad_secret", status: 409 } };
+  }
   if (!adapter) {
     return { refusal: { error: `The app doesn't support ${FAMILY_NAMES[config.family]} on ${PROVIDER_NAMES[config.provider]}.`, code: "unsupported", status: 409 } };
   }

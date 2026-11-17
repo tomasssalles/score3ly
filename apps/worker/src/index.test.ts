@@ -1344,7 +1344,9 @@ test("deleting a project: gone from every list, its name free, what only it used
   // A stage that runs can't be deleted from under it.
   const layout = (await pipelineOf(a.id))[3];
   await call(a.id, layout.id, "start", { stepVersion: 1, config: {}, stageKey: RECIPE_KEY(6), pageCount: 1, inputIds: [] });
-  assert.equal((await deleteProject(a.id)).status, 409);
+  const refused = await deleteProject(a.id);
+  assert.equal(refused.status, 409);
+  assert.equal((await json<{ code: string }>(refused)).code, "running");
   await call(a.id, layout.id, "stop");
 
   const response = await deleteProject(a.id);
@@ -1892,8 +1894,10 @@ test("a call's place: exported and imported; a call without one (before migratio
 
   // Such a project can't be exported until the one-time script fills the places.
   const refused = await app.request(`/api/projects/${imported.id}/export`, {}, env);
-  assert.equal(refused.status, 500);
-  assert.match((await json<{ error: string }>(refused)).error, /has no place .*fill-call-places/);
+  assert.equal(refused.status, 409);
+  const body = await json<{ error: string; code: string }>(refused);
+  assert.equal(body.code, "unplaced_calls");
+  assert.match(body.error, /has no place .*fill-call-places/);
 });
 
 test("import: a stage's config names the model config it was mapped to, as its column does", async () => {
@@ -1928,4 +1932,40 @@ test("historical exports (fixtures/exports) are imported, each with its whole pi
     const imported = await json<{ id: string }>(response);
     assert.deepEqual((await pipelineOf(imported.id)).map((s) => s.step), rows.stages.length ? rows.pipeline.map((e) => rows.stages.find((s) => s.id === e.stage_id)!.step) : [], file);
   }
+});
+
+// The error contract (docs/style.md, "Error texts"): whatever a route throws is answered like a refusal, as JSON with
+// the code "internal", never as the framework's plain-text 500 (the code review's A1).
+test("an error thrown inside a route is a JSON refusal with the code \"internal\"", async () => {
+  const failing = { ...env, DB: { prepare: () => { throw new Error("D1_ERROR: no such table: projects"); }, batch: () => Promise.reject(new Error("D1_ERROR: no such table: projects")), exec: () => Promise.reject(new Error("D1_ERROR")) } } as unknown as Env;
+  const response = await app.request("/api/projects", {}, failing);
+  assert.equal(response.status, 500);
+  assert.match(response.headers.get("Content-Type") ?? "", /application\/json/);
+  const body = await json<{ error: string; code: string }>(response);
+  assert.equal(body.code, "internal");
+  assert.match(body.error, /D1_ERROR: no such table: projects/);
+});
+
+// Only bytes that don't match their hash are the request's fault (400); a store that fails otherwise (a full disk on the
+// desktop, R2 unavailable) is the server's (500), and says what failed (the code review's E8).
+test("storing content or a PDF that fails for another reason than its hash is a 500, not a mismatch", async () => {
+  const full = { ...env, PDFS: { ...env.PDFS, put: () => Promise.reject(new Error("ENOSPC: no space left on device")), head: env.PDFS.head.bind(env.PDFS), get: env.PDFS.get.bind(env.PDFS) } } as unknown as Env;
+  const bytes = pdfBytes("content on a full disk");
+  const sha256 = await sha256Hex(bytes);
+  const content = await app.request(`/api/content/${sha256}`, { method: "PUT", body: bytes }, full);
+  assert.equal(content.status, 500);
+  assert.match((await json<{ error: string }>(content)).error, /ENOSPC/);
+  const form = new FormData();
+  form.append("pdf", new File([bytes], "full.pdf"));
+  form.append("sha256", sha256);
+  const created = await app.request("/api/projects", { method: "POST", body: form }, full);
+  assert.equal(created.status, 500);
+  assert.deepEqual(await projectRows(), []);
+  const imported = await app.request(`/api/pdfs/${sha256}`, { method: "PUT", body: bytes }, full);
+  assert.equal(imported.status, 500);
+
+  // A mismatch is still the request's fault, at all three.
+  const wrong = await sha256Hex(pdfBytes("other bytes"));
+  assert.equal((await app.request(`/api/content/${wrong}`, { method: "PUT", body: bytes }, env)).status, 400);
+  assert.equal((await app.request(`/api/pdfs/${wrong}`, { method: "PUT", body: bytes }, env)).status, 400);
 });

@@ -11,6 +11,8 @@ import { CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, type Impor
 import type { Hono } from "hono";
 import { anyRunning, withModelConfig } from "./pipeline.ts";
 import { PLACEHOLDER_ITEM, placeProblem } from "./llmRoutes.ts";
+import { refuse } from "./refusals.ts";
+import { putChecked } from "./storage.ts";
 
 // The export format (`EXPORT_FORMAT`) and what an export holds (`ProjectExport`) are in core (api/projectExport.ts).
 
@@ -397,7 +399,7 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
     const data = await exportProject(c.env.DB, c.req.param("id"));
     if (data === null) return c.json({ error: "no such project" }, 404);
     if (data === "running") return c.json({ error: "a stage of this project is running", code: "running" }, 409);
-    if ("problem" in data) return c.json({ error: data.problem }, 500);
+    if ("problem" in data) return refuse(c, 409, data.problem, "unplaced_calls");
     return c.json<ProjectExport>(data);
   });
 
@@ -417,9 +419,7 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
   app.put("/api/pdfs/:sha256", async (c) => {
     const sha256 = c.req.param("sha256");
     if (!isSha256Hex(sha256)) return c.json({ error: "expected a SHA-256 in lowercase hex" }, 400);
-    try {
-      await c.env.PDFS.put(`pdfs/${sha256}.pdf`, await c.req.arrayBuffer(), { sha256 });
-    } catch {
+    if ((await putChecked(c.env.PDFS, `pdfs/${sha256}.pdf`, await c.req.arrayBuffer(), sha256)) === "mismatch") {
       return c.json({ error: "the PDF doesn't match its SHA-256" }, 400);
     }
     return c.body(null, 204);
