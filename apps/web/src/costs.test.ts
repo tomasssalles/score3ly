@@ -154,6 +154,17 @@ test("the average per page: a PDF's projects are one score, its pages counted on
   assert.deepEqual(unfinished(more), ["wip"]);
 });
 
+// Review F10: "created more than 30 days ago" took the 30-day range's start (29 days before today's midnight), so it
+// removed projects 29 to 30 days old.
+test("created more than 30 days, 3 or 12 months ago: older than that, to the minute", () => {
+  const now = local("2026-10-27T10:00");
+  const at = (id: string, createdAt: string) => ({ id, createdAt: new Date(local(createdAt)).toISOString() });
+  const projects = [at("29.5d", "2026-09-27T22:00"), at("30d+1h", "2026-09-27T09:00"), at("3m-1d", "2026-07-28T10:00"), at("3m+1h", "2026-07-27T09:00"), at("12m+1h", "2025-10-27T09:00")];
+  assert.deepEqual(createdBefore(projects, "30d", now), ["30d+1h", "3m-1d", "3m+1h", "12m+1h"]);
+  assert.deepEqual(createdBefore(projects, "3m", now), ["3m+1h", "12m+1h"]);
+  assert.deepEqual(createdBefore(projects, "12m", now), ["12m+1h"]);
+});
+
 test("grouped by model: the configs of one model together, whatever the provider and effort", () => {
   const view = costView(data, range, "day", { dimension: "config", grouping: "model", byName: false }, {});
   assert.deepEqual(view.rows.map((r) => [r.label, r.usd]), [["Claude Opus 5.5", 7], ["Claude Sonnet 5.5", 0.5]]);

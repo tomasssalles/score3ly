@@ -242,7 +242,7 @@ function ImageCacheSetting() {
               onSelect: () => {
                 setCacheLimitMb(mb);
                 setLimit(mb);
-                pruneNow().then(() => cacheUsage().then(setUsage), () => {});
+                pruneNow().then(cacheUsage).then(setUsage, () => {}); // a failed usage keeps the last one shown
               },
             })),
           ]}

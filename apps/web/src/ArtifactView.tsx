@@ -320,6 +320,7 @@ export function Filmstrip({
   overlay?: ReactNode;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
+  const items = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
   const overlayBox = useRef<HTMLDivElement>(null);
   const [overlaySize, setOverlaySize] = useState({ height: 0, scrollbar: 0 });
@@ -340,7 +341,7 @@ export function Filmstrip({
   useEffect(() => {
     if (!focus) return;
     const el = scroller.current!;
-    const content = el.firstElementChild as HTMLElement;
+    const content = items.current!; // the items, not the overlay's spacer above them
     let following = true;
     const place = () => {
       const item = el.querySelectorAll<HTMLElement>(".film-item")[focus.index];
@@ -387,7 +388,7 @@ export function Filmstrip({
     <div className="filmstrip-frame">
       <div className="filmstrip" ref={scroller} style={hasOverlay ? { scrollPaddingTop: overlaySize.height } : undefined}>
         {hasOverlay && <div style={{ height: overlaySize.height }} aria-hidden="true" />}
-        <div className={wide ? "film-items wide" : "film-items"}>
+        <div className={wide ? "film-items wide" : "film-items"} ref={items}>
           {Array.from({ length: count }, (_, i) => (
             <div key={i}>{render(i)}</div>
           ))}

@@ -38,7 +38,7 @@ export function PdfView({ url }: { url: string }) {
   return (
     <div className="pdf-view" ref={scrollRef}>
       {error ? (
-        <p className="pdf-status">The PDF could not be shown: {error}</p>
+        <p className="pdf-status pdf-error error-text">The PDF could not be shown: {error}</p>
       ) : (
         !drawn && <p className="pdf-status">Loading the PDF…</p>
       )}

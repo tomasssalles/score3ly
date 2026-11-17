@@ -3,7 +3,7 @@
 // (apps/worker/src/costs.ts); the page is StatsPage.tsx, the chart TimeChart.tsx, the calendar calendar.ts.
 
 import type { CostData } from "./api";
-import { type Bucket, bucketsOf, type Granularity, rangeOf, type RangeId } from "./calendar.ts";
+import { type Bucket, bucketsOf, type Granularity } from "./calendar.ts";
 import { deletedNote, endedNote } from "./format.ts";
 import { stepInfo } from "./steps.ts";
 
@@ -261,10 +261,14 @@ export function averagePerPage(projects: CostProject[]): { average: number | nul
   return { average: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null, projects: counted.length };
 }
 
-// The actions of the project list's "⋮": the projects to take out of the selection.
-export function createdBefore(projects: { id: string; createdAt: string }[], range: RangeId, now: number): string[] {
-  const { start } = rangeOf(range, now, null);
-  return projects.filter((p) => Date.parse(p.createdAt) < start).map((p) => p.id);
+// The actions of the project list's "⋮": the projects to take out of the selection. "Created more than 30 days ago" (3
+// months, 12 months): before this time of day that long ago, not before the start of the time range of that name,
+// which counts today as one of its days.
+export function createdBefore(projects: { id: string; createdAt: string }[], age: "30d" | "3m" | "12m", now: number): string[] {
+  const cutoff = new Date(now);
+  if (age === "30d") cutoff.setDate(cutoff.getDate() - 30);
+  else cutoff.setMonth(cutoff.getMonth() - (age === "3m" ? 3 : 12));
+  return projects.filter((p) => Date.parse(p.createdAt) < cutoff.getTime()).map((p) => p.id);
 }
 
 export const unfinished = (projects: CostProject[]) => projects.filter((p) => !p.finished).map((p) => p.id);

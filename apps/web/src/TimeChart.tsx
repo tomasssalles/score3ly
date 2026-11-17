@@ -6,7 +6,7 @@
 // are drawn, so a long range at a fine granularity stays fast.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { ticks } from "./chart.ts";
+import { runningTotals, tapTracker, ticks } from "./chart.ts";
 
 export type ChartSeries = { key: string; label: string; note?: string; color: string }; // color: a CSS value, e.g. "var(--accent)"
 
@@ -43,7 +43,7 @@ export function TimeChart({
   const [width, setWidth] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
-  const down = useRef<number | null>(null); // where a tap started: a drag that scrolls picks nothing
+  const tap = useRef(tapTracker()).current; // a drag that scrolls picks nothing
 
   useEffect(() => setSelected(null), [n, mode]);
 
@@ -67,7 +67,7 @@ export function TimeChart({
   }, [n, pitch]);
 
   const shown = useMemo(
-    () => (mode === "bars" ? values : values.map((row) => row.reduce<number[]>((acc, v, i) => [...acc, (i ? acc[i - 1] : 0) + v], []))),
+    () => (mode === "bars" ? values : runningTotals(values)),
     [values, mode],
   );
   const max = useMemo(() => {
@@ -86,7 +86,7 @@ export function TimeChart({
   const every = Math.max(1, Math.ceil(LABEL_WIDTH / (pitch || 1)));
 
   function pick(e: PointerEvent<SVGSVGElement>) {
-    if (down.current === null || Math.abs(e.clientX - down.current) > 6) return;
+    if (!tap.up(e.clientX)) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const i = Math.min(n - 1, Math.max(0, Math.floor((e.clientX - rect.left) / pitch)));
     setSelected(i === selected ? null : i);
@@ -145,8 +145,9 @@ export function TimeChart({
             role="img"
             aria-label={label}
             tabIndex={0}
-            onPointerDown={(e) => (down.current = e.clientX)}
+            onPointerDown={(e) => tap.down(e.clientX)}
             onPointerUp={pick}
+            onPointerCancel={tap.cancel}
             onKeyDown={onKeyDown}
           >
             {scale.map((v) => (
