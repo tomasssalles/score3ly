@@ -27,3 +27,7 @@ One line per finding that didn't hold as planned, or whose fix was done differen
 ## Batch 4
 
 - **For the owner:** the Statistics page's first tab has two URLs (`#/stats` from the menu, `#/stats/costs` once a tab is clicked), while the Settings page's first tab has one (`#/settings`). Proposed (F11): the first tab without a suffix on both pages. Not made, since it changes a URL the user sees and isn't a bug; the tab functions are now one pair (`tabFromHash`, `hashForTab`), with the difference written down in route.ts (`FIRST_TAB_NAMED`), so the change is one line.
+- **F1** (a replace breaks the numbering): held, confirmed in Chromium (an entry made by `location.replace` has a null state). Done as planned, with the numbering and the hold in a pure `hashHistory.ts` over an injected window (tested with a fake history), and the hook `useAppNavigation` in navigation.ts.
+- **F11** (one navigation module): held. The pages get their tab and `onTab` from PageView rather than the hash by context. Changed: the first tab without a suffix on both pages not made (above).
+- **F3** (the "doesn't exist" flash): held, seen in Chromium. The list is loaded before opening (the returned project isn't put in the list by hand: an import returns only its id and name). The pasted-link case (a check, minor) done too: one reload of the list before saying a project doesn't exist.
+- **Dec. 43:** as recommended; the question comes after the known-PDF dialog (it is asked when the project is about to be made, not when the file is picked, so a cancelled file pick asks nothing).
