@@ -171,9 +171,12 @@ flowchart LR
 
 ```
 packages/
-  core/      What more than one app needs (built): content keys, SHA-256 and base64, the Project type, the
-             rules both sides apply (names, items, quarters of an hour, amounts), texts both apps say; and as
-             entry points of their own, drawing a PDF page in a browser (`/pdf`) and the Vite plugin serving
+  core/      What more than one app needs (built): content keys, SHA-256 and base64, the steps' ids and kinds
+             and the recipe, the rules both sides apply (names, items, quarters of an hour, amounts, the same
+             model config), texts both apps say, and under `api/` every shape the Worker's API sends and takes
+             (projects, the pipeline, LLM calls, model configs, settings, statistics, exports, errors, the
+             host, fingerprints): the Worker's routes are typed by them (`c.json<T>`), the web app reads them.
+             As entry points of their own, drawing a PDF page in a browser (`/pdf`) and the Vite plugin serving
              pdf.js's data files (`/pdfjs-assets`). The main entry runs in browsers, Workers and Node and
              depends on nothing; every other package and app may depend on it.
              (The step definitions and the pipeline's logic live in apps/web for now: only it runs them.)
