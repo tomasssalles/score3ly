@@ -134,7 +134,7 @@ One subagent per group, strictly one after the other. A large file appears in se
 | 18 | Issues across the stages | done |
 | 19 | Layout and skew, from analysis to editors | done |
 | 20 | Analyze and its forms | done |
-| 21 | MEI: build, view, edit, engrave, render | |
+| 21 | MEI: build, view, edit, engrave, render | done |
 | 22 | The UI kit and styles | |
 | 23 | Routing, navigation, the desktop shell | |
 | 24 | Hosts, deployment, scripts, eval | |
