@@ -15,3 +15,11 @@ One line per finding that didn't hold as planned, or whose fix was done differen
 - **C4** (the zombie limit): held. Margin 5 minutes; the constant in a new `callRecords.ts` with `UNKNOWN_COST`, where C24 (batch 13) will look for it.
 - **C5** (rename offered to a numbered name): held; done as the owner decided (no rename dialog, one message), the text once in `@score3ly/core` for the Worker and the form. The "same name" message went too: the one message covers it.
 - **C25** (itemTiming): held, the one-line fix. Calls an older item still makes while a newer one runs still count with the newer one (the module's header accepts the same for views).
+
+## Batch 3
+
+- **B5** (`checkMeiText` waits forever): held; the quick fix (an `error` listener and a 60 s handshake timeout, the worker dropped and made again at the next check). The shared worker client stays B20's (batch 23).
+- **B15** (a failed Verovio load kept): held for a load that fails; a Verovio that loaded and aborted later (Emscripten's abort) still stays broken until a reload, which B20's client (reset on a worker error) covers.
+- **B6, D6** (notes from this run's items only): held; done as planned, `runPlan` giving the note the stage's final outputs. Extract, review and apply_review weren't affected (they read their recorded outputs back before running).
+- **D17** (closed token lists copied by hand): held as a risk, not a live bug: every token has its MEI today. Fixed so a new token is a type error; the MEI is byte-identical.
+- **B17** (small geometry bugs): held. For `fixSkew`, the line is cut at the page's edges along its direction (keeping the drawn angle) rather than computing the angle after clamping the ends, which would have changed the angle the person drew.
