@@ -9,3 +9,4 @@ export { readSse } from "./sse.ts";
 export type { CallEvent } from "./callEvents.ts";
 export { sameValuesMessage } from "./modelConfigs.ts";
 export { fromBase64, toBase64, toBase64Url } from "./base64.ts";
+export { firstFreeName, MAX_NAME_LENGTH, nameTooLong } from "./names.ts";

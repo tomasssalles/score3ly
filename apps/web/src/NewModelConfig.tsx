@@ -2,6 +2,7 @@
 // a config's "Clone", then filled with its values: everything picked but the name and a model added by hand's string.
 // Its logic is in configForm.ts.
 
+import { firstFreeName } from "@score3ly/core";
 import { useState } from "react";
 import { createModelConfig, putSetting, type ModelConfig, type ModelOptions } from "./api";
 import {
@@ -9,7 +10,6 @@ import {
   createConfig,
   defaultName,
   effortsOf,
-  firstFreeName,
   familyOption,
   formFromConfig,
   initialForm,

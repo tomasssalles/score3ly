@@ -6,7 +6,7 @@ import { sha256Hex } from "@score3ly/core";
 import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { collectOrphans } from "./deletion.ts";
-import { defaultName, firstFreeName } from "./names.ts";
+import { defaultName } from "./names.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 
 // A call still running counts as dead in the statistics once it is older than the Worker's longest call timeout plus a
@@ -304,13 +304,6 @@ test("defaultName drops the .pdf suffix and surrounding spaces", () => {
   assert.equal(defaultName("x".repeat(300) + ".pdf"), "x".repeat(200));
 });
 
-test("firstFreeName numbers taken names, ignoring case", () => {
-  assert.equal(firstFreeName("Sonata", []), "Sonata");
-  assert.equal(firstFreeName("Sonata", ["sonata"]), "Sonata (1)");
-  assert.equal(firstFreeName("Sonata", ["Sonata", "Sonata (1)", "Sonata (3)"]), "Sonata (2)");
-  assert.equal(firstFreeName("Sonata", ["Sonata (1)"]), "Sonata");
-});
-
 test("a project whose default name is taken gets the next free number", async () => {
   const names = [];
   for (const [filename, content] of [
@@ -345,6 +338,22 @@ test("a long file name gets a project, numbered when taken, and its PDF can be l
   const second = await postProject({ pdf, filename, sha256 });
   assert.equal(second.status, 201);
   assert.equal(((await second.json()) as ProjectJson).name, `${base} (1)`);
+});
+
+// The limit counts the name without one number at its end (decided 2026-11-17): a 200-character file name opened twice
+// gives "… (1)", which renaming must accept as every other name.
+test("a 200-character name is numbered when taken, and the numbered name can be given again by renaming", async () => {
+  const base = "x".repeat(200);
+  const pdf = pdfBytes("a long name");
+  const sha256 = await sha256Hex(pdf);
+  assert.equal(((await (await postProject({ pdf, filename: `${base}.pdf`, sha256 })).json()) as ProjectJson).name, base);
+  const second = (await (await postProject({ pdf, filename: `${base}.pdf`, sha256 })).json()) as ProjectJson;
+  assert.equal(second.name, `${base} (1)`);
+  assert.equal((await rename(second.id, `${base} (2)`)).status, 200);
+  assert.equal((await rename(second.id, `${base} (999)`)).status, 200);
+  assert.equal((await rename(second.id, `${base} (1000)`)).status, 400);
+  assert.equal((await rename(second.id, `${base}x`)).status, 400);
+  assert.equal((await rename(second.id, `${base} (1) (1)`)).status, 400);
 });
 
 test("renaming changes the name and the modification time, not the opening time", async () => {

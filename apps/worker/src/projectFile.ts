@@ -7,9 +7,8 @@
 // is used (no row), a deleted one is brought back to life (its cost stays where it was paid), and only a call found
 // nowhere becomes a new row, which counts like any call. Original times are kept.
 
-import { isSha256Hex } from "@score3ly/core";
+import { firstFreeName, isSha256Hex } from "@score3ly/core";
 import type { Hono } from "hono";
-import { firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 import { anyRunning, withModelConfig } from "./pipeline.ts";
 import { PLACEHOLDER_ITEM, placeProblem } from "./llmRoutes.ts";
 
@@ -268,7 +267,7 @@ export async function importProject(db: D1Database, bucket: R2Bucket, data: Proj
     }
     const id = crypto.randomUUID();
     const deleted = config.deleted_at ?? null;
-    const name = deleted ? String(config.name) : firstFreeName(String(config.name).slice(0, MAX_NAME_LENGTH).trim(), takenConfigNames);
+    const name = deleted ? String(config.name) : firstFreeName(String(config.name).trim(), takenConfigNames);
     if (!deleted) takenConfigNames.push(name);
     configMap.set(config.id as string, id);
     statements.push(insert(db, "model_configs", { ...pick(config, CONFIG_COLUMNS), id, name, deleted_at: deleted }));
@@ -405,7 +404,7 @@ export async function importProject(db: D1Database, bucket: R2Bucket, data: Proj
 
   // The project, under its exported name (numbered if taken), and its pipeline. One transaction; another project may
   // take the name meanwhile: then look again.
-  const base = String(data.project.name).slice(0, MAX_NAME_LENGTH).trim() || "Untitled";
+  const base = String(data.project.name).trim() || "Untitled";
   for (let attempt = 0; ; attempt++) {
     const { results } = await db.prepare("SELECT name FROM projects WHERE deleted_at IS NULL").all<{ name: string }>();
     const name = firstFreeName(base, results.map((r) => r.name));

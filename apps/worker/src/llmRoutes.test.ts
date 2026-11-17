@@ -224,6 +224,11 @@ test("model configs are named: the name given, else the model, its provider and 
   assert.equal(taken.status, 409);
   assert.match((await json<{ error: string }>(taken)).error, /already exists/);
   assert.equal((await send("/api/model-configs", configBody({ name: "x".repeat(201) }))).status, 400);
+  // A number at the end isn't counted (decided 2026-11-17), when a config is created and when it is renamed.
+  const long = await modelConfig({ name: `${"y".repeat(200)} (12)`, model: "fake-long" });
+  assert.equal(long.name, `${"y".repeat(200)} (12)`);
+  assert.equal((await send(`/api/model-configs/${long.id}`, { name: `${"y".repeat(200)} (13)` }, "PATCH")).status, 200);
+  assert.equal((await send(`/api/model-configs/${long.id}`, { name: `${"y".repeat(201)} (13)` }, "PATCH")).status, 400);
   // A deleted config's name is free again.
   const opus = (await json<{ id: string; name: string }[]>(await app.request("/api/model-configs", {}, env))).find((c) => c.name === "Opus 5.5")!;
   assert.equal((await send(`/api/model-configs/${opus.id}`, undefined, "DELETE")).status, 204);

@@ -6,7 +6,7 @@
 import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
 import { deferLog, logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
-import { type CallEvent, canonicalJson, fromBase64, isSha256Hex, keyOf, modelKeyOf, sameValuesMessage, sha256Hex } from "@score3ly/core";
+import { type CallEvent, canonicalJson, firstFreeName, fromBase64, isSha256Hex, keyOf, MAX_NAME_LENGTH, modelKeyOf, nameTooLong, sameValuesMessage, sha256Hex } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import type { LlmProgress, LlmProvider } from "./llm/types.ts";
@@ -45,7 +45,6 @@ import {
   type Routing,
 } from "./llm/models.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
-import { firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
 
 // The secrets each adapter needs, by field (the name of a Worker secret is stored, never its value): one set of them.
 // Bedrock takes an API key or an access key pair.
@@ -302,7 +301,7 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
   if (!body) return "expected a JSON body";
   const { name, provider, modelId, modelString, family, effort, region, routing, project, account, secrets, pricing } = body;
   if (name !== undefined && name !== null && typeof name !== "string") return "'name' must be text";
-  if (typeof name === "string" && name.trim().length > MAX_NAME_LENGTH) return `'name' must be at most ${MAX_NAME_LENGTH} characters`;
+  if (typeof name === "string" && nameTooLong(name.trim())) return `'name' must be at most ${MAX_NAME_LENGTH} characters`;
   if (!PROVIDERS.includes(provider as Provider)) return `'provider' must be one of ${PROVIDERS.join(", ")}`;
   const p = provider as Provider;
   // The model: a listed one, or one the user adds with its family; never both.
@@ -760,7 +759,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const body = await c.req.json().catch(() => null);
     const name = typeof body?.name === "string" ? body.name.trim() : "";
     if (!name) return c.json({ error: "expected a 'name'" }, 400);
-    if (name.length > MAX_NAME_LENGTH) return c.json({ error: `'name' must be at most ${MAX_NAME_LENGTH} characters` }, 400);
+    if (nameTooLong(name)) return c.json({ error: `'name' must be at most ${MAX_NAME_LENGTH} characters` }, 400);
     const row = await db.prepare("SELECT * FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(id).first<ModelConfigRow>();
     if (!row) return c.json({ error: "no such model config" }, 404);
     const taken = await db
@@ -1251,7 +1250,7 @@ async function configName(db: D1Database, body: Record<string, unknown>, replace
   if (given) return taken.some((name) => name.toLowerCase() === given.toLowerCase()) ? null : given;
   const model: ConfigModel = body.modelId ? { modelId: body.modelId as string } : { modelString: (body.modelString as string).trim(), family: body.family as Family };
   const base = configBaseName(MODEL_LIST, body.provider as Provider, model, (body.effort as Effort | undefined) ?? null);
-  return firstFreeName(base.slice(0, MAX_NAME_LENGTH).trim(), taken);
+  return firstFreeName(base, taken);
 }
 
 const NAME_TAKEN = "A model config with that name already exists. Names must be unique (case-insensitive).";

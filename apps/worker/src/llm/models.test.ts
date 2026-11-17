@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   configBaseName,
+  effortsOf,
   listedPrice,
   listProblems,
   modelByString,
@@ -12,7 +13,9 @@ import {
   priceOfConfig,
   resolveModel,
   type ModelList,
+  type Provider,
 } from "./models.ts";
+import { MAX_NAME_LENGTH, nameTooLong } from "@score3ly/core";
 import { adapterFor, supportedFamilies } from "./adapters.ts";
 import { MODEL_LIST } from "./modelList.ts";
 
@@ -365,4 +368,21 @@ test("the list's problems are found", () => {
     "Model a has a string on Bedrock but no price there.",
     "Model a has a string on Anthropic but no price there.",
   ]);
+});
+
+// Names are numbered when taken, and a numbered name must fit (decided 2026-11-17): every default name a listed model
+// gives a config is at most 200 characters, so its numbered forms fit too.
+test("the default name of every listed model, on every provider, at every effort, fits the limit", () => {
+  let names = 0;
+  for (const m of MODEL_LIST.models) {
+    for (const provider of Object.keys(m.strings) as Provider[]) {
+      const efforts = effortsOf(m.family, m);
+      for (const effort of efforts.length > 0 ? efforts : [null]) {
+        const name = configBaseName(MODEL_LIST, provider, { modelId: m.id }, effort);
+        assert.ok(name.length <= MAX_NAME_LENGTH && !nameTooLong(`${name} (999)`), name);
+        names++;
+      }
+    }
+  }
+  assert.ok(names > 0);
 });

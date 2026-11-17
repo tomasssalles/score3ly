@@ -141,16 +141,6 @@ export function withoutNumber(name: string): string {
   return name.trim().replace(/ \(\d+\)$/, "");
 }
 
-// The first of "base", "base (1)", "base (2)", … that isn't taken, ignoring case: the name the Worker gives a config
-// with its default name (as it numbers project names, apps/worker/src/names.ts).
-export function firstFreeName(base: string, taken: string[]): string {
-  const lower = new Set(taken.map((name) => name.toLowerCase()));
-  for (let n = 0; ; n++) {
-    const candidate = n === 0 ? base : `${base} (${n})`;
-    if (!lower.has(candidate.toLowerCase())) return candidate;
-  }
-}
-
 export function providerOf(options: ModelOptions, form: FormState): ProviderOption | null {
   return options.providers.find((p) => p.id === form.provider) ?? null;
 }

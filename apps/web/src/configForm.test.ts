@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { firstFreeName } from "@score3ly/core";
 import type { ModelConfig, ModelOptions } from "./api";
 import {
   confirmationOf,
@@ -7,7 +8,6 @@ import {
   defaultModel,
   effortsOf,
   familyOf,
-  firstFreeName,
   formFromConfig,
   withoutNumber,
   initialForm,

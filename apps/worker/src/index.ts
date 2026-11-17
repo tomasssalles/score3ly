@@ -5,7 +5,7 @@ import { projectStatsRoutes } from "./projectStats.ts";
 import { failureRoutes } from "./failures.ts";
 import { runTimeRoutes } from "./runTimes.ts";
 import { deleteProject } from "./deletion.ts";
-import { defaultName, firstFreeName, MAX_NAME_LENGTH } from "./names.ts";
+import { defaultName } from "./names.ts";
 import { fingerprintRoutes } from "./fingerprints.ts";
 import { llmRoutes, readSettings, convertAddedConfigs } from "./llmRoutes.ts";
 import { defaultForNewStages, newPipeline, pipelineRoutes } from "./pipeline.ts";
@@ -15,7 +15,7 @@ import { requestLog } from "./requestLog.ts";
 
 export type { ListedProject, Project, RunMode } from "@score3ly/core";
 import type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
-import { isSha256Hex } from "@score3ly/core";
+import { firstFreeName, isSha256Hex, MAX_NAME_LENGTH, nameTooLong } from "@score3ly/core";
 
 type ProjectRow = {
   id: string;
@@ -273,7 +273,7 @@ app.patch("/api/projects/:id", async (c) => {
   let name: string | undefined;
   if (body?.name !== undefined) {
     name = typeof body.name === "string" ? body.name.trim() : "";
-    if (!name || name.length > MAX_NAME_LENGTH) {
+    if (!name || nameTooLong(name)) {
       return c.json({ error: `expected a 'name' of 1 to ${MAX_NAME_LENGTH} characters` }, 400);
     }
     sets.push("name = ?");
