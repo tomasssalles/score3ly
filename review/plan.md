@@ -125,9 +125,9 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 
 ### 2. LLM call and cost bugs
 - **Scope:** `apps/worker/src/llm/index.ts` (`maxRetries`), `costs.ts`, `failures.ts`, `llmRoutes.ts` (cap text, Test texts, abort kind), `llm/generateModelList.ts`/`scripts/generate-model-list.ts` (`asOf`), web `NewModelConfig.tsx` (`offerRename`), `itemTiming.ts`.
-- **Closes:** C2, C3, C4 (one `ZOMBIE_MS`, derived; put it where C24 will look for it, e.g. a small `callRecords.ts`), C5, C6, C7, C25, C8's abort kind only (the rest is batch 13).
+- **Closes:** C2, C3, C4 (one `ZOMBIE_MS`, derived; put it where C24 will look for it, e.g. a small `callRecords.ts`), C5 (as decided: no rename dialog, the "already exists" message), C6, C7, C25, C8's abort kind only (the rest is batch 13).
 - **Waits on:** dec. 9 (C2), dec. 10 (C4); else the others. **Keys:** – (C6 changes `price_json.asOf` of new calls). **Size:** M.
-- **Tests:** rows as `runCall` writes them (524, converted config) counted by Costs (C3); a running call at 20 min not a zombie (C4); `asOf` ignores fake files (C6); clone unchanged offers no rename (C5); abort + network error → `aborted` (C8); itemTiming with an older item (C25).
+- **Tests:** rows as `runCall` writes them (524, converted config) counted by Costs (C3); a running call younger than the call timeout + margin isn't a zombie, with the timeout taken from `llm/timeouts.ts` (C4); `asOf` ignores fake files (C6); a config with the same values as another is refused with the decided message, no rename offered (C5); abort + network error → `aborted` (C8); itemTiming with an older item (C25).
 
 ### 3. Page, MEI and worker-hang bugs
 - **Scope:** `meiValidation.ts` (error listener + timeout, the quick form of B20), `renderWorker.ts` (reset a failed Verovio load), `imageCache.ts` (memory fallback read), `runLayout.ts`, `runSkewAnalysis.ts`, `runAnalyze.ts`, `runEngrave.ts` (notes from final outputs), `meiChecks.ts` (`idProblems` on the parsed tree), `spans.ts`/`mei.ts` (token lists total), `review.ts` 198 and `fixSkew.ts` 28–36.
@@ -196,7 +196,7 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 - **Tests:** provider ok + R2 put failure → call `ok` with its tokens (C8); a cached row with a missing answer is skipped (C9); one outcome CASE shared by Costs and Usage, pinned on rows written by `runCall`.
 
 ### 14. Worker: projects and storage modules
-- **Scope:** `index.ts` project routes → `projects.ts` (one `insertProject` name loop, also for the import); `storage.ts` (`pdfKey`, `contentKey`, `storePdf`, `putContent`/`putJson`, error split, `collectOrphans` from deletion.ts); create = `PUT /api/pdfs/:sha` + a JSON create; `projects.page_count`; binding rename; orphan collection scheduled.
+- **Scope:** `index.ts` project routes → `projects.ts` (one `insertProject` name loop, also for the import); `storage.ts` (`pdfKey`, `contentKey`, `storePdf`, `putContent`/`putJson`, error split, `collectOrphans` from deletion.ts); create = `PUT /api/pdfs/:sha` + a JSON create; `projects.page_count`; binding rename; orphan collection kept on delete and offered as a "Free up storage" button in the settings (dec. 18).
 - **Closes:** E14, E15, A18, E8 (final home), E12, E9, E23 (import progress, parallel heads).
 - **Waits on:** dec. 4 (rename), dec. 18 (E9), dec. 20 (page count); else the moves. **Depends on:** 7, 9, 11. **Keys:** – (F: `page_count` column; binding rename = config change on both instances, say so in the commit). **Size:** L.
 - **Tests:** create after the PDF's last project was deleted meanwhile (E12); `content/missing` treats an unnamed object as missing (E9); the name loop shared by create and import.
@@ -250,9 +250,9 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 - **Tests:** `onPage`/`onCrop` inverses; `stretchEdges` shared by extract.ts and mei.ts; fingerprints unchanged.
 
 ### 23. One Web Worker client; image cache and pdf.js plumbing
-- **Scope:** `apps/web/src/workerClient.ts` (`workerClient`, `serve`) for the three clients and workers; in-flight dedupe in `cachedOr` and `renderMei`; a damaged entry remade; `cacheLru.ts`/`imageCache.ts` one LRU; `deleteCachedPdf`; pdf.js folder table, `drawPages`, `loadPdf` in core `/pdf`; one `fetchPdf`; PdfView lazy drawing; the image worker closing PDFs; eval's PdfPane on core; a build id in `/api/info` and a reload prompt.
+- **Scope:** `apps/web/src/workerClient.ts` (`workerClient`, `serve`) for the three clients and workers; in-flight dedupe in `cachedOr` and `renderMei`; a damaged entry remade; `cacheLru.ts`/`imageCache.ts` one LRU; `deleteCachedPdf`; pdf.js folder table, `drawPages`, `loadPdf` in core `/pdf`; one `fetchPdf`; PdfView lazy drawing; the image worker closing PDFs; eval's PdfPane on core; (no reload prompt: dec. 7 decided nothing).
 - **Closes:** B20 (B5 for good), B13, B14, B16, B18, B23, B26, B27, E22's PdfPane.
-- **Waits on:** dec. 7 (B18). **Depends on:** 5 (reload prompt dialog), 8 (`Info`), 22. **Keys:** –. **Size:** L (seam: worker client + cache | pdf.js + B18).
+- **Depends on:** 8 (`Info`), 22. B18 is dropped (dec. 7). **Keys:** –. **Size:** L (seam: worker client + cache | pdf.js + B18).
 - **Tests:** `workerClient` with a fake Worker: error rejects all pending and resets; two requests for one recipe make it once.
 
 ### 24. The recipes module
@@ -322,10 +322,10 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 - **Tests first:** a line at the box's end, past it, and two at one place → normalized (B3); a piece on another page dropped (D18b); a span across a piece start stops (D19). Afterwards: the owner's re-run of his projects.
 
 ### 35. Statistics
-- **Scope:** Worker `statsSql.ts` (`FINISHED`, `bucketOf`, `rasterizedPages`, `CONFIG_COLUMNS`, `configSummary`), the stats routes typed with core; web `REASONS: Record<Outcome, string>` and one label table with Costs; `useLoaded`; `CostsTab.tsx` out of StatsPage; dead fields; manual rows; `pageCountOf(pipeline)` for every runner and the run report; unknown cost on cards and in the report.
-- **Closes:** F15, F16 (wiring), F17, F19, F5, F7, C26, 14 #14 (check).
+- **Scope:** Worker `statsSql.ts` (`FINISHED`, `bucketOf`, `rasterizedPages`, `CONFIG_COLUMNS`, `configSummary`), the stats routes typed with core; web `REASONS: Record<Outcome, string>` and one label table with Costs; `useLoaded`; `CostsTab.tsx` out of StatsPage; dead fields; manual rows; `pageCountOf(pipeline)` for every runner and the run report; (unknown cost on cards and in the report: dropped, dec. 14).
+- **Closes:** F15, F16 (wiring), F17, F19, F5, F7, 14 #14 (check). C26 dropped (dec. 14).
 - **Waits on:** dec. 14, 38, 39, 40, 42. **Depends on:** 8, 13, 32. **Keys:** – (`page_count` values of new stages). **Size:** L.
-- **Tests:** an edited manual stage counted once (F5); a stage of unknown cost shows the count (C26); the outcome labels total over `Outcome`.
+- **Tests:** an edited manual stage counted once (F5); the outcome labels total over `Outcome`.
 
 ### 36. ProjectView split
 - **Scope:** `usePipelineRun`, `useToasts`; `replacesWork`/`replacesLater`/`fixReplaces` pure in web `pipeline.ts`; `KIND_LABELS`/`STATUS_LABELS` there.
@@ -345,8 +345,8 @@ Size: S (an hour or so), M (a session), L (a long session; split at the marked s
 - **Waits on:** dec. 36, 37. **Depends on:** 6, 25, 26. **Keys:** –. **Size:** M. Screenshots of the changed screens only (a small script, CLAUDE.md).
 
 ### 39. Cleanups
-- **Scope:** what the batches above leave: A26, B27/B31 leftovers, C29/C30 leftovers, D28/D29/D30 leftovers, E24 (`imported_at` dropped, 0001's comment, `UNUSED_OUTPUTS`), F24, stale comments found on the way.
-- **Waits on:** dec. 23. **Depends on:** everything it touches. **Keys:** –. **Size:** M.
+- **Scope:** what the batches above leave: A26, B27/B31 leftovers, C29/C30 leftovers, D28/D29/D30 leftovers, E24 (0001's comment, `UNUSED_OUTPUTS`; `imported_at` is **kept**, dec. 23), F24, stale comments found on the way.
+- **Depends on:** everything it touches. **Keys:** –. **Size:** M.
 
 ## Docs to update (notes for the batches)
 
