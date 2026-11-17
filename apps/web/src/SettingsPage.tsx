@@ -4,7 +4,7 @@
 // limit, §8.5). A pick is saved at once, an amount when it is left or Enter is pressed. "Model configs": the configs,
 // in the order picked and as filtered, each with its actions, and the "+" that makes one.
 
-import { amount } from "@score3ly/core";
+import { amount, SECRET_LABELS } from "@score3ly/core";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import {
   fetchModelConfigs,
@@ -406,15 +406,9 @@ const PROVIDERS: Record<ModelConfig["provider"], string> = {
 
 const ROUTINGS: Record<NonNullable<ModelConfig["routing"]>, string> = { global: "Global", geographic: "Geographic", "in-region": "In-region" };
 
-// The providers' fields by name (the Worker's FIELDS); one it doesn't know is shown as stored.
-const FIELD_LABELS: Record<string, string> = {
-  apiKey: "API key",
-  serviceAccount: "Service account",
-  accessKeyId: "Access key ID",
-  secretAccessKey: "Secret access key",
-  region: "Region",
-  projectId: "Project",
-};
+// The providers' fields by name (the secrets' fields, and the facts a card labels by a field name); one it doesn't know
+// is shown as stored.
+const FIELD_LABELS: Record<string, string> = { ...SECRET_LABELS, region: "Region", projectId: "Project" };
 
 // The model configs (docs/llm.md), as stored: each with its name, whether it is the default and on a free tier, its
 // provider, model (its name for people where it is listed) and effort, where its requests go (a region, a routing, a

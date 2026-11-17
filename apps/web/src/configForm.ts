@@ -2,7 +2,7 @@
 // offers given the others, the default name it would get, what is still missing, and the request it makes. Pure, so the
 // dialog (NewModelConfig.tsx) only shows it.
 
-import { sameValuesMessage } from "@score3ly/core";
+import { SECRET_LABELS, sameConfigValues, sameValuesMessage, valuesOf, valuesOfNew } from "@score3ly/core";
 import type { Account, Family, ModelConfig, ModelOptions, NewModelConfig, Place, Provider, Routing } from "./api";
 
 type Effort = NonNullable<ModelConfig["effort"]>;
@@ -306,13 +306,6 @@ export function defaultName(options: ModelOptions, form: FormState): string | nu
   return `${model} (${provider.name})${form.effort ? ` · ${form.effort}` : ""}`;
 }
 
-export const SECRET_LABELS: Record<string, string> = {
-  apiKey: "API key",
-  serviceAccount: "Service account",
-  accessKeyId: "Access key ID",
-  secretAccessKey: "Secret access key",
-};
-
 // What is still missing, as a sentence, or null when the config can be created.
 export function missing(options: ModelOptions, form: FormState): string | null {
   const provider = providerOf(options, form);
@@ -379,26 +372,11 @@ export function sameValuesProblem(configs: ModelConfig[], request: NewModelConfi
   return same ? sameValuesMessage(same.name) : null;
 }
 
-// The config that already has exactly the values the form would create, if any.
+// The config that already has exactly the values the form would create, if any: the values as the Worker would store
+// them, compared as it does (`sameConfigValues`).
 function sameValues(configs: ModelConfig[], request: NewModelConfig): ModelConfig | null {
-  const secrets = (s: Record<string, string>) => JSON.stringify(Object.entries(s).sort(([a], [b]) => a.localeCompare(b)));
-  const reference = (p: ModelConfig["pricing"]) => (p.kind === "list" ? p.reference : null);
-  return (
-    configs.find(
-      (c) =>
-        c.provider === request.provider &&
-        (c.modelId ?? null) === (request.modelId ?? null) &&
-        (c.modelId ? true : c.modelString === request.modelString && c.family === request.family) &&
-        c.effort === request.effort &&
-        c.region === request.region &&
-        c.routing === request.routing &&
-        (c.project ?? null) === (request.project ?? null) &&
-        (c.account ?? null) === (request.account ?? null) &&
-        secrets(c.secrets) === secrets(request.secrets) &&
-        c.pricing.kind === request.pricing.kind &&
-        reference(c.pricing) === reference(request.pricing),
-    ) ?? null
-  );
+  const values = valuesOfNew(request);
+  return configs.find((c) => sameConfigValues(valuesOf(c), values)) ?? null;
 }
 
 // Creating a config, then making it the default when asked: two requests, so the second can fail after the first made

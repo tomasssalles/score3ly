@@ -2,7 +2,7 @@
 // a config's "Clone", then filled with its values: everything picked but the name and a model added by hand's string.
 // Its logic is in configForm.ts.
 
-import { firstFreeName } from "@score3ly/core";
+import { firstFreeName, SECRET_LABELS } from "@score3ly/core";
 import { useState } from "react";
 import { createModelConfig, putSetting, type ModelConfig, type ModelOptions } from "./api";
 import {
@@ -36,13 +36,6 @@ import { Picker } from "./fieldList";
 import { Info } from "./Info";
 import { ACCOUNT_NAMES, feePercent, pricesText } from "./pricing";
 import { Dialog, useDialog } from "./ui/Dialog";
-
-const FIELD_LABELS: Record<string, string> = {
-  apiKey: "API key",
-  serviceAccount: "Service account",
-  accessKeyId: "Access key ID",
-  secretAccessKey: "Secret access key",
-};
 
 // A picker without a value (docs/style.md, "Pickers").
 const NONE = "—";
@@ -297,12 +290,12 @@ export function NewModelConfig({
             {family.secrets.length > 1 && (
               <PickerField label="Credentials">
                 <Picker
-                  value={family.secrets[form.secretSet].map((f) => FIELD_LABELS[f] ?? f).join(" and ")}
+                  value={family.secrets[form.secretSet].map((f) => SECRET_LABELS[f] ?? f).join(" and ")}
                   label="Credentials"
                   fitted
                   groups={[
                     family.secrets.map((set, i) => ({
-                      label: set.map((f) => FIELD_LABELS[f] ?? f).join(" and "),
+                      label: set.map((f) => SECRET_LABELS[f] ?? f).join(" and "),
                       current: i === form.secretSet,
                       onSelect: () => setForm({ secretSet: i, secrets: {} }),
                     })),
@@ -311,10 +304,10 @@ export function NewModelConfig({
               </PickerField>
             )}
             {family.secrets[form.secretSet].map((field) => (
-              <PickerField key={field} label={FIELD_LABELS[field] ?? field}>
+              <PickerField key={field} label={SECRET_LABELS[field] ?? field}>
                 <Picker
                   value={form.secrets[field] ?? NONE}
-                  label={FIELD_LABELS[field] ?? field}
+                  label={SECRET_LABELS[field] ?? field}
                   fitted
                   groups={[
                     [

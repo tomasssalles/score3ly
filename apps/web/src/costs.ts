@@ -2,6 +2,7 @@
 // days, weeks or months, split into groups and filtered by the same groupings. Pure functions over the Worker's data
 // (apps/worker/src/costs.ts); the page is StatsPage.tsx, the chart TimeChart.tsx, the calendar calendar.ts.
 
+import { PROVIDER_NAMES } from "@score3ly/core";
 import type { CostData } from "./api";
 import { type Bucket, bucketsOf, type Granularity } from "./calendar.ts";
 import { deletedNote, endedNote } from "./format.ts";
@@ -56,15 +57,11 @@ export const stepTitle = (step: string) => STEP_TITLES[step] ?? stepInfo(step).t
 // The LLM steps in the pipeline's order.
 const STEPS = ["layout", "analyze", "extract", "review", "apply_review"];
 
-// The fake provider that ships with the app costs nothing, so it never shows here; the one for development does.
-const PROVIDERS: Record<string, string> = {
-  anthropic: "Anthropic",
-  bedrock: "Bedrock",
-  "ai-studio": "AI Studio",
-  openrouter: "OpenRouter",
-  vertex: "Vertex AI",
-  "fake-dev": "Fake (dev)",
-};
+// The providers in the costs' order, named as everywhere (`PROVIDER_NAMES`). The fake provider that ships with the app
+// costs nothing, so it never shows here; the one for development does.
+const PROVIDERS: Partial<Record<string, string>> = Object.fromEntries(
+  (["anthropic", "bedrock", "ai-studio", "openrouter", "vertex", "fake-dev"] as const).map((p) => [p, PROVIDER_NAMES[p]]),
+);
 const FAMILIES: Record<string, string> = { claude: "Claude", gemini: "Gemini", fake: "Fake" };
 const FAMILY_ORDER = ["Claude", "Gemini", "Fake"];
 

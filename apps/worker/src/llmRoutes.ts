@@ -6,7 +6,7 @@
 import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
 import { deferLog, logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
-import { amount, type CallAnswer, type CallEvent, type CallPlace, type CallRequest, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, firstFreeName, fromBase64, isSha256Hex, keyOf, MAX_NAME_LENGTH, modelKeyOf, nameTooLong, roundUsd, sameValuesMessage, sha256Hex } from "@score3ly/core";
+import { amount, type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, firstFreeName, fromBase64, isSha256Hex, keyOf, MAX_NAME_LENGTH, modelKeyOf, nameTooLong, roundUsd, sameConfigValues, sameValuesMessage, sha256Hex, type ModelConfig, type ModelOptions, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import type { LlmProgress, LlmProvider } from "./llm/types.ts";
@@ -58,41 +58,7 @@ const SECRETS: Record<string, string[][]> = {
   "fake-dev": [[]],
 };
 
-// A model config (docs/llm.md, "Configs"), as stored, with what the list says about its model (`model`, `family`,
-// `modelName`, `unsupported`, `price`) for the browser.
-export type ModelConfig = {
-  id: string;
-  name: string; // required and unique, ignoring case, among the configs that aren't deleted (docs/llm.md)
-  provider: Provider;
-  modelId: string | null; // a listed model
-  modelString: string | null; // or a model the user added, with its family
-  model: string; // the model's string on the provider ("" for a listed model the list doesn't have any more)
-  family: Family;
-  modelName: string | null; // the listed model's name for people
-  // Why the app no longer supports it, said after its name (`its model config, "X", ${unsupported}.`), or null: a
-  // stage that names it can't start, and it can't be picked (docs/llm.md, "No longer supported").
-  unsupported: string | null;
-  effort: Effort | null;
-  region: string; // "" for providers without regions: not part of any cache key
-  routing: Routing | null; // Bedrock only
-  project: string | null; // Vertex AI only
-  account: Account | null; // OpenRouter only: the plan, which sets the fee on credits and allows the EU
-  secrets: Record<string, string>; // field → name of a Worker secret: not part of any cache key
-  pricing: Pricing;
-  // What its calls cost now, from the list: its prices (perhaps borrowed: the model's name for people), free, unpriced,
-  // priced by the provider (each answer says; plus `fee`, the share added for the provider's fee on credits), or
-  // missing (the list has no price there any more).
-  price:
-    | { kind: "priced"; price: Price; borrowedFrom: string | null }
-    | { kind: "free" }
-    | { kind: "unpriced" }
-    | { kind: "provider"; fee: number }
-    | { kind: "missing" };
-  freeTier: boolean; // pricing "free": its calls cost nothing and don't count towards the spending cap
-  createdAt: string;
-  deletedAt: string | null; // a deleted config is never used again: a stage that names one can't start
-};
-
+// A model config as the browser gets it is `ModelConfig` (core); as stored, a row:
 export type ModelConfigRow = {
   id: string;
   name: string;
@@ -268,14 +234,8 @@ export function toModelConfig(row: ModelConfigRow): ModelConfig {
   };
 }
 
-// The settings the Worker knows, with their defaults. Settings that depend on the device stay in the browser (§5.8).
-export type Settings = {
-  defaultModelConfigId: string | null; // the model config of LLM stages unless one is chosen for the stage (§7.2)
-  spendingCapUsd: number; // at most this much within any 24 hours, for configs that aren't free (§10): $1 until changed
-  newProjectRunMode: "auto" | "manual"; // the run mode a new project starts with (§5.1)
-  vatPercent: number; // the VAT added to every cost, a percentage (docs/llm.md, "VAT"): 0 until changed
-};
-
+// The settings the Worker knows (`Settings`, core), with their defaults. Settings that depend on the device stay in the
+// browser (§5.8).
 const DEFAULT_SETTINGS: Settings = { defaultModelConfigId: null, spendingCapUsd: 1, newProjectRunMode: "auto", vatPercent: 0 };
 
 export async function readSettings(db: D1Database): Promise<Settings> {
@@ -555,28 +515,6 @@ export async function spentInLastDay(db: D1Database, now = Date.now()): Promise<
 // app supports there (each with its effort levels and the sets of secrets its adapter takes) and its places; and the
 // listed models that aren't retired, each with its string, places and prices on the providers where the list has a
 // price for it. A model added by hand is offered its provider's places; a listed one only those with its price.
-export type ModelOptions = {
-  asOf: string;
-  mock: boolean;
-  providers: {
-    id: Provider;
-    name: string;
-    families: { id: Family; name: string; efforts: Effort[]; secrets: string[][] }[];
-    places: (Place & { geography?: string })[];
-    // Priced by the provider (OpenRouter): its configs have an account, whose plan sets the fee (`fees`), and
-    // `businessRegions` are the regions only a Business account may use.
-    pricedByProvider?: { fees: Record<Account, number>; businessRegions: string[] };
-  }[];
-  models: {
-    id: string;
-    name: string;
-    family: Family;
-    efforts: Effort[]; // the levels the model takes ([] for none)
-    // A place's price is null where the provider prices each call itself.
-    providers: Partial<Record<Provider, { string: string; places: (Place & { price: Price | null })[] }>>;
-  }[];
-};
-
 export function modelOptions(list: ModelList = MODEL_LIST, dev = false): ModelOptions {
   const offered = PROVIDERS.filter((p) => dev || p !== "fake-dev");
   return {
@@ -638,24 +576,24 @@ export function secretNames(env: Env): string[] {
 }
 
 export function llmRoutes(app: Hono<{ Bindings: Env }>) {
-  app.get("/api/models", (c) => c.json(modelOptions(MODEL_LIST, devProviders(c.env))));
+  app.get("/api/models", (c) => c.json<ModelOptions>(modelOptions(MODEL_LIST, devProviders(c.env))));
 
-  app.get("/api/secrets", (c) => c.json({ names: secretNames(c.env) }));
+  app.get("/api/secrets", (c) => c.json<SecretNames>({ names: secretNames(c.env) }));
 
   // A guide to what a config's model costs where the provider prices each call itself (OpenRouter: docs/llm.md,
   // "OpenRouter"): the range of its providers' input and output prices, or null.
   app.get("/api/model-configs/:id/price-range", async (c) => {
     const row = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(c.req.param("id")).first<ModelConfigRow>();
     if (!row) return c.json({ error: "no such model config" }, 404);
-    if (row.provider !== "openrouter") return c.json({ range: null });
+    if (row.provider !== "openrouter") return c.json<{ range: PriceRange | null }>({ range: null });
     const { model } = resolvedModel(row);
-    return c.json({ range: model ? await fetchPriceRange(model, row.region) : null });
+    return c.json<{ range: PriceRange | null }>({ range: model ? await fetchPriceRange(model, row.region) : null });
   });
 
   // When the list of models and prices was collected (llm/modelList.ts), for the About page.
-  app.get("/api/prices", (c) => c.json({ asOf: MODEL_LIST.asOf, mock: MODEL_LIST.mock ?? false }));
+  app.get("/api/prices", (c) => c.json<Prices>({ asOf: MODEL_LIST.asOf, mock: MODEL_LIST.mock ?? false }));
 
-  app.get("/api/settings", async (c) => c.json(await readSettings(c.env.DB)));
+  app.get("/api/settings", async (c) => c.json<Settings>(await readSettings(c.env.DB)));
 
   app.put("/api/settings/:key", async (c) => {
     const key = c.req.param("key");
@@ -670,7 +608,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     await c.env.DB.prepare("INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)")
       .bind(key, JSON.stringify(body.value), new Date().toISOString())
       .run();
-    return c.json(await readSettings(c.env.DB));
+    return c.json<Settings>(await readSettings(c.env.DB));
   });
 
   // The model configs that aren't deleted, oldest first.
@@ -678,13 +616,13 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const { results } = await c.env.DB.prepare(
       "SELECT * FROM model_configs WHERE deleted_at IS NULL ORDER BY created_at, id",
     ).all<ModelConfigRow>();
-    return c.json(results.map(toModelConfig));
+    return c.json<ModelConfig[]>(results.map(toModelConfig));
   });
 
   // One model config, deleted or not: stages and calls refer to the config they used.
   app.get("/api/model-configs/:id", async (c) => {
     const row = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(c.req.param("id")).first<ModelConfigRow>();
-    return row ? c.json(toModelConfig(row)) : c.json({ error: "no such model config" }, 404);
+    return row ? c.json<ModelConfig>(toModelConfig(row)) : c.json({ error: "no such model config" }, 404);
   });
 
   // Creates a config, or clones one: `replaces` names the original to delete with it ("Delete the original"; the clone
@@ -705,7 +643,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
         : null;
     if (typeof body.replaces === "string" && !original) return c.json({ error: "the config to replace doesn't exist" }, 404);
     const draft = newConfigRow(body, "");
-    const same = (await db.prepare("SELECT * FROM model_configs WHERE deleted_at IS NULL").all<ModelConfigRow>()).results.find((row) => sameValues(row, draft));
+    const same = (await db.prepare("SELECT * FROM model_configs WHERE deleted_at IS NULL").all<ModelConfigRow>()).results.find((row) => sameConfigValues(row, draft));
     if (same) {
       return c.json({ error: sameValuesMessage(same.name), code: "same_values" }, 409);
     }
@@ -725,7 +663,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       }
     }
     await db.batch(statements);
-    return c.json(toModelConfig(row), 201);
+    return c.json<ModelConfig>(toModelConfig(row), 201);
   });
 
   // Renames a config: the only change a config's row takes besides its deletion (docs/llm.md, "Managing model configs").
@@ -746,7 +684,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
       .first();
     if (taken) return c.json({ error: NAME_TAKEN }, 409);
     await db.prepare("UPDATE model_configs SET name = ? WHERE id = ?").bind(name, id).run();
-    return c.json(toModelConfig({ ...row, name }));
+    return c.json<ModelConfig>(toModelConfig({ ...row, name }));
   });
 
   app.delete("/api/model-configs/:id", async (c) => {
@@ -793,9 +731,9 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     if (sent.status === "ok" && typeof (sent.json as { colour?: unknown } | null)?.colour !== "string") {
       const error = `The response has an OK status and is valid JSON, but doesn't follow the schema the request asked for. Requested schema: {"colour": string}. Response: ${(sent.text ?? "").slice(0, 200)}`;
       await c.env.DB.prepare("UPDATE llm_calls SET status = 'unparseable', error = ? WHERE id = ?").bind(error, sent.callId).run();
-      return c.json({ ...sent, status: "unparseable", error, durationMs });
+      return c.json<TestResult>({ ...sent, status: "unparseable", error, durationMs });
     }
-    return c.json({ ...sent, durationMs });
+    return c.json<TestResult>({ ...sent, durationMs });
   });
 
   // An answer that is valid JSON but that the stage can't use (e.g. LilyPond inside it that doesn't parse, or boxes
@@ -971,7 +909,7 @@ export function placeProblem(call: Record<string, unknown>): string | null {
 
 // A call refused before anything is sent: the spending cap is reached (priced calls only), a secret is missing or the
 // app has no adapter.
-type Refusal = { refusal: { error: string; code: string; status: 409 | 429 } };
+type Refusal = { refusal: { error: string; code: ErrorCode; status: 409 | 429 } };
 
 // A call cancelled because the browser stopped waiting for it: of unknown cost (docs/llm.md, "Stopped calls").
 const ABORTED_CALL = "Stopped: the app stopped waiting for this call (Stop, or the app was closed). Whether the provider billed it is unknown.";
@@ -1223,11 +1161,6 @@ async function configName(db: D1Database, body: Record<string, unknown>, replace
 const NAME_TAKEN = "A model config with that name already exists. Names must be unique (case-insensitive).";
 
 // Whether two configs do exactly the same: everything but their ids, names and dates.
-function sameValues(a: ModelConfigRow, b: ModelConfigRow): boolean {
-  const keys = ["provider", "model_id", "model_string", "family", "effort", "region", "routing", "project", "account", "pricing_kind", "pricing_reference"] as const;
-  return keys.every((k) => (a[k] ?? null) === (b[k] ?? null)) && canonicalJson(JSON.parse(a.secrets_json)) === canonicalJson(JSON.parse(b.secrets_json));
-}
-
 function newConfigRow(body: Record<string, unknown>, name: string): ModelConfigRow {
   const pricing = body.pricing as Pricing & { reference?: string | null };
   const listed = typeof body.modelId === "string" && body.modelId !== "";

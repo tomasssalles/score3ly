@@ -1,6 +1,6 @@
 import type { Fingerprint } from "@score3ly/imaging";
 import type { Timing } from "./itemTiming";
-import { type CallAnswer, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, readSse, sha256Hex, type StreamEvent } from "@score3ly/core";
+import { type ApiErrorBody, type Family, type ModelConfig, type Provider, type ModelOptions, type NewModelConfig, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult, type CallAnswer, type ErrorCode, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, readSse, sha256Hex, type StreamEvent } from "@score3ly/core";
 
 // A project as the Worker's API sends it (`@score3ly/core`).
 export type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
@@ -14,9 +14,9 @@ import type { Pipeline as ApiPipeline } from "@score3ly/core";
 // code for it, where it gives one.
 export class ApiError extends Error {
   readonly status: number;
-  readonly code: string | null;
+  readonly code: ErrorCode | null;
 
-  constructor(status: number, code: string | null = null) {
+  constructor(status: number, code: ErrorCode | null = null) {
     super(`HTTP ${status}`);
     this.status = status;
     this.code = code;
@@ -33,7 +33,7 @@ export const STALE_EVENT = "score3ly:stale-project";
 
 async function checked(response: Response): Promise<Response> {
   if (!response.ok) {
-    const code = response.status === 409 ? (((await response.clone().json().catch(() => null)) as { code?: string } | null)?.code ?? null) : null;
+    const code = response.status === 409 ? (((await response.clone().json().catch(() => null)) as ApiErrorBody | null)?.code ?? null) : null;
     if (code === "stale_version") window.dispatchEvent(new Event(STALE_EVENT));
     throw new ApiError(response.status, code);
   }
@@ -273,49 +273,10 @@ export async function fetchTextContent(sha256: string): Promise<string> {
   return (await checked(await fetch(`/api/content/${sha256}`))).text();
 }
 
-// LLM calls (apps/worker/src/llmRoutes.ts, docs/llm.md).
-
-export type Provider = "anthropic" | "bedrock" | "ai-studio" | "vertex" | "openrouter" | "fake" | "fake-dev";
-// An OpenRouter account's plan: its fee on credit purchases, and the EU for Business only.
-export type Account = "standard" | "business";
-export type Family = "claude" | "gemini" | "fake";
-
-// A model config (docs/llm.md, "Configs"), with what the list of models says about its model.
-export type ModelConfig = {
-  id: string;
-  name: string; // required and unique (docs/llm.md, "Model configs")
-  provider: Provider;
-  modelId: string | null; // a listed model
-  modelString: string | null; // or a model added by hand
-  model: string; // the model's string on the provider
-  family: Family;
-  modelName: string | null; // a listed model's name for people
-  // Why the app no longer supports it, said after its name, or null: its stages can't start, and it can't be picked
-  // (docs/llm.md, "No longer supported").
-  unsupported: string | null;
-  effort: "low" | "medium" | "high" | "xhigh" | "max" | null;
-  region: string; // "" where the provider has no regions
-  routing: "global" | "geographic" | "in-region" | null; // Bedrock only
-  project: string | null; // Vertex AI only
-  account: Account | null; // OpenRouter only
-  secrets: Record<string, string>; // field → name of a Worker secret
-  pricing: { kind: "list"; reference: string | null } | { kind: "free" } | { kind: "unpriced" } | { kind: "provider" };
-  // What its calls cost now: per million tokens, perhaps borrowed from another model (its name).
-  price:
-    | { kind: "priced"; price: { input: number; output: number; cacheRead: number; cacheWrite: number }; borrowedFrom: string | null }
-    | { kind: "free" }
-    | { kind: "unpriced" }
-    | { kind: "provider"; fee: number } // each answer says what it cost; plus the fee on credits
-    | { kind: "missing" };
-  freeTier: boolean; // pricing "free"
-  createdAt: string;
-  deletedAt: string | null; // a deleted config is never used again
-};
-
-// `defaultModelConfigId` is never null once the database is set up (the Worker refuses to remove it);
-// null only as a guard against a database edited by hand.
-// vatPercent: the VAT added to every cost, a percentage (docs/llm.md, "VAT"); the model configs' prices are without it.
-export type Settings = { defaultModelConfigId: string | null; spendingCapUsd: number; newProjectRunMode: RunMode; vatPercent: number };
+// LLM calls (apps/worker/src/llmRoutes.ts, docs/llm.md). Model configs and settings as the Worker sends them
+// (`@score3ly/core`).
+export type { Account, Family, ModelConfig, ModelOptions, NewModelConfig, Place, PriceRange, Provider, Routing, Settings, TestResult } from "@score3ly/core";
+export type { Price as ModelPrice } from "@score3ly/core";
 
 export async function fetchSettings(): Promise<Settings> {
   return (await checked(await fetch("/api/settings"))).json();
@@ -453,9 +414,9 @@ export type { CallAnswer, CallContent, CallPlace, CallRequest } from "@score3ly/
 
 // A call the Worker refused to make: `code` says why (e.g. "spending_cap", "unsupported_model_config", "missing_secret").
 export class LlmRefused extends Error {
-  readonly code: string;
+  readonly code: ErrorCode;
 
-  constructor(code: string, message: string) {
+  constructor(code: ErrorCode, message: string) {
     super(message);
     this.code = code;
   }
@@ -481,7 +442,7 @@ export async function callLlm(
     body: JSON.stringify({ request, item: place.item, round: place.round, ...(label ? { label } : {}) } satisfies CallBody),
   });
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: string; code?: string } | null;
+    const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
     if (body?.code) throw new LlmRefused(body.code, body.error ?? body.code);
     throw new ApiError(response.status);
   }
@@ -517,7 +478,7 @@ export async function storeFingerprints(fingerprints: StoredFingerprint[]): Prom
 }
 
 // When the LLM price table was collected (docs/llm.md, "Costs").
-export async function fetchPrices(): Promise<{ asOf: string }> {
+export async function fetchPrices(): Promise<Prices> {
   return (await checked(await fetch("/api/prices"))).json();
 }
 
@@ -535,38 +496,9 @@ export async function reserveIssueNumbers(project: Project, count: number, known
   return ((await (await send(`/api/projects/${project.id}/issue-numbers`, { count, above })).json()) as { first: number }).first;
 }
 
-// What the new config form's pickers offer (apps/worker/src/llmRoutes.ts, `modelOptions`; docs/llm.md).
-export type Routing = "global" | "geographic" | "in-region";
-export type Place = { region: string; routing: Routing | null };
-export type ModelPrice = { input: number; output: number; cacheRead: number; cacheWrite: number };
-export type ModelOptions = {
-  asOf: string;
-  mock: boolean;
-  providers: {
-    id: Provider;
-    name: string;
-    families: { id: Family; name: string; efforts: NonNullable<ModelConfig["effort"]>[]; secrets: string[][] }[];
-    places: (Place & { geography?: string })[];
-    // Priced by the provider (OpenRouter): an account's plan sets the fee, and some regions are for Business only.
-    pricedByProvider?: { fees: Record<Account, number>; businessRegions: string[] };
-  }[];
-  models: {
-    id: string;
-    name: string;
-    family: Family;
-    efforts: NonNullable<ModelConfig["effort"]>[]; // the levels the model takes ([] for none)
-    // A place's price is null where the provider prices each call itself.
-    providers: Partial<Record<Provider, { string: string; places: (Place & { price: ModelPrice | null })[] }>>;
-  }[];
-};
-
 export async function fetchModelOptions(): Promise<ModelOptions> {
   return (await checked(await fetch("/api/models"))).json();
 }
-
-// A guide to what a config's model costs where the provider prices each call itself (OpenRouter): the lowest and
-// highest of the four prices per million tokens among those who run it, without the fee on credits, or null.
-export type PriceRange = { input: [number, number]; output: [number, number]; cacheRead: [number, number]; cacheWrite: [number, number] };
 
 export async function fetchPriceRange(configId: string): Promise<PriceRange | null> {
   return ((await (await checked(await fetch(`/api/model-configs/${configId}/price-range`))).json()) as { range: PriceRange | null }).range;
@@ -574,28 +506,12 @@ export async function fetchPriceRange(configId: string): Promise<PriceRange | nu
 
 // The names of the Worker's secrets (never their values), for the secret pickers.
 export async function fetchSecretNames(): Promise<string[]> {
-  return ((await (await checked(await fetch("/api/secrets"))).json()) as { names: string[] }).names;
+  return ((await (await checked(await fetch("/api/secrets"))).json()) as SecretNames).names;
 }
-
-// What a new model config is made of (the Worker's `configProblem` checks it).
-export type NewModelConfig = {
-  name?: string;
-  provider: Provider;
-  modelId?: string;
-  modelString?: string;
-  family?: Family;
-  effort: ModelConfig["effort"];
-  region: string;
-  routing: Routing | null;
-  project?: string;
-  account?: Account;
-  secrets: Record<string, string>;
-  pricing: ModelConfig["pricing"];
-};
 
 // Creates a model config, or clones one (`replaces`: the original, deleted with it). A refusal comes back as a
 // WorkerRefusal with the Worker's message, to show in the form.
-export async function createModelConfig(body: NewModelConfig & { replaces?: string }): Promise<ModelConfig> {
+export async function createModelConfig(body: NewModelConfig): Promise<ModelConfig> {
   const response = await fetch("/api/model-configs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return (await refusedOr(response)).json();
 }
@@ -603,9 +519,9 @@ export async function createModelConfig(body: NewModelConfig & { replaces?: stri
 // A refusal from the Worker, with its message and, where it has one, its code.
 export class WorkerRefusal extends Error {
   readonly status: number;
-  readonly code: string | null;
+  readonly code: ErrorCode | null;
 
-  constructor(status: number, body: { error?: string; code?: string } | null) {
+  constructor(status: number, body: Partial<ApiErrorBody> | null) {
     super(body?.error ?? `HTTP ${status}`);
     this.status = status;
     this.code = body?.code ?? null;
@@ -622,14 +538,6 @@ export async function renameModelConfig(id: string, name: string): Promise<Model
   const response = await fetch(`/api/model-configs/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
   return (await refusedOr(response)).json();
 }
-
-// A config's test (docs/llm.md, "The settings page"): the call's answer, the colour the model saw, and how long it took.
-export type TestResult = {
-  status: "ok" | "cut_off" | "refused" | "unparseable" | "error";
-  error: string | null;
-  costUsd: number | null; // VAT included
-  durationMs: number;
-};
 
 // Sends a config's test request; refusals before anything is sent (a missing secret, the spending cap) throw.
 export async function testModelConfig(id: string): Promise<TestResult> {
@@ -676,7 +584,7 @@ export async function missingContent(sha256s: string[]): Promise<string[]> {
 export async function importRows(rows: ProjectRows): Promise<{ id: string; name: string }> {
   const response = await fetch("/api/projects/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rows) });
   if (!response.ok) {
-    const error = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
+    const error = ((await response.json().catch(() => null)) as ApiErrorBody | null)?.error;
     throw new Error(error ?? `HTTP ${response.status}`);
   }
   return response.json();

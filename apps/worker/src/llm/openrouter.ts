@@ -6,6 +6,7 @@
 // (`usage.cost`, in US dollars of credits): the app's cost for the call is that plus OpenRouter's fee on credits
 // (llmRoutes.ts). `region` "eu" sends to `eu.openrouter.ai`, which is served in Europe only (a Business account).
 
+import type { PriceRange } from "@score3ly/core";
 import {
   type Fetch,
   kindForStatus,
@@ -258,7 +259,7 @@ export class OpenRouterProvider implements LlmProvider {
 // (its endpoints API, public), without the tiers only a request asks for (`…/fast`, `…/priority`, …). A provider
 // without a cache price has none (0: Gemini's implicit caching writes for free). Null where OpenRouter doesn't have
 // the model or can't be reached. Only a guide: each call costs what its answer says. Without the fee on credits.
-export type PriceRange = { input: [number, number]; output: [number, number]; cacheRead: [number, number]; cacheWrite: [number, number] };
+export type { PriceRange };
 
 const TIERS = new Set(["fast", "priority", "turbo", "flex"]);
 

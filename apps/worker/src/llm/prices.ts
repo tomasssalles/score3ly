@@ -1,10 +1,10 @@
 // What calls cost (docs/llm.md, "Costs"): the providers report tokens, not money, so the app computes the cost from the
 // prices in the list of models (models.ts, modelList.ts). US dollars per million tokens. Estimates, not the invoice.
 
-import { roundUsd } from "@score3ly/core";
+import { type Price, roundUsd } from "@score3ly/core";
 import type { LlmUsage } from "./types.ts";
 
-export type Price = { input: number; output: number; cacheRead: number; cacheWrite: number };
+export type { Price };
 
 export function costOf(usage: LlmUsage, price: Price): number {
   const dollars =

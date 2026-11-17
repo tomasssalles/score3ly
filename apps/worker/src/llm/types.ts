@@ -1,4 +1,4 @@
-import { type ImageMediaType, MAX_CACHE_MARKS } from "@score3ly/core";
+import { type Effort, type ImageMediaType, MAX_CACHE_MARKS } from "@score3ly/core";
 
 // Calling vision LLMs without caring which provider answers (docs/overview.md §3, the `LlmProvider` port). Requests and
 // responses are our own, small shapes; each provider's adapter translates them. The Worker makes the calls, so the
@@ -23,8 +23,8 @@ export { MAX_CACHE_MARKS };
 
 export type LlmMessage = { role: "user" | "assistant"; content: LlmContent[] };
 
-// How hard the model thinks. Each adapter maps it to what its provider offers.
-export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+// How hard the model thinks (`Effort`, core). Each adapter maps it to what its provider offers.
+export type { Effort };
 
 export type LlmRequest = {
   model: string; // the provider's model ID, e.g. "claude-opus-5-5"

@@ -7,7 +7,7 @@
 // is used (no row), a deleted one is brought back to life (its cost stays where it was paid), and only a call found
 // nowhere becomes a new row, which counts like any call. Original times are kept.
 
-import { firstFreeName, isSha256Hex } from "@score3ly/core";
+import { CONFIG_VALUES, firstFreeName, isSha256Hex, sameConfigValues } from "@score3ly/core";
 import type { Hono } from "hono";
 import { anyRunning, withModelConfig } from "./pipeline.ts";
 import { PLACEHOLDER_ITEM, placeProblem } from "./llmRoutes.ts";
@@ -93,21 +93,7 @@ const CALL_COLUMNS = [
   "started_at",
   "finished_at",
 ] as const;
-// What makes two model configs the same (all but the id, the name and the dates).
-const CONFIG_VALUES = [
-  "provider",
-  "model_id",
-  "model_string",
-  "family",
-  "effort",
-  "region",
-  "routing",
-  "project",
-  "account",
-  "secrets_json",
-  "pricing_kind",
-  "pricing_reference",
-] as const;
+// What makes two model configs the same is `CONFIG_VALUES` (core): all but the id, the name and the dates.
 const CONFIG_COLUMNS = ["id", "name", ...CONFIG_VALUES, "created_at", "deleted_at"] as const;
 const FINGERPRINT_COLUMNS = [
   "recipe_key",
@@ -229,19 +215,6 @@ export function exportProblem(data: unknown): string | null {
   return null;
 }
 
-// The same JSON with its keys sorted, so that two configs' secrets compare by content.
-function canonicalJson(text: unknown): string {
-  try {
-    const value = JSON.parse(String(text ?? "{}")) as Record<string, unknown>;
-    return JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))));
-  } catch {
-    return String(text);
-  }
-}
-
-const sameConfig = (a: Row, b: Row) =>
-  CONFIG_VALUES.every((k) => (k === "secrets_json" ? canonicalJson(a[k]) === canonicalJson(b[k]) : (a[k] ?? null) === (b[k] ?? null)));
-
 export type Imported = { id: string; name: string };
 
 // Imports an export (already checked with `exportProblem`; the PDF and the content already in R2). Returns the new
@@ -260,7 +233,7 @@ export async function importProject(db: D1Database, bucket: R2Bucket, data: Proj
   const takenConfigNames = liveConfigs.map((c) => c.name as string);
   const statements: D1PreparedStatement[] = [];
   for (const config of data.model_configs) {
-    const match = liveConfigs.find((c) => sameConfig(c, config));
+    const match = liveConfigs.find((c) => sameConfigValues(c, config));
     if (match) {
       configMap.set(config.id as string, match.id as string);
       continue;

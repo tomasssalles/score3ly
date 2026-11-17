@@ -1,5 +1,6 @@
 // How a model config's prices are shown (docs/llm.md, "Configs").
 
+import { PROVIDER_NAMES } from "@score3ly/core";
 import type { ModelConfig, ModelPrice, PriceRange } from "./api";
 
 // A price per million tokens: whole dollars without cents ("$4"), else at least the cents ("$0.20", "$0.001"). Amounts
@@ -20,7 +21,7 @@ export function pricingText(config: ModelConfig, range: PriceRange | null = null
   if (price.kind === "unpriced") return "Unpriced: its calls' costs are unknown";
   if (price.kind === "missing") return "No price in the app's list";
   if (price.kind === "provider") {
-    const name = PROVIDER_NAMES[config.provider] ?? config.provider;
+    const name = PROVIDER_NAMES[config.provider];
     if (!range) return `Priced per call by ${name}, plus its ${feePercent(price.fee)} fee on credit purchases`;
     return `${rangeText(range, price.fee)} (including ${name}'s ${feePercent(price.fee)} fee on credit purchases; the price depends on who runs the model)`;
   }
@@ -48,8 +49,6 @@ export function rangeText(range: PriceRange, fee = 0): string {
 export function feePercent(share: number): string {
   return `${Math.round(share * 1000) / 10}%`;
 }
-
-const PROVIDER_NAMES: Partial<Record<ModelConfig["provider"], string>> = { openrouter: "OpenRouter" };
 
 export const ACCOUNT_NAMES: Record<NonNullable<ModelConfig["account"]>, string> = { standard: "Standard", business: "Business" };
 
