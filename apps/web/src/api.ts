@@ -1,45 +1,14 @@
 import type { Fingerprint } from "@score3ly/imaging";
 import type { Timing } from "./itemTiming";
-import { type CallEvent, readSse, sha256Hex } from "@score3ly/core";
+import { type CallAnswer, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, readSse, sha256Hex, type StreamEvent } from "@score3ly/core";
 
-// Mirrors the Worker's Project type (apps/worker/src/index.ts).
+// A project as the Worker's API sends it (`@score3ly/core`).
 export type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
-import type { ListedProject, Project, RunMode } from "@score3ly/core";
+import type { AddedStage, Deleted, ListedProject, OutputsAnswer, PdfLookup, Project, Resolved, RunMode, StartAnswer } from "@score3ly/core";
 
-// Mirrors the Worker's Pipeline, Stage and Output types: the stages as stored (docs/database.md).
-export type ApiPipeline = { stages: ApiStage[]; dropped: ApiDropped[] };
-
-// A manual stage dropped at its turn because its inputs changed: a card where it was, after the stage with
-// `afterStageId`, until dismissed (docs/overview.md §5.5).
-export type ApiDropped = { id: number; afterStageId: string; step: string };
-
-export type ApiStage = {
-  id: string;
-  step: string;
-  stepVersion: number | null;
-  status: "planned" | "running" | "failed" | "done" | "wip" | "stopped";
-  config: Record<string, unknown> | null;
-  pageCount: number | null;
-  error: string | null;
-  note: string | null;
-  startedAt: string | null;
-  heartbeatAt: string | null;
-  finishedAt: string | null;
-  modelConfig: { name: string; model: string; deleted: boolean; unsupported: boolean } | null; // LLM stages: the model config it names
-  costUsd: number | null; // what its LLM calls cost, VAT included (docs/llm.md, "VAT")
-  carried: boolean; // a manual stage carried through a re-run, waiting for its turn to be kept or dropped (§5.5)
-  inRecipe: boolean; // part of the recipe, or added by the user (a further review and its Apply review, a manual stage)
-  outputs: ApiOutput[];
-};
-
-export type ApiOutput = {
-  id: string;
-  item: string;
-  type: string;
-  contentSha256: string | null;
-  recipeKey: string | null;
-  recipe: unknown;
-};
+// The stages as stored (docs/database.md), as the Worker's API sends them (`@score3ly/core`).
+export type { Dropped as ApiDropped, Output as ApiOutput, Pipeline as ApiPipeline, Stage as ApiStage } from "@score3ly/core";
+import type { Pipeline as ApiPipeline } from "@score3ly/core";
 
 // A failed request. `status` is the HTTP status, so callers can react to e.g. 409 (conflict); `code` the Worker's
 // code for it, where it gives one.
@@ -113,10 +82,7 @@ export async function listProjects(): Promise<ListedProject[]> {
   return (await checked(await fetch("/api/projects"))).json();
 }
 
-export type PdfLookup = {
-  projects: Project[]; // most recently opened first
-  newProjectName: string; // the name a new project would get
-};
+export type { PdfLookup } from "@score3ly/core";
 
 // What the Worker knows about a PDF, before uploading it.
 export async function lookUpPdf(sha256: string, filename: string): Promise<PdfLookup> {
@@ -152,7 +118,7 @@ export async function renameProject(project: Project, name: string): Promise<Pro
 
 // Deletes a project (docs/database.md, "Deleting a project"). Refused (409) while one of its stages runs. Says whether no project left uses
 // its PDF, so that this device can delete the PDF's images too.
-export async function deleteProject(project: Project): Promise<{ pdfUnused: boolean }> {
+export async function deleteProject(project: Project): Promise<Deleted> {
   return (await checked(await fetch(`/api/projects/${project.id}`, { method: "DELETE" }))).json();
 }
 
@@ -206,7 +172,7 @@ export async function startStage(
   project: Project,
   stageId: string,
   start: StageStart,
-): Promise<{ reused: boolean; stageId: string }> {
+): Promise<StartAnswer> {
   return (await send(stageUrl(project, stageId, "start"), start)).json();
 }
 
@@ -223,7 +189,7 @@ export type NewOutput = {
 };
 
 export async function recordOutputs(project: Project, stageId: string, outputs: NewOutput[]): Promise<string[]> {
-  return ((await (await send(stageUrl(project, stageId, "outputs"), { outputs })).json()) as { ids: string[] }).ids;
+  return ((await (await send(stageUrl(project, stageId, "outputs"), { outputs })).json()) as OutputsAnswer).ids;
 }
 
 export async function sendHeartbeat(project: Project, stageId: string): Promise<void> {
@@ -252,12 +218,12 @@ export async function addFixStage(
   project: Project,
   afterStageId: string,
   start: FixStart,
-): Promise<{ stageId: string; pipeline: ApiPipeline }> {
+): Promise<AddedStage> {
   return (await send(stageUrl(project, afterStageId, "fix"), start)).json();
 }
 
 // Adds a further review after an Apply review, with an Apply review of its own (docs/stages/music.md, `apply_review`).
-export async function addReviewStage(project: Project, afterStageId: string): Promise<{ stageId: string; pipeline: ApiPipeline }> {
+export async function addReviewStage(project: Project, afterStageId: string): Promise<AddedStage> {
   return (await send(stageUrl(project, afterStageId, "review"))).json();
 }
 
@@ -267,12 +233,12 @@ export async function addHumanReviewStage(
   project: Project,
   afterStageId: string,
   start: Omit<FixStart, "step">,
-): Promise<{ stageId: string; pipeline: ApiPipeline }> {
+): Promise<AddedStage> {
   return (await send(stageUrl(project, afterStageId, "human-review"), start)).json();
 }
 
 // Edits a finished manual stage: a WIP copy takes its place.
-export async function editStage(project: Project, stageId: string): Promise<{ stageId: string; pipeline: ApiPipeline }> {
+export async function editStage(project: Project, stageId: string): Promise<AddedStage> {
   return (await send(stageUrl(project, stageId, "edit"))).json();
 }
 
@@ -287,7 +253,7 @@ export async function dismissDropped(project: Project, id: number): Promise<ApiP
 
 // A carried manual stage whose turn has come: kept if `inputIds` (what it would read now) hold what it read, else
 // dropped (docs/overview.md §5.5).
-export async function resolveStage(project: Project, stageId: string, inputIds: string[]): Promise<{ kept: boolean; pipeline: ApiPipeline }> {
+export async function resolveStage(project: Project, stageId: string, inputIds: string[]): Promise<Resolved> {
   return (await send(stageUrl(project, stageId, "resolve"), { inputIds })).json();
 }
 
@@ -482,36 +448,8 @@ export async function fetchCosts(): Promise<CostData> {
   return (await checked(await fetch("/api/costs"))).json();
 }
 
-// An image is named by its recipe key (docs/overview.md §5.2, "Only recipes, never pixels, in any key"), and comes with its
-// bytes only once the Worker has said the call isn't cached (llm.ts, `ask`). `cacheUpTo`: the prompt up to and
-// including this part is worth caching at the provider (docs/llm.md, "Prompt caching"); at most 4 per request.
-export type LlmContent = (
-  | { type: "text"; text: string }
-  | { type: "image"; recipeKey: string; image?: { mediaType: "image/png" | "image/jpeg" | "image/webp"; base64: string } }
-) & { cacheUpTo?: true };
-
-export type LlmRequest = {
-  system?: string;
-  messages: { role: "user" | "assistant"; content: LlmContent[] }[];
-  maxOutputTokens?: number;
-  jsonSchema?: Record<string, unknown>;
-};
-
-// Where a call belongs in its stage (docs/overview.md §12, "Each call records its place"): the item, in the outputs'
-// form ("p3" for a page, "p3/s2" for a system, "" for the whole score), and the round, from 1. Recorded with the call,
-// not part of its key.
-export type CallPlace = { item: string; round: number };
-
-export type LlmAnswer = {
-  callId: string;
-  cached: boolean; // served from an earlier identical request: nothing was paid
-  status: "ok" | "cut_off" | "refused" | "unparseable" | "error";
-  text: string | null;
-  json: unknown;
-  error: string | null;
-  usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number } | null;
-  costUsd: number | null;
-};
+// An LLM call's request, place and answer, as the Worker takes and gives them (`@score3ly/core`, docs/llm.md).
+export type { CallAnswer, CallContent, CallPlace, CallRequest } from "@score3ly/core";
 
 // A call the Worker refused to make: `code` says why (e.g. "spending_cap", "unsupported_model_config", "missing_secret").
 export class LlmRefused extends Error {
@@ -530,17 +468,17 @@ export class LlmRefused extends Error {
 export async function callLlm(
   project: Project,
   stageId: string,
-  request: LlmRequest,
+  request: CallRequest,
   place: CallPlace,
   label?: string,
   signal?: AbortSignal,
   onEvent?: (event: CallEvent) => void,
-): Promise<LlmAnswer | { imagesNeeded: true }> {
+): Promise<CallAnswer | ImagesNeeded> {
   const response = await fetch(stageUrl(project, stageId, "llm"), {
     method: "POST",
     signal,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ request, item: place.item, round: place.round, ...(label ? { label } : {}) }),
+    body: JSON.stringify({ request, item: place.item, round: place.round, ...(label ? { label } : {}) } satisfies CallBody),
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string; code?: string } | null;
@@ -553,11 +491,11 @@ export async function callLlm(
 
 // A call that was sent is streamed (docs/llm.md, "A call's progress"): its start and progress go to `onEvent` as they
 // come, and its answer ends the stream.
-async function streamedAnswer(response: Response, onEvent?: (event: CallEvent) => void): Promise<LlmAnswer> {
-  let answer: LlmAnswer | null = null;
+async function streamedAnswer(response: Response, onEvent?: (event: CallEvent) => void): Promise<CallAnswer> {
+  let answer: CallAnswer | null = null;
   let error: string | null = null;
   await readSse(response, (data) => {
-    const event = JSON.parse(data) as CallEvent | { event: "answer"; answer: LlmAnswer } | { event: "error"; error: string };
+    const event = JSON.parse(data) as StreamEvent;
     if (event.event === "answer") answer = event.answer;
     else if (event.event === "error") error = event.error;
     else onEvent?.(event);

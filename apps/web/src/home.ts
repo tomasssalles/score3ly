@@ -19,7 +19,7 @@ export function cardsThatFit(height: number, cardHeight: number, gap: number, co
 }
 
 // Where a pipeline is, as the panel's head would say it, from where the Worker says it is. A carried stage waits for its
-// turn; a stopped one can run again, like a failed one; a running one whose heartbeat stopped was interrupted. Nothing
+// turn; a running one whose heartbeat stopped was interrupted. Nothing
 // runs on this device while the home is shown: leaving a project stops its run.
 export function positionState(current: PipelinePosition | null, now = Date.now()): LabelState {
   if (!current) return { kind: "done" };
@@ -31,7 +31,6 @@ export function positionState(current: PipelinePosition | null, now = Date.now()
         ? { kind: "failed", stage: { title }, interrupted: true }
         : { kind: "running", stage: { title } };
     case "failed":
-    case "stopped":
       return { kind: "failed", stage: { title }, interrupted: false };
     case "wip":
       return { kind: "waiting", stage: { title, status: "wip" } };

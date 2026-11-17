@@ -1,3 +1,5 @@
+import type { StageStatus } from "./pipeline.ts";
+
 // A project as the Worker's API sends it (docs/overview.md §4).
 export type Project = {
   id: string;
@@ -17,10 +19,20 @@ export type RunMode = "auto" | "manual";
 // browser names its state as the panel's head does (`running` with an old heartbeat is an interrupted run).
 export type PipelinePosition = {
   step: string;
-  status: "planned" | "running" | "failed" | "wip" | "stopped" | "done";
+  status: StageStatus;
   heartbeatAt: string | null;
   carried: boolean;
 };
 
 // A project as the list of all projects has it (`GET /api/projects`).
 export type ListedProject = Project & { current: PipelinePosition | null };
+
+// What the Worker knows about a PDF, before it is uploaded (`GET /api/pdfs/<sha256>`).
+export type PdfLookup = {
+  projects: Project[]; // the live projects on it, most recently opened first
+  newProjectName: string; // the name a new project would get
+};
+
+// A deleted project (`DELETE /api/projects/<id>`): whether no live project uses its PDF any more, so that the device
+// can delete the PDF's images too.
+export type Deleted = { pdfUnused: boolean };

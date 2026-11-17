@@ -14,7 +14,7 @@ import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
 
 export type { ListedProject, Project, RunMode } from "@score3ly/core";
-import type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
+import type { Deleted, ListedProject, PdfLookup, PipelinePosition, Project, RunMode } from "@score3ly/core";
 import { firstFreeName, isSha256Hex, MAX_NAME_LENGTH, nameTooLong } from "@score3ly/core";
 
 type ProjectRow = {
@@ -80,7 +80,7 @@ app.delete("/api/projects/:id", async (c) => {
   const result = await deleteProject(c.env, c.req.param("id"));
   if (result === "not_found") return c.json({ error: "no such project" }, 404);
   if (result === "running") return c.json({ error: "a stage of the project is running" }, 409);
-  return c.json(result);
+  return c.json<Deleted>(result);
 });
 
 // All projects, most recently opened first, each with where its pipeline is (its first stage that isn't done, a carried
@@ -105,7 +105,7 @@ app.get("/api/projects", async (c) => {
       { step: r.step, status: r.status, heartbeatAt: r.heartbeat_at, carried: r.carried === 1 } satisfies PipelinePosition,
     ]),
   );
-  return c.json((projects.results as ProjectRow[]).map((row): ListedProject => ({ ...toProject(row), current: at.get(row.id) ?? null })));
+  return c.json<ListedProject[]>((projects.results as ProjectRow[]).map((row): ListedProject => ({ ...toProject(row), current: at.get(row.id) ?? null })));
 });
 
 // Every name in use: firstFreeName picks from them in code. Not with LIKE: D1 refuses patterns over 50 bytes, and
@@ -133,7 +133,7 @@ app.get("/api/pdfs/:sha256", async (c) => {
     .bind(sha256)
     .all<ProjectRow>();
   const base = defaultName(filename);
-  return c.json({
+  return c.json<PdfLookup>({
     projects: results.map(toProject),
     newProjectName: firstFreeName(base, await takenNames(c.env.DB)),
   });
@@ -258,7 +258,7 @@ app.post("/api/projects", async (c) => {
           ),
         ...newPipeline(db, project.id, project.pdfSha256, defaultModelConfigId, now),
       ]);
-      return c.json(project, 201);
+      return c.json<Project>(project, 201);
     } catch (err) {
       if (!isNameConflict(err) || attempt >= 4) throw err;
     }
@@ -300,7 +300,7 @@ app.patch("/api/projects/:id", async (c) => {
     if (isNameConflict(err)) return c.json({ error: `another project is already called "${name}"` }, 409);
     throw err;
   }
-  return c.json(await getProject(c.env.DB, c.req.param("id")));
+  return c.json<Project | null>(await getProject(c.env.DB, c.req.param("id")));
 });
 
 // Records that the project was opened. Doesn't count as a modification.

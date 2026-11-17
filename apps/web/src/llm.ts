@@ -2,7 +2,7 @@
 // depends on it, images for requests, and asking the model.
 
 import { CLAUDE_IMAGE_LIMIT, type SizeLimit } from "@score3ly/imaging";
-import { type CallPlace, callLlm, fetchModelConfig, type LlmAnswer, type LlmRequest, type ModelConfig } from "./api";
+import { type CallPlace, callLlm, fetchModelConfig, type CallAnswer, type CallRequest, type ModelConfig } from "./api";
 import { keyOf, toBase64 } from "@score3ly/core";
 import { noteAnswer } from "./itemTiming";
 import { keepFingerprints } from "./pageImages";
@@ -56,7 +56,7 @@ export function imageLimitFor(config: ModelConfig, count: number): SizeLimit {
 }
 
 // Why a request is too big for its provider, or null. Counts the base64 of its images and the length of its texts.
-export function requestSizeProblem(config: ModelConfig, request: LlmRequest): string | null {
+export function requestSizeProblem(config: ModelConfig, request: CallRequest): string | null {
   const limits = requestLimits(config);
   let total = (request.system?.length ?? 0) + JSON.stringify(request.jsonSchema ?? null).length;
   for (const message of request.messages) {
@@ -87,7 +87,7 @@ async function pngContent(png: Blob): Promise<{ mediaType: "image/png"; base64: 
 export type RequestImage = { type: "image"; recipe: unknown; recipeKey: string; make: () => Promise<Blob> };
 // `cacheUpTo`: where the prompt is worth caching at the provider (docs/llm.md, "Prompt caching").
 export type RequestContent = ({ type: "text"; text: string } | RequestImage) & { cacheUpTo?: true };
-export type PlannedRequest = Omit<LlmRequest, "messages"> & { messages: { role: "user" | "assistant"; content: RequestContent[] }[] };
+export type PlannedRequest = Omit<CallRequest, "messages"> & { messages: { role: "user" | "assistant"; content: RequestContent[] }[] };
 
 // An image for a request, from its recipe and the function that makes (or takes from the cache) the image of that
 // recipe: the image's key in the device's cache is the recipe's key too.
@@ -96,10 +96,10 @@ export async function requestImage<R>(recipe: R, make: (recipe: R) => Promise<Bl
 }
 
 // The request to send: with its images made (`made` collects them), or without.
-async function withImages(request: PlannedRequest, made: { recipe: unknown; png: Blob }[] | null): Promise<LlmRequest> {
-  const messages: LlmRequest["messages"] = [];
+async function withImages(request: PlannedRequest, made: { recipe: unknown; png: Blob }[] | null): Promise<CallRequest> {
+  const messages: CallRequest["messages"] = [];
   for (const m of request.messages) {
-    const content: LlmRequest["messages"][number]["content"] = [];
+    const content: CallRequest["messages"][number]["content"] = [];
     // One image at a time: a request can have many, and each is large.
     for (const c of m.content) {
       const cache = c.cacheUpTo ? { cacheUpTo: true as const } : {};
@@ -127,22 +127,21 @@ export async function ask(
   request: PlannedRequest,
   what: string,
   options: { config: ModelConfig; place: CallPlace; beforeImages?: () => Promise<void> },
-): Promise<LlmAnswer> {
-  const tracked = trackCall(run, what, options.place.item);
-  let answer = await callLlm(run.project, run.stage.id, await withImages(request, null), options.place, what, run.signal, tracked.onEvent);
+): Promise<CallAnswer> {
+  const onEvent = trackCall(run, options.place.item);
+  let answer = await callLlm(run.project, run.stage.id, await withImages(request, null), options.place, what, run.signal, onEvent);
   if ("imagesNeeded" in answer) {
     await options.beforeImages?.();
     const images: { recipe: unknown; png: Blob }[] = [];
     const full = await withImages(request, images);
     const tooBig = requestSizeProblem(options.config, full);
     if (tooBig) throw new Error(`${what}: ${tooBig}.`);
-    const made = await callLlm(run.project, run.stage.id, full, options.place, what, run.signal, tracked.onEvent);
+    const made = await callLlm(run.project, run.stage.id, full, options.place, what, run.signal, onEvent);
     if ("imagesNeeded" in made) throw new Error(`${what}: the request was sent without its images.`);
     answer = made;
     // The answer is computed from these images: their fingerprints are kept (§8.3).
     if (answer.status === "ok") await keepFingerprints(images);
   }
-  tracked.ended();
   if (answer.status !== "ok") throw new Error(`${what}: ${answer.error ?? answer.status}`);
   noteAnswer(answer.cached);
   return answer;

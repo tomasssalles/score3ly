@@ -4,6 +4,7 @@
 // and content), the full requests and responses of its calls, its PDF and the PDF's fingerprints. Content in R2 is
 // deleted by collecting what no row refers to any more, which also collects the orphans other changes leave behind.
 
+import type { Deleted } from "@score3ly/core";
 import { anyRunning } from "./pipeline.ts";
 
 // R2 objects younger than this are never collected: their rows may be on their way (content is uploaded before the
@@ -22,7 +23,6 @@ const UNUSED_OUTPUTS = `
 // The calls an output of a stage that isn't marked names.
 const LIVE_CALLS = "SELECT o.call_id FROM outputs o JOIN stages s ON s.id = o.stage_id WHERE o.call_id IS NOT NULL AND s.deleted_at IS NULL";
 
-export type Deleted = { pdfUnused: boolean }; // whether no project that isn't deleted uses the PDF any more
 
 export async function deleteProject(env: Env, projectId: string, now = new Date()): Promise<Deleted | "not_found" | "running"> {
   const db = env.DB;

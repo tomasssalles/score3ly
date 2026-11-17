@@ -3,10 +3,13 @@
 // points: `@score3ly/core/pdf` (browsers) and `@score3ly/core/pdfjs-assets` (Vite, in Node).
 
 export { canonicalJson, isSha256Hex, keyOf, modelKeyOf, normalized, sha256Hex } from "./keys.ts";
-export type { ListedProject, PipelinePosition, Project, RunMode } from "./project.ts";
+export type { Deleted, ListedProject, PdfLookup, PipelinePosition, Project, RunMode } from "./api/project.ts";
+export type { AddedStage, Dropped, Output, OutputsAnswer, Pipeline, Resolved, Stage, StageModelConfig, StageStatus, StartAnswer } from "./api/pipeline.ts";
+export { RECIPE, STEP_KINDS, stepsOfKind, type StageKind, type StepId } from "./steps.ts";
 export { formatPages, parsePages, selectPages } from "./pageSelection.ts";
 export { readSse } from "./sse.ts";
-export type { CallEvent } from "./callEvents.ts";
+export { IMAGE_MEDIA_TYPES, MAX_CACHE_MARKS } from "./api/llmCall.ts";
+export type { CallAnswer, CallBody, CallContent, CallEvent, CallPlace, CallRequest, CallStatus, CallUsage, ImageMediaType, ImagesNeeded, StreamEvent } from "./api/llmCall.ts";
 export { sameValuesMessage } from "./modelConfigs.ts";
 export { fromBase64, toBase64, toBase64Url } from "./base64.ts";
 export { firstFreeName, MAX_NAME_LENGTH, nameTooLong } from "./names.ts";

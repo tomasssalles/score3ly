@@ -17,7 +17,7 @@ import {
   type StageStart,
 } from "./api.ts";
 import { timed } from "./itemTiming.ts";
-import type { CallProgress, ItemProgress } from "./callProgress.ts";
+import type { ItemProgress } from "./callProgress.ts";
 
 export type StageRun = {
   project: Project;
@@ -25,7 +25,6 @@ export type StageRun = {
   pipeline: ApiPipeline; // the project's pipeline as stored, for the stage's inputs
   signal: AbortSignal; // aborted when the user stops the stage
   progress: (fraction: number) => void;
-  call?: (call: CallProgress) => void; // the stage's current LLM call, as it goes (docs/llm.md, "A call's progress")
   item?: (item: ItemProgress) => void; // the item it works on, and the characters received for it (callProgress.ts)
 };
 

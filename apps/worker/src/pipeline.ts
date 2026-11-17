@@ -4,60 +4,23 @@
 
 import { COST_WITH_VAT } from "./vat.ts";
 import { logFields } from "./requestLog.ts";
-import { isSha256Hex, quarterOf } from "@score3ly/core";
+import { isSha256Hex, quarterOf, RECIPE, stepsOfKind, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StageModelConfig, type StageStatus, type StartAnswer } from "@score3ly/core";
 import type { Hono } from "hono";
 import { deletedConfigMessage, readSettings, resolvedModel, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
 import type { Family, Pricing, Provider, Routing } from "./llm/models.ts";
 
-export type Pipeline = { stages: Stage[]; dropped: Dropped[] };
+// The pipeline as the API sends it (`Pipeline`, `Stage`, `Output`, `Dropped`) is in `@score3ly/core`.
 
-// A manual stage dropped at its turn because its inputs changed (docs/overview.md §5.5): a card where it was, after the
-// stage with `afterStageId`, until dismissed. Several after the same stage are in the order they were dropped.
-export type Dropped = { id: number; afterStageId: string; step: string };
-
-export type StageStatus = "planned" | "running" | "failed" | "done" | "wip" | "stopped";
-
-export type Stage = {
-  id: string;
-  step: string; // the step's id; its kind and title are declared in code
-  stepVersion: number | null; // set when the stage starts
-  status: StageStatus;
-  config: unknown; // the step's config: null while planned with the defaults
-  pageCount: number | null; // the pages its inputs cover, set when it starts
-  error: string | null;
-  note: string | null;
-  startedAt: string | null;
-  heartbeatAt: string | null; // written once a minute while running
-  finishedAt: string | null;
-  // LLM stages: the model config it names, for the card (whether it was deleted too), and what its calls cost.
-  modelConfig: { name: string; model: string; deleted: boolean } | null;
-  costUsd: number | null;
-  // A manual stage carried through a re-run, waiting for its turn to be kept or dropped (docs/overview.md §5.5).
-  carried: boolean;
-  // Part of the recipe, or added by the user (a further review and its `apply_review`, a manual stage).
-  inRecipe: boolean;
-  outputs: Output[];
-};
-
-export type Output = {
-  id: string;
-  item: string; // '' for the whole score, 'p3' for a page, 'p3/s2' for a system on it
-  type: string; // e.g. 'pdf', 'page_image'
-  contentSha256: string | null; // stored content, in R2
-  recipeKey: string | null; // computed images: the hash of the recipe
-  recipe: unknown; // computed images: the recipe
-};
-
-// The planned stages, in order (docs/overview.md §6). New projects get all of them; Ingest is done from the start.
-export const RECIPE = ["ingest", "rasterize", "skew_analysis", "layout", "analyze", "extract", "review", "apply_review", "build_mei", "engrave"] as const;
+// A stage's status as stored: a stopped stage has left the pipeline, so the API's `StageStatus` (a pipeline's) lacks it.
+export type StoredStatus = StageStatus | "stopped";
 
 // The version of the Ingest step that new projects get.
 const INGEST_VERSION = 1;
 
-// The manual steps (docs/overview.md §5.4). A step's kind is declared in the web app; the Worker needs to know these to
-// add, edit and drop them, and to carry them when the stages after a change are replaced (§5.5).
-// `human_review` is one too, though it is added with an `apply_review` of its own (docs/stages/music.md, `human_review`).
-export const MANUAL_STEPS = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"] as const;
+// The manual steps (docs/overview.md §5.4), by their kind in core: the Worker needs to know these to add, edit and drop
+// them, and to carry them when the stages after a change are replaced (§5.5). `human_review` is one too, though it is
+// added with an `apply_review` of its own (docs/stages/music.md, `human_review`).
+export const MANUAL_STEPS = stepsOfKind("manual");
 
 function isManual(step: string): boolean {
   return (MANUAL_STEPS as readonly string[]).includes(step);
@@ -70,13 +33,13 @@ function isFurtherReview(row: { step: string; in_recipe: number }): boolean {
 }
 
 // Whether a stage is carried through a re-run (docs/overview.md §5.5): a manual one, and a further review that has run.
-function isCarried(row: { step: string; in_recipe: number; status: StageStatus }): boolean {
+function isCarried(row: { step: string; in_recipe: number; status: StoredStatus }): boolean {
   return isManual(row.step) || (isFurtherReview(row) && row.status !== "planned");
 }
 
-// The LLM steps (docs/overview.md §7), declared in the web app too (a test keeps the two equal): every stage of one
-// names its model config from the moment it is created (docs/llm.md, "Which config a stage uses").
-export const LLM_STEPS = ["layout", "analyze", "extract", "review", "apply_review"] as const;
+// The LLM steps (docs/overview.md §7), by their kind in core: every stage of one names its model config from the moment
+// it is created (docs/llm.md, "Which config a stage uses").
+export const LLM_STEPS = stepsOfKind("llm");
 
 export function isLlm(step: string): boolean {
   return (LLM_STEPS as readonly string[]).includes(step);
@@ -117,7 +80,7 @@ type StageRow = {
   id: string;
   step: string;
   step_version: number | null;
-  status: StageStatus;
+  status: StoredStatus;
   config_json: string | null;
   page_count: number | null;
   error: string | null;
@@ -303,7 +266,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
       id: row.id,
       step: row.step,
       stepVersion: row.step_version,
-      status: row.status,
+      status: row.status as StageStatus, // a stage in a pipeline is never stopped (`StoredStatus`)
       config: row.config_json === null ? null : JSON.parse(row.config_json),
       pageCount: row.page_count,
       error: row.error,
@@ -394,7 +357,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const id = c.req.param("id");
     const project = await db.prepare("SELECT id FROM projects WHERE id = ? AND deleted_at IS NULL").bind(id).first();
     if (!project) return c.json({ error: "no such project" }, 404);
-    return c.json(await readPipeline(db, id));
+    return c.json<Pipeline>(await readPipeline(db, id));
   });
 
   // Sets the config of a stage (null: the defaults). A planned stage simply gets it. A stage that has run is
@@ -451,7 +414,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       );
     }
     await db.batch(statements);
-    return c.json(await readPipeline(db, pid));
+    return c.json<Pipeline>(await readPipeline(db, pid));
   });
 
   // Starts a stage (or runs a failed or interrupted one again). The browser sends what it resolved: the step's
@@ -504,7 +467,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       // A planned stage that never ran leaves nothing behind.
       if (stage.status === "planned") statements.push(db.prepare("DELETE FROM stages WHERE id = ?").bind(sid));
       await db.batch(statements);
-      return c.json({ reused: true, stageId: reusable.id });
+      return c.json<StartAnswer>({ reused: true, stageId: reusable.id });
     }
     await db.batch([
       // A call of an earlier run of the stage still marked running (a closed tab) is over (docs/llm.md, "Stopped calls").
@@ -519,7 +482,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ),
       touchProject(db, pid, iso),
     ]);
-    return c.json({ reused: false, stageId: sid });
+    return c.json<StartAnswer>({ reused: false, stageId: sid });
   });
 
   // Records outputs of a running stage, as soon as each is done (docs/overview.md §5.2), or of a WIP manual stage, as the
@@ -606,7 +569,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       .bind(sid)
       .all<{ id: string; item: string; type: string }>();
     const byKey = new Map(results.map((r) => [`${r.type}\u0000${r.item}`, r.id]));
-    return c.json({ ids: outputs.map((o: { item: string; type: string }) => byKey.get(`${o.type}\u0000${o.item}`)) });
+    // Every output sent is in the table now: inserted, or there already (`INSERT OR IGNORE`).
+    return c.json<OutputsAnswer>({ ids: outputs.map((o: { item: string; type: string }) => byKey.get(`${o.type}\u0000${o.item}`)!) });
   });
 
   // Tells the Worker a running stage is still being worked on: once a minute, no more (docs/database.md).
@@ -678,7 +642,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...plannedStage(db, pid, position, stage.step, stage.config_json, stage.in_recipe === 1, defaultModelConfigId, now),
       touchProject(db, pid, now),
     ]);
-    return c.json(await readPipeline(db, pid));
+    return c.json<Pipeline>(await readPipeline(db, pid));
   });
 
   // Adds a manual stage, WIP, after a done stage (docs/project-view.md): body { step, stepVersion, pageCount, inputIds }.
@@ -734,7 +698,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...(await rewriteFrom(db, pid, last + 1, [id], last, iso)),
       touchProject(db, pid, iso),
     ]);
-    return c.json({ stageId: id, pipeline: await readPipeline(db, pid) });
+    return c.json<AddedStage>({ stageId: id, pipeline: await readPipeline(db, pid) });
   });
 
   // Edits a finished manual stage (docs/overview.md §5.4): a new WIP stage, with the same outputs and inputs, takes its
@@ -775,7 +739,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...(await rewriteFrom(db, pid, position, [id], position, iso)),
       touchProject(db, pid, iso),
     ]);
-    return c.json({ stageId: id, pipeline: await readPipeline(db, pid) });
+    return c.json<AddedStage>({ stageId: id, pipeline: await readPipeline(db, pid) });
   });
 
   // A carried manual stage whose turn has come (every stage before it is done): the browser sends the outputs the
@@ -830,7 +794,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
             touchProject(db, pid, iso),
           ],
     );
-    return c.json({ kept, pipeline: await readPipeline(db, pid) });
+    return c.json<Resolved>({ kept, pipeline: await readPipeline(db, pid) });
   });
 
   // Adds a further review after an `apply_review` (docs/stages/music.md, `apply_review`: from any of them, right after
@@ -858,7 +822,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
         .bind(ids[i], pid, step, config.configJson, config.modelConfigId, iso);
     });
     await db.batch([...statements, ...(await rewriteFrom(db, pid, position + 1, ids, position, iso)), touchProject(db, pid, iso)]);
-    return c.json({ stageId: ids[0], pipeline: await readPipeline(db, pid) });
+    return c.json<AddedStage>({ stageId: ids[0], pipeline: await readPipeline(db, pid) });
   });
 
   // Adds a human review after a done `apply_review` (docs/stages/music.md, `human_review`): WIP, right after it, with a
@@ -904,7 +868,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...(await rewriteFrom(db, pid, position + 1, ids, position, iso)),
       touchProject(db, pid, iso),
     ]);
-    return c.json({ stageId: ids[0], pipeline: await readPipeline(db, pid) });
+    return c.json<AddedStage>({ stageId: ids[0], pipeline: await readPipeline(db, pid) });
   });
 
   // Drops a manual stage, WIP or finished (docs/overview.md §5.5): its entry goes, and the stages after it move up and are
@@ -921,7 +885,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const iso = now.toISOString();
     const last = await withItsApply(db, pid, position);
     await db.batch([...(await rewriteFrom(db, pid, position, [], last, iso)), touchProject(db, pid, iso)]);
-    return c.json(await readPipeline(db, pid));
+    return c.json<Pipeline>(await readPipeline(db, pid));
   });
 
   // Dismisses the card of a dropped stage (docs/overview.md §5.5).
@@ -933,7 +897,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       .bind(Number(id), pid)
       .run();
     if (!result.meta.changes) return c.json({ error: "no such card in this project" }, 404);
-    return c.json(await readPipeline(db, pid));
+    return c.json<Pipeline>(await readPipeline(db, pid));
   });
 }
 
@@ -960,9 +924,8 @@ function timingValues(t: Timing | undefined): (number | null)[] {
   return t ? [t.durationMs, t.calls, t.callsCached, t.images, t.imagesCached] : [null, null, null, null, null];
 }
 
-// What a stage's card shows of its model config: its name, model, whether it was deleted, and whether the app no
-// longer supports it (docs/llm.md, "No longer supported").
-function stageModelConfig(row: StageRow): { name: string; model: string; deleted: boolean; unsupported: boolean } {
+// What a stage's card shows of its model config (`StageModelConfig`).
+function stageModelConfig(row: StageRow): StageModelConfig {
   const config = {
     name: row.mc_name ?? "",
     provider: row.mc_provider!,

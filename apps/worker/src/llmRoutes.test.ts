@@ -1166,9 +1166,15 @@ test("a stopped call is recorded as stopped, whatever error the adapter's cut co
   const stage = await runningStage(gemini.id);
   (env as unknown as Record<string, string>).TEST_GEMINI_KEY = "g-test";
   const realFetch = globalThis.fetch;
-  // The connection fails when the call is stopped, as a network error rather than an abort.
+  // The connection fails when the call is stopped, as a network error rather than an abort; at once when it was
+  // stopped before the request was sent, as the real fetch does (a slow machine gets there after the 100 ms: without it,
+  // the test waited forever, found 2026-11-17).
   globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) =>
-    new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new TypeError("fetch failed"))))) as unknown as typeof fetch;
+    new Promise((_resolve, reject) => {
+      const fail = () => reject(new TypeError("fetch failed"));
+      if (init?.signal?.aborted) fail();
+      else init?.signal?.addEventListener("abort", fail);
+    })) as unknown as typeof fetch;
   const stop = new AbortController();
   try {
     const pending = app.request(

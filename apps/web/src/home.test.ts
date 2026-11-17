@@ -18,7 +18,6 @@ test("a card says where the pipeline is, as the panel's head does", () => {
   assert.equal(label(at({ step: "rasterize" })), "Rasterize (not started)");
   assert.equal(label(at({ step: "fix_layout", status: "wip" })), "Fix layout (WIP)");
   assert.equal(label(at({ step: "layout", status: "failed" })), "Layout failed");
-  assert.equal(label(at({ step: "layout", status: "stopped" })), "Layout failed");
   assert.equal(label(at({ step: "extract", status: "running", heartbeatAt: "2026-11-13T11:59:00Z" })), "Extract…");
   assert.equal(label(at({ step: "extract", status: "running", heartbeatAt: "2026-11-13T11:50:00Z" })), "Extract interrupted");
   assert.equal(label(at({ step: "extract", status: "running" })), "Extract interrupted");

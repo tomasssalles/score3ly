@@ -1,3 +1,5 @@
+import { type ImageMediaType, MAX_CACHE_MARKS } from "@score3ly/core";
+
 // Calling vision LLMs without caring which provider answers (docs/overview.md §3, the `LlmProvider` port). Requests and
 // responses are our own, small shapes; each provider's adapter translates them. The Worker makes the calls, so the
 // API keys never leave it (§10).
@@ -7,7 +9,7 @@
 export type ProviderId = "anthropic" | "anthropic-bedrock" | "google" | "google-vertex" | "openrouter" | "fake" | "fake-dev";
 
 export type LlmImage = {
-  mediaType: "image/png" | "image/jpeg" | "image/webp";
+  mediaType: ImageMediaType;
   base64: string;
 };
 
@@ -16,8 +18,8 @@ export type LlmImage = {
 // MAX_CACHE_MARKS per request. Providers that cache by themselves, or not at all, ignore it.
 export type LlmContent = ({ type: "text"; text: string } | { type: "image"; image: LlmImage }) & { cacheUpTo?: true };
 
-// Anthropic's limit of cache breakpoints in a request.
-export const MAX_CACHE_MARKS = 4;
+// Anthropic's limit of cache breakpoints in a request (`@score3ly/core`: the browser keeps to it too).
+export { MAX_CACHE_MARKS };
 
 export type LlmMessage = { role: "user" | "assistant"; content: LlmContent[] };
 

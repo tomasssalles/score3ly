@@ -389,3 +389,40 @@ test("a config created whose default setting fails is reported as created, with 
   );
   assert.equal(defaulted, false);
 });
+
+// What "the same values" means, pinned before the comparison moved to core (`sameConfigValues`, the code review's batch
+// 8): every value but the name, the id and the dates; secrets by content, whatever their order; a listed model's family
+// isn't compared (it comes from the list); a model added by hand compares its string and family.
+test("the same values: every value but the name counts, secrets in any order, a listed model's family not", () => {
+  const original = config({});
+  const same = requestOf(formFromConfig(OPTIONS, original));
+  const named = (request: typeof same) => sameValuesProblem([original], request) !== null;
+  assert.equal(named({ ...same, name: "Another name" }), true);
+  assert.equal(named({ ...same, secrets: { accessKeyId: "ID", secretAccessKey: "SECRET" } }), true);
+  assert.equal(sameValuesProblem([config({ family: "gemini" })], same) !== null, true);
+  const changes: Partial<typeof same>[] = [
+    { provider: "anthropic" as const },
+    { modelId: "other" },
+    { effort: null },
+    { effort: "max" as const },
+    { region: "us-east-1" },
+    { routing: "global" as const },
+    { routing: null },
+    { project: "p" },
+    { account: "standard" as const },
+    { secrets: { accessKeyId: "ID" } },
+    { secrets: { accessKeyId: "ID", secretAccessKey: "OTHER" } },
+    { pricing: { kind: "free" as const } },
+    { pricing: { kind: "list" as const, reference: "sonnet" } },
+  ];
+  for (const change of changes) {
+    assert.equal(named({ ...same, ...change }), false, JSON.stringify(change));
+  }
+  // A model added by hand: its string and its family count.
+  const added = config({ modelId: null, modelString: "claude-x", family: "claude", pricing: { kind: "unpriced" } });
+  const addedRequest = { ...same, modelId: undefined, modelString: "claude-x", family: "claude" as const, pricing: { kind: "unpriced" as const } };
+  assert.equal(sameValuesProblem([added], addedRequest) !== null, true);
+  assert.equal(sameValuesProblem([added], { ...addedRequest, modelString: "claude-y" }), null);
+  assert.equal(sameValuesProblem([added], { ...addedRequest, family: "gemini" }), null);
+  assert.equal(sameValuesProblem([added], { ...same }), null);
+});

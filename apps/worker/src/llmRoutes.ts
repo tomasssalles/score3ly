@@ -6,7 +6,7 @@
 import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
 import { deferLog, logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
-import { amount, type CallEvent, canonicalJson, firstFreeName, fromBase64, isSha256Hex, keyOf, MAX_NAME_LENGTH, modelKeyOf, nameTooLong, roundUsd, sameValuesMessage, sha256Hex } from "@score3ly/core";
+import { amount, type CallAnswer, type CallEvent, type CallPlace, type CallRequest, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, firstFreeName, fromBase64, isSha256Hex, keyOf, MAX_NAME_LENGTH, modelKeyOf, nameTooLong, roundUsd, sameValuesMessage, sha256Hex } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import type { LlmProgress, LlmProvider } from "./llm/types.ts";
@@ -459,17 +459,7 @@ function secretValues(config: ModelConfig, env: Env): Record<string, string> | {
   return values;
 }
 
-// A request as the browser sends it. Each image is named by its recipe key (§5.2, "Only recipes, never pixels, in
-// any key"), and comes inline, as base64, only once the Worker has said it isn't cached: the browser asks first with
-// the recipe keys alone, so that a cached call is found before its images are made.
-// `cacheUpTo` marks where the prompt is worth caching at the provider (docs/llm.md, "Prompt caching").
-type RequestImage = { type: "image"; recipeKey: string; image?: { mediaType: "image/png" | "image/jpeg" | "image/webp"; base64: string } };
-type CallRequest = {
-  system?: string;
-  messages: { role: "user" | "assistant"; content: (({ type: "text"; text: string } | RequestImage) & { cacheUpTo?: true })[] }[];
-  maxOutputTokens?: number;
-  jsonSchema?: Record<string, unknown>;
-};
+// A request as the browser sends it (`CallRequest` in `@score3ly/core`).
 
 function requestProblem(request: unknown): string | null {
   const r = request as CallRequest | null;
@@ -484,7 +474,7 @@ function requestProblem(request: unknown): string | null {
         (c?.type === "image" &&
           isSha256Hex(c.recipeKey) &&
           (c.image === undefined ||
-            (typeof c.image?.base64 === "string" && ["image/png", "image/jpeg", "image/webp"].includes(c.image?.mediaType))));
+            (typeof c.image?.base64 === "string" && (IMAGE_MEDIA_TYPES as readonly string[]).includes(c.image?.mediaType))));
       if (!ok) return "content must be text or an image named by its recipe key (PNG, JPEG or WebP, base64)";
       if (c.cacheUpTo !== undefined && c.cacheUpTo !== true) return "'cacheUpTo' must be true or left out";
     }
@@ -546,18 +536,6 @@ async function putJson(bucket: R2Bucket, value: unknown): Promise<string> {
   return sha256;
 }
 
-// What the stage gets back from a call.
-export type CallAnswer = {
-  callId: string;
-  cached: boolean; // served from an earlier call with the same request: nothing was paid
-  status: "ok" | "cut_off" | "refused" | "unparseable" | "error";
-  text: string | null;
-  json: unknown;
-  error: string | null;
-  usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number } | null;
-  costUsd: number | null; // with VAT (docs/llm.md, "VAT")
-  vatPercent: number; // the rate in it
-};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -902,14 +880,14 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
           costUsd: 0,
           vatPercent: 0,
         };
-        return c.json(answer);
+        return c.json<CallAnswer>(answer);
       }
     }
 
     // Not cached: the browser makes the images and asks again with them.
     if (request.messages.some((m) => m.content.some((c) => c.type === "image" && !c.image))) {
       logFields(c.req.raw, { answer: "images needed" });
-      return c.json({ imagesNeeded: true });
+      return c.json<ImagesNeeded>({ imagesNeeded: true });
     }
 
     logFields(c.req.raw, { answer: "sent", provider: config.provider });
@@ -970,7 +948,6 @@ export const TEST_REQUEST: CallRequest = {
 // "" for the whole score), and the round, from 1. Recorded with the call, not part of its key. Calls made before it was
 // recorded have the placeholders "?" and 0 until a one-time script fills them (scripts/fill-call-places.ts): an error
 // wherever a place is read (`placeProblem`).
-export type CallPlace = { item: string; round: number };
 
 const TEST_PLACE: CallPlace = { item: "", round: 1 };
 const MAX_ITEM_LENGTH = 100;
@@ -999,10 +976,6 @@ type Refusal = { refusal: { error: string; code: string; status: 409 | 429 } };
 // A call cancelled because the browser stopped waiting for it: of unknown cost (docs/llm.md, "Stopped calls").
 const ABORTED_CALL = "Stopped: the app stopped waiting for this call (Stop, or the app was closed). Whether the provider billed it is unknown.";
 
-// What the browser is sent while a stage's call runs (docs/llm.md, "A call's progress"), as server-sent events: the
-// call's start and progress (`CallEvent`, at most every PROGRESS_INTERVAL_MS), then the answer, or an error that kept
-// the call from being recorded.
-export type StreamEvent = CallEvent | { event: "answer"; answer: CallAnswer } | { event: "error"; error: string };
 
 export const PROGRESS_INTERVAL_MS = 1000;
 
