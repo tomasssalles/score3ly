@@ -8,7 +8,7 @@
 import { CROP_VERSION, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { checkScore, checkSystem, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
 import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractText, lensFromExtract } from "@score3ly/prompts";
-import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers } from "./api";
+import { fetchJsonContent, markUnusable, putJson, reserveIssueNumbers } from "./api";
 import {
   EXTRACT_VERSION,
   extractNote,
@@ -24,14 +24,13 @@ import {
   type ScoreSystem,
   type StoredExtraction,
 } from "./extract";
-import { canonicalJson, modelKeyOf, normalized } from "@score3ly/core";
+import { modelKeyOf, normalized } from "@score3ly/core";
 import { linkSpans, systemHints } from "./linking";
 import { musicInputs } from "./musicInputs";
 import { ask, imageLimit, imageLimitFor, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
 import { cropImage, type CropRecipe } from "./pageImages";
 import { runPlan, type StageRun } from "./stageRunner";
 
-const json = (value: unknown) => new TextEncoder().encode(canonicalJson(value));
 
 export async function runExtract(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
@@ -171,7 +170,7 @@ export async function runExtract(run: StageRun): Promise<void> {
           const firstId = count > 0 ? await reserveIssueNumbers(run.project, count, [...stored.values()].flatMap((e) => e.issues)) : 1;
           const result = storedExtraction(s, checked, sources, placeBox, firstId);
           stored.set(s.number, result);
-          const contentSha256 = await putContent(json(result), "application/json");
+          const contentSha256 = await putJson(result);
           return { contentSha256, inputIds: inputsOf(s), callId: answer.callId };
         },
       })),
@@ -186,7 +185,7 @@ export async function runExtract(run: StageRun): Promise<void> {
           const count = checked.codeIssues.length;
           const firstId = count > 0 ? await reserveIssueNumbers(run.project, count, [...stored.values()].flatMap((e) => e.issues)) : 1;
           scoreChecks = storedScoreChecks(checked, placeBox, firstId);
-          const contentSha256 = await putContent(json(scoreChecks), "application/json");
+          const contentSha256 = await putJson(scoreChecks);
           return { contentSha256, inputIds: [...new Set(systems.flatMap(inputsOf))] };
         },
       },

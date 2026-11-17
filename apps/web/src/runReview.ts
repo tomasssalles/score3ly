@@ -8,8 +8,8 @@
 import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { buildScore, checkSystem, LENS_VERSION, pieceStart, systemLinks, type LinkedSystem, type ScoreState } from "@score3ly/notation";
 import { REVIEW_MAX_OUTPUT_TOKENS, REVIEW_PROMPT_VERSION, REVIEW_SCHEMA, REVIEW_SYSTEM, reviewIssuesText, reviewLogText, reviewScoreText, reviewText } from "@score3ly/prompts";
-import { canonicalJson, modelKeyOf, normalized } from "@score3ly/core";
-import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers } from "./api";
+import { modelKeyOf, normalized } from "@score3ly/core";
+import { fetchJsonContent, markUnusable, putJson, reserveIssueNumbers } from "./api";
 import { EXTRACTION_STEPS } from "./engrave";
 import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks } from "./extract";
 import { ask, imageLimit, imageLimitFor, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
@@ -35,7 +35,6 @@ import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 import { reviewInputIds } from "./steps";
 import { boxesOnCrop } from "./transcription";
 
-const json = (value: unknown) => new TextEncoder().encode(canonicalJson(value));
 
 export async function runReview(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
@@ -199,7 +198,7 @@ export async function runReview(run: StageRun): Promise<void> {
         // As it reads back from storage (canonical JSON): the later calls' log is then the same in this run and in a
         // retry, and the cache finds them.
         calls.set(s.number, normalized(result) as StoredReview);
-        const contentSha256 = await putContent(json(result), "application/json");
+        const contentSha256 = await putJson(result);
         return { contentSha256, inputIds, callId: answer.callId };
       },
     })),

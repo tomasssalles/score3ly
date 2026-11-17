@@ -1,5 +1,5 @@
 import type { Timing } from "./itemTiming";
-import { type ActivityData, type Host, type Info, type WindowTheme, type StoredFingerprint, type Imported, type ProjectExport, type ApiErrorBody, type CostData, type FailureData, type ModelConfig, type ProjectStats, type RunTimeData, type ModelOptions, type NewModelConfig, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult, type CallAnswer, type ErrorCode, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, errorText, readSse, sha256Hex, type StreamEvent } from "@score3ly/core";
+import { type ActivityData, type Host, type Info, type WindowTheme, type StoredFingerprint, type Imported, type ProjectExport, type ApiErrorBody, type CostData, type FailureData, type ModelConfig, type ProjectStats, type RunTimeData, type ModelOptions, type NewModelConfig, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult, type CallAnswer, type ErrorCode, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, errorText, readSse, sha256Hex, type StreamEvent, canonicalJson } from "@score3ly/core";
 
 // A project as the Worker's API sends it (`@score3ly/core`).
 export type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
@@ -52,17 +52,31 @@ export async function checked(response: Response): Promise<Response> {
 
 // Optimistic locking (docs/database.md, "Optimistic locking"): the last version of each project this page saw, sent
 // with every request about the project and taken from every answer. The Worker checks it on a person's changes.
+// The version only goes up: an answer that comes late (a refresh read before a save) never takes it back, or the
+// next change would be refused as if made elsewhere.
 const VERSION_HEADER = "X-Project-Version";
-const versions = new Map<string, string>();
+const versions = new Map<string, number>();
+// The requests that change a project, one after the other, by project: each is sent with the version the one before it
+// brought, so that the page's own changes (an editor's saves, a run's outputs) never refuse each other.
+const queues = new Map<string, Promise<unknown>>();
 
 async function projectFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const id = /^\/api\/projects\/([^/?]+)/.exec(url)?.[1];
+  if (!id || (init.method ?? "GET").toUpperCase() === "GET") return exchange(id, url, init);
+  const mine = (queues.get(id) ?? Promise.resolve()).then(() => exchange(id, url, init));
+  const tail = mine.catch(() => {});
+  queues.set(id, tail);
+  void tail.then(() => queues.get(id) === tail && queues.delete(id));
+  return mine;
+}
+
+async function exchange(id: string | undefined, url: string, init: RequestInit): Promise<Response> {
   const headers = new Headers(init.headers);
   const known = id ? versions.get(id) : undefined;
-  if (known !== undefined) headers.set(VERSION_HEADER, known);
+  if (known !== undefined) headers.set(VERSION_HEADER, String(known));
   const response = await fetch(url, { ...init, headers });
-  const current = response.headers.get(VERSION_HEADER);
-  if (id && current !== null && response.ok) versions.set(id, current);
+  const current = Number(response.headers.get(VERSION_HEADER) ?? NaN);
+  if (id && response.ok && Number.isSafeInteger(current)) versions.set(id, Math.max(current, versions.get(id) ?? current));
   return response;
 }
 
@@ -269,6 +283,16 @@ export async function putContent(bytes: Uint8Array<ArrayBuffer>, contentType: st
   const sha256 = await sha256Hex(bytes);
   await checked(await fetch(`/api/content/${sha256}`, { method: "PUT", headers: { "Content-Type": contentType }, body: bytes }));
   return sha256;
+}
+
+// A JSON value as stored content: its canonical JSON, so that the same value is the same content.
+export function jsonBytes(value: unknown): Uint8Array<ArrayBuffer> {
+  return new TextEncoder().encode(canonicalJson(value));
+}
+
+// Stores a JSON value as content (`jsonBytes`); returns its SHA-256.
+export async function putJson(value: unknown): Promise<string> {
+  return putContent(jsonBytes(value), "application/json");
 }
 
 export async function fetchJsonContent(sha256: string): Promise<unknown> {

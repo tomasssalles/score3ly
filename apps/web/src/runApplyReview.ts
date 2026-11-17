@@ -31,8 +31,8 @@ import {
   staffForModel,
   stretchForModel,
 } from "@score3ly/prompts";
-import { canonicalJson, modelKeyOf, normalized } from "@score3ly/core";
-import { fetchJsonContent, markUnusable, putContent, reserveIssueNumbers, type ApiStage } from "./api";
+import { modelKeyOf, normalized } from "@score3ly/core";
+import { fetchJsonContent, markUnusable, putJson, reserveIssueNumbers, type ApiStage } from "./api";
 import {
   appliedCount,
   appliedIssues,
@@ -63,7 +63,6 @@ import { choosingChain } from "./steps";
 import { attributionOf } from "./attribution";
 import { boxesOnCrop } from "./transcription";
 
-const json = (value: unknown) => new TextEncoder().encode(canonicalJson(value));
 
 // The steps whose issues `apply_review` applies: the stages between the transcription and it (docs/stages/music.md), and
 // the type of the outputs each stores its entries in.
@@ -348,7 +347,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           // As it reads back from storage (canonical JSON): the later calls' log is then the same in this run and in a
           // retry, and the cache finds them.
           calls.set(planned.system, normalized(result) as StoredApplyCall);
-          const contentSha256 = await putContent(json(result), "application/json");
+          const contentSha256 = await putJson(result);
           return { contentSha256, inputIds, callId: answer.callId };
         },
       })),
@@ -372,7 +371,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
             ],
             warnings: [...here.warnings.map(warningOf), ...callWarningsHere(s.number)],
           };
-          const contentSha256 = await putContent(json(result), "application/json");
+          const contentSha256 = await putJson(result);
           return { contentSha256, inputIds };
         },
       })),
@@ -396,7 +395,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
             ],
             warnings: [...scoreChecks.warnings.map(warningOf), ...[...calls.values()].flatMap((c) => c.warnings).filter((w) => systemsOf(w.boxes, placed).length === 0)],
           };
-          const contentSha256 = await putContent(json(result), "application/json");
+          const contentSha256 = await putJson(result);
           return { contentSha256, inputIds };
         },
       },

@@ -2,11 +2,8 @@
 // user saved, else from `analyze`'s. Finishing confirms nothing: only what the user confirmed is.
 
 import { piecesOf } from "./analyze";
-import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
+import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import { analyzeOutputs, changedFields, confirmedFields, fixNote, normalizeMetadata, type ShownMetadata } from "./fixMetadata";
-import { canonicalJson } from "@score3ly/core";
-
-export const jsonBytes = (value: unknown): Uint8Array<ArrayBuffer> => new TextEncoder().encode(canonicalJson(value));
 
 // The ids of `analyze`'s outputs that `fix_metadata` corrects (its pieces are missing from a version-1 `analyze`).
 export type MetadataParents = { metadata: string; pieces?: string };
@@ -18,14 +15,14 @@ export async function metadataOutputs(m: ShownMetadata, parents: MetadataParents
     {
       item: "",
       type: "metadata",
-      contentSha256: await putContent(jsonBytes(m), "application/json"),
+      contentSha256: await putJson(m),
       parentOutputId: parent,
       inputIds: [parent],
     },
     {
       item: "",
       type: "pieces",
-      contentSha256: await putContent(jsonBytes(piecesOf(m)), "application/json"),
+      contentSha256: await putJson(piecesOf(m)),
       parentOutputId: parents.pieces,
       inputIds: [parent],
     },

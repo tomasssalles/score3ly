@@ -6,8 +6,7 @@
 
 import type { SkewLine } from "@score3ly/imaging";
 import { useEffect, useRef, useState } from "react";
-import { fetchJsonContent, putContent, recordOutputs, type Project } from "./api";
-import { linesBytes } from "./finishFixSkew";
+import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
 import { lineThrough, type PageLines } from "./fixSkew";
 import { canRedo, canUndo, pushState, redo, startHistory, undo, type History } from "./history";
 import { HandIcon, LineIcon, TrashIcon } from "./icons";
@@ -109,7 +108,7 @@ function PageEditor({
   const [hover, setHover] = useState<Point | null>(null); // drawing with a mouse: where the pointer is
   const linesRef = useRef(lines); // the latest, for a drag
   const { save, error: saveError } = useSaver(saved, `${stageId}/${page.item}`, async (next: SkewLine[]) => {
-    const sha256 = await putContent(linesBytes({ lines: next }), "application/json");
+    const sha256 = await putJson({ lines: next } satisfies PageLines);
     await recordOutputs(project, stageId, [
       { item: page.item, type: "lines", contentSha256: sha256, parentOutputId: page.parentId, inputIds: [page.parentId] },
     ]);

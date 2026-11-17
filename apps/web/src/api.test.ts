@@ -1,6 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { ApiError, callLlm, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type Project, type ProjectExport } from "./api.ts";
+import { sha256Hex } from "@score3ly/core";
+import { ApiError, callLlm, dropStage, fetchPipeline, putJson, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type Project, type ProjectExport } from "./api.ts";
 
 // The tests replace the browser's fetch with a fake that records each request and answers with a fixed response.
 const realFetch = globalThis.fetch;
@@ -194,4 +195,80 @@ test("a streamed answer that ends without one fails with the server's error, or 
   await assert.rejects(callLlm(project, "s1", { messages: [] }, { item: "", round: 1 }), /D1 is down/);
   globalThis.fetch = async () => new Response(`data: ${JSON.stringify({ event: "started", callId: "c", startedAt: "", timeoutMs: 1 })}\n\n`, { headers: { "Content-Type": "text/event-stream" } });
   await assert.rejects(callLlm(project, "s1", { messages: [] }, { item: "", round: 1 }), /ended before the answer came/);
+});
+
+// Optimistic locking from the page's side (docs/database.md, "Optimistic locking"): a fake Worker that checks the
+// version sent with a person's change, raises it on success, and answers every request with the current one.
+function lockingWorker(delays: Record<string, number> = {}) {
+  let version = 7;
+  const sent: { url: string; method: string; version: string | null }[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    const header = new Headers(init?.headers).get("X-Project-Version");
+    sent.push({ url, method, version: header });
+    // What the answer says is the version when the Worker answered, even if it arrives late.
+    const answered = version;
+    if (method !== "GET") {
+      if (header !== null && header !== String(version)) {
+        return new Response(JSON.stringify({ error: "changed", code: "stale_version" }), { status: 409, headers: { "X-Project-Version": String(version) } });
+      }
+      version += 1;
+    }
+    const now = version;
+    await new Promise((resolve) => setTimeout(resolve, delays[`${method} ${url}`] ?? 0));
+    return new Response(JSON.stringify({ stages: [], dropped: [] }), { status: 200, headers: { "X-Project-Version": String(method === "GET" ? answered : now) } });
+  };
+  return { sent, version: () => version };
+}
+
+test("a page's own changes sent at once are both made: one after the other, each with the version the one before it gave", async () => {
+  const worker = lockingWorker();
+  const other = { ...project, id: "p-parallel" };
+  await fetchPipeline(other); // the page reads the project: version 7
+  await Promise.all([dropStage(other, "s1"), dropStage(other, "s2")]);
+  const changes = worker.sent.filter((r) => r.method === "POST");
+  assert.deepEqual(
+    changes.map((r) => r.version),
+    ["7", "8"],
+  );
+  assert.equal(worker.version(), 9);
+});
+
+test("an answer that comes late with an older version doesn't take the page's version back", async () => {
+  const other = { ...project, id: "p-late" };
+  const worker = lockingWorker({ [`GET /api/projects/${other.id}/pipeline`]: 50 });
+  await fetchPipeline(other); // version 7
+  const refresh = fetchPipeline(other); // answered with 7, arrives after the change below
+  await dropStage(other, "s1"); // 8
+  await refresh;
+  await dropStage(other, "s2"); // sent with 8, not 7
+  assert.deepEqual(
+    worker.sent.filter((r) => r.method === "POST").map((r) => r.version),
+    ["7", "8"],
+  );
+});
+
+test("a refused change doesn't hold up the next one", async () => {
+  const other = { ...project, id: "p-refused" };
+  let first = true;
+  globalThis.fetch = async () => {
+    if (first) {
+      first = false;
+      return new Response(JSON.stringify({ error: "no", code: "running" }), { status: 409 });
+    }
+    return new Response(JSON.stringify({ stages: [], dropped: [] }), { status: 200 });
+  };
+  const results = await Promise.allSettled([dropStage(other, "s1"), dropStage(other, "s2")]);
+  assert.deepEqual(results.map((r) => r.status), ["rejected", "fulfilled"]);
+});
+
+test("putJson stores a value's canonical JSON, under the hash of those bytes", async () => {
+  answerWith(200);
+  const sha256 = await putJson({ b: 1, a: [2, "é"] });
+  const bytes = new TextEncoder().encode('{"a":[2,"é"],"b":1}');
+  assert.equal(sha256, await sha256Hex(bytes));
+  assert.equal(requests[0].url, `/api/content/${sha256}`);
+  assert.equal(new Headers(requests[0].init.headers).get("Content-Type"), "application/json");
+  assert.deepEqual(new Uint8Array(requests[0].init.body as Uint8Array), bytes);
 });

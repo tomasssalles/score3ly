@@ -9,8 +9,7 @@ import { useRemembered } from "./ExtractionView";
 import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
 import type { LayoutSystem } from "@score3ly/prompts";
 import { useEffect, useRef, useState } from "react";
-import { failure, fetchJsonContent, putContent, recordOutputs, type Project } from "./api";
-import { layoutBytes } from "./finishFixLayout";
+import { failure, fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
 import {
   addBarLine,
   boxThrough,
@@ -114,7 +113,7 @@ export function LayoutEditor({
     saved.set(`${stageId}/${item}`, layout);
     chain.current = chain.current
       .then(async () => {
-        const sha256 = await putContent(layoutBytes(layout), "application/json");
+        const sha256 = await putJson(layout);
         await recordOutputs(project, stageId, [
           { item, type: "layout", contentSha256: sha256, parentOutputId: page.parentId, inputIds: [page.parentId] },
         ]);

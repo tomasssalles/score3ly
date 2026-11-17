@@ -1,9 +1,8 @@
 // Finishing a `fix_observations` stage (docs/stages/analyze.md): the observations are recorded, from what the user saved, else
 // from `analyze`'s. Finishing confirms nothing: only what the user confirmed is.
 
-import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
+import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import type { StoredObservations } from "./analyze";
-import { jsonBytes } from "./finishFixMetadata";
 import { fixNote } from "./fixMetadata";
 import { changedItems, confirmedItems, normalizeObservations } from "./fixObservations";
 
@@ -12,7 +11,7 @@ export async function observationsOutput(o: StoredObservations, parent: string) 
   return {
     item: "",
     type: "observations",
-    contentSha256: await putContent(jsonBytes(o), "application/json"),
+    contentSha256: await putJson(o),
     parentOutputId: parent,
     inputIds: [parent],
   };

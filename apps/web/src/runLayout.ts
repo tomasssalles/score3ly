@@ -15,8 +15,8 @@ import {
   layoutCheck,
   type LayoutAnswer,
 } from "@score3ly/prompts";
-import { fetchJsonContent, markUnusable, putContent } from "./api";
-import { canonicalJson, modelKeyOf, pageOfItem } from "@score3ly/core";
+import { fetchJsonContent, markUnusable, putJson } from "./api";
+import { modelKeyOf, pageOfItem } from "@score3ly/core";
 import { LAYOUT_VERSION, layoutNote, layoutStageKey, type PageLayout } from "./layout";
 import { ask, imageLimit, requestImage, stageModelConfig, type PlannedRequest } from "./llm";
 import { drawnPage, modelPage, pageImage, pngSize, type ModelPageRecipe } from "./pageImages";
@@ -115,7 +115,7 @@ export async function runLayout(run: StageRun): Promise<void> {
           rounds: round,
         };
         made.set(output.item, result);
-        const contentSha256 = await putContent(new TextEncoder().encode(canonicalJson(result)), "application/json");
+        const contentSha256 = await putJson(result);
         return { contentSha256, inputIds: [output.id, ...(pageLines ? [pageLines.id] : [])], callId };
       },
     })),

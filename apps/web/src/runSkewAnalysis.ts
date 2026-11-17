@@ -3,8 +3,8 @@
 // lines are what later stages and `fix_skew` build on, and must not move when measured again on another device.
 
 import type { Skew } from "@score3ly/imaging";
-import { putContent } from "./api";
-import { canonicalJson, pageOfItem } from "@score3ly/core";
+import { putJson } from "./api";
+import { pageOfItem } from "@score3ly/core";
 import { keepFingerprints, measureSkew, pageImage } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
 import { SKEW_ANALYSIS_VERSION, skewConfigError, skewConfigOf, skewNote, skewStageKey } from "./skewAnalysis";
@@ -51,8 +51,7 @@ export async function runSkewAnalysis(run: StageRun): Promise<void> {
         const skew = await measureSkew(png, config.maxAngle);
         await keepFingerprints([{ recipe, png }]);
         made.set(output.item, skew);
-        const json = new TextEncoder().encode(canonicalJson(skew));
-        const contentSha256 = await putContent(json, "application/json");
+        const contentSha256 = await putJson(skew);
         return { contentSha256, inputIds: [output.id] };
       },
     })),

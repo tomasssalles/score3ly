@@ -33,9 +33,9 @@ import {
   type StoredPieces,
   type StoredObservations,
 } from "./analyze";
-import { fetchJsonContent, markUnusable, putContent } from "./api";
+import { fetchJsonContent, markUnusable, putJson } from "./api";
 import { firstNumbers } from "./fixLayout";
-import { canonicalJson, modelKeyOf, normalized, pageItem, pageOfItem } from "@score3ly/core";
+import { modelKeyOf, normalized, pageItem, pageOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 import {
   ask,
@@ -54,7 +54,6 @@ import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
 // The steps whose layout `analyze` reads: the latest before it counts.
 const LAYOUT_STEPS = ["layout", "fix_layout"];
 
-const json = (value: unknown) => new TextEncoder().encode(canonicalJson(value));
 
 export async function runAnalyze(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
@@ -207,7 +206,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
           // result was made in this run or an earlier one, and the cache finds it.
           const result = normalized({ page, systems: labels[i], ...checked }) as PageAnalysis;
           results.set(output.item, result);
-          const contentSha256 = await putContent(json(result), "application/json");
+          const contentSha256 = await putJson(result);
           return { contentSha256, inputIds: pageInputs(i), callId: answer.callId };
         },
       })),
@@ -216,7 +215,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
         type: "metadata",
         make: async () => {
           const { answer, callId } = await scoreAnswer();
-          return { contentSha256: await putContent(json(answer.metadata), "application/json"), callId };
+          return { contentSha256: await putJson(answer.metadata), callId };
         },
       },
       {
@@ -224,7 +223,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
         type: "observations",
         make: async () => {
           const { callId, observations: stored } = await scoreAnswer();
-          return { contentSha256: await putContent(json(stored), "application/json"), callId };
+          return { contentSha256: await putJson(stored), callId };
         },
       },
       {
@@ -234,7 +233,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
           const { answer, callId } = await scoreAnswer();
           const pieces = piecesOf(answer.metadata);
           madePieces.set("", pieces);
-          return { contentSha256: await putContent(json(pieces), "application/json"), callId };
+          return { contentSha256: await putJson(pieces), callId };
         },
       },
     ],

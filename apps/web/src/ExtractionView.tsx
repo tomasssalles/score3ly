@@ -11,7 +11,7 @@ import { ImagesDiffer } from "./ImagesDiffer";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CLAUDE_IMAGE_LIMIT, CROP_VERSION, DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { buildMei, serialize, type Box, type LensStretch, type Score } from "@score3ly/notation";
-import { failure, fetchJsonContent, putContent, recordOutputs, reserveIssueNumbers, type Project } from "./api";
+import { failure, fetchJsonContent, putJson, recordOutputs, reserveIssueNumbers, type Project } from "./api";
 import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
 import { BoxesIcon, ChangesIcon, InfoIcon, MusicIcon, SourceIcon } from "./icons";
@@ -39,7 +39,6 @@ import {
   type StoredHumanReview,
 } from "./humanReview";
 import { AnswerPicker, ClarificationCard, DrawLayer } from "./HumanReviewCards";
-import { jsonBytes } from "./finishFixMetadata";
 import type { PlacedSystem } from "./review";
 import type { Who } from "./attribution";
 import { stepInfo } from "./steps";
@@ -315,7 +314,7 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
     const { project, stageId, onEdited } = editing;
     chain.current = chain.current
       .then(async () => {
-        const sha256 = await putContent(jsonBytes(next), "application/json");
+        const sha256 = await putJson(next);
         await recordOutputs(project, stageId, [{ item: "", type: "human_review", contentSha256: sha256 }]);
         setSaveError(null);
         onEdited?.();

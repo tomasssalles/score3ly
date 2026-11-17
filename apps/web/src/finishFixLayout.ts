@@ -2,15 +2,9 @@
 // saved as they worked; each of the others gets `layout`'s, with its systems sorted and its flag cleared, since
 // finishing means every page was checked.
 
-import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
+import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import { fixedLayout, fixLayoutNote, systemsChanged } from "./fixLayout";
-import { canonicalJson } from "@score3ly/core";
 import type { PageLayout } from "./layout";
-
-// The content a page's layout is stored as: its canonical JSON.
-export function layoutBytes(layout: PageLayout): Uint8Array<ArrayBuffer> {
-  return new TextEncoder().encode(canonicalJson(layout));
-}
 
 // Records what is missing and returns the card's note.
 export async function finishFixLayout(project: Project, stage: ApiStage, pipeline: ApiPipeline): Promise<string> {
@@ -28,7 +22,7 @@ export async function finishFixLayout(project: Project, stage: ApiStage, pipelin
       if (systemsChanged(original.systems, fixed.systems)) changed++;
       continue;
     }
-    const sha256 = await putContent(layoutBytes(fixedLayout(original)), "application/json");
+    const sha256 = await putJson(fixedLayout(original));
     await recordOutputs(project, stage.id, [
       { item: output.item, type: "layout", contentSha256: sha256, parentOutputId: output.id, inputIds: [output.id] },
     ]);

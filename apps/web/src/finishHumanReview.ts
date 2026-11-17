@@ -2,8 +2,7 @@
 // else none, so the `apply_review` after it has them to read.
 
 import { pageOfItem } from "@score3ly/core";
-import { fetchJsonContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
-import { jsonBytes } from "./finishFixMetadata";
+import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import { humanReviewNote, ownIssueProblems, placedSystems, type StoredHumanReview } from "./humanReview";
 import type { PageLayout } from "./layout";
 
@@ -26,7 +25,7 @@ export async function finishHumanReview(project: Project, stage: ApiStage, pipel
     }
   }
   if (!saved) {
-    await recordOutputs(project, stage.id, [{ item: "", type: "human_review", contentSha256: await putContent(jsonBytes(stored), "application/json") }]);
+    await recordOutputs(project, stage.id, [{ item: "", type: "human_review", contentSha256: await putJson(stored) }]);
   }
   return humanReviewNote(stored);
 }
