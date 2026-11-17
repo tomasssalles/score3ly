@@ -3,7 +3,7 @@
 // the next system, or still be open for marks that can run longer (8va, pedal, trill spans). A mismatch is an issue
 // raised by code, not a reason to reject the answer.
 
-import { walk, type Event, type Mark } from "./symbolic.ts";
+import { isDynamic, walk, type Event, type Mark } from "./symbolic.ts";
 
 // A curve, a hairpin, a trill span or a glissando belongs to its voice; an ottava and the pedal to the staff they
 // are written on (§6: a voice may move to another staff, and carries such marks there). `from` and `fromStretch`:
@@ -102,7 +102,7 @@ export class SpanTracker {
           } else if (m.name === "!") {
             if (hairpin < 0) problem(`a hairpin ends with \\! in voice ${voice}, but none is open there`, whereStarts("hairpin"));
             else close(hairpin);
-          } else if (["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff", "sf", "sfz", "fz", "fp", "sfp", "rfz"].includes(m.name)) {
+          } else if (isDynamic(m.name)) {
             if (hairpin >= 0) close(hairpin); // the next dynamic ends a hairpin
           } else if (m.name === "startTrillSpan") {
             const trill = find((o) => o.kind === "trill" && o.voice === voice);

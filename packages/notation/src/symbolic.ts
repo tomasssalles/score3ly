@@ -20,6 +20,7 @@ export const NOTE_VALUES = ["1", "2", "4", "8", "16", "32", "64", "128", "\\brev
 export const GRADED_DYNAMICS = ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"] as const;
 export const ACCENT_DYNAMICS = ["sf", "sfz", "fz", "fp", "sfp", "rfz"] as const;
 export const DYNAMICS = [...GRADED_DYNAMICS, ...ACCENT_DYNAMICS] as const;
+export const isDynamic = (name: string): name is (typeof DYNAMICS)[number] => (DYNAMICS as readonly string[]).includes(name);
 
 export const ORNAMENTS = ["trill", "mordent", "prall", "turn"] as const;
 export const TRILL_SPAN = ["startTrillSpan", "stopTrillSpan"] as const;
@@ -64,10 +65,13 @@ export type Pitch = { letter: "a" | "b" | "c" | "d" | "e" | "f" | "g"; octave: n
 // A note value: 1 (whole) to 128, or 0.5 for a breve; with its dots.
 export type Duration = { base: number; dots: number };
 
+// The name of a command after a note: a post command, or a hairpin's start or end.
+export type CommandName = (typeof POST_COMMANDS)[number] | "<" | ">" | "!";
+
 export type Mark =
   | { kind: "articulation"; name: string; placement: Placement }
   | { kind: "fingering"; finger: number; placement: Placement }
-  | { kind: "command"; name: (typeof POST_COMMANDS)[number] | "<" | ">" | "!"; placement: Placement }
+  | { kind: "command"; name: CommandName; placement: Placement }
   | { kind: "text"; text: string; placement: Placement }
   | { kind: "jump"; text: (typeof JUMPS)[number]; placement: Placement }
   | { kind: "curve"; number: number; open: boolean; placement: Placement }
@@ -404,11 +408,14 @@ const markName = (m: Mark): string => {
   }
 };
 
+// The commands a rest can't carry: ornaments and the marks of a note's sound.
+const NOT_ON_RESTS: readonly string[] = [...ORNAMENTS, ...OTHER_MARKS];
+
 // Marks a rest may carry: no curves, articulations or fingering, which belong to notes.
 function allowedOnRest(m: Mark): boolean {
   if (m.kind === "curve" || m.kind === "fingering") return false;
   if (m.kind === "articulation") return false;
-  if (m.kind === "command") return !["arpeggio", "glissando", "laissezVibrer", "trill", "mordent", "prall", "turn"].includes(m.name);
+  if (m.kind === "command") return !NOT_ON_RESTS.includes(m.name);
   return true;
 }
 

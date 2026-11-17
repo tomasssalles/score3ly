@@ -5,6 +5,7 @@ import { validateXML } from "xmllint-wasm";
 import type { LensStretch, LensSystem, LensVoice } from "./lens.ts";
 import { BEYOND_BASIC, buildMei, withoutBeyondBasic, type MeiMetadata } from "./mei.ts";
 import { buildScore, type ScoreSystemInput } from "./score.ts";
+import { DYNAMICS, EVENT_COMMANDS } from "./symbolic.ts";
 import { elements, serialize, type XmlElement } from "./xml.ts";
 
 const schema = (name: string) => readFileSync(new URL(`../schemas/${name}.rng`, import.meta.url), "utf8");
@@ -286,4 +287,25 @@ test("tempo marks: the printed text and the metronome mark as content, the lower
   assert.equal(content(allegro), 'Allegro (<rend glyph.auth="smufl">\uE1D5</rend> = 120–132)');
   assert.deepEqual([attrOf(sixty, "mm"), attrOf(sixty, "mm.unit"), attrOf(sixty, "mm.dots"), attrOf(sixty, "tstamp"), attrOf(sixty, "staff")], ["60", "4", "1", "1", "3"]);
   assert.equal(content(sixty), '<rend glyph.auth="smufl">\uE1D5\uE1E7</rend> = 60');
+});
+
+test("every dynamic, pause and navigation sign the format has gets its MEI element", () => {
+  const built = (music: string) => buildMei(buildScore([{ number: 1, page: 1, box: box(0.1), barLines: [], answer: system([stretch(1, [voice(1, 1, music), voice(2, 2, "R1")])], {}, true) }], [1]));
+  for (const dynamic of DYNAMICS) {
+    assert.deepEqual(named(built(`c'1\\${dynamic}`), "dynam").map((d) => d.children[0]), [dynamic], dynamic);
+  }
+  const expected: Record<(typeof EVENT_COMMANDS)[number], [string, string | undefined, string | undefined]> = {
+    breathe: ["breath", undefined, undefined],
+    caesura: ["caesura", undefined, undefined],
+    segnoMark: ["repeatMark", "segno", undefined],
+    codaMark: ["repeatMark", "coda", undefined],
+    fine: ["repeatMark", "fine", "Fine"],
+  };
+  for (const name of EVENT_COMMANDS) {
+    const [element, func, text] = expected[name];
+    const found = named(built(`c'2 \\${name} c'2`), element);
+    assert.equal(found.length, 1, name);
+    assert.equal(attrOf(found[0], "func"), func, name);
+    assert.equal(found[0].children[0], text, name);
+  }
 });

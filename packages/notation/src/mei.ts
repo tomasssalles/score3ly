@@ -13,7 +13,7 @@ import { add, equal, fraction, less, mul, ZERO, type Fraction } from "./fraction
 import { durationValue, eventsDuration, parseKey, parseTime } from "./durations.ts";
 import type { Box, LensEnding, LensStretch, LensSystem } from "./lens.ts";
 import { stretchOffsets, tstamp, type Run, type Score, type ScoreMeasure, type ScorePiece } from "./score.ts";
-import { JUMPS, type Accidental, type Duration, type Event, type Head, type Mark, type Pitch, type Tempo } from "./symbolic.ts";
+import { isDynamic, JUMPS, type Accidental, type CommandName, type EVENT_COMMANDS, type Duration, type Event, type Head, type Mark, type Pitch, type Tempo } from "./symbolic.ts";
 import { el, elements, serialize, type XmlElement, type XmlNode } from "./xml.ts";
 
 export const MEI_VERSION = "5.1";
@@ -270,6 +270,30 @@ const ARTICS: Record<string, string> = { staccato: "stacc", staccatissimo: "stac
 // model's (§6, "Which quoted texts are dynamics").
 const DYNAMIC_WORDS = /(^|[\s.(])(p+|f+|mp|mf|sf+z?|sfp|fz|fp|rfz?|cresc|crescendo|decresc|decrescendo|dim|diminuendo|smorz|smorzando|morendo|calando|perdendosi)(?=$|[\s.,)])/i;
 export const isDynamicText = (text: string) => DYNAMIC_WORDS.test(text.trim());
+
+// A pause or a navigation sign, on its staff (a breath), every staff (a caesura) or the top one (the signs): every
+// event command has its element, so a token added to symbolic.ts's list is a type error until it has one.
+function eventElement(name: (typeof EVENT_COMMANDS)[number], staff: number, allStaves: string, top: number): XmlElement {
+  switch (name) {
+    case "breathe":
+      return el("breath", { tstamp: "", staff });
+    case "caesura":
+      return el("caesura", { tstamp: "", staff: allStaves });
+    case "segnoMark":
+      return el("repeatMark", { func: "segno", tstamp: "", staff: top });
+    case "codaMark":
+      return el("repeatMark", { func: "coda", tstamp: "", staff: top });
+    case "fine":
+      return el("repeatMark", { func: "fine", tstamp: "", staff: top }, ["Fine"]);
+    default:
+      return unknownToken(name);
+  }
+}
+
+// The end of a reader that has a case for every token: a token without one is a type error here.
+function unknownToken(name: never): never {
+  throw new Error(`no MEI for the token "${name as string}"`);
+}
 
 const JUMP_FUNC: Record<(typeof JUMPS)[number], string> = {
   "D.C.": "daCapo",
@@ -726,12 +750,7 @@ class PieceWriter {
       case "event": {
         const allStaves = place.system.staves.map((s) => s.staff).join(" ");
         const top = place.system.staves[0].staff;
-        const e =
-          event.name === "breathe"
-            ? el("breath", { tstamp: "", staff: ctx.staff })
-            : event.name === "caesura"
-              ? el("caesura", { tstamp: "", staff: allStaves })
-              : el("repeatMark", { func: event.name === "segnoMark" ? "segno" : event.name === "codaMark" ? "coda" : "fine", tstamp: "", staff: top }, event.name === "fine" ? ["Fine"] : []);
+        const e = eventElement(event.name, ctx.staff, allStaves, top);
         // Its beat is counted from the start of its MEI measure, known when the measure is written.
         this.controls.push({ el: e, system: place.systemNumber, stretch: place.stretch.stretch, onset });
         return [];
@@ -890,47 +909,74 @@ class PieceWriter {
     }
   }
 
-  private command(name: string, placement: string | null, id: string, ctx: RunContext, staffOf: (p: string | null) => string, add: (e: XmlElement) => void) {
+  // Every command has its element here (or none, by design: the end of a hairpin): a token added to symbolic.ts's
+  // lists is a type error until it has one.
+  private command(name: CommandName, placement: string | null, id: string, ctx: RunContext, staffOf: (p: string | null) => string, add: (e: XmlElement) => void) {
     const v = this.voice(ctx.run.voice);
     const staff = ctx.staff;
     const ref = `#${id}`;
-    if (name === "<" || name === ">") {
-      this.endHairpin(v, id);
-      const e = el("hairpin", { form: name === "<" ? "cres" : "dim", startid: ref, endid: "", staff: staffOf(placement) });
-      v.hairpin = { el: e };
-      add(e);
-    } else if (name === "!") {
-      this.endHairpin(v, id);
-    } else if (["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff", "sf", "sfz", "fz", "fp", "sfp", "rfz"].includes(name)) {
+    if (isDynamic(name)) {
       this.endHairpin(v, id);
       add(el("dynam", { startid: ref, staff: staffOf(placement) }, [name]));
-    } else if (name === "fermata") {
-      add(el("fermata", { startid: ref, staff }));
-    } else if (name === "trill") {
-      add(el("trill", { startid: ref, staff }));
-    } else if (name === "startTrillSpan") {
-      const e = el("trill", { startid: ref, endid: "", extender: "true", staff });
-      v.trill = { el: e };
-      add(e);
-    } else if (name === "stopTrillSpan") {
-      if (v.trill) setRef(v.trill, "endid", id);
-      v.trill = null;
-    } else if (name === "mordent" || name === "prall") {
-      add(el("mordent", { startid: ref, form: name === "prall" ? "upper" : "lower", staff }));
-    } else if (name === "turn") {
-      add(el("turn", { startid: ref, staff }));
-    } else if (name === "arpeggio") {
-      add(el("arpeg", { plist: ref, staff }));
-    } else if (name === "glissando") {
-      const e = el("gliss", { startid: ref, endid: "", staff });
-      v.gliss = { el: e };
-      add(e);
-    } else if (name === "laissezVibrer") {
-      add(el("lv", { startid: ref, staff }));
-    } else if (name === "sustainOn" || name === "sustainOff") {
-      add(el("pedal", { dir: name === "sustainOn" ? "down" : "up", startid: ref, staff }));
-    } else if (name === "unaCorda" || name === "treCorde") {
-      add(el("pedal", { dir: name === "unaCorda" ? "down" : "up", func: "soft", startid: ref, staff }));
+      return;
+    }
+    switch (name) {
+      case "<":
+      case ">": {
+        this.endHairpin(v, id);
+        const e = el("hairpin", { form: name === "<" ? "cres" : "dim", startid: ref, endid: "", staff: staffOf(placement) });
+        v.hairpin = { el: e };
+        add(e);
+        return;
+      }
+      case "!":
+        this.endHairpin(v, id);
+        return;
+      case "fermata":
+        add(el("fermata", { startid: ref, staff }));
+        return;
+      case "trill":
+        add(el("trill", { startid: ref, staff }));
+        return;
+      case "startTrillSpan": {
+        const e = el("trill", { startid: ref, endid: "", extender: "true", staff });
+        v.trill = { el: e };
+        add(e);
+        return;
+      }
+      case "stopTrillSpan":
+        if (v.trill) setRef(v.trill, "endid", id);
+        v.trill = null;
+        return;
+      case "mordent":
+      case "prall":
+        add(el("mordent", { startid: ref, form: name === "prall" ? "upper" : "lower", staff }));
+        return;
+      case "turn":
+        add(el("turn", { startid: ref, staff }));
+        return;
+      case "arpeggio":
+        add(el("arpeg", { plist: ref, staff }));
+        return;
+      case "glissando": {
+        const e = el("gliss", { startid: ref, endid: "", staff });
+        v.gliss = { el: e };
+        add(e);
+        return;
+      }
+      case "laissezVibrer":
+        add(el("lv", { startid: ref, staff }));
+        return;
+      case "sustainOn":
+      case "sustainOff":
+        add(el("pedal", { dir: name === "sustainOn" ? "down" : "up", startid: ref, staff }));
+        return;
+      case "unaCorda":
+      case "treCorde":
+        add(el("pedal", { dir: name === "unaCorda" ? "down" : "up", func: "soft", startid: ref, staff }));
+        return;
+      default:
+        return unknownToken(name);
     }
   }
 
