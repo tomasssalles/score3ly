@@ -14,7 +14,8 @@
     "package:rpm": "npm run build && electron-builder --linux rpm"
   },
   "dependencies": {
-    "@hono/node-server": "^2.1.5"
+    "@hono/node-server": "^2.1.5",
+    "@score3ly/core": "*"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

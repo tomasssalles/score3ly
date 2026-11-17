@@ -2,6 +2,7 @@
 // recipe made again on another device can be checked against it. Three tiers: identical (the same size and raw
 // pixels), close (a small grayscale thumbnail differs only a little), or different.
 
+import { fromBase64, sha256Hex, toBase64 } from "@score3ly/core";
 import { luminance, type RgbaImage } from "./image.ts";
 import { resizeArea } from "./scale.ts";
 
@@ -25,24 +26,6 @@ export type Fingerprint = {
 const CLOSE_MEAN = 1;
 const CLOSE_MAX = 4;
 
-function base64(bytes: Uint8Array): string {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
-}
-
-function fromBase64(text: string): Uint8Array {
-  const binary = atob(text);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-async function sha256Hex(bytes: Uint8ClampedArray): Promise<string> {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as Uint8ClampedArray<ArrayBuffer>));
-  return [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 // The fingerprint of an image as it is stored and read back: an image stored as gray is fingerprinted as decodePng
 // gives it back (`asStored`).
 export async function fingerprintOf(image: RgbaImage): Promise<Fingerprint> {
@@ -53,8 +36,8 @@ export async function fingerprintOf(image: RgbaImage): Promise<Fingerprint> {
     version: FINGERPRINT_VERSION,
     width: image.width,
     height: image.height,
-    pixelsSha256: await sha256Hex(image.data),
-    thumbnail: base64(thumbnail),
+    pixelsSha256: await sha256Hex(image.data as Uint8ClampedArray<ArrayBuffer>),
+    thumbnail: toBase64(thumbnail),
     thumbnailWidth,
     thumbnailHeight,
   };

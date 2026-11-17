@@ -15,6 +15,6 @@ export async function leipzigWoff2(): Promise<Buffer> {
   return Buffer.from(woff2[1], "base64");
 }
 
-export function sha256Hex(bytes: Buffer): string {
+export function sha256OfBuffer(bytes: Buffer): string {
   return createHash("sha256").update(bytes).digest("hex");
 }

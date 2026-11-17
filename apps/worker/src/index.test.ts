@@ -2,6 +2,7 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { sha256Hex } from "@score3ly/core";
 import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { collectOrphans } from "./deletion.ts";
@@ -46,11 +47,6 @@ function withoutComments(sql: string): string {
 // Stands in for a PDF: the API never looks inside the file.
 function pdfBytes(text: string): Uint8Array<ArrayBuffer> {
   return new Uint8Array(new TextEncoder().encode(text));
-}
-
-async function sha256Hex(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  return [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 type ProjectJson = Record<string, string>;

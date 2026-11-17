@@ -13,6 +13,7 @@
     "crops": "node scripts/crops.ts"
   },
   "dependencies": {
+    "@score3ly/core": "*",
     "pdfjs-dist": "^6.4.299"
   },
   "devDependencies": {

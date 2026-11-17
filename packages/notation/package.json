@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test \"src/**/*.test.ts\""
   },
+  "dependencies": {
+    "@score3ly/core": "*"
+  },
   "devDependencies": {
     "@types/node": "^26.6.4",
     "typescript": "^7.0.2",

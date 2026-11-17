@@ -6,7 +6,7 @@
 import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
 import { deferLog, logFields } from "./requestLog.ts";
 import type { Hono } from "hono";
-import { type CallEvent, canonicalJson, isSha256Hex, keyOf, modelKeyOf, sameValuesMessage, sha256Hex } from "@score3ly/core";
+import { type CallEvent, canonicalJson, fromBase64, isSha256Hex, keyOf, modelKeyOf, sameValuesMessage, sha256Hex } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import type { LlmProgress, LlmProvider } from "./llm/types.ts";
@@ -497,13 +497,6 @@ function requestProblem(request: unknown): string | null {
   return null;
 }
 
-function base64Bytes(base64: string): Uint8Array<ArrayBuffer> {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 // The request with each image as its recipe key alone, and without the cache marks: what the request key is made
 // from. The marks change what a call costs, not what the model is given.
 function keyedRequest(request: CallRequest): unknown {
@@ -527,7 +520,7 @@ async function recordedRequest(request: CallRequest): Promise<unknown> {
         content: await Promise.all(
           m.content.map(async (c) =>
             c.type === "image"
-              ? { type: "image", recipeKey: c.recipeKey, mediaType: c.image!.mediaType, sha256: await sha256Hex(base64Bytes(c.image!.base64)) }
+              ? { type: "image", recipeKey: c.recipeKey, mediaType: c.image!.mediaType, sha256: await sha256Hex(fromBase64(c.image!.base64)) }
               : c,
           ),
         ),

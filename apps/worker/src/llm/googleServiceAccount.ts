@@ -3,6 +3,7 @@
 // have. The flow is Google's "service account JWT" grant: sign a short claim with the account's private key,
 // exchange it for an access token at the token endpoint, and reuse that token until shortly before it expires.
 
+import { fromBase64, toBase64Url } from "@score3ly/core";
 import { type Fetch, LlmError } from "./types.ts";
 
 export type ServiceAccount = {
@@ -105,7 +106,7 @@ export function sharedTokenSource(account: ServiceAccount, fetchFn?: Fetch): Tok
 async function signJwt(account: ServiceAccount, issuedAt: number): Promise<string> {
   const header = { alg: "RS256", typ: "JWT" };
   const claims = { iss: account.clientEmail, scope: SCOPE, aud: account.tokenUri, iat: issuedAt, exp: issuedAt + 3600 };
-  const unsigned = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(claims))}`;
+  const unsigned = `${toBase64Url(JSON.stringify(header))}.${toBase64Url(JSON.stringify(claims))}`;
   const key = await crypto.subtle.importKey(
     "pkcs8",
     pemToDer(account.privateKey),
@@ -114,18 +115,11 @@ async function signJwt(account: ServiceAccount, issuedAt: number): Promise<strin
     ["sign"],
   );
   const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned));
-  return `${unsigned}.${base64url(new Uint8Array(signature))}`;
+  return `${unsigned}.${toBase64Url(new Uint8Array(signature))}`;
 }
 
 function pemToDer(pem: string): ArrayBuffer {
   const base64 = pem.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, "").replace(/\s+/g, "");
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  return bytes.buffer;
+  return fromBase64(base64).buffer;
 }
 
-function base64url(data: string | Uint8Array): string {
-  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}

@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { leipzigWoff2, sha256Hex } from "./leipzig.ts";
+import { leipzigWoff2, sha256OfBuffer } from "./leipzig.ts";
 
 const woff2 = await leipzigWoff2();
 const dir = mkdtempSync(join(tmpdir(), "metronome-font-"));
@@ -32,7 +32,7 @@ writeFileSync(
 export const METRONOME_FONT = "${ttf}";
 
 // The SHA-256 of the font it was made from (Verovio's WOFF2): a test checks it against the installed Verovio's.
-export const METRONOME_FONT_SOURCE = "${sha256Hex(woff2)}";
+export const METRONOME_FONT_SOURCE = "${sha256OfBuffer(woff2)}";
 `,
 );
 console.log(`src/metronomeFont.ts: ${ttf.length} characters`);

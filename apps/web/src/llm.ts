@@ -3,7 +3,7 @@
 
 import { CLAUDE_IMAGE_LIMIT, type SizeLimit } from "@score3ly/imaging";
 import { type CallPlace, callLlm, fetchModelConfig, type LlmAnswer, type LlmRequest, type ModelConfig } from "./api";
-import { keyOf } from "@score3ly/core";
+import { keyOf, toBase64 } from "@score3ly/core";
 import { noteAnswer } from "./itemTiming";
 import { keepFingerprints } from "./pageImages";
 import { CannotStart, type StageRun } from "./stageRunner";
@@ -79,10 +79,7 @@ export function requestSizeProblem(config: ModelConfig, request: LlmRequest): st
 }
 
 async function pngContent(png: Blob): Promise<{ mediaType: "image/png"; base64: string }> {
-  const bytes = new Uint8Array(await png.arrayBuffer());
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return { mediaType: "image/png", base64: btoa(binary) };
+  return { mediaType: "image/png", base64: toBase64(new Uint8Array(await png.arrayBuffer())) };
 }
 
 // A request as a stage builds it: each image by its recipe key, with how to make it (pageImages.ts). It is made only
