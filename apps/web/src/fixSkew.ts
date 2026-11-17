@@ -15,8 +15,9 @@ export type PageLines = { lines: SkewLine[] };
 const round = (value: number, digits: number) => Math.round(value * 10 ** digits) / 10 ** digits;
 
 // A line through two points, given in pixels of a page `width` × `height`, as stored: from left to right, in
-// fractions of the page, with its angle in degrees (positive when it descends to the right). Null when it is too
-// steep (or the two points are the same).
+// fractions of the page, with its angle in degrees (positive when it descends to the right). An end off the page is
+// brought back along the line to where it leaves the page, so the stored ends keep the angle drawn. Null when it is
+// too steep, the two points are the same, or no part of it is on the page.
 export function lineThrough(
   a: { x: number; y: number },
   b: { x: number; y: number },
@@ -27,12 +28,32 @@ export function lineThrough(
   if (right.x === left.x) return null;
   const angle = (Math.atan2(right.y - left.y, right.x - left.x) * 180) / Math.PI;
   if (Math.abs(angle) > MAX_FIX_ANGLE) return null;
+  // The part of the segment on the page (Liang–Barsky): the points left + t (right − left) inside it, t from t0 to t1.
+  const dx = right.x - left.x;
+  const dy = right.y - left.y;
+  let t0 = 0;
+  let t1 = 1;
+  for (const [p, q] of [
+    [-dx, left.x],
+    [dx, width - left.x],
+    [-dy, left.y],
+    [dy, height - left.y],
+  ]) {
+    if (p === 0) {
+      if (q < 0) return null;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) t0 = Math.max(t0, t);
+    else t1 = Math.min(t1, t);
+  }
+  if (t0 >= t1) return null;
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
   return {
-    x0: round(clamp(left.x / width), 5),
-    y0: round(clamp(left.y / height), 5),
-    x1: round(clamp(right.x / width), 5),
-    y1: round(clamp(right.y / height), 5),
+    x0: round(clamp((left.x + t0 * dx) / width), 5),
+    y0: round(clamp((left.y + t0 * dy) / height), 5),
+    x1: round(clamp((left.x + t1 * dx) / width), 5),
+    y1: round(clamp((left.y + t1 * dy) / height), 5),
     angle: round(angle, 3),
   };
 }

@@ -134,6 +134,8 @@ test("new issues: a box on the call's system, at most two consecutive systems, t
   assert.match(problem({ entries: [newIssue({ chosen: "a" })] }), /the same answer/);
   assert.match(problem({ entries: [newIssue({ class: "format" })] }), /LilyPond/);
   assert.match(problem({ entries: [newIssue({ boxes: [{ image: "system", box: { left: 0.5, right: 0.2, top: 0, bottom: 1 } }] })] }), /isn't a box/);
+  // Numbers as text aren't numbers ("0.5" >= 0 would pass, and "0.9" >= "0.25" compares them as text).
+  assert.match(problem({ entries: [newIssue({ boxes: [{ image: "system", box: { left: "0.1", right: "0.3", top: "0.2", bottom: "0.8" } }] })] }), /isn't a box/);
 });
 
 test("the entries apply in order; agreements are added where the latest choice is a model's", () => {

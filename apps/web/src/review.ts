@@ -195,7 +195,7 @@ function newIssue(n: ReviewNewIssueEntry["newIssue"], ctx: ReviewContext, id: nu
     const source = ctx.images.get(b.image);
     if (!source) return { problem: `${what} has a box on "${b.image}", which isn't one of the images sent` };
     const { left, right, top, bottom } = b.box;
-    if (![left, right, top, bottom].every((v) => v >= 0 && v <= 1) || left >= right || top >= bottom) return { problem: `${what} has a box that isn't a box inside its image` };
+    if (![left, right, top, bottom].every((v) => typeof v === "number" && v >= 0 && v <= 1) || left >= right || top >= bottom) return { problem: `${what} has a box that isn't a box inside its image` };
     boxes.push({ page: source.page, box: onPage(source.box, b.box) });
     systems.add(source.system);
   }
