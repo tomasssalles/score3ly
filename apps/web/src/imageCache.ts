@@ -1,9 +1,9 @@
 // The device's image cache (docs/images.md §8.6): computed images as PNG files in the origin private file system
 // (OPFS), `cache/pdf-<sha256>/<key>.png`, the key being the hash of the image's recipe, in a folder per PDF so that
 // deleting a project can delete its PDF's images (§4). Nothing is ever invalidated: an image
-// that is no longer wanted is simply never asked for again. Where OPFS isn't available (some private windows), the
-// images are kept in memory for as long as the page is open. The renderings of the Transcription (§6) are kept the
-// same way, as SVG files.
+// that is no longer wanted is simply never asked for again. Where OPFS isn't available (some private windows), or a
+// write to it fails, the images are kept in memory for as long as the page is open. The renderings of the
+// Transcription (§6) are kept the same way, as SVG files.
 //
 // The browser is asked once per page load, at the first write, to keep the cache (`navigator.storage.persist()`,
 // §8.5): Chromium decides by itself, Firefox asks the user. Either way the cache can still disappear; what is missing
@@ -62,7 +62,8 @@ async function cachedFile(name: string, pdf?: string): Promise<Blob | null> {
     void used(memoryName(name, pdf), file.size);
     return file;
   } catch {
-    return null;
+    // Not in OPFS: it may be in memory, where a failed write (a full disk) put it.
+    return recall(memoryName(name, pdf));
   }
 }
 
