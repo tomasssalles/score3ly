@@ -30,3 +30,5 @@ export type { Fingerprint, StoredFingerprint } from "./api/fingerprint.ts";
 export { isWindowTheme } from "./api/host.ts";
 export type { Host, Info, WindowTheme } from "./api/host.ts";
 export { schemaProblem, schemaProblems, type JsonSchema, type Problem } from "./jsonSchema.ts";
+export { area, boxProblem, clamp, intersection, MIN_BAR_LINE_GAP, normalizeBarLines, onCrop, onPage, overlaps, roundTo, stretchEdges } from "./box.ts";
+export type { Box, BoxProblem, LayoutSystem } from "./box.ts";
