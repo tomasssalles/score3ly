@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 // bundle every visit downloads (apps/web/vite.config.ts, the build's size warning).
 import type * as Pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
-// The data files pdf.js loads at runtime, served by the pdfjsAssets plugin (packages/core).
-import { PDFJS_DATA } from "@score3ly/core/pdf";
+// Opening a PDF with pdf.js's data files (packages/core).
+import { loadPdf } from "@score3ly/core/pdf";
 import { errorText } from "@score3ly/core";
 import { checked } from "./api";
 
@@ -18,13 +18,7 @@ async function loadPdfjs(): Promise<typeof Pdfjs> {
   return pdfjs;
 }
 
-
 export type PdfDocument = Pdfjs.PDFDocumentProxy;
-
-// Where the Worker serves a PDF. The browser caches it for good: the hash never gets another content.
-export function pdfUrl(sha256: string): string {
-  return `/api/pdfs/${sha256}/file`;
-}
 
 // The PDF at `url`, once it is loaded, or the error if it can't be.
 export function usePdf(url: string): { doc?: PdfDocument; error?: string } {
@@ -32,24 +26,20 @@ export function usePdf(url: string): { doc?: PdfDocument; error?: string } {
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    let cancelled = false;
-    let loadingTask: Pdfjs.PDFDocumentLoadingTask | undefined;
+    // Aborted when the view goes: the fetch stops, and the document is destroyed.
+    const leaving = new AbortController();
     async function load() {
-      const response = await checked(await fetch(url));
+      const response = await checked(await fetch(url, { signal: leaving.signal }));
       const bytes = new Uint8Array(await response.arrayBuffer());
       const pdfjs = await loadPdfjs();
-      if (cancelled) return;
-      loadingTask = pdfjs.getDocument({ data: bytes, ...PDFJS_DATA });
-      const loaded = await loadingTask.promise;
-      if (!cancelled) setDoc(loaded);
+      if (leaving.signal.aborted) return;
+      const loaded = await loadPdf(bytes, pdfjs.getDocument, leaving.signal);
+      if (!leaving.signal.aborted) setDoc(loaded);
     }
     load().catch((e) => {
-      if (!cancelled) setError(errorText(e));
+      if (!leaving.signal.aborted) setError(errorText(e));
     });
-    return () => {
-      cancelled = true;
-      loadingTask?.destroy();
-    };
+    return () => leaving.abort();
   }, [url]);
 
   return { doc, error };

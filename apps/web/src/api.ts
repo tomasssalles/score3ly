@@ -492,8 +492,14 @@ export async function fetchContent(sha256: string): Promise<{ bytes: Uint8Array<
   return { bytes: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("Content-Type") ?? "application/octet-stream" };
 }
 
+// Where the Worker serves a PDF. The browser caches it for good: the hash never gets another content.
+export function pdfUrl(sha256: string): string {
+  return `/api/pdfs/${sha256}/file`;
+}
+
+// A project's PDF.
 export async function fetchPdf(sha256: string): Promise<Uint8Array<ArrayBuffer>> {
-  return new Uint8Array(await (await checked(await fetch(`/api/pdfs/${sha256}/file`))).arrayBuffer());
+  return new Uint8Array(await (await checked(await fetch(pdfUrl(sha256)))).arrayBuffer());
 }
 
 export async function storePdf(sha256: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {

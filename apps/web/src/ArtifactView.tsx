@@ -1,6 +1,6 @@
 import { ImagesDiffer } from "./ImagesDiffer";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { failure, fetchJsonContent, type Project } from "./api";
+import { failure, fetchJsonContent, pdfUrl, type Project } from "./api";
 import { CloseIcon } from "./icons";
 import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
 import type { PageLayout } from "./layout";
@@ -9,7 +9,6 @@ import type { Artifact } from "./pipeline";
 import type { PageRecipe } from "./rasterize";
 import { angleLabel, type PageSkew } from "./skewAnalysis";
 import type { SkewLine } from "@score3ly/imaging";
-import { pdfUrl } from "./pdf";
 import { PdfView } from "./PdfView";
 import { SkewEditor } from "./SkewEditor";
 import { AnalysisView } from "./AnalysisView";

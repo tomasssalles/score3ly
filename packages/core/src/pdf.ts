@@ -30,10 +30,26 @@ export async function drawPage<V extends { width: number; height: number }>(
   return canvas;
 }
 
-// Where an app serves the data files pdf.js loads at runtime (the pdfjsAssets plugin), to pass to getDocument.
-export const PDFJS_DATA = {
-  wasmUrl: "/pdfjs/wasm/",
-  cMapUrl: "/pdfjs/cmaps/",
-  standardFontDataUrl: "/pdfjs/standard_fonts/",
-  iccUrl: "/pdfjs/iccs/",
-};
+// The data files pdf.js loads at runtime: the option of getDocument that names each folder, and the folder, served under
+// /pdfjs/<folder>/ by the pdfjsAssets plugin (./pdfjsAssets.ts). Without the wasm decoders, for example, pages with
+// JBIG2 or JPEG 2000 scans render blank.
+export const PDFJS_FOLDERS = { wasmUrl: "wasm", cMapUrl: "cmaps", standardFontDataUrl: "standard_fonts", iccUrl: "iccs" } as const;
+
+type PdfjsData = { [option in keyof typeof PDFJS_FOLDERS]: string };
+
+// Where an app serves them, to pass to getDocument.
+export const PDFJS_DATA = Object.fromEntries(
+  Object.entries(PDFJS_FOLDERS).map(([option, folder]) => [option, `/pdfjs/${folder}/`]),
+) as PdfjsData;
+
+// What loadPdf needs of pdf.js's getDocument (each app passes its own build's).
+export type PdfLoadingTask<D> = { promise: Promise<D>; destroy(): Promise<void> | void };
+
+// Opens a PDF's bytes with pdf.js, with its data files; the document is destroyed (its memory freed) once `signal`
+// aborts, as when the view showing it goes.
+export function loadPdf<D>(data: Uint8Array, getDocument: (source: { data: Uint8Array } & PdfjsData) => PdfLoadingTask<D>, signal: AbortSignal): Promise<D> {
+  const task = getDocument({ data, ...PDFJS_DATA });
+  if (signal.aborted) void task.destroy();
+  else signal.addEventListener("abort", () => void task.destroy(), { once: true });
+  return task.promise;
+}

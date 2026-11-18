@@ -8,9 +8,9 @@ import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "
 // The legacy build, as everywhere else (the web app needs it for older phones): one rendering code for all.
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
-// Shared with the web app: drawing a page, the URLs of pdf.js's data files, the SHA-256.
+// Shared with the web app: opening a PDF with pdf.js's data files, drawing a page, the SHA-256.
 import { sha256Hex } from "@score3ly/core";
-import { drawPage, PDFJS_DATA } from "@score3ly/core/pdf";
+import { drawPage, loadPdf } from "@score3ly/core/pdf";
 import { STROKE_WIDTH, createDrawingLayer, paintLine, paintStrokes, pointOn } from "./highlighter.ts";
 import type { Point, Stroke } from "./marks.ts";
 import { type PageBox, type ScrollAnchor, anchorAt, scrollTopFor } from "./scrollAnchor.ts";
@@ -41,35 +41,31 @@ export function PdfPane({ url, strokes, highlightColor, onStroke }: Props) {
   useKeepTopInPlace(scrollRef, pagesRef);
 
   useEffect(() => {
-    let cancelled = false;
-    let loadingTask: pdfjs.PDFDocumentLoadingTask | undefined;
+    // Aborted when the pane goes: the fetch stops, and the document is destroyed.
+    const leaving = new AbortController();
     async function load() {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: leaving.signal });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
       const bytes = new Uint8Array(await response.arrayBuffer());
       // Hash before pdf.js takes over the bytes.
       const hash = await sha256Hex(bytes);
-      if (cancelled) {
+      if (leaving.signal.aborted) {
         return;
       }
-      loadingTask = pdfjs.getDocument({ data: bytes, ...PDFJS_DATA });
-      const loaded = await loadingTask.promise;
-      if (!cancelled) {
+      const loaded = await loadPdf(bytes, pdfjs.getDocument, leaving.signal);
+      if (!leaving.signal.aborted) {
         setPdfSha256(hash);
         setDoc(loaded);
       }
     }
     load().catch((e) => {
-      if (!cancelled) {
+      if (!leaving.signal.aborted) {
         setError(String(e));
       }
     });
-    return () => {
-      cancelled = true;
-      loadingTask?.destroy();
-    };
+    return () => leaving.abort();
   }, [url]);
 
   useEffect(() => {

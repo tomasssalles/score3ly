@@ -22,6 +22,7 @@ import {
   type Skew,
 } from "@score3ly/imaging";
 import type { Box, LayoutSystem } from "@score3ly/core";
+import { PDFJS_DATA } from "@score3ly/core/pdf";
 import { serve } from "./workerClient.ts";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -80,15 +81,11 @@ class NoFilterFactory {
   destroy() {}
 }
 
-// What openPdf needs in a worker: the folders pdf.js loads data from (the pdfjsAssets plugin, packages/core), as absolute URLs
+// What openPdf needs in a worker: the folders pdf.js loads data from (PDFJS_DATA, packages/core), as absolute URLs
 // fetched by pdf.js's own worker, and no DOM. Glyphs are drawn as paths rather than with the browser's fonts, as in
 // Node: the same everywhere (docs/images.md §8.1).
 const options = {
-  ...Object.fromEntries(
-    Object.entries({ wasmUrl: "wasm", cMapUrl: "cmaps", standardFontDataUrl: "standard_fonts", iccUrl: "iccs" }).map(
-      ([option, name]) => [option, new URL(`/pdfjs/${name}/`, self.location.origin).href],
-    ),
-  ),
+  ...Object.fromEntries(Object.entries(PDFJS_DATA).map(([option, url]) => [option, new URL(url, self.location.origin).href])),
   useWorkerFetch: true,
   disableFontFace: true,
   CanvasFactory: OffscreenCanvasFactory,

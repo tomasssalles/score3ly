@@ -9,11 +9,10 @@
 // (`keepFingerprints`).
 
 import { compareFingerprints, pngSize as pngHeaderSize, type Fingerprint } from "@score3ly/imaging";
-import { checked, fetchFingerprint, storeFingerprints } from "./api";
+import { fetchFingerprint, fetchPdf, storeFingerprints } from "./api";
 import { cachedImage, cacheImage, cachedJson, cacheJson } from "./imageCache";
 import { noteImage } from "./itemTiming";
 import { errorText, keyOf } from "@score3ly/core";
-import { pdfUrl } from "./pdf";
 import type { DeriveOptions, MadeImage, PageImageCalls } from "./pageImageWorker";
 import { oneAtATime, workerClient } from "./workerClient";
 import type { PageRecipe } from "./rasterize";
@@ -33,11 +32,10 @@ export function openPdfForImages(sha256: string): Promise<{ pageCount: number; p
   let result = opened.get(sha256);
   if (!result) {
     result = (async () => {
-      const response = await checked(await fetch(pdfUrl(sha256))).catch((err) => {
+      const pdf = await fetchPdf(sha256).catch((err) => {
         throw new Error(`Loading the PDF failed: ${errorText(err)}`);
       });
-      const pdf = await response.arrayBuffer();
-      return images.ask("open", { sha256, pdf }, [pdf]);
+      return images.ask("open", { sha256, pdf: pdf.buffer }, [pdf.buffer]);
     })();
     opened.set(sha256, result);
     result.catch(() => opened.delete(sha256));

@@ -1,14 +1,14 @@
-// Vite plugin for the data files pdf.js loads at runtime, under /pdfjs/<folder>/<name>:
-// served by the dev server, and copied into the build. Without the wasm decoders, for example,
-// pages with JBIG2 or JPEG 2000 scans render blank. Used by the web app and the evaluation viewer; the URLs are
+// Vite plugin for the data files pdf.js loads at runtime, under /pdfjs/<folder>/<name>: served by the dev server, and
+// copied into the build. Used by the web app and the evaluation viewer; the folders and their URLs are PDFJS_FOLDERS and
 // PDFJS_DATA in ./pdf.ts.
 
 import { readdir, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { Plugin } from "vite";
+import { PDFJS_FOLDERS } from "./pdf.ts";
 
-const FOLDERS = ["wasm", "cmaps", "standard_fonts", "iccs"];
+const FOLDERS: string[] = Object.values(PDFJS_FOLDERS);
 
 const PDFJS_DIR = dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json"));
 
