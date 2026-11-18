@@ -1282,3 +1282,38 @@ test("the rows a call writes are counted by Costs and Usage as what happened", a
     "524": { paid: [], unknown: 1, usage: ["timeout ×1"] },
   });
 });
+
+// The bookkeeping after an answer (docs/llm.md, "Calling the providers"): a failure there doesn't make a paid answer an
+// error of unknown cost.
+test("an answer whose storing fails is still recorded as paid, with its tokens and cost, and reaches the browser", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const stage = await runningStage((await modelConfig()).id);
+  const bucket = env.PDFS;
+  let puts = 0;
+  // The request is stored first, then the answer: the answer's put fails, twice (it is tried again once).
+  env.PDFS = new Proxy(bucket, {
+    get(target, property) {
+      if (property === "put") {
+        return (...args: Parameters<R2Bucket["put"]>) => (++puts === 1 ? target.put(...args) : Promise.reject(new Error("R2 is down")));
+      }
+      const value = Reflect.get(target, property);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  let answer: Record<string, unknown>;
+  try {
+    answer = await json(await call(stage));
+  } finally {
+    env.PDFS = bucket;
+  }
+  assert.equal(answer.status, "ok");
+  assert.ok((answer.costUsd as number) > 0);
+  const row = (await calls()).at(-1)!;
+  assert.equal(row.status, "ok");
+  assert.ok((row.output_tokens as number) > 0);
+  assert.ok((row.cost_usd as number) > 0);
+  assert.equal(row.response_sha256, null);
+  assert.ok(row.finished_at);
+  // Not served from the record: there is no stored answer to serve.
+  assert.equal((await json(await call(stage))).cached, false);
+});

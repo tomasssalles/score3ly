@@ -10,7 +10,7 @@ import { badRequest, notRunning, PICK_ONE, problemText, refuse } from "./refusal
 import { lock } from "./versions.ts";
 import { freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
-import type { LlmProgress, LlmProvider } from "./llm/types.ts";
+import type { LlmProgress, LlmProvider, LlmResponse } from "./llm/types.ts";
 import { isReplay, replayProvider } from "./llm/replay.ts";
 import { cloudflareTimeoutMessage } from "./llm/types.ts";
 import { llmTimeoutMs, timedOutMessage, withTimeout } from "./llm/timeouts.ts";
@@ -201,10 +201,10 @@ async function runCall(
 
   // The replay model answers from the project's recordings, by the call's place (llm/replay.ts).
   const answering = isReplay(config) ? replayProvider(db, env.PDFS, stageId, place, config.id) : adapter;
-  let answer: CallAnswer;
   const timeout = withTimeout(signal, timeoutMs);
+  let response: LlmResponse;
   try {
-    const response = await answering.send({
+    response = await answering.send({
       model: sentModel,
       effort: config.effort ?? undefined,
       ...(row.model_id && modelById(MODEL_LIST, row.model_id)?.thinking === "adaptive" ? { adaptiveThinking: true as const } : {}),
@@ -215,32 +215,64 @@ async function runCall(
     }, timeout.signal, progress?.push);
     // The answer's last count reaches the browser before the answer does: an item's next call counts on from it.
     progress?.flush();
-    // An answer that isn't valid JSON comes back with its usage like any other, so its cost is counted.
-    const status =
-      response.unexpectedModel !== undefined ? "error"
-      : response.invalidJson !== undefined ? "unparseable"
-      : response.stop === "end" ? "ok"
-      : response.stop === "max_tokens" ? "cut_off"
-      : response.stop === "refusal" ? "refused"
-      : "error";
-    // Unpriced: the tokens are known, the cost isn't (a call of unknown cost, docs/llm.md). Priced by the provider: what
-    // the answer says it cost, plus the fee on credits; unknown where it doesn't say.
-    const fee = feeOf(row);
-    const costUsd =
-      priced.kind === "unpriced" ? null
-      : priced.kind === "provider" ? providerCost(response.reportedCostUsd, fee)
-      : price ? costOf(response.usage, price) : 0;
-    // The rate in force now, when the cost is recorded (docs/llm.md, "VAT").
-    const { vatPercent } = await readSettings(db);
-    const responseSha = await putJson(env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, ...(response.servedBy ? { servedBy: response.servedBy } : {}), raw: response.raw });
-    const error =
-      status === "ok" ? null
-      : response.unexpectedModel !== undefined ? response.unexpectedModel
-      : status === "unparseable" ? response.invalidJson!
-      : status === "cut_off" ? "The answer was cut off."
-      : status === "refused" ? `The model declined${response.stopDetail ? ` (${response.stopDetail})` : ""}.`
-      : "The answer ended unexpectedly.";
+  } catch (err) {
+    const httpStatus = err instanceof LlmError ? (err.status ?? null) : null;
+    // No usable response, so no token counts and no cost. With an HTTP error status, the provider refused the call
+    // and didn't bill it, and `auth` without one failed before anything was sent; otherwise it may have been billed
+    // (docs/llm.md, "Calling the providers"). Except a 524: Cloudflare's, not the provider's, which cut off a call the
+    // provider may have finished and billed; its message says what happened and what may help.
+    // Stopped by its timeout: of unknown cost, like a stopped call.
+    // Stopped by the browser: "aborted", whatever the adapter made of its cut connection (a network error, say).
+    const timedOut = timeout.timedOut();
+    const kind = timedOut ? "timeout" : signal?.aborted ? "aborted" : err instanceof LlmError ? err.kind : "unknown";
+    const message =
+      httpStatus === 524 ? cloudflareTimeoutMessage(PROVIDER_NAMES[config.provider])
+      : timedOut ? timedOutMessage(timeoutMs)
+      : kind === "aborted" ? ABORTED_CALL
+      : err instanceof Error ? err.message : String(err);
     await db
+      .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = ?, http_status = ?, finished_at = ? WHERE id = ?")
+      .bind(message, kind, httpStatus, new Date().toISOString(), callId)
+      .run();
+    return { callId, cached: false, status: "error", text: null, json: null, error: message, usage: null, costUsd: null, vatPercent: 0 };
+  } finally {
+    timeout.clear();
+    progress?.stop();
+  }
+
+  // The answer is in hand, and was paid for: recording it is a step of its own, so that a failure there (storing the
+  // answer, reading the VAT, updating the row) never turns it into a call that failed, of unknown cost. Each part is
+  // tried twice, then logged; the answer reaches the browser all the same. An answer that couldn't be stored isn't
+  // served from the record later; a row that couldn't be updated stays running, and counts as dead once old enough.
+  // An answer that isn't valid JSON comes back with its usage like any other, so its cost is counted.
+  const status =
+    response.unexpectedModel !== undefined ? "error"
+    : response.invalidJson !== undefined ? "unparseable"
+    : response.stop === "end" ? "ok"
+    : response.stop === "max_tokens" ? "cut_off"
+    : response.stop === "refusal" ? "refused"
+    : "error";
+  // Unpriced: the tokens are known, the cost isn't (a call of unknown cost, docs/llm.md). Priced by the provider: what
+  // the answer says it cost, plus the fee on credits; unknown where it doesn't say.
+  const fee = feeOf(row);
+  const costUsd =
+    priced.kind === "unpriced" ? null
+    : priced.kind === "provider" ? providerCost(response.reportedCostUsd, fee)
+    : price ? costOf(response.usage, price) : 0;
+  // The rate in force now, when the cost is recorded (docs/llm.md, "VAT"); 0 where it can't be read.
+  const vatPercent = (await bookkeeping(callId, "read the VAT rate", async () => (await readSettings(db)).vatPercent)) ?? 0;
+  const responseSha = await bookkeeping(callId, "store the answer", () =>
+    putJson(env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, ...(response.servedBy ? { servedBy: response.servedBy } : {}), raw: response.raw }),
+  );
+  const error =
+    status === "ok" ? null
+    : response.unexpectedModel !== undefined ? response.unexpectedModel
+    : status === "unparseable" ? response.invalidJson!
+    : status === "cut_off" ? "The answer was cut off."
+    : status === "refused" ? `The model declined${response.stopDetail ? ` (${response.stopDetail})` : ""}.`
+    : "The answer ended unexpectedly.";
+  await bookkeeping(callId, "record the answer", () =>
+    db
       .prepare(
         "UPDATE llm_calls SET status = ?, error = ?, error_kind = ?, response_model = ?, response_sha256 = ?, input_tokens = ?, output_tokens = ?, cached_tokens = ?, cache_write_tokens = ?, cost_usd = ?, vat_percent = ?, price_json = ?, finished_at = ? WHERE id = ?",
       )
@@ -262,33 +294,22 @@ async function runCall(
         new Date().toISOString(),
         callId,
       )
-      .run();
-    answer = { callId, cached: false, status, text: response.text, json: response.json ?? null, error, usage: response.usage, costUsd: withVat(costUsd, vatPercent), vatPercent };
-  } catch (err) {
-    const httpStatus = err instanceof LlmError ? (err.status ?? null) : null;
-    // No usable response, so no token counts and no cost. With an HTTP error status, the provider refused the call
-    // and didn't bill it, and `auth` without one failed before anything was sent; otherwise it may have been billed
-    // (docs/llm.md, "Calling the providers"). Except a 524: Cloudflare's, not the provider's, which cut off a call the
-    // provider may have finished and billed; its message says what happened and what may help.
-    // Stopped by its timeout: of unknown cost, like a stopped call.
-    // Stopped by the browser: "aborted", whatever the adapter made of its cut connection (a network error, say).
-    const timedOut = timeout.timedOut();
-    const kind = timedOut ? "timeout" : signal?.aborted ? "aborted" : err instanceof LlmError ? err.kind : "unknown";
-    const message =
-      httpStatus === 524 ? cloudflareTimeoutMessage(PROVIDER_NAMES[config.provider])
-      : timedOut ? timedOutMessage(timeoutMs)
-      : kind === "aborted" ? ABORTED_CALL
-      : err instanceof Error ? err.message : String(err);
-    await db
-      .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = ?, http_status = ?, finished_at = ? WHERE id = ?")
-      .bind(message, kind, httpStatus, new Date().toISOString(), callId)
-      .run();
-    answer = { callId, cached: false, status: "error", text: null, json: null, error: message, usage: null, costUsd: null, vatPercent: 0 };
-  } finally {
-    timeout.clear();
-    progress?.stop();
+      .run(),
+  );
+  return { callId, cached: false, status, text: response.text, json: response.json ?? null, error, usage: response.usage, costUsd: withVat(costUsd, vatPercent), vatPercent };
+}
+
+// A part of recording a call that was answered: tried twice; then logged (the call's id, what failed, why), and null.
+async function bookkeeping<T>(callId: string, what: string, part: () => Promise<T>): Promise<T | null> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await part();
+    } catch (err) {
+      if (attempt < 2) continue;
+      console.error({ call: callId, failed: `couldn't ${what}`, error: err instanceof Error ? err.message : String(err) });
+      return null;
+    }
   }
-  return answer;
 }
 
 export function llmCallRoutes(app: Hono<{ Bindings: Env }>) {
