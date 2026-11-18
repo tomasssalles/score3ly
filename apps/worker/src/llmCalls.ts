@@ -360,36 +360,37 @@ export function llmCallRoutes(app: Hono<{ Bindings: Env }>) {
     // Not the config's id, region, routing, project or secrets: they don't change the answer (§5.2).
     const requestKey = await keyOf({ ...modelKeyOf(config), request: keyedRequest(request) });
 
-    // The cache first: an answer already paid for is served even when the spending cap is reached.
-    const earlier = await db
+    // The cache first: an answer already paid for is served even when the spending cap is reached. The earliest
+    // recorded answer whose content is stored: one whose content is missing (removed by hand, say) is skipped for the
+    // next, so that the answer paid for again in its place is served after it.
+    const { results: earlier } = await db
       .prepare(
-        "SELECT id, response_sha256, input_tokens, output_tokens, cached_tokens, cache_write_tokens FROM llm_calls WHERE request_key = ? AND status = 'ok' AND deleted_at IS NULL AND response_sha256 IS NOT NULL ORDER BY started_at LIMIT 1",
+        "SELECT id, response_sha256, input_tokens, output_tokens, cached_tokens, cache_write_tokens FROM llm_calls WHERE request_key = ? AND status = 'ok' AND deleted_at IS NULL AND response_sha256 IS NOT NULL ORDER BY started_at",
       )
       .bind(requestKey)
-      .first<{ id: string; response_sha256: string; input_tokens: number; output_tokens: number; cached_tokens: number; cache_write_tokens: number | null }>();
-    if (earlier) {
-      const object = await c.env.PDFS.get(`content/${earlier.response_sha256}`);
-      if (object) {
-        logFields(c.req.raw, { answer: "cached" });
-        const response = (await object.json()) as { text: string; json?: unknown };
-        const answer: CallAnswer = {
-          callId: earlier.id,
-          cached: true,
-          status: "ok",
-          text: response.text,
-          json: response.json ?? null,
-          error: null,
-          usage: {
-            inputTokens: earlier.input_tokens,
-            outputTokens: earlier.output_tokens,
-            cacheReadTokens: earlier.cached_tokens,
-            cacheWriteTokens: earlier.cache_write_tokens ?? 0,
-          },
-          costUsd: 0,
-          vatPercent: 0,
-        };
-        return c.json<CallAnswer>(answer);
-      }
+      .all<{ id: string; response_sha256: string; input_tokens: number; output_tokens: number; cached_tokens: number; cache_write_tokens: number | null }>();
+    for (const recorded of earlier) {
+      const object = await c.env.PDFS.get(`content/${recorded.response_sha256}`);
+      if (!object) continue;
+      logFields(c.req.raw, { answer: "cached" });
+      const response = (await object.json()) as { text: string; json?: unknown };
+      const answer: CallAnswer = {
+        callId: recorded.id,
+        cached: true,
+        status: "ok",
+        text: response.text,
+        json: response.json ?? null,
+        error: null,
+        usage: {
+          inputTokens: recorded.input_tokens,
+          outputTokens: recorded.output_tokens,
+          cacheReadTokens: recorded.cached_tokens,
+          cacheWriteTokens: recorded.cache_write_tokens ?? 0,
+        },
+        costUsd: 0,
+        vatPercent: 0,
+      };
+      return c.json<CallAnswer>(answer);
     }
 
     // Not cached: the browser makes the images and asks again with them.

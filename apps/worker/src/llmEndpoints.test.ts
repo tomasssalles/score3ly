@@ -1317,3 +1317,29 @@ test("an answer whose storing fails is still recorded as paid, with its tokens a
   // Not served from the record: there is no stored answer to serve.
   assert.equal((await json(await call(stage))).cached, false);
 });
+
+test("a recorded answer whose stored content is missing is skipped: the next recorded one is served, not paid for again", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const opus = await modelConfig({ provider: "anthropic", modelId: "claude-opus-5-5", pricing: { kind: "list" }, secrets: { apiKey: "TEST_ANTHROPIC_KEY" }, name: "Opus" });
+  const stage = await runningStage(opus.id);
+  (env as unknown as Record<string, string>).TEST_ANTHROPIC_KEY = "sk-test";
+  const realFetch = globalThis.fetch;
+  // Each answer worded differently, as a model's are: stored under keys of their own.
+  let sent = 0;
+  globalThis.fetch = (async () => anthropicAnswer(`{"systems":[],"flagged":${++sent % 2 === 0}}`)) as unknown as typeof fetch;
+  try {
+    const first = await json(await call(stage));
+    const row = (await calls()).at(-1)!;
+    await env.PDFS.delete(`content/${row.response_sha256}`);
+    const second = await json(await call(stage));
+    assert.equal(second.cached, false); // nothing to serve: paid again, once
+    const third = await json(await call(stage));
+    assert.equal(third.cached, true);
+    assert.equal(third.callId, second.callId);
+    assert.notEqual(third.callId, first.callId);
+    assert.equal(sent, 2);
+  } finally {
+    globalThis.fetch = realFetch;
+    delete (env as unknown as Record<string, string>).TEST_ANTHROPIC_KEY;
+  }
+});
