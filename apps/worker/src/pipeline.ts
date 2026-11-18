@@ -6,6 +6,7 @@ import { logFields } from "./requestLog.ts";
 import { BAD_REQUEST, badRequest, NO_PROJECT, notRunning, PICK_ANOTHER, refuse, RELOAD, STAGE_RUNNING, WAITS_FOR_TURN } from "./refusals.ts";
 import { isSha256Hex, quarterOf, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StartAnswer } from "@score3ly/core";
 import type { Hono } from "hono";
+import { lock } from "./versions.ts";
 import { deletedConfigMessage, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
 import {
   anyRunning,
@@ -41,7 +42,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   // Sets the config of a stage (null: the defaults). A planned stage simply gets it. A stage that has run is
   // replaced by a new planned one with that config, and every stage after it by a new planned copy of itself
   // (docs/overview.md §5.5): the replaced stages stay, for the stage key to find them. Returns the pipeline.
-  app.put("/api/projects/:pid/stages/:sid/config", async (c) => {
+  app.put("/api/projects/:pid/stages/:sid/config", lock("checked"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
@@ -100,7 +101,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   // Starts a stage (or runs a failed or interrupted one again). The browser sends what it resolved: the step's
   // version, the config, the model config (LLM stages), the stage key, the page count and the outputs it reads. If a finished stage that isn't
   // deleted has the same key, the pipeline points to it instead and nothing runs ({ reused: true }).
-  app.post("/api/projects/:pid/stages/:sid/start", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/start", lock("raised"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
@@ -167,7 +168,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   // Records outputs of a running stage, as soon as each is done (docs/overview.md §5.2), or of a WIP manual stage, as the
   // user works. A running stage's item already recorded is left as it is; a WIP stage's is overwritten. Returns the
   // outputs' ids, in the order sent.
-  app.post("/api/projects/:pid/stages/:sid/outputs", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/outputs", lock({ wip: "checked", otherwise: null }), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
@@ -252,7 +253,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Tells the Worker a running stage is still being worked on: once a minute, no more (docs/database.md).
-  app.post("/api/projects/:pid/stages/:sid/heartbeat", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/heartbeat", lock("none"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const found = stageEntry(c);
@@ -263,7 +264,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
 
   // Ends a running stage: done, with a short result, or failed, with the error. A WIP manual stage is finished the
   // same way (done only): the user clicked Finish.
-  app.post("/api/projects/:pid/stages/:sid/finish", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/finish", lock({ wip: "checked", otherwise: "raised" }), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
@@ -297,7 +298,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   // Stops a running stage: it is marked stopped and leaves the pipeline, its outputs are thrown away, and a new
   // planned stage with the same config takes its place (docs/database.md). Its LLM calls stay; one still running is
   // recorded as stopped, of unknown cost (docs/llm.md, "Stopped calls").
-  app.post("/api/projects/:pid/stages/:sid/stop", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/stop", lock("checked"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const found = stageEntry(c);
@@ -324,7 +325,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   // It goes after the manual stages that already follow the stage (e.g. `fix_observations` after `fix_metadata`,
   // both after `analyze`, §6), WIP or finished, which stay; the stages after those are replaced. Returns the
   // pipeline and the new stage's id.
-  app.post("/api/projects/:pid/stages/:sid/fix", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/fix", lock("checked"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
@@ -377,7 +378,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
 
   // Edits a finished manual stage (docs/overview.md §5.4): a new WIP stage, with the same outputs and inputs, takes its
   // place and records which one it replaces; the old one stays as it was. The stages after it are replaced.
-  app.post("/api/projects/:pid/stages/:sid/edit", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/edit", lock("checked"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const found = stageEntry(c);
@@ -420,7 +421,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   // items and types, each with the same content hash or recipe key), it is kept, as it is, WIP or done; otherwise it
   // is dropped, and the stages after it move up, with a card where it was (docs/overview.md §5.5). Returns whether it was
   // kept, and the pipeline.
-  app.post("/api/projects/:pid/stages/:sid/resolve", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/resolve", lock("raised"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
@@ -472,7 +473,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   // Adds a further review after an `apply_review` (docs/stages/music.md, `apply_review`: from any of them, right after
   // it), with an `apply_review` of its own, both planned and with the default model config. The stages after them are
   // replaced, as after any change in the middle (docs/overview.md §5.5). Returns the pipeline and the review's id.
-  app.post("/api/projects/:pid/stages/:sid/review", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/review", lock("checked"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const found = stageEntry(c);
@@ -499,7 +500,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   // Adds a human review after a done `apply_review` (docs/stages/music.md, `human_review`): WIP, right after it, with a
   // planned `apply_review` of its own (the default model config), as a further review is added. Body as for a fix:
   // { stepVersion, pageCount, inputIds }. The stages after them are replaced. Returns the pipeline and its id.
-  app.post("/api/projects/:pid/stages/:sid/human-review", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/human-review", lock("checked"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
@@ -543,7 +544,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
 
   // Drops a manual stage, WIP or finished (docs/overview.md §5.5): its entry goes, and the stages after it move up and are
   // replaced. The stage's row and outputs stay, like a replaced stage's.
-  app.post("/api/projects/:pid/stages/:sid/drop", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/drop", lock("checked"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const found = stageEntry(c);
@@ -558,7 +559,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Dismisses the card of a dropped stage (docs/overview.md §5.5).
-  app.delete("/api/projects/:pid/dropped/:id", async (c) => {
+  app.delete("/api/projects/:pid/dropped/:id", lock("checked"), async (c) => {
     const db = c.env.DB;
     const { pid, id } = c.req.param();
     const result = await db

@@ -8,6 +8,7 @@ import { deferLog, logFields } from "./requestLog.ts";
 import { stageEntry } from "./pipelineRules.ts";
 import { badRequest, NO_MODEL_CONFIG, notRunning, PICK_ONE, problemText, refuse } from "./refusals.ts";
 import type { Hono } from "hono";
+import { lock } from "./versions.ts";
 import { amount, type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, firstFreeName, fromBase64, isSha256Hex, keyOf, MAX_NAME_LENGTH, modelKeyOf, nameTooLong, roundUsd, sameConfigValues, sameValuesMessage, sha256Hex, type ModelConfig, type ModelOptions, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type Effort, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
@@ -742,7 +743,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   // An answer that is valid JSON but that the stage can't use (e.g. LilyPond inside it that doesn't parse, or boxes
   // outside the page): it is marked unparseable, so it is never served from the cache again and a retry asks anew
   // (§5.2). Its cost stays in the records: it was paid for.
-  app.post("/api/projects/:pid/stages/:sid/llm-calls/:callId/unusable", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/llm-calls/:callId/unusable", lock("none"), async (c) => {
     const { pid, sid, callId } = c.req.param();
     const body = await c.req.json().catch(() => null);
     if (typeof body?.reason !== "string" || body.reason.trim() === "") return badRequest(c, "expected a 'reason'");
@@ -755,7 +756,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // One LLM request of a running stage. Errors the stage can act on carry a `code`.
-  app.post("/api/projects/:pid/stages/:sid/llm", async (c) => {
+  app.post("/api/projects/:pid/stages/:sid/llm", lock("none"), async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);

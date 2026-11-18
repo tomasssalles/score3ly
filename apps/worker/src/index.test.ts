@@ -6,6 +6,7 @@ import { sha256Hex } from "@score3ly/core";
 import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { collectOrphans } from "./deletion.ts";
+import { lockOf } from "./versions.ts";
 import { defaultName } from "./names.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 
@@ -1716,6 +1717,42 @@ function withVersion(projectId: string, stageId: string, action: string, version
     env,
   );
 }
+
+test("every route that changes something about a project declares its lock class where it is registered", () => {
+  // What each does to the version (docs/database.md, "Optimistic locking"): a person's change is checked and raised, the
+  // run's changes of the pipeline only raised, the rest neither; a manual stage's saves and Finish are a person's.
+  const expected: Record<string, unknown> = {
+    "DELETE /api/projects/:id": "none",
+    "PATCH /api/projects/:id": "checked",
+    "POST /api/projects/:id/opened": "none",
+    "POST /api/projects/:id/issue-numbers": "none",
+    "PUT /api/projects/:pid/stages/:sid/config": "checked",
+    "POST /api/projects/:pid/stages/:sid/start": "raised",
+    "POST /api/projects/:pid/stages/:sid/outputs": { wip: "checked", otherwise: null },
+    "POST /api/projects/:pid/stages/:sid/heartbeat": "none",
+    "POST /api/projects/:pid/stages/:sid/finish": { wip: "checked", otherwise: "raised" },
+    "POST /api/projects/:pid/stages/:sid/stop": "checked",
+    "POST /api/projects/:pid/stages/:sid/fix": "checked",
+    "POST /api/projects/:pid/stages/:sid/edit": "checked",
+    "POST /api/projects/:pid/stages/:sid/resolve": "raised",
+    "POST /api/projects/:pid/stages/:sid/review": "checked",
+    "POST /api/projects/:pid/stages/:sid/human-review": "checked",
+    "POST /api/projects/:pid/stages/:sid/drop": "checked",
+    "DELETE /api/projects/:pid/dropped/:id": "checked",
+    "POST /api/projects/:pid/stages/:sid/llm-calls/:callId/unusable": "none",
+    "POST /api/projects/:pid/stages/:sid/llm": "none",
+  };
+  // Every route under a project but a GET (which changes nothing), with the class its lock middleware declares.
+  const declared: Record<string, unknown> = {};
+  for (const route of app.routes) {
+    if (route.method === "ALL" || route.method === "GET" || !route.path.startsWith("/api/projects/:")) continue;
+    const name = `${route.method} ${route.path}`;
+    const lock = lockOf(route.handler);
+    if (lock !== undefined) declared[name] = lock;
+    else if (!(name in declared)) declared[name] = undefined; // the handler; its lock comes before it, if it has one
+  }
+  assert.deepEqual(declared, expected);
+});
 
 test("a person's change is refused when the project changed since the browser read it; a run's own requests aren't checked", async () => {
   const { project, skew } = await analyzedProject("versions.pdf");

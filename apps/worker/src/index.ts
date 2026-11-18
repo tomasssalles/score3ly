@@ -10,7 +10,7 @@ import { fingerprintRoutes } from "./fingerprints.ts";
 import { llmRoutes, readSettings, convertAddedConfigs } from "./llmRoutes.ts";
 import { pipelineRoutes } from "./pipeline.ts";
 import { defaultForNewStages, newPipeline, stageEntries } from "./pipelineRules.ts";
-import { versionRoutes } from "./versions.ts";
+import { lock, versionRoutes } from "./versions.ts";
 import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
 import { badRequest, failed, NO_PROJECT, refuse } from "./refusals.ts";
@@ -84,7 +84,7 @@ app.use("/api/*", async (c, next) => {
 app.get("/api/info", (c) => c.json<Info>({ host: "cloudflare" }));
 
 // Deletes a project (docs/database.md, "Deleting a project"): refused while one of its stages runs, here or on another device.
-app.delete("/api/projects/:id", async (c) => {
+app.delete("/api/projects/:id", lock("none"), async (c) => {
   const result = await deleteProject(c.env, c.req.param("id"));
   if (result === "not_found") return refuse(c, 404, NO_PROJECT);
   if (result === "running") return refuse(c, 409, "The project can't be deleted while one of its stages is running. Stop it, or let it finish, then try again.", "running");
@@ -268,7 +268,7 @@ app.post("/api/projects", async (c) => {
 });
 
 // Renames a project, or sets its run mode, or both. A name that is already taken is refused, not numbered.
-app.patch("/api/projects/:id", async (c) => {
+app.patch("/api/projects/:id", lock("checked"), async (c) => {
   const body = await c.req.json().catch(() => null);
   const sets: string[] = [];
   const values: unknown[] = [];
@@ -306,7 +306,7 @@ app.patch("/api/projects/:id", async (c) => {
 });
 
 // Records that the project was opened. Doesn't count as a modification.
-app.post("/api/projects/:id/opened", async (c) => {
+app.post("/api/projects/:id/opened", lock("none"), async (c) => {
   const result = await c.env.DB.prepare("UPDATE projects SET last_opened_at = ? WHERE id = ? AND deleted_at IS NULL")
     .bind(new Date().toISOString(), c.req.param("id"))
     .run();
@@ -318,7 +318,7 @@ app.post("/api/projects/:id/opened", async (c) => {
 // a re-run drops the issue. Returns the first; the others follow it. `above` (optional): the largest number the caller
 // already knows of among the issues it works on, which may come from another project's counter (stages reused from the
 // stage cache): the numbers continue above it.
-app.post("/api/projects/:id/issue-numbers", async (c) => {
+app.post("/api/projects/:id/issue-numbers", lock("none"), async (c) => {
   const body = await c.req.json().catch(() => null);
   const count = body?.count;
   const above = body?.above ?? 0;
