@@ -171,7 +171,7 @@ flowchart LR
 
 ```
 packages/
-  core/      What more than one app needs (built): content keys, SHA-256 and base64, the steps' ids and kinds
+  core/      What more than one app needs (built): content keys, SHA-256 and base64, boxes and their geometry (`box.ts`), the steps' ids and kinds
              and the recipe, the rules both sides apply (names, items, quarters of an hour, amounts, the same
              model config), texts both apps say, and under `api/` every shape the Worker's API sends and takes
              (projects, the pipeline, LLM calls, model configs, settings, statistics, exports, errors, the
