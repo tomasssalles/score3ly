@@ -34,8 +34,20 @@ export type StageRun = {
   item?: (item: ItemProgress) => void; // the item it works on, and the characters received for it (callProgress.ts)
 };
 
-// A stage that can't start, e.g. a page selection beyond the PDF's last page. Nothing has been recorded.
+// A stage that can't start, e.g. a page selection beyond the PDF's last page: a precondition the user has to meet first.
+// Nothing has been recorded.
 export class CannotStart extends Error {}
+
+// The Worker's refusals of a start (the stage started elsewhere meanwhile, its model config deleted): nothing has been
+// recorded either, and the stage stays as it is.
+const startRefusals = new WeakSet<object>();
+
+// Whether an error a run ended with before its start is the stage's failure, to be recorded on it (decided 2026-11-17,
+// the code review, 06 #8): any but a `CannotStart` and the Worker's refusal of the start. (`runPlan` records the errors
+// after the start itself.)
+export function failsTheStage(err: unknown): boolean {
+  return !(err instanceof CannotStart) && !(typeof err === "object" && err !== null && startRefusals.has(err));
+}
 
 export type StageItem = {
   item: string;
@@ -66,7 +78,10 @@ const HEARTBEAT_MS = 60 * 1000;
 export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
   const { project, stage, signal } = run;
   const { items, note, ...start } = plan;
-  const started = await startStage(project, stage.id, start);
+  const started = await startStage(project, stage.id, start).catch((err: unknown) => {
+    if (typeof err === "object" && err !== null) startRefusals.add(err);
+    throw err;
+  });
   if (started.reused) return;
   const { runId } = started;
   // A failed or interrupted run's outputs stay: only the missing items are made. Unless that run had another key (the

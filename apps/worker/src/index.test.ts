@@ -779,6 +779,23 @@ test("a run given up on leaving is released: failed, interrupted, its outputs ke
   assert.equal((await startRasterize(project.id)).response.status, 200);
 });
 
+// Decided 2026-11-17 (the code review, 06 #8): an error before a stage's run could start is the stage's failure.
+test("a stage that failed before its run could start is recorded failed, with the error; one that runs or is done can't", async () => {
+  const project = await createdProject("sonata.pdf");
+  const [, rasterize] = await pipelineOf(project.id);
+  assert.equal((await call(project.id, rasterize.id, "fail", {})).status, 400);
+  assert.equal((await call(project.id, rasterize.id, "fail", { error: "Loading the PDF failed: network error" })).status, 204);
+  let [, failed] = await pipelineOf(project.id);
+  assert.deepEqual([failed.status, failed.error, failed.interrupted], ["failed", "Loading the PDF failed: network error", false]);
+  assert.equal((await call(project.id, rasterize.id, "fail", { error: "Again" })).status, 204); // a failed one again
+  await startRasterize(project.id);
+  assert.equal((await call(project.id, rasterize.id, "fail", { error: "While it runs" })).status, 409);
+  await call(project.id, rasterize.id, "finish", { status: "done" });
+  assert.equal((await call(project.id, rasterize.id, "fail", { error: "Once done" })).status, 409);
+  [, failed] = await pipelineOf(project.id);
+  assert.equal(failed.status, "done");
+});
+
 // Found 2026-11-17 (the code review, 06 #9): a failed stage retried after an update of the app (another step version or
 // prompt, so another stage key) kept the old run's items under the new key, for a later run with that key to reuse.
 test("a failed run's outputs are kept for a retry under the same key, and dropped under another", async () => {
@@ -1836,6 +1853,7 @@ test("every route that changes something about a project declares its lock class
     "POST /api/projects/:pid/stages/:sid/outputs": { wip: "checked", otherwise: null },
     "POST /api/projects/:pid/stages/:sid/heartbeat": "none",
     "POST /api/projects/:pid/stages/:sid/finish": { wip: "checked", otherwise: "raised" },
+    "POST /api/projects/:pid/stages/:sid/fail": "raised",
     "POST /api/projects/:pid/stages/:sid/release": "raised",
     "POST /api/projects/:pid/stages/:sid/stop": "checked",
     "POST /api/projects/:pid/stages/:sid/fix": "checked",

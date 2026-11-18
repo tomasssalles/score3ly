@@ -1,7 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiStage, Project } from "./api.ts";
-import { contentsOf, LEAVING, runPlan, type FinalOutput } from "./stageRunner.ts";
+import { CannotStart, contentsOf, failsTheStage, LEAVING, runPlan, type FinalOutput } from "./stageRunner.ts";
 
 // The Worker is a fake that records the requests and answers what runPlan asks.
 const realFetch = globalThis.fetch;
@@ -152,4 +152,14 @@ test("Stop aborts the run without releasing it (the Worker's stop ends it), and 
   const abort = new AbortController();
   await runPlan(runOf([], abort.signal), abortedPlan(abort));
   assert.deepEqual(requests.map((r) => r.url.split("/").pop()), ["start"]);
+});
+
+test("an error before the start fails the stage, unless the user has to do something first or the Worker refused the start", async () => {
+  assert.equal(failsTheStage(new Error("Loading the layouts failed: network error")), true);
+  assert.equal(failsTheStage(new CannotStart("the layout hasn't been found yet.")), false);
+  fakeWorker();
+  globalThis.fetch = async () => Response.json({ error: "The stage can't start now." }, { status: 409 });
+  const refused = await runPlan(runOf([]), plan([])).catch((err: unknown) => err);
+  assert.ok(refused instanceof Error);
+  assert.equal(failsTheStage(refused), false);
 });

@@ -13,6 +13,7 @@ import { failure, addFixStage,
   setRunMode,
   setStageConfig,
   stopStage,
+  failStage,
   type ApiPipeline,
   type Project, } from "./api";
 import { FINISHERS } from "./finishers";
@@ -41,7 +42,7 @@ import { PipelinePanel, type PanelActions } from "./PipelinePanel";
 import { ProgressRing } from "./ProgressRing";
 import { ConfigDialog } from "./ConfigDialog";
 import { RUNNERS } from "./runners";
-import { CannotStart, LEAVING } from "./stageRunner";
+import { CannotStart, failsTheStage, LEAVING } from "./stageRunner";
 import { useWakeLock } from "./wakeLock";
 import { setRunningProject } from "./leaveGuard";
 import { carriedInputs, FIX_STARTS, stepInfo, type ConfigContext } from "./steps";
@@ -419,9 +420,12 @@ export function ProjectView({
         item: (item) => setLocal((l) => l && { ...l, item }),
       });
     } catch (err) {
+      // An error before the run's start (runPlan records the later ones): the stage's failure, shown on its card, unless
+      // the user has to do something first (`CannotStart`) or the Worker refused the start.
       if (!abort.signal.aborted) {
         const message = errorText(err);
-        setError(err instanceof CannotStart ? `"${current.title}" can't run: ${message}` : message);
+        if (!failsTheStage(err)) setError(err instanceof CannotStart ? `"${current.title}" can't run: ${message}` : message);
+        else await failStage(project, stage.id, message).catch(() => setError(message));
       }
     } finally {
       unwatch();

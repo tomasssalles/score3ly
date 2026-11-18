@@ -332,6 +332,28 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     return c.body(null, 204);
   });
 
+  // Records that a stage failed before its run could start (docs/database.md, "An interrupted run"): the browser
+  // couldn't get ready to run it (its inputs couldn't be loaded, say), for a reason other than one the user has to fix
+  // first. Body: { error }. Only a stage that could start can fail so (planned, failed, interrupted), checked and changed
+  // in one statement, as `start` does.
+  app.post("/api/projects/:pid/stages/:sid/fail", lock("raised"), async (c) => {
+    const db = c.env.DB;
+    const { pid, sid } = c.req.param();
+    const error = (await c.req.json().catch(() => null))?.error;
+    if (typeof error !== "string" || error === "") return badRequest(c, "expected an 'error'");
+    const found = stageEntry(c);
+    if (found.carried) return refuse(c, 409, WAITS_FOR_TURN);
+    const now = new Date();
+    const iso = now.toISOString();
+    const failed = await db
+      .prepare(`UPDATE stages SET status = 'failed', error = ?, finished_at = ?, heartbeat_at = NULL WHERE id = ? AND ${startable("stages")}`)
+      .bind(error, iso, sid, staleBefore(now.getTime()))
+      .run();
+    if (failed.meta.changes !== 1) return refuse(c, 409, `The stage's failure wasn't recorded. ${RELOAD} Details: its status is "${found.stage.status}".`);
+    await db.batch([closeRunningCalls(db, sid, iso, INTERRUPTED_CALL), touchProject(db, pid, iso)]);
+    return c.body(null, 204);
+  });
+
   // Releases a running stage whose run this device gave up (the user left the project): it ends failed, interrupted,
   // with its outputs kept, so that it can run again at once, here or elsewhere, instead of looking like it runs until
   // its heartbeat is old (docs/database.md, "An interrupted run"). Only its own run can release it.

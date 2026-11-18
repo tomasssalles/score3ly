@@ -227,6 +227,12 @@ export async function finishStage(
   await send(stageUrl(project, stageId, "finish"), { ...result, runId });
 }
 
+// Records that a stage failed before its run could start (its inputs couldn't be loaded, say): it shows failed, with the
+// error, and can run again (docs/database.md, "An interrupted run").
+export async function failStage(project: Project, stageId: string, error: string): Promise<void> {
+  await send(stageUrl(project, stageId, "fail"), { error });
+}
+
 // Gives up a run this device started (the user left the project): the stage ends failed, interrupted, its outputs
 // kept, and can run again at once (docs/database.md, "An interrupted run").
 export async function releaseStage(project: Project, stageId: string, runId: string): Promise<void> {
