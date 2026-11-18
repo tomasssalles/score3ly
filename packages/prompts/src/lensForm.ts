@@ -8,7 +8,7 @@
 //
 // The functions from the model's form leave whatever isn't of the expected form as it is, for the checks.
 
-import { BAR_LINES, GROUP_SYMBOLS, ISSUE_CLASSES, MEASURE_KINDS } from "@score3ly/notation/lens";
+import { BAR_LINES, GROUP_SYMBOLS, ISSUE_CLASSES, MEASURE_KINDS, type LensSystem } from "@score3ly/notation/lens";
 import { bool, described, enumOf, int, list, num, object, str } from "./schema.ts";
 
 // A stretch's class and its measure's kind in one value, in this order (the schema's: part of every request).
@@ -16,7 +16,8 @@ export const STRETCH_CLASS_VALUES = [...MEASURE_KINDS.map((kind) => `new-${kind}
 
 type Obj = Record<string, unknown>;
 const record = (o: unknown): o is Obj => typeof o === "object" && o !== null && !Array.isArray(o);
-const each = (list: unknown, f: (o: unknown) => unknown) => (Array.isArray(list) ? list.map(f) : list);
+// A list converted item by item; anything else as it is, for the checks.
+export const each = (items: unknown, f: (o: unknown) => unknown) => (Array.isArray(items) ? items.map(f) : items);
 
 // The keys whose "" becomes null.
 export function orNull(o: unknown, keys: string[]): unknown {
@@ -149,16 +150,16 @@ export function issueFromModel(i: unknown): unknown {
   return issue.class !== "format" && Array.isArray(issue.lilypond) && issue.lilypond.length === 0 ? { ...issue, lilypond: null } : issue;
 }
 
+// A system's own fields (its staves and groups; the others as they are), as `apply_review`'s system units have them.
+export function systemFromModel(o: unknown): unknown {
+  if (!record(o)) return o;
+  return { ...o, staves: each(o.staves, staffFromModel), groups: each(o.groups, groupFromModel) };
+}
+
 // `extract`'s answer, as the lens (LensSystem).
 export function lensFromExtract(json: unknown): unknown {
   if (!record(json)) return json;
-  return {
-    ...json,
-    staves: each(json.staves, staffFromModel),
-    groups: each(json.groups, groupFromModel),
-    stretches: each(json.stretches, stretchFromModel),
-    issues: each(json.issues, issueFromModel),
-  };
+  return { ...(systemFromModel(json) as Obj), stretches: each(json.stretches, stretchFromModel), issues: each(json.issues, issueFromModel) };
 }
 
 // --- From the lens to the model's form ---
@@ -186,4 +187,45 @@ export function stretchForModel(s: Obj): Obj {
     rightBarLine,
     ...others,
   };
+}
+
+// A system's own fields (its staves and groups; the others as they are).
+export const systemFieldsForModel = (u: Obj): Obj => ({ ...u, staves: (u.staves as Obj[]).map(staffForModel), groups: (u.groups as Obj[]).map(groupForModel) });
+
+// The number code gave the measure of each stretch ("system/stretch"), for the score as models read it.
+export function stretchMeasures(score: { pieces: { measures: { n: number; parts: { system: number; stretches: number[] }[] }[] }[] }): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const piece of score.pieces) for (const m of piece.measures) for (const p of m.parts) for (const k of p.stretches) map.set(`${p.system}/${k}`, m.n);
+  return map;
+}
+
+// A system of the score as `review` and `apply_review` read it (docs/stages/music.md, "The score as text"): its
+// number and page, its fields as `extract` wrote them but the issues, each stretch with `measure`, the number code gave
+// its measure (-1 for none). `descriptions`: with the staves' and voices' descriptions (`apply_review`, whose model
+// names a new voice or staff); `review` reads them once per piece instead.
+export function systemForModel(answer: LensSystem, at: { system: number; page: number }, measureOf: Map<string, number>, descriptions: boolean): Obj {
+  return {
+    system: at.system,
+    page: at.page,
+    startRepeat: answer.startRepeat,
+    staves: answer.staves.map((s) => staffForModel(descriptions ? s : { staff: s.staff, label: s.label, clef: s.clef, key: s.key, time: s.time })),
+    groups: answer.groups.map((g) => groupForModel(g)),
+    stretches: answer.stretches.map(({ voices, ...rest }) =>
+      stretchForModel({
+        ...rest,
+        measure: measureOf.get(`${at.system}/${rest.stretch}`) ?? -1,
+        voices: descriptions ? voices : voices.map(({ voice, staff, music }) => ({ voice, staff, music })),
+      }),
+    ),
+    lastMeasureContinues: answer.lastMeasureContinues,
+  };
+}
+
+// An issue as a model reads it, in the fields and order the caller gives: its location "" for none; its list of
+// tokens only where it has one (a reading issue's null is left out, though a model writes [] for it).
+export function issueForModel(issue: Obj): Obj {
+  const copy = { ...issue };
+  if ("location" in copy) copy.location = copy.location ?? "";
+  if (!copy.lilypond) delete copy.lilypond;
+  return copy;
 }

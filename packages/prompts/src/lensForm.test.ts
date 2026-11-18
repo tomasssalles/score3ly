@@ -4,7 +4,24 @@ import { BAR_LINES, GROUP_SYMBOLS, ISSUE_CLASSES, MEASURE_KINDS, STRETCH_CLASSES
 import { APPLY_REVIEW_SCHEMA } from "./applyReview.ts";
 import { EXTRACT_SCHEMA } from "./extract.ts";
 import { REVIEW_SCHEMA } from "./review.ts";
-import { staffForModel, staffFromModel, stretchForModel, stretchFromModel } from "./lensForm.ts";
+import { buildScore } from "@score3ly/notation";
+import { richScore } from "@score3ly/notation/testScore";
+import {
+  groupForModel,
+  groupFromModel,
+  issueForModel,
+  lensFromExtract,
+  staffForModel,
+  staffFromModel,
+  stretchForModel,
+  stretchFromModel,
+  stretchMeasures,
+  systemFieldsForModel,
+  systemForModel,
+  systemFromModel,
+  voiceForModel,
+  voiceFromModel,
+} from "./lensForm.ts";
 
 const lensStretch = (over: object = {}) => ({
   stretch: 2,
@@ -68,4 +85,51 @@ test("the answer's schema and the checks agree on every list of values, in the s
   assert.deepEqual(stretch.rightBarLine.enum, [...BAR_LINES]);
   assert.deepEqual(EXTRACT_SCHEMA.properties!.groups.items!.properties!.symbol.enum, [...GROUP_SYMBOLS]);
   assert.deepEqual(EXTRACT_SCHEMA.properties!.issues.items!.properties!.class.enum, [...ISSUE_CLASSES]);
+});
+
+test("every part of a system goes to the model's form and back unchanged", () => {
+  for (const { answer } of richScore()) {
+    for (const staff of answer.staves) assert.deepEqual(staffFromModel(staffForModel(staff)), staff);
+    for (const group of answer.groups) assert.deepEqual(groupFromModel(groupForModel(group)), group);
+    for (const stretch of answer.stretches) {
+      assert.deepEqual(stretchFromModel(stretchForModel(stretch)), stretch);
+      for (const voice of stretch.voices) assert.deepEqual(voiceFromModel(voiceForModel(voice)), voice);
+    }
+    // A system unit of apply_review, and extract's whole answer.
+    const { stretches, issues: _, ...fields } = answer;
+    const unit = { system: 3, ...fields, reason: null };
+    assert.deepEqual(systemFromModel(systemFieldsForModel(unit)), unit);
+    const model = { ...systemFieldsForModel(fields), stretches: stretches.map((s) => stretchForModel(s)), issues: [] };
+    assert.deepEqual(lensFromExtract(model), { ...answer, issues: [] });
+  }
+});
+
+test("a system as review and apply_review read it: its place, each stretch's measure, descriptions only for apply_review", () => {
+  const input = richScore();
+  const measureOf = stretchMeasures(buildScore(input, [1, 4]));
+  assert.equal(measureOf.get("2/1"), measureOf.get("1/4")); // a measure across the system break
+  const read = systemForModel(input[0].answer, { system: 1, page: 1 }, measureOf, false);
+  assert.deepEqual(Object.keys(read), ["system", "page", "startRepeat", "staves", "groups", "stretches", "lastMeasureContinues"]);
+  const staves = read.staves as Record<string, unknown>[];
+  assert.deepEqual(staves[0], { staff: 1, label: "Piano", clef: "treble", key: "1f", time: "4/4" });
+  const stretches = read.stretches as Record<string, unknown>[];
+  assert.deepEqual([stretches[0].measure, stretches[1].measure], [measureOf.get("1/1"), measureOf.get("1/2")]);
+  assert.deepEqual((stretches[0].voices as object[])[0], { voice: 1, staff: 1, music: input[0].answer.stretches[0].voices[0].music });
+  const applied = systemForModel(input[0].answer, { system: 1, page: 1 }, measureOf, true);
+  assert.equal((applied.staves as Record<string, unknown>[])[0].description, "piano right hand");
+  assert.equal(((applied.stretches as Record<string, unknown>[])[0].voices as Record<string, unknown>[])[0].description, "melody");
+  assert.equal(((applied.stretches as Record<string, unknown>[])[1].voices as Record<string, unknown>[])[0].description, "");
+});
+
+test("an issue as a model reads it: no location is \"\", a reading issue's tokens left out, the order kept", () => {
+  const issue = { id: 3, class: "reading", location: null, question: "Q?", lilypond: null };
+  assert.deepEqual(Object.entries(issueForModel(issue)), [["id", 3], ["class", "reading"], ["location", ""], ["question", "Q?"]]);
+  assert.deepEqual(issueForModel({ ...issue, class: "format", location: "the top note", lilypond: ["\\harmonic"] }), {
+    id: 3,
+    class: "format",
+    location: "the top note",
+    question: "Q?",
+    lilypond: ["\\harmonic"],
+  });
+  assert.deepEqual(issueForModel({ id: 4, chosen: "b" }), { id: 4, chosen: "b" });
 });

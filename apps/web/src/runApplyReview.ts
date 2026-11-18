@@ -27,6 +27,7 @@ import {
   applyReviewLogText,
   applyReviewText,
   reviewScoreText,
+  stretchMeasures,
 } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, markUnusable, putJson, reserveIssueNumbers, type ApiStage } from "./api";
@@ -45,7 +46,6 @@ import {
   checkPatch,
   isNewCodeIssue,
   issueToApply,
-  measures,
   revertedCount,
   systemView,
   type StoredApplyCall,
@@ -233,7 +233,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           const linked = systems.map((s) => ({ number: s.number, answer: checked.get(s.number)!.answer, state: checked.get(s.number)!.state, closed: checked.get(s.number)!.closed }));
           const links = systemLinks(linked, pieces);
           const score = scoreOf(answers);
-          const measureOf = measures(score);
+          const measureOf = stretchMeasures(score);
           const window = planned.window.map((n) => byNumber.get(n)!);
           const first = window[0];
           const last = window[window.length - 1];
@@ -314,7 +314,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           const changed = changedStretches(answers, after);
           const reverted = new Set(patch.choices.map((c) => c.issue));
           const appliedIds = planned.issues.filter((id) => !reverted.has(id));
-          const afterMeasures = measures(scoreOf(after));
+          const afterMeasures = stretchMeasures(scoreOf(after));
           const result: StoredApplyCall = {
             system: planned.system,
             window: planned.window,

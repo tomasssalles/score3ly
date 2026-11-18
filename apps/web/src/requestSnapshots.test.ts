@@ -45,6 +45,7 @@ import {
   reviewText,
   staffForModel,
   stretchForModel,
+  stretchMeasures as measures,
   withIds,
   type AnalyzeContext,
   type PageMetadata,
@@ -52,7 +53,7 @@ import {
   type ScoreAnswer,
 } from "@score3ly/prompts";
 import { combineObservations, pageItems, pageResultsForScore, type PageAnalysis } from "./analyze.ts";
-import { applyLogEntries, issueToApply, measures, systemView, type StoredApplyCall } from "./applyReview.ts";
+import { applyLogEntries, issueToApply, systemView, type StoredApplyCall } from "./applyReview.ts";
 import type { StoredIssue, StoredWarning } from "./extract.ts";
 import { logEntries, reviewIssues, reviewScore, reviewWarnings, type PlacedSystem, type StoredReview } from "./review.ts";
 

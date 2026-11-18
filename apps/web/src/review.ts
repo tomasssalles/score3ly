@@ -5,8 +5,8 @@
 // view: the issues of the transcription it reviewed, with its entries applied in the order of the calls, and its
 // agreements ("kept") added for the issues it left as they were.
 
-import type { Box, LensSystem, Score } from "@score3ly/notation";
-import { groupForModel, reviewFromModel, staffForModel, stretchForModel, type LayoutSystem, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
+import type { Box, Score } from "@score3ly/notation";
+import { issueForModel, reviewFromModel, stretchMeasures, systemForModel, type LayoutSystem, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
 import { keyOf } from "@score3ly/core";
 import { onPage, stretchBox, systemCropBox, type ImageSource, type StoredIssue, type StoredWarning } from "./extract.ts";
 import { count } from "./format.ts";
@@ -45,33 +45,13 @@ export const systemsOf = (boxes: { page: number; box: Box }[], systems: PlacedSy
 // descriptions and the issues, each stretch with `measure`, the number code gave its measure (-1 for none); in the lens as
 // models read it (lensForm.ts).
 export function reviewScore(score: Score): unknown {
+  const measureOf = stretchMeasures(score);
   return {
-    pieces: score.pieces.map((piece) => {
-      const measureOf = new Map<string, number>();
-      for (const m of piece.measures) for (const p of m.parts) for (const k of p.stretches) measureOf.set(`${p.system}/${k}`, m.n);
-      return {
-        staves: piece.staves.map((s) => ({ staff: s.staff, description: s.description })),
-        voices: piece.voices,
-        systems: piece.systems.map((s) => {
-          const answer: LensSystem = s.answer;
-          return {
-            system: s.number,
-            page: s.page,
-            startRepeat: answer.startRepeat,
-            staves: answer.staves.map(({ staff, label, clef, key, time }) => staffForModel({ staff, label, clef, key, time })),
-            groups: answer.groups.map(groupForModel),
-            stretches: answer.stretches.map(({ voices, ...rest }) =>
-              stretchForModel({
-                ...rest,
-                measure: measureOf.get(`${s.number}/${rest.stretch}`) ?? -1,
-                voices: voices.map(({ voice, staff, music }) => ({ voice, staff, music })),
-              }),
-            ),
-            lastMeasureContinues: answer.lastMeasureContinues,
-          };
-        }),
-      };
-    }),
+    pieces: score.pieces.map((piece) => ({
+      staves: piece.staves.map((s) => ({ staff: s.staff, description: s.description })),
+      voices: piece.voices,
+      systems: piece.systems.map((s) => systemForModel(s.answer, { system: s.number, page: s.page }, measureOf, false)),
+    })),
   };
 }
 
@@ -83,19 +63,21 @@ export const modelName = (by: string) => MODEL_NAMES[by] ?? by;
 // The issues as the model reads them: their places as systems and stretches, the choices by who made them, a text with
 // no value "" (only `applied` is null, where it isn't known).
 export function reviewIssues(issues: StoredIssue[], systems: PlacedSystem[]): unknown {
-  return issues.map((i) => ({
-    id: i.id,
-    source: i.source,
-    class: i.class,
-    places: placesOf(i.boxes, systems),
-    location: i.location ?? "",
-    question: i.question,
-    answers: i.answers,
-    choices: i.choices.map((c) => ({ by: modelName(c.by), key: c.key, reason: c.reason ?? "", ...(c.kept ? { kept: true } : {}) })),
-    applied: i.applied,
-    resolved: i.resolved,
-    ...(i.lilypond ? { lilypond: i.lilypond } : {}),
-  }));
+  return issues.map((i) =>
+    issueForModel({
+      id: i.id,
+      source: i.source,
+      class: i.class,
+      places: placesOf(i.boxes, systems),
+      location: i.location,
+      question: i.question,
+      answers: i.answers,
+      choices: i.choices.map((c) => ({ by: modelName(c.by), key: c.key, reason: c.reason ?? "", ...(c.kept ? { kept: true } : {}) })),
+      applied: i.applied,
+      resolved: i.resolved,
+      lilypond: i.lilypond,
+    }),
+  );
 }
 
 export function reviewWarnings(warnings: StoredWarning[], systems: PlacedSystem[]): unknown {
@@ -115,17 +97,17 @@ export function logEntries(stored: StoredReview): unknown[] {
     "choice" in e
       ? { choice: { issue: e.choice.issue, key: e.choice.key, ...(e.choice.newAnswer ? { newAnswer: e.choice.newAnswer.text } : {}), reason: e.choice.reason ?? "" } }
       : {
-          newIssue: {
+          newIssue: issueForModel({
             id: e.newIssue.id,
             class: e.newIssue.class,
-            location: e.newIssue.location ?? "",
+            location: e.newIssue.location,
             question: e.newIssue.question,
             answers: e.newIssue.answers,
             applied: e.newIssue.applied,
             chosen: e.newIssue.choices[0]?.key ?? "",
             reason: e.newIssue.choices[0]?.reason ?? "",
-            ...(e.newIssue.lilypond ? { lilypond: e.newIssue.lilypond } : {}),
-          },
+            lilypond: e.newIssue.lilypond,
+          }),
         },
   );
 }

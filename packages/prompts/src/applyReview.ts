@@ -11,7 +11,7 @@
 import type { LensStretch, LensSystem, LensVoice } from "@score3ly/notation/lens";
 import { lensRecap, MUSIC } from "./music.ts";
 import { described, int, list, nullable, object, str } from "./schema.ts";
-import { groupFromModel, LENS_SCHEMA_PARTS as P, orNull, staffFromModel, stretchFromModel, voiceFromModel } from "./lensForm.ts";
+import { each, LENS_SCHEMA_PARTS as P, orNull, stretchFromModel, systemFromModel, voiceFromModel } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
 export const APPLY_REVIEW_PROMPT_VERSION = 7;
@@ -144,18 +144,13 @@ export type ApplyReviewAnswer = { voices: ApplyVoiceUnit[]; stretches: ApplyStre
 // the code uses it: nulls, a stretch's class and kind, its ending an object or null. A voice's music stays as it is: null
 // removes the voice, "" is an empty voice. Whatever isn't of the expected form is left as it is, for the checks.
 export function applyReviewFromModel(json: unknown): unknown {
-  const each = (list: unknown, f: (o: unknown) => unknown) => (Array.isArray(list) ? list.map(f) : list);
   if (typeof json !== "object" || json === null) return json;
   const a = json as Record<string, unknown>;
   return {
     ...a,
     voices: each(a.voices, (v) => orNull(voiceFromModel(v), ["reason"])),
     stretches: each(a.stretches, (u) => stretchFromModel(orNull(u, ["reason"]))),
-    systems: each(a.systems, (u) => {
-      const s = orNull(u, ["reason"]) as Record<string, unknown>;
-      if (typeof s !== "object" || s === null) return s;
-      return { ...s, staves: each(s.staves, staffFromModel), groups: each(s.groups, groupFromModel) };
-    }),
+    systems: each(a.systems, (u) => systemFromModel(orNull(u, ["reason"]))),
     choices: each(a.choices, (c) => orNull(c, ["key", "newAnswer"])),
   };
 }
