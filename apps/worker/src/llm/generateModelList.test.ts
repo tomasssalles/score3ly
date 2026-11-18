@@ -4,8 +4,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildModelList, listChanges, modelListModule, type ProviderFile } from "./generateModelList.ts";
 import { MODEL_LIST } from "./modelList.ts";
-import { schemaProblems, type JsonSchema } from "@score3ly/core";
-import type { ModelList } from "./models.ts";
+import { ROUTINGS, schemaProblems, type JsonSchema } from "@score3ly/core";
+import { EFFORTS, FAMILY_NAMES, PROVIDERS, type ModelList } from "./models.ts";
 
 const dataDir = join(import.meta.dirname, "..", "..", "model-list");
 const schema = JSON.parse(readFileSync(join(dataDir, "schema.json"), "utf8")) as JsonSchema;
@@ -125,7 +125,7 @@ test("the changes since the previous list, to spot-check", () => {
       }),
       file("bedrock", {
         ...bedrock,
-        models: [{ id: "big", name: "Claude Big", family: "claude", string: "anthropic.claude-big-v2" }],
+        models: [{ id: "big", name: "Claude Big 2", family: "claude", string: "anthropic.claude-big-v2", efforts: ["low", "high"], thinking: "adaptive" }],
         regions: [{ region: "eu-west-1", routings: ["global"] }],
         prices: [{ model: "big", region: "eu-west-1", routing: "global", ...PRICE, input: 3, source: "x" }],
       }),
@@ -135,6 +135,9 @@ test("the changes since the previous list, to spot-check", () => {
   assert.ok("list" in next, "problems" in next ? next.problems.join("\n") : "");
   assert.deepEqual(listChanges(previous.list, next.list), [
     "Model added: Claude New (new)",
+    "Name of big: Claude Big → Claude Big 2",
+    "Efforts of big: all of its family's → low, high",
+    "Thinking of big: none → adaptive",
     "Model string of big on anthropic: claude-big → none",
     "Model string of big on bedrock: anthropic.claude-big → anthropic.claude-big-v2",
     "Region added: bedrock eu-west-1 (global)",
@@ -155,4 +158,14 @@ test("the list's date is the oldest gathered file's; the hand-written fake provi
   const alone = buildModelList([fake], null);
   assert.ok("list" in alone);
   assert.equal(alone.list.asOf, "2026-10-01");
+});
+
+test("the schema's enums are the code's: providers, families, efforts and routings", () => {
+  const props = (schema as { properties: Record<string, { items: { properties: Record<string, { enum?: unknown[]; items?: { enum: unknown[] } }> } } & { enum?: unknown[] }> }).properties;
+  const models = props.models.items.properties;
+  assert.deepEqual(props.provider.enum, PROVIDERS);
+  assert.deepEqual(models.family.enum, Object.keys(FAMILY_NAMES));
+  assert.deepEqual(models.efforts.items!.enum, [...new Set(Object.values(EFFORTS).flat())]);
+  assert.deepEqual(props.regions.items.properties.routings.items!.enum, ROUTINGS);
+  assert.deepEqual(props.prices.items.properties.routing.enum, [...ROUTINGS, null]);
 });

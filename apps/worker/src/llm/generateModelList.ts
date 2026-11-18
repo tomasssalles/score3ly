@@ -4,7 +4,7 @@
 // scripts/generate-model-list.ts reads and writes the files.
 
 import type { Effort } from "./types.ts";
-import { listProblems, PROVIDERS, type Family, type ModelEntry, type ModelList, type PriceEntry, type Provider, type RegionEntry, type Routing } from "./models.ts";
+import { listProblems, priceWhere, PROVIDERS, type Family, type ModelEntry, type ModelList, type PriceEntry, type Provider, type RegionEntry, type Routing } from "./models.ts";
 
 // One provider's file (model-list/schema.json).
 export type ProviderFile = {
@@ -101,12 +101,12 @@ export const MODEL_LIST: ModelList = ${JSON.stringify(list, null, 2)};
 `;
 }
 
-const priceKey = (p: PriceEntry) => `${p.model} on ${p.provider}${p.region ? ` in ${p.region}` : ""}${p.routing ? ` (${p.routing})` : ""}`;
+const priceKey = (p: PriceEntry) => priceWhere(p, (id) => id);
 const priceText = (p: PriceEntry["price"]) => (p ? `$${p.input} / $${p.output} / $${p.cacheRead} / $${p.cacheWrite}` : "priced by the provider");
 
 // What changed from the previous list to the new one, as lines to spot-check before a release: models added, retired
-// and back, model strings changed, places added and gone, and prices added, gone and changed (input / output / cache
-// read / cache write per million tokens).
+// and back, their names, efforts, thinking and model strings changed, places added and gone, and prices added, gone and
+// changed (input / output / cache read / cache write per million tokens).
 export function listChanges(previous: ModelList | null, next: ModelList): string[] {
   const lines: string[] = [];
   const before = new Map((previous?.models ?? []).map((m) => [m.id, m]));
@@ -116,6 +116,10 @@ export function listChanges(previous: ModelList | null, next: ModelList): string
     else if (m.retired && !old.retired) lines.push(`Model retired: ${m.name} (${m.id})`);
     else if (!m.retired && old.retired) lines.push(`Model back: ${m.name} (${m.id})`);
     if (old) {
+      if (old.name !== m.name) lines.push(`Name of ${m.id}: ${old.name} → ${m.name}`);
+      const efforts = (e: ModelEntry["efforts"]) => (e === undefined ? "all of its family's" : e.length === 0 ? "none" : e.join(", "));
+      if (efforts(old.efforts) !== efforts(m.efforts)) lines.push(`Efforts of ${m.id}: ${efforts(old.efforts)} → ${efforts(m.efforts)}`);
+      if ((old.thinking ?? "none") !== (m.thinking ?? "none")) lines.push(`Thinking of ${m.id}: ${old.thinking ?? "none"} → ${m.thinking ?? "none"}`);
       for (const provider of PROVIDERS) {
         if (old.strings[provider] !== m.strings[provider]) {
           lines.push(`Model string of ${m.id} on ${provider}: ${old.strings[provider] ?? "none"} → ${m.strings[provider] ?? "none"}`);

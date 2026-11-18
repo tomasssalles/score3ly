@@ -4,7 +4,7 @@
 // deleting and testing a config.
 
 import type { Hono } from "hono";
-import { canonicalJson, type CallPlace, type CallRequest, firstFreeName, MAX_NAME_LENGTH, nameTooLong, sameConfigValues, sameValuesMessage, sha256Hex, type ModelConfig, type ModelOptions, type PriceRange, type Prices, type SecretNames, type TestResult } from "@score3ly/core";
+import { canonicalJson, type CallPlace, type CallRequest, firstFreeName, MAX_NAME_LENGTH, nameTooLong, ROUTINGS, sameConfigValues, sameValuesMessage, sha256Hex, type ModelConfig, type ModelOptions, type PriceRange, type Prices, type SecretNames, type TestResult } from "@score3ly/core";
 import { badRequest, NO_MODEL_CONFIG, problemText, refuse } from "./refusals.ts";
 import { fetchPriceRange } from "./llm/openrouter.ts";
 import type { Effort } from "./llm/index.ts";
@@ -222,7 +222,7 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
   }
   // Where: one of the provider's places in the list.
   if (region !== undefined && typeof region !== "string") return "'region' must be text";
-  if (routing !== undefined && routing !== null && !["global", "geographic", "in-region"].includes(routing as string)) {
+  if (routing !== undefined && routing !== null && !ROUTINGS.includes(routing as Routing)) {
     return "'routing' must be global, geographic or in-region";
   }
   const place: Place = { region: (region as string | undefined) ?? "", routing: (routing as Routing | null | undefined) ?? null };

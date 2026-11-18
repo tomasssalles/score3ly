@@ -29,6 +29,7 @@ export type Account = "standard" | "business";
 // Bedrock's routing, in AWS's terms: global, within the region's geography (an inference profile: EU, US, JP, AU, …),
 // or in the region only. Empty (null) for every other provider.
 export type Routing = "global" | "geographic" | "in-region";
+export const ROUTINGS: Routing[] = ["global", "geographic", "in-region"];
 
 // Where a request goes: the region ("" for providers without regions; Vertex AI's location as Vertex spells it) and,
 // on Bedrock, the routing.

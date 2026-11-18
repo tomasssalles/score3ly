@@ -206,6 +206,12 @@ export function configBaseName(list: ModelList, provider: Provider, model: Confi
   return `${name} (${PROVIDER_NAMES[provider]})${effort ? ` · ${effort}` : ""}`;
 }
 
+// A price's place in words, for the list's problems and the changes since the previous list: "big on Bedrock in
+// eu-west-1 (global)"; the provider by its name, or as `provider` spells it.
+export function priceWhere(p: Pick<PriceEntry, "model" | "provider" | "region" | "routing">, provider: (p: Provider) => string = (id) => PROVIDER_NAMES[id]): string {
+  return `${p.model} on ${provider(p.provider)}${p.region ? ` in ${p.region}` : ""}${p.routing ? ` (${p.routing})` : ""}`;
+}
+
 // What is wrong with a list, in words: for the tests, and for the script's report before a release.
 export function listProblems(list: ModelList): string[] {
   const problems: string[] = [];
@@ -249,7 +255,7 @@ export function listProblems(list: ModelList): string[] {
   }
   const keys = new Set<string>();
   for (const p of list.prices) {
-    const where = `${p.model} on ${PROVIDER_NAMES[p.provider]}${p.region ? ` in ${p.region}` : ""}${p.routing ? ` (${p.routing})` : ""}`;
+    const where = priceWhere(p);
     const key = JSON.stringify([p.model, p.provider, p.region, p.routing]);
     if (keys.has(key)) problems.push(`Two prices for ${where}.`);
     keys.add(key);
