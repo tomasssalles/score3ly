@@ -46,10 +46,10 @@ export type Score = {
   pieces: ScorePiece[];
   system: (n: number) => ScoreSystemInput;
   stretch: (system: number, stretch: number) => ScoreStretch;
-  pieceOf: (system: number) => ScorePiece;
 };
 
-const stretchKey = (system: number, stretch: number) => `${system}/${stretch}`;
+// A stretch's key in maps of the score's stretches.
+export const stretchKey = (system: number, stretch: number): string => `${system}/${stretch}`;
 
 export function buildScore(input: ScoreSystemInput[], pieceStarts: number[]): Score {
   const systems = [...input].sort((a, b) => a.number - b.number);
@@ -75,12 +75,10 @@ export function buildScore(input: ScoreSystemInput[], pieceStarts: number[]): Sc
     piece.measures = pieceMeasures(piece.systems, (system, stretch) => stretches.get(stretchKey(system, stretch))!);
   }
   const bySystem = new Map(systems.map((s) => [s.number, s]));
-  const pieceOf = new Map(pieces.flatMap((p) => p.systems.map((s) => [s.number, p] as const)));
   return {
     pieces,
     system: (n) => bySystem.get(n)!,
     stretch: (system, stretch) => stretches.get(stretchKey(system, stretch))!,
-    pieceOf: (n) => pieceOf.get(n)!,
   };
 }
 
@@ -179,9 +177,6 @@ export function stretchOffsets(score: Score, measure: ScoreMeasure): Map<string,
   }
   return offsets;
 }
-
-export const measureLengthOf = (score: Score, measure: ScoreMeasure): Fraction =>
-  measure.parts.reduce((t, p) => p.stretches.reduce((u, s) => add(u, score.stretch(p.system, s).length), t), ZERO);
 
 // A beat position as MEI's @tstamp: 1 at the measure's start, in units of the time signature's denominator.
 export function tstamp(onset: Fraction, unit: number): number {

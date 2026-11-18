@@ -63,15 +63,17 @@ export function repeatStructure(piece: Pick<CheckedSystem, "number" | "answer">[
       endings[k].previous = endings[k - 1];
     }
   }
-  const name = (e: EndingSpan) => (e.label ? `The ending "${e.label}"` : "An ending");
   for (const e of endings) {
+    const name = endingName(e);
     if (e.next && e.endBarLine !== "endRepeat" && e.endBarLine !== "bothRepeats") {
-      warnings.push({ message: `${name(e)} is followed by another ending, but doesn't end with an end repeat.`, places: endingPlaces(e) });
+      warnings.push({ message: `${name} is followed by another ending, but doesn't end with an end repeat.`, places: endingPlaces(e) });
     }
-    if (!e.next && !e.previous) warnings.push({ message: `${name(e)} stands alone: no other ending comes right before or after it.`, places: endingPlaces(e) });
+    if (!e.next && !e.previous) warnings.push({ message: `${name} stands alone: no other ending comes right before or after it.`, places: endingPlaces(e) });
   }
   return { goBacks, endings, warnings };
 }
+
+const endingName = (e: EndingSpan) => (e.label ? `The ending "${e.label}"` : "An ending");
 
 export const endingPlaces = (e: EndingSpan): StretchPlace[] => (e.start.system === e.end.system && e.start.stretch === e.end.stretch ? [e.start] : [e.start, e.end]);
 
@@ -91,19 +93,20 @@ export function systemLinks(systems: Pick<CheckedSystem, "number" | "answer" | "
       if (g.via === "startRepeat" && g.to.system !== g.end.system) add(g.to.system, `The start repeat at ${where(g.to)} is gone back to from the end repeat at the right of ${where(g.end)}.`);
     }
     for (const e of endings) {
-      const name = e.label ? `The ending "${e.label}"` : "An ending";
       const before = e.previous ? `; it follows the ending ${e.previous.label ? `"${e.previous.label}" ` : ""}from ${where(e.previous.start)}` : "";
       const after = e.next ? `; the ending ${e.next.label ? `"${e.next.label}" ` : ""}follows it at ${where(e.next.start)}` : "";
-      const text = `${name} runs from ${where(e.start)} to ${where(e.end)}${before}${after}.`;
+      const text = `${endingName(e)} runs from ${where(e.start)} to ${where(e.end)}${before}${after}.`;
       for (let n = e.start.system; n <= e.end.system; n++) add(n, text);
     }
     // Marks with two ends across system breaks: each mark that closes on a later system than it opened, or never
     // closes in the piece, is told to every system it is open on.
+    // A mark is the same where it is the same kind of mark (sameMark) opened at the same place.
+    const same = (a: OpenMark, b: OpenMark) => sameMark(a, b) && a.from === b.from && a.fromStretch === b.fromStretch;
     const closures = piece.flatMap((s) => s.closed);
-    const closing = (m: OpenMark) => closures.find((c) => sameMark(c.mark, m) && c.mark.from === m.from && c.mark.fromStretch === m.fromStretch);
-    const crossing = new Map<string, OpenMark>();
-    for (const s of piece) for (const m of s.state.open) crossing.set(`${m.kind}/${JSON.stringify(m)}`, m);
-    for (const m of crossing.values()) {
+    const closing = (m: OpenMark) => closures.find((c) => same(c.mark, m));
+    const crossing: OpenMark[] = [];
+    for (const s of piece) for (const m of s.state.open) if (!crossing.some((c) => same(c, m))) crossing.push(m);
+    for (const m of crossing) {
       const closed = closing(m);
       const opened = { system: m.from, stretch: m.fromStretch };
       const last = closed ? closed.at.system : piece[piece.length - 1].number;

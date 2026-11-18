@@ -132,17 +132,15 @@ test("a bar line inside a measure divides it into MEI measures, incomplete, with
   assert.equal(attrOf(named(second, "caesura")[0], "tstamp"), "2");
 });
 
-test("engrave's rendering copy divides a measure at its system break, with the break between the two", async () => {
+test("a system alone divides a measure split by its system break: each part incomplete", async () => {
   const score = buildScore(richScore(), [1, 4]);
-  const root = buildMei(score, { divideAtSystemBreaks: true });
-  await assertValid(root);
-  const first = find(root, "p1m4-s1t4")!;
-  const second = find(root, "p1m4-s2t1")!;
+  const first = find(buildMei(score, { systems: [1] }), "p1m4-s1t4")!;
+  const second = find(buildMei(score, { systems: [2] }), "p1m4-s2t1")!;
   assert.deepEqual([attrOf(first, "metcon"), attrOf(first, "right"), attrOf(second, "metcon")], ["false", "invis", "false"]);
-  const section = named(root, "section")[0];
-  const order = section.children.flatMap((c) => (typeof c === "string" ? [] : [c.name === "measure" ? attrOf(c, "xml:id") : c.name]));
-  assert.equal(order[order.indexOf("p1m4-s1t4") + 1], "sb");
-  assert.equal(named(first, "sb").length, 0);
+  // In the whole score, the measure is one, with the system break inside it.
+  const whole = find(buildMei(score), "p1m4-s1t4")!;
+  assert.equal(attrOf(whole, "metcon"), undefined);
+  assert.ok(named(whole, "sb").length > 0);
 });
 
 test("tremolos on chords: two chords alternating (fTrem), and a chord repeated (bTrem)", async () => {

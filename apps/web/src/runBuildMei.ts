@@ -1,7 +1,7 @@
 // Runs `build_mei` (docs/stages/engrave.md): the full score's MEI, built from the latest extraction, its layout, the
 // pieces and the metadata, stored as the stage's one output (item '', type `mei`).
 
-import { LENS_VERSION } from "@score3ly/notation";
+import { LENS_VERSION, MEI_BUILDER_VERSION } from "@score3ly/notation";
 import { fetchJsonContent, putContent } from "./api";
 import { BUILD_MEI_VERSION, buildMeiStageKey, engraveNote, engraveSources, loadScore, meiText, sourceIds } from "./engrave";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
@@ -17,7 +17,7 @@ export async function runBuildMei(run: StageRun): Promise<void> {
   await runPlan(run, {
     stepVersion: BUILD_MEI_VERSION,
     config: {},
-    stageKey: await buildMeiStageKey(sources, LENS_VERSION),
+    stageKey: await buildMeiStageKey(sources, { lensVersion: LENS_VERSION, meiBuilderVersion: MEI_BUILDER_VERSION }),
     // All selected pages: the header comes from the metadata, read from every page (§5.8).
     pageCount: rasterize?.outputs.filter((o) => o.type === "page_image").length ?? null,
     inputIds,

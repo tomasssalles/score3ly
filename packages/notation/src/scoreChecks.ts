@@ -17,7 +17,7 @@ export function checkScore(systems: ScoreSystem[], pieceStarts: number[]): { cod
   const warnings: Warning[] = [];
   for (const piece of splitPieces(systems, pieceStarts)) {
     pieceEnd(piece[piece.length - 1], codeIssues, warnings);
-    repeats(piece, warnings);
+    warnings.push(...repeatStructure(piece).warnings); // links.ts works the structure out, for these and for `review`
     courtesies(piece, warnings);
   }
   return { codeIssues, warnings };
@@ -43,11 +43,6 @@ function pieceEnd(last: ScoreSystem, codeIssues: CodeIssue[], warnings: Warning[
     codeIssues.push({ question: `Where does this ${markName(m.kind)} end?`, answers: [], applied: null, places: [here] });
   }
   if (last.state.ending) warnings.push({ message: `An ending is still open where the piece ends, on system ${last.number}.`, places: [here] });
-}
-
-// The repeat structure's warnings (links.ts works the structure out, for these checks and for `review`'s links).
-function repeats(piece: ScoreSystem[], warnings: Warning[]) {
-  warnings.push(...repeatStructure(piece).warnings);
 }
 
 // A courtesy key or time signature at a system's end (on a stretch of no measure) announces the next system's start.

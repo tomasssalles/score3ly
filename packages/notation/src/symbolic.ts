@@ -67,6 +67,11 @@ export type Pitch = { letter: "a" | "b" | "c" | "d" | "e" | "f" | "g"; octave: n
 // A note value: 1 (whole) to 128, or 0.5 for a breve; with its dots.
 export type Duration = { base: number; dots: number };
 
+// The note values' bases, longest first, and how the format writes them.
+export const BREVE = 0.5;
+export const NOTE_BASES = [BREVE, 1, 2, 4, 8, 16, 32, 64, 128] as const;
+export const noteValueText = (base: number): string => (base === BREVE ? "\\breve" : String(base));
+
 // The name of a command after a note: a post command, or a hairpin's start or end.
 export type CommandName = (typeof POST_COMMANDS)[number] | "<" | ">" | "!";
 
@@ -141,7 +146,7 @@ const TREMOLO = /^:(8|16|32|64|128)/;
 function duration(text: string, i: number): { duration: Duration | null; length: number } {
   const m = DURATION.exec(text.slice(i));
   if (!m) return { duration: null, length: 0 };
-  return { duration: { base: m[1] === "\\breve" ? 0.5 : Number(m[1]), dots: m[2].length }, length: m[0].length };
+  return { duration: { base: m[1] === noteValueText(BREVE) ? BREVE : Number(m[1]), dots: m[2].length }, length: m[0].length };
 }
 
 function tremolo(text: string, i: number): { tremolo: number | null; length: number } {
@@ -392,7 +397,8 @@ function lex(text: string): Located[] {
 
 class ParseError extends Error {}
 
-const markName = (m: Mark): string => {
+// A mark as it is written, for the parser's messages.
+const writtenMark = (m: Mark): string => {
   switch (m.kind) {
     case "articulation":
       return m.name;
@@ -447,9 +453,9 @@ export function parseVoice(text: string): Parsed {
       i++;
       switch (t.t) {
         case "mark": {
-          if (!last) throw new ParseError(`${where(t)}: ${markName(t.mark)} isn't after a note, rest or chord`);
+          if (!last) throw new ParseError(`${where(t)}: ${writtenMark(t.mark)} isn't after a note, rest or chord`);
           if (last.e === "rest" || last.e === "measureRest") {
-            if (!allowedOnRest(t.mark)) throw new ParseError(`${where(t)}: ${markName(t.mark)} can't be on a rest`);
+            if (!allowedOnRest(t.mark)) throw new ParseError(`${where(t)}: ${writtenMark(t.mark)} can't be on a rest`);
             if (last.e === "measureRest" && t.mark.kind === "beam") throw new ParseError(`${where(t)}: a beam can't be on a whole-measure rest`);
           }
           last.marks.push(t.mark);
@@ -490,7 +496,7 @@ export function parseVoice(text: string): Parsed {
               if (n.duration || n.tremolo) throw new ParseError(`${where(n)}: a note in a chord has no duration of its own: it goes after ">"`);
               heads.push(head);
             } else if (inner.t === "mark" && (inner.mark.kind === "fingering" || inner.mark.kind === "curve")) {
-              if (heads.length === 0) throw new ParseError(`${where(inner)}: ${markName(inner.mark)} isn't after a note of the chord`);
+              if (heads.length === 0) throw new ParseError(`${where(inner)}: ${writtenMark(inner.mark)} isn't after a note of the chord`);
               heads[heads.length - 1].marks.push(inner.mark);
             } else {
               throw new ParseError(`${where(inner)}: only notes, their accidentals, fingering and curves can be inside "< >"`);

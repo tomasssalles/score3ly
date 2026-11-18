@@ -1,8 +1,6 @@
 // The lens and the symbolic format (docs/notation.md): parsing, checks, what code works out from them, and the MEI built
 // from them.
-export * from "./fraction.ts";
 export * from "./symbolic.ts";
-export * from "./durations.ts";
 export * from "./spans.ts";
 export * from "./lens.ts";
 export * from "./structure.ts";

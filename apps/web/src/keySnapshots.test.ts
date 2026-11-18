@@ -77,14 +77,15 @@ async function keys(): Promise<string[]> {
         metadata: { id: "m", sha256: hex("5e") },
         pieces: { id: "p", sha256: music.piecesSha256 },
       },
-      7,
+      { lensVersion: 7, meiBuilderVersion: 1 },
     ),
   );
   return out;
 }
 
 // The 15 keys of the LLM steps changed once, on purpose, with their step versions (the code review, batch 18: answers
-// checked against their schema); the other three are as they were.
+// checked against their schema); `build_mei`'s, the last, once, when the MEI builder's version joined it (batch 27);
+// the other two are as they were.
 const EXPECTED: string[] = [
   "f829e1ca4719fad055972a27ea3b4ef58410c2ebe2023bf17294c5763d7f0a24",
   "bed93123a297b9309a595a370d8fa6f055e4f9e5ddc3573b7e9b8b7a8bf17815",
@@ -103,7 +104,7 @@ const EXPECTED: string[] = [
   "fb49670500db08ea25ddcc71ca0811b2d8ad127dafd0ceb27242a69c0f74a185",
   "3498bb6e52ae06bbf4f93232e8807bc816383b5c9f79b7a4e65de36b79cb069f",
   "05d5511ac2f93276223a36f6c32f6f62dbb2e2af692b682be3da0b62b469d374",
-  "9cabfff28de35bb8cdc1f05334784583a758ee930523313cd95d26af5be6c1b2",
+  "b34802bb86e3908820ef00a362718bfe4e4057911b0f40ec6e55a0c853029202",
 ];
 
 test("the stage keys are as they were", async () => {

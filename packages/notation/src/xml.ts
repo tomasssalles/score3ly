@@ -13,16 +13,6 @@ export function el(name: string, attrs: Record<string, string | number | null | 
   };
 }
 
-export function attr(e: XmlElement, name: string): string | undefined {
-  return e.attrs.find(([k]) => k === name)?.[1];
-}
-
-export function setAttr(e: XmlElement, name: string, value: string): void {
-  const at = e.attrs.findIndex(([k]) => k === name);
-  if (at >= 0) e.attrs[at] = [name, value];
-  else e.attrs.push([name, value]);
-}
-
 // Characters XML 1.0 doesn't allow at all are dropped; the rest is escaped.
 const INVALID = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g;
 

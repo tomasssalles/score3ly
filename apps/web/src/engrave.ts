@@ -104,13 +104,14 @@ export const sourceIds = (sources: EngraveSources): string[] => [
   sources.pieces.id,
 ];
 
-// `build_mei`'s stage key (§5.2): the step, its version, the MEI builder's (the format's) version, and the content of
-// what it reads.
-export function buildMeiStageKey(sources: EngraveSources, lensVersion: number): Promise<string> {
+// `build_mei`'s stage key (§5.2): the step, its version, the lens's version (what the answers mean), the MEI
+// builder's (what it writes from them), and the content of what it reads.
+export function buildMeiStageKey(sources: EngraveSources, versions: { lensVersion: number; meiBuilderVersion: number }): Promise<string> {
   return keyOf({
     step: "build_mei",
     version: BUILD_MEI_VERSION,
-    lensVersion,
+    lensVersion: versions.lensVersion,
+    meiBuilderVersion: versions.meiBuilderVersion,
     extractions: sources.extractions.map((e) => [e.item, e.sha256]),
     layouts: sources.layouts.map((l) => [l.page, l.sha256]),
     metadata: sources.metadata.sha256,

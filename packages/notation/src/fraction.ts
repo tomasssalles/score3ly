@@ -20,6 +20,7 @@ export function fraction(n: number, d = 1): Fraction {
 export const ZERO = fraction(0);
 
 export const add = (a: Fraction, b: Fraction): Fraction => fraction(a.n * b.d + b.n * a.d, a.d * b.d);
+export const sub = (a: Fraction, b: Fraction): Fraction => fraction(a.n * b.d - b.n * a.d, a.d * b.d);
 export const mul = (a: Fraction, b: Fraction): Fraction => fraction(a.n * b.n, a.d * b.d);
 export const equal = (a: Fraction, b: Fraction): boolean => a.n === b.n && a.d === b.d;
 export const less = (a: Fraction, b: Fraction): boolean => a.n * b.d < b.n * a.d;

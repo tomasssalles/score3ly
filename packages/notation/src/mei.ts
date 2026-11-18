@@ -9,16 +9,21 @@
 // measure split across a system break half a measure on each (`@metcon="false"`), and what points outside the system
 // is left out.
 
-import { add, equal, fraction, less, mul, ZERO, type Fraction } from "./fraction.ts";
+import { add, equal, fraction, less, mul, sub, ZERO, type Fraction } from "./fraction.ts";
 import { durationValue, eventsDuration, parseKey, parseTime } from "./durations.ts";
 import { stretchEdges, type Box } from "@score3ly/core";
 import type { LensStretch, LensSystem } from "./lens.ts";
-import { stretchOffsets, tstamp, type Run, type Score, type ScoreMeasure, type ScorePiece } from "./score.ts";
-import { isDynamic, JUMPS, type Accidental, type CommandName, type EVENT_COMMANDS, type Duration, type Event, type Head, type Mark, type Pitch, type Tempo } from "./symbolic.ts";
+import { stretchKey, stretchOffsets, tstamp, type Run, type Score, type ScoreMeasure, type ScorePiece } from "./score.ts";
+import { BREVE, isDynamic, JUMPS, NOTE_BASES, type Accidental, type CommandName, type EVENT_COMMANDS, type Duration, type Event, type Head, type Mark, type Pitch, type Tempo } from "./symbolic.ts";
 import { el, elements, serialize, type XmlElement, type XmlNode } from "./xml.ts";
 import { firstMeasureStretch, pieceEndings, type EndingRun } from "./structure.ts";
 
 export const MEI_VERSION = "5.1";
+
+// The version of what the builder writes from the lens (this file and score.ts): raise it whenever the MEI written for
+// the same answers changes. In `build_mei`'s stage key (apps/web engrave.ts), beside the lens's own version.
+// 1: as the code review's batch 27 found it, with the endings read over every stretch.
+export const MEI_BUILDER_VERSION = 1;
 export const MEI_NS = "http://www.music-encoding.org/ns/mei";
 
 // What we use beyond MEI Basic, on purpose (docs/notation.md, "So we go beyond MEI Basic"): the header's work, pieces and
@@ -56,16 +61,15 @@ export type MeiApplication = { name: string; version: string; url: string };
 export type MeiOptions = {
   metadata?: MeiMetadata | null;
   application?: MeiApplication | null;
-  systems?: number[]; // only these systems, each on its own (the Transcription); else the whole score
-  // A copy for rendering with the original's breaks (`engrave`): a measure split by a system break is divided there,
-  // since Verovio doesn't break inside a measure. Never the file that is stored or downloaded.
-  divideAtSystemBreaks?: boolean;
+  // Only these systems, each on its own (the Transcription), a measure split by a system break divided there; else
+  // the whole score.
+  systems?: number[];
 };
 
 export function buildMei(score: Score, options: MeiOptions = {}): XmlElement {
   const only = options.systems ? new Set(options.systems) : null;
   const pieces = score.pieces.filter((p) => !only || p.systems.some((s) => only.has(s.number)));
-  const music = pieces.map((piece) => new PieceWriter(score, piece, only, options.metadata ?? null, !!options.divideAtSystemBreaks).mdiv());
+  const music = pieces.map((piece) => new PieceWriter(score, piece, only, options.metadata ?? null).mdiv());
   const header = header_(score, options.metadata ?? null, options.application ?? null, !only);
   const body = el("music", {}, [!only ? facsimile(score) : null, el("body", {}, music)]);
   return el("mei", { xmlns: MEI_NS, meiversion: MEI_VERSION }, [header, body]);
@@ -311,7 +315,7 @@ const BAR_RENDITION: Partial<Record<LensStretch["rightBarLine"], string>> = { do
 
 // SMuFL's metronome notes (stems up) and augmentation dot, by note value.
 const METRONOME_NOTES: Record<number, string> = {
-  0.5: "\uE1D0",
+  [BREVE]: "\uE1D0",
   1: "\uE1D2",
   2: "\uE1D3",
   4: "\uE1D5",
@@ -337,18 +341,18 @@ export function tempoContent(tempo: Tempo): XmlNode[] {
 }
 
 function durAttrs(d: Duration): Record<string, string | number> {
-  return { dur: d.base === 0.5 ? "breve" : d.base, ...(d.dots ? { dots: d.dots } : {}) };
+  return { dur: d.base === BREVE ? "breve" : d.base, ...(d.dots ? { dots: d.dots } : {}) };
 }
 
 // A length as note values for `<space>`: the largest that fit, one after the other.
 function spaceValues(length: Fraction): Duration[] {
   const out: Duration[] = [];
   let left = length;
-  for (const base of [0.5, 1, 2, 4, 8, 16, 32, 64, 128]) {
+  for (const base of NOTE_BASES) {
     const v = durationValue({ base, dots: 0 });
     while (!less(left, v) && left.n > 0) {
       out.push({ base, dots: 0 });
-      left = fraction(left.n * v.d - v.n * left.d, left.d * v.d);
+      left = sub(left, v);
     }
   }
   return out;
@@ -356,7 +360,7 @@ function spaceValues(length: Fraction): Duration[] {
 
 // A note value of exactly that length, if there is one (for a two-note tremolo's notes).
 function valueOf(length: Fraction): Duration | null {
-  for (const base of [0.5, 1, 2, 4, 8, 16, 32, 64, 128]) {
+  for (const base of NOTE_BASES) {
     for (let dots = 0; dots <= 3; dots++) if (equal(durationValue({ base, dots }), length)) return { base, dots };
   }
   return null;
@@ -393,14 +397,14 @@ class PieceWriter {
   private readonly piece: ScorePiece;
   private readonly only: Set<number> | null;
   private readonly metadata: MeiMetadata | null;
-  private readonly divide: boolean; // divide measures at system breaks: for a system alone, and engrave's rendering copy
+  private readonly divide: boolean; // divide measures at system breaks: for a system alone
 
-  constructor(score: Score, piece: ScorePiece, only: Set<number> | null, metadata: MeiMetadata | null, divide: boolean) {
+  constructor(score: Score, piece: ScorePiece, only: Set<number> | null, metadata: MeiMetadata | null) {
     this.score = score;
     this.piece = piece;
     this.only = only;
     this.metadata = metadata;
-    this.divide = !!only || divide;
+    this.divide = !!only;
     this.collectKeys();
     this.collectOttavas();
   }
@@ -414,7 +418,7 @@ class PieceWriter {
     const sectionChildren: XmlNode[] = [];
     let firstScoreDef: XmlElement | null = null;
     // The endings, as one walk over the piece's stretches finds them (structure.ts), by the stretches they cover.
-    const endingAt = new Map(pieceEndings(piece.systems).flatMap((e) => e.places.map((p) => [`${p.system}/${p.stretch}`, e] as const)));
+    const endingAt = new Map(pieceEndings(piece.systems).flatMap((e) => e.places.map((p) => [stretchKey(p.system, p.stretch), e] as const)));
     let ending: EndingRun | null = null; // the ending being written
     let endingRun: XmlElement | null = null;
     const push = (node: XmlNode) => (endingRun ? endingRun.children.push(node) : sectionChildren.push(node));
@@ -424,7 +428,7 @@ class PieceWriter {
       const segments = measureSegments(score, m, this.divide);
       for (const [k, segment] of segments.entries()) {
         if (only && !only.has(segment[0].system)) continue;
-        const inEnding = segment.map((t) => endingAt.get(`${t.system}/${t.stretch}`)).find((e) => e !== undefined) ?? null;
+        const inEnding = segment.map((t) => endingAt.get(stretchKey(t.system, t.stretch))).find((e) => e !== undefined) ?? null;
         if (inEnding && inEnding !== ending) {
           endingRun = el("ending", { "xml:id": `p${piece.index + 1}e${segment[0].system}t${segment[0].stretch}`, label: inEnding.label ?? undefined });
           sectionChildren.push(endingRun);
@@ -536,7 +540,7 @@ class PieceWriter {
         for (const stretch of part.stretches) {
           for (const run of this.score.stretch(part.system, stretch).runs) {
             let staff = run.staff;
-            walkTimed(run.events, offsets.get(`${part.system}/${stretch}`)!, (e, onset) => {
+            walkTimed(run.events, offsets.get(stretchKey(part.system, stretch))!, (e, onset) => {
               if (e.e === "changeStaff") staff = e.staff;
               if (e.e === "ottava") this.ottavas.push({ staff, measure: m.index, onset, value: e.value });
             });
@@ -576,7 +580,7 @@ class PieceWriter {
     const offsets = stretchOffsets(this.score, m);
     const runs: { run: Run; system: number; offset: Fraction }[] = [];
     for (const part of m.parts) {
-      for (const stretch of part.stretches) for (const run of this.score.stretch(part.system, stretch).runs) runs.push({ run, system: part.system, offset: offsets.get(`${part.system}/${stretch}`)! });
+      for (const stretch of part.stretches) for (const run of this.score.stretch(part.system, stretch).runs) runs.push({ run, system: part.system, offset: offsets.get(stretchKey(part.system, stretch))! });
     }
     const content = new Map<string, XmlNode[]>(); // by `${voice}/${system}/${stretch}`
     const home = new Map<number, number>(); // each voice's layer: on the staff it starts on in the measure
@@ -1024,7 +1028,7 @@ class PieceWriter {
       });
       return el("staff", { n: staff }, layers);
     });
-    const start = built.offsets.get(`${segment[0].system}/${segment[0].stretch}`)!;
+    const start = built.offsets.get(stretchKey(segment[0].system, segment[0].stretch))!;
     const controls = built.controls
       .filter((c) => segment.some((s) => s.system === c.system && s.stretch === c.stretch))
       .filter((c) => !refsOf(c.el).some((r) => r === "")) // never closed
@@ -1066,10 +1070,6 @@ type RunContext = { run: Run; place: Place; home: number; staff: number; stem: "
 // A measure's content, by `${voice}/${system}/${stretch}`; its control events; each voice's staff (its layer is there);
 // where each stretch starts in it; the time signature's unit, for beats.
 type BuiltMeasure = { content: Map<string, XmlNode[]>; controls: Control[]; home: Map<number, number>; offsets: Map<string, Fraction>; unit: number };
-
-function sub(a: Fraction, b: Fraction): Fraction {
-  return fraction(a.n * b.d - b.n * a.d, a.d * b.d);
-}
 
 function eventLength(event: Event): Fraction {
   return eventsDuration([event]);

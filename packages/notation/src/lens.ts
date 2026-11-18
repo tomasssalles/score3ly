@@ -9,7 +9,7 @@ import { add, equal, less, show, ZERO, type Fraction } from "./fraction.ts";
 import { eventsDuration, durationValue, measureLength, parseKey, parseTime, type TimeSignature } from "./durations.ts";
 import { SpanTracker, type ClosedMark, type OpenMark } from "./spans.ts";
 import { measureStep, multiRest, stretchRest } from "./structure.ts";
-import { normalizeClef, parseVoice, walk, type Event, type Tempo } from "./symbolic.ts";
+import { normalizeClef, noteValueText, parseVoice, walk, type Event, type Tempo } from "./symbolic.ts";
 
 export const STRETCH_CLASSES = ["none", "new", "continues"] as const;
 export const MEASURE_KINDS = ["normal", "incomplete", "unmeasured"] as const;
@@ -200,7 +200,8 @@ function checkStructure(answer: LensSystem, context: SystemContext, before: Scor
     if (missing !== undefined) fail(`a group names staff ${missing}, which isn't on the system`);
   }
 
-  // The stretches' fields.
+  // The stretches' fields. (A model's class and kind come merged into one field, so after lensFromExtract they always
+  // agree: the first two checks guard the lens as stored and as a patch leaves it.)
   for (const s of answer.stretches) {
     if (s.class === "new" && s.kind === null) fail(`stretch ${s.stretch} starts a measure and needs its kind`);
     if (s.class !== "new" && s.kind !== null) fail(`stretch ${s.stretch} doesn't start a measure, so it has no kind (null)`);
@@ -523,37 +524,45 @@ function stretchAnswers(): LensAnswer[] {
   ];
 }
 
-// A measure's length against its kind and time: a normal one fills the time, an incomplete one is shorter.
 // Tempo marks that differ at the same moment of a stretch: what the warning says, or null. A mark is placed by the
 // time before it in its voice.
 export function tempoProblem(voices: { staff: number; events: Event[] }[]): string | null {
-  const at = new Map<string, { staff: number; text: string }[]>();
+  const at = new Map<string, { staff: number; tempo: Tempo }[]>();
   for (const v of voices) {
     let time = ZERO;
     for (const e of v.events) {
       if (e.e === "tempo") {
         const moment = show(time);
-        at.set(moment, [...(at.get(moment) ?? []), { staff: v.staff, text: tempoText(e.tempo) }]);
+        at.set(moment, [...(at.get(moment) ?? []), { staff: v.staff, tempo: e.tempo }]);
       }
       time = add(time, eventsDuration([e]));
     }
   }
   for (const marks of at.values()) {
-    if (new Set(marks.map((m) => m.text)).size > 1) {
-      return `tempo marks at the same moment differ: ${marks.map((m) => `${m.text} on staff ${m.staff}`).join(", ")}.`;
+    if (marks.some((m) => !sameTempo(m.tempo, marks[0].tempo))) {
+      return `tempo marks at the same moment differ: ${marks.map((m) => `${tempoText(m.tempo)} on staff ${m.staff}`).join(", ")}.`;
     }
   }
   return null;
+}
+
+// Two tempo marks say the same: the same text, and the same metronome mark where there is one (a note value with its
+// number, as tempoText writes it).
+function sameTempo(a: Tempo, b: Tempo): boolean {
+  const metronome = (t: Tempo) => (t.unit && t.bpm !== null ? [t.unit.base, t.unit.dots, t.bpm, t.bpmMax] : []);
+  const [ma, mb] = [metronome(a), metronome(b)];
+  return a.text === b.text && ma.length === mb.length && ma.every((x, i) => x === mb[i]);
 }
 
 // A tempo mark as the lens writes it.
 function tempoText(t: Tempo): string {
   const parts = ["\\tempo"];
   if (t.text !== null) parts.push(JSON.stringify(t.text));
-  if (t.unit && t.bpm !== null) parts.push(`${t.unit.base === 0.5 ? "\\breve" : t.unit.base}${".".repeat(t.unit.dots)} = ${t.bpm}${t.bpmMax === null ? "" : `-${t.bpmMax}`}`);
+  if (t.unit && t.bpm !== null) parts.push(`${noteValueText(t.unit.base)}${".".repeat(t.unit.dots)} = ${t.bpm}${t.bpmMax === null ? "" : `-${t.bpmMax}`}`);
   return parts.join(" ");
 }
 
+// A measure's length against its kind and time: a normal one fills the time, an incomplete one is shorter.
 function measureWarning(measure: OpenMeasure, time: TimeSignature | null, warnings: Warning[]) {
   if (!time || measure.kind === "unmeasured" || measure.kind === null) return;
   const full = measureLength(time);

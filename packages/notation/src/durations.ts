@@ -2,11 +2,11 @@
 // tuplets scale their notes, grace notes take no time, a two-note tremolo lasts its count times its notes.
 
 import { add, fraction, mul, ZERO, type Fraction } from "./fraction.ts";
-import type { Duration, Event } from "./symbolic.ts";
+import { BREVE, type Duration, type Event } from "./symbolic.ts";
 
 export function durationValue({ base, dots }: Duration): Fraction {
   // A dotted value is the base times (2 - 1/2^dots).
-  const whole = base === 0.5 ? fraction(2) : fraction(1, base);
+  const whole = base === BREVE ? fraction(2) : fraction(1, base);
   return mul(whole, fraction(2 ** (dots + 1) - 1, 2 ** dots));
 }
 
