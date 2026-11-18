@@ -27,7 +27,8 @@ import {
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { linkSpans, systemHints } from "./linking";
 import { musicInputs } from "./musicInputs";
-import { ask, imageLimit, imageLimitFor, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { ask, requestImage, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { cropImage, type CropRecipe } from "./pageImages";
 import { runPlan, type StageRun } from "./stageRunner";
 

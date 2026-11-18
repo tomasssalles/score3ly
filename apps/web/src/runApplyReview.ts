@@ -54,7 +54,8 @@ import {
 import { EXTRACTION_STEPS } from "./engrave";
 import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
 import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks, type StoredWarning } from "./extract";
-import { ask, imageLimit, imageLimitFor, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { ask, requestImage, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
 import { markedCrop, type MarkedCropRecipe } from "./pageImages";
 import { reviewedIssues, reviewIssues, reviewScore, reviewWarnings, systemsOf, type StoredReview } from "./review";

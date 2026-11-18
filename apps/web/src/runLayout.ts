@@ -18,7 +18,8 @@ import {
 import { fetchJsonContent, markUnusable, putJson } from "./api";
 import { modelKeyOf, pageOfItem } from "@score3ly/core";
 import { LAYOUT_VERSION, layoutNote, layoutStageKey, type PageLayout } from "./layout";
-import { ask, imageLimit, requestImage, stageModelConfig, type PlannedRequest } from "./llm";
+import { ask, requestImage, stageModelConfig, type PlannedRequest } from "./llm";
+import { imageLimit } from "./requestLimits";
 import { drawnPage, modelPage, pageImage, pngSize, type ModelPageRecipe } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";

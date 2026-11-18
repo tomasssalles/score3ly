@@ -37,16 +37,8 @@ import { fetchJsonContent, markUnusable, putJson } from "./api";
 import { firstNumbers } from "./fixLayout";
 import { modelKeyOf, normalized, pageItem, pageOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
-import {
-  ask,
-  imageLimit,
-  imageLimitFor,
-  plannedSizeProblem,
-  requestImage,
-  stageModelConfig,
-  type PlannedRequest,
-  type RequestContent,
-} from "./llm";
+import { ask, plannedSizeProblem, requestImage, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { imageLimit, imageLimitFor } from "./requestLimits";
 import { layoutPage, modelPage, type LayoutPageRecipe, type ModelPageRecipe } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";

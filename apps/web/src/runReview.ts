@@ -12,7 +12,8 @@ import { modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, markUnusable, putJson, reserveIssueNumbers } from "./api";
 import { EXTRACTION_STEPS } from "./engrave";
 import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks } from "./extract";
-import { ask, imageLimit, imageLimitFor, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { ask, requestImage, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
 import { markedCrop, type MarkedCropRecipe } from "./pageImages";
 import {

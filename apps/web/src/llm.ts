@@ -1,13 +1,13 @@
 // What LLM steps share in the browser (docs/llm.md): the model config a stage uses, the part of the stage key that
 // depends on it, images for requests, and asking the model.
 
-import { CLAUDE_IMAGE_LIMIT, type SizeLimit } from "@score3ly/imaging";
 import { type CallPlace, callLlm, fetchModelConfig, type CallAnswer, type CallRequest, type ModelConfig } from "./api";
 import { keyOf, toBase64 } from "@score3ly/core";
 import { noteAnswer } from "./itemTiming";
 import { keepFingerprints } from "./pageImages";
 import { CannotStart, type StageRun } from "./stageRunner";
 import { trackCall } from "./callProgress";
+import { requestSizeProblem } from "./requestLimits";
 
 // The model config of an LLM stage: the one its config names (`modelConfigId`), which it got when it was created, the
 // default then unless it was given one (docs/llm.md, "Which config a stage uses"). It is never looked up later.
@@ -19,63 +19,6 @@ export async function stageModelConfig(stageConfig: Record<string, unknown> | nu
   if (config.deletedAt) throw new CannotStart(`its model config, "${config.name}", was deleted.`);
   if (config.unsupported) throw new CannotStart(`its model config, "${config.name}", ${config.unsupported}.`);
   return config;
-}
-
-// The largest image to send, by the model's family (not its model string, which the app doesn't interpret, §7.2):
-// Claude on any of its providers sees at most 2576 px and about 3.75 megapixels (Opus 4.7 and later; older
-// Claude models shrink further on their own). Gemini's limits aren't checked yet: Claude's are used for it too, and for
-// the fake models.
-export function imageLimit(_config: ModelConfig): SizeLimit {
-  return CLAUDE_IMAGE_LIMIT;
-}
-
-// What a provider accepts in one request (docs/stages/analyze.md): images are sent inline, as base64. Claude's API:
-// 32 MB per request, 10 MB per image, and with more than 20 images none may be larger than 2000 px either way
-// (the vision docs, 2026-10). Bedrock: 5 MB per image, and less per request than the API (assumed 20 MB
-// until checked). Gemini, as Gemini said (to check against Google's documentation): 20 MB per request, 7 MB per image
-// at the least, on Vertex AI too (to check as well).
-export type RequestLimits = {
-  maxRequestBytes: number;
-  maxImageBytes: number;
-  manyImages: { above: number; limit: SizeLimit } | null; // a smaller size for every image when there are many
-};
-
-const MB = 1024 * 1024;
-
-export function requestLimits(config: ModelConfig): RequestLimits {
-  const many = { above: 20, limit: { maxLongEdge: 2000, maxPixels: CLAUDE_IMAGE_LIMIT.maxPixels } };
-  if (config.family === "gemini") return { maxRequestBytes: 20 * MB, maxImageBytes: 7 * MB, manyImages: null };
-  if (config.provider === "bedrock") return { maxRequestBytes: 20 * MB, maxImageBytes: 5 * MB, manyImages: many };
-  return { maxRequestBytes: 32 * MB, maxImageBytes: 10 * MB, manyImages: many };
-}
-
-// The image limit for a request with `count` images: smaller when there are many (above).
-export function imageLimitFor(config: ModelConfig, count: number): SizeLimit {
-  const many = requestLimits(config).manyImages;
-  return many && count > many.above ? many.limit : imageLimit(config);
-}
-
-// Why a request is too big for its provider, or null. Counts the base64 of its images and the length of its texts.
-export function requestSizeProblem(config: ModelConfig, request: CallRequest): string | null {
-  const limits = requestLimits(config);
-  let total = (request.system?.length ?? 0) + JSON.stringify(request.jsonSchema ?? null).length;
-  for (const message of request.messages) {
-    for (const part of message.content) {
-      if (part.type === "image") {
-        const bytes = part.image?.base64.length ?? 0;
-        if (bytes > limits.maxImageBytes) {
-          return `an image is ${(bytes / MB).toFixed(1)} MB, more than the ${limits.maxImageBytes / MB} MB the provider takes`;
-        }
-        total += bytes;
-      } else {
-        total += part.text.length;
-      }
-    }
-  }
-  // Some room for the request's own JSON.
-  return total > limits.maxRequestBytes * 0.95
-    ? `the request would be ${(total / MB).toFixed(1)} MB, more than the ${limits.maxRequestBytes / MB} MB the provider takes`
-    : null;
 }
 
 async function pngContent(png: Blob): Promise<{ mediaType: "image/png"; base64: string }> {
