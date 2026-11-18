@@ -3,6 +3,7 @@ import { AUTHOR, pricesStale, REPOSITORY_URL, versionParts } from "./about";
 import { fetchPrices } from "./api";
 import { EDITION_TEXT, editionOf, useHost } from "./host";
 import { shortDate } from "./format";
+import { Wordmark } from "./ui/Wordmark";
 
 export function AboutPage() {
   const host = useHost();
@@ -20,7 +21,7 @@ export function AboutPage() {
   return (
     <div className="page-view about">
       <p className="wordmark about-wordmark" aria-label="score3ly">
-        <span className="bracket">&lt;</span>score3ly<span className="bracket">&gt;</span>
+        <Wordmark />
       </p>
       {edition && <p className="about-edition">{edition}</p>}
       <p className="about-summary">

@@ -6,7 +6,7 @@
 // phone the user zooms in close for each point and zooms out and pans in between.
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { BoxesIcon, CollapseIcon, ExpandIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
+import { BoxesIcon, ChevronLeftIcon, ChevronRightIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
 import { pngSize } from "./pageImages";
 import { BOX_HANDLES } from "./fixLayout";
 import { CORNER, EDGE, EDGE_SHARE, handleRect } from "./handles";
@@ -383,7 +383,7 @@ export function PageNav({ nav }: { nav: PageNavigation }) {
   return (
     <div className="editor-tools">
       <button type="button" className="icon-button" aria-label="Previous page" disabled={nav.index === 0} onClick={() => nav.go(nav.index - 1)}>
-        <CollapseIcon />
+        <ChevronLeftIcon />
       </button>
       <span className="editor-page">
         Page {nav.index + 1}/{nav.count}
@@ -395,7 +395,7 @@ export function PageNav({ nav }: { nav: PageNavigation }) {
         disabled={nav.index === nav.count - 1}
         onClick={() => nav.go(nav.index + 1)}
       >
-        <ExpandIcon />
+        <ChevronRightIcon />
       </button>
     </div>
   );

@@ -10,7 +10,7 @@ import { boxThrough, resizeBox, type BoxHandle } from "./fixLayout";
 import { handleAt } from "./handles";
 import { BoxHandles } from "./pageEditor";
 import { NO_TEXT } from "./humanReview";
-import { Info } from "./Info";
+import { Info } from "./ui/Info";
 import type { PlacedSystem } from "./review";
 import { answerTags } from "./transcription";
 import type { IssueWho } from "./attribution";

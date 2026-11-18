@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Project } from "./api";
 import { FittedText } from "./FittedText";
-import { when } from "./format";
+import { ProjectOption } from "./ui/ProjectOption";
 import { useClickOutside } from "./ui/hooks";
 
 // Shows the current project's name, if a project is open. Opening it turns the name into a filter field
@@ -148,8 +148,7 @@ export function ProjectPicker({
               className={project.id === current?.id ? "current" : undefined}
               onClick={() => pick(project)}
             >
-              <FittedText className="option-name" text={project.name} lines={3} highlight={query.trim()} />
-              <span className="option-time">{when(project.lastOpenedAt)}</span>
+              <ProjectOption name={project.name} lastOpenedAt={project.lastOpenedAt} highlight={query.trim()} />
               <FittedText className="option-file" text={project.pdfFilename} lines={3} />
             </li>
           ))}

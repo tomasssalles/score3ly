@@ -2,6 +2,7 @@ import { type ReactNode, useEffect } from "react";
 import { BackIcon, ForwardIcon } from "./icons";
 import { editionOf, useHost } from "./host";
 import { Menu } from "./Menu";
+import { Wordmark } from "./ui/Wordmark";
 import { useBackForward, useNoBrowserBar } from "./navigation";
 import type { Page } from "./route";
 
@@ -32,7 +33,7 @@ export function Header({
             which then asks first if one of its stages is running here. */}
         <h1 className="wordmark">
           <a href="#/" aria-label="score3ly, home" title="Home">
-            <span className="bracket">&lt;</span>score3ly<span className="bracket">&gt;</span>
+            <Wordmark />
           </a>
         </h1>
         {/* The edition (docs/desktop.md, "Editions"), in wide mode only: phones have no room for it. */}

@@ -33,7 +33,7 @@ import {
 } from "./configForm";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FieldPicker } from "./fieldList";
-import { Info } from "./Info";
+import { Info } from "./ui/Info";
 import { ACCOUNT_NAMES, feePercent, pricesText } from "./pricing";
 import { Dialog, useDialog } from "./ui/Dialog";
 

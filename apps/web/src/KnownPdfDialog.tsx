@@ -1,6 +1,6 @@
 import type { Project } from "./api";
 import { FittedText } from "./FittedText";
-import { when } from "./format";
+import { ProjectOption } from "./ui/ProjectOption";
 import { Dialog, useDialog } from "./ui/Dialog";
 
 // Shown when a picked PDF, or the PDF of a picked project file, already has projects: open one of them, or create
@@ -39,8 +39,7 @@ export function KnownPdfDialog({
         {projects.map((project) => (
           <li key={project.id}>
             <button type="button" onClick={() => onOpen(project)}>
-              <FittedText className="option-name" text={project.name} lines={3} />
-              <span className="option-time">{when(project.lastOpenedAt)}</span>
+              <ProjectOption name={project.name} lastOpenedAt={project.lastOpenedAt} />
             </button>
           </li>
         ))}

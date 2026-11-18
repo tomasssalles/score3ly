@@ -6,7 +6,8 @@ import { CheckList, type CheckItem } from "./ui/CheckList";
 import { createdBefore } from "./costs";
 import { count, deletedNote, shortDate } from "./format";
 import { DropdownMenu } from "./DropdownMenu";
-import { BarsIcon, FilterIcon, InfoIcon, MoreIcon, RunningTotalIcon } from "./icons";
+import { BarsIcon, FilterIcon, MoreIcon, RunningTotalIcon } from "./icons";
+import { InfoButton } from "./ui/Info";
 
 export type ChartMode = "bars" | "line";
 
@@ -38,9 +39,7 @@ export function StatHead({ title, about, right, row = false }: { title: string; 
       <div className={row ? "stat-line stat-row" : "stat-line"}>
         {row ? <span className="stat-row-title">{title}</span> : <h3>{title}</h3>}
         {about && (
-          <button type="button" className="icon-button stat-info" aria-expanded={open} aria-label={`About: ${title}`} title={`About: ${title}`} onClick={() => setOpen(!open)}>
-            <InfoIcon />
-          </button>
+          <InfoButton block open={open} onToggle={() => setOpen(!open)} label={`About: ${title}`} />
         )}
         <span className="stat-right">{right}</span>
       </div>
@@ -120,9 +119,7 @@ export function FinishedProjectsFilter({
   return (
     <section className="run-times-filter">
       <div className="run-times-filter-line">
-        <button type="button" className="icon-button stat-info" aria-expanded={about} aria-label="About: the projects" title="About: the projects" onClick={() => setAbout(!about)}>
-          <InfoIcon />
-        </button>
+        <InfoButton block open={about} onToggle={() => setAbout(!about)} label="About: the projects" />
         <button type="button" className="editor-mode" aria-pressed={open} aria-label="Select the projects" title="Select the projects" onClick={() => setOpen(!open)}>
           <FilterIcon />
           {out.size > 0 && <span className="toggle-dot" />}

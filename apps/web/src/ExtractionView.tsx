@@ -17,7 +17,8 @@ import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
 import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
 import { useNear, useObjectUrl } from "./ui/hooks";
-import { BoxesIcon, ChangesIcon, InfoIcon, MusicIcon, SourceIcon } from "./icons";
+import { BoxesIcon, ChangesIcon, MusicIcon, SourceIcon } from "./icons";
+import { InfoButton } from "./ui/Info";
 import type { PageLayout } from "./layout";
 import { ModeToggle, UnsavedNote } from "./pageEditor";
 import { saverOf, useSaver } from "./saving";
@@ -744,16 +745,12 @@ export function Choices({ choices, who }: { choices: StoredIssue["choices"]; who
             {i > 0 ? " • " : ""}
             {named[i]} → {c.key}
             {c.reason && (
-              <button
-                type="button"
-                className="reason-toggle"
-                aria-expanded={open.has(i)}
-                aria-label={`${open.has(i) ? "Hide" : "Show"} the reason of ${named[i]}`}
+              <InfoButton
+                open={open.has(i)}
+                onToggle={() => toggle(i)}
+                label={`${open.has(i) ? "Hide" : "Show"} the reason of ${named[i]}`}
                 title={`${open.has(i) ? "Hide" : "Show"} the reason`}
-                onClick={() => toggle(i)}
-              >
-                <InfoIcon />
-              </button>
+              />
             )}
           </span>
         ))}

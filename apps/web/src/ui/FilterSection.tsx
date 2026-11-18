@@ -3,7 +3,7 @@
 // picker); `children` is what collapses (the check list).
 
 import { type ReactNode, useState } from "react";
-import { ChevronDownIcon, ExpandIcon } from "../icons";
+import { ChevronDownIcon, ChevronRightIcon } from "../icons";
 
 export function FilterSection({ label, dot, controls, children }: { label: string; dot: boolean; controls?: ReactNode; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -11,7 +11,7 @@ export function FilterSection({ label, dot, controls, children }: { label: strin
     <div className="filter-section">
       <div className="costs-panel-row">
         <button type="button" className="section-toggle" aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}>
-          {collapsed ? <ExpandIcon /> : <ChevronDownIcon />}
+          {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
           {label}
           {collapsed && dot && <span className="inline-dot" aria-label="some hidden" />}
         </button>

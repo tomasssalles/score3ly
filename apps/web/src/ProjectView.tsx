@@ -20,7 +20,7 @@ import { FINISHERS } from "./finishers";
 import { settled } from "./saving";
 import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { CheckIcon, ExpandIcon, PauseIcon, WarningIcon } from "./icons";
+import { CheckIcon, ChevronRightIcon, PauseIcon, WarningIcon } from "./icons";
 import {
   canRun,
   currentStage,
@@ -627,7 +627,7 @@ export function ProjectView({
               title="Expand the pipeline"
               onClick={() => collapse(false)}
             >
-              <ExpandIcon />
+              <ChevronRightIcon />
             </button>
             <StripProgress pipeline={pipeline} progress={progress} />
           </div>

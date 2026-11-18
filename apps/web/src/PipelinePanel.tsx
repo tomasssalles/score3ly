@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef } from "react";
 import type { Project } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
-import { CollapseIcon, MoreIcon, StopIcon } from "./icons";
+import { ChevronLeftIcon, MoreIcon, StopIcon } from "./icons";
 import { Picker } from "./ui/Picker";
 import { canRun, currentStage, MODE_LABELS, MODES, pipelineState, runningStage, stateLabel, type Pipeline, type Progress, type RunMode } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
@@ -75,7 +75,7 @@ export function PipelinePanel({
             />
             {onCollapse && (
               <button type="button" className="icon-button" aria-label="Collapse the pipeline" onClick={onCollapse}>
-                <CollapseIcon />
+                <ChevronLeftIcon />
               </button>
             )}
           </div>

@@ -32,7 +32,8 @@ import type { TabOf } from "./route";
 import { CheckList } from "./ui/CheckList";
 import { FilterSection } from "./ui/FilterSection";
 import { Tabs } from "./ui/Tabs";
-import { FilterIcon, InfoIcon, SplitIcon } from "./icons";
+import { FilterIcon, SplitIcon } from "./icons";
+import { InfoButton } from "./ui/Info";
 import { dollars } from "./money";
 import { count, percent } from "./format";
 import { TimeChart, type ChartSeries } from "./TimeChart";
@@ -206,51 +207,40 @@ function Costs({ data }: { data: CostData }) {
   );
 }
 
-// The paid calls of unknown cost in the time range, as filtered (docs/llm.md, "Calling the providers"): apart from the
-// table, below it, with an "i" that says what they are. Shown at 0 too: then the costs above are complete.
-function UnknownCosts({ calls }: { calls: number }) {
+// A line of costs apart from the table, below it, with an "i" that says what it is: its title, the "i", its value.
+function CostLine({ title, value, className, children }: { title: string; value: ReactNode; className?: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const title = "LLM calls with unknown cost";
   return (
-    <div className="costs-unknown">
+    <div className={className ? `costs-unknown ${className}` : "costs-unknown"}>
       <div className="costs-unknown-line">
         <span>{title}</span>
-        <button type="button" className="icon-button stat-info" aria-expanded={open} aria-label={`About: ${title}`} title={`About: ${title}`} onClick={() => setOpen(!open)}>
-          <InfoIcon />
-        </button>
-        <span className="costs-amount">{calls}</span>
+        <InfoButton block open={open} onToggle={() => setOpen(!open)} label={`About: ${title}`} />
+        <span className="costs-amount">{value}</span>
       </div>
-      {open && (
-        <p className="settings-hint stat-about">
-          These calls were made and may be charged, but their token counts are unknown. The reason could be a network error, a malformed response, or
-          the app having been closed while the call was waiting.
-        </p>
-      )}
+      {open && <p className="settings-hint stat-about">{children}</p>}
     </div>
+  );
+}
+
+// The paid calls of unknown cost in the time range, as filtered (docs/llm.md, "Calling the providers"). Shown at 0 too:
+// then the costs above are complete.
+function UnknownCosts({ calls }: { calls: number }) {
+  return (
+    <CostLine title="LLM calls with unknown cost" value={calls}>
+      These calls were made and may be charged, but their token counts are unknown. The reason could be a network error, a malformed response, or
+      the app having been closed while the call was waiting.
+    </CostLine>
   );
 }
 
 // The model configs' test requests in the time range (docs/statistics.md, "The costs view"): apart from the chart, the
 // table and the filters, like the calls of unknown cost, since they belong to no stage or project.
 function TestCosts({ usd, calls }: { usd: number; calls: number }) {
-  const [open, setOpen] = useState(false);
-  const title = "Test requests";
   return (
-    <div className="costs-unknown costs-tests">
-      <div className="costs-unknown-line">
-        <span>{title}</span>
-        <button type="button" className="icon-button stat-info" aria-expanded={open} aria-label={`About: ${title}`} title={`About: ${title}`} onClick={() => setOpen(!open)}>
-          <InfoIcon />
-        </button>
-        <span className="costs-amount">{calls === 0 ? "–" : dollars(usd)}</span>
-      </div>
-      {open && (
-        <p className="settings-hint stat-about">
-          What the model configs' tests cost in this time range ({count(calls, "request")}), from Settings. They belong to no
-          project, so they aren't in the chart or the table, and the filters don't apply to them. They count towards the spending cap.
-        </p>
-      )}
-    </div>
+    <CostLine title="Test requests" value={calls === 0 ? "–" : dollars(usd)} className="costs-tests">
+      What the model configs' tests cost in this time range ({count(calls, "request")}), from Settings. They belong to no
+      project, so they aren't in the chart or the table, and the filters don't apply to them. They count towards the spending cap.
+    </CostLine>
   );
 }
 
