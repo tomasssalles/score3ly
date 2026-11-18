@@ -3,7 +3,7 @@
 // a save between two such quarters: 15 minutes without a save is still work (reading, thinking), longer is a break.
 // Only manual stages are filled so: elsewhere, events are dense while work happens.
 
-// The same quarters as the costs' buckets (costs.ts, BUCKET_SECONDS) and the web's statistics: @score3ly/core's.
+// The same quarters as the costs' buckets (callRecords.ts, BUCKET_SECONDS) and the web's statistics: @score3ly/core's.
 import { groupBy, QUARTER_MS } from "@score3ly/core";
 
 // The quarters (their starts in ms) with a single empty quarter between two of them filled in, sorted.

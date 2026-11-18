@@ -6,8 +6,7 @@
 
 import type { FailureData, Outcome } from "@score3ly/core";
 import type { Hono } from "hono";
-import { zombieBefore } from "./callRecords.ts";
-import { BUCKET_SECONDS } from "./costs.ts";
+import { CALL_QUARTER, endedOrDead, OUTCOME } from "./callRecords.ts";
 import { modelGroupOf, resolvedModel } from "./llm/models.ts";
 import type { ModelConfigRow } from "./modelConfigs.ts";
 
@@ -15,25 +14,18 @@ import type { ModelConfigRow } from "./modelConfigs.ts";
 export function failureRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/failures", async (c) => {
     const db = c.env.DB;
-    const zombie = zombieBefore();
     const [points, configs] = await db.batch([
       db
         .prepare(
           `SELECT c.model_config_id AS config,
-             (CAST(strftime('%s', c.started_at) AS INTEGER) / ${BUCKET_SECONDS}) * ${BUCKET_SECONDS} AS t,
-             CASE
-               WHEN c.status = 'running' THEN 'interrupted'
-               WHEN c.status IN ('ok', 'cut_off', 'refused', 'unparseable') THEN c.status
-               WHEN c.error_kind IS NULL THEN 'unexpected_stop'
-               ELSE c.error_kind
-             END AS reason,
+             ${CALL_QUARTER} AS t,
+             ${OUTCOME} AS reason,
              COUNT(*) AS n
            FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
-           WHERE c.stage_id IS NOT NULL AND m.provider <> 'fake' AND (c.status <> 'running' OR c.started_at < ?)
+           WHERE c.stage_id IS NOT NULL AND m.provider <> 'fake' AND ${endedOrDead()}
            GROUP BY config, t, reason
            ORDER BY t`,
-        )
-        .bind(zombie),
+        ),
       db.prepare(
         "SELECT id, name, provider, model_id, model_string, family, created_at, deleted_at FROM model_configs WHERE provider <> 'fake' AND id IN (SELECT DISTINCT model_config_id FROM llm_calls WHERE stage_id IS NOT NULL) ORDER BY created_at",
       ),

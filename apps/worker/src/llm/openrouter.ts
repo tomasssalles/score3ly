@@ -18,7 +18,7 @@ import {
   type LlmResponse,
   withJson,
 } from "./types.ts";
-import { readSse } from "@score3ly/core";
+import { DAY_MS, readSse } from "@score3ly/core";
 
 export function openRouterBase(region: string): string {
   return region === "eu" ? "https://eu.openrouter.ai/api/v1" : "https://openrouter.ai/api/v1";
@@ -290,7 +290,6 @@ export async function freeOnOpenRouter(model: string, region: string, fetchFn?: 
 
 // Kept a day per host and model, in the Worker's memory.
 const ranges = new Map<string, { at: number; range: PriceRange | null }>();
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export async function fetchPriceRange(model: string, region: string, fetchFn: Fetch = (input, init) => fetch(input, init), now = Date.now()): Promise<PriceRange | null> {
   fetchFn ??= (input, init) => fetch(input, init);

@@ -6,6 +6,7 @@ import { type CostOutcome, PROVIDER_NAMES } from "@score3ly/core";
 import type { CostData } from "./api";
 import { type Bucket, bucketsOf, type Granularity } from "./calendar.ts";
 import { deletedNote, endedNote } from "./format.ts";
+import { OUTCOME_LABELS } from "./outcomes.ts";
 import { stepInfo } from "./steps.ts";
 
 // ---- Groupings ----
@@ -65,15 +66,8 @@ const PROVIDERS: Partial<Record<string, string>> = Object.fromEntries(
 const FAMILIES: Record<string, string> = { claude: "Claude", gemini: "Gemini", fake: "Fake" };
 const FAMILY_ORDER = ["Claude", "Gemini", "Fake"];
 
-// A call's status as the costs view tells them apart (the Worker's `outcome`), in the order listed.
-const STATUSES: Record<CostOutcome, string> = {
-  ok: "Succeeded",
-  cut_off: "Cut off",
-  refused: "Refused",
-  unparseable: "Unusable answer",
-  wrong_model: "Wrong model",
-  unexpected_stop: "Unexpected stop",
-};
+// A paid call's status as the costs view tells them apart (the Worker's `outcome`), in this order; named as in Usage.
+const STATUSES: CostOutcome[] = ["ok", "cut_off", "refused", "unparseable", "unexpected_model", "unexpected_stop"];
 const rankIn = (order: string[], key: string) => (order.includes(key) ? order.indexOf(key) : order.length);
 
 // The group of a point (its stage, its config and its calls' status) in a grouping. `byName`: configs with the same
@@ -106,7 +100,7 @@ export function grouper(data: CostData, dimension: Dimension, grouping: string, 
   if (dimension === "status") {
     return (_stageId, _configId, status = "") => {
       if (grouping === "success") return status === "ok" ? { key: "ok", label: "Succeeded", rank: 0 } : { key: "failed", label: "Failed", rank: 1 };
-      return { key: status, label: STATUSES[status as CostOutcome] ?? status, rank: rankIn(Object.keys(STATUSES), status) };
+      return { key: status, label: OUTCOME_LABELS[status as CostOutcome] ?? status, rank: rankIn(STATUSES, status) };
     };
   }
   const providers = Object.keys(PROVIDERS);

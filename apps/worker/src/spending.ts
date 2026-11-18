@@ -1,9 +1,11 @@
 // What calls cost and the spending cap (docs/llm.md, "Costs", "VAT", "Spending cap"): a cost with its VAT, the VAT
 // setting's values, a cost the provider reports with its fee, and what the cap counts.
 
-import { roundUsd } from "@score3ly/core";
+import { amount, DAY_MS, roundUsd } from "@score3ly/core";
 import { ACCOUNT_FEES, type Account } from "./llm/models.ts";
 import { COST_WITH_VAT } from "./callRecords.ts";
+import { freeOnOpenRouter } from "./llm/openrouter.ts";
+import { readSettings } from "./settings.ts";
 
 // VAT in the costs (docs/llm.md, "VAT"): each call keeps its cost before VAT (`cost_usd`) and the rate in force when that
 // cost was recorded (`vat_percent`); every cost the app shows or counts, the spending cap's included, is the two
@@ -32,8 +34,6 @@ export function feeOf(row: { account: Account | null }): number {
   return row.account ? ACCOUNT_FEES[row.account] : 0;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 // What the spending cap counts (docs/llm.md, "Spending cap"): the costs of the calls started in the last 24 hours, with
 // their VAT, free-tier configs left out (unpriced calls have no cost to count), deleted projects included.
 export async function spentInLastDay(db: D1Database, now = Date.now()): Promise<number> {
@@ -44,4 +44,15 @@ export async function spentInLastDay(db: D1Database, now = Date.now()): Promise<
     .bind(new Date(now - DAY_MS).toISOString())
     .first<{ spent: number }>();
   return row?.spent ?? 0;
+}
+
+// Why a priced call can't be made, or null: the spending cap is reached (docs/llm.md, "Spending cap"). A model the
+// provider itself lists as free (OpenRouter's ":free" models: all its prices 0) costs nothing, so the cap doesn't stop
+// it (decided 2026-11-08); its calls are still recorded at what they report. `forTest`: a config's Test, which is never
+// served from the record, so the note on calls already paid for is left out.
+export async function capRefusal(db: D1Database, call: { pricedByProvider: boolean; model: string; region: string }, forTest: boolean): Promise<string | null> {
+  const { spendingCapUsd } = await readSettings(db);
+  if ((await spentInLastDay(db)) < spendingCapUsd) return null;
+  if (call.pricedByProvider && (await freeOnOpenRouter(call.model, call.region))) return null;
+  return `The spending cap has been reached: $${amount(spendingCapUsd)} within 24 hours.${forTest ? "" : " Calls already paid for are still served."}`;
 }

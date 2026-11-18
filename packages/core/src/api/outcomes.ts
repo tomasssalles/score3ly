@@ -15,10 +15,11 @@ export type CallErrorKind =
   | "unexpected_model" // another model answered than the one asked: not thrown, the response says so (`unexpectedModel`)
   | "unknown"; // anything else the client library threw
 
-// A call's outcome in Usage (apps/worker/src/failures.ts): "ok", how an answer was unusable, why the call failed, an
-// error without a kind ("unexpected_stop"), or a call that will never answer ("interrupted").
+// A call's outcome (`OUTCOME`, apps/worker/src/callRecords.ts), in Usage and Costs alike: "ok", how an answer was
+// unusable, why the call failed, an error without a kind ("unexpected_stop"), or a call that will never answer
+// ("interrupted").
 export type Outcome = "ok" | "cut_off" | "refused" | "unparseable" | CallErrorKind | "unexpected_stop" | "interrupted";
 
-// A paid call's outcome in Costs (apps/worker/src/costs.ts): its status, another model answering ("wrong_model"), or
-// an error with a cost ("unexpected_stop").
-export type CostOutcome = "ok" | "cut_off" | "refused" | "unparseable" | "wrong_model" | "unexpected_stop";
+// A paid call's outcome in Costs (apps/worker/src/costs.ts): the outcomes a call with a cost can have: an answer, used or
+// not, another model answering ("unexpected_model"), or an error with a cost ("unexpected_stop").
+export type CostOutcome = Extract<Outcome, "ok" | "cut_off" | "refused" | "unparseable" | "unexpected_model" | "unexpected_stop">;

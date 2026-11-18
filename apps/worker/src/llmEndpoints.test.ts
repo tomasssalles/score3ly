@@ -1274,7 +1274,7 @@ test("the rows a call writes are counted by Costs and Usage as what happened", a
     "cut off": { paid: ["cut_off"], unknown: 0, usage: ["cut_off ×1"] },
     refused: { paid: ["refused"], unknown: 0, usage: ["refused ×1"] },
     unparseable: { paid: ["unparseable"], unknown: 0, usage: ["unparseable ×1"] },
-    "other model": { paid: ["wrong_model"], unknown: 0, usage: ["unexpected_model ×1"] },
+    "other model": { paid: ["unexpected_model"], unknown: 0, usage: ["unexpected_model ×1"] },
     "server error": { paid: [], unknown: 0, usage: ["server ×1"] },
     unpriced: { paid: [], unknown: 1, usage: ["ok ×1"] },
     stopped: { paid: [], unknown: 1, usage: ["aborted ×1"] },

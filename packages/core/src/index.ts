@@ -16,7 +16,7 @@ export type { Settings } from "./api/settings.ts";
 export { fromBase64, toBase64, toBase64Url } from "./base64.ts";
 export { firstFreeName, MAX_NAME_LENGTH, nameTooLong } from "./names.ts";
 export { itemKind, pageItem, pageOfItem, systemItem, systemOfItem, type ItemKind } from "./items.ts";
-export { QUARTER_MS, quarterOf } from "./time.ts";
+export { DAY_MS, QUARTER_MS, quarterOf } from "./time.ts";
 export { LEAVING_A_RUN } from "./texts.ts";
 export { amount, roundUsd } from "./money.ts";
 export { groupBy } from "./collections.ts";

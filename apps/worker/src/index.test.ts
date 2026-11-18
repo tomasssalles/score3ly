@@ -1496,7 +1496,7 @@ test("the costs: each point carries its calls' status, an error with a cost told
   const costs = (await (await app.request("/api/costs", {}, env)).json()) as { points: [string, string, number, number, string][] };
   assert.deepEqual(
     costs.points.map(([, , , usd, outcome]) => [outcome, Math.round(usd * 100) / 100]).sort(),
-    [["cut_off", 0.1], ["ok", 0.2], ["unexpected_stop", 0.1], ["unparseable", 0.1], ["wrong_model", 0.1]],
+    [["cut_off", 0.1], ["ok", 0.2], ["unexpected_model", 0.1], ["unexpected_stop", 0.1], ["unparseable", 0.1]],
   );
 });
 

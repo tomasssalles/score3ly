@@ -3,12 +3,11 @@
 // otherwise checks the spending cap, calls the provider, and records the call with its tokens and cost.
 
 import type { Hono } from "hono";
-import { amount, type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, fromBase64, isSha256Hex, keyOf, modelKeyOf, sha256Hex, type ModelConfig } from "@score3ly/core";
+import { type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, fromBase64, isSha256Hex, keyOf, modelKeyOf, sha256Hex, type ModelConfig } from "@score3ly/core";
 import { deferLog, logFields } from "./requestLog.ts";
 import { stageEntry } from "./pipelineRules.ts";
 import { badRequest, notRunning, PICK_ONE, problemText, refuse } from "./refusals.ts";
 import { lock } from "./versions.ts";
-import { freeOnOpenRouter } from "./llm/openrouter.ts";
 import { bedrockModel, createAdapter, LlmError, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
 import type { LlmProgress, LlmProvider, LlmResponse } from "./llm/types.ts";
 import { isReplay, replayProvider } from "./llm/replay.ts";
@@ -17,7 +16,7 @@ import { llmTimeoutMs, timedOutMessage, withTimeout } from "./llm/timeouts.ts";
 import { costOf, type Price } from "./llm/prices.ts";
 import { configModel, FAMILY_NAMES, modelById, priceOfConfig, PROVIDER_NAMES } from "./llm/models.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
-import { feeOf, providerCost, spentInLastDay, withVat } from "./spending.ts";
+import { capRefusal, feeOf, providerCost, withVat } from "./spending.ts";
 import { readSettings } from "./settings.ts";
 import { badSecretMessage, deletedWhileRunningMessage, missingSecretMessage, type ModelConfigRow, secretValues, toModelConfig, unsupportedOf } from "./modelConfigs.ts";
 import { placeOf } from "./places.ts";
@@ -123,16 +122,17 @@ type Prepared = {
   price: Price | null;
 };
 
-// Sends a request that wasn't served from the record, and records the call, in one piece (a config's Test; a stage's
-// call is streamed, with `prepareCall` and `runCall`).
+// Sends a config's Test, which is never served from the record, and records the call, in one piece (a stage's call is
+// streamed, with `prepareCall` and `runCall`).
 export async function sendCall(env: Env, row: ModelConfigRow, request: CallRequest, requestKey: string, stageId: string | null, place: CallPlace, timeoutMs: number, signal?: AbortSignal): Promise<CallAnswer | Refusal> {
-  const prepared = await prepareCall(env, row);
+  const prepared = await prepareCall(env, row, true);
   if ("refusal" in prepared) return prepared;
   return runCall(env, prepared, request, requestKey, stageId, place, timeoutMs, signal);
 }
 
 // What a call needs before anything is sent: a price, room under the spending cap, the secrets and an adapter.
-async function prepareCall(env: Env, row: ModelConfigRow): Promise<Prepared | Refusal> {
+// `forTest`: a config's Test, never served from the record.
+async function prepareCall(env: Env, row: ModelConfigRow, forTest = false): Promise<Prepared | Refusal> {
   const db = env.DB;
   const config = toModelConfig(row);
   // Then what a priced call needs: a price, room under the spending cap, and the secrets. Free and unpriced calls
@@ -141,12 +141,8 @@ async function prepareCall(env: Env, row: ModelConfigRow): Promise<Prepared | Re
   // (Never "missing": that is an unsupported config, refused above.)
   const price = priced.kind === "priced" ? priced.price : null;
   if (price || priced.kind === "provider") {
-    const { spendingCapUsd } = await readSettings(db);
-    // A model the provider itself lists as free (OpenRouter's ":free" models: all its prices 0) costs nothing, so the
-    // cap doesn't stop it (decided 2026-11-08); its calls are still recorded at what they report.
-    if ((await spentInLastDay(db)) >= spendingCapUsd && !(priced.kind === "provider" && (await freeOnOpenRouter(config.model, config.region)))) {
-      return { refusal: { error: `The spending cap has been reached: $${amount(spendingCapUsd)} within 24 hours. Calls already paid for are still served.`, code: "spending_cap", status: 429 } };
-    }
+    const refusal = await capRefusal(db, { pricedByProvider: priced.kind === "provider", model: config.model, region: config.region }, forTest);
+    if (refusal) return { refusal: { error: refusal, code: "spending_cap", status: 429 } };
   }
   const secrets = secretValues(config, env);
   if ("missing" in secrets) {

@@ -546,11 +546,7 @@ export function modelConfigRoutes(app: Hono<{ Bindings: Env }>) {
     if (row.provider === "fake" || row.provider === "fake-dev") return refuse(c, 400, "Only configs of real providers can be tested.");
     const startedAt = Date.now();
     const sent = await sendCall(c.env, row, TEST_REQUEST, `test:${crypto.randomUUID()}`, null, TEST_PLACE, llmTimeoutMs("test"), c.req.raw.signal);
-    if ("refusal" in sent) {
-      // A test is never served from the record: the cap's note about calls already paid for doesn't apply.
-      const error = sent.refusal.code === "spending_cap" ? sent.refusal.error.replace(" Calls already paid for are still served.", "") : sent.refusal.error;
-      return refuse(c, sent.refusal.status, error, sent.refusal.code);
-    }
+    if ("refusal" in sent) return refuse(c, sent.refusal.status, sent.refusal.error, sent.refusal.code);
     const durationMs = Date.now() - startedAt;
     // An answer outside the schema fails the test, as a stage couldn't use it either: recorded as unusable, like a
     // stage's (§5.2), and said with what came back.
