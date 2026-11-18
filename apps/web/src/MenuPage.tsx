@@ -18,15 +18,15 @@ const CONTENT: Record<Exclude<Page, "about" | "settings" | "stats">, { title: st
 // The hash shown, for the tabs; a tab replaces the URL, so back leaves the page (docs/project-view.md, "The menu").
 type Props = { page: Page; hash: string; replace: (hash: string) => void };
 
-export function PageView(props: Props) {
+export function MenuPage(props: Props) {
   return (
     <div className="page-scroll">
-      <PageContent {...props} />
+      <MenuPageContent {...props} />
     </div>
   );
 }
 
-function PageContent({ page, hash, replace }: Props) {
+function MenuPageContent({ page, hash, replace }: Props) {
   if (page === "about") return <AboutPage />;
   if (page === "settings") return <SettingsPage tab={tabFromHash("settings", hash)} onTab={(tab) => replace(hashForTab("settings", tab))} />;
   if (page === "stats") {

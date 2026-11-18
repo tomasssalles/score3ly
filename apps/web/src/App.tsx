@@ -11,7 +11,7 @@ import { useEditionWindow, useHost } from "./host";
 import { KnownPdfDialog } from "./KnownPdfDialog";
 import { ProjectPicker } from "./ProjectPicker";
 import { ProjectView } from "./ProjectView";
-import { PageView } from "./PageView";
+import { MenuPage } from "./MenuPage";
 import { RenameDialog } from "./RenameDialog";
 import { HOME_HASH, hashForArtifact, hashForProject, hashForStage, pageFromHash, parseRoute } from "./route";
 import { errorText, LEAVING_A_RUN, sha256Hex } from "@score3ly/core";
@@ -301,7 +301,7 @@ export function App() {
           />
         )}
         {page ? (
-          <PageView page={page} hash={hash} replace={replace} />
+          <MenuPage page={page} hash={hash} replace={replace} />
         ) : current ? (
           <ProjectView
             key={current.id}
