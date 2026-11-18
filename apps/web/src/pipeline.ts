@@ -115,7 +115,7 @@ export type LocalRun = { stageId: string; progress: number; imagesDiffer?: boole
 // failed, and can run again.
 export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null): Pipeline {
   const stages = stored.stages.map((s, i) => {
-    const stage = toStage(s, stored.stages.slice(0, i), fixesAfter(stored.stages, i), stored.stages.slice(i + 1));
+    const stage = toStage(s, stored.stages.slice(0, i), fixesAfter(stored.stages, i));
     if (local?.stageId === s.id) {
       return { ...stage, status: "running" as const, progress: local.progress, runningHere: true, imagesDiffer: local.imagesDiffer ?? false, item: local.item };
     }
@@ -141,7 +141,7 @@ function fixesAfter(stages: ApiStage[], i: number): ApiStage[] {
   return end < 0 ? after : after.slice(0, end);
 }
 
-function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], later: ApiStage[]): Stage {
+function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[]): Stage {
   const info = stepInfo(stored.step);
   // A carried manual stage looks planned until it is kept. (A stopped stage has left the pipeline: `StageStatus` in
   // `@score3ly/core`.)

@@ -21,6 +21,7 @@ import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { CheckIcon, ExpandIcon, PauseIcon, WarningIcon } from "./icons";
 import {
+  canRun,
   currentStage,
   firstNotDone,
   defaultArtifactId,
@@ -392,8 +393,9 @@ export function ProjectView({
   async function run(latest: ApiPipeline) {
     const resolved = await resolveCarried(latest);
     if (resolved) return run(resolved);
-    const current = currentStage(toPipeline(modeRef.current, latest));
-    if (!current || (current.status !== "ready" && current.status !== "failed")) return;
+    const shown = toPipeline(modeRef.current, latest);
+    const current = currentStage(shown);
+    if (!current || !canRun(shown)) return;
     const stage = latest.stages.find((s) => s.id === current.id)!;
     const runner = RUNNERS[stage.step];
     if (!runner) {
