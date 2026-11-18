@@ -16,6 +16,7 @@ import { failure, addFixStage,
   type ApiPipeline,
   type Project, } from "./api";
 import { FINISHERS } from "./finishers";
+import { settled } from "./saving";
 import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { CheckIcon, ExpandIcon, PauseIcon, WarningIcon } from "./icons";
@@ -50,6 +51,9 @@ import { StageDetails } from "./StageDetails";
 import { eventsBetween, snapshotOf, toastText, type Segment, type Snapshot, type ToastEvent } from "./toasts";
 import { useWide } from "./useWide";
 import { errorText } from "@score3ly/core";
+
+// Finish while an edit couldn't be saved (docs/project-view.md, "Saving edits").
+const UNSAVED_FINISH = "The stage can't be finished yet: some of your edits couldn't be saved. Retry saving them in the editor, then finish.";
 
 const COLLAPSED_KEY = "pipelinePanelCollapsed";
 
@@ -342,6 +346,11 @@ export function ProjectView({
     quiet();
     setError(null);
     try {
+      // Every edit saved first (saving.ts), the text being typed too; one that couldn't be saved holds Finish back.
+      if (!(await settled(stageId))) {
+        setError(UNSAVED_FINISH);
+        return;
+      }
       const latest = await fetchPipeline(project);
       const stage = latest.stages.find((s) => s.id === stageId);
       if (!stage || stage.status !== "wip") return;

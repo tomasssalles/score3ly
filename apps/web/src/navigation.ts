@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { hashHistory } from "./hashHistory";
 import { leavesProject, runningProject } from "./leaveGuard";
 import { parseRoute } from "./route";
+import { hasUnsaved } from "./saving";
 
 // The app's navigation, its only owner of the history (hashHistory.ts): the hash shown, the question before leaving a
 // running project (docs/project-view.md, "Leaving a running project"), and opening and closing an artifact or a
 // stage's details. Used once, by the app; the pages are given what they need of it.
 export type AppNavigation = {
   hash: string;
-  // Goes to a URL from within the app, asking first if that leaves a running project; `then` runs once it is there.
+  // Goes to a URL from within the app, asking first if that leaves a running project or edits not saved; `then` runs
+  // once it is there.
   navigate: (next: string, then?: () => void) => void;
   // Goes to a URL without asking: once the user has answered `whenLeaving`'s question.
   go: (next: string) => void;
@@ -21,27 +23,35 @@ export type AppNavigation = {
   // opened here, so that back doesn't reopen it; else in place of its URL, the project's.
   openDetail: (next: string) => void;
   closeDetail: (projectHash: string) => void;
-  // While the question is asked: what Leave does. Cancel is `stay`.
+  // While the question is asked: what Leave does, and whether leaving stops the run. Cancel is `stay`.
   leaving: (() => void) | null;
+  leavingStopsRun: boolean;
   stay: () => void;
 };
 
-// Whether going to `next` stops a run on this device.
+// Whether going to `next` stops a run on this device, or leaves an editor whose edits couldn't be saved (saving.ts):
+// any change of the URL does, since what is shown changes. The hash shown never is (hashHistory goes back to it).
 function holds(next: string): boolean {
   const running = runningProject();
-  return running !== null && leavesProject(next, running);
+  lastStopsRun = running !== null && leavesProject(next, running);
+  return lastStopsRun || (hasUnsaved() && next !== shownHash);
 }
+// The hash the app shows.
+let shownHash = typeof window === "undefined" ? "" : window.location.hash;
+// Whether the change last held stops the run: what the question says (hashHistory asks right after holding).
+let lastStopsRun = false;
 
 export function useAppNavigation(): AppNavigation {
   const [hash, setHash] = useState(window.location.hash);
-  const [leaving, setLeaving] = useState<{ then: () => void } | null>(null);
+  const [leaving, setLeaving] = useState<{ then: () => void; stopsRun: boolean } | null>(null);
   // Whether the artifact or stage's details shown was opened from within the app.
   const openedHere = useRef(false);
   const [nav] = useState(() =>
     hashHistory(window, {
       holds,
-      ask: (proceed) => setLeaving({ then: proceed }),
+      ask: (proceed) => setLeaving({ then: proceed, stopsRun: lastStopsRun }),
       onHash: (next) => {
+        shownHash = next;
         const route = parseRoute(next);
         if (route?.artifactId == null && route?.stageId == null) openedHere.current = false;
         setHash(next);
@@ -58,7 +68,7 @@ export function useAppNavigation(): AppNavigation {
     navigate: nav.navigate,
     go: nav.go,
     replace: nav.replace,
-    whenLeaving: (then) => (holds("") ? setLeaving({ then }) : then()),
+    whenLeaving: (then) => (holds("") ? setLeaving({ then, stopsRun: lastStopsRun }) : then()),
     openDetail: (next) => {
       openedHere.current = true;
       nav.go(next);
@@ -67,6 +77,8 @@ export function useAppNavigation(): AppNavigation {
       if (openedHere.current) {
         openedHere.current = false;
         nav.back();
+      } else if (hasUnsaved()) {
+        setLeaving({ then: () => nav.replace(projectHash), stopsRun: false });
       } else {
         nav.replace(projectHash);
       }
@@ -78,6 +90,7 @@ export function useAppNavigation(): AppNavigation {
         }
       : null,
     stay: () => setLeaving(null),
+    leavingStopsRun: leaving?.stopsRun ?? false,
   };
 }
 

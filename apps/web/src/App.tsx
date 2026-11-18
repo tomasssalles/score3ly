@@ -16,6 +16,7 @@ import { HOME_HASH, hashForArtifact, hashForProject, hashForStage, pageFromHash,
 import { errorText, LEAVING_A_RUN, sha256Hex } from "@score3ly/core";
 import { useAppNavigation } from "./navigation";
 import { makeAndOpen } from "./newProjectFlow";
+import { discardUnsaved, hasUnsaved } from "./saving";
 
 export function App() {
   // Most recently opened first. null until loaded.
@@ -38,7 +39,7 @@ export function App() {
   useEditionWindow();
   // The open project, and the artifact the user picked, are the ones in the URL, if any. A change that leaves a
   // running project (a link, the back button) waits until the user confirms.
-  const { hash, navigate, go, replace, whenLeaving, openDetail, closeDetail, leaving, stay } = useAppNavigation();
+  const { hash, navigate, go, replace, whenLeaving, openDetail, closeDetail, leaving, leavingStopsRun, stay } = useAppNavigation();
   const route = parseRoute(hash);
   // A page from the menu, if one is open instead of a project.
   const page = pageFromHash(hash);
@@ -255,13 +256,12 @@ export function App() {
           />
         )}
         {leaving && (
-          <ConfirmDialog
-            title="Leave the project?"
-            text={[
-              `A stage is running. Leaving the project stops it. ${LEAVING_A_RUN}`,
-            ]}
-            confirmLabel="Leave"
-            onConfirm={leaving}
+          <LeaveDialog
+            stopsRun={leavingStopsRun}
+            onConfirm={() => {
+              discardUnsaved();
+              leaving();
+            }}
             onCancel={stay}
           />
         )}
@@ -337,5 +337,22 @@ export function App() {
         )}
       </main>
     </>
+  );
+}
+
+// The question before leaving (navigation.ts): a run this device would stop, edits that couldn't be saved, or both.
+function LeaveDialog({ stopsRun: running, onConfirm, onCancel }: { stopsRun: boolean; onConfirm: () => void; onCancel: () => void }) {
+  const unsaved = hasUnsaved();
+  return (
+    <ConfirmDialog
+      title={running ? "Leave the project?" : "Leave the editor?"}
+      text={[
+        ...(running ? [`A stage is running. Leaving the project stops it. ${LEAVING_A_RUN}`] : []),
+        ...(unsaved ? ["Some of your edits couldn't be saved. Leaving discards them."] : []),
+      ]}
+      confirmLabel="Leave"
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
   );
 }

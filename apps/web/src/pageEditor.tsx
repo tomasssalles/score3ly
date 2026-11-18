@@ -319,7 +319,8 @@ export function usePageImage(load: () => Promise<Blob>, key: string) {
 export function UnsavedNote({ state, onRetry, className }: { state: SaverState; onRetry: () => void; className: string }) {
   if (!state.unsaved) return null;
   return (
-    <p className={`${className} unsaved-note`} role="alert">
+    // Over the page, inside the viewport: its gestures mustn't take the Retry's pointer.
+    <p className={`${className} unsaved-note`} role="alert" onPointerDown={(e) => e.stopPropagation()}>
       {state.error ? `Not saved: ${state.error} ` : "Not saved. "}
       <button type="button" className="link-button" disabled={state.saving} onClick={onRetry}>
         Retry
