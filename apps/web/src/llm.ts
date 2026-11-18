@@ -1,13 +1,14 @@
 // What LLM steps share in the browser (docs/llm.md): the model config a stage uses, the part of the stage key that
 // depends on it, images for requests, and asking the model.
 
-import { type CallPlace, callLlm, fetchModelConfig, type CallAnswer, type CallRequest, type ModelConfig } from "./api";
+import { type ApiStage, type CallPlace, callLlm, fetchModelConfig, type CallAnswer, type CallRequest, type ModelConfig } from "./api";
 import { keyOf, toBase64 } from "@score3ly/core";
 import { noteAnswer } from "./itemTiming";
 import { keepFingerprints } from "./pageImages";
 import { CannotStart, type StageRun } from "./stageRunner";
 import { trackCall } from "./callProgress";
 import { requestSizeProblem } from "./requestLimits";
+import { checkedAnswer, type AnswerCheck } from "./checkedAnswer";
 
 // The model config of an LLM stage: the one its config names (`modelConfigId`), which it got when it was created, the
 // default then unless it was given one (docs/llm.md, "Which config a stage uses"). It is never looked up later.
@@ -19,6 +20,13 @@ export async function stageModelConfig(stageConfig: Record<string, unknown> | nu
   if (config.deletedAt) throw new CannotStart(`its model config, "${config.name}", was deleted.`);
   if (config.unsupported) throw new CannotStart(`its model config, "${config.name}", ${config.unsupported}.`);
   return config;
+}
+
+// An LLM stage's start: its model config, and what `runPlan` records with the stage: its config as it is (it names
+// the model config) and the model config's id.
+export async function llmStart(stage: ApiStage): Promise<{ config: ModelConfig; start: { config: ApiStage["config"]; modelConfigId: string } }> {
+  const config = await stageModelConfig(stage.config);
+  return { config, start: { config: stage.config, modelConfigId: config.id } };
 }
 
 async function pngContent(png: Blob): Promise<{ mediaType: "image/png"; base64: string }> {
@@ -59,18 +67,26 @@ async function withImages(request: PlannedRequest, made: { recipe: unknown; png:
   return { ...request, messages };
 }
 
-// Asks the model, and returns its answer if it is usable. Anything else ends the stage with an error that says what
-// happened (a refused call, e.g. the spending cap, or an answer that was cut off, declined or not parseable): the
-// answers so far stay in the records, and a retry asks only what is missing (§6, `extract`).
+// Asks the model, and returns its answer with what the stage's check made of it, if it is usable. Anything else ends
+// the stage with an error that says what happened (a refused call, e.g. the spending cap, or an answer that was cut
+// off, declined, not parseable, or that the check refused: checkedAnswer.ts): the answers so far stay in the records,
+// and a retry asks only what is missing (§6, `extract`).
 // The request is first looked up by its images' recipe keys; only if it isn't cached are its images made, the request
 // checked for size, and sent with them. `beforeImages` runs then, before anything can be paid for (e.g. a check that
-// another request of the stage will fit).
-export async function ask(
+// another request of the stage will fit). `unusable`: the stage's error for an answer it can't use, by default
+// "<what>: the answer can't be used: <why>."
+export async function ask<T>(
   run: StageRun,
   request: PlannedRequest,
   what: string,
-  options: { config: ModelConfig; place: CallPlace; beforeImages?: () => Promise<void> },
-): Promise<CallAnswer> {
+  options: {
+    config: ModelConfig;
+    place: CallPlace;
+    beforeImages?: () => Promise<void>;
+    check: AnswerCheck<T>;
+    unusable?: (problem: string) => string;
+  },
+): Promise<{ answer: CallAnswer; checked: T }> {
   const onEvent = trackCall(run, options.place.item);
   let answer = await callLlm(run.project, run.stage.id, await withImages(request, null), options.place, what, run.signal, onEvent);
   if ("imagesNeeded" in answer) {
@@ -87,7 +103,9 @@ export async function ask(
   }
   if (answer.status !== "ok") throw new Error(`${what}: ${answer.error ?? answer.status}`);
   noteAnswer(answer.cached);
-  return answer;
+  const unusable = options.unusable ?? ((problem: string) => `${what}: the answer can't be used: ${problem}.`);
+  const checked = await checkedAnswer({ project: run.project, stageId: run.stage.id }, answer, request.jsonSchema, options.check, unusable);
+  return { answer, checked };
 }
 
 // Whether a request would be too big, with its images made: for checks before a stage pays for anything.

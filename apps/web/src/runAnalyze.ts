@@ -33,11 +33,11 @@ import {
   type StoredPieces,
   type StoredObservations,
 } from "./analyze";
-import { fetchJsonContent, markUnusable, putJson } from "./api";
+import { fetchJsonContent, putJson } from "./api";
 import { firstNumbers } from "./fixLayout";
 import { modelKeyOf, normalized, pageItem, pageOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
-import { ask, plannedSizeProblem, requestImage, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { ask, plannedSizeProblem, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor } from "./requestLimits";
 import { layoutPage, modelPage, type LayoutPageRecipe, type ModelPageRecipe } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
@@ -69,7 +69,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
     layouts.flatMap((l, i) => l.systems.map((s, j): [number, SystemInfo] => [firsts[i] + j, { barLines: s.barLines.length, page: pages[i].page }])),
   );
 
-  const config = await stageModelConfig(stage.config);
+  const { config, start } = await llmStart(stage);
   const pageLimit = imageLimit(config);
   const scoreLimit = imageLimitFor(config, pages.length);
   const imageRecipe = { limit: pageLimit, scoreLimit, scale: SCALE_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION, draw: DRAW_VERSION };
@@ -137,31 +137,26 @@ export async function runAnalyze(run: StageRun): Promise<void> {
   const scoreAnswer = () =>
     (score ??= (async () => {
       const all = await Promise.all(pages.map((p) => resultOf(p.output.item)));
-      const answer = await ask(run, scoreRequest(all), "The whole score", { config, place: { item: "", round: 1 }, beforeImages });
-      const checked = checkScoreAnswer(answer.json, { systems: allSystems, pages: pages.map((p) => p.page), items: pageItems(all) });
-      if ("problem" in checked) {
-        await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
-        throw new Error(`The whole score: the answer can't be used: ${checked.problem}.`);
-      }
-      // The pages as corrected: their staves must still agree.
-      const observations = combineObservations(all, checked);
-      const staves = observations.pages
-        .map((p) => stavesProblem(p, all.find((r) => r.page === p.page)!.systems))
-        .map((problem, i) => problem && `page ${observations.pages[i].page}: ${problem}`)
-        .find((problem) => problem);
-      if (staves) {
-        await markUnusable(run.project, run.stage.id, answer.callId, staves).catch(() => {});
-        throw new Error(`The whole score: the answer can't be used: ${staves}.`);
-      }
-      return { answer: checked, callId: answer.callId, observations };
+      const check = (json: unknown) => {
+        const checked = checkScoreAnswer(json, { systems: allSystems, pages: pages.map((p) => p.page), items: pageItems(all) });
+        if ("problem" in checked) return checked;
+        // The pages as corrected: their staves must still agree.
+        const observations = combineObservations(all, checked);
+        const staves = observations.pages
+          .map((p) => stavesProblem(p, all.find((r) => r.page === p.page)!.systems))
+          .map((problem, i) => problem && `page ${observations.pages[i].page}: ${problem}`)
+          .find((problem) => problem);
+        return staves ? { problem: staves } : { answer: checked, observations };
+      };
+      const { answer, checked } = await ask(run, scoreRequest(all), "The whole score", { config, place: { item: "", round: 1 }, beforeImages, check });
+      return { ...checked, callId: answer.callId };
     })());
 
   const pageInputs = (i: number): string[] => [pages[i].output.id, pages[i].image.id];
   const madePieces = new Map<string, StoredPieces>();
   await runPlan(run, {
     stepVersion: ANALYZE_VERSION,
-    config: { ...(stage.config ?? {}), modelConfigId: config.id }, // the stage's config, its model config included
-    modelConfigId: config.id,
+    ...start,
     stageKey,
     pageCount: pages.length,
     inputIds: pages.flatMap((_, i) => pageInputs(i)),
@@ -187,13 +182,9 @@ export async function runAnalyze(run: StageRun): Promise<void> {
             maxOutputTokens: ANALYZE_PAGE_MAX_OUTPUT_TOKENS,
             jsonSchema: ANALYZE_PAGE_SCHEMA,
           };
-          const answer = await ask(run, request, `Page ${page}`, { config, place: { item: pageItem(page), round: 1 }, beforeImages });
           const onPage = new Map(labels[i].map((n) => [n, allSystems.get(n)!]));
-          const checked = checkPageAnswer(answer.json, { systems: onPage });
-          if ("problem" in checked) {
-            await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
-            throw new Error(`Page ${page}: the answer can't be used: ${checked.problem}.`);
-          }
+          const check = (json: unknown) => checkPageAnswer(json, { systems: onPage });
+          const { answer, checked } = await ask(run, request, `Page ${page}`, { config, place: { item: pageItem(page), round: 1 }, beforeImages, check });
           // As it reads back from storage (canonical JSON), so the whole score's request is the same whether a page's
           // result was made in this run or an earlier one, and the cache finds it.
           const result = normalized({ page, systems: labels[i], ...checked }) as PageAnalysis;

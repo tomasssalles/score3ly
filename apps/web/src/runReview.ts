@@ -9,10 +9,10 @@ import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSI
 import { buildScore, checkSystem, LENS_VERSION, pieceStart, systemLinks, type LinkedSystem, type ScoreState } from "@score3ly/notation";
 import { REVIEW_MAX_OUTPUT_TOKENS, REVIEW_PROMPT_VERSION, REVIEW_SCHEMA, REVIEW_SYSTEM, reviewIssuesText, reviewLogText, reviewScoreText, reviewText } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
-import { fetchJsonContent, markUnusable, putJson, reserveIssueNumbers } from "./api";
+import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
 import { EXTRACTION_STEPS } from "./engrave";
 import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks } from "./extract";
-import { ask, requestImage, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
 import { markedCrop, type MarkedCropRecipe } from "./pageImages";
@@ -78,7 +78,7 @@ export async function runReview(run: StageRun): Promise<void> {
   const scorePart: RequestContent = { type: "text", text: reviewScoreText(reviewScore(score), observations) };
   const issuesPart: RequestContent = { type: "text", text: reviewIssuesText(reviewIssues(baseIssues, placed), reviewWarnings(warnings, placed)), cacheUpTo: true };
 
-  const config = await stageModelConfig(stage.config);
+  const { config, start } = await llmStart(stage);
   const imageRecipe = {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
@@ -119,8 +119,7 @@ export async function runReview(run: StageRun): Promise<void> {
 
   await runPlan(run, {
     stepVersion: REVIEW_VERSION,
-    config: { ...(stage.config ?? {}), modelConfigId: config.id }, // the stage's config, its model config included
-    modelConfigId: config.id,
+    ...start,
     stageKey,
     pageCount: pages.length,
     inputIds,
@@ -183,16 +182,15 @@ export async function runReview(run: StageRun): Promise<void> {
         };
 
         const kept = s.number > 1 ? ` The review of systems 1–${s.number - 1} is kept.` : "";
-        const answer = await ask(run, planned, `System ${s.number}`, { config, place: { item: s.item, round: 1 } });
-        const parsed = normalized(answer.json);
         const context = { system: s.number, issues, systems: placed, images: sources };
-        const checked = checkReview(parsed, context, 1);
-        if ("problem" in checked) {
-          await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
-          throw new Error(`Couldn't use the review of system ${s.number}: ${checked.problem}.${kept}`);
-        }
+        const { answer, checked } = await ask(run, planned, `System ${s.number}`, {
+          config,
+          place: { item: s.item, round: 1 },
+          check: (json) => checkReview(normalized(json), context, 1),
+          unusable: (problem) => `Couldn't use the review of system ${s.number}: ${problem}.${kept}`,
+        });
         // The new issues get their numbers from the project's counter, now that the answer is usable.
-        const count = newIssueCount(parsed);
+        const count = newIssueCount(normalized(answer.json));
         let id = count > 0 ? await reserveIssueNumbers(run.project, count, issues.values()) : 1;
         const entries: ReviewEntry[] = checked.entries.map((e) => ("newIssue" in e ? { newIssue: { ...e.newIssue, id: id++ } } : e));
         const result: StoredReview = { system: s.number, entries };

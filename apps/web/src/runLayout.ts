@@ -15,10 +15,10 @@ import {
   layoutCheck,
   type LayoutAnswer,
 } from "@score3ly/prompts";
-import { fetchJsonContent, markUnusable, putJson } from "./api";
+import { fetchJsonContent, putJson } from "./api";
 import { modelKeyOf, pageOfItem } from "@score3ly/core";
 import { LAYOUT_VERSION, layoutNote, layoutStageKey, type PageLayout } from "./layout";
-import { ask, requestImage, stageModelConfig, type PlannedRequest } from "./llm";
+import { ask, requestImage, llmStart, type PlannedRequest } from "./llm";
 import { imageLimit } from "./requestLimits";
 import { drawnPage, modelPage, pageImage, pngSize, type ModelPageRecipe } from "./pageImages";
 import type { PageRecipe } from "./rasterize";
@@ -40,7 +40,7 @@ export async function runLayout(run: StageRun): Promise<void> {
     .map((o) => ({ output: o, page: pageOfItem(o.item) ?? 0, recipe: o.recipe as PageRecipe, lines: linesByItem.get(o.item) ?? null }))
     .sort((a, b) => a.page - b.page);
 
-  const config = await stageModelConfig(stage.config);
+  const { config, start } = await llmStart(stage);
   const imageRecipe = { limit: imageLimit(config), scale: SCALE_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION, draw: DRAW_VERSION };
   const stageKey = await layoutStageKey({
     promptVersion: LAYOUT_PROMPT_VERSION,
@@ -52,8 +52,7 @@ export async function runLayout(run: StageRun): Promise<void> {
   const made = new Map<string, PageLayout>();
   await runPlan(run, {
     stepVersion: LAYOUT_VERSION,
-    config: { ...(stage.config ?? {}), modelConfigId: config.id }, // the stage's config, its model config included
-    modelConfigId: config.id,
+    ...start,
     stageKey,
     pageCount: pages.length,
     inputIds: pages.flatMap((p) => [p.output.id, ...(p.lines ? [p.lines.id] : [])]),
@@ -96,13 +95,8 @@ export async function runLayout(run: StageRun): Promise<void> {
               ],
             });
           }
-          const answer = await ask(run, request, `Page ${page}`, { config, place: { item: output.item, round } });
+          const { answer, checked } = await ask(run, request, `Page ${page}`, { config, place: { item: output.item, round }, check: checkLayoutAnswer });
           callId = answer.callId;
-          const checked = checkLayoutAnswer(answer.json);
-          if ("problem" in checked) {
-            await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
-            throw new Error(`Page ${page}: the answer can't be used: ${checked.problem}.`);
-          }
           layout = checked;
           request.messages.push({ role: "assistant", content: [{ type: "text", text: answer.text ?? JSON.stringify(answer.json) }] });
           if (round > 1 && layout.satisfied) break;

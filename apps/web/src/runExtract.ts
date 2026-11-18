@@ -8,7 +8,7 @@
 import { CROP_VERSION, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { checkScore, checkSystem, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
 import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractText, lensFromExtract } from "@score3ly/prompts";
-import { fetchJsonContent, markUnusable, putJson, reserveIssueNumbers } from "./api";
+import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
 import {
   EXTRACT_VERSION,
   extractNote,
@@ -27,7 +27,7 @@ import {
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { linkSpans, systemHints } from "./linking";
 import { musicInputs } from "./musicInputs";
-import { ask, requestImage, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { cropImage, type CropRecipe } from "./pageImages";
 import { runPlan, type StageRun } from "./stageRunner";
@@ -40,7 +40,7 @@ export async function runExtract(run: StageRun): Promise<void> {
   const obs = { output: inputs.observationsOutput };
   const pcs = { output: inputs.piecesOutput };
 
-  const config = await stageModelConfig(stage.config);
+  const { config, start } = await llmStart(stage);
   const imageRecipe = {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
@@ -103,8 +103,7 @@ export async function runExtract(run: StageRun): Promise<void> {
 
   await runPlan(run, {
     stepVersion: EXTRACT_VERSION,
-    config: { ...(stage.config ?? {}), modelConfigId: config.id }, // the stage's config, its model config included
-    modelConfigId: config.id,
+    ...start,
     stageKey,
     pageCount: pages.filter((_, i) => layouts[i].systems.length > 0).length,
     inputIds: [...new Set(systems.flatMap(inputsOf))],
@@ -157,15 +156,15 @@ export async function runExtract(run: StageRun): Promise<void> {
           };
 
           const kept = s.number > 1 ? ` The answers for systems 1–${s.number - 1} are kept.` : "";
-          const answer = await ask(run, request, `System ${s.number}`, { config, place: { item: s.item, round: 1 } });
           // The answer as it reads back from storage (canonical JSON): what the next systems' requests are built from
           // is then the same in this run and in a retry, and the cache finds them. Its sentinels ("", -1) and merged fields
           // become the lens as code uses it first (lensFromExtract).
-          const checked = checkSystem(lensFromExtract(normalized(answer.json)), contextOf(s, first, labels), before);
-          if ("problem" in checked) {
-            await markUnusable(run.project, run.stage.id, answer.callId, checked.problem).catch(() => {});
-            throw new Error(`Couldn't use the answer for system ${s.number}: ${checked.problem}.${kept}`);
-          }
+          const { answer, checked } = await ask(run, request, `System ${s.number}`, {
+            config,
+            place: { item: s.item, round: 1 },
+            check: (json) => checkSystem(lensFromExtract(normalized(json)), contextOf(s, first, labels), before),
+            unusable: (problem) => `Couldn't use the answer for system ${s.number}: ${problem}.${kept}`,
+          });
           states.set(s.number, checked.state);
           const count = checked.answer.issues.length + checked.codeIssues.length;
           const firstId = count > 0 ? await reserveIssueNumbers(run.project, count, [...stored.values()].flatMap((e) => e.issues)) : 1;

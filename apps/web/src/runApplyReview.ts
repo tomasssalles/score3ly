@@ -30,7 +30,7 @@ import {
   stretchMeasures,
 } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
-import { fetchJsonContent, markUnusable, putJson, reserveIssueNumbers, type ApiStage } from "./api";
+import { fetchJsonContent, putJson, reserveIssueNumbers, type ApiStage } from "./api";
 import {
   appliedCount,
   appliedIssues,
@@ -54,7 +54,7 @@ import {
 import { EXTRACTION_STEPS } from "./engrave";
 import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
 import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks, type StoredWarning } from "./extract";
-import { ask, requestImage, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
+import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
 import { markedCrop, type MarkedCropRecipe } from "./pageImages";
@@ -143,7 +143,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   };
   checkedOrFail(startAnswers, "the transcription");
 
-  const config = await stageModelConfig(stage.config);
+  const { config, start } = await llmStart(stage);
   const imageRecipe = {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
@@ -218,8 +218,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
 
   await runPlan(run, {
     stepVersion: APPLY_REVIEW_VERSION,
-    config: { ...(stage.config ?? {}), modelConfigId: config.id }, // the stage's config, its model config included
-    modelConfigId: config.id,
+    ...start,
     stageKey,
     pageCount: pages.length,
     inputIds,
@@ -291,17 +290,31 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           };
 
           const kept = calls.size > 0 ? " The changes applied on the systems before it are kept." : "";
-          const answer = await ask(run, plannedRequest, `System ${planned.system}`, { config, place: { item: itemOf(planned.system), round: 1 } });
-          const unusable = async (problem: string): Promise<never> => {
-            await markUnusable(run.project, run.stage.id, answer.callId, problem).catch(() => {});
-            throw new Error(`Couldn't use the answer for system ${planned.system}: ${problem}.${kept}`);
+          // The patch, and the answers with it applied, which must pass the checks; none when it reverts a person's
+          // answer (below), which is usable.
+          const blockedBy = <C extends { issue: number }>(choices: C[]) => choices.find((c) => startIssues.get(c.issue)?.resolved);
+          const check = (json: unknown) => {
+            const patch = checkPatch(normalized(json), { window: planned.window, allowed, answers, toApply: planned.issues, issues: startIssues });
+            if ("problem" in patch) return patch;
+            if (blockedBy(patch.choices)) return { patch, after: null };
+            const after = applyPatch(answers, patch);
+            const recheck = checkAll(after, toCheck, pieceStart);
+            if ("system" in recheck) return { problem: `with its changes, system ${recheck.system} doesn't pass the checks: ${recheck.problem}` };
+            return { patch, after };
           };
-          const patch = checkPatch(normalized(answer.json), { window: planned.window, allowed, answers, toApply: planned.issues, issues: startIssues });
-          if ("problem" in patch) return unusable(patch.problem);
+          const {
+            answer,
+            checked: { patch, after },
+          } = await ask(run, plannedRequest, `System ${planned.system}`, {
+            config,
+            place: { item: itemOf(planned.system), round: 1 },
+            check,
+            unusable: (problem) => `Couldn't use the answer for system ${planned.system}: ${problem}.${kept}`,
+          });
           // An answer of a person's that can't be applied: the stage stops, for the person to answer again (docs/stages/
           // music.md, `apply_review`, "A resolved issue"). The answer is usable, so a retry gets the same.
-          const blocked = patch.choices.find((c) => startIssues.get(c.issue)?.resolved);
-          if (blocked) {
+          if (!after) {
+            const blocked = blockedBy(patch.choices)!;
             const issue = startIssues.get(blocked.issue)!;
             // The human review that gave it, as its card names it (attribution.ts).
             const index = issue.choices.map((c) => c.by).lastIndexOf("human_review");
@@ -309,9 +322,6 @@ export async function runApplyReview(run: StageRun): Promise<void> {
             const who = attribution[issue.id]?.choices[index]?.label ?? "a person";
             throw new Error(`The answer ${who} gave to issue ${blocked.issue} can't be applied: ${blocked.reason} Edit ${who} to answer it again.`);
           }
-          const after = applyPatch(answers, patch);
-          const recheck = checkAll(after, toCheck, pieceStart);
-          if ("system" in recheck) return unusable(`with its changes, system ${recheck.system} doesn't pass the checks: ${recheck.problem}`);
           const changed = changedStretches(answers, after);
           const reverted = new Set(patch.choices.map((c) => c.issue));
           const appliedIds = planned.issues.filter((id) => !reverted.has(id));
