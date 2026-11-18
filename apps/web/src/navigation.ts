@@ -3,6 +3,7 @@ import { hashHistory } from "./hashHistory";
 import { leavesProject, runningProject } from "./leaveGuard";
 import { parseRoute } from "./route";
 import { hasUnsaved } from "./saving";
+import { useMediaQuery } from "./ui/hooks";
 
 // The app's navigation, its only owner of the history (hashHistory.ts): the hash shown, the question before leaving a
 // running project (docs/project-view.md, "Leaving a running project"), and opening and closing an artifact or a
@@ -138,16 +139,5 @@ const NO_BROWSER_BAR = "(display-mode: standalone), (display-mode: fullscreen), 
 // Whether the app runs without a browser bar, so it shows its own back and forward buttons. The condition is "no
 // browser bar", not the platform (§3). Changes when, e.g., an installed app's window is opened in the browser.
 export function useNoBrowserBar(): boolean {
-  const query = () => window.matchMedia?.(NO_BROWSER_BAR);
-  const [matches, setMatches] = useState(() => query()?.matches ?? false);
-
-  useEffect(() => {
-    const list = query();
-    if (!list) return;
-    const update = () => setMatches(list.matches);
-    list.addEventListener("change", update);
-    return () => list.removeEventListener("change", update);
-  }, []);
-
-  return matches;
+  return useMediaQuery(NO_BROWSER_BAR);
 }

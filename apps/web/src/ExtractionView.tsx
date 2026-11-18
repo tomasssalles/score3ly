@@ -15,6 +15,8 @@ import { overlaps, type Box } from "@score3ly/core";
 import { failure, fetchJsonContent, putJson, recordOutputs, reserveIssueNumbers, type Project } from "./api";
 import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
+import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
+import { useNear, useObjectUrl } from "./ui/hooks";
 import { BoxesIcon, ChangesIcon, InfoIcon, MusicIcon, SourceIcon } from "./icons";
 import type { PageLayout } from "./layout";
 import { ModeToggle, UnsavedNote } from "./pageEditor";
@@ -189,27 +191,6 @@ function useTranscription(artifact: Artifact, stageId: string | null): Loaded | 
   return loaded;
 }
 
-// A toggle remembered on this device (docs/database.md, device settings): the two here, and the MEI view's score.
-export function useRemembered<T extends string>(key: string, initial: T, values: readonly T[]): [T, (value: T) => void] {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      const stored = localStorage.getItem(key) as T | null;
-      return stored && values.includes(stored) ? stored : initial;
-    } catch {
-      return initial;
-    }
-  });
-  const set = (v: T) => {
-    setValue(v);
-    try {
-      localStorage.setItem(key, v);
-    } catch {
-      // Not remembered, then.
-    }
-  };
-  return [value, set];
-}
-
 type View = "rendered" | "raw";
 const VIEWS = [
   { value: "rendered" as const, label: "Rendering", title: "The music, rendered", icon: <MusicIcon /> },
@@ -221,8 +202,8 @@ export type TranscriptionEdit = { project: Project; stageId: string; onEdited?: 
 
 export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: TranscriptionEdit }) {
   const base = useTranscription(artifact, edit?.stageId ?? null);
-  const [view, setView] = useRemembered<View>("score3ly.transcription.view", "rendered", ["rendered", "raw"]);
-  const [boxes, setBoxes] = useRemembered<"shown" | "hidden">("score3ly.transcription.boxes", "shown", ["shown", "hidden"]);
+  const [view, setView] = useRemembered<View>(DEVICE_KEYS.transcriptionView, "rendered", ["rendered", "raw"]);
+  const [boxes, setBoxes] = useRemembered<"shown" | "hidden">(DEVICE_KEYS.transcriptionBoxes, "shown", ["shown", "hidden"]);
   // In a later stage's Transcription: only the issues it changed, or everything. Only the changes when the view opens
   // (not remembered); warnings are always shown.
   const [onlyChanges, setOnlyChanges] = useState(true);
@@ -500,41 +481,10 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
   );
 }
 
-// Starts work for an element once it scrolls near the view: a filmstrip of 50 systems would otherwise cut and render
-// every one at once.
-function useNear() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [near, setNear] = useState(false);
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setNear(true), { rootMargin: "100% 0px" });
-    observer.observe(ref.current!);
-    return () => observer.disconnect();
-  }, []);
-  return { ref, near };
-}
-
 // A crop, from the device's cache or cut again from its page (docs/overview.md §5.3), with what is drawn over it.
 function CropView({ recipe, label, children }: { recipe: CropRecipe; label: string; children?: ReactNode }) {
   const { ref, near } = useNear();
-  const [url, setUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    if (!near) return;
-    let cancelled = false;
-    let objectUrl: string | null = null;
-    cropImage(recipe).then(
-      (png) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(png);
-        setUrl(objectUrl);
-      },
-      (err) => !cancelled && setError(failure("This system can't be drawn", err)),
-    );
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [near, JSON.stringify(recipe)]);
+  const { url, error } = useObjectUrl(() => cropImage(recipe), [JSON.stringify(recipe)], (err) => failure("This system can't be drawn", err), near);
   return (
     <div ref={ref} className="page-image">
       {url ? <img src={url} alt={label} /> : <div className="page-placeholder crop-placeholder error-text">{error ?? "Drawing the system…"}</div>}

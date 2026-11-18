@@ -2,6 +2,7 @@ import { ImagesDiffer } from "./ImagesDiffer";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { failure, fetchJsonContent, pdfUrl, type Project } from "./api";
 import { CloseIcon } from "./icons";
+import { useNear, useObjectUrl } from "./ui/hooks";
 import { LAYOUT_COLOR_HEX } from "@score3ly/imaging";
 import type { PageLayout } from "./layout";
 import { pageImage, straightPage } from "./pageImages";
@@ -116,37 +117,14 @@ export function PageImageView({
   straight?: StraightRecipe; // show the page straightened so, instead of as rasterized
   children?: ReactNode; // drawn over the image
 }) {
-  const box = useRef<HTMLDivElement>(null);
-  const [near, setNear] = useState(false);
-  const [url, setUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setNear(true), {
-      rootMargin: "100% 0px",
-    });
-    observer.observe(box.current!);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!near) return;
-    let cancelled = false;
-    let objectUrl: string | null = null;
-    (straight ? straightPage(straight) : pageImage(recipe)).then(
-      (png) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(png);
-        setUrl(objectUrl);
-      },
-      (err) => !cancelled && setError(failure("This page can't be drawn", err)),
-    );
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
+  const { ref: box, near } = useNear();
+  const { url, error } = useObjectUrl(
+    () => (straight ? straightPage(straight) : pageImage(recipe)),
     // The recipe's content, not the object, which is new on every render.
-  }, [near, JSON.stringify(recipe), JSON.stringify(straight)]);
+    [JSON.stringify(recipe), JSON.stringify(straight)],
+    (err) => failure("This page can't be drawn", err),
+    near,
+  );
 
   return (
     <div ref={box} className="page-image">

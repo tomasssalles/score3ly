@@ -19,6 +19,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import type { Browser, BrowserContext, Locator, Page } from "playwright";
+import { DEVICE_KEYS } from "../apps/web/src/deviceStorage.ts";
 import { THEMES } from "../apps/web/src/themes.ts";
 import { markFolder, mayReplace, scriptArgs } from "./cli.ts";
 import { type ApiStage, launchBrowser, newProject as newProjectIn, pipelineOf as pipelineIn, ROOT, runToEnd as runToEndIn, type Servers, startServers, stopAll } from "./appServers.ts";
@@ -410,11 +411,11 @@ function shots(seed: Seed): Shot[] {
 async function contextFor(browser: Browser, theme: (typeof THEMES)[number], layout: Layout, installed = false): Promise<BrowserContext> {
   const context = await browser.newContext({ viewport: layout.viewport, colorScheme: theme.dark ? "dark" : "light", deviceScaleFactor: 1 });
   await context.addInitScript(
-    ({ theme, collapsed }) => {
-      localStorage.setItem("score3ly.theme", theme);
-      localStorage.setItem("pipelinePanelCollapsed", collapsed ? "1" : "0");
+    ({ theme, collapsed, keys }) => {
+      localStorage.setItem(keys.theme, theme);
+      localStorage.setItem(keys.pipelinePanelCollapsed, collapsed ? "1" : "0");
     },
-    { theme: theme.id, collapsed: layout.collapsed },
+    { theme: theme.id, collapsed: layout.collapsed, keys: DEVICE_KEYS },
   );
   // Chromium can't be told it is an installed app (the display mode isn't among the media features it emulates), so
   // the app's question is answered here.

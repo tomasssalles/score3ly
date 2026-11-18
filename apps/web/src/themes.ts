@@ -2,6 +2,8 @@
 // setting (§5.8): Auto (the default) follows the system's light or dark preference where there is a theme for it, or
 // a theme picked by name.
 
+import { DEVICE_KEYS, readDevice, writeDevice } from "./deviceStorage.ts";
+
 export type Theme = { id: string; label: string; dark: boolean };
 
 export const THEMES: Theme[] = [
@@ -11,16 +13,10 @@ export const THEMES: Theme[] = [
 
 export type ThemeChoice = "auto" | string;
 
-const KEY = "score3ly.theme";
-
+// Auto when none is kept, or no storage (e.g. some private windows).
 export function themeChoice(): ThemeChoice {
-  try {
-    const stored = localStorage.getItem(KEY);
-    if (stored && THEMES.some((t) => t.id === stored)) return stored;
-  } catch {
-    // No storage (e.g. some private windows): Auto.
-  }
-  return "auto";
+  const stored = readDevice(DEVICE_KEYS.theme);
+  return stored && THEMES.some((t) => t.id === stored) ? stored : "auto";
 }
 
 // Auto: the first theme that matches the system's preference, else the first theme.
@@ -67,12 +63,7 @@ function showBarColor() {
 }
 
 export function setThemeChoice(choice: ThemeChoice) {
-  try {
-    if (choice === "auto") localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, choice);
-  } catch {
-    // Not kept: it applies until the page is reloaded.
-  }
+  writeDevice(DEVICE_KEYS.theme, choice === "auto" ? null : choice); // if not kept, it applies until the page is reloaded
   applyTheme();
 }
 

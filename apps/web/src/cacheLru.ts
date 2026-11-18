@@ -1,6 +1,8 @@
 // The image cache's size limit (docs/images.md §8.5, §8.6): which files go when the cache is over its limit, the least
 // recently used first, and the limit itself, a setting of this device.
 
+import { DEVICE_KEYS, readDevice, writeDevice } from "./deviceStorage.ts";
+
 export type CacheEntry = { path: string; size: number; used: number }; // used: ms since the epoch, last read or write
 
 // The files to delete, oldest use first, so that what is left takes at most `target` bytes. `keep` (a file just
@@ -25,25 +27,13 @@ const MB = 1024 * 1024;
 // The limits the user can pick, in MB; the default is 1 GB.
 export const CACHE_LIMITS_MB = [250, 500, 1000, 2000, 5000];
 const DEFAULT_LIMIT_MB = 1000;
-const KEY = "score3ly.imageCacheMB";
-
 export function cacheLimitMb(): number {
-  try {
-    const stored = Number(localStorage.getItem(KEY));
-    if (stored > 0) return stored;
-  } catch {
-    // No storage: the default.
-  }
-  return DEFAULT_LIMIT_MB;
+  const stored = Number(readDevice(DEVICE_KEYS.imageCacheMb));
+  return stored > 0 ? stored : DEFAULT_LIMIT_MB;
 }
 
 export function setCacheLimitMb(mb: number) {
-  try {
-    if (mb === DEFAULT_LIMIT_MB) localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, String(mb));
-  } catch {
-    // Not kept: it applies until the page is reloaded.
-  }
+  writeDevice(DEVICE_KEYS.imageCacheMb, mb === DEFAULT_LIMIT_MB ? null : String(mb));
 }
 
 // The limit in bytes: the chosen one, but never more than 80% of what the browser lets this site store.

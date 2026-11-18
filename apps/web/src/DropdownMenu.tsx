@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useClickOutside } from "./ui/hooks";
 
 export type MenuItem = {
   label: string;
@@ -61,14 +62,9 @@ export function DropdownMenu({
   const items = () => [...(list.current?.querySelectorAll<HTMLElement>("[role=menuitem]:not([disabled])") ?? [])];
 
   useEffect(() => {
-    if (!open) return;
-    (items().find((item) => item.hasAttribute("aria-current")) ?? items()[0])?.focus();
-    const onPointerDown = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
+    if (open) (items().find((item) => item.hasAttribute("aria-current")) ?? items()[0])?.focus();
   }, [open]);
+  useClickOutside(root, open, () => setOpen(false));
 
   function close() {
     setOpen(false);

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { failure, fetchTextContent } from "./api";
 import { cachedEngravedPdf, engravedPages, engravedPdf } from "./engraving";
 import { PdfView } from "./PdfView";
+import { useObjectUrl } from "./ui/hooks";
 import { MeiWorkspace } from "./MeiWorkspace";
 import type { Artifact } from "./pipeline";
 
@@ -20,27 +21,17 @@ export function EngravingView({ artifact }: { artifact: Artifact }) {
 // The PDF itself, as downloaded, drawn by pdf.js like the original PDF: from the device's cache, or made again from its
 // recipe when it isn't there ("Regenerating", never "Engraving": for the user the engraving already happened).
 function EngravedPdf({ engraving }: { engraving: Engraving }) {
-  const [url, setUrl] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    let made: string | null = null;
-    (async () => {
-      let pdf = await cachedEngravedPdf(engraving);
-      if (!pdf) {
-        if (!cancelled) setRegenerating(true);
-        pdf = await engravedPdf(engraving);
-      }
-      if (cancelled) return;
-      made = URL.createObjectURL(pdf);
-      setUrl(made);
-    })().catch((err) => !cancelled && setError(failure("The PDF can't be made", err)));
-    return () => {
-      cancelled = true;
-      if (made) URL.revokeObjectURL(made);
-    };
-  }, [engraving.meiSha256, JSON.stringify(engraving.config)]);
+  const { url, error } = useObjectUrl(
+    async (wanted) => {
+      const cached = await cachedEngravedPdf(engraving);
+      if (cached) return cached;
+      if (wanted()) setRegenerating(true);
+      return engravedPdf(engraving);
+    },
+    [engraving.meiSha256, JSON.stringify(engraving.config)],
+    (err) => failure("The PDF can't be made", err),
+  );
   if (error) return <div className="text-view"><p className="error-text">{error}</p></div>;
   if (!url) return <div className="text-view"><p>{regenerating ? "Regenerating the PDF…" : "Loading the PDF…"}</p></div>;
   return <PdfView key={url} url={url} />;

@@ -52,12 +52,11 @@ import { download } from "./downloads";
 import { StageDetails } from "./StageDetails";
 import { eventsBetween, snapshotOf, toastText, type Segment, type Snapshot, type ToastEvent } from "./toasts";
 import { useWide } from "./useWide";
+import { DEVICE_KEYS, readDevice, writeDevice } from "./deviceStorage";
 import { errorText } from "@score3ly/core";
 
 // Finish while an edit couldn't be saved (docs/project-view.md, "Saving edits").
 const UNSAVED_FINISH = "The stage can't be finished yet: some of your edits couldn't be saved. Retry saving them in the editor, then finish.";
-
-const COLLAPSED_KEY = "pipelinePanelCollapsed";
 
 // What the user must know before stages that already ran are replaced (docs/overview.md §5.5).
 // The confirmation before a change that replaces stages that have run (docs/overview.md §5.5): the same text for every
@@ -102,7 +101,7 @@ export function ProjectView({
   onChanged: () => void; // the project itself changed (e.g. its run mode)
 }) {
   const wide = useWide();
-  const [collapsed, setCollapsed] = useState(() => readFlag(COLLAPSED_KEY));
+  const [collapsed, setCollapsed] = useState(() => readDevice(DEVICE_KEYS.pipelinePanelCollapsed) === "1");
   const [mode, setMode] = useState<RunMode>(project.runMode);
   // null while loading.
   const [stored, setStored] = useState<ApiPipeline | null>(null);
@@ -225,7 +224,7 @@ export function ProjectView({
 
   function collapse(value: boolean) {
     setCollapsed(value);
-    writeFlag(COLLAPSED_KEY, value);
+    writeDevice(DEVICE_KEYS.pipelinePanelCollapsed, value ? "1" : "0");
   }
 
   // Asks first if the change replaces stages that have already run (docs/overview.md §5.5).
@@ -696,23 +695,6 @@ function StripProgress({ pipeline, progress }: { pipeline: Pipeline; progress: P
       )}
     </>
   );
-}
-
-// A remembered per-browser preference. Storage may be unavailable (private mode), so failures are ignored.
-function readFlag(key: string): boolean {
-  try {
-    return localStorage.getItem(key) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function writeFlag(key: string, value: boolean) {
-  try {
-    localStorage.setItem(key, value ? "1" : "0");
-  } catch {
-    // Not remembered, then.
-  }
 }
 
 // The model configs an LLM stage's config form offers: those not deleted, and the stage's own if it was deleted, marked

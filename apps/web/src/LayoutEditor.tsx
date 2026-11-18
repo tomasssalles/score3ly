@@ -5,7 +5,7 @@
 // two opposite corners. Bar line: a tap adds one in the system under it (the selected one, where boxes overlap). Systems are
 // numbered top to bottom, continuing from page to page. Each change is saved at once; undo and redo per page.
 
-import { useRemembered } from "./ExtractionView";
+import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
 import { LAYOUT_COLOR_HEX } from "@score3ly/imaging";
 import type { LayoutSystem } from "@score3ly/core";
 import { useEffect, useRef, useState } from "react";
@@ -186,7 +186,7 @@ function PageEditor({
   change: (systems: LayoutSystem[]) => void; // sorted
   step: (move: typeof undo) => boolean;
 }) {
-  const [marks, setMarks] = useRemembered<"shown" | "hidden">("score3ly.fixLayout.marks", "shown", ["shown", "hidden"]);
+  const [marks, setMarks] = useRemembered<"shown" | "hidden">(DEVICE_KEYS.fixLayoutMarks, "shown", ["shown", "hidden"]);
   const hidden = marks === "hidden";
   const { image, error: imageError } = usePageImage(
     () => straightPage(straightRecipe(page.recipe, layout.angle)),

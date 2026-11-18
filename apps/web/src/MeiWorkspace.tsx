@@ -5,7 +5,7 @@
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { EditorView } from "@codemirror/view";
-import { useRemembered } from "./ExtractionView";
+import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
 import { Picker } from "./fieldList";
 import { ChevronDownIcon, ChevronUpIcon, MusicIcon, SearchIcon, TopIcon } from "./icons";
 import { elementsAt, findMeasure, indexMei, lineOfId, search, type MeiIndex } from "./meiView";
@@ -44,7 +44,7 @@ export function MeiWorkspace({
   const index = useMemo(() => indexMei(lines), [lines]);
   const [own, setOwn] = useState<Selection | null>(null);
   const selection = selected === undefined ? own : selected;
-  const [score, setScore] = useRemembered<"shown" | "hidden">("score3ly.mei.score", "shown", ["shown", "hidden"]);
+  const [score, setScore] = useRemembered<"shown" | "hidden">(DEVICE_KEYS.meiScore, "shown", ["shown", "hidden"]);
   const [problem, setProblem] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");

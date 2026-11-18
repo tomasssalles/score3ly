@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Project } from "./api";
 import { FittedText } from "./FittedText";
 import { when } from "./format";
+import { useClickOutside } from "./ui/hooks";
 
 // Shows the current project's name, if a project is open. Opening it turns the name into a filter field
 // over all projects, most recently opened first.
@@ -53,14 +54,7 @@ export function ProjectPicker({
   }, [activeIndex, open]);
 
   // A tap or click outside closes the picker.
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
+  useClickOutside(root, open, () => setOpen(false));
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
