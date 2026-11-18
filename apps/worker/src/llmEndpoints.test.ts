@@ -13,6 +13,7 @@ import { throttled, throttledProgress } from "./throttle.ts";
 import type { ModelOptions } from "@score3ly/core";
 import { MODEL_LIST } from "./llm/modelList.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
+import { REPLAY_MODEL } from "./llm/replay.ts";
 
 // The LLM endpoints against Wrangler's local R2 and D1, kept in memory, with the fake provider (llm/fake.ts).
 const workerDir = join(import.meta.dirname, "..");
@@ -450,7 +451,7 @@ test("the replay model answers with the project's recorded answer at the same pl
   assert.equal(recorded.status, "ok");
 
   // The stage's model config changed to the replay model, a changed request asked at the same place.
-  const replay = await modelConfig({ provider: "fake", model: "fake-replay", family: "fake", freeTier: true, name: "Replay" });
+  const replay = await modelConfig({ provider: "fake", model: REPLAY_MODEL, family: "fake", freeTier: true, name: "Replay" });
   await env.DB.prepare("UPDATE stages SET model_config_id = ?, config_json = ? WHERE id = ?").bind(replay.id, JSON.stringify({ modelConfigId: replay.id }), stage.stageId).run();
   const replayed = await json(await call(stage, request("A prompt that changed?"), { item: "p1", round: 1 }));
   assert.equal(replayed.status, "ok");

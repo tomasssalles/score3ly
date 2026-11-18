@@ -5,7 +5,7 @@
 // answers). "fake-slow" answers as the fake does, but only after FAKE_SLOW_MS, unless its call is stopped first: for
 // trying Stop on a call that is under way (docs/llm.md, "Stopped calls"), and reports a little more of its "thinking"
 // every second meanwhile (docs/llm.md, "A call's progress"). Every fake call reports its answer's length once, at the end.
-// Three steps get more than that, so the pipeline runs end to end: `layout` (six systems on every page, as many as on a
+// Four steps get more than that, so the pipeline runs end to end: `layout` (six systems on every page, as many as on a
 // real page of piano music, each with three bar lines, so that the later stages have systems to work on), `extract`,
 // whose answer must cover exactly the stretches asked for, with a voice on every staff (the fake reads the request's JSON and answers with whole-measure
 // rests in 4/4, a made-up doubt on every system and a format issue on the first, so their views can be seen), and
@@ -57,15 +57,17 @@ function slowly(ms: number, signal?: AbortSignal, onProgress?: (progress: LlmPro
       thinking += FAKE_THINKING_CHARS;
       onProgress?.({ textChars: 0, thinkingChars: thinking, outputTokens: null });
     }, 1000);
-    const timer = setTimeout(() => {
-      clearInterval(ticks);
-      resolve();
-    }, ms);
-    signal?.addEventListener("abort", () => {
+    const abort = () => {
       clearTimeout(timer);
       clearInterval(ticks);
       stopped();
-    });
+    };
+    const timer = setTimeout(() => {
+      clearInterval(ticks);
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", abort, { once: true });
   });
 }
 

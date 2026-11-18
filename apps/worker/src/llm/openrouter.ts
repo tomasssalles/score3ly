@@ -133,14 +133,20 @@ export function fromCompletion(completion: Completion, request: LlmRequest): Llm
 type Chunk = {
   model?: string;
   provider?: string;
-  choices?: { delta?: { content?: string | null; refusal?: string | null; reasoning?: string | null }; finish_reason?: string | null; native_finish_reason?: string | null }[];
+  choices?: ({
+    delta?: { content?: string | null; refusal?: string | null; reasoning?: string | null; reasoning_details?: unknown[] } & Record<string, unknown>;
+    finish_reason?: string | null;
+    native_finish_reason?: string | null;
+  } & Record<string, unknown>)[];
   usage?: Completion["usage"];
   error?: Completion["error"];
-};
+} & Record<string, unknown>;
 
 // The streamed answer (server-sent events: "data: {chunk}" lines, ": …" comments while OpenRouter waits, "data: [DONE]"
 // at the end) put together as one completion: the text of the deltas, the last finish reason, and the usage, which
-// comes in the last chunk. An error after the stream began comes as a chunk of its own. Chunks are added as they
+// comes in the last chunk. Everything else received is kept too, for the call's record (decided in the code review,
+// dec. 13: a true record, as Gemini's merged chunks): the reasoning's text and details, joined as the content is, and
+// the chunks' and the deltas' other fields, the last value of each. An error after the stream began comes as a chunk of its own. Chunks are added as they
 // arrive (`add`), with how much has arrived so far (`progress`: the answer's and the reasoning's characters, and the
 // output tokens if this chunk carried the usage, else null).
 export class CompletionStream {
@@ -151,6 +157,11 @@ export class CompletionStream {
   #finish: string | null = null;
   #nativeFinish: string | null = null;
   #usage: Completion["usage"];
+  #reasoning: string | null = null;
+  #reasoningDetails: unknown[] | null = null;
+  #rest: Record<string, unknown> = {}; // the chunks' other fields
+  #choiceRest: Record<string, unknown> = {}; // the choice's
+  #deltaRest: Record<string, unknown> = {}; // the deltas'
   #chunks = 0;
   readonly progress: LlmProgress = { textChars: 0, thinkingChars: 0, outputTokens: null };
 
@@ -158,9 +169,19 @@ export class CompletionStream {
   add(chunk: Chunk): void {
     this.#chunks++;
     if (chunk.error) throw streamError(chunk.error.code, `OpenRouter: ${errorMessage(chunk.error)}`);
-    this.#model = chunk.model ?? this.#model;
-    this.#provider = chunk.provider ?? this.#provider;
-    const choice = chunk.choices?.[0];
+    const { model, provider, choices, usage, error: _, ...rest } = chunk;
+    Object.assign(this.#rest, rest);
+    this.#model = model ?? this.#model;
+    this.#provider = provider ?? this.#provider;
+    const choice = choices?.[0];
+    if (choice) {
+      const { delta, finish_reason: _f, native_finish_reason: _n, ...choiceRest } = choice;
+      Object.assign(this.#choiceRest, choiceRest);
+      const { content: _c, refusal: _r, reasoning, reasoning_details, ...deltaRest } = delta ?? {};
+      Object.assign(this.#deltaRest, deltaRest);
+      if (typeof reasoning === "string") this.#reasoning = (this.#reasoning ?? "") + reasoning;
+      if (Array.isArray(reasoning_details)) this.#reasoningDetails = [...(this.#reasoningDetails ?? []), ...reasoning_details];
+    }
     const content = choice?.delta?.content ?? "";
     this.#content += content;
     this.progress.textChars += content.length;
@@ -168,18 +189,26 @@ export class CompletionStream {
     this.#refusal = choice?.delta?.refusal ?? this.#refusal;
     this.#finish = choice?.finish_reason ?? this.#finish;
     this.#nativeFinish = choice?.native_finish_reason ?? this.#nativeFinish;
-    if (chunk.usage) this.#usage = chunk.usage;
-    this.progress.outputTokens = typeof chunk.usage?.completion_tokens === "number" ? chunk.usage.completion_tokens : null;
+    if (usage) this.#usage = usage;
+    this.progress.outputTokens = typeof usage?.completion_tokens === "number" ? usage.completion_tokens : null;
   }
 
   completion(): Completion {
     if (this.#chunks === 0) throw new LlmError("unreadable_response", "OpenRouter's answer has no chunks.");
     // A stream that ended before the answer did.
     if (this.#finish === null && this.#nativeFinish === null) throw endedEarly("OpenRouter");
+    const message = {
+      ...this.#deltaRest,
+      content: this.#content,
+      refusal: this.#refusal,
+      ...(this.#reasoning !== null ? { reasoning: this.#reasoning } : {}),
+      ...(this.#reasoningDetails !== null ? { reasoning_details: this.#reasoningDetails } : {}),
+    };
     return {
+      ...this.#rest,
       model: this.#model,
       provider: this.#provider,
-      choices: [{ message: { content: this.#content, refusal: this.#refusal }, finish_reason: this.#finish, native_finish_reason: this.#nativeFinish }],
+      choices: [{ ...this.#choiceRest, message, finish_reason: this.#finish, native_finish_reason: this.#nativeFinish }],
       usage: this.#usage,
     };
   }

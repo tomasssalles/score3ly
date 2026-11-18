@@ -197,3 +197,42 @@ test("a price lookup that hangs is given up after its timeout: unreachable, not 
   clearTimeout(keepAlive);
   assert.equal(asked, 2);
 });
+
+// Decided (the code review, dec. 13): the call's record keeps everything received, as Gemini's merged chunks do.
+test("the raw answer keeps everything streamed: the reasoning, its details, the chunks' other fields", async () => {
+  const base = { id: "gen-7", object: "chat.completion.chunk", created: 1763000000, model: MODEL, provider: "Anthropic", system_fingerprint: "fp_1" };
+  const events = [
+    { ...base, choices: [{ index: 0, delta: { role: "assistant", content: "", reasoning: "Count ", reasoning_details: [{ type: "reasoning.text", text: "Count ", index: 0 }] }, finish_reason: null }] },
+    { ...base, choices: [{ index: 0, delta: { content: "", reasoning: "the staves.", reasoning_details: [{ type: "reasoning.text", text: "the staves.", index: 0 }] }, finish_reason: null }] },
+    { ...base, choices: [{ index: 0, delta: { content: "Six systems." }, finish_reason: "stop", native_finish_reason: "end_turn", logprobs: null }] },
+    { ...base, choices: [], usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.001 } },
+    "[DONE]",
+  ];
+  const fake = (async () => new Response(events.map((e) => sseData(e)).join(""), { headers: { "content-type": "text/event-stream" } })) as unknown as typeof fetch;
+  const response = await createAdapter({ provider: "openrouter", family: "claude", region: "", project: null, secrets: { apiKey: "k" } }, { fetch: fake })!.send(request);
+  assert.equal(response.text, "Six systems.");
+  assert.deepEqual(response.raw, {
+    id: "gen-7",
+    object: "chat.completion.chunk",
+    created: 1763000000,
+    model: MODEL,
+    provider: "Anthropic",
+    system_fingerprint: "fp_1",
+    choices: [
+      {
+        index: 0,
+        logprobs: null,
+        message: {
+          role: "assistant",
+          content: "Six systems.",
+          refusal: null,
+          reasoning: "Count the staves.",
+          reasoning_details: [{ type: "reasoning.text", text: "Count ", index: 0 }, { type: "reasoning.text", text: "the staves.", index: 0 }],
+        },
+        finish_reason: "stop",
+        native_finish_reason: "end_turn",
+      },
+    ],
+    usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.001 },
+  });
+});
