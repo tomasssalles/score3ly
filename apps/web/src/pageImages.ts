@@ -194,7 +194,7 @@ async function fingerprintOf(key: string, pdf: string, png: Blob): Promise<Finge
 
 // Stores the fingerprints of images a stored result was computed from (one already stored for a recipe stays).
 // Best effort: a fingerprint that can't be stored only means one check less later.
-export async function keepFingerprints(images: { recipe: unknown; png: Blob }[]): Promise<void> {
+export async function keepFingerprints(images: { recipe: unknown; png: Blob }[]): Promise<boolean> {
   try {
     const fingerprints = await Promise.all(
       images.map(async ({ recipe, png }) => {
@@ -204,9 +204,28 @@ export async function keepFingerprints(images: { recipe: unknown; png: Blob }[])
       }),
     );
     for (let i = 0; i < fingerprints.length; i += 100) await storeFingerprints(fingerprints.slice(i, i + 100));
+    return true;
+  } catch (err) {
+    console.warn("Storing fingerprints failed:", err);
+    return false;
+  }
+}
+
+// The recipes whose fingerprint this session stored: an editor's saves keep their page's once, not at every drag.
+const fingerprinted = new Set<string>();
+
+// An editor's page (§8.3): its fingerprint kept once per session, after the save and apart from it: making the image or
+// storing its fingerprint failing doesn't make the save fail.
+export async function keepFingerprintOnce(recipe: unknown, png: () => Promise<Blob>): Promise<void> {
+  const key = await keyOf(recipe);
+  if (fingerprinted.has(key)) return;
+  fingerprinted.add(key);
+  try {
+    if (await keepFingerprints([{ recipe, png: await png() }])) return;
   } catch (err) {
     console.warn("Storing fingerprints failed:", err);
   }
+  fingerprinted.delete(key);
 }
 
 export async function straightPage(recipe: StraightRecipe): Promise<Blob> {

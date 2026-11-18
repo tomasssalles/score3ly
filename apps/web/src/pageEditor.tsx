@@ -1,5 +1,5 @@
 // What the editors of manual stages share (docs/stages/layout.md): a page that is zoomed and
-// panned by hand, the gestures on it, the parts of the toolbar, and saving each change.
+// panned by hand, the gestures on it, the parts of the toolbar, and the note of an edit not saved (saving.ts does the saving).
 //
 // Gestures: two fingers always pan and zoom; so do Ctrl + wheel and the buttons. One finger (or the mouse) either
 // taps, drags something the editor lets it grab (a handle), or pans. Never press and drag to create anything: on a
@@ -16,6 +16,7 @@ import type { Box } from "@score3ly/notation";
 export type Point = { x: number; y: number };
 import { clampView, PAD, wholePageScale, type View } from "./viewBounds";
 import { failure } from "./api";
+import type { SaverState } from "./saving";
 
 // A pointer that moves less than this between down and up tapped; more, it dragged.
 const TAP_SLOP = { mouse: 4, touch: 10 };
@@ -312,23 +313,19 @@ export function usePageImage(load: () => Promise<Blob>, key: string) {
   return { image, error };
 }
 
-// Saving a page's state as soon as it changes, one save after the other, so the last change is the one stored.
-// `cache` keeps what was saved on this device until the pipeline is fetched again (the editor may be closed and
-// opened again before that).
-export function useSaver<T>(cache: Map<string, T>, key: string, store: (value: T) => Promise<void>, onSaved?: () => void) {
-  const chain = useRef(Promise.resolve());
-  const [error, setError] = useState<string | null>(null);
-  function save(value: T) {
-    cache.set(key, value);
-    chain.current = chain.current
-      .then(async () => {
-        await store(value);
-        setError(null);
-        onSaved?.();
-      })
-      .catch((err) => setError(failure("Saving failed", err)));
-  }
-  return { save, error };
+// An edit that couldn't be saved (saving.ts): it stays, marked not saved, with why and a Retry; the next edit tries
+// it again too.
+// `className` places it, with `error-text` (docs/style.md).
+export function UnsavedNote({ state, onRetry, className }: { state: SaverState; onRetry: () => void; className: string }) {
+  if (!state.unsaved) return null;
+  return (
+    <p className={`${className} unsaved-note`} role="alert">
+      {state.error ? `Not saved: ${state.error} ` : "Not saved. "}
+      <button type="button" className="link-button" disabled={state.saving} onClick={onRetry}>
+        Retry
+      </button>
+    </p>
+  );
 }
 
 // The viewport's element and the page in it, with the editor's drawing over the image. `--px` is one screen pixel
@@ -339,6 +336,7 @@ export function PageCanvas({
   className,
   label,
   error,
+  unsaved,
   notice,
   children,
 }: {
@@ -347,6 +345,7 @@ export function PageCanvas({
   className: string;
   label: string;
   error: string | null;
+  unsaved?: ReactNode; // an edit not saved (UnsavedNote), over the page like an error
   notice?: ReactNode; // over the page, e.g. that the image differs (ImagesDiffer.tsx)
   children: ReactNode; // the drawing: SVG elements in image px; shown once there is an image
 }) {
@@ -369,6 +368,7 @@ export function PageCanvas({
         <div className="page-placeholder">{error ?? "Drawing the page…"}</div>
       )}
       {error && image && <p className="editor-error error-text">{error}</p>}
+      {!error && image && unsaved}
       {image && notice}
     </div>
   );

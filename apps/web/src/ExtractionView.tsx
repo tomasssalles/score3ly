@@ -16,7 +16,8 @@ import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
 import { BoxesIcon, ChangesIcon, InfoIcon, MusicIcon, SourceIcon } from "./icons";
 import type { PageLayout } from "./layout";
-import { ModeToggle } from "./pageEditor";
+import { ModeToggle, UnsavedNote } from "./pageEditor";
+import { saverOf, useSaver } from "./saving";
 import { cropImage, type CropRecipe } from "./pageImages";
 import type { Artifact } from "./pipeline";
 import { attributionOf, extend, type Attribution, type IssueWho } from "./attribution";
@@ -71,9 +72,6 @@ type HumanBase = {
   placed: PlacedSystem[]; // the systems as Finish checks the clarifications' boxes against them
 };
 
-// What a human review in progress saved on this device that the pipeline the app has doesn't show yet, by stage.
-const savedReviews = new Map<string, StoredHumanReview>();
-
 // A human review's Transcription: the issues with the user's answers, each answered issue resolved, the user's own
 // issues below the systems their boxes fall on (with the checks'); the issues answered or raised are its changes.
 function withHumanReview(h: HumanBase, stored: StoredHumanReview, who: Who): Pick<Loaded, "systems" | "notes" | "attribution" | "changed"> {
@@ -123,7 +121,7 @@ function useTranscription(artifact: Artifact, stageId: string | null): Loaded | 
       }
       // A human review's: what it stored (the latest saved on this device first), its issues worked out below.
       const stored: StoredHumanReview | null = data.human
-        ? ((stageId ? savedReviews.get(stageId) : undefined) ??
+        ? ((stageId ? saverOf(stageId).value<StoredHumanReview>("") : undefined) ??
           (data.human.sha256 ? ((await fetchJsonContent(data.human.sha256)) as StoredHumanReview) : { entries: [] }))
         : null;
       // An Apply review's Transcription: the issues it applied or reverted are its changes.
@@ -235,7 +233,8 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
   // a render), saved one save after the other.
   const [stored, setStored] = useState<StoredHumanReview | null>(null);
   const latest = useRef<StoredHumanReview | null>(null);
-  const chain = useRef(Promise.resolve());
+  // One saver for the stage (saving.ts): what it saved is shown when the view opens again.
+  const saver = useSaver(edit?.stageId ?? "", edit?.onEdited);
   const [saveError, setSaveError] = useState<string | null>(null);
   // The clarification being edited (its boxes drawn on the crops), and the system each new one was added below, until
   // it has a box.
@@ -310,16 +309,11 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
     if (next === current) return;
     latest.current = next;
     setStored(next);
-    savedReviews.set(editing.stageId, next);
-    const { project, stageId, onEdited } = editing;
-    chain.current = chain.current
-      .then(async () => {
-        const sha256 = await putJson(next);
-        await recordOutputs(project, stageId, [{ item: "", type: "human_review", contentSha256: sha256 }]);
-        setSaveError(null);
-        onEdited?.();
-      })
-      .catch((err) => setSaveError(failure("Saving failed", err)));
+    const { project, stageId } = editing;
+    saver.save("", next, async () => {
+      const sha256 = await putJson(next);
+      await recordOutputs(project, stageId, [{ item: "", type: "human_review", contentSha256: sha256 }]);
+    });
   }
   const ownById = (id: number) => (editing ? ownIssues(latest.current ?? editing.stored).find((i) => i.id === id) : undefined);
   const textOf = (issue: StoredIssue) => issue.answers[0]?.text ?? "";
@@ -377,6 +371,7 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
         )}
       </div>
       {saveError && <p className="panel-error error-text transcription-error">{saveError}</p>}
+      {editing && <UnsavedNote className="panel-error error-text transcription-error" state={saver.state} onRetry={saver.retry} />}
       {reverted.length > 0 && (
         <div className="reverted-block error-text" role="note">
           <p className="reverted-head">

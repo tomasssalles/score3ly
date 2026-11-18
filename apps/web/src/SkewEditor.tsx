@@ -16,15 +16,16 @@ import {
   PageNav,
   undoKey,
   UndoRedo,
+  UnsavedNote,
   usePageImage,
-  useSaver,
   useViewport,
   ZoomTools,
   type PageNavigation,
   type Point,
 } from "./pageEditor";
 import { ImagesDiffer } from "./ImagesDiffer";
-import { keepFingerprints, pageImage } from "./pageImages";
+import { keepFingerprintOnce, pageImage } from "./pageImages";
+import { useSaver } from "./saving";
 import type { PageRecipe } from "./rasterize";
 import { angleLabel } from "./skewAnalysis";
 
@@ -40,9 +41,6 @@ const MODES = [
 // What a line is aimed at, in screen px: a tap this close to a line selects it, this close to a handle grabs it.
 const LINE_REACH = 14;
 const HANDLE_REACH = 26;
-
-// Lines saved on this device and not yet in the pipeline the app has, by stage and item.
-const saved = new Map<string, SkewLine[]>();
 
 // Each page's changes while the editor is open, by item: a page keeps its own when the user flips to another.
 type Histories = Map<string, History<SkewLine[]>>;
@@ -107,14 +105,17 @@ function PageEditor({
   const [anchor, setAnchor] = useState<Point | null>(null); // drawing: the first end, in image px
   const [hover, setHover] = useState<Point | null>(null); // drawing with a mouse: where the pointer is
   const linesRef = useRef(lines); // the latest, for a drag
-  const { save, error: saveError } = useSaver(saved, `${stageId}/${page.item}`, async (next: SkewLine[]) => {
-    const sha256 = await putJson({ lines: next } satisfies PageLines);
-    await recordOutputs(project, stageId, [
-      { item: page.item, type: "lines", contentSha256: sha256, parentOutputId: page.parentId, inputIds: [page.parentId] },
-    ]);
-    // The lines are drawn on this image: its fingerprint is kept (§8.3).
-    await keepFingerprints([{ recipe: page.recipe, png: (await pageImage(page.recipe)).png }]);
-  }, onEdited);
+  // One saver for the stage (saving.ts): the pages' saves one after the other, kept when the page is flipped.
+  const saver = useSaver(stageId, onEdited);
+  const save = (next: SkewLine[]) =>
+    saver.save(page.item, next, async () => {
+      const sha256 = await putJson({ lines: next } satisfies PageLines);
+      await recordOutputs(project, stageId, [
+        { item: page.item, type: "lines", contentSha256: sha256, parentOutputId: page.parentId, inputIds: [page.parentId] },
+      ]);
+      // The lines are drawn on this image: its fingerprint is kept (§8.3), once per session.
+      void keepFingerprintOnce(page.recipe, async () => (await pageImage(page.recipe)).png);
+    });
 
   const setLines = (next: SkewLine[]) => {
     linesRef.current = next;
@@ -123,7 +124,7 @@ function PageEditor({
 
   useEffect(() => {
     let cancelled = false;
-    const local = saved.get(`${stageId}/${page.item}`);
+    const local = saver.value<SkewLine[]>(page.item);
     (local ? Promise.resolve(local) : fetchJsonContent(page.linesSha256).then((json) => (json as PageLines).lines)).then(
       (found) => {
         if (cancelled) return;
@@ -298,7 +299,8 @@ function PageEditor({
         image={image}
         className={mode}
         label={`Page ${page.page}: lines that should be horizontal`}
-        error={imageError ?? loadError ?? saveError}
+        error={imageError ?? loadError}
+        unsaved={<UnsavedNote className="editor-error error-text" state={saver.state} onRetry={saver.retry} />}
         notice={<ImagesDiffer page={page.recipe} />}
       >
         {image && lines && (

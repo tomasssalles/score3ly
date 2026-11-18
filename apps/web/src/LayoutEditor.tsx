@@ -9,7 +9,7 @@ import { useRemembered } from "./ExtractionView";
 import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
 import type { LayoutSystem } from "@score3ly/prompts";
 import { useEffect, useRef, useState } from "react";
-import { failure, fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
+import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
 import {
   addBarLine,
   boxThrough,
@@ -35,6 +35,7 @@ import {
   PageNav,
   undoKey,
   UndoRedo,
+  UnsavedNote,
   usePageImage,
   useViewport,
   ZoomTools,
@@ -42,7 +43,8 @@ import {
   type Point,
 } from "./pageEditor";
 import { ImagesDiffer } from "./ImagesDiffer";
-import { keepFingerprints, straightPage } from "./pageImages";
+import { keepFingerprintOnce, straightPage } from "./pageImages";
+import { useSaver } from "./saving";
 import type { PageRecipe } from "./rasterize";
 
 export type LayoutEditorPage = { page: number; recipe: PageRecipe; layoutSha256: string; item: string; parentId: string };
@@ -59,9 +61,6 @@ const MODES = [
 const LINE_REACH = 14;
 // A label's size in screen px, per digit and fixed.
 const LABEL = { height: 18, digit: 8, padding: 8 };
-
-// Layouts saved on this device and not yet in the pipeline the app has, by stage and item.
-const saved = new Map<string, PageLayout>();
 
 export function LayoutEditor({
   project,
@@ -81,13 +80,14 @@ export function LayoutEditor({
   const [error, setError] = useState<string | null>(null);
   // Each page's changes while the editor is open, by item.
   const histories = useRef(new Map<string, History<LayoutSystem[]>>());
-  const chain = useRef(Promise.resolve());
+  // One saver for the stage (saving.ts): what it saved is shown when the editor opens again.
+  const saver = useSaver(stageId, onEdited);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all(
       pages.map(async (p) => {
-        const layout = saved.get(`${stageId}/${p.item}`) ?? ((await fetchJsonContent(p.layoutSha256)) as PageLayout);
+        const layout = saver.value<PageLayout>(p.item) ?? ((await fetchJsonContent(p.layoutSha256)) as PageLayout);
         return [p.item, { ...layout, systems: sortSystems(layout.systems) }] as const;
       }),
     ).then(
@@ -110,20 +110,15 @@ export function LayoutEditor({
     const page = pages.find((p) => p.item === item)!;
     const layout = fixedLayout({ ...layouts!.get(item)!, systems });
     setLayouts((current) => new Map(current).set(item, layout));
-    saved.set(`${stageId}/${item}`, layout);
-    chain.current = chain.current
-      .then(async () => {
-        const sha256 = await putJson(layout);
-        await recordOutputs(project, stageId, [
-          { item, type: "layout", contentSha256: sha256, parentOutputId: page.parentId, inputIds: [page.parentId] },
-        ]);
-        // The boxes are drawn on this image: its fingerprint is kept (§8.3).
-        const straight = { page: page.recipe, angle: layout.angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
-        await keepFingerprints([{ recipe: straight, png: await straightPage(straight) }]);
-        setError(null);
-        onEdited?.();
-      })
-      .catch((err) => setError(failure("Saving failed", err)));
+    saver.save(item, layout, async () => {
+      const sha256 = await putJson(layout);
+      await recordOutputs(project, stageId, [
+        { item, type: "layout", contentSha256: sha256, parentOutputId: page.parentId, inputIds: [page.parentId] },
+      ]);
+      // The boxes are drawn on this image: its fingerprint is kept (§8.3), once per session, apart from the save.
+      const straight = { page: page.recipe, angle: layout.angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
+      void keepFingerprintOnce(straight, () => straightPage(straight));
+    });
   }
 
   const page = pages[Math.min(index, pages.length - 1)];
@@ -146,6 +141,7 @@ export function LayoutEditor({
       setMode={setMode}
       nav={{ index, count: pages.length, go }}
       error={error}
+      unsaved={<UnsavedNote className="editor-error error-text" state={saver.state} onRetry={saver.retry} />}
       change={(systems) => {
         histories.current.set(page.item, pushState(history, systems));
         show(page.item, systems);
@@ -174,6 +170,7 @@ function PageEditor({
   setMode,
   nav,
   error,
+  unsaved,
   change,
   step,
 }: {
@@ -185,6 +182,7 @@ function PageEditor({
   setMode: (mode: Mode) => void;
   nav: PageNavigation;
   error: string | null;
+  unsaved: React.ReactNode; // an edit not saved, over the page
   change: (systems: LayoutSystem[]) => void; // sorted
   step: (move: typeof undo) => boolean;
 }) {
@@ -419,6 +417,7 @@ function PageEditor({
         className={mode}
         label={`Page ${page.page}: system boxes and bar lines`}
         error={imageError ?? error}
+        unsaved={unsaved}
         notice={<ImagesDiffer page={page.recipe} />}
       >
         {/* Hidden: an empty drawing, so that the page itself still shows (PageCanvas waits for a drawing). */}

@@ -2153,6 +2153,16 @@ dialog.app-dialog.config-form {
   font-size: 13px;
 }
 
+/* An edit not saved (saving.ts): its Retry in the note's own colour, underlined, on the red over the page. */
+.unsaved-note .link-button {
+  font-weight: 600;
+}
+
+.editor-error.unsaved-note .link-button {
+  color: inherit;
+  text-decoration: underline;
+}
+
 
 /* The modes (tools): one button each, side by side; the chosen one's border is on top of its neighbours'. */
 .editor-modes {
