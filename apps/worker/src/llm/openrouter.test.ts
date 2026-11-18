@@ -183,3 +183,17 @@ test("progress as the chunks arrive: the answer's characters, and the output tok
   await provider([], completion()).send(request, undefined, (p) => seen.push(p));
   assert.deepEqual(seen.map((p) => [p.textChars, p.outputTokens]), [[7, null], [13, null], [13, null], [13, 25]]);
 });
+
+test("a price lookup that hangs is given up after its timeout: unreachable, not kept", async () => {
+  let asked = 0;
+  const hanging = ((_: unknown, init?: RequestInit) => {
+    asked++;
+    return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)));
+  }) as unknown as typeof fetch;
+  // Node doesn't wait for the timeout's own timer (unref'd); a request in hand does.
+  const keepAlive = setTimeout(() => {}, 1000);
+  assert.equal(await fetchPriceRange("google/gemma-6", "", hanging, 1, 50), null);
+  assert.equal(await fetchPriceRange("google/gemma-6", "", hanging, 2, 50), null);
+  clearTimeout(keepAlive);
+  assert.equal(asked, 2);
+});

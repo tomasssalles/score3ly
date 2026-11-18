@@ -468,9 +468,10 @@ export async function renameModelConfig(id: string, name: string): Promise<Model
   return (await checked(response)).json();
 }
 
-// Sends a config's test request; refusals before anything is sent (a missing secret, the spending cap) throw.
-export async function testModelConfig(id: string): Promise<TestResult> {
-  return (await checked(await fetch(`/api/model-configs/${id}/test`, { method: "POST" }))).json();
+// Sends a config's test request; refusals before anything is sent (a missing secret, the spending cap) throw. `signal`
+// stops it, and with it the provider's call (docs/llm.md, "Stopped calls").
+export async function testModelConfig(id: string, signal?: AbortSignal): Promise<TestResult> {
+  return (await checked(await fetch(`/api/model-configs/${id}/test`, { method: "POST", signal }))).json();
 }
 
 // Deletes a model config; the default is refused.

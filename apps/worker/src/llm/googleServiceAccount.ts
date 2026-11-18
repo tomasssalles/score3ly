@@ -4,7 +4,7 @@
 // exchange it for an access token at the token endpoint, and reuse that token until shortly before it expires.
 
 import { fromBase64, toBase64Url } from "@score3ly/core";
-import { type Fetch, LlmError } from "./types.ts";
+import { type Fetch, kindForStatus, LlmError } from "./types.ts";
 
 export type ServiceAccount = {
   clientEmail: string;
@@ -36,16 +36,20 @@ export function parseServiceAccount(json: string): ServiceAccount {
   };
 }
 
-// What the Vertex SDK asks of an auth client: request headers with a valid token, and the project.
+// Request headers with a valid token. `signal`: the caller stops waiting (the fetch of a token is shared by the requests
+// that need one at the same time, so it goes on for the others).
 export type TokenSource = {
-  projectId: string;
-  getRequestHeaders(): Promise<Headers>;
+  getRequestHeaders(signal?: AbortSignal): Promise<Headers>;
 };
+
+// How long the token endpoint may take before the token's fetch is given up.
+const TOKEN_TIMEOUT_MS = 30_000;
 
 export function tokenSource(
   account: ServiceAccount,
   fetchFn: Fetch = fetch,
   now: () => number = Date.now,
+  timeoutMs = TOKEN_TIMEOUT_MS,
 ): TokenSource {
   let cached: { token: string; expiresAt: number } | null = null;
   let pending: Promise<string> | null = null;
@@ -53,11 +57,24 @@ export function tokenSource(
   async function fetchToken(): Promise<string> {
     const issuedAt = Math.floor(now() / 1000);
     const assertion = await signJwt(account, issuedAt);
-    const response = await fetchFn(account.tokenUri, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }).toString(),
-    });
+    let response: Response;
+    try {
+      response = await fetchFn(account.tokenUri, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }).toString(),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "TimeoutError") {
+        throw new LlmError("timeout", `Google's token endpoint didn't answer within ${timeoutMs / 1000} s.`);
+      }
+      throw err;
+    }
+    // Refused (a 4xx): the account. The endpoint failing or busy (a 5xx, a 429): not the account's fault.
+    if (response.status >= 500 || response.status === 429) {
+      throw new LlmError(kindForStatus(response.status), `Google's token endpoint failed (HTTP ${response.status}).`, response.status);
+    }
     if (!response.ok) {
       throw new LlmError("auth", `Google refused the service account (HTTP ${response.status}).`, response.status);
     }
@@ -69,17 +86,26 @@ export function tokenSource(
   }
 
   return {
-    projectId: account.projectId,
-    async getRequestHeaders() {
+    async getRequestHeaders(signal) {
       let token = cached && cached.expiresAt > now() ? cached.token : null;
       if (!token) {
         // Requests that need a token at the same time share one fetch.
         pending ??= fetchToken().finally(() => (pending = null));
-        token = await pending;
+        token = await (signal ? untilAborted(pending, signal) : pending);
       }
       return new Headers({ authorization: `Bearer ${token}` });
     },
   };
+}
+
+// A promise, or the abort of `signal` first (an AbortError, as fetch's).
+function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new DOMException("This operation was aborted", "AbortError"));
+  return new Promise<T>((resolve, reject) => {
+    const stop = () => reject(new DOMException("This operation was aborted", "AbortError"));
+    signal.addEventListener("abort", stop, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", stop));
+  });
 }
 
 // The token source of a service account, kept between requests (decided 2026-11-09): the Worker makes an adapter for

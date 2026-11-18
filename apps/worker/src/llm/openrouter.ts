@@ -250,6 +250,9 @@ export function priceRange(endpoints: { tag?: string; pricing?: EndpointPricing 
   return { input: span("input"), output: span("output"), cacheRead: span("cacheRead"), cacheWrite: span("cacheWrite") };
 }
 
+// How long a price lookup may take: it runs before a priced call once the cap is reached, and in the config form.
+const LOOKUP_TIMEOUT_MS = 10_000;
+
 // Whether OpenRouter lists a model as free where it is sent (all its prices 0, as its ":free" models are): such calls
 // cost nothing, so the spending cap lets them through. Not free where the prices can't be read.
 export async function freeOnOpenRouter(model: string, region: string, fetchFn?: Fetch, now = Date.now()): Promise<boolean> {
@@ -260,17 +263,16 @@ export async function freeOnOpenRouter(model: string, region: string, fetchFn?: 
 // Kept a day per host and model, in the Worker's memory.
 const ranges = new Map<string, { at: number; range: PriceRange | null }>();
 
-export async function fetchPriceRange(model: string, region: string, fetchFn: Fetch = (input, init) => fetch(input, init), now = Date.now()): Promise<PriceRange | null> {
-  fetchFn ??= (input, init) => fetch(input, init);
+export async function fetchPriceRange(model: string, region: string, fetchFn: Fetch = plainFetch(), now = Date.now(), timeoutMs = LOOKUP_TIMEOUT_MS): Promise<PriceRange | null> {
   const key = `${region} ${model}`;
   const kept = ranges.get(key);
   if (kept && now - kept.at < DAY_MS) return kept.range;
   let range: PriceRange | null = null;
   try {
-    const res = await fetchFn(`${openRouterBase(region)}/models/${model}/endpoints`);
+    const res = await fetchFn(`${openRouterBase(region)}/models/${model}/endpoints`, { signal: AbortSignal.timeout(timeoutMs) });
     if (res.ok) range = priceRange(((await res.json()) as { data?: { endpoints?: [] } }).data?.endpoints ?? []);
   } catch {
-    return null; // unreachable: not kept, so the next look tries again
+    return null; // unreachable, or no answer in time: not kept, so the next look tries again
   }
   ranges.set(key, { at: now, range });
   return range;

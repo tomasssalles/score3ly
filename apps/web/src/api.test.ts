@@ -1,7 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { sha256Hex, sseData } from "@score3ly/core";
-import { ApiError, callLlm, dropStage, fetchPipeline, putJson, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type Project, type ProjectExport } from "./api.ts";
+import { ApiError, callLlm, dropStage, fetchPipeline, putJson, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, testModelConfig, type Project, type ProjectExport } from "./api.ts";
 
 // The tests replace the browser's fetch with a fake that records each request and answers with a fixed response.
 const realFetch = globalThis.fetch;
@@ -271,4 +271,15 @@ test("putJson stores a value's canonical JSON, under the hash of those bytes", a
   assert.equal(requests[0].url, `/api/content/${sha256}`);
   assert.equal(new Headers(requests[0].init.headers).get("Content-Type"), "application/json");
   assert.deepEqual(new Uint8Array(requests[0].init.body as Uint8Array), bytes);
+});
+
+test("a config's Test is sent with the signal that stops it (the dialog closed)", async () => {
+  let sent: AbortSignal | null | undefined;
+  globalThis.fetch = async (_input, init) => {
+    sent = init?.signal;
+    return Response.json({ callId: "c", status: "ok" });
+  };
+  const controller = new AbortController();
+  await testModelConfig("m1", controller.signal);
+  assert.equal(sent, controller.signal);
 });

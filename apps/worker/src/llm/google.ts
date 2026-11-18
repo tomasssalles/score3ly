@@ -60,7 +60,7 @@ export class GeminiProvider implements LlmProvider {
 }
 
 // Where a Gemini request goes, and how it is authenticated. `label` starts every error's message.
-export type GeminiEndpoint = { label: string; url: (model: string) => string; headers: () => Promise<Headers> };
+export type GeminiEndpoint = { label: string; url: (model: string) => string; headers: (signal?: AbortSignal) => Promise<Headers> };
 
 // The Gemini API, with an AI Studio key.
 export function geminiApi(apiKey: string): GeminiEndpoint {
@@ -82,7 +82,7 @@ export function vertexAi(options: { serviceAccount: string; region: string; proj
   return {
     label: "Vertex AI",
     url: (model) => `https://${vertexHost(location)}/v1/projects/${encodeURIComponent(projectId)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,
-    headers: () => auth.getRequestHeaders(),
+    headers: (signal) => auth.getRequestHeaders(signal),
   };
 }
 
@@ -214,7 +214,7 @@ type GeminiError = { error?: { code?: number; message?: string } };
 async function streamGemini(
   fetchFn: Fetch,
   url: string,
-  headersFor: () => Promise<Headers>,
+  headersFor: (signal?: AbortSignal) => Promise<Headers>,
   request: LlmRequest,
   signal: AbortSignal | undefined,
   label: string,
@@ -225,7 +225,7 @@ async function streamGemini(
   const report = progressReporter(onProgress);
   let headers: Headers;
   try {
-    headers = await headersFor();
+    headers = await headersFor(signal);
   } catch (err) {
     throw fetchFailure(err);
   }

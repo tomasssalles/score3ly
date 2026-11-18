@@ -224,3 +224,37 @@ test("a service account's token is kept between adapters: one token for several 
   assert.equal(sharedTokenSource(parseServiceAccount(json), fakeFetch), sharedTokenSource(parseServiceAccount(json), fakeFetch));
   assert.notEqual(sharedTokenSource(parseServiceAccount(json), fakeFetch), sharedTokenSource(parseServiceAccount(other), fakeFetch));
 });
+
+test("the token endpoint failing is no refused account: a 5xx or a 429 by its status, a hang cut off after its timeout", async () => {
+  const { json } = await makeAccount();
+  const account = parseServiceAccount(json);
+  for (const [status, kind] of [[503, "overloaded"], [500, "server"], [429, "rate_limit"], [400, "auth"], [401, "auth"]] as const) {
+    const answering = (async () => new Response("no", { status })) as unknown as typeof fetch;
+    await assert.rejects(tokenSource(account, answering).getRequestHeaders(), (err: unknown) => err instanceof LlmError && err.kind === kind && err.status === status);
+  }
+  const hanging = ((_: unknown, init?: RequestInit) =>
+    new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)))) as unknown as typeof fetch;
+  // Node doesn't wait for the timeout's own timer (unref'd); a request in hand does.
+  const keepAlive = setTimeout(() => {}, 1000);
+  await assert.rejects(tokenSource(account, hanging, Date.now, 50).getRequestHeaders(), (err: unknown) => err instanceof LlmError && err.kind === "timeout");
+  clearTimeout(keepAlive);
+});
+
+test("a call waiting for its token stops with its caller; the token's fetch goes on for the others", async () => {
+  const { json } = await makeAccount();
+  let answer: (response: Response) => void = () => {};
+  const slow = (async (input: RequestInfo | URL) =>
+    String(input) === "https://oauth2.googleapis.com/token"
+      ? new Promise<Response>((resolve) => (answer = resolve))
+      : new Response(sseData(geminiReply), { status: 200 })) as unknown as typeof fetch;
+  const adapter = createAdapter({ provider: "vertex", family: "gemini", region: "eu", project: null, secrets: { serviceAccount: json } }, { fetch: slow })!;
+  const ask = { model: "gemini-3.1-pro", maxOutputTokens: 1000, messages: [{ role: "user" as const, content: [{ type: "text" as const, text: "hi" }] }] };
+  const stopped = new AbortController();
+  const first = adapter.send(ask, stopped.signal);
+  const second = adapter.send(ask);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  stopped.abort();
+  await assert.rejects(first, (err: unknown) => err instanceof LlmError && err.kind === "aborted");
+  answer(Response.json({ access_token: "t", expires_in: 3600, token_type: "Bearer" }));
+  assert.equal((await second).text, '{"systems":6}');
+});

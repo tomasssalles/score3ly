@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { testModelConfig, type ModelConfig, type TestResult } from "./api";
 import { resultText } from "./testResult";
 import { Dialog, useDialog } from "./ui/Dialog";
@@ -10,18 +10,28 @@ export function TestConfigDialog({ config, onDone }: { config: ModelConfig; onDo
   const dialog = useDialog();
   const [state, setState] = useState<{ kind: "idle" } | { kind: "sending" } | { kind: "done"; result: TestResult } | { kind: "refused"; error: string }>({ kind: "idle" });
 
+  // The request on its way is stopped when the dialog closes, and with it the provider's call: its answer would never be
+  // shown (docs/llm.md, "Stopped calls").
+  const sending = useRef<AbortController | null>(null);
+  useEffect(() => () => sending.current?.abort(), []);
+
   async function send() {
     setState({ kind: "sending" });
+    const controller = new AbortController();
+    sending.current = controller;
     try {
-      setState({ kind: "done", result: await testModelConfig(config.id) });
+      setState({ kind: "done", result: await testModelConfig(config.id, controller.signal) });
     } catch (err) {
+      if (controller.signal.aborted) return;
       setState({ kind: "refused", error: errorText(err) });
+    } finally {
+      if (sending.current === controller) sending.current = null;
     }
   }
 
   const model = config.modelName ?? config.model;
   return (
-    // Not busy while the request is on its way: closing is allowed, and the answer is then not shown.
+    // Not busy while the request is on its way: closing is allowed, and stops it.
     <Dialog handle={dialog} title={`Test "${config.name}"`} closeLabel="Close" onClose={onDone}>
       <p className="dialog-text">
         Sends {model} a small image and a question about it, with this config's {config.region ? "region, " : ""}effort and secrets, to check that everything
