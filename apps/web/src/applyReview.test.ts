@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pieceStart, type LensSystem } from "@score3ly/notation";
+import type { LensSystem } from "@score3ly/notation";
 import type { StoredIssue } from "./extract.ts";
 import {
   appliedIssues,
@@ -78,7 +78,7 @@ function lens(n: number, music = ["c'1", "d'1"]): LensSystem {
 }
 
 const answers = () => new Map([1, 2, 3].map((n) => [n, lens(n)]));
-const toCheck = [1, 2, 3].map((n) => ({ number: n, stretches: 2, firstOfPiece: n === 1, images: ["system"], followsPrevious: n > 1 }));
+const toCheck = [1, 2, 3].map((n) => ({ system: n, stretches: 2, firstOfPiece: n === 1, images: ["system"] }));
 const empty = { voices: [], stretches: [], systems: [], choices: [] };
 
 test("an issue needs applying when its latest choice isn't what is applied", () => {
@@ -221,11 +221,11 @@ test("the log gives the changes in the lens as models read it", () => {
 });
 
 test("the systems are checked again in order: a patch that breaks a later system is found", () => {
-  const ok = checkAll(answers(), toCheck, pieceStart);
+  const ok = checkAll(answers(), toCheck);
   assert.ok(!("system" in ok));
   // Removing the voice's description where it first appears breaks system 1.
   const broken = applyPatch(answers(), { voices: [{ system: 1, stretch: 1, voice: 1, staff: 1, description: null, music: "c'1", reason: null }], stretches: [], systems: [] });
-  assert.deepEqual(checkAll(broken, toCheck, pieceStart), { system: 1, problem: "voice 1 is new and needs a description where it first appears" });
+  assert.deepEqual(checkAll(broken, toCheck), { system: 1, problem: "voice 1 is new and needs a description where it first appears" });
 });
 
 test("warnings: a change beyond the boxes of the issues applied, with its reason or without, and an applied issue whose stretches didn't change", () => {

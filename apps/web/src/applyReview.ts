@@ -11,7 +11,7 @@
 
 import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
 import { canonicalJson } from "@score3ly/core";
-import { checkSystem, type CheckedSystem, type LensStretch, type LensSystem, type ScoreState, type StretchPlace } from "@score3ly/notation";
+import { checkSystems, type CheckedSystem, type LensStretch, type LensSystem, type StretchPlace, type SystemContext } from "@score3ly/notation";
 import { applyReviewFromModel, issueForModel, stretchForModel, systemFieldsForModel, systemForModel, voiceForModel, type ApplyReviewAnswer, type ApplyStretchUnit, type ApplySystemUnit, type ApplyVoiceUnit } from "@score3ly/prompts";
 import type { StoredIssue, StoredWarning } from "./extract.ts";
 import { malformedRefused, modelName, placesOf, systemsOf, type PlacedSystem } from "./review.ts";
@@ -199,21 +199,11 @@ function checkUnits(json: unknown, ctx: ApplyContext): Pick<StoredApplyCall, "vo
   return { voices, stretches, systems, choices };
 }
 
-// The systems checked in order, each from the state the one before it left (a piece starts afresh), as `extract`
-// checks them: the checked systems, or the first that no longer passes.
-export type SystemToCheck = { number: number; stretches: number; firstOfPiece: boolean; images: string[]; followsPrevious: boolean };
-
-export function checkAll(answers: Map<number, LensSystem>, systems: SystemToCheck[], pieceStart: () => ScoreState): Map<number, CheckedSystem> | { system: number; problem: string } {
-  const checked = new Map<number, CheckedSystem>();
-  let state = pieceStart();
-  for (const s of systems) {
-    if (s.firstOfPiece || !s.followsPrevious) state = pieceStart();
-    const result = checkSystem(answers.get(s.number), { system: s.number, stretches: s.stretches, firstOfPiece: s.firstOfPiece, images: s.images }, state);
-    if ("problem" in result) return { system: s.number, problem: result.problem };
-    checked.set(s.number, result);
-    state = result.state;
-  }
-  return checked;
+// The answers checked as `extract` checks them, in the score's order (notation's `checkSystems`), by system: the
+// checked systems, or the first that no longer passes.
+export function checkAll(answers: Map<number, LensSystem>, contexts: SystemContext[]): Map<number, CheckedSystem> | { system: number; problem: string } {
+  const checked = checkSystems(contexts.map((context) => ({ context, answer: answers.get(context.system) })));
+  return "problem" in checked ? checked : new Map(checked.map((c) => [c.number, c]));
 }
 
 // The stretches a patch changed, compared before and after stretch by stretch (docs/stages/music.md, `human_review`:

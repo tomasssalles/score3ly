@@ -5,7 +5,7 @@
 // can't be used stops the run there: the answers so far are kept, and a retry starts again at that system. Once every
 // system is in, the checks of the whole score run on all of them, and what they find is one more output.
 
-import { checkScore, checkSystem, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
+import { checkScore, checkSystem, checkSystems, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
 import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractText, lensFromExtract } from "@score3ly/prompts";
 import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
 import {
@@ -34,7 +34,7 @@ import { runPlan, type StageRun } from "./stageRunner";
 export async function runExtract(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
   const inputs = await musicInputs(stage, pipeline.stages);
-  const { pages, layouts, observations, pieces, systems, byNumber, straight, placeBox, bounds, labelsOf } = inputs;
+  const { pages, layouts, observations, pieces, systems, byNumber, straight, placeBox, bounds, labelsOf, contextOf } = inputs;
   const obs = { output: inputs.observationsOutput };
   const pcs = { output: inputs.piecesOutput };
 
@@ -67,29 +67,24 @@ export async function runExtract(run: StageRun): Promise<void> {
       .map(async (s) => stored.set(s.number, (await fetchJsonContent(recorded.get(s.item)!.contentSha256!)) as StoredExtraction)),
   );
 
-  // The state each system leaves: from its answer, checked again for a recorded one (the checks are deterministic).
+  // The state each system leaves: as checked in this run, or, for a recorded one, from its answer checked again with the
+  // other recorded ones (the checks are deterministic), once something needs it.
   const states = new Map<number, ScoreState>();
-  const contextOf = (s: ScoreSystem, firstOfPiece: boolean, labels: string[]) => ({
-    system: s.number,
-    stretches: s.layout.barLines.length + 1,
-    firstOfPiece,
-    images: labels,
-  });
-  function stateBefore(n: number): ScoreState {
-    if (bounds(n).first || !byNumber.has(n - 1)) return pieceStart();
-    return stateAfter(n - 1);
-  }
+  let recordedStates: Map<number, ScoreState> | null = null;
+  const recordedSystems = systems.filter((s) => stored.has(s.number));
   function stateAfter(n: number): ScoreState {
     const after = states.get(n);
     if (after) return after;
-    const extraction = stored.get(n);
-    if (!extraction) throw new Error(`The extraction of system ${n} is missing.`);
-    const s = byNumber.get(n)!;
-    const checked = checkSystem(extraction.answer, contextOf(s, bounds(n).first, labelsOf(s)), stateBefore(n));
-    if ("problem" in checked) throw new Error(`The stored extraction of system ${n} no longer passes the checks: ${checked.problem}.`);
-    states.set(n, checked.state);
-    return checked.state;
+    if (!recordedStates) {
+      const checked = checkSystems(recordedSystems.map((s) => ({ context: contextOf(s), answer: stored.get(s.number)!.answer })));
+      if ("problem" in checked) throw new Error(`The stored extraction of system ${checked.system} no longer passes the checks: ${checked.problem}.`);
+      recordedStates = new Map(checked.map((c) => [c.number, c.state]));
+    }
+    const recorded = recordedStates.get(n);
+    if (!recorded) throw new Error(`The extraction of system ${n} is missing.`);
+    return recorded;
   }
+  const stateBefore = (n: number): ScoreState => (bounds(n).first || !byNumber.has(n - 1) ? pieceStart() : stateAfter(n - 1));
   // The checks of the whole score, once every system is in: stored as an output of their own.
   let scoreChecks: StoredScoreChecks | null = null;
   const recordedChecks = stage.outputs.find((o) => o.item === "" && o.type === "score_checks" && o.contentSha256);
@@ -158,7 +153,7 @@ export async function runExtract(run: StageRun): Promise<void> {
           const { answer, checked } = await ask(run, request, `System ${s.number}`, {
             config,
             place: { item: s.item, round: 1 },
-            check: (json) => checkSystem(lensFromExtract(normalized(json)), contextOf(s, first, labels), before),
+            check: (json) => checkSystem(lensFromExtract(normalized(json)), contextOf(s), before),
             unusable: (problem) => `Couldn't use the answer for system ${s.number}: ${problem}.${kept}`,
           });
           states.set(s.number, checked.state);

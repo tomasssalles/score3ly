@@ -5,7 +5,7 @@
 // crops with the issues' boxes drawn on them, and its request. Each answer is checked as soon as it arrives; one that
 // can't be used stops the run there, the calls before it kept.
 
-import { buildScore, checkSystem, LENS_VERSION, pieceStart, systemLinks, type CheckedSystem, type ScoreState } from "@score3ly/notation";
+import { buildScore, checkSystems, LENS_VERSION, systemLinks } from "@score3ly/notation";
 import { REVIEW_MAX_OUTPUT_TOKENS, REVIEW_PROMPT_VERSION, REVIEW_SCHEMA, REVIEW_SYSTEM, reviewIssuesText, reviewLogText, reviewScoreText, reviewText } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
@@ -40,7 +40,7 @@ import { reviewInputIds } from "./steps";
 export async function runReview(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
   const inputs = await musicInputs(stage, pipeline.stages);
-  const { pages, observations, pieces, systems, byNumber, straight, bounds, labelsOf } = inputs;
+  const { pages, observations, pieces, systems, byNumber, straight, bounds, labelsOf, contextOf } = inputs;
 
   // The transcription it reviews: the latest stage before it that produces the extraction.
   const reviewed = inputs.earlier.find((s) => EXTRACTION_STEPS.includes(s.step));
@@ -55,18 +55,9 @@ export async function runReview(run: StageRun): Promise<void> {
   const warnings = [...systems.flatMap((s) => extractions.get(s.number)!.warnings), ...checks.warnings];
 
   // The systems checked again, one after the other, for the links (what each leaves, and the marks it closed).
-  const linked: CheckedSystem[] = [];
-  let state: ScoreState = pieceStart();
-  for (const s of systems) {
-    if (bounds(s.number).first || !byNumber.has(s.number - 1)) state = pieceStart();
-    const extraction = extractions.get(s.number)!;
-    const context = { system: s.number, stretches: s.layout.barLines.length + 1, firstOfPiece: bounds(s.number).first, images: labelsOf(s) };
-    const checked = checkSystem(extraction.answer, context, state);
-    if ("problem" in checked) throw new CannotStart(`the transcription of system ${s.number} no longer passes the checks: ${checked.problem}.`);
-    linked.push(checked);
-    state = checked.state;
-  }
-  const links = systemLinks(linked, pieces);
+  const checked = checkSystems(systems.map((s) => ({ context: contextOf(s), answer: extractions.get(s.number)!.answer })));
+  if ("problem" in checked) throw new CannotStart(`the transcription of system ${checked.system} no longer passes the checks: ${checked.problem}.`);
+  const links = systemLinks(checked, pieces);
   const score = buildScore(
     systems.map((s) => ({ number: s.number, page: s.page, box: s.layout.box, barLines: s.layout.barLines, answer: extractions.get(s.number)!.answer })),
     pieces,

@@ -10,7 +10,6 @@ import {
   buildScore,
   checkScore,
   LENS_VERSION,
-  pieceStart,
   systemLinks,
   type CheckedSystem,
   type LensSystem,
@@ -48,7 +47,6 @@ import {
   revertedCount,
   systemView,
   type StoredApplyCall,
-  type SystemToCheck,
 } from "./applyReview";
 import { EXTRACTION_STEPS } from "./engrave";
 import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
@@ -72,7 +70,7 @@ const REVIEWING_STEPS: Record<string, string> = { review: "review", human_review
 export async function runApplyReview(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
   const inputs = await musicInputs(stage, pipeline.stages);
-  const { pages, observations, pieces, systems, byNumber, straight, bounds, labelsOf, placeBox } = inputs;
+  const { pages, observations, pieces, systems, byNumber, straight, bounds, contextOf, placeBox } = inputs;
 
   // The transcription it applies to, and the reviews after it whose choices it applies.
   const at = inputs.earlier.findIndex((s) => EXTRACTION_STEPS.includes(s.step));
@@ -123,13 +121,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   const startWarnings = [...systems.flatMap((s) => extractions.get(s.number)!.warnings), ...checks.warnings];
 
   // The systems as the checks need them, and the transcription's answers.
-  const toCheck: SystemToCheck[] = systems.map((s) => ({
-    number: s.number,
-    stretches: s.layout.barLines.length + 1,
-    firstOfPiece: bounds(s.number).first,
-    images: labelsOf(s),
-    followsPrevious: byNumber.has(s.number - 1),
-  }));
+  const toCheck = systems.map(contextOf);
   const startAnswers = new Map<number, LensSystem>(systems.map((s) => [s.number, extractions.get(s.number)!.answer]));
   const scoreOf = (answers: Map<number, LensSystem>): Score =>
     buildScore(
@@ -137,7 +129,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
       pieces,
     );
   const checkedOrFail = (answers: Map<number, LensSystem>, what: string): Map<number, CheckedSystem> => {
-    const checked = checkAll(answers, toCheck, pieceStart);
+    const checked = checkAll(answers, toCheck);
     if ("system" in checked) throw new CannotStart(`${what} of system ${checked.system} no longer passes the checks: ${checked.problem}.`);
     return checked;
   };
@@ -227,8 +219,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
         make: async () => {
           const answers = answersBefore(planned.system);
           const checked = checkedOrFail(answers, "the transcription");
-          const linked = systems.map((s) => ({ number: s.number, answer: checked.get(s.number)!.answer, state: checked.get(s.number)!.state, closed: checked.get(s.number)!.closed }));
-          const links = systemLinks(linked, pieces);
+          const links = systemLinks([...checked.values()], pieces);
           const score = scoreOf(answers);
           const measureOf = stretchMeasures(score);
           const window = planned.window.map((n) => byNumber.get(n)!);
@@ -288,7 +279,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
             if ("problem" in patch) return patch;
             if (blockedBy(patch.choices)) return { patch, after: null };
             const after = applyPatch(answers, patch);
-            const recheck = checkAll(after, toCheck, pieceStart);
+            const recheck = checkAll(after, toCheck);
             if ("system" in recheck) return { problem: `with its changes, system ${recheck.system} doesn't pass the checks: ${recheck.problem}` };
             return { patch, after };
           };
@@ -367,10 +358,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
         type: "score_checks",
         make: async () => {
           const { checked, issues: all } = finalTranscription();
-          const scoreChecks = checkScore(
-            systems.map((s) => ({ number: s.number, answer: checked.get(s.number)!.answer, state: checked.get(s.number)!.state })),
-            pieces,
-          );
+          const scoreChecks = checkScore([...checked.values()], pieces);
           const fresh = scoreChecks.codeIssues
             .map((c) => ({ question: c.question, answers: c.answers, applied: c.applied, boxes: c.places.flatMap((p) => placeBox(p) ?? []) }))
             .filter((c) => isNewCodeIssue(c, all.values()));

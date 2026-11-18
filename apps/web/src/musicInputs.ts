@@ -3,6 +3,7 @@
 // so that every stage finds them the same way.
 
 import { pageOfItem } from "@score3ly/core";
+import type { SystemContext } from "@score3ly/notation";
 import { extractImageLabels } from "@score3ly/prompts";
 import type { ApiOutput, ApiStage } from "./api";
 import type { StoredObservations, StoredPieces } from "./analyze";
@@ -32,6 +33,7 @@ export type MusicInputs = {
   placeBox: (place: { system: number; stretch: number }) => { page: number; box: ReturnType<typeof stretchBox> } | null;
   bounds: (system: number) => { first: boolean; last: boolean };
   labelsOf: (system: ScoreSystem) => string[]; // the labels of the images a request about it sends
+  contextOf: (system: ScoreSystem) => SystemContext; // what its answer is checked against
 };
 
 export async function musicInputs(stage: ApiStage, stages: ApiStage[]): Promise<MusicInputs> {
@@ -66,6 +68,11 @@ export async function musicInputs(stage: ApiStage, stages: ApiStage[]): Promise<
   const lastSystem = systems[systems.length - 1].number;
   const bounds = (n: number) => pieceBounds(pieces, n, lastSystem);
 
+  const labelsOf = (s: ScoreSystem) => {
+    const { first, last } = bounds(s.number);
+    return extractImageLabels(s.layout.barLines.length + 1, !first && byNumber.has(s.number - 1), !last && byNumber.has(s.number + 1));
+  };
+
   return {
     earlier,
     pages,
@@ -82,9 +89,7 @@ export async function musicInputs(stage: ApiStage, stages: ApiStage[]): Promise<
       return s ? { page: s.page, box: stretchBox(s.layout, p.stretch) } : null;
     },
     bounds,
-    labelsOf: (s) => {
-      const { first, last } = bounds(s.number);
-      return extractImageLabels(s.layout.barLines.length + 1, !first && byNumber.has(s.number - 1), !last && byNumber.has(s.number + 1));
-    },
+    labelsOf,
+    contextOf: (s) => ({ system: s.number, stretches: s.layout.barLines.length + 1, firstOfPiece: bounds(s.number).first, images: labelsOf(s) }),
   };
 }
