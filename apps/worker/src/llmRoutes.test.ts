@@ -1214,3 +1214,69 @@ test("a Vertex AI key file that doesn't parse is a 409 bad_secret in the config'
     delete (env as unknown as Record<string, string>).TEST_VERTEX_KEY;
   }
 });
+
+// What a call's row means to the statistics (callRecords.ts): the rows `runCall` really writes, one config per way a
+// call ends, as Costs (paid calls by outcome, calls of unknown cost) and Usage (calls by reason) count them.
+test("the rows a call writes are counted by Costs and Usage as what happened", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const ids = new Map<string, string>();
+  const make = async (name: string, fields: Record<string, unknown>) => {
+    const config = await modelConfig({ name, ...fields });
+    ids.set(config.id, name);
+    return runningStage(config.id);
+  };
+  for (const [name, model] of [["ok", "fake-model"], ["cut off", "fake-cut-off"], ["refused", "fake-refusal"], ["unparseable", "fake-unparseable"], ["other model", "fake-other-model"], ["server error", "fake-error"]]) {
+    await json(await call(await make(name, { model })));
+  }
+  // Another question: the same one would be served from the "ok" call (the key has the model, not the pricing).
+  await json(await call(await make("unpriced", { pricing: { kind: "unpriced" } }), request("How many staves?")));
+  // Stopped by the browser, and timed out.
+  const stopped = await make("stopped", { model: "fake-slow" });
+  const stop = new AbortController();
+  const pending = app.request(
+    `/api/projects/${stopped.projectId}/stages/${stopped.stageId}/llm`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request: request(), ...PLACE }), signal: stop.signal },
+    env,
+  );
+  setTimeout(() => stop.abort(), 100);
+  await json(await pending);
+  const timedOut = await make("timed out", { model: "fake-slow", effort: "low" });
+  const saved = { ...LLM_TIMEOUT_MINUTES };
+  for (const step of Object.keys(LLM_TIMEOUT_MINUTES)) LLM_TIMEOUT_MINUTES[step] = 0.005;
+  try {
+    await json(await call(timedOut));
+  } finally {
+    Object.assign(LLM_TIMEOUT_MINUTES, saved);
+  }
+  // Cut off by Cloudflare.
+  const gemini = await make("524", { provider: "ai-studio", modelId: "gemini-4-argon", pricing: { kind: "list" }, secrets: { apiKey: "TEST_GEMINI_KEY" } });
+  (env as unknown as Record<string, string>).TEST_GEMINI_KEY = "g-test";
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response("error code: 524", { status: 524 })) as unknown as typeof fetch;
+  try {
+    await json(await call(gemini));
+  } finally {
+    globalThis.fetch = realFetch;
+    delete (env as unknown as Record<string, string>).TEST_GEMINI_KEY;
+  }
+
+  const costs = (await (await app.request("/api/costs", {}, env)).json()) as { points: [string, string, number, number, string][]; unknown: [string, string, number, number][] };
+  const failures = (await (await app.request("/api/failures", {}, env)).json()) as { points: [string, number, string, number][] };
+  const seen: Record<string, { paid: string[]; unknown: number; usage: string[] }> = {};
+  const of = (config: string) => (seen[ids.get(config)!] ??= { paid: [], unknown: 0, usage: [] });
+  for (const [, config, , usd, outcome] of costs.points) of(config).paid.push(`${outcome}${usd > 0 ? "" : " (free)"}`);
+  for (const [, config, , n] of costs.unknown) of(config).unknown += n;
+  for (const [config, , reason, n] of failures.points) of(config).usage.push(`${reason} ×${n}`);
+  assert.deepEqual(seen, {
+    ok: { paid: ["ok"], unknown: 0, usage: ["ok ×1"] },
+    "cut off": { paid: ["cut_off"], unknown: 0, usage: ["cut_off ×1"] },
+    refused: { paid: ["refused"], unknown: 0, usage: ["refused ×1"] },
+    unparseable: { paid: ["unparseable"], unknown: 0, usage: ["unparseable ×1"] },
+    "other model": { paid: ["wrong_model"], unknown: 0, usage: ["unexpected_model ×1"] },
+    "server error": { paid: [], unknown: 0, usage: ["server ×1"] },
+    unpriced: { paid: [], unknown: 1, usage: ["ok ×1"] },
+    stopped: { paid: [], unknown: 1, usage: ["aborted ×1"] },
+    "timed out": { paid: [], unknown: 1, usage: ["timeout ×1"] },
+    "524": { paid: [], unknown: 1, usage: ["timeout ×1"] },
+  });
+});
