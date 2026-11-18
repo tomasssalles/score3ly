@@ -4,7 +4,7 @@
 import { amount, DAY_MS, roundUsd } from "@score3ly/core";
 import { ACCOUNT_FEES, type Account } from "./llm/models.ts";
 import { COST_WITH_VAT } from "./callRecords.ts";
-import { freeOnOpenRouter } from "./llm/openrouter.ts";
+import { freeOnOpenRouter } from "./llm/prices.ts";
 import { readSettings } from "./settings.ts";
 
 // VAT in the costs (docs/llm.md, "VAT"): each call keeps its cost before VAT (`cost_usd`) and the rate in force when that

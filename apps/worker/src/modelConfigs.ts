@@ -6,7 +6,7 @@
 import type { Hono } from "hono";
 import { canonicalJson, type CallPlace, type CallRequest, firstFreeName, MAX_NAME_LENGTH, nameTooLong, ROUTINGS, sameConfigValues, sameValuesMessage, sha256Hex, type ModelConfig, type ModelOptions, type PriceRange, type Prices, type SecretNames, type TestResult } from "@score3ly/core";
 import { badRequest, NO_MODEL_CONFIG, problemText, refuse } from "./refusals.ts";
-import { fetchPriceRange } from "./llm/openrouter.ts";
+import { fetchPriceRange } from "./llm/prices.ts";
 import type { Effort } from "./llm/index.ts";
 import { llmTimeoutMs } from "./llm/timeouts.ts";
 import { isSupported, secretSets, supportedFamilies } from "./llm/adapters.ts";
