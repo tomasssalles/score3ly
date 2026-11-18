@@ -22,8 +22,8 @@ import {
   withinBox,
   type BoxHandle,
 } from "./fixLayout";
-import { canRedo, canUndo, pushState, redo, startHistory, undo, type History } from "./history";
-import { BarLineIcon, BoxIcon, HandIcon, TrashIcon } from "./icons";
+import { canRedo, canUndo, pushState, redo, startHistory, undo, type UndoStack } from "./history";
+import { BarLineIcon, BoxIcon, HandIcon, TrashIcon } from "./ui/icons";
 import type { PageLayout } from "./layout";
 import {
   BoxHandles,
@@ -79,7 +79,7 @@ export function LayoutEditor({
   const [layouts, setLayouts] = useState<Map<string, PageLayout> | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Each page's changes while the editor is open, by item.
-  const histories = useRef(new Map<string, History<LayoutSystem[]>>());
+  const histories = useRef(new Map<string, UndoStack<LayoutSystem[]>>());
   // One saver for the stage (saving.ts): what it saved is shown when the editor opens again.
   const saver = useSaver(stageId, onEdited);
 
@@ -177,7 +177,7 @@ function PageEditor({
   page: LayoutEditorPage;
   layout: PageLayout;
   first: number; // the number of the page's first system
-  history: History<LayoutSystem[]>;
+  history: UndoStack<LayoutSystem[]>;
   mode: Mode;
   setMode: (mode: Mode) => void;
   nav: PageNavigation;

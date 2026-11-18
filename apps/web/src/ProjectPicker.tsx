@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Project } from "./api";
-import { FittedText } from "./FittedText";
+import { FittedText } from "./ui/FittedText";
 import { ProjectOption } from "./ui/ProjectOption";
 import { useClickOutside } from "./ui/hooks";
 

@@ -4,7 +4,7 @@
 // holding it does, as one.
 
 import type { ReactNode } from "react";
-import { CheckIcon } from "../icons";
+import { CheckIcon } from "./icons";
 import { toggled } from "./checks";
 
 export type CheckItem = { key: string; name: string; note?: string; facts?: string; amounts?: string[] };

@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect } from "react";
-import { BackIcon, ForwardIcon } from "./icons";
+import { BackIcon, ForwardIcon } from "./ui/icons";
 import { editionOf, useHost } from "./host";
 import { Menu } from "./Menu";
 import { Wordmark } from "./ui/Wordmark";

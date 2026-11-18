@@ -20,7 +20,7 @@ import { FINISHERS } from "./finishers";
 import { settled } from "./saving";
 import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { CheckIcon, ChevronRightIcon, PauseIcon, WarningIcon } from "./icons";
+import { CheckIcon, ChevronRightIcon, PauseIcon, WarningIcon } from "./ui/icons";
 import {
   canRun,
   currentStage,
@@ -39,7 +39,7 @@ import {
   type Stage,
 } from "./pipeline";
 import { PipelinePanel, type PanelActions } from "./PipelinePanel";
-import { ProgressRing } from "./ProgressRing";
+import { ProgressRing } from "./ui/ProgressRing";
 import { ConfigDialog } from "./ConfigDialog";
 import { RUNNERS } from "./runners";
 import { CannotStart, failsTheStage, LEAVING } from "./stageRunner";

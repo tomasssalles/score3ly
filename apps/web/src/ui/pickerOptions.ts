@@ -1,7 +1,7 @@
 // A picker's options as the menu's groups (ui/Picker.tsx, `OptionPicker`): consecutive options of the same group number
 // form a group of the menu (a line between groups), with the heading given for its number, if any.
 
-import type { MenuItem } from "../DropdownMenu";
+import type { MenuItem } from "./DropdownMenu";
 
 export type PickerOption<T extends string> = { id: T; label: string; short?: string; note?: string; group?: number };
 

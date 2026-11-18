@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { failure, ApiError, deleteProject, type Project } from "./api";
-import { FittedText } from "./FittedText";
+import { FittedText } from "./ui/FittedText";
 import { useHost } from "./host";
 import { deleteCachedPdf } from "./imageCache";
 import { closePdfForImages } from "./pageImages";

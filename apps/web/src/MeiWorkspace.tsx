@@ -7,7 +7,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } 
 import type { EditorView } from "@codemirror/view";
 import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
 import { FieldPicker } from "./fieldList";
-import { ChevronDownIcon, ChevronUpIcon, MusicIcon, SearchIcon, TopIcon } from "./icons";
+import { ChevronDownIcon, ChevronUpIcon, MusicIcon, SearchIcon, TopIcon } from "./ui/icons";
 import { elementsAt, findMeasure, indexMei, lineOfId, search, type MeiIndex } from "./meiView";
 
 // CodeMirror comes with the view, not with the app.

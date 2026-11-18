@@ -32,7 +32,7 @@ import type { TabOf } from "./route";
 import { CheckList } from "./ui/CheckList";
 import { FilterSection } from "./ui/FilterSection";
 import { Tabs } from "./ui/Tabs";
-import { FilterIcon, SplitIcon } from "./icons";
+import { FilterIcon, SplitIcon } from "./ui/icons";
 import { InfoButton } from "./ui/Info";
 import { dollars } from "./money";
 import { count, percent } from "./format";

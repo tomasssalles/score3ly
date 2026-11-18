@@ -1,5 +1,5 @@
 import type { Project } from "./api";
-import { FittedText } from "./FittedText";
+import { FittedText } from "./ui/FittedText";
 import { ProjectOption } from "./ui/ProjectOption";
 import { Dialog, useDialog } from "./ui/Dialog";
 

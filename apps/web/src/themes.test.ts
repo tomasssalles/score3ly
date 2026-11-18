@@ -2,13 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { cssRules } from "./cssRules.ts";
-import { resolveTheme, THEMES } from "./themes.ts";
+import { resolveTheme, THEMES, type ThemeChoice } from "./themes.ts";
 
 test("Auto follows the system's preference where a theme matches it, else the first theme", () => {
   assert.equal(resolveTheme("auto", true).id, "dark");
   assert.equal(resolveTheme("auto", false).id, THEMES.find((t) => !t.dark)?.id ?? THEMES[0].id);
   assert.equal(resolveTheme("dark", false).id, "dark");
-  assert.equal(resolveTheme("no such theme", true).id, THEMES[0].id);
+  assert.equal(resolveTheme("no such theme" as ThemeChoice, true).id, THEMES[0].id); // e.g. a theme removed since
 });
 
 test("every theme in the list has a block in themes.css with every token the first one has", () => {

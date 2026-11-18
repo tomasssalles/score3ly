@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { failure, ApiError, type Project } from "./api";
 import { saveFile } from "./engraving";
-import { FittedText } from "./FittedText";
+import { FittedText } from "./ui/FittedText";
 import { useHost } from "./host";
-import { ProgressBar } from "./ProgressBar";
+import { ProgressBar } from "./ui/ProgressBar";
 import { exportName, exportProject } from "./projectFile";
 import { Dialog, useDialog } from "./ui/Dialog";
 

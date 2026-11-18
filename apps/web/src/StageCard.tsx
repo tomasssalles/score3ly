@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { itemText, type ItemProgress } from "./callProgress";
-import { DropdownMenu, type MenuItem } from "./DropdownMenu";
+import { DropdownMenu, type MenuItem } from "./ui/DropdownMenu";
 import { DOWNLOADS, type DownloadKind } from "./downloads";
-import { FittedText } from "./FittedText";
+import { FittedText } from "./ui/FittedText";
 import { useHost } from "./host";
 import {
   AnalyzeIcon,
@@ -28,10 +28,10 @@ import {
   ReviewIcon,
   SkewIcon,
   StopIcon,
-} from "./icons";
+} from "./ui/icons";
 import { hasArtifacts, type Artifact, type Dropped, type RunMode, type Stage, type StageKind } from "./pipeline";
 import { differsCause } from "./ImagesDiffer";
-import { ProgressBar } from "./ProgressBar";
+import { ProgressBar } from "./ui/ProgressBar";
 import { KIND_LABELS } from "./StageDetails";
 import { duration } from "./format";
 

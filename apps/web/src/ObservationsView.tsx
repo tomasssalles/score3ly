@@ -12,7 +12,7 @@ import { placeLabel } from "./analyze";
 import { UnsavedNote } from "./pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { LayoutFilmstrip } from "./ArtifactView";
-import { DropdownMenu, type MenuItem } from "./DropdownMenu";
+import { DropdownMenu, type MenuItem } from "./ui/DropdownMenu";
 import { Confidence, fieldActions, FieldStrip, FieldPicker, useFieldList, type Editing } from "./fieldList";
 import { observationsOutput } from "./finishFixObservations";
 import {
@@ -44,7 +44,7 @@ import {
   type ObsRow,
   type ScoreSystems,
 } from "./fixObservations";
-import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./icons";
+import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./ui/icons";
 import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
 import { count } from "./format";

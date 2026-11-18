@@ -1,5 +1,5 @@
-import { DropdownMenu } from "./DropdownMenu";
-import { MenuIcon } from "./icons";
+import { DropdownMenu } from "./ui/DropdownMenu";
+import { MenuIcon } from "./ui/icons";
 import { hashForPage, type Page } from "./route";
 
 // Groups of pages, separated by a line: what you look at, what you change, help about the app.

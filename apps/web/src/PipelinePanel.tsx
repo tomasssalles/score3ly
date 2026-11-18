@@ -1,11 +1,11 @@
 import { Fragment, useEffect, useRef } from "react";
 import type { Project } from "./api";
-import { DropdownMenu } from "./DropdownMenu";
-import { FittedText } from "./FittedText";
-import { ChevronLeftIcon, MoreIcon, StopIcon } from "./icons";
+import { DropdownMenu } from "./ui/DropdownMenu";
+import { FittedText } from "./ui/FittedText";
+import { ChevronLeftIcon, MoreIcon, StopIcon } from "./ui/icons";
 import { Picker } from "./ui/Picker";
 import { canRun, currentStage, MODE_LABELS, MODES, pipelineState, runningStage, stateLabel, type Pipeline, type Progress, type RunMode } from "./pipeline";
-import { ProgressBar } from "./ProgressBar";
+import { ProgressBar } from "./ui/ProgressBar";
 import { DownloadCard, DroppedCard, RunLabel, StageCard, type StageActions } from "./StageCard";
 import { when } from "./format";
 

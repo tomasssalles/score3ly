@@ -17,7 +17,7 @@ import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
 import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
 import { useNear, useObjectUrl } from "./ui/hooks";
-import { BoxesIcon, ChangesIcon, MusicIcon, SourceIcon } from "./icons";
+import { BoxesIcon, ChangesIcon, MusicIcon, SourceIcon } from "./ui/icons";
 import { InfoButton } from "./ui/Info";
 import type { PageLayout } from "./layout";
 import { ModeToggle, UnsavedNote } from "./pageEditor";

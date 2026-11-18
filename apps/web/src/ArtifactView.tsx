@@ -1,7 +1,7 @@
 import { ImagesDiffer } from "./ImagesDiffer";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { failure, fetchJsonContent, pdfUrl, type Project } from "./api";
-import { CloseIcon } from "./icons";
+import { CloseIcon } from "./ui/icons";
 import { useNear, useObjectUrl } from "./ui/hooks";
 import { LAYOUT_COLOR_HEX } from "@score3ly/imaging";
 import type { PageLayout } from "./layout";

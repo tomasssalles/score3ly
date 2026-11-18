@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useClickOutside } from "./ui/hooks";
+import { useClickOutside } from "./hooks";
 
 export type MenuItem = {
   label: string;

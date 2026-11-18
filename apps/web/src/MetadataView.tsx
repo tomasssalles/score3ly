@@ -9,7 +9,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { UnsavedNote } from "./pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { Filmstrip, PageImageView } from "./ArtifactView";
-import { DropdownMenu, type MenuItem } from "./DropdownMenu";
+import { DropdownMenu, type MenuItem } from "./ui/DropdownMenu";
 import { Confidence, fieldActions, FieldStrip, FieldPicker, useFieldList, type Editing } from "./fieldList";
 import { metadataOutputs, type MetadataParents } from "./finishFixMetadata";
 import {
@@ -32,7 +32,7 @@ import {
   type MetadataRow,
   type Systems,
 } from "./fixMetadata";
-import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./icons";
+import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./ui/icons";
 import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
 import type { PageRecipe } from "./recipes";

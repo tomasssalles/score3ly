@@ -3,7 +3,7 @@
 // picker); `children` is what collapses (the check list).
 
 import { type ReactNode, useState } from "react";
-import { ChevronDownIcon, ChevronRightIcon } from "../icons";
+import { ChevronDownIcon, ChevronRightIcon } from "./icons";
 
 export function FilterSection({ label, dot, controls, children }: { label: string; dot: boolean; controls?: ReactNode; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);

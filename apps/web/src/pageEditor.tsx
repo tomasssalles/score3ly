@@ -6,7 +6,7 @@
 // phone the user zooms in close for each point and zooms out and pans in between.
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { BoxesIcon, ChevronLeftIcon, ChevronRightIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./icons";
+import { BoxesIcon, ChevronLeftIcon, ChevronRightIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./ui/icons";
 import { pngSize } from "./pageImages";
 import { BOX_HANDLES } from "./fixLayout";
 import { CORNER, EDGE, EDGE_SHARE, handleRect } from "./handles";

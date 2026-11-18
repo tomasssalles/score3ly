@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, type ReactNode } from "react";
-import { CloseIcon } from "../icons";
+import { CloseIcon } from "./icons";
 import { closesOnClick, onCancelEvent, onKeyDown, ownEvent, resultSlot } from "./dialogRules";
 
 // The one dialog of the app (docs/style.md, "Dialogs"): a modal <dialog>, opened when it mounts, with its head (the

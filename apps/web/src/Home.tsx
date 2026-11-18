@@ -4,10 +4,10 @@
 
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import type { ListedProject } from "./api";
-import { FittedText } from "./FittedText";
+import { FittedText } from "./ui/FittedText";
 import { NewProjectLabel } from "./Header";
 import { cardsThatFit, HOME_CARDS, positionState, recentProjects } from "./home";
-import { CheckIcon, MenuIcon, PauseIcon, WarningIcon } from "./icons";
+import { CheckIcon, MenuIcon, PauseIcon, WarningIcon } from "./ui/icons";
 import { stateLabel } from "./pipeline";
 import { hashForProject } from "./route";
 import { when } from "./format";

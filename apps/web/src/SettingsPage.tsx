@@ -20,14 +20,14 @@ import { failure, fetchModelConfigs,
   type PriceRange,
   type Settings, } from "./api";
 import { NewModelConfig } from "./NewModelConfig";
-import { DropdownMenu } from "./DropdownMenu";
-import { FittedText } from "./FittedText";
+import { DropdownMenu } from "./ui/DropdownMenu";
+import { FittedText } from "./ui/FittedText";
 import { CACHE_LIMITS_MB, cacheLimitMb, setCacheLimitMb } from "./cacheLru";
 import { count, formatSize } from "./format";
 import { useHost } from "./host";
 import { ACCOUNT_NAMES, pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
-import { FilterIcon, MoreIcon, PlusIcon } from "./icons";
+import { FilterIcon, MoreIcon, PlusIcon } from "./ui/icons";
 import { CheckList } from "./ui/CheckList";
 import { FilterSection } from "./ui/FilterSection";
 import { Tabs } from "./ui/Tabs";

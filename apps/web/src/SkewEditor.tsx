@@ -8,8 +8,8 @@ import type { SkewLine } from "@score3ly/imaging";
 import { useEffect, useRef, useState } from "react";
 import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
 import { lineThrough, type PageLines } from "./fixSkew";
-import { canRedo, canUndo, pushState, redo, startHistory, undo, type History } from "./history";
-import { HandIcon, LineIcon, TrashIcon } from "./icons";
+import { canRedo, canUndo, pushState, redo, startHistory, undo, type UndoStack } from "./history";
+import { HandIcon, LineIcon, TrashIcon } from "./ui/icons";
 import {
   ModeToggle,
   PageCanvas,
@@ -43,7 +43,7 @@ const LINE_REACH = 14;
 const HANDLE_REACH = 26;
 
 // Each page's changes while the editor is open, by item: a page keeps its own when the user flips to another.
-type Histories = Map<string, History<SkewLine[]>>;
+type Histories = Map<string, UndoStack<SkewLine[]>>;
 
 export function SkewEditor({
   project,

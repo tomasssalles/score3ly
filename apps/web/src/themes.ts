@@ -4,19 +4,19 @@
 
 import { DEVICE_KEYS, readDevice, writeDevice } from "./deviceStorage.ts";
 
-export type Theme = { id: string; label: string; dark: boolean };
-
-export const THEMES: Theme[] = [
+export const THEMES = [
   { id: "dark", label: "Dark", dark: true },
   { id: "light", label: "Light", dark: false },
-];
+] as const satisfies readonly { id: string; label: string; dark: boolean }[];
 
-export type ThemeChoice = "auto" | string;
+export type Theme = (typeof THEMES)[number];
+
+export type ThemeChoice = "auto" | Theme["id"];
 
 // Auto when none is kept, or no storage (e.g. some private windows).
 export function themeChoice(): ThemeChoice {
   const stored = readDevice(DEVICE_KEYS.theme);
-  return stored && THEMES.some((t) => t.id === stored) ? stored : "auto";
+  return THEMES.find((t) => t.id === stored)?.id ?? "auto";
 }
 
 // Auto: the first theme that matches the system's preference, else the first theme.

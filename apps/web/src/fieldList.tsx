@@ -6,8 +6,8 @@
 
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { CONFIDENCE_SYMBOLS, type ShownConfidence } from "./analyze";
-import type { MenuItem } from "./DropdownMenu";
-import { CloseIcon } from "./icons";
+import type { MenuItem } from "./ui/DropdownMenu";
+import { CloseIcon } from "./ui/icons";
 import { Picker } from "./ui/Picker";
 import { loadKey, useSaver } from "./saving";
 

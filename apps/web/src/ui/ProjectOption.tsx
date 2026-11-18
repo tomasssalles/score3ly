@@ -1,4 +1,4 @@
-import { FittedText } from "../FittedText";
+import { FittedText } from "./FittedText";
 import { when } from "../format";
 
 // A project offered to be opened (the project picker, the dialog of a PDF already known): its name, over up to three

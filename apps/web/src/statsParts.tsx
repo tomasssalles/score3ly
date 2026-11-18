@@ -5,8 +5,8 @@ import { useState, type ReactNode } from "react";
 import { CheckList, type CheckItem } from "./ui/CheckList";
 import { createdBefore } from "./costs";
 import { count, deletedNote, shortDate } from "./format";
-import { DropdownMenu } from "./DropdownMenu";
-import { BarsIcon, FilterIcon, MoreIcon, RunningTotalIcon } from "./icons";
+import { DropdownMenu } from "./ui/DropdownMenu";
+import { BarsIcon, FilterIcon, MoreIcon, RunningTotalIcon } from "./ui/icons";
 import { InfoButton } from "./ui/Info";
 
 export type ChartMode = "bars" | "line";

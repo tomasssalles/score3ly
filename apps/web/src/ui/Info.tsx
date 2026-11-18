@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { InfoIcon } from "../icons";
+import { InfoIcon } from "./icons";
 
 // The "i" (docs/style.md): a button that shows and hides a short explanation. Inline (a form's field, an issue's
 // answer): a small toggle in the text; `block` (the head of a statistics block, a line of costs): an icon button, its

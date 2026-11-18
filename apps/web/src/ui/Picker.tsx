@@ -2,9 +2,9 @@
 // dim choices), like the run mode's. One component for every picker; `OptionPicker` takes a list of options.
 
 import type { ReactNode } from "react";
-import { DropdownMenu, type MenuItem } from "../DropdownMenu";
-import { FittedText } from "../FittedText";
-import { ChevronDownIcon } from "../icons";
+import { DropdownMenu, type MenuItem } from "./DropdownMenu";
+import { FittedText } from "./FittedText";
+import { ChevronDownIcon } from "./icons";
 import { optionGroups, type PickerOption } from "./pickerOptions";
 
 export function Picker({
