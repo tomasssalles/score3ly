@@ -16,11 +16,11 @@ export type RunMode = "auto" | "manual";
 
 // Where a project's pipeline is, for the home's cards (docs/project-view.md, "The home"): its first stage that isn't
 // done, as stored (a carried stage counts as not done: it waits for its turn), or null when every stage is done. The
-// browser names its state as the panel's head does (`running` with an old heartbeat is an interrupted run).
+// browser names its state as the panel's head does.
 export type PipelinePosition = {
   step: string;
   status: StageStatus;
-  heartbeatAt: string | null;
+  interrupted: boolean; // a running stage whose heartbeat stopped, as the pipeline's `Stage` says it
   carried: boolean;
 };
 

@@ -25,7 +25,6 @@ import {
   defaultArtifactId,
   findArtifact,
   findStage,
-  nextStaleAt,
   pipelineState,
   progressOf,
   stateLabel,
@@ -135,18 +134,8 @@ export function ProjectView({
     return () => controller.current?.abort();
   }, [project.id]);
 
-  // A stage running on another device turns "Interrupted" once its heartbeat is too old: the pipeline is fetched
-  // again then, in case one came meanwhile.
-  useEffect(() => {
-    const at = stored ? nextStaleAt(stored, local) : null;
-    if (at === null) return;
-    const timer = setTimeout(() => {
-      fetchPipeline(project).then(setStored, () => setStored((s) => (s ? { ...s } : s)));
-    }, at - Date.now());
-    return () => clearTimeout(timer);
-  }, [stored, local?.stageId]);
-
-  // A stage running on another device: this one looks every few seconds, to show where the pipeline is.
+  // A stage running on another device: this one looks every few seconds, to show where the pipeline is, and that it
+  // was interrupted once the Worker says so (its heartbeat too old).
   const runningElsewhere = pipeline.stages.some((s) => s.status === "running" && !s.runningHere);
   useEffect(() => {
     if (!runningElsewhere) return;

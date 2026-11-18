@@ -11,7 +11,7 @@ import { convertAddedConfigs, modelConfigRoutes } from "./modelConfigs.ts";
 import { readSettings, settingsRoutes } from "./settings.ts";
 import { llmCallRoutes } from "./llmCalls.ts";
 import { pipelineRoutes } from "./pipeline.ts";
-import { defaultForNewStages, newPipeline, stageEntries } from "./pipelineRules.ts";
+import { defaultForNewStages, isStale, newPipeline, stageEntries } from "./pipelineRules.ts";
 import { lock, versionRoutes } from "./versions.ts";
 import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
@@ -109,10 +109,11 @@ app.get("/api/projects", async (c) => {
     ),
   ]);
   type PositionRow = { project_id: string; step: string; status: PipelinePosition["status"]; heartbeat_at: string | null; carried: number };
+  const now = Date.now();
   const at = new Map(
     (positions.results as PositionRow[]).map((r) => [
       r.project_id,
-      { step: r.step, status: r.status, heartbeatAt: r.heartbeat_at, carried: r.carried === 1 } satisfies PipelinePosition,
+      { step: r.step, status: r.status, interrupted: isStale(r, now), carried: r.carried === 1 } satisfies PipelinePosition,
     ]),
   );
   return c.json<ListedProject[]>((projects.results as ProjectRow[]).map((row): ListedProject => ({ ...toProject(row), current: at.get(row.id) ?? null })));

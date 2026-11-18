@@ -7,7 +7,6 @@ import {
   defaultArtifactId,
   findArtifact,
   findStage,
-  nextStaleAt,
   pipelineState,
   progressOf,
   runningStage,
@@ -32,6 +31,7 @@ function stage(id: string, step: string, fields: Partial<ApiStage> = {}): ApiSta
     startedAt: T0,
     heartbeatAt: null,
     finishedAt: T0,
+    interrupted: false,
     modelConfig: null,
     costUsd: null,
     carried: false,
@@ -128,23 +128,17 @@ test("rasterize's page outputs are one artifact, its pages in order", () => {
   assert.equal(defaultArtifactId(p), "s2.pages");
 });
 
-test("the stage this device runs shows its progress; one running elsewhere none; one whose heartbeat stopped failed", () => {
-  const now = Date.parse("2026-10-12T10:10:00.000Z");
-  const running = (heartbeatAt: string | null) =>
-    toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "running", heartbeatAt })] }, null, now);
-  assert.equal(running("2026-10-12T10:09:00.000Z").stages[1].status, "running");
-  assert.equal(running("2026-10-12T10:09:00.000Z").stages[1].progress, 0);
-  const stale = running("2026-10-12T10:00:00.000Z").stages[1];
+test("the stage this device runs shows its progress; one running elsewhere none; one the Worker says was interrupted failed", () => {
+  const running = (interrupted: boolean) =>
+    toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "running", heartbeatAt: "2026-10-12T10:09:00.000Z", interrupted })] });
+  assert.equal(running(false).stages[1].status, "running");
+  assert.equal(running(false).stages[1].progress, 0);
+  const stale = running(true).stages[1];
   assert.equal(stale.status, "failed");
   assert.match(stale.error ?? "", /Interrupted/);
-  assert.ok(canRun(running("2026-10-12T10:00:00.000Z")));
+  assert.ok(canRun(running(true)));
 
-  const local = toPipeline(
-    "auto",
-    { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "planned" })] },
-    { stageId: "s2", progress: 0.25 },
-    now,
-  );
+  const local = toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "planned" })] }, { stageId: "s2", progress: 0.25 });
   assert.equal(local.stages[1].status, "running");
   assert.deepEqual(progressOf(local), { stage: 0.25, pipeline: 0.625 });
 });
@@ -245,21 +239,6 @@ test("after analyze, both fixes are offered; one among the manual stages that fo
   assert.deepEqual(p.stages[1].fixes, []);
 });
 
-test("the panel looks again when a stage running elsewhere would count as interrupted", () => {
-  const now = Date.parse("2026-10-12T10:10:00.000Z");
-  const pipeline = (...heartbeats: (string | null)[]) => ({
-    dropped: [],
-    stages: [ingest, ...heartbeats.map((heartbeatAt, i) => stage(`s${i + 2}`, "rasterize", { status: "running", heartbeatAt }))],
-  });
-  // Three minutes after the heartbeat, and the earliest of several.
-  assert.equal(nextStaleAt(pipeline("2026-10-12T10:09:00.000Z"), null, now), Date.parse("2026-10-12T10:12:00.001Z"));
-  assert.equal(nextStaleAt(pipeline("2026-10-12T10:09:30.000Z", "2026-10-12T10:08:00.000Z"), null, now), Date.parse("2026-10-12T10:11:00.001Z"));
-  // Already interrupted, or run by this device: nothing to wait for.
-  assert.equal(nextStaleAt(pipeline("2026-10-12T10:00:00.000Z"), null, now), null);
-  assert.equal(nextStaleAt(pipeline("2026-10-12T10:09:00.000Z"), { stageId: "s2", progress: 0.5 }, now), null);
-  assert.equal(nextStaleAt({ dropped: [], stages: [ingest] }, null, now), null);
-});
-
 test("a carried manual stage looks planned, never ready, without artifacts, and only Drop in its menu's changes", () => {
   const skew = stage("s3", "skew_analysis", { outputs: [{ id: "o5", item: "p1", type: "skew", contentSha256: SHA256, recipeKey: null, recipe: null }] });
   const fix = stage("s4", "fix_skew", { carried: true, outputs: [{ id: "o6", item: "p1", type: "lines", contentSha256: SHA256, recipeKey: null, recipe: null }] });
@@ -277,19 +256,32 @@ test("a dropped stage's card has its step's title and kind, after the stage it c
 });
 
 test("the pipeline's state and its label: running here or elsewhere, failed, interrupted, waiting, done", () => {
-  const now = Date.parse("2026-10-12T10:10:00.000Z");
-  const at = (...rest: ApiStage[]) => toPipeline("auto", { dropped: [], stages: [ingest, ...rest] }, null, now);
+  const at = (...rest: ApiStage[]) => toPipeline("auto", { dropped: [], stages: [ingest, ...rest] });
   const label = (p: ReturnType<typeof at>) => {
     const state = pipelineState(p);
     return state && [state.kind, stateLabel(state)];
   };
   assert.deepEqual(label(at(stage("s2", "rasterize"))), ["done", "Done"]);
   assert.deepEqual(label(at(stage("s2", "rasterize", { status: "running", heartbeatAt: "2026-10-12T10:09:30.000Z" }))), ["running", "Rasterize…"]);
-  const here = toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "planned" })] }, { stageId: "s2", progress: 0.3 }, now);
+  const here = toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "planned" })] }, { stageId: "s2", progress: 0.3 });
   assert.deepEqual(pipelineState(here), { kind: "running", stage: here.stages[1], here: true });
   assert.deepEqual(label(at(stage("s2", "rasterize", { status: "failed", error: "no" }))), ["failed", "Rasterize failed"]);
-  assert.deepEqual(label(at(stage("s2", "rasterize", { status: "running", heartbeatAt: "2026-10-12T10:00:00.000Z" }))), ["failed", "Rasterize interrupted"]);
+  assert.deepEqual(label(at(stage("s2", "rasterize", { status: "running", heartbeatAt: "2026-10-12T10:00:00.000Z", interrupted: true }))), ["failed", "Rasterize interrupted"]);
   assert.deepEqual(label(at(stage("s2", "rasterize", { status: "planned" }))), ["waiting", "Rasterize (not started)"]);
   assert.deepEqual(label(at(stage("s2", "rasterize"), stage("s3", "skew_analysis"), stage("s4", "fix_skew", { status: "wip" }))), ["waiting", "Fix skew (WIP)"]);
   assert.equal(pipelineState(toPipeline("auto", { dropped: [], stages: [] })), null);
+});
+
+test("whether a running stage was interrupted is the Worker's to say, on its clock: a browser clock 5 min ahead changes nothing", () => {
+  // The Worker read the pipeline at 10:00:30, half a minute after the heartbeat; this device's clock says 10:05:30.
+  const now = Date.parse("2026-10-12T10:05:30.000Z");
+  const live = { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "running", heartbeatAt: "2026-10-12T10:00:00.000Z", interrupted: false })] };
+  const realNow = Date.now;
+  Date.now = () => now;
+  try {
+    assert.equal(toPipeline("auto", live).stages[1].status, "running");
+    assert.deepEqual(pipelineState(toPipeline("auto", live))?.kind, "running");
+  } finally {
+    Date.now = realNow;
+  }
 });

@@ -15,6 +15,7 @@ const stage = (step: string, over: Partial<ApiStage> = {}): ApiStage => ({
   startedAt: "2026-10-21T10:00:00.000Z",
   heartbeatAt: null,
   finishedAt: "2026-10-21T10:00:12.340Z",
+  interrupted: false,
   modelConfig: null,
   costUsd: null,
   carried: false,

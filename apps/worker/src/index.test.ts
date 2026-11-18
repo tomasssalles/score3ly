@@ -699,10 +699,16 @@ test("a failed stage can run again; a running one only once its heartbeat is sta
   const project = await createdProject("sonata.pdf");
   const { rasterize } = await startRasterize(project.id);
   assert.equal((await startRasterize(project.id)).response.status, 409);
+  // The Worker says whether a running stage was interrupted, on its own clock (the browser's may be off).
+  assert.equal((await pipelineOf(project.id))[1].interrupted, false);
   assert.equal((await call(project.id, rasterize.id, "finish", { status: "failed", error: "Out of memory" })).status, 204);
   assert.equal((await pipelineOf(project.id))[1].error, "Out of memory");
   assert.equal((await startRasterize(project.id)).response.status, 200);
   await env.DB.prepare("UPDATE stages SET heartbeat_at = '2026-01-01T00:00:00.000Z' WHERE id = ?").bind(rasterize.id).run();
+  assert.deepEqual(
+    (await pipelineOf(project.id)).map((s) => s.interrupted),
+    [false, true, false, false, false, false, false, false, false, false],
+  );
   assert.equal((await startRasterize(project.id)).response.status, 200);
   assert.equal((await call(project.id, rasterize.id, "finish", { status: "failed" })).status, 400);
 });
@@ -962,18 +968,20 @@ test("the project list says where each pipeline is: its first stage not done, a 
   const listed = async (id: string) =>
     ((await (await app.request("/api/projects", {}, env)).json()) as { id: string; current: unknown }[]).find((p) => p.id === id)!.current;
   const fresh = await createdProject("where-fresh.pdf");
-  assert.deepEqual(await listed(fresh.id), { step: "rasterize", status: "planned", heartbeatAt: null, carried: false });
+  assert.deepEqual(await listed(fresh.id), { step: "rasterize", status: "planned", interrupted: false, carried: false });
   const { response } = await startRasterize(fresh.id);
   assert.equal(response.status, 200);
-  const running = (await listed(fresh.id)) as { step: string; status: string; heartbeatAt: string | null };
-  assert.deepEqual([running.step, running.status], ["rasterize", "running"]);
+  assert.deepEqual(await listed(fresh.id), { step: "rasterize", status: "running", interrupted: false, carried: false });
+  // Interrupted, by the Worker's clock: its heartbeat is too old.
+  await env.DB.prepare("UPDATE stages SET heartbeat_at = '2026-01-01T00:00:00.000Z' WHERE status = 'running' AND id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ?)").bind(fresh.id).run();
+  assert.deepEqual(await listed(fresh.id), { step: "rasterize", status: "running", interrupted: true, carried: false });
 
   const { project, run } = await carriedProject("where-carried.pdf");
-  assert.deepEqual(await listed(project.id), { step: "rasterize", status: "planned", heartbeatAt: null, carried: false });
+  assert.deepEqual(await listed(project.id), { step: "rasterize", status: "planned", interrupted: false, carried: false });
   await run(1, "page_image", (n) => ({ recipeKey: RECIPE_KEY(n + 2) }));
   await run(2, "skew", (n) => ({ contentSha256: LINES(n) }));
   // The finished fix_skew waits for its turn: the pipeline is there, although the stage is done.
-  assert.deepEqual(await listed(project.id), { step: "fix_skew", status: "done", heartbeatAt: null, carried: true });
+  assert.deepEqual(await listed(project.id), { step: "fix_skew", status: "done", interrupted: false, carried: true });
 
   await env.DB.prepare("UPDATE stages SET status = 'done' WHERE id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ?)").bind(fresh.id).run();
   assert.equal(await listed(fresh.id), null);

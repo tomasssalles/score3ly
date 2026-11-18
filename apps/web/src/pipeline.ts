@@ -106,23 +106,20 @@ export const MODE_LABELS: Record<RunMode, string> = { auto: "Auto", manual: "Man
 // Fractions from 0 to 1. `stage` is null while no stage is running.
 export type Progress = { stage: number | null; pipeline: number };
 
-// A running stage whose heartbeat is older than this was interrupted (the app was closed): it can run again
-// (docs/database.md). The same limit as the Worker's.
-export const STALE_MS = 3 * 60 * 1000;
-
 // The stage this device is running, and how far it is: only the device that runs a stage knows (§5.1).
 export type LocalRun = { stageId: string; progress: number; imagesDiffer?: boolean; item?: ItemProgress };
 
 // The pipeline as the Worker stores it, made ready to show. The first planned stage after the finished ones is
-// the one whose turn it is: "ready" (but a carried manual stage, which is kept or dropped as soon as its turn comes). A stage running elsewhere shows no progress; one whose heartbeat stopped
-// counts as failed, and can run again.
-export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null, now = Date.now()): Pipeline {
+// the one whose turn it is: "ready" (but a carried manual stage, which is kept or dropped as soon as its turn comes). A
+// stage running elsewhere shows no progress; one the Worker says was interrupted (its heartbeat stopped) counts as
+// failed, and can run again.
+export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null): Pipeline {
   const stages = stored.stages.map((s, i) => {
     const stage = toStage(s, stored.stages.slice(0, i), fixesAfter(stored.stages, i), stored.stages.slice(i + 1));
     if (local?.stageId === s.id) {
       return { ...stage, status: "running" as const, progress: local.progress, runningHere: true, imagesDiffer: local.imagesDiffer ?? false, item: local.item };
     }
-    if (s.status === "running" && (s.heartbeatAt === null || now - Date.parse(s.heartbeatAt) > STALE_MS)) {
+    if (s.status === "running" && s.interrupted) {
       return { ...stage, status: "failed" as const, interrupted: true, error: "Interrupted: the app was closed while this stage ran." };
     }
     return stage;
@@ -182,16 +179,6 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
     droppable: info.kind === "manual" || info.optional || (stored.step === "review" && !stored.inRecipe),
     configurable: info.config !== undefined,
   };
-}
-
-// When the next stage running elsewhere would count as interrupted, if its heartbeat doesn't come (ms since the epoch),
-// or null if none is running elsewhere. The panel fetches the pipeline then: a heartbeat may have come meanwhile.
-export function nextStaleAt(stored: ApiPipeline, local: LocalRun | null = null, now = Date.now()): number | null {
-  const times = stored.stages
-    .filter((s) => s.status === "running" && s.id !== local?.stageId && s.heartbeatAt !== null)
-    .map((s) => Date.parse(s.heartbeatAt!) + STALE_MS + 1)
-    .filter((t) => t > now);
-  return times.length > 0 ? Math.min(...times) : null;
 }
 
 export function hasArtifacts(stage: Stage): boolean {

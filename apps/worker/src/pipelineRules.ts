@@ -247,7 +247,7 @@ export async function anyRunning(db: D1Database, projectId: string, now: number)
   return results.some((stage) => !isStale(stage, now));
 }
 
-export async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline> {
+export async function readPipeline(db: D1Database, projectId: string, now = Date.now()): Promise<Pipeline> {
   const [stages, outputs, dropped] = await db.batch([
     db
       .prepare(
@@ -275,6 +275,7 @@ export async function readPipeline(db: D1Database, projectId: string): Promise<P
       startedAt: row.started_at,
       heartbeatAt: row.heartbeat_at,
       finishedAt: row.finished_at,
+      interrupted: isStale(row, now),
       modelConfig: row.mc_provider ? stageModelConfig(row) : null,
       costUsd: row.cost_usd ?? null,
       carried: row.carried === 1,
@@ -349,7 +350,10 @@ export function closeRunningCalls(db: D1Database, stageId: string, now: string, 
     .bind(message, now, stageId);
 }
 
-export function isStale(stage: StageRow, now: number): boolean {
+// Whether a stage was interrupted: running, with its heartbeat older than `STALE_MS` by the Worker's clock (or none).
+// The Worker alone decides it, and sends it with the pipeline (`Stage.interrupted`, `PipelinePosition.interrupted`), so
+// that a device whose clock is off shows what the Worker would do.
+export function isStale(stage: { status: string; heartbeat_at: string | null }, now: number): boolean {
   return stage.status === "running" && (stage.heartbeat_at === null || now - Date.parse(stage.heartbeat_at) > STALE_MS);
 }
 

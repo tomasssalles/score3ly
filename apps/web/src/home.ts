@@ -2,7 +2,7 @@
 // pipeline is in the words of the panel's head ("Done", "Extract failed", "Human review (WIP)").
 
 import type { ListedProject, PipelinePosition } from "./api";
-import { type LabelState, STALE_MS } from "./pipeline.ts";
+import type { LabelState } from "./pipeline.ts";
 import { stepInfo } from "./steps.ts";
 
 // How many projects the home shows at most; fewer where the screen fits fewer (a phone). The picker has them all.
@@ -19,15 +19,15 @@ export function cardsThatFit(height: number, cardHeight: number, gap: number, co
 }
 
 // Where a pipeline is, as the panel's head would say it, from where the Worker says it is. A carried stage waits for its
-// turn; a running one whose heartbeat stopped was interrupted. Nothing
-// runs on this device while the home is shown: leaving a project stops its run.
-export function positionState(current: PipelinePosition | null, now = Date.now()): LabelState {
+// turn; a running one whose heartbeat stopped was interrupted (the Worker says so). Nothing runs on this device while
+// the home is shown: leaving a project stops its run.
+export function positionState(current: PipelinePosition | null): LabelState {
   if (!current) return { kind: "done" };
   const title = stepInfo(current.step).title;
   if (current.carried) return { kind: "waiting", stage: { title, status: "planned" } };
   switch (current.status) {
     case "running":
-      return current.heartbeatAt === null || now - Date.parse(current.heartbeatAt) > STALE_MS
+      return current.interrupted
         ? { kind: "failed", stage: { title }, interrupted: true }
         : { kind: "running", stage: { title } };
     case "failed":

@@ -26,6 +26,9 @@ export type Stage = {
   note: string | null;
   startedAt: string | null;
   heartbeatAt: string | null; // written once a minute while running
+  // A running stage whose heartbeat stopped (docs/database.md, "Interrupted runs"): decided by the Worker, on its clock,
+  // when it read the pipeline. It can run again.
+  interrupted: boolean;
   finishedAt: string | null;
   modelConfig: StageModelConfig | null; // LLM stages: the model config it names
   costUsd: number | null; // what its LLM calls cost, VAT included (docs/llm.md, "VAT")
