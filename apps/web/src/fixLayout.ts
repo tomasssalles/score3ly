@@ -104,16 +104,6 @@ export function systemsChanged(original: LayoutSystem[], fixed: LayoutSystem[]):
   return JSON.stringify(sortSystems(original)) !== JSON.stringify(sortSystems(fixed));
 }
 
-// The number of the first system on each page: numbers continue from page to page.
-export function firstNumbers(counts: number[]): number[] {
-  let next = 1;
-  return counts.map((count) => {
-    const first = next;
-    next += count;
-    return first;
-  });
-}
-
 // The card's short result, e.g. "layout changed on 2 of 10 pages".
 export function fixLayoutNote(changed: number, pages: number): string {
   if (changed === 0) return "no changes";

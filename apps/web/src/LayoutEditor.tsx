@@ -13,7 +13,6 @@ import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
 import {
   addBarLine,
   boxThrough,
-  firstNumbers,
   fixedLayout,
   moveBarLine,
   resizeBox,
@@ -24,7 +23,7 @@ import {
 } from "./fixLayout";
 import { canRedo, canUndo, pushState, redo, startHistory, undo, type UndoStack } from "./history";
 import { BarLineIcon, BoxIcon, HandIcon, TrashIcon } from "./ui/icons";
-import type { PageLayout } from "./layout";
+import { firstNumbers, type PageLayout } from "./layout";
 import {
   BoxHandles,
   handleAt,
@@ -123,7 +122,7 @@ export function LayoutEditor({
 
   const page = pages[Math.min(index, pages.length - 1)];
   const go = (i: number) => setIndex(Math.max(0, Math.min(pages.length - 1, i)));
-  const firsts = layouts ? firstNumbers(pages.map((p) => layouts.get(p.item)?.systems.length ?? 0)) : [];
+  const firsts = layouts ? firstNumbers(pages.map((p) => ({ page: p.page, systems: layouts.get(p.item)?.systems ?? [] }))) : [];
   const layout = layouts?.get(page.item);
   const history = histories.current.get(page.item);
 

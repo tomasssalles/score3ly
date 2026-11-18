@@ -143,11 +143,3 @@ export function ownIssueProblems(stored: StoredHumanReview, systems: PlacedSyste
   });
 }
 
-// The systems of the layout, numbered top to bottom, continuing from page to page (docs/overview.md §6).
-export function placedSystems(pages: { page: number; systems: { box: Box; barLines: number[] }[] }[]): PlacedSystem[] {
-  let n = 0;
-  return [...pages]
-    .sort((a, b) => a.page - b.page)
-    .flatMap((p) => p.systems.map((layout) => ({ number: ++n, page: p.page, layout })));
-}
-

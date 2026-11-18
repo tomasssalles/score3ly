@@ -4,7 +4,7 @@ import { failure, fetchJsonContent, pdfUrl, type Project } from "./api";
 import { CloseIcon } from "./ui/icons";
 import { useNear, useObjectUrl } from "./ui/hooks";
 import { LAYOUT_COLOR_HEX } from "@score3ly/imaging";
-import type { PageLayout } from "./layout";
+import { firstNumbers, numberSystems, type PageLayout } from "./layout";
 import { pageImage, straightPage } from "./pageImages";
 import type { Artifact } from "./pipeline";
 import { straightRecipe, type PageRecipe, type StraightRecipe } from "./recipes";
@@ -17,7 +17,6 @@ import { EngravingView } from "./EngravingView";
 import { ExtractionView } from "./ExtractionView";
 import { FixMeiView } from "./FixMeiView";
 import { LayoutEditor } from "./LayoutEditor";
-import { firstNumbers } from "./fixLayout";
 
 // Loaded when first opened, to keep it out of the bundle every visit downloads (docs/tasks.md, the build's warning).
 
@@ -203,15 +202,10 @@ export function LayoutFilmstrip({
 
   if (error) return <div className="text-view"><p>The layouts couldn't be loaded.</p></div>;
   if (!layouts) return <div className="text-view"><p>Loading the layouts…</p></div>;
-  const firsts = firstNumbers(layouts.map((layout) => layout.systems.length));
-  let focus: { index: number; y: number } | undefined;
-  if (focusSystem !== undefined) {
-    const index = layouts.findIndex((l, i) => focusSystem >= firsts[i] && focusSystem < firsts[i] + l.systems.length);
-    if (index >= 0) {
-      const { top, bottom } = layouts[index].systems[focusSystem - firsts[index]].box;
-      focus = { index, y: (top + bottom) / 2 };
-    }
-  }
+  const layoutPages = layouts.map((layout, i) => ({ page: pages[i].page, systems: layout.systems }));
+  const firsts = firstNumbers(layoutPages);
+  const focused = focusSystem === undefined ? undefined : numberSystems(layoutPages).find((s) => s.number === focusSystem);
+  const focus = focused && { index: focused.pageIndex, y: (focused.layout.box.top + focused.layout.box.bottom) / 2 };
   return (
     <Filmstrip
       count={pages.length}

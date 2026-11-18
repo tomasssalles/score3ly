@@ -76,14 +76,15 @@ test("the user's choice: one per issue, an existing answer or a written one, tak
   assert.deepEqual(userChoice(stored, 2), { key: "a", newAnswer: null });
 });
 
-import { boxProblems, ownIssue, ownIssueProblems, ownIssues, placedSystems, putOwnIssue, removeOwnIssue } from "./humanReview.ts";
+import { numberSystems } from "./layout.ts";
+import { boxProblems, ownIssue, ownIssueProblems, ownIssues, putOwnIssue, removeOwnIssue } from "./humanReview.ts";
 
 test("clarifications: raised, written, replaced in place, removed; one without text keeps Finish waiting", () => {
   const box = { page: 1, box: { left: 0.2, right: 0.3, top: 0.15, bottom: 0.25 } };
   const draft = ownIssue(7, [box], "  ");
   assert.deepEqual([draft.source, draft.answers, draft.choices, draft.applied, draft.resolved], ["user", [], [], null, true]);
   let stored = putOwnIssue(chooseAnswer({ entries: [] }, issue(1), "b"), draft);
-  const systems = placedSystems([{ page: 1, systems: [{ box: { left: 0.1, right: 0.9, top: 0.1, bottom: 0.3 }, barLines: [] }] }]);
+  const systems = numberSystems([{ page: 1, systems: [{ box: { left: 0.1, right: 0.9, top: 0.1, bottom: 0.3 }, barLines: [] }] }]);
   assert.deepEqual(ownIssueProblems(stored, systems), [{ id: 7, problem: "The clarification text cannot be empty." }]);
   const written = ownIssue(7, [box], " A C flat ");
   assert.deepEqual([written.answers, written.choices], [[{ key: "a", text: "A C flat" }], [{ by: "human_review", key: "a", reason: null }]]);
@@ -100,7 +101,7 @@ test("clarifications: raised, written, replaced in place, removed; one without t
 
 test("a clarification's boxes: at least one, each on a system, on one system or two neighbouring ones; the boxes that break a rule", () => {
   const layout = (top: number) => ({ box: { left: 0.1, right: 0.9, top, bottom: top + 0.2 }, barLines: [] });
-  const systems = placedSystems([
+  const systems = numberSystems([
     { page: 2, systems: [layout(0.1)] },
     { page: 1, systems: [layout(0.1), layout(0.5)] },
   ]);

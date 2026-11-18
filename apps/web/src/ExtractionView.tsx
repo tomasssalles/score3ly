@@ -19,7 +19,7 @@ import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
 import { useNear, useObjectUrl } from "./ui/hooks";
 import { BoxesIcon, ChangesIcon, MusicIcon, SourceIcon } from "./ui/icons";
 import { InfoButton } from "./ui/Info";
-import type { PageLayout } from "./layout";
+import { numberSystems, type PageLayout } from "./layout";
 import { ModeToggle, UnsavedNote } from "./pageEditor";
 import { saverOf, useSaver } from "./saving";
 import { cropImage } from "./pageImages";
@@ -37,7 +37,6 @@ import {
   humanReviewedIssues,
   ownIssue,
   ownIssues,
-  placedSystems,
   putOwnIssue,
   removeOwnIssue,
   userChoice,
@@ -171,7 +170,7 @@ function useTranscription(artifact: Artifact, stageId: string | null): Loaded | 
           issues: new Map(shownIssues.map((i) => [i.id, i])),
           stored,
           before,
-          placed: placedSystems(pages.map((p) => ({ page: p.page, systems: layouts.get(p.page)?.systems ?? [] }))),
+          placed: numberSystems(pages.map((p) => ({ page: p.page, systems: layouts.get(p.page)?.systems ?? [] }))),
         };
         result = { ...result, ...withHumanReview(human, stored, data.who), human };
       }

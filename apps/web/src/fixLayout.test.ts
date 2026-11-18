@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   addBarLine,
   boxThrough,
-  firstNumbers,
   fixedLayout,
   fixLayoutNote,
   moveBarLine,
@@ -67,10 +66,6 @@ test("fix_layout's output is sorted and not flagged; only the systems count as a
   assert.deepEqual(fixed.systems.map((s) => s.box.top), [0.1, 0.5]);
   assert.equal(systemsChanged(layout.systems, fixed.systems), false);
   assert.equal(systemsChanged(layout.systems, fixed.systems.slice(1)), true);
-});
-
-test("system numbers continue from page to page", () => {
-  assert.deepEqual(firstNumbers([0, 4, 5, 3]), [1, 1, 5, 10]);
 });
 
 test("the note counts the pages whose layout changed", () => {

@@ -3,8 +3,8 @@
 
 import { pageOfItem } from "@score3ly/core";
 import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
-import { humanReviewNote, ownIssueProblems, placedSystems, type StoredHumanReview } from "./humanReview";
-import type { PageLayout } from "./layout";
+import { humanReviewNote, ownIssueProblems, type StoredHumanReview } from "./humanReview";
+import { numberSystems, type PageLayout } from "./layout";
 
 export async function finishHumanReview(project: Project, stage: ApiStage, pipeline: ApiPipeline): Promise<string> {
   const saved = stage.outputs.find((o) => o.item === "" && o.type === "human_review" && o.contentSha256);
@@ -19,7 +19,7 @@ export async function finishHumanReview(project: Project, stage: ApiStage, pipel
         .filter((o) => o.type === "layout" && o.contentSha256)
         .map(async (o) => ({ page: pageOfItem(o.item) ?? 0, systems: ((await fetchJsonContent(o.contentSha256!)) as PageLayout).systems })),
     );
-    const problems = ownIssueProblems(stored, placedSystems(pages));
+    const problems = ownIssueProblems(stored, numberSystems(pages));
     if (problems.length > 0) {
       throw new Error(`${problems.map((p) => `Clarification ${p.id}: ${p.problem}`).join(" ")} Everything else is kept.`);
     }

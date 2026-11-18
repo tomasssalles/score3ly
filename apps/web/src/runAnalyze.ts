@@ -33,9 +33,8 @@ import {
   type StoredObservations,
 } from "./analyze";
 import { fetchJsonContent, putJson } from "./api";
-import { firstNumbers } from "./fixLayout";
 import { modelKeyOf, normalized, pageItem, pageOfItem } from "@score3ly/core";
-import type { PageLayout } from "./layout";
+import { firstNumbers, numberSystems, type PageLayout } from "./layout";
 import { ask, plannedSizeProblem, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor } from "./requestLimits";
 import { layoutPage, modelPage } from "./pageImages";
@@ -60,13 +59,13 @@ export async function runAnalyze(run: StageRun): Promise<void> {
     .sort((a, b) => a.page - b.page);
   if (pages.length === 0) throw new CannotStart("the layout has no pages.");
   const layouts = await Promise.all(pages.map((p) => fetchJsonContent(p.output.contentSha256!) as Promise<PageLayout>));
-  const firsts = firstNumbers(layouts.map((l) => l.systems.length));
-  const labels = layouts.map((l, i) => l.systems.map((_, j) => firsts[i] + j));
+  const layoutPages = layouts.map((l, i) => ({ page: pages[i].page, systems: l.systems }));
+  const firsts = firstNumbers(layoutPages);
+  const numbered = numberSystems(layoutPages);
+  const labels = layouts.map((_, i) => numbered.filter((s) => s.pageIndex === i).map((s) => s.number));
   // Every system by its number, with its number of bar lines and its page: what the answers may name.
   type SystemInfo = { barLines: number; page: number };
-  const allSystems = new Map(
-    layouts.flatMap((l, i) => l.systems.map((s, j): [number, SystemInfo] => [firsts[i] + j, { barLines: s.barLines.length, page: pages[i].page }])),
-  );
+  const allSystems = new Map(numbered.map((s): [number, SystemInfo] => [s.number, { barLines: s.layout.barLines.length, page: s.page }]));
 
   const { config, stageConfig, start } = await llmStart(stage);
   const pageLimit = imageLimit(config);

@@ -1,7 +1,7 @@
 // The `layout` step (docs/stages/layout.md): what doesn't need the browser or the model. Its runner is runLayout.ts.
 
 import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
-import type { LayoutSystem } from "@score3ly/core";
+import { systemItem, type LayoutSystem } from "@score3ly/core";
 import { count } from "./format.ts";
 
 export const LAYOUT_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
@@ -32,4 +32,35 @@ export function layoutStageKey(input: {
 export function layoutNote(systems: number, pages: number, flagged: number): string {
   const text = `${count(systems, "system")} on ${count(pages, "page")}`;
   return flagged > 0 ? `${text} · ${flagged} flagged` : text;
+}
+
+// A system of the score, numbered (docs/overview.md §6): its number, its page, its item (`p<page>/s<index>`) and its
+// layout; `pageIndex` is the index of its page among the pages it was numbered from.
+export type NumberedSystem = { number: number; page: number; item: string; layout: LayoutSystem; pageIndex: number };
+
+type LayoutPage = { page: number; systems: LayoutSystem[] };
+
+// The pages' indexes in the order their systems are numbered: by page number.
+const pageOrder = (pages: LayoutPage[]) => pages.map((_, i) => i).sort((a, b) => pages[a].page - pages[b].page);
+
+// The systems of the pages, numbered top to bottom on each page (as stored: layout and fix_layout keep them sorted),
+// continuing from page to page in the pages' order. A page whose layout isn't there (not loaded) is given without
+// systems.
+export function numberSystems(pages: LayoutPage[]): NumberedSystem[] {
+  const firsts = firstNumbers(pages);
+  return pageOrder(pages).flatMap((pageIndex) => {
+    const { page, systems } = pages[pageIndex];
+    return systems.map((layout, j) => ({ number: firsts[pageIndex] + j, page, item: systemItem(page, j + 1), layout, pageIndex }));
+  });
+}
+
+// The number of each page's first system, by the pages' index; for a page without systems, the next page's.
+export function firstNumbers(pages: LayoutPage[]): number[] {
+  const firsts = pages.map(() => 0);
+  let next = 1;
+  for (const i of pageOrder(pages)) {
+    firsts[i] = next;
+    next += pages[i].systems.length;
+  }
+  return firsts;
 }
