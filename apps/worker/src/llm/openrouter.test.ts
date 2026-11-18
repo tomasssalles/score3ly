@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createProvider } from "./index.ts";
+import { createAdapter } from "./index.ts";
 import { fetchPriceRange, freeOnOpenRouter, priceRange } from "./openrouter.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 import { sseData } from "@score3ly/core";
@@ -66,7 +66,7 @@ const request: LlmRequest = {
 };
 
 const provider = (calls: Call[], answer: unknown, region = "", status = 200) =>
-  createProvider({ provider: "openrouter", apiKey: "or-key", region }, { fetch: fakeOpenRouter(calls, answer, status) });
+  createAdapter({ provider: "openrouter", family: "claude", region, project: null, secrets: { apiKey: "or-key" } }, { fetch: fakeOpenRouter(calls, answer, status) })!;
 
 test("the request: Chat Completions with the key, the system prompt, images as data URLs, cache marks, effort, the schema, only providers that take every parameter", async () => {
   const calls: Call[] = [];
@@ -96,7 +96,6 @@ test("the EU region goes to eu.openrouter.ai", async () => {
 
 test("the answer, put together from the stream: text and JSON, tokens without the cached ones, the reported cost and who served it", async () => {
   const response = await provider([], completion()).send(request);
-  assert.equal(response.provider, "openrouter");
   assert.equal(response.stop, "end");
   assert.deepEqual(response.json, { systems: 6 });
   assert.deepEqual(response.usage, { inputTokens: 700, outputTokens: 25, cacheReadTokens: 200, cacheWriteTokens: 100 });
@@ -124,7 +123,7 @@ test("errors: an HTTP error by its status, an error after a 200 by its code (no 
   await assert.rejects(provider([], { error: { code: 402, message: "Insufficient credits" } }, "", 402).send(request), (e: LlmError) => e.kind === "bad_request" && e.status === 402);
   await assert.rejects(provider([], { error: { code: 429, message: "slow down" } }, "", 429).send(request), (e: LlmError) => e.kind === "rate_limit");
   await assert.rejects(provider([], { error: { code: 502, message: "upstream" } }).send(request), (e: LlmError) => e.kind === "server" && e.status === undefined);
-  assert.throws(() => createProvider({ provider: "openrouter", apiKey: "", region: "" }), LlmError);
+  assert.throws(() => createAdapter({ provider: "openrouter", family: "claude", region: "", project: null, secrets: { apiKey: "" } })!, LlmError);
 });
 
 test("a provider's refusal: its name and its own message, from the error's metadata", async () => {

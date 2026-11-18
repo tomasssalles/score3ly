@@ -1,10 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { GoogleProvider, mergeChunks } from "./google.ts";
+import { mergeChunks } from "./google.ts";
+import { createAdapter } from "./index.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
 import { sseData } from "@score3ly/core";
 
 type Captured = { url: string; headers: Headers; body: any };
+
+// Gemini on the Gemini API, as the Worker makes it.
+function gemini(apiKey: string, fetch: typeof globalThis.fetch) {
+  return createAdapter({ provider: "ai-studio", family: "gemini", region: "", project: null, secrets: { apiKey } }, { fetch })!;
+}
 
 // Server-sent events, as Gemini streams its answer: one "data:" event per chunk.
 function sse(chunks: object[]): string {
@@ -58,7 +64,7 @@ const reply = {
 
 test("a request is sent as the Gemini API expects", async () => {
   const captured: Captured[] = [];
-  await new GoogleProvider({ apiKey: "g-key", fetch: fakeFetch(reply, captured) }).send(request);
+  await gemini("g-key", fakeFetch(reply, captured)).send(request);
   const [{ url, headers, body }] = captured;
   assert.match(url, /models\/gemini-3-pro:streamGenerateContent\?alt=sse/);
   assert.equal(headers.get("x-goog-api-key"), "g-key");
@@ -83,13 +89,13 @@ test("cache marks are accepted and left out: Gemini caches matching prefixes by 
     ...request,
     messages: [{ role: "user", content: request.messages[0].content.map((part) => ({ ...part, cacheUpTo: true as const })) }],
   };
-  const response = await new GoogleProvider({ apiKey: "g-key", fetch: fakeFetch(reply, captured) }).send(marked);
+  const response = await gemini("g-key", fakeFetch(reply, captured)).send(marked);
   assert.deepEqual(response.json, { systems: 6 });
   assert.deepEqual(captured[0].body.contents[0].parts, [{ inlineData: { mimeType: "image/jpeg", data: "/9j/4AAQ" } }, { text: "How many systems?" }]);
 });
 
 test("the answer leaves out thoughts; cached tokens and thinking are counted where they are billed", async () => {
-  const response = await new GoogleProvider({ apiKey: "k", fetch: fakeFetch(reply, []) }).send(request);
+  const response = await gemini("k", fakeFetch(reply, [])).send(request);
   assert.equal(response.text, '{"systems":6}');
   assert.deepEqual(response.json, { systems: 6 });
   assert.equal(response.stop, "end");
@@ -99,7 +105,7 @@ test("the answer leaves out thoughts; cached tokens and thinking are counted whe
 
 test("a blocked prompt or a safety stop is a refusal", async () => {
   const blocked = { promptFeedback: { blockReason: "SAFETY" }, usageMetadata: { promptTokenCount: 10 } };
-  const response = await new GoogleProvider({ apiKey: "k", fetch: fakeFetch(blocked, []) }).send({
+  const response = await gemini("k", fakeFetch(blocked, [])).send({
     ...request,
     jsonSchema: undefined,
   });
@@ -113,10 +119,7 @@ test("HTTP errors become typed errors", async () => {
     [429, "rate_limit"],
     [503, "overloaded"],
   ] as const) {
-    const provider = new GoogleProvider({
-      apiKey: "k",
-      fetch: fakeFetch({ error: { code: status, message: "nope" } }, [], status),
-    });
+    const provider = gemini("k", fakeFetch({ error: { code: status, message: "nope" } }, [], status));
     await assert.rejects(provider.send(request), (err: unknown) => err instanceof LlmError && err.kind === kind);
   }
 });
@@ -130,7 +133,7 @@ const chunks = [
 ];
 
 test("a streamed answer is put together: its text, its thoughts left out, the last finish reason and usage", async () => {
-  const response = await new GoogleProvider({ apiKey: "k", fetch: fakeFetch(chunks, []) }).send(request);
+  const response = await gemini("k", fakeFetch(chunks, [])).send(request);
   assert.equal(response.text, '{"systems":6}');
   assert.deepEqual(response.json, { systems: 6 });
   assert.equal(response.stop, "end");
@@ -153,18 +156,18 @@ test("chunks put together: parts that aren't plain text are kept apart, and no c
 test("an error in the stream is a typed error; a stream cut short is unreadable", async () => {
   const failing = (async () =>
     new Response(sse([chunks[0]]) + 'data: {"error":{"code":503,"message":"overloaded","status":"UNAVAILABLE"}}\r\n\r\n', { status: 200 })) as unknown as typeof fetch;
-  await assert.rejects(new GoogleProvider({ apiKey: "k", fetch: failing }).send(request), (err: unknown) => err instanceof LlmError && err.kind === "overloaded");
+  await assert.rejects(gemini("k", failing).send(request), (err: unknown) => err instanceof LlmError && err.kind === "overloaded");
   const cut = (async () => new Response(sse([chunks[0]]) + 'data: {"candidates":[', { status: 200 })) as unknown as typeof fetch;
-  await assert.rejects(new GoogleProvider({ apiKey: "k", fetch: cut }).send(request), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
+  await assert.rejects(gemini("k", cut).send(request), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
   const empty = (async () => new Response("", { status: 200 })) as unknown as typeof fetch;
-  await assert.rejects(new GoogleProvider({ apiKey: "k", fetch: empty }).send(request), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
+  await assert.rejects(gemini("k", empty).send(request), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
 });
 
 test("a response that isn't JSON is unreadable, a failed fetch is the network", async () => {
   const broken = (async () => new Response("data: {broken\r\n\r\n", { status: 200, headers: { "content-type": "text/event-stream" } })) as unknown as typeof fetch;
   const offline = (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch;
   for (const [fetch, kind] of [[broken, "unreadable_response"], [offline, "network"]] as const) {
-    const provider = new GoogleProvider({ apiKey: "k", fetch });
+    const provider = gemini("k", fetch);
     await assert.rejects(provider.send(request), (err: unknown) => err instanceof LlmError && err.kind === kind && err.status === undefined);
   }
 });
@@ -175,7 +178,7 @@ test("progress as the chunks arrive: the parts' characters, thoughts apart, and 
     { candidates: [{ content: { role: "model", parts: [{ text: '{"systems":6}' }] }, finishReason: "STOP" }], usageMetadata: { candidatesTokenCount: 12, thoughtsTokenCount: 500 }, modelVersion: "gemini-3-pro" },
   ];
   const seen: unknown[] = [];
-  const response = await new GoogleProvider({ apiKey: "g-key", fetch: fakeFetch(chunks, []) }).send(request, undefined, (p) => seen.push(p));
+  const response = await gemini("g-key", fakeFetch(chunks, [])).send(request, undefined, (p) => seen.push(p));
   assert.deepEqual(response.json, { systems: 6 });
   assert.deepEqual(seen, [
     { textChars: 0, thinkingChars: 9, outputTokens: null },

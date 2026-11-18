@@ -1,44 +1,39 @@
-// Sends one image and a question to a vision LLM, with real keys, to try the adapters (src/llm) by hand:
+// Sends one image and a question to a vision LLM, with real keys, to try the adapters (src/llm) by hand, made as the
+// Worker makes them (`createAdapter`, by the app's provider names):
 //
 //   ANTHROPIC_API_KEY=... npm run llm:try -w apps/worker -- anthropic claude-opus-5-5 page.png "How many systems?"
-//   GEMINI_API_KEY=...    npm run llm:try -w apps/worker -- google gemini-3-pro page.jpg "How many systems?"
+//   GEMINI_API_KEY=...    npm run llm:try -w apps/worker -- ai-studio gemini-3-pro page.jpg "How many systems?"
 //   VERTEX_SERVICE_ACCOUNT=key.json VERTEX_REGION=global \
-//                         npm run llm:try -w apps/worker -- google-vertex gemini-3.1-pro-preview page.png "How many systems?"
+//                         npm run llm:try -w apps/worker -- vertex gemini-3.1-pro-preview page.png "How many systems?"
 //
 //   OPENROUTER_API_KEY=... OPENROUTER_REGION=eu \
 //                         npm run llm:try -w apps/worker -- openrouter anthropic/claude-opus-5.5 page.png "..."
 //
 //   BEDROCK_API_KEY=... BEDROCK_REGION=eu-central-1 \
-//                         npm run llm:try -w apps/worker -- anthropic-bedrock eu.anthropic.claude-opus-5-5 page.png "..."
+//                         npm run llm:try -w apps/worker -- bedrock eu.anthropic.claude-opus-5-5 page.png "..."
 //
 // For Gemini on Vertex AI, VERTEX_SERVICE_ACCOUNT is the path of a service account's key file (JSON), VERTEX_REGION the region
 // ("eu" if left out), and VERTEX_PROJECT the project (the key file's if left out). For Bedrock, BEDROCK_API_KEY is a
 // Bedrock API key, or else AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY an access key pair; BEDROCK_REGION is the
 // region ("eu-central-1" if left out). For OpenRouter, OPENROUTER_REGION "eu" sends to its EU host (a Business account),
 // everywhere if left out; the answer's reported cost and who ran it are printed with the usage. The model is the
-// provider's own string for it.
+// provider's own string for it, as sent (on Bedrock with its routing's prefix). Up to 64,000 output tokens.
 //
 // Add --json to ask for {"answer": string} through the provider's schema-constrained output.
 
 import { readFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { createProvider, type LlmImage, type ProviderConfig } from "../src/llm/index.ts";
+import { type AdapterSettings, createAdapter, type LlmImage } from "../src/llm/index.ts";
+
+const PROVIDERS = ["anthropic", "bedrock", "ai-studio", "vertex", "openrouter"] as const;
+type TriedProvider = (typeof PROVIDERS)[number];
 
 const args = parseArgs({ options: { json: { type: "boolean", default: false } }, allowPositionals: true });
 const json = args.values.json;
-const [provider, model, imagePath, prompt] = args.positionals;
-if (
-  args.positionals.length !== 4 ||
-  !provider ||
-  !model ||
-  !imagePath ||
-  !prompt ||
-  !["anthropic", "anthropic-bedrock", "google", "google-vertex", "openrouter"].includes(provider)
-) {
-  console.error(
-    "Usage: try-llm.ts <anthropic|anthropic-bedrock|google|google-vertex|openrouter> <model> <image> <prompt> [--json]",
-  );
+const [provider, model, imagePath, prompt] = args.positionals as [TriedProvider, string, string, string];
+if (args.positionals.length !== 4 || !PROVIDERS.includes(provider) || !model || !imagePath || !prompt) {
+  console.error(`Usage: try-llm.ts <${PROVIDERS.join("|")}> <model> <image> <prompt> [--json]`);
   process.exit(1);
 }
 
@@ -54,21 +49,33 @@ function required(name: string): string {
   return value;
 }
 
-const config: ProviderConfig =
-  provider === "anthropic"
-    ? { provider, apiKey: required("ANTHROPIC_API_KEY") }
-    : provider === "google"
-      ? { provider, apiKey: required("GEMINI_API_KEY") }
-      : provider === "anthropic-bedrock"
-        ? bedrockConfig()
-        : provider === "openrouter"
-          ? { provider, apiKey: required("OPENROUTER_API_KEY"), region: process.env.OPENROUTER_REGION ?? "" }
-        : {
-            provider: "google-vertex",
-            serviceAccount: readFileSync(userPath(required("VERTEX_SERVICE_ACCOUNT")), "utf8"),
-            region: process.env.VERTEX_REGION ?? "eu",
-            projectId: process.env.VERTEX_PROJECT,
-          };
+// The secrets and the place each provider takes, from the environment. The family only picks the adapter; on
+// OpenRouter, which takes both, it doesn't matter which.
+function settings(): AdapterSettings {
+  const family = provider === "ai-studio" || provider === "vertex" ? "gemini" : "claude";
+  const base = { provider, family, region: "", project: null } as const;
+  switch (provider) {
+    case "anthropic":
+      return { ...base, secrets: { apiKey: required("ANTHROPIC_API_KEY") } };
+    case "ai-studio":
+      return { ...base, secrets: { apiKey: required("GEMINI_API_KEY") } };
+    case "openrouter":
+      return { ...base, region: process.env.OPENROUTER_REGION ?? "", secrets: { apiKey: required("OPENROUTER_API_KEY") } };
+    case "vertex":
+      return {
+        ...base,
+        region: process.env.VERTEX_REGION ?? "eu",
+        project: process.env.VERTEX_PROJECT ?? null,
+        secrets: { serviceAccount: readFileSync(userPath(required("VERTEX_SERVICE_ACCOUNT")), "utf8") },
+      };
+    case "bedrock": {
+      const apiKey = process.env.BEDROCK_API_KEY;
+      const secrets: Record<string, string> = apiKey ? { apiKey } : { accessKeyId: required("AWS_ACCESS_KEY_ID"), secretAccessKey: required("AWS_SECRET_ACCESS_KEY") };
+      return { ...base, region: process.env.BEDROCK_REGION ?? "eu-central-1", secrets };
+    }
+  }
+}
+
 const mediaTypes: Record<string, LlmImage["mediaType"]> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
@@ -81,23 +88,12 @@ if (!mediaType) {
   process.exit(1);
 }
 
-function bedrockConfig(): ProviderConfig {
-  const region = process.env.BEDROCK_REGION ?? "eu-central-1";
-  const apiKey = process.env.BEDROCK_API_KEY;
-  if (apiKey) return { provider: "anthropic-bedrock", region, apiKey };
-  return {
-    provider: "anthropic-bedrock",
-    region,
-    accessKeyId: required("AWS_ACCESS_KEY_ID"),
-    secretAccessKey: required("AWS_SECRET_ACCESS_KEY"),
-  };
-}
-
 const imageFile = userPath(imagePath);
 
 const started = Date.now();
-const response = await createProvider(config).send({
+const response = await createAdapter(settings())!.send({
   model,
+  maxOutputTokens: 64_000,
   messages: [
     {
       role: "user",

@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { AnthropicBedrock } from "@anthropic-ai/bedrock-sdk";
 import type { ContentBlockParam, Message, MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages";
 import {
+  type Effort,
   type Fetch,
   kindForStatus,
   LlmError,
@@ -9,22 +10,21 @@ import {
   type LlmProvider,
   type LlmRequest,
   type LlmResponse,
-  withJson,
 } from "./types.ts";
 import { progressReporter, streamError } from "./http.ts";
+import type { Routing } from "./models.ts";
 
-const DEFAULT_MAX_OUTPUT_TOKENS = 64_000;
+// Claude's efforts are ours (`output_config.effort`).
+const EFFORTS: Record<Effort, NonNullable<MessageCreateParamsBase["output_config"]>["effort"]> = { low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" };
 
 // Claude through Anthropic's API or Amazon Bedrock (e.g. in the EU, docs/overview.md §10), with Anthropic's official
 // clients: the same Messages API on both, so one class serves them both. Requests are streamed, so long
 // answers don't hit HTTP timeouts; the caller gets the whole message at the end. The chosen model answers or the
 // call fails: no fallback to another model.
 export class ClaudeProvider implements LlmProvider {
-  readonly id: "anthropic" | "anthropic-bedrock";
   readonly #client: Anthropic | AnthropicBedrock;
 
-  constructor(id: ClaudeProvider["id"], client: Anthropic | AnthropicBedrock) {
-    this.id = id;
+  constructor(client: Anthropic | AnthropicBedrock) {
     this.#client = client;
   }
 
@@ -61,11 +61,7 @@ export class ClaudeProvider implements LlmProvider {
     } catch (err) {
       throw callbackFailure ?? toLlmError(err);
     }
-    const response = { ...fromMessage(message), provider: this.id };
-    // A sanity check: the answer must come from the model that was asked. It was paid for all the same.
-    const asked = this.id === "anthropic-bedrock" ? bedrockNames(request.model) : [request.model];
-    if (!asked.includes(message.model)) return { ...response, unexpectedModel: `Asked ${request.model}, but ${message.model} answered.` };
-    return request.jsonSchema ? withJson(response) : response;
+    return fromMessage(message);
   }
 }
 
@@ -77,7 +73,7 @@ const MAX_RETRIES = 0;
 // Anthropic's own API, with an API key.
 export function anthropicProvider(options: { apiKey: string; fetch?: Fetch }): ClaudeProvider {
   const client = new Anthropic({ apiKey: options.apiKey, fetch: options.fetch, maxRetries: MAX_RETRIES });
-  return new ClaudeProvider("anthropic", client);
+  return new ClaudeProvider(client);
 }
 
 // Amazon Bedrock, through `bedrock-runtime` (InvokeModel; not the Messages API endpoint, "Mantle": docs/llm.md, "Calling
@@ -103,16 +99,16 @@ export function bedrockClaudeProvider(options: {
     apiKey !== undefined
       ? new AnthropicBedrock({ ...common, apiKey })
       : new AnthropicBedrock({ ...common, awsAccessKey: accessKeyId!, awsSecretKey: secretAccessKey! });
-  return new ClaudeProvider("anthropic-bedrock", client);
+  return new ClaudeProvider(client);
 }
 
 export function toParams(request: LlmRequest): MessageCreateParamsBase {
   const outputConfig: MessageCreateParamsBase["output_config"] = {};
-  if (request.effort) outputConfig.effort = request.effort;
+  if (request.effort) outputConfig.effort = EFFORTS[request.effort];
   if (request.jsonSchema) outputConfig.format = { type: "json_schema", schema: request.jsonSchema };
   return {
     model: request.model,
-    max_tokens: request.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+    max_tokens: request.maxOutputTokens,
     ...(request.system ? { system: request.system } : {}),
     messages: request.messages.map((message) => ({
       role: message.role,
@@ -129,7 +125,7 @@ export function toParams(request: LlmRequest): MessageCreateParamsBase {
   } as MessageCreateParamsBase;
 }
 
-export function fromMessage(message: Message): Omit<LlmResponse, "json"> {
+export function fromMessage(message: Message): LlmResponse {
   const text = message.content
     .filter((block) => block.type === "text")
     .map((block) => block.text)
@@ -146,7 +142,6 @@ export function fromMessage(message: Message): Omit<LlmResponse, "json"> {
   const stopDetail = reason === "refusal" ? (message.stop_details?.category ?? undefined) : (reason ?? undefined);
   const { usage } = message;
   return {
-    provider: "anthropic",
     model: message.model,
     text,
     stop,
@@ -177,8 +172,6 @@ const ERROR_TYPES: Record<string, number> = {
 
 // The SDK's typed errors, most specific first.
 function toLlmError(err: unknown): LlmError {
-  // On Vertex AI, a failure to get a token (e.g. a refused service account) comes wrapped as a connection error.
-  if (err instanceof Anthropic.APIConnectionError && err.cause instanceof LlmError) return err.cause;
   if (err instanceof Anthropic.APIConnectionTimeoutError) return new LlmError("timeout", err.message);
   if (err instanceof Anthropic.APIConnectionError) return new LlmError("network", err.message);
   if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
@@ -207,4 +200,14 @@ export function bedrockNames(model: string): string[] {
   const id = model.replace(/^[a-z]+(?:-[a-z]+)?\.(?=anthropic\.)/, "");
   const own = id.replace(/^anthropic\./, "").replace(/-v\d+(?::\d+)?$/, "");
   return [...new Set([model, id, own, own.replace(/-\d{8}$/, "")])];
+}
+
+// The model string Bedrock is sent for a routing: on `bedrock-runtime`, global and geographic routing go through AWS's
+// inference profiles, named by the model ID with a prefix, "global." or the geography's ("eu.", "us.", "jp.", "au.");
+// in-region routing sends the model ID alone (Anthropic's page "Claude on Amazon Bedrock (Opus 4.6 and earlier)").
+// `bedrockNames` reads it back.
+export function bedrockModel(model: string, routing: Routing | null, geography: string | undefined): string {
+  if (routing === "global") return `global.${model}`;
+  if (routing === "geographic" && geography) return `${geography.toLowerCase()}.${model}`;
+  return model;
 }

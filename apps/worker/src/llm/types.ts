@@ -4,10 +4,6 @@ import { type CallErrorKind, type Effort, type ImageMediaType, MAX_CACHE_MARKS }
 // responses are our own, small shapes; each provider's adapter translates them. The Worker makes the calls, so the
 // API keys never leave it (§10).
 
-// "fake" answers without network, for trying the app without paying (fake.ts): it ships with the app and costs
-// nothing. "fake-dev" is the same with made-up prices, for developing and testing the costs and the spending cap.
-export type ProviderId = "anthropic" | "anthropic-bedrock" | "google" | "google-vertex" | "openrouter" | "fake" | "fake-dev";
-
 export type LlmImage = {
   mediaType: ImageMediaType;
   base64: string;
@@ -30,8 +26,8 @@ export type LlmRequest = {
   model: string; // the provider's model ID, e.g. "claude-opus-5-5"
   system?: string;
   messages: LlmMessage[];
-  maxOutputTokens?: number;
-  effort?: Effort; // left out: the provider's default
+  maxOutputTokens: number; // the same on every provider (the route's default where a request has none)
+  effort?: Effort; // left out: the provider's default; each adapter maps it to what its provider takes
   // Ask for adaptive thinking: for the models that think only when asked (the list's `thinking`). Others think by
   // themselves, or take no thinking setting the adapter knows.
   adaptiveThinking?: true;
@@ -50,7 +46,6 @@ export type LlmUsage = {
 };
 
 export type LlmResponse = {
-  provider: ProviderId;
   model: string; // the model that answered, as the provider names it
   text: string;
   json?: unknown; // when the request had a jsonSchema and the model finished
@@ -98,7 +93,6 @@ export class LlmError extends Error {
 export type LlmProgress = { textChars: number; thinkingChars: number; outputTokens: number | null };
 
 export interface LlmProvider {
-  readonly id: ProviderId;
   // `onProgress` is called as the answer arrives, as often as the provider sends something: cheap work only.
   send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse>;
 }

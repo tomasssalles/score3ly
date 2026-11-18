@@ -8,10 +8,8 @@ import { deferLog, logFields } from "./requestLog.ts";
 import { stageEntry } from "./pipelineRules.ts";
 import { badRequest, notRunning, PICK_ONE, problemText, refuse } from "./refusals.ts";
 import { lock } from "./versions.ts";
-import { bedrockModel, createAdapter, LlmError, type LlmContent, MAX_CACHE_MARKS } from "./llm/index.ts";
-import type { LlmProgress, LlmProvider, LlmResponse } from "./llm/types.ts";
+import { bedrockModel, cloudflareTimeoutMessage, createAdapter, LlmError, type LlmContent, type LlmProgress, type LlmProvider, type LlmResponse, MAX_CACHE_MARKS } from "./llm/index.ts";
 import { isReplay, replayProvider } from "./llm/replay.ts";
-import { cloudflareTimeoutMessage } from "./llm/types.ts";
 import { llmTimeoutMs, timedOutMessage, withTimeout } from "./llm/timeouts.ts";
 import { costOf, type Price } from "./llm/prices.ts";
 import { configModel, FAMILY_NAMES, modelById, priceOfConfig, PROVIDER_NAMES } from "./llm/models.ts";
@@ -160,11 +158,14 @@ async function prepareCall(env: Env, row: ModelConfigRow, forTest = false): Prom
   if (!adapter) {
     return { refusal: { error: `The app doesn't support ${FAMILY_NAMES[config.family]} on ${PROVIDER_NAMES[config.provider]}.`, code: "unsupported", status: 409 } };
   }
-  // On Bedrock the routing is a prefix of the model string sent (llm/index.ts).
+  // On Bedrock the routing is a prefix of the model string sent (`bedrockModel`, llm/anthropic.ts).
   const geography = MODEL_LIST.regions.find((r) => r.provider === config.provider && r.region === config.region)?.geography;
   const sentModel = config.provider === "bedrock" ? bedrockModel(config.model, config.routing, geography) : config.model;
   return { row, config, adapter, sentModel, priced, price };
 }
+
+// The most a request that gives no maximum may write, on every provider (the app's requests all give one).
+const DEFAULT_MAX_OUTPUT_TOKENS = 64_000;
 
 // Sends the call and records it. `signal`: the browser's request, which aborts when the browser stops waiting (Stop, a
 // closed tab), and with it the provider's call (docs/llm.md, "Stopped calls"). `timeoutMs`: the call is stopped the
@@ -206,7 +207,7 @@ async function runCall(
       ...(row.model_id && modelById(MODEL_LIST, row.model_id)?.thinking === "adaptive" ? { adaptiveThinking: true as const } : {}),
       system: request.system,
       messages: providerMessages(request),
-      maxOutputTokens: request.maxOutputTokens,
+      maxOutputTokens: request.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       jsonSchema: request.jsonSchema,
     }, timeout.signal, progress?.push);
     // The answer's last count reaches the browser before the answer does: an item's next call counts on from it.

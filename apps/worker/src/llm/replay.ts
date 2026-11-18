@@ -18,7 +18,6 @@ type Place = { item: string; round: number };
 
 export function replayProvider(db: D1Database, bucket: R2Bucket, stageId: string | null, place: Place, configId: string): LlmProvider {
   return {
-    id: "fake",
     async send(request: LlmRequest): Promise<LlmResponse> {
       if (stageId === null) throw new LlmError("bad_request", "The replay model answers only a stage's calls.");
       const recorded = await recordedCall(db, stageId, place, configId);
@@ -28,7 +27,6 @@ export function replayProvider(db: D1Database, bucket: R2Bucket, stageId: string
       if (!object) throw new LlmError("bad_request", `Replay: the recorded answer of call ${recorded.id} isn't stored.`, 400);
       const stored = (await object.json()) as { text: string };
       const response: LlmResponse = {
-        provider: "fake",
         model: request.model,
         text: stored.text,
         stop: "end",

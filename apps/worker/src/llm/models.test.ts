@@ -16,7 +16,7 @@ import {
   type Provider,
 } from "./models.ts";
 import { MAX_NAME_LENGTH, nameTooLong } from "@score3ly/core";
-import { adapterFor, supportedFamilies } from "./adapters.ts";
+import { isSupported, secretSets, supportedFamilies } from "./adapters.ts";
 import { MODEL_LIST } from "./modelList.ts";
 
 const P = (input: number) => ({
@@ -297,8 +297,10 @@ test("a provider's places come from the list's regions", () => {
 test("the supported pairs of provider and family are the adapters'", () => {
   assert.deepEqual(supportedFamilies("vertex"), ["gemini"]);
   assert.deepEqual(supportedFamilies("bedrock"), ["claude"]);
-  assert.equal(adapterFor("vertex", "gemini"), "google-vertex");
-  assert.equal(adapterFor("bedrock", "gemini"), null);
+  assert.equal(isSupported("vertex", "gemini"), true);
+  assert.equal(isSupported("bedrock", "gemini"), false);
+  assert.deepEqual(secretSets("bedrock", "claude"), [["apiKey"], ["accessKeyId", "secretAccessKey"]]);
+  assert.equal(secretSets("bedrock", "gemini"), null);
 });
 
 test("the list's problems are found", () => {

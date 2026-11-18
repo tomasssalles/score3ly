@@ -9,7 +9,7 @@ import { badRequest, NO_MODEL_CONFIG, problemText, refuse } from "./refusals.ts"
 import { fetchPriceRange } from "./llm/openrouter.ts";
 import type { Effort } from "./llm/index.ts";
 import { llmTimeoutMs } from "./llm/timeouts.ts";
-import { adapterFor, supportedFamilies } from "./llm/adapters.ts";
+import { isSupported, secretSets, supportedFamilies } from "./llm/adapters.ts";
 import {
   ACCOUNT_FEES,
   ACCOUNTS,
@@ -44,18 +44,6 @@ import { MODEL_LIST } from "./llm/modelList.ts";
 import { feeOf } from "./spending.ts";
 import { readSettings } from "./settings.ts";
 import { sendCall } from "./llmCalls.ts";
-
-// The secrets each adapter needs, by field (the name of a Worker secret is stored, never its value): one set of them.
-// Bedrock takes an API key or an access key pair.
-const SECRETS: Record<string, string[][]> = {
-  anthropic: [["apiKey"]],
-  "anthropic-bedrock": [["apiKey"], ["accessKeyId", "secretAccessKey"]],
-  google: [["apiKey"]],
-  "google-vertex": [["serviceAccount"]],
-  openrouter: [["apiKey"]],
-  fake: [[]],
-  "fake-dev": [[]],
-};
 
 // A model config as the browser gets it is `ModelConfig` (core); as stored, a row:
 export type ModelConfigRow = {
@@ -122,7 +110,7 @@ function unsupportedReason(list: ModelList, row: ModelConfigRow, pricing: Pricin
   // The model on the provider: a listed one offered somewhere on it; one added by hand of a family the app supports there.
   if (row.model_id !== null) {
     if (!entry || entry.strings[p] === undefined || placesOf(list, entry.id, p).length === 0) return no(`${modelName} on ${provider}`);
-  } else if (!row.family || !adapterFor(p, row.family)) {
+  } else if (!row.family || !isSupported(p, row.family)) {
     return no(`${row.family ? `${FAMILY_NAMES[row.family]} models` : modelName} on ${provider}`);
   }
   // OpenRouter's account, which decides where it may run.
@@ -144,7 +132,7 @@ function unsupportedReason(list: ModelList, row: ModelConfigRow, pricing: Pricin
     // Unreadable: the checks say so.
   }
   const fields = Object.keys(secrets).sort().join(",");
-  if (!SECRETS[adapterFor(p, entry?.family ?? row.family!)!].some((set) => [...set].sort().join(",") === fields)) {
+  if (!secretSets(p, entry?.family ?? row.family!)!.some((set) => [...set].sort().join(",") === fields)) {
     return `names secrets for ${provider} (${Object.keys(secrets).join(", ") || "none"}) that the app no longer takes`;
   }
   // The pricing: by the provider only where it reports each call's cost; a model priced as a listed one needs its price.
@@ -225,7 +213,7 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
     }
     modelFamily = family as Family;
   }
-  if (!adapterFor(p, modelFamily)) return `The app doesn't support ${FAMILY_NAMES[modelFamily]} on ${PROVIDER_NAMES[p]}`;
+  if (!isSupported(p, modelFamily)) return `The app doesn't support ${FAMILY_NAMES[modelFamily]} on ${PROVIDER_NAMES[p]}`;
   const efforts = effortsOf(modelFamily, typeof modelId === "string" ? modelById(list, modelId) : null);
   if (effort !== undefined && effort !== null && !efforts.includes(effort as Effort)) {
     return efforts.length === 0
@@ -258,7 +246,7 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
     v === undefined || (v !== null && typeof v === "object" && Object.values(v).every((x) => typeof x === "string"));
   if (!isStrings(secrets)) return "'secrets' must map names to text";
   const keys = Object.keys((secrets ?? {}) as Record<string, string>).sort().join(",");
-  const sets = SECRETS[adapterFor(p, modelFamily)!];
+  const sets = secretSets(p, modelFamily)!;
   if (!sets.some((set) => [...set].sort().join(",") === keys)) {
     return `'secrets' must name ${sets.map((set) => set.join(" and ") || "nothing").join(", or ")} for ${PROVIDER_NAMES[p]}`;
   }
@@ -377,7 +365,7 @@ export function modelOptions(list: ModelList = MODEL_LIST, dev = false): ModelOp
         id: family,
         name: FAMILY_NAMES[family],
         efforts: EFFORTS[family],
-        secrets: SECRETS[adapterFor(id, family)!],
+        secrets: secretSets(id, family)!,
       })),
       places: list.regions
         .filter((r) => r.provider === id)

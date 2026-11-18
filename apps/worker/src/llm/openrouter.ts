@@ -8,6 +8,7 @@
 
 import type { PriceRange } from "@score3ly/core";
 import {
+  type Effort,
   type Fetch,
   LlmError,
   type LlmContent,
@@ -15,7 +16,6 @@ import {
   type LlmProvider,
   type LlmRequest,
   type LlmResponse,
-  withJson,
 } from "./types.ts";
 import { DAY_MS } from "@score3ly/core";
 import { endedEarly, errorFromBody, plainFetch, postJson, progressReporter, sseJson, streamError } from "./http.ts";
@@ -35,6 +35,11 @@ function toPart(content: LlmContent): Part {
     : { type: "image_url", image_url: { url: `data:${content.image.mediaType};base64,${content.image.base64}` }, ...mark };
 }
 
+// OpenRouter's `reasoning.effort` is sent as our effort. Whether it takes Claude's "xhigh" and "max" (its models API
+// lists each model's `reasoning.supported_efforts`), and whether a Claude model there should be asked for adaptive
+// thinking as on Anthropic's API, is still to be tried with a Test (docs/llm.md, "OpenRouter").
+const EFFORTS: Record<Effort, string> = { low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" };
+
 export function toBody(request: LlmRequest): Record<string, unknown> {
   return {
     model: request.model,
@@ -43,8 +48,8 @@ export function toBody(request: LlmRequest): Record<string, unknown> {
       ...(request.system ? [{ role: "system", content: request.system }] : []),
       ...request.messages.map((m) => ({ role: m.role, content: m.content.map(toPart) })),
     ],
-    ...(request.maxOutputTokens ? { max_tokens: request.maxOutputTokens } : {}),
-    ...(request.effort ? { reasoning: { effort: request.effort } } : {}),
+    max_tokens: request.maxOutputTokens,
+    ...(request.effort ? { reasoning: { effort: EFFORTS[request.effort] } } : {}),
     ...(request.jsonSchema
       ? { response_format: { type: "json_schema", json_schema: { name: "answer", strict: true, schema: request.jsonSchema } } }
       : {}),
@@ -107,8 +112,7 @@ export function fromCompletion(completion: Completion, request: LlmRequest): Llm
   const cacheRead = usage.prompt_tokens_details?.cached_tokens ?? 0;
   const cacheWrite = usage.prompt_tokens_details?.cache_write_tokens ?? 0;
   const model = completion.model ?? request.model;
-  const response: LlmResponse = {
-    provider: "openrouter",
+  return {
     model,
     text: choice?.message?.content ?? "",
     stop,
@@ -124,9 +128,6 @@ export function fromCompletion(completion: Completion, request: LlmRequest): Llm
     ...(completion.provider ? { servedBy: completion.provider } : {}),
     raw: completion,
   };
-  // A sanity check: the answer must come from the model that was asked. It was paid for all the same.
-  if (!sameModel(request.model, model)) return { ...response, unexpectedModel: `Asked ${request.model}, but ${model} answered.` };
-  return request.jsonSchema ? withJson(response) : response;
 }
 
 type Chunk = {
@@ -185,7 +186,6 @@ export class CompletionStream {
 }
 
 export class OpenRouterProvider implements LlmProvider {
-  readonly id = "openrouter" as const;
   readonly #apiKey: string;
   readonly #base: string;
   readonly #fetch: Fetch;

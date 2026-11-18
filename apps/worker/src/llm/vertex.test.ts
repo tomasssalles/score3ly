@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createProvider } from "./index.ts";
+import { createAdapter } from "./index.ts";
 import { vertexHost } from "./google.ts";
 import { parseServiceAccount, sharedTokenSource, tokenSource } from "./googleServiceAccount.ts";
 import { LlmError } from "./types.ts";
@@ -75,12 +75,9 @@ test("a key file that isn't a service account's is refused", () => {
 test("a refused service account is an auth error", async () => {
   const { json } = await makeAccount();
   const refuse = (async () => new Response("no", { status: 400 })) as unknown as typeof fetch;
-  const provider = createProvider(
-    { provider: "google-vertex", serviceAccount: json, region: "eu" },
-    { fetch: refuse },
-  );
+  const provider = createAdapter({ provider: "vertex", family: "gemini", region: "eu", project: null, secrets: { serviceAccount: json } }, { fetch: refuse })!;
   await assert.rejects(
-    provider.send({ model: "gemini-4-argon", messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] }),
+    provider.send({ model: "gemini-4-argon", maxOutputTokens: 1000, messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] }),
     (err: unknown) => err instanceof LlmError && err.kind === "auth" && !err.retryable,
   );
 });
@@ -107,7 +104,7 @@ const geminiReply = {
 test("Gemini on Vertex AI: the endpoint for the location, the project, the token, and the request as the Gemini API's", async () => {
   const { json } = await makeAccount();
   const calls: Call[] = [];
-  const provider = createProvider({ provider: "google-vertex", serviceAccount: json, region: "europe-west4" }, { fetch: fakeVertexGemini(calls, geminiReply) });
+  const provider = createAdapter({ provider: "vertex", family: "gemini", region: "europe-west4", project: null, secrets: { serviceAccount: json } }, { fetch: fakeVertexGemini(calls, geminiReply) })!;
   const response = await provider.send({
     model: "gemini-3.1-pro",
     system: "You read music.",
@@ -141,7 +138,6 @@ test("Gemini on Vertex AI: the endpoint for the location, the project, the token
   assert.deepEqual(body.generationConfig.responseJsonSchema.required, ["systems"]);
   assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "HIGH");
 
-  assert.equal(response.provider, "google-vertex");
   assert.equal(response.model, "gemini-3.1-pro");
   assert.equal(response.text, '{"systems":6}');
   assert.deepEqual(response.json, { systems: 6 });
@@ -154,11 +150,8 @@ test("Gemini on Vertex AI: the global endpoint and the multi-regions; another pr
   assert.equal(vertexHost("us-central1"), "us-central1-aiplatform.googleapis.com");
   const { json } = await makeAccount();
   const calls: Call[] = [];
-  const provider = createProvider(
-    { provider: "google-vertex", serviceAccount: json, region: "global", projectId: "other" },
-    { fetch: fakeVertexGemini(calls, geminiReply) },
-  );
-  await provider.send({ model: "gemini-3.1-pro", messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] });
+  const provider = createAdapter({ provider: "vertex", family: "gemini", region: "global", project: "other", secrets: { serviceAccount: json } }, { fetch: fakeVertexGemini(calls, geminiReply) })!;
+  await provider.send({ model: "gemini-3.1-pro", maxOutputTokens: 1000, messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] });
   assert.match(calls.find((c) => c.url.includes("aiplatform"))!.url, /^https:\/\/aiplatform\.googleapis\.com\/v1\/projects\/other\/locations\/global\//);
 });
 
@@ -174,22 +167,16 @@ function strictFetch(inner: typeof fetch): typeof fetch {
 test("Gemini on Vertex AI: fetch is called as a plain function, as the Workers runtime requires", async () => {
   const { json } = await makeAccount();
   const calls: Call[] = [];
-  const provider = createProvider(
-    { provider: "google-vertex", serviceAccount: json, region: "eu" },
-    { fetch: strictFetch(fakeVertexGemini(calls, geminiReply)) },
-  );
-  const response = await provider.send({ model: "gemini-4-argon", messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] });
+  const provider = createAdapter({ provider: "vertex", family: "gemini", region: "eu", project: null, secrets: { serviceAccount: json } }, { fetch: strictFetch(fakeVertexGemini(calls, geminiReply)) })!;
+  const response = await provider.send({ model: "gemini-4-argon", maxOutputTokens: 1000, messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] });
   assert.equal(response.text, '{"systems":6}');
 });
 
 test("Gemini on Vertex AI: an HTTP error is a typed error with Vertex's message", async () => {
   const { json } = await makeAccount();
-  const provider = createProvider(
-    { provider: "google-vertex", serviceAccount: json, region: "europe-west4" },
-    { fetch: fakeVertexGemini([], { error: { code: 404, message: "Publisher model gemini-x was not found." } }, 404) },
-  );
+  const provider = createAdapter({ provider: "vertex", family: "gemini", region: "europe-west4", project: null, secrets: { serviceAccount: json } }, { fetch: fakeVertexGemini([], { error: { code: 404, message: "Publisher model gemini-x was not found." } }, 404) })!;
   await assert.rejects(
-    provider.send({ model: "gemini-x", messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] }),
+    provider.send({ model: "gemini-x", maxOutputTokens: 1000, messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] }),
     (err: unknown) => err instanceof LlmError && err.status === 404 && /Vertex AI: Publisher model gemini-x was not found\./.test(err.message),
   );
 });
@@ -202,9 +189,9 @@ test("Gemini on Vertex AI: a streamed answer is put together; an error in the st
         ? Response.json({ access_token: "t", expires_in: 3600, token_type: "Bearer" })
         : new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } })) as typeof fetch;
   const ask = (body: string) =>
-    createProvider({ provider: "google-vertex", serviceAccount: json, region: "eu" }, { fetch: answering(body) }).send({
+    createAdapter({ provider: "vertex", family: "gemini", region: "eu", project: null, secrets: { serviceAccount: json } }, { fetch: answering(body) })!.send({
       model: "gemini-3.1-pro",
-      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+      maxOutputTokens: 1000, messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
     });
   const first = { candidates: [{ content: { role: "model", parts: [{ text: "Six " }] } }] };
   const response = await ask(
@@ -224,9 +211,9 @@ test("a service account's token is kept between adapters: one token for several 
   const calls: Call[] = [];
   const fakeFetch = fakeVertexGemini(calls, geminiReply);
   const ask = (account: string) =>
-    createProvider({ provider: "google-vertex", serviceAccount: account, region: "eu" }, { fetch: fakeFetch }).send({
+    createAdapter({ provider: "vertex", family: "gemini", region: "eu", project: null, secrets: { serviceAccount: account } }, { fetch: fakeFetch })!.send({
       model: "gemini-4-argon",
-      messages: [{ role: "user", content: [{ type: "text", text: "How many systems?" }] }],
+      maxOutputTokens: 1000, messages: [{ role: "user", content: [{ type: "text", text: "How many systems?" }] }],
     });
   const tokenCalls = () => calls.filter((c) => c.url === "https://oauth2.googleapis.com/token").length;
   await ask(json);

@@ -20,14 +20,8 @@ import { LlmError, type LlmProgress, type LlmProvider, type LlmRequest, type Llm
 const FAKE_ERROR =
   'The fake provider failed, as asked: {"type":"error","error":{"type":"invalid_request_error","message":"output_config.format.schema.properties.systems.items.properties.stretches.items.anyOf[3]: the_compiled_grammar_is_too_large_for_the_fake_provider_to_accept_it"}}';
 
+// "fake-dev" is answered by the same, but has prices (prices.ts).
 export class FakeProvider implements LlmProvider {
-  readonly id: "fake" | "fake-dev";
-
-  // "fake-dev" answers the same, but has prices (prices.ts).
-  constructor(id: "fake" | "fake-dev" = "fake") {
-    this.id = id;
-  }
-
   async send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse> {
     if (request.model === "fake-error") throw new LlmError("server", FAKE_ERROR, 500);
     if (request.model === "fake-slow") await slowly(FAKE_SLOW_MS, signal, onProgress);
@@ -37,7 +31,6 @@ export class FakeProvider implements LlmProvider {
     const stop = request.model === "fake-refusal" ? "refusal" : request.model === "fake-cut-off" ? "max_tokens" : "end";
     onProgress?.({ textChars: text.length, thinkingChars: 0, outputTokens: Math.ceil(text.length / 4) });
     return {
-      provider: this.id,
       model: request.model,
       text,
       json: request.jsonSchema && stop === "end" && !unparseable ? answer : undefined,

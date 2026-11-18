@@ -14,10 +14,9 @@ import {
   type LlmProvider,
   type LlmRequest,
   type LlmResponse,
-  withJson,
 } from "./types.ts";
-import { parseServiceAccount, sharedTokenSource, type TokenSource } from "./googleServiceAccount.ts";
-import { endedEarly, errorFromBody, fetchFailure, postJson, progressReporter, sseJson, streamError } from "./http.ts";
+import { parseServiceAccount, sharedTokenSource } from "./googleServiceAccount.ts";
+import { endedEarly, errorFromBody, fetchFailure, plainFetch, postJson, progressReporter, sseJson, streamError } from "./http.ts";
 
 // Gemini's thinking levels are fewer than our efforts.
 const THINKING_LEVELS: Record<Effort, ThinkingLevel> = {
@@ -39,28 +38,52 @@ const REFUSALS = new Set<string>([
   FinishReason.IMAGE_PROHIBITED_CONTENT,
 ]);
 
-// Gemini through Google's Gemini API (AI Studio keys). Its REST API is called directly, as Vertex AI's below, with the
-// request built by the same code: the SDK's streamed call drops an error sent as an event of the stream. Gemini on
-// Vertex AI is `VertexGeminiProvider` below.
-export class GoogleProvider implements LlmProvider {
-  readonly id = "google" as const;
-  readonly #apiKey: string;
+// Gemini, through Google's Gemini API (AI Studio keys) or Google Cloud's Vertex AI (a service account, a location),
+// with one class: both take the same REST request (`streamGenerateContent`, called directly: the SDK's streamed call
+// drops an error sent as an event of the stream) and answer alike; only the URL and the headers differ, which each
+// gives (`geminiApi`, `vertexAi`). The answer isn't checked against the model asked: Gemini names the exact version
+// that answered, which can differ from the name asked for.
+export class GeminiProvider implements LlmProvider {
   readonly #fetch: Fetch;
+  readonly #where: GeminiEndpoint;
 
-  constructor(options: { apiKey: string; fetch?: Fetch }) {
-    this.#apiKey = options.apiKey;
-    // Wrapped, so that `this.#fetch(…)` doesn't call fetch as a method of this object, which the Workers runtime refuses.
-    const fetchFn = options.fetch ?? fetch;
-    this.#fetch = (input, init) => fetchFn(input, init);
+  constructor(where: GeminiEndpoint, fetchFn?: Fetch) {
+    this.#where = where;
+    this.#fetch = plainFetch(fetchFn);
   }
 
   async send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse`;
-    const headers = new Headers({ "x-goog-api-key": this.#apiKey });
-    const result = await streamGemini(this.#fetch, url, async () => headers, request, signal, "Gemini API", onProgress);
-    const response = fromResult(result, request);
-    return request.jsonSchema ? withJson(response) : response;
+    const { label, url, headers } = this.#where;
+    const result = await streamGemini(this.#fetch, url(request.model), headers, request, signal, label, onProgress);
+    return fromResult(result, request);
   }
+}
+
+// Where a Gemini request goes, and how it is authenticated. `label` starts every error's message.
+export type GeminiEndpoint = { label: string; url: (model: string) => string; headers: () => Promise<Headers> };
+
+// The Gemini API, with an AI Studio key.
+export function geminiApi(apiKey: string): GeminiEndpoint {
+  return {
+    label: "Gemini API",
+    url: (model) => `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,
+    headers: async () => new Headers({ "x-goog-api-key": apiKey }),
+  };
+}
+
+// Vertex AI, for processing in a chosen location (e.g. in the EU, §10), with a service account's key file. Google's SDK
+// authenticates with Google's auth library, which doesn't run in a Worker; the token comes from our own token source
+// instead. The project is the key file's unless given.
+export function vertexAi(options: { serviceAccount: string; region: string; projectId?: string }, fetchFn?: Fetch): GeminiEndpoint {
+  const account = parseServiceAccount(options.serviceAccount);
+  const auth = sharedTokenSource(account, fetchFn);
+  const location = options.region;
+  const projectId = options.projectId ?? account.projectId;
+  return {
+    label: "Vertex AI",
+    url: (model) => `https://${vertexHost(location)}/v1/projects/${encodeURIComponent(projectId)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,
+    headers: () => auth.getRequestHeaders(),
+  };
 }
 
 function toParams(request: LlmRequest): GenerateContentParameters {
@@ -76,7 +99,7 @@ function toParams(request: LlmRequest): GenerateContentParameters {
     })),
     config: {
       ...(request.system ? { systemInstruction: request.system } : {}),
-      ...(request.maxOutputTokens ? { maxOutputTokens: request.maxOutputTokens } : {}),
+      maxOutputTokens: request.maxOutputTokens,
       ...(request.jsonSchema ? { responseMimeType: "application/json", responseJsonSchema: request.jsonSchema } : {}),
       // Thought summaries are asked for so that the stream carries something while the model thinks: a long silence
       // is cut off by Cloudflare after 125 seconds (`streamGemini`). They cost nothing more (thinking is billed by its
@@ -87,7 +110,7 @@ function toParams(request: LlmRequest): GenerateContentParameters {
   };
 }
 
-export function fromResult(result: GenerateContentResponse, request: LlmRequest): Omit<LlmResponse, "json"> {
+export function fromResult(result: GenerateContentResponse, request: LlmRequest): LlmResponse {
   const candidate = result.candidates?.[0];
   const reason = candidate?.finishReason;
   const blocked = result.promptFeedback?.blockReason;
@@ -109,7 +132,6 @@ export function fromResult(result: GenerateContentResponse, request: LlmRequest)
   const prompt = usage?.promptTokenCount ?? 0;
   const cached = usage?.cachedContentTokenCount ?? 0;
   return {
-    provider: "google",
     // Gemini names the exact version that answered, which can differ from the name asked for (an alias such as
     // "...-latest", or a dated version), so it isn't compared with the request.
     model: result.modelVersion ?? request.model,
@@ -180,34 +202,6 @@ export function toRestBody(request: LlmRequest): Record<string, unknown> {
     ...(systemInstruction ? { systemInstruction: { parts: [{ text: systemInstruction as string }] } } : {}),
     ...(Object.keys(generationConfig).length > 0 ? { generationConfig } : {}),
   };
-}
-
-// Gemini through Google Cloud's Vertex AI, for processing in a chosen location (e.g. in the EU, §10), with a service
-// account's key file. Vertex's REST API is called directly: Google's SDK authenticates
-// with Google's auth library, which doesn't run in a Worker; the token comes from our own token source instead.
-export class VertexGeminiProvider implements LlmProvider {
-  readonly id = "google-vertex" as const;
-  readonly #fetch: Fetch;
-  readonly #auth: TokenSource;
-  readonly #location: string;
-  readonly #projectId: string;
-
-  constructor(options: { serviceAccount: string; region: string; projectId?: string; fetch?: Fetch }) {
-    const account = parseServiceAccount(options.serviceAccount);
-    // Wrapped, so that `this.#fetch(…)` doesn't call fetch as a method of this object, which the Workers runtime refuses.
-    const fetchFn = options.fetch ?? fetch;
-    this.#fetch = (input, init) => fetchFn(input, init);
-    this.#auth = sharedTokenSource(account, options.fetch);
-    this.#location = options.region;
-    this.#projectId = options.projectId ?? account.projectId;
-  }
-
-  async send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse> {
-    const url = `https://${vertexHost(this.#location)}/v1/projects/${encodeURIComponent(this.#projectId)}/locations/${encodeURIComponent(this.#location)}/publishers/google/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse`;
-    const result = await streamGemini(this.#fetch, url, () => this.#auth.getRequestHeaders(), request, signal, "Vertex AI", onProgress);
-    const answer = { ...fromResult(result, request), provider: "google-vertex" as const };
-    return request.jsonSchema ? withJson(answer) : answer;
-  }
 }
 
 type GeminiError = { error?: { code?: number; message?: string } };
