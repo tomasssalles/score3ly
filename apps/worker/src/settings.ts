@@ -5,7 +5,7 @@ import type { Hono } from "hono";
 import type { Settings } from "@score3ly/core";
 import { problemText, NO_MODEL_CONFIG, refuse } from "./refusals.ts";
 import { isVatPercent } from "./spending.ts";
-import { type ModelConfigRow, unsupportedOf } from "./modelConfigs.ts";
+import { devProviders, type ModelConfigRow, unsupportedOf } from "./modelConfigs.ts";
 
 // The settings the Worker knows (`Settings`, core), with their defaults. Settings that depend on the device stay in the
 // browser (§5.8).
@@ -40,7 +40,8 @@ export function settingsRoutes(app: Hono<{ Bindings: Env }>) {
     if (key === "defaultModelConfigId") {
       const exists = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ? AND deleted_at IS NULL").bind(body.value).first<ModelConfigRow>();
       if (!exists) return refuse(c, 404, NO_MODEL_CONFIG);
-      if (unsupportedOf(exists)) return refuse(c, 400, `The model config "${exists.name}" ${unsupportedOf(exists)}, so it can't be the default.`);
+      const unsupported = unsupportedOf(exists, devProviders(c.env));
+      if (unsupported) return refuse(c, 400, `The model config "${exists.name}" ${unsupported}, so it can't be the default.`);
     }
     await c.env.DB.prepare("INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)")
       .bind(key, JSON.stringify(body.value), new Date().toISOString())

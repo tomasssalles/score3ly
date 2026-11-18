@@ -255,7 +255,8 @@ export async function anyRunning(db: D1Database, projectId: string, now: number)
   return results.some((stage) => !isStale(stage, now));
 }
 
-export async function readPipeline(db: D1Database, projectId: string, now = Date.now()): Promise<Pipeline> {
+// `dev`: whether the Worker offers the providers for development (`devProviders`), for the configs' `unsupported`.
+export async function readPipeline(db: D1Database, projectId: string, dev: boolean, now = Date.now()): Promise<Pipeline> {
   const [stages, outputs, dropped] = await db.batch([
     db
       .prepare(
@@ -285,7 +286,7 @@ export async function readPipeline(db: D1Database, projectId: string, now = Date
       finishedAt: row.finished_at,
       interrupted: wasInterrupted(row, now),
       runMs: row.run_ms,
-      modelConfig: row.mc_provider ? stageModelConfig(row) : null,
+      modelConfig: row.mc_provider ? stageModelConfig(row, dev) : null,
       costUsd: row.cost_usd ?? null,
       carried: row.carried === 1,
       inRecipe: row.in_recipe === 1,
@@ -407,7 +408,7 @@ export function touchProject(db: D1Database, projectId: string, now: string): D1
 }
 
 // What a stage's card shows of its model config (`StageModelConfig`).
-export function stageModelConfig(row: StageRow): StageModelConfig {
+export function stageModelConfig(row: StageRow, dev: boolean): StageModelConfig {
   const config = {
     name: row.mc_name ?? "",
     provider: row.mc_provider!,
@@ -424,5 +425,5 @@ export function stageModelConfig(row: StageRow): StageModelConfig {
     pricing_reference: row.mc_pricing_reference ?? null,
   } as ModelConfigRow;
   const { model } = resolvedModel(config);
-  return { name: row.mc_name ?? model, model, deleted: Boolean(row.mc_deleted_at), unsupported: unsupportedOf(config) !== null };
+  return { name: row.mc_name ?? model, model, deleted: Boolean(row.mc_deleted_at), unsupported: unsupportedOf(config, dev) !== null };
 }

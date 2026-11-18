@@ -16,7 +16,7 @@ import { configModel, FAMILY_NAMES, geographyOf, modelById, priceOfConfig, PROVI
 import { MODEL_LIST } from "./llm/modelList.ts";
 import { capRefusal, feeOf, providerCost, withVat } from "./spending.ts";
 import { readSettings } from "./settings.ts";
-import { badSecretMessage, deletedWhileRunningMessage, missingSecretMessage, type ModelConfigRow, secretValues, toModelConfig, unsupportedOf } from "./modelConfigs.ts";
+import { badSecretMessage, deletedWhileRunningMessage, devProviders, missingSecretMessage, type ModelConfigRow, secretValues, toModelConfig, unsupportedOf } from "./modelConfigs.ts";
 import { placeOf } from "./places.ts";
 import { throttledProgress } from "./throttle.ts";
 
@@ -132,7 +132,7 @@ export async function sendCall(env: Env, row: ModelConfigRow, request: CallReque
 // `forTest`: a config's Test, never served from the record.
 async function prepareCall(env: Env, row: ModelConfigRow, forTest = false): Promise<Prepared | Refusal> {
   const db = env.DB;
-  const config = toModelConfig(row);
+  const config = toModelConfig(row, devProviders(env));
   // Then what a priced call needs: a price, room under the spending cap, and the secrets. Free and unpriced calls
   // don't count towards the cap (docs/llm.md, "Models the user adds").
   const priced = priceOfConfig(MODEL_LIST, { provider: config.provider, model: configModel(row), place: { region: config.region, routing: config.routing }, pricing: config.pricing });
@@ -347,11 +347,11 @@ export function llmCallRoutes(app: Hono<{ Bindings: Env }>) {
     // Checked before every request, the cache included: a config deleted while its stage runs is never used again.
     if (row.deleted_at) return refuse(c, 409, deletedWhileRunningMessage(row.name), "deleted_model_config");
     // So is one the app no longer supports (a new list of models), the cache included; its stage wasn't allowed to start.
-    const unsupported = unsupportedOf(row);
+    const unsupported = unsupportedOf(row, devProviders(c.env));
     if (unsupported) {
       return refuse(c, 409, `The model config "${row.name}" ${unsupported}. Pick another with "Change config" in the stage's ⋮, then retry.`, "unsupported_model_config");
     }
-    const config = toModelConfig(row);
+    const config = toModelConfig(row, devProviders(c.env));
 
     // The request key: the exact request, images by their recipe keys, with the model's provider, model and effort.
     // Not the config's id, region, routing, project or secrets: they don't change the answer (§5.2).

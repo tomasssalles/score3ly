@@ -69,7 +69,10 @@ export type ModelConfigRow = {
 // Why the app no longer supports a stored config, or null where it does (docs/llm.md, "No longer supported"). A config
 // is supported when it is valid as a whole by today's code and list: when the request that would create it now passes
 // the same checks (`configProblem`). Said after the config's name: `its model config, "X", ${reason}.`
-export function unsupportedOf(row: ModelConfigRow, pricing: Pricing = pricingOf(row), list: ModelList = MODEL_LIST): string | null {
+// `dev`: whether the Worker offers the providers for development (`devProviders`): a config of one is unsupported
+// without them (dec. 12).
+export function unsupportedOf(row: ModelConfigRow, dev: boolean, pricing: Pricing = pricingOf(row), list: ModelList = MODEL_LIST): string | null {
+  if (row.provider === "fake-dev" && !dev) return `uses ${PROVIDER_NAMES[row.provider]}, a provider for development that this Worker doesn't offer (start it with DEV_PROVIDERS=true)`;
   const problem = configProblem(bodyOf(row, pricing), list);
   if (problem === null) return null;
   return unsupportedReason(list, row, pricing) ?? `can't be used as it is any more (${problem})`;
@@ -157,7 +160,7 @@ function configPrice(row: ModelConfigRow, pricing: Pricing, list: ModelList = MO
   return { ...priced, borrowedFrom: priced.borrowedFrom ? (modelById(list, priced.borrowedFrom)?.name ?? priced.borrowedFrom) : null };
 }
 
-export function toModelConfig(row: ModelConfigRow): ModelConfig {
+export function toModelConfig(row: ModelConfigRow, dev: boolean): ModelConfig {
   const { model, family, modelName } = resolvedModel(row);
   const pricing = pricingOf(row);
   return {
@@ -169,7 +172,7 @@ export function toModelConfig(row: ModelConfigRow): ModelConfig {
     model,
     family,
     modelName,
-    unsupported: unsupportedOf(row, pricing),
+    unsupported: unsupportedOf(row, dev, pricing),
     effort: row.effort,
     region: row.region,
     routing: row.routing,
@@ -429,13 +432,13 @@ export function modelConfigRoutes(app: Hono<{ Bindings: Env }>) {
     const { results } = await c.env.DB.prepare(
       "SELECT * FROM model_configs WHERE deleted_at IS NULL ORDER BY created_at, id",
     ).all<ModelConfigRow>();
-    return c.json<ModelConfig[]>(results.map(toModelConfig));
+    return c.json<ModelConfig[]>(results.map((row) => toModelConfig(row, devProviders(c.env))));
   });
 
   // One model config, deleted or not: stages and calls refer to the config they used.
   app.get("/api/model-configs/:id", async (c) => {
     const row = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(c.req.param("id")).first<ModelConfigRow>();
-    return row ? c.json<ModelConfig>(toModelConfig(row)) : refuse(c, 404, NO_MODEL_CONFIG);
+    return row ? c.json<ModelConfig>(toModelConfig(row, devProviders(c.env))) : refuse(c, 404, NO_MODEL_CONFIG);
   });
 
   // Creates a config, or clones one: `replaces` names the original to delete with it ("Delete the original"; the clone
@@ -476,7 +479,7 @@ export function modelConfigRoutes(app: Hono<{ Bindings: Env }>) {
       }
     }
     await db.batch(statements);
-    return c.json<ModelConfig>(toModelConfig(row), 201);
+    return c.json<ModelConfig>(toModelConfig(row, devProviders(c.env)), 201);
   });
 
   // Renames a config: the only change a config's row takes besides its deletion (docs/llm.md, "Managing model configs").
@@ -497,7 +500,7 @@ export function modelConfigRoutes(app: Hono<{ Bindings: Env }>) {
       .first();
     if (taken) return refuse(c, 409, NAME_TAKEN, "name_taken");
     await db.prepare("UPDATE model_configs SET name = ? WHERE id = ?").bind(name, id).run();
-    return c.json<ModelConfig>(toModelConfig({ ...row, name }));
+    return c.json<ModelConfig>(toModelConfig({ ...row, name }, devProviders(c.env)));
   });
 
   app.delete("/api/model-configs/:id", async (c) => {
@@ -525,7 +528,7 @@ export function modelConfigRoutes(app: Hono<{ Bindings: Env }>) {
     const row = await c.env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(c.req.param("id")).first<ModelConfigRow>();
     if (!row) return refuse(c, 404, NO_MODEL_CONFIG);
     if (row.deleted_at) return refuse(c, 409, `The model config "${row.name}" was deleted.`, "deleted_model_config");
-    const unsupported = unsupportedOf(row);
+    const unsupported = unsupportedOf(row, devProviders(c.env));
     if (unsupported) return refuse(c, 409, `The model config "${row.name}" ${unsupported}.`, "unsupported_model_config");
     if (row.provider === "fake" || row.provider === "fake-dev") return refuse(c, 400, "Only configs of real providers can be tested.");
     const startedAt = Date.now();

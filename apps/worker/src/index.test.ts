@@ -579,7 +579,7 @@ test("an LLM stage names its model config from its creation: the default then, k
 
 test("a model config applied to the remaining stages: only the LLM stages after, only their model config", async () => {
   await env.DB.prepare(
-    "INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('other-model', 'Other model', 'fake-dev', 'fake-model', 'fake', 'free', '2026-10-01')",
+    "INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('other-model', 'Other model', 'fake', 'other-model', 'fake', 'free', '2026-10-01')",
   ).run();
   const project = await createdProject("apply.pdf");
   const at = async (i: number) => (await pipelineOf(project.id))[i];
@@ -611,7 +611,7 @@ test("a model config applied to the remaining stages: only the LLM stages after,
     null,
     null,
   ]);
-  assert.deepEqual((await at(6)).modelConfig, { name: "Other model", model: "fake-model", deleted: false, unsupported: false });
+  assert.deepEqual((await at(6)).modelConfig, { name: "Other model", model: "other-model", deleted: false, unsupported: false });
 
   // A stage that ran is replaced by a copy with the new model config, its other settings kept.
   const extract = await at(5);
@@ -1239,7 +1239,7 @@ test("a further review that ran gets a new model config \"for every stage after 
   // Found 2026-11-07, decided 2026-11-09 (docs/overview.md §5.5): asking for a config for every stage after a change
   // reaches the further reviews too, which then run again with it instead of waiting to be kept or dropped.
   await env.DB.prepare(
-    "INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('later-model', 'Later model', 'fake-dev', 'fake-model', 'fake', 'free', '2026-10-01')",
+    "INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('later-model', 'Later model', 'fake', 'later-model', 'fake', 'free', '2026-10-01')",
   ).run();
   const project = await createdProject("further-config.pdf");
   const run = async (index: number) => {

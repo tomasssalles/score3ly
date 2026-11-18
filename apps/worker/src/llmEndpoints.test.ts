@@ -813,8 +813,8 @@ test("configs added by hand become listed ones when a new list has their string:
     ["priced-as", "priced-as", "claude-opus-6", null, null, "list", null],
     ["unpriced", "unpriced", "claude-opus-6", null, null, "list", null],
   ]);
-  assert.equal(unsupportedOf(rows[3], undefined, list), null);
-  assert.equal(unsupportedOf(rows[0], undefined, list), "uses Claude Opus 6 on Bedrock in us-east-1, which the app no longer supports");
+  assert.equal(unsupportedOf(rows[3], true, undefined, list), null);
+  assert.equal(unsupportedOf(rows[0], true, undefined, list), "uses Claude Opus 6 on Bedrock in us-east-1, which the app no longer supports");
 });
 
 test("a retired model's string can be added again by hand, as a model the list doesn't have (dec. 11), and stays so", async () => {
@@ -830,7 +830,7 @@ test("a retired model's string can be added again by hand, as a model the list d
   await convertAddedConfigs(env.DB, list);
   const row = (await env.DB.prepare("SELECT * FROM model_configs WHERE id = 'opus-3'").first<ModelConfigRow>())!;
   assert.deepEqual([row.model_id, row.model_string, row.family], [null, "claude-opus-3", "claude"]);
-  assert.equal(unsupportedOf(row, undefined, list), null);
+  assert.equal(unsupportedOf(row, true, undefined, list), null);
   await env.DB.prepare("DELETE FROM model_configs WHERE id = 'opus-3'").run();
 });
 
@@ -855,24 +855,43 @@ test("a stored config is supported when it is valid as a whole; otherwise the fi
     ...over,
   });
   const no = (what: string) => `uses ${what}, which the app no longer supports`;
-  assert.equal(unsupportedOf(row({})), null);
+  assert.equal(unsupportedOf(row({}), true), null);
   // The provider; the model on it; a family the app no longer supports there.
-  assert.equal(unsupportedOf(row({ provider: "gone" as Provider })), no("gone"));
-  assert.equal(unsupportedOf(row({ model_id: "claude-gone" })), no("claude-gone on Anthropic"));
+  assert.equal(unsupportedOf(row({ provider: "gone" as Provider }), true), no("gone"));
+  assert.equal(unsupportedOf(row({ model_id: "claude-gone" }), true), no("claude-gone on Anthropic"));
   const withoutAnthropic: ModelList = { ...MODEL_LIST, prices: MODEL_LIST.prices.filter((p) => !(p.model === "claude-opus-5-5" && p.provider === "anthropic")) };
-  assert.equal(unsupportedOf(row({}), undefined, withoutAnthropic), no("Claude Opus 5.5 on Anthropic"));
-  assert.equal(unsupportedOf(row({ model_id: null, model_string: "gemini-x", family: "gemini" })), no("Gemini models on Anthropic"));
+  assert.equal(unsupportedOf(row({}), true, undefined, withoutAnthropic), no("Claude Opus 5.5 on Anthropic"));
+  assert.equal(unsupportedOf(row({ model_id: null, model_string: "gemini-x", family: "gemini" }), true), no("Gemini models on Anthropic"));
   // The effort the model no longer takes.
   const fewerEfforts: ModelList = { ...MODEL_LIST, models: MODEL_LIST.models.map((m) => (m.id === "claude-opus-5-5" ? { ...m, efforts: ["low", "high"] } : m)) };
-  assert.equal(unsupportedOf(row({ effort: "max" }), undefined, fewerEfforts), no("Claude Opus 5.5 at effort max"));
-  assert.equal(unsupportedOf(row({ effort: "high" }), undefined, fewerEfforts), null);
+  assert.equal(unsupportedOf(row({ effort: "max" }), true, undefined, fewerEfforts), no("Claude Opus 5.5 at effort max"));
+  assert.equal(unsupportedOf(row({ effort: "high" }), true, undefined, fewerEfforts), null);
   // OpenRouter's account; the credentials.
   const openRouter = { provider: "openrouter" as const, model_id: "claude-opus-5-5", pricing_kind: "provider" as const };
-  assert.equal(unsupportedOf(row({ ...openRouter, account: "standard" })), null);
-  assert.equal(unsupportedOf(row({ ...openRouter, account: "standard", region: "eu" })), no("OpenRouter in the EU with a standard account"));
-  assert.equal(unsupportedOf(row({ secrets_json: '{"token":"K"}' })), "names secrets for Anthropic (token) that the app no longer takes");
+  assert.equal(unsupportedOf(row({ ...openRouter, account: "standard" }), true), null);
+  assert.equal(unsupportedOf(row({ ...openRouter, account: "standard", region: "eu" }), true), no("OpenRouter in the EU with a standard account"));
+  assert.equal(unsupportedOf(row({ secrets_json: '{"token":"K"}' }), true), "names secrets for Anthropic (token) that the app no longer takes");
   // The pricing: by the provider only where it reports the costs.
-  assert.equal(unsupportedOf(row({ pricing_kind: "provider" })), 'is priced by the provider, which the app no longer supports on Anthropic');
+  assert.equal(unsupportedOf(row({ pricing_kind: "provider" }), true), 'is priced by the provider, which the app no longer supports on Anthropic');
+});
+
+test("a config of Fake with costs is unsupported where the Worker runs without DEV_PROVIDERS (dec. 12): it can't run, nor be the default", async () => {
+  const dev = await modelConfig({ name: "Dev costs" });
+  const stage = await runningStage(dev.id);
+  delete (env as unknown as Record<string, string>).DEV_PROVIDERS;
+  try {
+    const shown = await json<{ unsupported: string | null }>(await app.request(`/api/model-configs/${dev.id}`, {}, env));
+    assert.equal(shown.unsupported, "uses Fake (dev), a provider for development that this Worker doesn't offer (start it with DEV_PROVIDERS=true)");
+    const refused = await call(stage);
+    assert.equal(refused.status, 409);
+    assert.equal(((await refused.json()) as { code: string }).code, "unsupported_model_config");
+    assert.equal((await send("/api/settings/defaultModelConfigId", { value: dev.id }, "PUT")).status, 400);
+    const { stages } = await json<{ stages: { modelConfig: { unsupported: boolean } | null }[] }>(await app.request(`/api/projects/${stage.projectId}/pipeline`, {}, env));
+    assert.equal(stages[1].modelConfig?.unsupported, true);
+  } finally {
+    (env as unknown as Record<string, string>).DEV_PROVIDERS = "true";
+  }
+  assert.equal((await json<{ unsupported: string | null }>(await app.request(`/api/model-configs/${dev.id}`, {}, env))).unsupported, null);
 });
 
 test("the pickers' options: providers with their families, efforts, secrets and places; listed models where they have prices", async () => {

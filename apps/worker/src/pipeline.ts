@@ -7,7 +7,7 @@ import { BAD_REQUEST, badRequest, NO_PROJECT, notRunning, PICK_ANOTHER, refuse, 
 import { isDroppable, isSha256Hex, quarterOf, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StartAnswer } from "@score3ly/core";
 import type { Context, Hono } from "hono";
 import { lock } from "./versions.ts";
-import { deletedConfigMessage, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
+import { deletedConfigMessage, devProviders, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
 import {
   anyRunning,
   closeRunningCalls,
@@ -49,7 +49,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const id = c.req.param("id");
     const project = await db.prepare("SELECT id FROM projects WHERE id = ? AND deleted_at IS NULL").bind(id).first();
     if (!project) return refuse(c, 404, NO_PROJECT);
-    return c.json<Pipeline>(await readPipeline(db, id));
+    return c.json<Pipeline>(await readPipeline(db, id, devProviders(c.env)));
   });
 
   // Sets the config of a stage (null: the defaults). A planned stage simply gets it. A stage that has run is
@@ -81,7 +81,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       // A stage that names a deleted or unsupported config keeps it until another is picked; such a one can't be picked anew.
       const before = stage.config_json === null ? null : (JSON.parse(stage.config_json) as { modelConfigId?: string }).modelConfigId;
       if (picked.deleted_at && before !== modelConfigId) return refuse(c, 400, `The model config "${picked.name}" was deleted. Pick another.`);
-      if (unsupportedOf(picked) && before !== modelConfigId) return refuse(c, 400, `The model config "${picked.name}" ${unsupportedOf(picked)}. Pick another.`);
+      const unsupported = before !== modelConfigId ? unsupportedOf(picked, devProviders(c.env)) : null;
+      if (unsupported) return refuse(c, 400, `The model config "${picked.name}" ${unsupported}. Pick another.`);
     }
     const toLater = body.applyModelConfigToLater === true && modelConfigId !== null ? modelConfigId : null;
     if (stage.status === "running" && !isStale(stage, Date.now())) {
@@ -108,7 +109,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       );
     }
     await db.batch(statements);
-    return c.json<Pipeline>(await readPipeline(db, pid));
+    return c.json<Pipeline>(await readPipeline(db, pid, devProviders(c.env)));
   });
 
   // Starts a stage (or runs a failed or interrupted one again). The browser sends what it resolved: the step's
@@ -142,7 +143,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       // A deleted config is never used again (docs/llm.md, "Managing model configs"), nor one the app no longer
       // supports ("No longer supported"): the run stops here, failed.
       if (config.deleted_at) return refuse(c, 409, `The stage can't start: ${deletedConfigMessage(config.name)} ${PICK_ANOTHER}`, "deleted_model_config");
-      const unsupported = unsupportedOf(config);
+      const unsupported = unsupportedOf(config, devProviders(c.env));
       if (unsupported) return refuse(c, 409, `The stage can't start: ${unsupportedConfigMessage(config.name, unsupported)} ${PICK_ANOTHER}`, "unsupported_model_config");
     }
     const reusable = await db
@@ -400,7 +401,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...plannedStage(db, pid, position, stage.step, stage.config_json, stage.in_recipe === 1, defaultModelConfigId, now),
       touchProject(db, pid, now),
     ]);
-    return c.json<Pipeline>(await readPipeline(db, pid));
+    return c.json<Pipeline>(await readPipeline(db, pid, devProviders(c.env)));
   });
 
   // Adds a manual stage, WIP, after a done stage (docs/project-view.md): body { step, stepVersion, pageCount, inputIds }.
@@ -455,7 +456,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...(await rewriteFrom(db, pid, last + 1, [id], last, iso)),
       touchProject(db, pid, iso),
     ]);
-    return c.json<AddedStage>({ stageId: id, pipeline: await readPipeline(db, pid) });
+    return c.json<AddedStage>({ stageId: id, pipeline: await readPipeline(db, pid, devProviders(c.env)) });
   });
 
   // Edits a finished manual stage (docs/overview.md §5.4): a new WIP stage, with the same outputs and inputs, takes its
@@ -495,7 +496,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...(await rewriteFrom(db, pid, position, [id], position, iso)),
       touchProject(db, pid, iso),
     ]);
-    return c.json<AddedStage>({ stageId: id, pipeline: await readPipeline(db, pid) });
+    return c.json<AddedStage>({ stageId: id, pipeline: await readPipeline(db, pid, devProviders(c.env)) });
   });
 
   // A carried manual stage whose turn has come (every stage before it is done): the browser sends the outputs the
@@ -549,7 +550,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
             touchProject(db, pid, iso),
           ],
     );
-    return c.json<Resolved>({ kept, pipeline: await readPipeline(db, pid) });
+    return c.json<Resolved>({ kept, pipeline: await readPipeline(db, pid, devProviders(c.env)) });
   });
 
   // Adds a further review after an `apply_review` (docs/stages/music.md, `apply_review`: from any of them, right after
@@ -576,7 +577,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
         .bind(ids[i], pid, step, config.configJson, config.modelConfigId, iso);
     });
     await db.batch([...statements, ...(await rewriteFrom(db, pid, position + 1, ids, position, iso)), touchProject(db, pid, iso)]);
-    return c.json<AddedStage>({ stageId: ids[0], pipeline: await readPipeline(db, pid) });
+    return c.json<AddedStage>({ stageId: ids[0], pipeline: await readPipeline(db, pid, devProviders(c.env)) });
   });
 
   // Adds a human review after a done `apply_review` (docs/stages/music.md, `human_review`): WIP, right after it, with a
@@ -621,7 +622,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ...(await rewriteFrom(db, pid, position + 1, ids, position, iso)),
       touchProject(db, pid, iso),
     ]);
-    return c.json<AddedStage>({ stageId: ids[0], pipeline: await readPipeline(db, pid) });
+    return c.json<AddedStage>({ stageId: ids[0], pipeline: await readPipeline(db, pid, devProviders(c.env)) });
   });
 
   // Drops a manual stage, WIP or finished (docs/overview.md §5.5): its entry goes, and the stages after it move up and are
@@ -637,7 +638,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const iso = now.toISOString();
     const last = await withItsApply(db, pid, position);
     await db.batch([...(await rewriteFrom(db, pid, position, [], last, iso)), touchProject(db, pid, iso)]);
-    return c.json<Pipeline>(await readPipeline(db, pid));
+    return c.json<Pipeline>(await readPipeline(db, pid, devProviders(c.env)));
   });
 
   // Dismisses the card of a dropped stage (docs/overview.md §5.5).
@@ -649,7 +650,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       .bind(Number(id), pid)
       .run();
     if (!result.meta.changes) return refuse(c, 404, `This card isn't in the project any more. ${RELOAD}`);
-    return c.json<Pipeline>(await readPipeline(db, pid));
+    return c.json<Pipeline>(await readPipeline(db, pid, devProviders(c.env)));
   });
 }
 
