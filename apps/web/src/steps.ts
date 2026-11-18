@@ -1,7 +1,7 @@
 // What the code declares about each step (docs/overview.md §5.1): its title, its kind, its config form, and how its
 // outputs are shown as artifacts. The database only stores a stage's step id.
 
-import { pageOfItem, systemOfItem } from "@score3ly/core";
+import { pageOfItem, STEP_KINDS, systemOfItem, type StepId } from "@score3ly/core";
 import type { ApiStage } from "./api";
 import type { Artifact, StageKind } from "./pipeline";
 import { whoOf, type ChainStage } from "./attribution.ts";
@@ -50,13 +50,15 @@ export type StepConfig = {
 
 export type StepInfo = {
   title: string;
-  kind: StageKind; // never changes for a step (steps.test.ts)
-  optional: boolean; // added by the user, not part of the recipe: can be dropped
+  kind: StageKind; // core's (`STEP_KINDS`): never changes for a step
   fixes: string[]; // the manual steps that can be added after it, by id
   config?: StepConfig; // none: nothing to set
   // The first is the main one. `earlier` are the stages before it in the pipeline, for its inputs.
   artifacts: (stage: ApiStage, earlier: ApiStage[]) => Artifact[];
 };
+
+// A step as declared here: everything but its kind, which is core's.
+type StepDeclaration = Omit<StepInfo, "kind">;
 
 // Every LLM stage's config: its model config, so far nothing else (docs/llm.md, "Which config a stage uses"). Another
 // setting of an LLM step would be a field beside it; "Apply to the remaining stages…" changes only the model config.
@@ -82,11 +84,11 @@ function pageRecipes(earlier: ApiStage[]): Map<number, PageRecipe> {
   return recipes;
 }
 
-export const STEPS: Record<string, StepInfo> = {
+// What the code declares about each step; its kind is core's (`STEP_KINDS`). Ingest, Rasterize and Skew detection here,
+// the others below, after what they use; all of them in `STEPS`.
+const FIRST_STEPS = {
   ingest: {
     title: "Ingest",
-    kind: "ingest",
-    optional: false,
     fixes: [],
     artifacts: (stage) =>
       stage.outputs.some((output) => output.type === "pdf")
@@ -95,8 +97,6 @@ export const STEPS: Record<string, StepInfo> = {
   },
   rasterize: {
     title: "Rasterize",
-    kind: "computed",
-    optional: false,
     fixes: [],
     config: {
       fields: [
@@ -137,8 +137,6 @@ export const STEPS: Record<string, StepInfo> = {
   },
   skew_analysis: {
     title: "Skew detection",
-    kind: "computed",
-    optional: false,
     fixes: ["fix_skew"],
     config: {
       fields: [
@@ -170,12 +168,10 @@ export const STEPS: Record<string, StepInfo> = {
         : [{ id: `${stage.id}.lines`, title: "Staff lines", kind: "images", count: pages.length, item: "Page", pages }];
     },
   },
-};
+} satisfies Partial<Record<StepId, StepDeclaration>>;
 
-STEPS.layout = {
+const layoutStep: StepDeclaration = {
   title: "Layout",
-  kind: "llm",
-  optional: false,
   fixes: ["fix_layout"],
   config: LLM_CONFIG,
   artifacts: (stage, earlier) => {
@@ -194,10 +190,8 @@ STEPS.layout = {
   },
 };
 
-STEPS.fix_layout = {
+const fixLayoutStep: StepDeclaration = {
   title: "Fix layout",
-  kind: "manual",
-  optional: true,
   fixes: [],
   // The pages of the layout before it, each with its own layout once saved, else the model's. While WIP, the
   // artifact is the editor.
@@ -220,10 +214,8 @@ STEPS.fix_layout = {
   },
 };
 
-STEPS.fix_skew = {
+const fixSkewStep: StepDeclaration = {
   title: "Fix skew",
-  kind: "manual",
-  optional: true,
   fixes: [],
   // The pages of the skew analysis before it, each with its own lines once saved, else the analysis's. While WIP,
   // the artifact is the editor.
@@ -260,10 +252,8 @@ function layoutPages(earlier: ApiStage[]): { page: number; recipe: PageRecipe; l
     .sort((a, b) => a.page - b.page);
 }
 
-STEPS.analyze = {
+const analyzeStep: StepDeclaration = {
   title: "Analyze",
-  kind: "llm",
-  optional: false,
   fixes: ["fix_metadata", "fix_observations"],
   config: LLM_CONFIG,
   // The metadata, with the pages as they are (to look for a field), and the observations, with the pages as the
@@ -298,10 +288,8 @@ STEPS.analyze = {
   },
 };
 
-STEPS.fix_metadata = {
+const fixMetadataStep: StepDeclaration = {
   title: "Fix metadata",
-  kind: "manual",
-  optional: true,
   fixes: [],
   // The metadata the user saved, else `analyze`'s, with the pages. While WIP, the artifact is the form. The pages
   // carry their layouts, for the systems a piece can start at.
@@ -328,10 +316,8 @@ STEPS.fix_metadata = {
   },
 };
 
-STEPS.fix_observations = {
+const fixObservationsStep: StepDeclaration = {
   title: "Fix observations",
-  kind: "manual",
-  optional: true,
   fixes: [],
   // The observations the user saved, else `analyze`'s, with the pages and their layouts (the boxes, and the systems
   // and bar lines places are picked from). While WIP, the artifact is the form.
@@ -380,19 +366,15 @@ function transcription(
   return [{ id: `${stage.id}.music`, title: "Transcription", kind: "music", count: systems.length, item: "System", pages, extraction }];
 }
 
-STEPS.extract = {
+const extractStep: StepDeclaration = {
   title: "Extract",
-  kind: "llm",
-  optional: false,
   fixes: [],
   config: LLM_CONFIG,
   artifacts: (stage, earlier) => transcription(stage, stage, earlier),
 };
 
-STEPS.review = {
+const reviewStep: StepDeclaration = {
   title: "Review",
-  kind: "llm",
-  optional: false,
   fixes: [],
   config: LLM_CONFIG,
   // The Transcription it reviewed, with its issues as the review leaves them: its calls' entries, and, once it is
@@ -406,10 +388,8 @@ STEPS.review = {
   },
 };
 
-STEPS.apply_review = {
+const applyReviewStep: StepDeclaration = {
   title: "Apply review",
-  kind: "llm",
-  optional: false,
   fixes: [],
   config: LLM_CONFIG,
   // The new transcription, once it is stored (every call in), with what its calls reverted and changed.
@@ -421,10 +401,8 @@ STEPS.apply_review = {
 
 // A review done by a person (docs/stages/music.md, `human_review`), added with "Add Human review" after an Apply review,
 // not as a fix. Its artifact is the Transcription it reviews, with its entries; while WIP, the screen for the review.
-STEPS.human_review = {
+const humanReviewStep: StepDeclaration = {
   title: "Human review",
-  kind: "manual",
-  optional: true,
   fixes: [],
   artifacts: (stage, earlier) => {
     const transcribed = [...earlier].reverse().find((s) => EXTRACTION_STEPS.includes(s.step));
@@ -458,10 +436,8 @@ export function choosingChain(stages: ApiStage[]): ChainStage[] {
   return chain;
 }
 
-STEPS.build_mei = {
+const buildMeiStep: StepDeclaration = {
   title: "Build MEI",
-  kind: "computed",
-  optional: false,
   // "Fix MEI manually" is in the "⋮" of the stage that creates the MEI (§6).
   fixes: ["fix_mei"],
   // The MEI file, in the MEI view: the file beside its engraving, on pages of the default size (the PDF with the chosen
@@ -473,10 +449,8 @@ STEPS.build_mei = {
   },
 };
 
-STEPS.engrave = {
+const engraveStep: StepDeclaration = {
   title: "Engrave",
-  kind: "computed",
-  optional: false,
   fixes: [],
   config: {
     fields: [
@@ -499,10 +473,8 @@ STEPS.engrave = {
   },
 };
 
-STEPS.fix_mei = {
+const fixMeiStep: StepDeclaration = {
   title: "Fix MEI",
-  kind: "manual",
-  optional: true,
   fixes: [],
   // The MEI, as the MEI view: the editor while WIP. Its texts are loaded by the view (fixMei.ts).
   artifacts: (stage, earlier) => {
@@ -512,6 +484,26 @@ STEPS.fix_mei = {
 };
 
 
+// Every step, as `stepInfo` gives it: a step core knows that isn't declared here fails the typecheck.
+const DECLARED: Record<StepId, StepDeclaration> = {
+  ...FIRST_STEPS,
+  layout: layoutStep,
+  fix_layout: fixLayoutStep,
+  fix_skew: fixSkewStep,
+  analyze: analyzeStep,
+  fix_metadata: fixMetadataStep,
+  fix_observations: fixObservationsStep,
+  extract: extractStep,
+  review: reviewStep,
+  apply_review: applyReviewStep,
+  human_review: humanReviewStep,
+  build_mei: buildMeiStep,
+  engrave: engraveStep,
+  fix_mei: fixMeiStep,
+};
+export const STEPS = Object.fromEntries(
+  (Object.keys(DECLARED) as StepId[]).map((step) => [step, { ...DECLARED[step], kind: STEP_KINDS[step] }]),
+) as Record<StepId, StepInfo>;
 
 // What a manual step needs to be added after a stage (docs/database.md): its version, page count and inputs. `earlier`:
 // the stages up to and including that one.
@@ -551,7 +543,7 @@ export function carriedInputs(stages: ApiStage[], index: number): string[] {
 
 // A step this version of the app doesn't know (e.g. from a newer one) is shown by its id, without artifacts.
 export function stepInfo(step: string): StepInfo {
-  return STEPS[step] ?? { title: step, kind: "computed", optional: false, fixes: [], artifacts: () => [] };
+  return Object.hasOwn(STEPS, step) ? STEPS[step as StepId] : { title: step, kind: "computed", fixes: [], artifacts: () => [] };
 }
 
 // What a review reads (docs/stages/music.md, `review`), by output ids: the latest transcription (its extractions and

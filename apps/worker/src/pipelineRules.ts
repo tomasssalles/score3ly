@@ -6,7 +6,7 @@ import type { Context, Hono } from "hono";
 import { COST_WITH_VAT } from "./callRecords.ts";
 import { NO_STAGE, refuse } from "./refusals.ts";
 import { logFields } from "./requestLog.ts";
-import { groupBy, RECIPE, stepsOfKind, type Pipeline, type StageModelConfig, type StageStatus } from "@score3ly/core";
+import { groupBy, isFurtherReview as furtherReview, RECIPE, stepsOfKind, type Pipeline, type StageModelConfig, type StageStatus } from "@score3ly/core";
 import { readSettings } from "./settings.ts";
 import { resolvedModel } from "./llm/models.ts";
 import { unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
@@ -29,10 +29,9 @@ export function isManual(step: string): boolean {
   return (MANUAL_STEPS as readonly string[]).includes(step);
 }
 
-// A further review (docs/overview.md §5.5): a review the user added, not the recipe's. It is carried through a re-run
-// like a manual stage once it has run, and dropped with the `apply_review` that follows it.
+// A further review (core's `isFurtherReview`), from a stage's row.
 export function isFurtherReview(row: { step: string; in_recipe: number }): boolean {
-  return row.step === "review" && row.in_recipe === 0;
+  return furtherReview({ step: row.step, inRecipe: row.in_recipe === 1 });
 }
 
 // Whether a stage is carried through a re-run (docs/overview.md §5.5): a manual one, and a further review that has run.

@@ -16,33 +16,16 @@
 // out, not counted as nothing. Projects on the same PDF needn't be merged, as the costs per page merge them: the cache
 // is already left out item by item.
 
-import { groupBy, itemKind, type ItemKind, QUARTER_MS } from "@score3ly/core";
+import { groupBy, itemKind, type ItemKind, QUARTER_MS, STEP_IDS, stepsOfKind } from "@score3ly/core";
 import type { ActivityData, RunTimeData } from "./api";
 import { stepTitle } from "./costs.ts";
 import { endedNote } from "./format.ts";
 import { activeQuarters } from "./usage.ts";
 
 // Every step but `ingest`, in the pipeline's order. The manual ones aren't part of the estimate for a new score.
-export const STEPS = [
-  "rasterize",
-  "skew_analysis",
-  "fix_skew",
-  "layout",
-  "fix_layout",
-  "analyze",
-  "fix_metadata",
-  "fix_observations",
-  "extract",
-  "review",
-  "apply_review",
-  "human_review",
-  "build_mei",
-  "fix_mei",
-  "engrave",
-];
-const MANUAL = new Set(["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"]);
-const LLM = new Set(["layout", "analyze", "extract", "review", "apply_review"]);
-
+export const STEPS = STEP_IDS.filter((step) => step !== "ingest");
+const MANUAL = new Set<string>(stepsOfKind("manual"));
+const LLM = new Set<string>(stepsOfKind("llm"));
 
 // Whether an item really ran: no answer from the record (LLM steps), its image made (`rasterize`).
 function ranAnew(step: string, calls: number, callsCached: number, images: number, imagesCached: number): boolean {

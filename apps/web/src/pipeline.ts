@@ -11,7 +11,7 @@ import { stepInfo } from "./steps.ts";
 export type { RunMode } from "./api";
 
 export type { StageKind } from "@score3ly/core";
-import type { StageKind } from "@score3ly/core";
+import { isDroppable, type StageKind } from "@score3ly/core";
 
 export type StageStatus =
   | "done"
@@ -175,8 +175,8 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[], l
       .filter((step) => !following.some((s) => s.step === step))
       .map((step) => ({ step, title: stepInfo(step).title })),
     carried: stored.carried,
-    // A further review can be dropped (with its Apply review), the recipe's can't (§5.5).
-    droppable: info.kind === "manual" || info.optional || (stored.step === "review" && !stored.inRecipe),
+    // A manual stage, and a further review (with its Apply review); the recipe's stages can't (§5.5).
+    droppable: isDroppable(stored),
     configurable: info.config !== undefined,
   };
 }

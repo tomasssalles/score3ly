@@ -2,7 +2,7 @@
 // days, weeks or months, split into groups and filtered by the same groupings. Pure functions over the Worker's data
 // (apps/worker/src/costs.ts); the page is StatsPage.tsx, the chart TimeChart.tsx, the calendar calendar.ts.
 
-import { type CostOutcome, PROVIDER_NAMES } from "@score3ly/core";
+import { type CostOutcome, PROVIDER_NAMES, stepsOfKind } from "@score3ly/core";
 import type { CostData } from "./api";
 import { type Bucket, bucketsOf, type Granularity } from "./calendar.ts";
 import { deletedNote, endedNote } from "./format.ts";
@@ -52,11 +52,9 @@ export const GROUPINGS: Record<Dimension, { id: string; label: string; short?: s
 // most expensive first.
 export type Group = { key: string; label: string; note?: string; rank?: number };
 
-// The steps not built yet have no entry in steps.ts.
-const STEP_TITLES: Record<string, string> = { review: "Review", apply_review: "Apply review", human_review: "Human review" };
-export const stepTitle = (step: string) => STEP_TITLES[step] ?? stepInfo(step).title;
+export const stepTitle = (step: string) => stepInfo(step).title;
 // The LLM steps in the pipeline's order.
-const STEPS = ["layout", "analyze", "extract", "review", "apply_review"];
+const STEPS: readonly string[] = stepsOfKind("llm");
 
 // The providers in the costs' order, named as everywhere (`PROVIDER_NAMES`). The fake provider that ships with the app
 // costs nothing, so it never shows here; the one for development does.
@@ -68,7 +66,7 @@ const FAMILY_ORDER = ["Claude", "Gemini", "Fake"];
 
 // A paid call's status as the costs view tells them apart (the Worker's `outcome`), in this order; named as in Usage.
 const STATUSES: CostOutcome[] = ["ok", "cut_off", "refused", "unparseable", "unexpected_model", "unexpected_stop"];
-const rankIn = (order: string[], key: string) => (order.includes(key) ? order.indexOf(key) : order.length);
+const rankIn = (order: readonly string[], key: string) => (order.includes(key) ? order.indexOf(key) : order.length);
 
 // The group of a point (its stage, its config and its calls' status) in a grouping. `byName`: configs with the same
 // name together, e.g. the versions of an edited config. The calls of unknown cost have no status: every status

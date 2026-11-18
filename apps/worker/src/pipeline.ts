@@ -4,7 +4,7 @@
 
 import { logFields } from "./requestLog.ts";
 import { BAD_REQUEST, badRequest, NO_PROJECT, notRunning, PICK_ANOTHER, refuse, RELOAD, STAGE_RUNNING, WAITS_FOR_TURN } from "./refusals.ts";
-import { isSha256Hex, quarterOf, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StartAnswer } from "@score3ly/core";
+import { isDroppable, isSha256Hex, quarterOf, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StartAnswer } from "@score3ly/core";
 import type { Hono } from "hono";
 import { lock } from "./versions.ts";
 import { deletedConfigMessage, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
@@ -13,7 +13,6 @@ import {
   closeRunningCalls,
   defaultForNewStages,
   INTERRUPTED_CALL,
-  isFurtherReview,
   isManual,
   isStale,
   notDone,
@@ -550,7 +549,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const { pid, sid } = c.req.param();
     const found = stageEntry(c);
     const { stage, position } = found;
-    if (!isManual(stage.step) && !isFurtherReview(stage)) return refuse(c, 409, "Only stages outside the recipe can be dropped.");
+    if (!isDroppable({ step: stage.step, inRecipe: stage.in_recipe === 1 })) return refuse(c, 409, "Only stages outside the recipe can be dropped.");
     const now = new Date();
     if (await anyRunning(db, pid, now.getTime())) return refuse(c, 409, STAGE_RUNNING, "running");
     const iso = now.toISOString();

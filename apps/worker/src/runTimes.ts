@@ -9,12 +9,12 @@
 
 import type { RunTimeData } from "@score3ly/core";
 import type { Hono } from "hono";
-import { groupBy, parsePages, RECIPE } from "@score3ly/core";
+import { groupBy, parsePages, RECIPE, stepsOfKind } from "@score3ly/core";
 import { manualQuarters } from "./activeTime.ts";
 import { modelGroupOf, resolvedModel } from "./llm/models.ts";
 import type { ModelConfigRow } from "./modelConfigs.ts";
 
-const MANUAL = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"];
+const MANUAL: readonly string[] = stepsOfKind("manual");
 
 export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/run-times", async (c) => {

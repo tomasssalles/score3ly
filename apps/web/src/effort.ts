@@ -13,9 +13,10 @@
 
 import type { RunTimeData } from "./api";
 import { stepTitle } from "./costs.ts";
-import { QUARTER_MS } from "@score3ly/core";
+import { QUARTER_MS, stepsOfKind } from "@score3ly/core";
 
-const MANUAL = ["fix_skew", "fix_layout", "fix_metadata", "fix_observations", "human_review", "fix_mei"];
+// The manual steps, in the order of a pipeline.
+const MANUAL: readonly string[] = stepsOfKind("manual");
 
 type Stage = RunTimeData["stages"][number];
 

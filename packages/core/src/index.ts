@@ -5,7 +5,7 @@
 export { canonicalJson, isSha256Hex, keyOf, modelKeyOf, normalized, sha256Hex } from "./keys.ts";
 export type { Deleted, ListedProject, PdfLookup, PipelinePosition, Project, RunMode } from "./api/project.ts";
 export type { AddedStage, Dropped, Output, OutputsAnswer, Pipeline, Resolved, Stage, StageModelConfig, StageStatus, StartAnswer } from "./api/pipeline.ts";
-export { RECIPE, STEP_KINDS, stepsOfKind, type StageKind, type StepId } from "./steps.ts";
+export { isDroppable, isFurtherReview, RECIPE, STEP_IDS, STEP_KINDS, stepsOfKind, type StageKind, type StepId } from "./steps.ts";
 export { formatPages, parsePages, selectPages } from "./pageSelection.ts";
 export { readSse } from "./sse.ts";
 export { IMAGE_MEDIA_TYPES, MAX_CACHE_MARKS } from "./api/llmCall.ts";
