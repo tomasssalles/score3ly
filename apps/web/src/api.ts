@@ -303,7 +303,7 @@ export async function fetchTextContent(sha256: string): Promise<string> {
   return (await checked(await fetch(`/api/content/${sha256}`))).text();
 }
 
-// LLM calls (apps/worker/src/llmRoutes.ts, docs/llm.md). Model configs and settings as the Worker sends them
+// LLM calls (apps/worker/src/llmCalls.ts and modelConfigs.ts, docs/llm.md). Model configs and settings as the Worker sends them
 // (`@score3ly/core`).
 export type { Account, Family, ModelConfig, ModelOptions, NewModelConfig, Place, PriceRange, Provider, Routing, Settings, TestResult } from "@score3ly/core";
 export type { Price as ModelPrice } from "@score3ly/core";

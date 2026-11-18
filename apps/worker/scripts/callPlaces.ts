@@ -12,8 +12,7 @@
 // Calls whose place can't be told keep the placeholders and are listed, for a person to decide.
 
 import { canonicalJson } from "@score3ly/core";
-
-const PLACEHOLDER_ITEM = "?";
+import { PLACEHOLDER_ITEM } from "../src/places.ts";
 
 type CallRow = { id: string; stage_id: string | null; request_sha256: string | null; item: string; round: number; status: string; started_at: string; step: string | null };
 type StoredRequest = { messages?: { role: string; content: Record<string, unknown>[] }[] };

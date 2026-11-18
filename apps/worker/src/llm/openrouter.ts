@@ -4,7 +4,7 @@
 // (decided 2026-11-08): OpenRouter may send a call to any provider that runs the model, but never to another model
 // (we never send its model fallbacks, `models`), which the model check confirms. Each answer reports what it cost
 // (`usage.cost`, in US dollars of credits): the app's cost for the call is that plus OpenRouter's fee on credits
-// (llmRoutes.ts). `region` "eu" sends to `eu.openrouter.ai`, which is served in Europe only (a Business account).
+// (`providerCost`, spending.ts). `region` "eu" sends to `eu.openrouter.ai`, which is served in Europe only (a Business account).
 
 import type { PriceRange } from "@score3ly/core";
 import {

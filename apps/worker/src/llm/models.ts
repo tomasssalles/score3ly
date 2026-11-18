@@ -6,6 +6,7 @@
 
 import { type Account, type Effort, type Family, type Place, type Price, type Pricing, PROVIDER_NAMES, PROVIDERS, type Provider, type Routing } from "@score3ly/core";
 import { supportedFamilies } from "./adapters.ts";
+import { MODEL_LIST } from "./modelList.ts";
 
 // Providers are platforms (decided 2026-11-05); "fake" ships with the app, "fake-dev" is for development (fake.ts). The
 // providers' and the configs' words and types are in `@score3ly/core` (api/modelConfigs.ts), shared with the browser.
@@ -272,4 +273,31 @@ export function listProblems(list: ModelList): string[] {
     }
   }
   return problems;
+}
+
+// A stored model config's model, as its row names it (modelConfigs.ts).
+type StoredModel = { provider: Provider; model_id: string | null; model_string: string | null; family: Family | null };
+
+export function configModel(row: Pick<StoredModel, "model_id" | "model_string" | "family">): ConfigModel {
+  return row.model_id !== null ? { modelId: row.model_id } : { modelString: row.model_string!, family: row.family! };
+}
+
+// A stored config's model as the list resolves it: its string and family, or for a listed model the list no longer
+// has, its id and no family it can be called with.
+export function resolvedModel(row: StoredModel, list: ModelList = MODEL_LIST) {
+  const resolved = resolveModel(list, row.provider, configModel(row));
+  const entry = row.model_id ? modelById(list, row.model_id) : null;
+  return {
+    model: resolved?.string ?? "",
+    family: resolved?.family ?? entry?.family ?? row.family ?? "fake",
+    modelName: resolved?.name ?? entry?.name ?? null,
+  };
+}
+
+// The model a config uses, for grouping and filtering the statistics by model, whatever the provider (docs/statistics.md):
+// a listed model by its id, named as the list names it; a model added by hand by its string, the same model on every
+// provider that spells it alike.
+export function modelGroupOf(row: Pick<StoredModel, "model_id" | "model_string">, list: ModelList = MODEL_LIST): { modelKey: string; modelLabel: string } {
+  if (row.model_id) return { modelKey: row.model_id, modelLabel: modelById(list, row.model_id)?.name ?? row.model_id };
+  return { modelKey: `string:${row.model_string ?? ""}`, modelLabel: row.model_string ?? "" };
 }

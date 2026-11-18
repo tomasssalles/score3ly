@@ -10,7 +10,7 @@
 import { CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, type Imported, isSha256Hex, type ProjectExport, sameConfigValues } from "@score3ly/core";
 import type { Hono } from "hono";
 import { anyRunning, withModelConfig } from "./pipelineRules.ts";
-import { PLACEHOLDER_ITEM, placeProblem } from "./llmRoutes.ts";
+import { PLACEHOLDER_ITEM, placeProblem } from "./places.ts";
 import { badRequest, NO_PROJECT, problemText, refuse } from "./refusals.ts";
 import { putChecked } from "./storage.ts";
 

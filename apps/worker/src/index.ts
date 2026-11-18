@@ -7,7 +7,9 @@ import { runTimeRoutes } from "./runTimes.ts";
 import { deleteProject } from "./deletion.ts";
 import { defaultName } from "./names.ts";
 import { fingerprintRoutes } from "./fingerprints.ts";
-import { llmRoutes, readSettings, convertAddedConfigs } from "./llmRoutes.ts";
+import { convertAddedConfigs, modelConfigRoutes } from "./modelConfigs.ts";
+import { readSettings, settingsRoutes } from "./settings.ts";
+import { llmCallRoutes } from "./llmCalls.ts";
 import { pipelineRoutes } from "./pipeline.ts";
 import { defaultForNewStages, newPipeline, stageEntries } from "./pipelineRules.ts";
 import { lock, versionRoutes } from "./versions.ts";
@@ -336,7 +338,9 @@ app.post("/api/projects/:id/issue-numbers", lock("none"), async (c) => {
 // Every route about a stage reads its entry first (pipelineRules.ts).
 stageEntries(app);
 pipelineRoutes(app);
-llmRoutes(app);
+modelConfigRoutes(app);
+settingsRoutes(app);
+llmCallRoutes(app);
 projectFileRoutes(app);
 fingerprintRoutes(app);
 costRoutes(app);

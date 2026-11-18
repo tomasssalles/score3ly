@@ -22,3 +22,7 @@ export function zombieBefore(now = Date.now()): string {
 // provider may have finished and billed. A call still running counts once it is dead (`?`: `zombieBefore()`).
 export const UNKNOWN_COST = `((c.input_tokens IS NOT NULL AND c.cost_usd IS NULL) OR (c.input_tokens IS NULL AND (c.http_status IS NULL OR c.http_status < 400 OR c.http_status = 524) AND (c.error_kind IS NOT 'auth' OR c.http_status IS NOT NULL)
   AND (c.status <> 'running' OR c.started_at < ?)))`;
+
+// A call's cost with its VAT, in SQL, for a call row named `c` (docs/llm.md, "VAT"): its cost before VAT and the rate in
+// force when it was recorded. NULL where the cost is unknown.
+export const COST_WITH_VAT = "(c.cost_usd * (1 + c.vat_percent / 100.0))";

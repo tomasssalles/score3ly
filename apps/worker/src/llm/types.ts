@@ -65,7 +65,7 @@ export type LlmResponse = {
   stopDetail?: string; // the provider's reason, e.g. a refusal's category
   usage: LlmUsage;
   // What the provider says the call cost, in US dollars, where it says (OpenRouter's `usage.cost`, in credits): the
-  // cost of a config "priced by the provider" (llmRoutes.ts).
+  // cost of a config "priced by the provider" (`providerCost`, spending.ts).
   reportedCostUsd?: number;
   servedBy?: string; // who ran the model, where the provider routes between several (OpenRouter's `provider`)
   raw: unknown; // the provider's whole response, for the call record (§5.2)

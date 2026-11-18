@@ -8,7 +8,8 @@ import type { FailureData, Outcome } from "@score3ly/core";
 import type { Hono } from "hono";
 import { zombieBefore } from "./callRecords.ts";
 import { BUCKET_SECONDS } from "./costs.ts";
-import { modelGroupOf, resolvedModel, type ModelConfigRow } from "./llmRoutes.ts";
+import { modelGroupOf, resolvedModel } from "./llm/models.ts";
+import type { ModelConfigRow } from "./modelConfigs.ts";
 
 
 export function failureRoutes(app: Hono<{ Bindings: Env }>) {
