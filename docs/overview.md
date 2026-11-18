@@ -159,8 +159,8 @@ flowchart LR
 | PDF handling | pdf.js, version pinned | Renders vector PDFs and decodes CCITT, JBIG2 and JPEG 2000 images in JS/WASM, deterministically. |
 | JPEG decoding | pdf.js's own JavaScript decoder, not the browser's (pdf.js would use the browser's `ImageDecoder` where there is one; it is switched off, §8.1) | Browser JPEG decoders may differ by about ±1 gray level. A decoder in our bundle gives identical pixels everywhere. |
 | Vision LLMs | The user's choice, per stage (§7.2). Recommended: Claude Opus 5.5 for everything. | In the manual run (§13) Opus did best at everything, layout included. Providers are swappable behind the `LlmProvider` port. |
-| Structured LLM output | Provider-native schema-constrained output, validated with Zod | Machine-checkable outputs. No free-form parsing. |
-| Schema validation | Zod (or similar) | Validates step configs, LLM outputs and DB payloads. The same schema generates the UI controls (toggles, sliders). |
+| Structured LLM output | Provider-native schema-constrained output, validated against the same JSON Schema and by each stage's checks | Machine-checkable outputs. No free-form parsing. |
+| Schema validation | JSON Schema, with our own small builders (`packages/prompts/src/schema.ts`) and validator (`packages/core/src/jsonSchema.ts`), no library (decided) | Validates LLM answers and the model list's files. A library such as Zod would emit its own JSON for a schema, and the emitted JSON is part of every request's key (§5.2): changing it pays every call again. |
 | Rendering | Verovio (WASM) in the browser, rendering the MEI | Keeps rendering runnable everywhere, with no native program. See §9. |
 | Google Drive | Google Identity Services + Google Picker + `drive.file` scope, entirely in the browser | `drive.file` is non-sensitive: no app verification, and access only to files the user picks or the app creates. |
 | Local development | `wrangler dev` (local D1/R2 emulation) + Vite dev server, run as two processes. Vite proxies `/api` to Wrangler. No Cloudflare Vite plugin. | One code path from day 1. Keeps the app and the Worker as separate packages with a clear boundary. |
@@ -271,7 +271,7 @@ The browser drives the pipeline, so in either mode a run only advances while the
 
 Each step declares:
 - `id` and `version`, e.g. `extract@3` (see §11).
-- A **config schema** (Zod), which is also the source of its UI controls.
+- A **config schema**, which is also the source of its UI controls.
 - **Input** and **output types**.
 - **Granularity:** per document, per page, or per system. Steps can fan out, e.g. one page becomes many systems.
 - Its **kind:** `ingest`, `computed` (code), `llm` or `manual`, and nothing else (decided). `ingest` is the kind of the first stage only: it doesn't run (the PDF is given when the project is created), so the UI treats it apart (no run, progress or retry; it is done from the start), and its output is stored like LLM and manual outputs (§5.3).
@@ -457,7 +457,7 @@ In `docs/notation.md`: the lens, the symbolic format, MEI, what is music and wha
 What each LLM stage (`layout`, `analyze`, `extract`, `review`, `apply_review`) is given and returns is in its file in `docs/stages/`; the format models write music in, the issues and the warnings are in `docs/notation.md`. This section covers what all of them share.
 
 ### 7.1 Structured output
-Every call returns JSON validated by a Zod schema, using the provider's schema-constrained output. Doubts are issues (§6), not prose. **Most fields of every schema have a short description** in the prompt's words (decided 2026-11-13, `docs/llm.md`, "Descriptions in the schemas"). **Anthropic refused most of our schemas as too large** for its constrained output (found 2026-11-07): `docs/llm.md`, "Claude's limit on schemas". Redesigned to fit (decided 2026-11-10): `analyze`'s answer flat, and no nullable fields in the lens and the answers that carry it (`""` and `-1` for no value); every stage now runs on Claude with constrained output.
+Every call returns JSON in the shape of its stage's JSON Schema, using the provider's schema-constrained output, and validated against the same schema by our own validator (§3) and then by the stage's checks. Doubts are issues (§6), not prose. **Most fields of every schema have a short description** in the prompt's words (decided 2026-11-13, `docs/llm.md`, "Descriptions in the schemas"). **Anthropic refused most of our schemas as too large** for its constrained output (found 2026-11-07): `docs/llm.md`, "Claude's limit on schemas". Redesigned to fit (decided 2026-11-10): `analyze`'s answer flat, and no nullable fields in the lens and the answers that carry it (`""` and `-1` for no value); every stage now runs on Claude with constrained output.
 
 ### 7.2 Prompts and model configs
 In `docs/llm.md`: calling the providers, the call records and the cache, model configs, which config a stage uses, and supported models and prices (under discussion). What holds for every LLM stage:

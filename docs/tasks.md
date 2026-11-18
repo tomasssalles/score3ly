@@ -375,12 +375,12 @@ For each, make a model config on AI Studio (Vertex AI for the last two) with eac
 ### Verify the prompts and schemas of `analyze`
 `#owner` `#next-release`
 
-`packages/prompts/src/analyze.ts`: the page and whole-score texts, the metadata fields and the observations' shape, the confidence levels, the places (systems and bar lines by their labels), and the checks, before the first real run.
+`packages/prompts/src/analyze.ts` (and `analyzeForm.ts`, `analyzeChecks.ts`, `places.ts`): the page and whole-score texts, the metadata fields and the observations' shape, the confidence levels, the places (systems and bar lines by their labels), and the checks, before the first real run.
 
 ### Verify the prompt and schema of `extract`
 `#owner` `#next-release`
 
-`packages/prompts/src/extract.ts`: the text, what each call is given (the system's crop and stretch crops, the neighbours, the observations, what is carried over from the previous system), the lens as the answer's schema, the issues it asks for, and the checks, before the first real run (`docs/stages/music.md`, `extract`).
+`packages/prompts/src/extract.ts` (and `music.ts`, `lensForm.ts`): the text, what each call is given (the system's crop and stretch crops, the neighbours, the observations, what is carried over from the previous system), the lens as the answer's schema, the issues it asks for, and the checks, before the first real run (`docs/stages/music.md`, `extract`).
 
 ### Verify the prompt and schema of `review`
 `#owner` `#next-release`
