@@ -21,6 +21,7 @@ import {
   readPipeline,
   RELEASED,
   rewriteFrom,
+  runMsUntil,
   stageEntry,
   type StageRow,
   startable,
@@ -165,9 +166,10 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const runId = crypto.randomUUID();
     const claimed = await db
       .prepare(
-        `UPDATE stages SET status = 'running', step_version = ?, config_json = ?, model_config_id = ?, stage_key = ?, page_count = ?, error = NULL, started_at = COALESCE(started_at, ?), heartbeat_at = ?, finished_at = NULL, run_id = ?, run_started_at = ? WHERE id = ? AND ${startable("stages")}`,
+        `UPDATE stages SET status = 'running', step_version = ?, config_json = ?, model_config_id = ?, stage_key = ?, page_count = ?, error = NULL, started_at = COALESCE(started_at, ?), heartbeat_at = ?, finished_at = NULL, run_id = ?, run_started_at = ?, run_ms = ? WHERE id = ? AND ${startable("stages")}`,
       )
-      .bind(stepVersion, JSON.stringify(config), modelConfigId, stageKey, pageCount, iso, iso, runId, iso, sid, staleBefore(now.getTime()))
+      // An interrupted run's time counts up to its last heartbeat.
+      .bind(stepVersion, JSON.stringify(config), modelConfigId, stageKey, pageCount, iso, iso, runId, iso, stage.status === "running" ? runMsUntil(stage, stage.heartbeat_at) : stage.run_ms, sid, staleBefore(now.getTime()))
       .run();
     if (claimed.meta.changes !== 1) return cantStart("running");
     // An earlier run's outputs (it failed or was interrupted) are kept for this one to resume from, unless that run had
@@ -325,8 +327,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const now = new Date().toISOString();
     await db.batch([
       db
-        .prepare("UPDATE stages SET status = ?, note = ?, error = ?, finished_at = ?, heartbeat_at = NULL WHERE id = ?")
-        .bind(status, note, error, now, sid),
+        .prepare("UPDATE stages SET status = ?, note = ?, error = ?, finished_at = ?, heartbeat_at = NULL, run_ms = ? WHERE id = ?")
+        .bind(status, note, error, now, stage.status === "running" ? runMsUntil(stage, now) : stage.run_ms, sid),
       touchProject(db, pid, now),
     ]);
     return c.body(null, 204);
@@ -367,8 +369,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const now = new Date().toISOString();
     await db.batch([
       db
-        .prepare("UPDATE stages SET status = 'failed', error = ?, finished_at = ?, heartbeat_at = NULL WHERE id = ?")
-        .bind(RELEASED, now, sid),
+        .prepare("UPDATE stages SET status = 'failed', error = ?, finished_at = ?, heartbeat_at = NULL, run_ms = ? WHERE id = ?")
+        .bind(RELEASED, now, runMsUntil(stage, now), sid),
       closeRunningCalls(db, sid, now, INTERRUPTED_CALL),
       touchProject(db, pid, now),
     ]);

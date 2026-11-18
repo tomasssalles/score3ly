@@ -31,6 +31,9 @@ export type Stage = {
   // again.
   interrupted: boolean;
   finishedAt: string | null;
+  // Its run time (decided 2026-11-17): the summed time of its runs, each from its start to its end (or to its last
+  // heartbeat, interrupted), in milliseconds. Null for a stage that never ran: planned, manual, Ingest.
+  runMs: number | null;
   modelConfig: StageModelConfig | null; // LLM stages: the model config it names
   costUsd: number | null; // what its LLM calls cost, VAT included (docs/llm.md, "VAT")
   // A manual stage carried through a re-run, waiting for its turn to be kept or dropped (docs/overview.md §5.5).

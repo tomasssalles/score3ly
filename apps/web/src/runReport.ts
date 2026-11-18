@@ -5,7 +5,7 @@
 import { roundUsd } from "@score3ly/core";
 import type { ApiStage, ModelConfig, Project } from "./api";
 import type { EngraveConfig } from "./engrave";
-import type { StageKind } from "./pipeline";
+import { runSeconds, type StageKind } from "./pipeline.ts";
 
 // 2: the costs include VAT, at the rate in force when each call was made (docs/llm.md, "VAT").
 export const REPORT_VERSION = 2;
@@ -55,8 +55,9 @@ export function runReport(input: ReportInput): RunReport {
   const stages = input.stages.map((s, i) => {
     const id = typeof s.config?.modelConfigId === "string" ? s.config.modelConfigId : null;
     const mc = id ? input.modelConfigs.get(id) : undefined;
-    const seconds = s.startedAt && s.finishedAt ? Math.round((Date.parse(s.finishedAt) - Date.parse(s.startedAt)) / 100) / 10 : null;
     const { title, kind } = input.stepOf(s.step);
+    const run = runSeconds(s, kind);
+    const seconds = run === null ? null : Math.round(run * 10) / 10;
     return {
       position: i + 1,
       step: s.step,

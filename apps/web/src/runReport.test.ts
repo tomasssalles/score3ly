@@ -16,6 +16,7 @@ const stage = (step: string, over: Partial<ApiStage> = {}): ApiStage => ({
   heartbeatAt: null,
   finishedAt: "2026-10-21T10:00:12.340Z",
   interrupted: false,
+  runMs: 12_340,
   modelConfig: null,
   costUsd: null,
   carried: false,
@@ -71,6 +72,19 @@ test("the report has every stage, its config and its model config without secret
   });
   assert.deepEqual(report.original, { fileName: "Sonata.pdf", sha256: "aa" });
   assert.deepEqual(report.stages.map((s) => [s.position, s.step, s.seconds]), [[1, "ingest", 12.3], [2, "layout", 12.3], [3, "engrave", 12.3]]);
+  // The run time is the summed time of the stage's runs (the Worker's `runMs`), not its first start to its end; a
+  // stage that never ran (a manual one) shows its start to its end.
+  const retried = runReport({
+    madeAt: new Date("2026-10-21T12:00:00.000Z"),
+    app: report.app,
+    project,
+    stages: [stage("layout", { startedAt: "2026-10-20T10:00:00.000Z", runMs: 61_250 }), stage("fix_layout", { runMs: null }), stage("engrave", { runMs: null })],
+    stepOf: (step) => ({ title: step, kind: step === "fix_layout" ? "manual" : "computed" }),
+    modelConfigs: new Map(),
+    meiSha256: "bb",
+    engraving: { pageSize: "a4", verovio: "6.3.0" },
+  });
+  assert.deepEqual(retried.stages.map((s) => s.seconds), [61.3, 12.3, null]);
   assert.deepEqual(report.stages[1].modelConfig, { name: "Opus in the EU", provider: "bedrock", model: "anthropic.claude-opus-5-5", effort: "high", region: "eu-central-1", freeTier: false });
   assert.equal(report.stages[1].result, "4 systems");
   assert.equal(report.totalCostUsd, 0.12);

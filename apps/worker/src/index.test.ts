@@ -779,6 +779,38 @@ test("a run given up on leaving is released: failed, interrupted, its outputs ke
   assert.equal((await startRasterize(project.id)).response.status, 200);
 });
 
+// Decided 2026-11-17 (dec. 41; the code review, A16): a stage's run time is its runs' summed time, not the time from its
+// first start to its end (a stage failed yesterday and retried today showed a day).
+test("a stage's run time is the sum of its runs, an interrupted one counted up to its last heartbeat", async () => {
+  const project = await createdProject("sonata.pdf");
+  const { rasterize } = await startRasterize(project.id);
+  const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+  const runMs = async () => (await pipelineOf(project.id))[1].runMs as number;
+  assert.equal(await runMs(), null);
+  await env.DB.prepare("UPDATE stages SET started_at = ?, run_started_at = ? WHERE id = ?").bind(ago(86_400_000), ago(10_000), rasterize.id).run();
+  await call(project.id, rasterize.id, "finish", { status: "failed", error: "Out of memory" });
+  // (The Worker's clock moves in steps: the times are near, not exact.)
+  const near = (actual: number, expected: number) => assert.ok(Math.abs(actual - expected) < 1_500, `${actual} isn't near ${expected}`);
+  const first = await runMs();
+  near(first, 10_000);
+
+  // Interrupted: its heartbeat stopped 30 s after it started.
+  await startRasterize(project.id);
+  await env.DB.prepare("UPDATE stages SET run_started_at = '2026-01-01T00:00:00.000Z', heartbeat_at = '2026-01-01T00:00:30.000Z' WHERE id = ?").bind(rasterize.id).run();
+  await startRasterize(project.id);
+  assert.equal(await runMs(), first + 30_000);
+  await env.DB.prepare("UPDATE stages SET run_started_at = ? WHERE id = ?").bind(ago(5_000), rasterize.id).run();
+  await call(project.id, rasterize.id, "finish", { status: "done" });
+  near(await runMs(), first + 35_000);
+
+  // Released: counted to its end. A manual stage has none.
+  const other = await createdProject("etude.pdf");
+  const { rasterize: left } = await startRasterize(other.id, RECIPE_KEY(7));
+  await env.DB.prepare("UPDATE stages SET run_started_at = ? WHERE id = ?").bind(ago(3_000), left.id).run();
+  await call(other.id, left.id, "release");
+  near((await pipelineOf(other.id))[1].runMs as number, 3_000);
+});
+
 // Decided 2026-11-17 (the code review, 06 #8): an error before a stage's run could start is the stage's failure.
 test("a stage that failed before its run could start is recorded failed, with the error; one that runs or is done can't", async () => {
   const project = await createdProject("sonata.pdf");

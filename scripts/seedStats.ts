@@ -240,6 +240,7 @@ function stageRowWithId(id: string, p: Project, step: string, cfg: Config | null
     config_json: start === null ? null : step === "rasterize" ? JSON.stringify({ pages: `1-${p.pages}`, dpi: 300 }) : "{}", model_config_id: cfg?.id ?? null, stage_key: start === null ? null : hex(64),
     error, note, created_at: iso(start ?? p.created), started_at: start === null ? null : iso(start),
     heartbeat_at: end === null ? null : iso(end), finished_at: end === null || status === "wip" ? null : iso(end),
+    run_ms: start === null || end === null || status === "wip" ? null : end - start,
     page_count: step === "ingest" || start === null ? null : p.pages, in_recipe: step.startsWith("fix_") ? 0 : 1, deleted_at: p.deleted,
     replaces_stage_id: replaces,
   });
@@ -312,7 +313,7 @@ function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, st
   const note = status !== "done" ? null : step === "layout" ? `${systems} systems` : step === "analyze" ? `${int(4, 14)} observations` : `${systems} systems · ${int(2, 20)} issues · ${int(0, 6)} warnings`;
   insert("stages", {
     id, created_in: p.id, step, step_version: 1, status, config_json: "{}", model_config_id: cfg.id, stage_key: hex(64),
-    error, note, created_at: iso(start), started_at: iso(start), heartbeat_at: iso(t), finished_at: iso(t), page_count: p.pages, deleted_at: p.deleted,
+    error, note, created_at: iso(start), started_at: iso(start), heartbeat_at: iso(t), finished_at: iso(t), run_ms: t - start, page_count: p.pages, deleted_at: p.deleted,
   });
   for (const d of done) output(p, id, d.item.item, d.item.type, d.end, d.timing);
   // What is computed from the answers once they are all in: the observations and pieces from the whole score's

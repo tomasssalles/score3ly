@@ -284,6 +284,7 @@ export async function readPipeline(db: D1Database, projectId: string, now = Date
       heartbeatAt: row.heartbeat_at,
       finishedAt: row.finished_at,
       interrupted: wasInterrupted(row, now),
+      runMs: row.run_ms,
       modelConfig: row.mc_provider ? stageModelConfig(row) : null,
       costUsd: row.cost_usd ?? null,
       carried: row.carried === 1,
@@ -372,6 +373,14 @@ export const RELEASED = "Interrupted: the project was left while this stage ran.
 // (`isStale`), or released when its run was given up. Either can run again at once.
 export function wasInterrupted(stage: { status: string; heartbeat_at: string | null; error: string | null }, now: number): boolean {
   return isStale(stage, now) || (stage.status === "failed" && stage.error === RELEASED);
+}
+
+// A stage's run time (decided 2026-11-17, dec. 41): the summed time of its runs, each from its start to its end, or to
+// its last heartbeat for one interrupted (docs/database.md, "An interrupted run"). Its value once the current run ends
+// at `end`, an ISO time.
+export function runMsUntil(stage: { run_ms: number | null; run_started_at: string | null }, end: string | null): number | null {
+  if (stage.run_started_at === null || end === null) return stage.run_ms;
+  return (stage.run_ms ?? 0) + Math.max(0, Date.parse(end) - Date.parse(stage.run_started_at));
 }
 
 // The same rule as SQL, for a stage `s` (one parameter: `staleBefore(now)`), so that a statement can act only on a stage

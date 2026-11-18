@@ -35,6 +35,7 @@ const STAGE_COLUMNS = [
   "started_at",
   "heartbeat_at",
   "finished_at",
+  "run_ms", // its run time (a file without it, made before 2026-11-18: none)
 ] as const;
 const OUTPUT_COLUMNS = [
   "id",

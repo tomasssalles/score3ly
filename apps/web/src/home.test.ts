@@ -59,6 +59,7 @@ const stage = (step: string, fields: Partial<ApiStage> = {}): ApiStage => ({
   heartbeatAt: null,
   finishedAt: null,
   interrupted: false,
+  runMs: null,
   modelConfig: null,
   costUsd: null,
   carried: false,

@@ -32,6 +32,7 @@ function stage(id: string, step: string, fields: Partial<ApiStage> = {}): ApiSta
     heartbeatAt: null,
     finishedAt: T0,
     interrupted: false,
+    runMs: null,
     modelConfig: null,
     costUsd: null,
     carried: false,
@@ -88,14 +89,17 @@ test("a failed stage can run again, and shows its error", () => {
   assert.ok(canRun(p));
 });
 
-test("a done stage's run time comes from its start and end; its config is shown as text", () => {
+test("a done stage's run time is its runs' summed time, a manual stage's from its start to its end; its config is shown as text", () => {
   const p = toPipeline("auto", { dropped: [],
     stages: [
       ingest,
-      stage("s2", "rasterize", { finishedAt: "2026-10-12T10:00:14.000Z", config: { dpi: 300, mode: "gray" } }),
+      // Retried the next day: the run time is its runs', not a day.
+      stage("s2", "rasterize", { finishedAt: "2026-10-13T10:00:14.000Z", runMs: 14_000, config: { dpi: 300, mode: "gray" } }),
+      stage("s3", "fix_skew", { finishedAt: "2026-10-12T10:02:00.000Z" }),
     ],
   });
   assert.equal(p.stages[1].seconds, 14);
+  assert.equal(p.stages[2].seconds, 120);
   assert.deepEqual(p.stages[1].config, { dpi: "300", mode: "gray" });
 });
 

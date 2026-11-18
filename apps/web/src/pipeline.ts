@@ -135,6 +135,14 @@ export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun |
   return { mode, stages, dropped };
 }
 
+// A stage's run time, in seconds, as its card, its details and the run report say it: the summed time of its runs
+// (decided 2026-11-17, the Worker's `runMs`), so a stage failed yesterday and retried today doesn't show a day. A stage
+// with no runs (a manual stage, Ingest) shows the time from its start to its end, as before. Null without one.
+export function runSeconds(stage: Pick<ApiStage, "runMs" | "startedAt" | "finishedAt">, kind: StageKind): number | null {
+  if (kind === "llm" || kind === "computed") return stage.runMs === null ? null : stage.runMs / 1000;
+  return stage.startedAt && stage.finishedAt ? (Date.parse(stage.finishedAt) - Date.parse(stage.startedAt)) / 1000 : null;
+}
+
 // The manual stages right after stage `i`: a fix of that stage goes after them (the Worker puts it there), and one
 // already among them isn't offered again (docs/overview.md §6).
 function fixesAfter(stages: ApiStage[], i: number): ApiStage[] {
@@ -148,10 +156,7 @@ function toStage(stored: ApiStage, earlier: ApiStage[], following: ApiStage[]): 
   // A carried manual stage looks planned until it is kept. (A stopped stage has left the pipeline: `StageStatus` in
   // `@score3ly/core`.)
   const status: StageStatus = stored.carried ? "planned" : stored.status;
-  const seconds =
-    info.kind !== "ingest" && stored.startedAt && stored.finishedAt
-      ? (Date.parse(stored.finishedAt) - Date.parse(stored.startedAt)) / 1000
-      : undefined;
+  const seconds = info.kind === "ingest" ? undefined : (runSeconds(stored, info.kind) ?? undefined);
   return {
     id: stored.id,
     stepId: stored.step,
