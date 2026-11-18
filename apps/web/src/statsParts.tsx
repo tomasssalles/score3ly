@@ -1,10 +1,10 @@
-// What the tabs of the Statistics page share (StatsPage.tsx, UsageTab.tsx): the small picker, a block's head, and the
-// toggle between a chart's bars and its running total.
+// What the tabs of the Statistics page share (StatsPage.tsx, UsageTab.tsx, RunTimesTab.tsx, EffortTab.tsx): a block's
+// head, the toggle between a chart's bars and its running total, and the list of projects to select.
 
 import { useState, type ReactNode } from "react";
 import { CheckList, type CheckItem } from "./CheckList";
 import { DropdownMenu } from "./DropdownMenu";
-import { BarsIcon, ChevronDownIcon, InfoIcon, MoreIcon, RunningTotalIcon } from "./icons";
+import { BarsIcon, InfoIcon, MoreIcon, RunningTotalIcon } from "./icons";
 
 export type ChartMode = "bars" | "line";
 
@@ -23,53 +23,6 @@ export function ChartModes({ mode, onChange }: { mode: ChartMode; onChange: (mod
         </button>
       ))}
     </div>
-  );
-}
-
-// A small picker: the current choice (its short form, if it has one) and a chevron, opening the list (like the run
-// mode).
-export function Picker<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-  className = "",
-  headings,
-}: {
-  label: string;
-  value: T;
-  options: { id: T; label: string; short?: string; note?: string; group?: number }[]; // a new group: a line before it
-  headings?: Record<number, string>; // a heading above a group, by its number
-  onChange: (id: T) => void;
-  className?: string;
-}) {
-  const current = options.find((o) => o.id === value);
-  // Consecutive options of the same group number form a group of the menu.
-  const grouped = options.reduce<{ group: number; items: { label: string; note?: string; key: T; current: boolean; onSelect: () => void }[] }[]>((groups, o) => {
-    const item = { label: o.label, note: o.note, key: o.id, current: o.id === value, onSelect: () => onChange(o.id) };
-    const last = groups[groups.length - 1];
-    if (last && last.group === (o.group ?? 0)) last.items.push(item);
-    else groups.push({ group: o.group ?? 0, items: [item] });
-    return groups;
-  }, []);
-  return (
-    <DropdownMenu
-      className={`mode-picker ${className}`}
-      buttonClassName="mode-button"
-      icon={
-        <>
-          {/* One piece of text, so that the name and its note wrap together. */}
-          <span>
-            {current?.short ?? current?.label}
-            {current?.note && !current.short && <span className="menu-note"> {current.note}</span>}
-          </span>
-          <ChevronDownIcon />
-        </>
-      }
-      label={label}
-      groups={grouped.map((g) => g.items)}
-      headings={headings ? grouped.map((g) => headings[g.group] ?? "") : undefined}
-    />
   );
 }
 

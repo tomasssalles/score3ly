@@ -2,7 +2,8 @@ import { Fragment, useEffect, useRef } from "react";
 import type { Project } from "./api";
 import { DropdownMenu } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
-import { ChevronDownIcon, CollapseIcon, MoreIcon, StopIcon } from "./icons";
+import { CollapseIcon, MoreIcon, StopIcon } from "./icons";
+import { Picker } from "./ui/Picker";
 import { canRun, currentStage, MODE_LABELS, MODES, pipelineState, runningStage, stateLabel, type Pipeline, type Progress, type RunMode } from "./pipeline";
 import { ProgressBar } from "./ProgressBar";
 import { DownloadCard, DroppedCard, RunLabel, StageCard, type StageActions } from "./StageCard";
@@ -80,15 +81,8 @@ export function PipelinePanel({
           </div>
         </div>
         <div className="panel-controls">
-          <DropdownMenu
-            className="mode-picker"
-            buttonClassName="mode-button"
-            icon={
-              <>
-                {MODE_LABELS[pipeline.mode]}
-                <ChevronDownIcon />
-              </>
-            }
+          <Picker
+            value={MODE_LABELS[pipeline.mode]}
             label="Run mode"
             groups={[
               MODES.map((mode) => ({

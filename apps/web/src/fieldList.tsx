@@ -4,11 +4,11 @@
 // confirmed, unconfirmed or removed, and when the form closes; saving an edit confirms the field, adding one too. An
 // edit left as it was confirms nothing. The rows and their meaning are each form's own.
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { CONFIDENCE_SYMBOLS, type ShownConfidence } from "./analyze";
-import { DropdownMenu, type MenuItem } from "./DropdownMenu";
-import { FittedText } from "./FittedText";
-import { ChevronDownIcon, CloseIcon } from "./icons";
+import type { MenuItem } from "./DropdownMenu";
+import { CloseIcon } from "./icons";
+import { Picker } from "./ui/Picker";
 import { loadKey, useSaver } from "./saving";
 
 // The field being edited: its row's index, what has been typed, whether it was just added, and why it can't be saved.
@@ -218,38 +218,9 @@ export function FieldStrip({ field, editing, onClose, children }: { field: React
   );
 }
 
-// A picker in the style of the run mode's (the app's own menu, which can dim choices).
-export function Picker({
-  value,
-  label,
-  groups,
-  headings,
-  className = "",
-  fitted = false,
-}: {
-  value: string;
-  label: string;
-  groups: MenuItem[][];
-  headings?: string[];
-  className?: string;
-  // The value on one line, shortened in the middle when it doesn't fit (docs/style.md); its width is set by CSS.
-  fitted?: boolean;
-}) {
-  return (
-    <DropdownMenu
-      className={`mode-picker field-picker ${className}`}
-      buttonClassName="mode-button"
-      icon={
-        <>
-          {fitted ? <FittedText className="picker-value" text={value} lines={1} /> : value}
-          <ChevronDownIcon />
-        </>
-      }
-      label={label}
-      groups={groups}
-      headings={headings}
-    />
-  );
+// A form's picker (ui/Picker.tsx), with the forms' menu style.
+export function FieldPicker({ className = "", ...props }: ComponentProps<typeof Picker>) {
+  return <Picker {...props} className={className ? `field-picker ${className}` : "field-picker"} />;
 }
 
 export function Confidence({ value }: { value: ShownConfidence | null }) {

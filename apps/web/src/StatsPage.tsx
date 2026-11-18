@@ -24,7 +24,8 @@ import {
   type Split,
   unfinished,
 } from "./costs";
-import { ChartModes, Picker, ProjectChecks, StatHead, type ChartMode } from "./statsParts";
+import { ChartModes, ProjectChecks, StatHead, type ChartMode } from "./statsParts";
+import { OptionPicker } from "./ui/Picker";
 import { EffortTab } from "./EffortTab";
 import { RunTimesTab } from "./RunTimesTab";
 import { UsageTab } from "./UsageTab";
@@ -121,7 +122,7 @@ function Costs({ data }: { data: CostData }) {
           about={<p>Estimates in US dollars, from the providers' list prices, with VAT at the rate set in the settings when each call was made. Free-tier calls aren't counted.</p>}
           right={
             <>
-              <Picker label="Time range" value={rangeId} options={RANGES} onChange={pickRange} />
+              <OptionPicker label="Time range" value={rangeId} options={RANGES} onChange={pickRange} />
               <span className="stat-value">
                 <span className="stat-amount">{dollars(view.total)}</span>
                 <span className="stat-note">unfiltered total</span>
@@ -134,7 +135,7 @@ function Costs({ data }: { data: CostData }) {
       <section className="stats-section costs-chart">
         <div className="costs-toolbar">
           <ChartModes mode={mode} onChange={setMode} />
-          <Picker
+          <OptionPicker
             label="Granularity"
             value={granularity}
             options={GRANULARITIES.filter((g) => granularitiesFor(range.start, range.end).includes(g.id))}
@@ -300,7 +301,7 @@ function SplitPanel({ split, onChange }: { split: Split; onChange: (split: Split
     <div className="costs-panel">
       <div className="costs-panel-row">
         <span className="costs-panel-label">Split by</span>
-        <Picker
+        <OptionPicker
           label="Split by"
           value={dimension ?? "none"}
           options={[{ id: "none", label: "Nothing" }, ...DIMENSIONS]}
@@ -308,7 +309,7 @@ function SplitPanel({ split, onChange }: { split: Split; onChange: (split: Split
         />
         {split && <span className="muted">grouped by</span>}
         {split && (
-          <Picker label="Grouped by" value={split.grouping} options={GROUPINGS[split.dimension]} onChange={(grouping) => onChange({ ...split, grouping })} />
+          <OptionPicker label="Grouped by" value={split.grouping} options={GROUPINGS[split.dimension]} onChange={(grouping) => onChange({ ...split, grouping })} />
         )}
       </div>
       {split?.dimension === "config" && split.grouping === "config" && (
@@ -362,7 +363,7 @@ function FilterPanel({ data, filters, onChange }: { data: CostData; filters: Fil
                 {isCollapsed && filter.hidden.length > 0 && <span className="inline-dot" aria-label="some hidden" />}
               </button>
               <span className="muted">grouped by</span>
-              <Picker
+              <OptionPicker
                 label={`${label}: grouped by`}
                 value={filter.grouping}
                 options={GROUPINGS[dimension]}

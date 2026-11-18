@@ -6,7 +6,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { EditorView } from "@codemirror/view";
 import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
-import { Picker } from "./fieldList";
+import { FieldPicker } from "./fieldList";
 import { ChevronDownIcon, ChevronUpIcon, MusicIcon, SearchIcon, TopIcon } from "./icons";
 import { elementsAt, findMeasure, indexMei, lineOfId, search, type MeiIndex } from "./meiView";
 
@@ -265,7 +265,7 @@ function GoTo({ index, goTo, onProblem }: { index: MeiIndex; goTo: (line: number
       }}
     >
       {index.pieces.length > 1 && (
-        <Picker
+        <FieldPicker
           value={pieceName(index.pieces.find((p) => p.n === piece) ?? index.pieces[0])}
           label="The piece"
           className="mei-piece"

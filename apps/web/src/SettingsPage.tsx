@@ -29,7 +29,7 @@ import { ACCOUNT_NAMES, pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
 import { ChevronDownIcon, ExpandIcon, FilterIcon, MoreIcon, PlusIcon } from "./icons";
 import { CheckList } from "./CheckList";
-import { Picker } from "./statsParts";
+import { OptionPicker, Picker } from "./ui/Picker";
 import {
   CONFIG_FACETS,
   CONFIG_ORDERS,
@@ -109,15 +109,8 @@ export function SettingsPage({ tab, onTab }: { tab: TabOf<"settings">; onTab: (t
         <dl className="settings-list">
           <dt>Run mode for new projects</dt>
           <dd>
-            <DropdownMenu
-              className="mode-picker"
-              buttonClassName="mode-button"
-              icon={
-                <>
-                  {MODE_LABELS[settings.newProjectRunMode]}
-                  <ChevronDownIcon />
-                </>
-              }
+            <Picker
+              value={MODE_LABELS[settings.newProjectRunMode]}
               label="Run mode for new projects"
               groups={[
                 MODES.map((mode) => ({
@@ -175,15 +168,8 @@ export function SettingsPage({ tab, onTab }: { tab: TabOf<"settings">; onTab: (t
               <span className="settings-hint">Auto follows the system's light or dark setting.</span>
             </dt>
             <dd>
-              <DropdownMenu
-                className="mode-picker"
-                buttonClassName="mode-button"
-                icon={
-                  <>
-                    {CHOICES.find((c) => c.value === theme)?.label}
-                    <ChevronDownIcon />
-                  </>
-                }
+              <Picker
+                value={CHOICES.find((c) => c.value === theme)?.label}
                 label="Theme"
                 groups={[
                   CHOICES.map((c) => ({
@@ -223,15 +209,8 @@ function ImageCacheSetting() {
         </span>
       </dt>
       <dd>
-        <DropdownMenu
-          className="mode-picker"
-          buttonClassName="mode-button"
-          icon={
-            <>
-              At most {label(limit)}
-              <ChevronDownIcon />
-            </>
-          }
+        <Picker
+          value={<>At most {label(limit)}</>}
           label="Image cache size"
           groups={[
             CACHE_LIMITS_MB.map((mb) => ({
@@ -263,15 +242,9 @@ function DefaultConfigPicker({
 }) {
   const current = configs?.find((config) => config.id === defaultId);
   return (
-    <DropdownMenu
-      className="mode-picker config-picker"
-      buttonClassName="mode-button"
-      icon={
-        <>
-          <FittedText className="config-picker-name" text={configs === null ? "Loading…" : current ? current.name : "—"} lines={1} />
-          <ChevronDownIcon />
-        </>
-      }
+    <Picker
+      className="config-picker"
+      value={<FittedText className="config-picker-name" text={configs === null ? "Loading…" : current ? current.name : "—"} lines={1} />}
       label="Default model config for new LLM stages"
       groups={[
         // Configs the app no longer supports can't be the default (docs/llm.md, "No longer supported").
@@ -457,7 +430,7 @@ function ModelConfigs({ configs, defaultId, onChanged }: { configs: ModelConfig[
     <section className="settings-section">
       {/* The tab's title says what it lists: its head is its tools. */}
       <div className="settings-section-head config-tools">
-        <Picker label="Order" value={order} options={CONFIG_ORDERS} onChange={setOrder} />
+        <OptionPicker label="Order" value={order} options={CONFIG_ORDERS} onChange={setOrder} />
         <button
           type="button"
           className="editor-mode"

@@ -1,6 +1,6 @@
 import { unusableMark } from "./pipeline";
 import { useState } from "react";
-import { Picker } from "./fieldList";
+import { FieldPicker } from "./fieldList";
 import type { ConfigContext, ConfigValues, StepConfig } from "./steps";
 import { Dialog, useDialog } from "./ui/Dialog";
 
@@ -52,7 +52,7 @@ export function ConfigDialog({
           {field.kind === "modelConfig" ? (
             <div className="field model-config-field">
               <span>{field.label}</span>
-              <Picker
+              <FieldPicker
                 value={modelConfigLabel(context.modelConfigs.find((c) => c.id === texts[field.key])) ?? "—"}
                 label={field.label}
                 fitted
@@ -76,7 +76,7 @@ export function ConfigDialog({
           ) : field.kind === "choice" ? (
             <div className="field">
               <span>{field.label}</span>
-              <Picker
+              <FieldPicker
                 value={field.options?.find((o) => o.value === texts[field.key])?.label ?? texts[field.key]}
                 label={field.label}
                 groups={[

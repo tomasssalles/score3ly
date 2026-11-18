@@ -7,7 +7,8 @@ import { fetchActivity, fetchRunTimes, type ActivityData, type RunTimeData } fro
 import { FinishedProjectsFilter } from "./ProjectFilter";
 import { statDuration } from "./format";
 import { estimatePerPage, perProject, stepTimes } from "./runTimes";
-import { Picker, StatHead } from "./statsParts";
+import { StatHead } from "./statsParts";
+import { OptionPicker } from "./ui/Picker";
 import { activeHoursText } from "./usage";
 
 export function RunTimesTab() {
@@ -79,7 +80,7 @@ function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityDat
           right={
             <>
               <span className="muted">split by</span>
-              <Picker
+              <OptionPicker
                 label="Split by"
                 value={split}
                 options={[

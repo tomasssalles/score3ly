@@ -9,7 +9,8 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchActivity, fetchFailures, fetchProjectStats, type ActivityData, type FailureData, type ProjectStats } from "./api";
 import { axisLabel, bucketsOf, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./calendar";
 import { count, deletedNote, endedNote, percent, plural } from "./format";
-import { ChartModes, Picker, StatHead, type ChartMode } from "./statsParts";
+import { ChartModes, StatHead, type ChartMode } from "./statsParts";
+import { OptionPicker } from "./ui/Picker";
 import { TimeChart } from "./TimeChart";
 import { activeHoursText, activeQuarters, createdIn, createdNote, failuresIn, hoursNumber, hoursView } from "./usage";
 
@@ -73,7 +74,7 @@ function ActiveHours({ data }: { data: ActivityData }) {
         }
         right={
           <>
-            <Picker label="Time range" value={rangeId} options={RANGES} onChange={pickRange} />
+            <OptionPicker label="Time range" value={rangeId} options={RANGES} onChange={pickRange} />
             <span className="stat-value">
               <span className="stat-amount">
                 {hoursNumber(allHours.total)}
@@ -87,13 +88,13 @@ function ActiveHours({ data }: { data: ActivityData }) {
       <div className="costs-chart">
         <div className="costs-toolbar">
           <ChartModes mode={mode} onChange={setMode} />
-          <Picker
+          <OptionPicker
             label="Granularity"
             value={granularity}
             options={GRANULARITIES.filter((g) => granularitiesFor(range.start, range.end).includes(g.id))}
             onChange={setGranularity}
           />
-          <Picker label="Project" value={projectId} options={[{ id: ALL, label: "All projects" }, ...projects]} onChange={setProjectId} className="project-select" />
+          <OptionPicker label="Project" value={projectId} options={[{ id: ALL, label: "All projects" }, ...projects]} onChange={setProjectId} className="project-select" />
         </div>
         <TimeChart
           labels={buckets.map((b, i) => axisLabel(b, granularity, i === 0))}
@@ -162,7 +163,7 @@ function Projects({ data }: { data: ProjectStats }) {
         title="Created"
         right={
           <>
-            <Picker label="Time range" value={rangeId} options={RANGES} onChange={setRangeId} />
+            <OptionPicker label="Time range" value={rangeId} options={RANGES} onChange={setRangeId} />
             <span className="stat-value">
               <span className="stat-amount">{created.total}</span>
               {created.total > 0 && <span className="stat-note">{createdNote(created)}</span>}
@@ -195,8 +196,8 @@ function Failures({ data }: { data: FailureData }) {
         title="Failed calls"
         right={
           <>
-            <Picker label="Time range" value={rangeId} options={RANGES} onChange={setRangeId} />
-            <Picker label="Model or model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...models, ...configs]} onChange={setConfigId} className="project-select failed-calls-select" headings={{ 1: "Config groups by model", 2: "Individual configs" }} />
+            <OptionPicker label="Time range" value={rangeId} options={RANGES} onChange={setRangeId} />
+            <OptionPicker label="Model or model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...models, ...configs]} onChange={setConfigId} className="project-select failed-calls-select" headings={{ 1: "Config groups by model", 2: "Individual configs" }} />
             <span className="stat-value">
               <span className="stat-amount">{view.failed}</span>
               <span className="stat-note">{view.calls ? `of ${count(view.calls, "call")} (${percent(view.failed, view.calls)})` : "no calls"}</span>

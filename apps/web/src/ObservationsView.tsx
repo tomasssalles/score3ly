@@ -13,7 +13,7 @@ import { UnsavedNote } from "./pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { LayoutFilmstrip } from "./ArtifactView";
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
-import { Confidence, fieldActions, FieldStrip, Picker, useFieldList, type Editing } from "./fieldList";
+import { Confidence, fieldActions, FieldStrip, FieldPicker, useFieldList, type Editing } from "./fieldList";
 import { observationsOutput } from "./finishFixObservations";
 import {
   addStaff,
@@ -319,7 +319,7 @@ function ItemEditor({
     return (
       <div className="field-edit-line">
         <span className="field-edit-label">{label}</span>
-        <Picker
+        <FieldPicker
           value={place ? `system ${place.system}` : "–"}
           label={`${label}: system`}
           groups={options.open ? [open, ...groups] : groups}
@@ -327,7 +327,7 @@ function ItemEditor({
           className="number-picker system-picker"
         />
         {place && (
-          <Picker
+          <FieldPicker
             value={positionLabel(place)}
             label={`${label}: where in the system`}
             groups={[
@@ -356,7 +356,7 @@ function ItemEditor({
     return (
       <div className="field-edit-line">
         <span className="field-edit-label">staff</span>
-        <Picker
+        <FieldPicker
           value={row.staff ? `${row.staff.number}/${row.staff.of}` : "–"}
           label="Staff"
           groups={[
@@ -410,7 +410,7 @@ function ItemEditor({
         <>
           <div className="field-edit-line">
             <span className="field-edit-label">system</span>
-            <Picker value={row.system === null ? "–" : String(row.system)} label="System" groups={groups} headings={headings} className="number-picker system-picker" />
+            <FieldPicker value={row.system === null ? "–" : String(row.system)} label="System" groups={groups} headings={headings} className="number-picker system-picker" />
             <span className="field-edit-label">
               {count(row.staves, "staff", "staves")} (more or fewer with ⋮)
             </span>
@@ -474,7 +474,7 @@ function ItemEditor({
         <>
           <div className="field-edit-line">
             <span className="field-edit-label">p.</span>
-            <Picker
+            <FieldPicker
               value={String(row.page)}
               label="Page"
               groups={[pages.map((p) => ({ label: String(p), current: p === row.page, onSelect: () => onChange({ ...row, page: p }) }))]}
@@ -528,7 +528,7 @@ function ItemEditor({
     >
       <div className="field-edit-head">
         {kinds.length > 0 ? (
-          <Picker
+          <FieldPicker
             value={obsKindOf(row).label}
             label="Kind of item"
             groups={[kinds.map((k) => ({ label: k.label, current: k.kind === row.kind, onSelect: () => onChange(fitStaff({ ...row, kind: k.kind }, others, systems)) }))]}

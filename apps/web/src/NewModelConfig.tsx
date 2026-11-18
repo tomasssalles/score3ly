@@ -32,7 +32,7 @@ import {
   type FormState,
 } from "./configForm";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { Picker } from "./fieldList";
+import { FieldPicker } from "./fieldList";
 import { Info } from "./Info";
 import { ACCOUNT_NAMES, feePercent, pricesText } from "./pricing";
 import { Dialog, useDialog } from "./ui/Dialog";
@@ -150,7 +150,7 @@ export function NewModelConfig({
     <>
       <Dialog handle={dialog} title={from ? "Clone model config" : "New model config"} className="config-form" busy={busy} onSubmit={submit} onClose={onClose}>
         <PickerField label="Provider">
-          <Picker
+          <FieldPicker
             value={provider?.name ?? NONE}
             label="Provider"
             fitted
@@ -169,7 +169,7 @@ export function NewModelConfig({
 
         {provider && (
           <PickerField label="Model">
-            <Picker value={modelLabel} label="Model" fitted groups={modelGroups} headings={modelHeadings} />
+            <FieldPicker value={modelLabel} label="Model" fitted groups={modelGroups} headings={modelHeadings} />
           </PickerField>
         )}
 
@@ -185,7 +185,7 @@ export function NewModelConfig({
               />
             </label>
             <PickerField label="Family">
-              <Picker
+              <FieldPicker
                 value={provider!.families.find((f) => f.id === addedFamily)?.name ?? NONE}
                 label="Family"
                 fitted
@@ -207,7 +207,7 @@ export function NewModelConfig({
         {provider?.pricedByProvider && form.model && (
           <>
             <PickerField label="Account">
-              <Picker
+              <FieldPicker
                 value={form.account ? ACCOUNT_NAMES[form.account] : NONE}
                 label="Account"
                 fitted
@@ -230,7 +230,7 @@ export function NewModelConfig({
 
         {provider && form.model && hasRegions(options, form) && (!provider.pricedByProvider || form.account === "business") && (
           <PickerField label={provider.id === "vertex" ? "Location" : "Region"}>
-            <Picker
+            <FieldPicker
               value={form.region === null ? NONE : regionLabel(provider.id, form.region)}
               label="Region"
               fitted
@@ -241,7 +241,7 @@ export function NewModelConfig({
 
         {form.region !== null && routingsOf(options, form).length > 0 && (
           <PickerField label="Routing">
-            <Picker
+            <FieldPicker
               value={(() => {
                 const r = routingsOf(options, form).find((x) => x.routing === form.routing);
                 return r ? routingLabel(r.routing, r.geography) : NONE;
@@ -262,7 +262,7 @@ export function NewModelConfig({
         {family && (
           <>
             <PickerField label="Effort">
-              <Picker
+              <FieldPicker
                 value={form.effort ?? NONE}
                 label="Effort"
                 fitted
@@ -289,7 +289,7 @@ export function NewModelConfig({
           <>
             {family.secrets.length > 1 && (
               <PickerField label="Credentials">
-                <Picker
+                <FieldPicker
                   value={family.secrets[form.secretSet].map((f) => SECRET_LABELS[f] ?? f).join(" and ")}
                   label="Credentials"
                   fitted
@@ -305,7 +305,7 @@ export function NewModelConfig({
             )}
             {family.secrets[form.secretSet].map((field) => (
               <PickerField key={field} label={SECRET_LABELS[field] ?? field}>
-                <Picker
+                <FieldPicker
                   value={form.secrets[field] ?? NONE}
                   label={SECRET_LABELS[field] ?? field}
                   fitted
@@ -358,7 +358,7 @@ export function NewModelConfig({
                   info="Its calls are counted at the prices of the model picked below, which may differ from this model's. Once the app's list of models has this model, its own prices are used from then on."
                 />
                 <div className="model-config-field pricing-reference">
-                  <Picker
+                  <FieldPicker
                     value={options.models.find((m) => m.id === form.reference)?.name ?? (pinnedReference?.id === form.reference ? pinnedReference.name : null) ?? NONE}
                     label="Priced as"
                     fitted

@@ -10,7 +10,7 @@ import { UnsavedNote } from "./pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { Filmstrip, PageImageView } from "./ArtifactView";
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
-import { Confidence, fieldActions, FieldStrip, Picker, useFieldList, type Editing } from "./fieldList";
+import { Confidence, fieldActions, FieldStrip, FieldPicker, useFieldList, type Editing } from "./fieldList";
 import { metadataOutputs, type MetadataParents } from "./finishFixMetadata";
 import {
   FIELD_KINDS,
@@ -213,7 +213,7 @@ function FieldEditor({
   }
 
   const picker = (value: string, label: string, groups: MenuItem[][], headings?: string[], className = "") => (
-    <Picker value={value} label={label} groups={groups} headings={headings} className={className} />
+    <FieldPicker value={value} label={label} groups={groups} headings={headings} className={className} />
   );
   const numbers = (values: number[], current: number | null, pick: (n: number) => void, disabled?: Set<number>) =>
     values.map((n) => ({ label: String(n), current: n === current, disabled: disabled?.has(n), onSelect: () => pick(n) }));
