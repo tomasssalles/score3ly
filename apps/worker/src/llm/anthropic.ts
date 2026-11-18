@@ -11,6 +11,7 @@ import {
   type LlmResponse,
   withJson,
 } from "./types.ts";
+import { progressReporter, streamError } from "./http.ts";
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 64_000;
 
@@ -29,9 +30,12 @@ export class ClaudeProvider implements LlmProvider {
 
   async send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse> {
     let message: Message;
+    // A throw from the caller's callback (a bug) stops the stream and fails the call as `unknown` (http.ts).
+    let callbackFailure: LlmError | null = null;
     try {
       const stream = this.#client.messages.stream(toParams(request), { signal });
       if (onProgress) {
+        const report = progressReporter(onProgress);
         // The deltas' characters, thinking apart (summaries, where shown), and the output tokens where `message_delta`
         // counts them, near the end (docs/llm.md, "A call's progress").
         let textChars = 0;
@@ -45,12 +49,17 @@ export class ClaudeProvider implements LlmProvider {
           } else if (event.type === "message_delta") {
             outputTokens = event.usage.output_tokens;
           } else return;
-          onProgress({ textChars, thinkingChars, outputTokens });
+          try {
+            report({ textChars, thinkingChars, outputTokens });
+          } catch (err) {
+            callbackFailure ??= err as LlmError;
+            stream.abort();
+          }
         });
       }
       message = await stream.finalMessage();
     } catch (err) {
-      throw toLlmError(err);
+      throw callbackFailure ?? toLlmError(err);
     }
     const response = { ...fromMessage(message), provider: this.id };
     // A sanity check: the answer must come from the model that was asked. It was paid for all the same.
@@ -152,6 +161,20 @@ export function fromMessage(message: Message): Omit<LlmResponse, "json"> {
   };
 }
 
+// The HTTP status each of Anthropic's error types goes with (its page "Errors"), for an error sent in the stream.
+const ERROR_TYPES: Record<string, number> = {
+  invalid_request_error: 400,
+  authentication_error: 401,
+  billing_error: 402,
+  permission_error: 403,
+  not_found_error: 404,
+  request_too_large: 413,
+  rate_limit_error: 429,
+  api_error: 500,
+  timeout_error: 504,
+  overloaded_error: 529,
+};
+
 // The SDK's typed errors, most specific first.
 function toLlmError(err: unknown): LlmError {
   // On Vertex AI, a failure to get a token (e.g. a refused service account) comes wrapped as a connection error.
@@ -165,6 +188,9 @@ function toLlmError(err: unknown): LlmError {
   if (err instanceof Anthropic.APIError && typeof err.status === "number") {
     return new LlmError(kindForStatus(err.status), err.message, err.status);
   }
+  // An error sent as an event of the stream, after a 200: the kind its type means, without an HTTP status (http.ts).
+  const streamed = err instanceof Anthropic.APIError ? ERROR_TYPES[(err.error as { error?: { type?: string } } | undefined)?.error?.type ?? ""] : undefined;
+  if (streamed !== undefined) return streamError(streamed, err instanceof Error ? err.message : String(err));
   if (err instanceof Anthropic.APIUserAbortError) return new LlmError("aborted", "The request was aborted.");
   // The stream's own errors (events out of order, a stream that ended without a message) and broken JSON in it.
   if (err instanceof SyntaxError || (err instanceof Anthropic.AnthropicError && !(err instanceof Anthropic.APIError))) {

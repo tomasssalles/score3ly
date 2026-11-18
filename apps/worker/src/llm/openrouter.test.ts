@@ -120,10 +120,10 @@ test("stops: cut off, refused", async () => {
   assert.equal(filtered.stop, "refusal");
 });
 
-test("errors: an HTTP error by its status, an error after a 200, no key", async () => {
+test("errors: an HTTP error by its status, an error after a 200 by its code (no HTTP status: the answer began with 200), no key", async () => {
   await assert.rejects(provider([], { error: { code: 402, message: "Insufficient credits" } }, "", 402).send(request), (e: LlmError) => e.kind === "bad_request" && e.status === 402);
   await assert.rejects(provider([], { error: { code: 429, message: "slow down" } }, "", 429).send(request), (e: LlmError) => e.kind === "rate_limit");
-  await assert.rejects(provider([], { error: { code: 502, message: "upstream" } }).send(request), (e: LlmError) => e.kind === "server" && e.status === 502);
+  await assert.rejects(provider([], { error: { code: 502, message: "upstream" } }).send(request), (e: LlmError) => e.kind === "server" && e.status === undefined);
   assert.throws(() => createProvider({ provider: "openrouter", apiKey: "", region: "" }), LlmError);
 });
 

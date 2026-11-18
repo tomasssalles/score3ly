@@ -9,7 +9,6 @@
 import type { PriceRange } from "@score3ly/core";
 import {
   type Fetch,
-  kindForStatus,
   LlmError,
   type LlmContent,
   type LlmProgress,
@@ -18,7 +17,8 @@ import {
   type LlmResponse,
   withJson,
 } from "./types.ts";
-import { DAY_MS, readSse } from "@score3ly/core";
+import { DAY_MS } from "@score3ly/core";
+import { endedEarly, errorFromBody, plainFetch, postJson, progressReporter, sseJson, streamError } from "./http.ts";
 
 export function openRouterBase(region: string): string {
   return region === "eu" ? "https://eu.openrouter.ai/api/v1" : "https://openrouter.ai/api/v1";
@@ -153,20 +153,10 @@ export class CompletionStream {
   #chunks = 0;
   readonly progress: LlmProgress = { textChars: 0, thinkingChars: 0, outputTokens: null };
 
-  // One event's data.
-  add(data: string): void {
-    if (data === "[DONE]") return;
-    let chunk: Chunk;
-    try {
-      chunk = JSON.parse(data) as Chunk;
-    } catch {
-      throw new LlmError("unreadable_response", `A chunk of OpenRouter's answer isn't JSON: ${data.slice(0, 200)}`);
-    }
+  // One event.
+  add(chunk: Chunk): void {
     this.#chunks++;
-    if (chunk.error) {
-      const status = typeof chunk.error.code === "number" ? chunk.error.code : undefined;
-      throw new LlmError(status ? kindForStatus(status) : "server", `OpenRouter: ${errorMessage(chunk.error)}`, status);
-    }
+    if (chunk.error) throw streamError(chunk.error.code, `OpenRouter: ${errorMessage(chunk.error)}`);
     this.#model = chunk.model ?? this.#model;
     this.#provider = chunk.provider ?? this.#provider;
     const choice = chunk.choices?.[0];
@@ -183,6 +173,8 @@ export class CompletionStream {
 
   completion(): Completion {
     if (this.#chunks === 0) throw new LlmError("unreadable_response", "OpenRouter's answer has no chunks.");
+    // A stream that ended before the answer did.
+    if (this.#finish === null && this.#nativeFinish === null) throw endedEarly("OpenRouter");
     return {
       model: this.#model,
       provider: this.#provider,
@@ -202,56 +194,33 @@ export class OpenRouterProvider implements LlmProvider {
     if (!options.apiKey) throw new LlmError("auth", "OpenRouter needs an API key.");
     this.#apiKey = options.apiKey;
     this.#base = openRouterBase(options.region);
-    // Called on its own, never as a method of this object: the Workers runtime refuses that ("Illegal invocation").
-    this.#fetch = options.fetch ?? ((input, init) => fetch(input, init));
+    this.#fetch = plainFetch(options.fetch);
   }
 
   async send(request: LlmRequest, signal?: AbortSignal, onProgress?: (progress: LlmProgress) => void): Promise<LlmResponse> {
-    const fetchFn = this.#fetch;
-    let res: Response;
-    try {
-      res = await fetchFn(`${this.#base}/chat/completions`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${this.#apiKey}`, "content-type": "application/json", "x-title": "score3ly" },
-        body: JSON.stringify(toBody(request)),
-        signal,
-      });
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") throw new LlmError("aborted", "The request was aborted.");
-      throw new LlmError("network", String(err));
-    }
+    const headers = { authorization: `Bearer ${this.#apiKey}`, "x-title": "score3ly" };
+    const res = await postJson(this.#fetch, `${this.#base}/chat/completions`, headers, toBody(request), signal);
     // A refusal before anything was streamed: a plain JSON error with its HTTP status.
-    if (!res.ok) {
-      let text: string;
-      try {
-        text = await res.text();
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") throw new LlmError("aborted", "The request was aborted.");
-        throw new LlmError("unreadable_response", `OpenRouter's answer was cut off: ${String(err)}`);
-      }
-      let message = text.slice(0, 300);
-      try {
-        const error = (JSON.parse(text) as Completion).error;
-        if (error) message = errorMessage(error);
-      } catch {
-        // not JSON: the text as it is
-      }
-      throw new LlmError(kindForStatus(res.status), `OpenRouter answered ${res.status}: ${message}`, res.status);
-    }
+    if (!res.ok) throw await errorFromBody(res, "OpenRouter", (text) => `OpenRouter answered ${res.status}: ${httpErrorText(text)}`);
     const stream = new CompletionStream();
-    try {
-      await readSse(res, (data) => {
-        if (data === "[DONE]") return;
-        stream.add(data);
-        onProgress?.({ ...stream.progress });
-      });
-    } catch (err) {
-      if (err instanceof LlmError) throw err;
-      if (err instanceof DOMException && err.name === "AbortError") throw new LlmError("aborted", "The request was aborted.");
-      throw new LlmError("unreadable_response", `OpenRouter's answer was cut off: ${String(err)}`);
-    }
+    const report = progressReporter(onProgress);
+    await sseJson<Chunk>(res, { name: "OpenRouter", skip: "[DONE]", notJson: (data) => `A chunk of OpenRouter's answer isn't JSON: ${data.slice(0, 200)}` }, (chunk) => {
+      stream.add(chunk);
+      report(stream.progress);
+    });
     return fromCompletion(stream.completion(), request);
   }
+}
+
+// An HTTP error's message: OpenRouter's (with the provider's own, `errorMessage`), or else the body's start.
+function httpErrorText(text: string): string {
+  try {
+    const error = (JSON.parse(text) as Completion).error;
+    if (error) return errorMessage(error);
+  } catch {
+    // not JSON: the text as it is
+  }
+  return text.slice(0, 300);
 }
 
 // A guide to what a model costs on OpenRouter (docs/llm.md, "OpenRouter"): the lowest and highest of each of the four
