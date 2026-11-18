@@ -11,7 +11,7 @@ import { convertAddedConfigs, modelConfigRoutes } from "./modelConfigs.ts";
 import { readSettings, settingsRoutes } from "./settings.ts";
 import { llmCallRoutes } from "./llmCalls.ts";
 import { pipelineRoutes } from "./pipeline.ts";
-import { defaultForNewStages, isStale, newPipeline, notDone, stageEntries } from "./pipelineRules.ts";
+import { defaultForNewStages, newPipeline, notDone, stageEntries, wasInterrupted } from "./pipelineRules.ts";
 import { lock, versionRoutes } from "./versions.ts";
 import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
@@ -100,7 +100,7 @@ app.get("/api/projects", async (c) => {
   const [projects, positions] = await db.batch([
     db.prepare("SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY last_opened_at DESC, created_at DESC"),
     db.prepare(
-      `SELECT e.project_id, s.step, s.status, s.heartbeat_at, e.carried
+      `SELECT e.project_id, s.step, s.status, s.heartbeat_at, s.error, e.carried
        FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id
        WHERE e.position = (
          SELECT MIN(f.position) FROM pipeline_entries f JOIN stages t ON t.id = f.stage_id
@@ -108,12 +108,12 @@ app.get("/api/projects", async (c) => {
        )`,
     ),
   ]);
-  type PositionRow = { project_id: string; step: string; status: PipelinePosition["status"]; heartbeat_at: string | null; carried: number };
+  type PositionRow = { project_id: string; step: string; status: PipelinePosition["status"]; heartbeat_at: string | null; error: string | null; carried: number };
   const now = Date.now();
   const at = new Map(
     (positions.results as PositionRow[]).map((r) => [
       r.project_id,
-      { step: r.step, status: r.status, interrupted: isStale(r, now), carried: r.carried === 1 } satisfies PipelinePosition,
+      { step: r.step, status: r.status, interrupted: wasInterrupted(r, now), carried: r.carried === 1 } satisfies PipelinePosition,
     ]),
   );
   return c.json<ListedProject[]>((projects.results as ProjectRow[]).map((row): ListedProject => ({ ...toProject(row), current: at.get(row.id) ?? null })));

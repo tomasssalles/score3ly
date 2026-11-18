@@ -1,7 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiStage, Project } from "./api.ts";
-import { contentsOf, runPlan, type FinalOutput } from "./stageRunner.ts";
+import { contentsOf, LEAVING, runPlan, type FinalOutput } from "./stageRunner.ts";
 
 // The Worker is a fake that records the requests and answers what runPlan asks.
 const realFetch = globalThis.fetch;
@@ -125,4 +125,31 @@ test("an error ends the run failed, with the error", async () => {
   await runPlan(runOf([]), plan(made, "p2"));
   assert.deepEqual(made, ["p1"]);
   assert.deepEqual(sent("finish"), [{ status: "failed", error: "The model's answer can't be used.", runId: "r1" }]);
+});
+
+// A plan whose first item waits until the test aborts the run.
+function abortedPlan(abort: AbortController, reason?: string) {
+  const p = plan([]);
+  p.items[0].make = async () => {
+    abort.abort(reason);
+    await new Promise((resolve) => setTimeout(resolve, 10)); // the item ends after the abort (images can't be cancelled)
+    return { contentSha256: "sha-p1" };
+  };
+  return p;
+}
+
+test("leaving the project mid-run releases the stage at once, and records nothing more", async () => {
+  fakeWorker();
+  const abort = new AbortController();
+  await runPlan(runOf([], abort.signal), abortedPlan(abort, LEAVING));
+  assert.deepEqual(sent("release"), [{ runId: "r1" }]);
+  assert.deepEqual(sent("outputs"), []);
+  assert.deepEqual(sent("finish"), []);
+});
+
+test("Stop aborts the run without releasing it (the Worker's stop ends it), and records nothing more", async () => {
+  fakeWorker();
+  const abort = new AbortController();
+  await runPlan(runOf([], abort.signal), abortedPlan(abort));
+  assert.deepEqual(requests.map((r) => r.url.split("/").pop()), ["start"]);
 });

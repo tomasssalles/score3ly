@@ -137,6 +137,12 @@ test("the stage this device runs shows its progress; one running elsewhere none;
   assert.equal(stale.status, "failed");
   assert.match(stale.error ?? "", /Interrupted/);
   assert.ok(canRun(running(true)));
+  // Released when its project was left mid-run: failed, interrupted, with the Worker's error.
+  const released = toPipeline("auto", {
+    dropped: [],
+    stages: [ingest, stage("s2", "rasterize", { status: "failed", error: "Interrupted: the project was left while this stage ran.", interrupted: true })],
+  }).stages[1];
+  assert.deepEqual([released.status, released.interrupted, released.error], ["failed", true, "Interrupted: the project was left while this stage ran."]);
 
   const local = toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "planned" })] }, { stageId: "s2", progress: 0.25 });
   assert.equal(local.stages[1].status, "running");

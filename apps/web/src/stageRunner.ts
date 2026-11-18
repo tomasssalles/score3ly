@@ -8,6 +8,7 @@ import {
   fetchJsonContent,
   finishStage,
   recordOutputs,
+  releaseStage,
   sendHeartbeat,
   startStage,
   type ApiPipeline,
@@ -20,11 +21,15 @@ import { timed } from "./itemTiming.ts";
 import type { ItemProgress } from "./callProgress.ts";
 import { errorText } from "@score3ly/core";
 
+// The reason a run's signal is aborted with when the user leaves the project (ProjectView): the run is given up, and the
+// stage released (docs/database.md, "An interrupted run"). Aborted for any other reason (Stop), it isn't: Stop ends it.
+export const LEAVING = "leaving the project";
+
 export type StageRun = {
   project: Project;
   stage: ApiStage;
   pipeline: ApiPipeline; // the project's pipeline as stored, for the stage's inputs
-  signal: AbortSignal; // aborted when the user stops the stage
+  signal: AbortSignal; // aborted when the user stops the stage, or with `LEAVING` when the user leaves the project
   progress: (fraction: number) => void;
   item?: (item: ItemProgress) => void; // the item it works on, and the characters received for it (callProgress.ts)
 };
@@ -69,6 +74,13 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
   const recorded = new Map(started.keptOutputs ? stage.outputs.map((o) => [`${o.type}\u0000${o.item}`, o]) : []);
   const final: FinalOutput[] = [];
   const heartbeat = setInterval(() => sendHeartbeat(project, stage.id, runId).catch(() => {}), HEARTBEAT_MS);
+  // Left mid-run: the stage is released at once, not when the item being made ends (images can't be cancelled).
+  const release = () => {
+    clearInterval(heartbeat);
+    if (signal.reason === LEAVING) releaseStage(project, stage.id, runId).catch(() => {});
+  };
+  if (signal.aborted) release();
+  else signal.addEventListener("abort", release, { once: true });
   try {
     for (const [i, item] of items.entries()) {
       if (signal.aborted) return;
@@ -93,5 +105,6 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
     await finishStage(project, stage.id, { status: "failed", error: message }, runId).catch(() => {});
   } finally {
     clearInterval(heartbeat);
+    signal.removeEventListener("abort", release);
   }
 }

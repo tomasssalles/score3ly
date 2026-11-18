@@ -227,6 +227,12 @@ export async function finishStage(
   await send(stageUrl(project, stageId, "finish"), { ...result, runId });
 }
 
+// Gives up a run this device started (the user left the project): the stage ends failed, interrupted, its outputs
+// kept, and can run again at once (docs/database.md, "An interrupted run").
+export async function releaseStage(project: Project, stageId: string, runId: string): Promise<void> {
+  await send(stageUrl(project, stageId, "release"), { runId });
+}
+
 // Stops a running stage: a planned one with the same config takes its place.
 export async function stopStage(project: Project, stageId: string): Promise<ApiPipeline> {
   return (await send(stageUrl(project, stageId, "stop"))).json();

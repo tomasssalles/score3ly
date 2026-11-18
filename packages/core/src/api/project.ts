@@ -20,7 +20,7 @@ export type RunMode = "auto" | "manual";
 export type PipelinePosition = {
   step: string;
   status: StageStatus;
-  interrupted: boolean; // a running stage whose heartbeat stopped, as the pipeline's `Stage` says it
+  interrupted: boolean; // a running stage whose heartbeat stopped, or a released one, as the pipeline's `Stage` says it
   carried: boolean;
 };
 

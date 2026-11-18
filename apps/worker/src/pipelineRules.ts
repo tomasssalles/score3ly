@@ -283,7 +283,7 @@ export async function readPipeline(db: D1Database, projectId: string, now = Date
       startedAt: row.started_at,
       heartbeatAt: row.heartbeat_at,
       finishedAt: row.finished_at,
-      interrupted: isStale(row, now),
+      interrupted: wasInterrupted(row, now),
       modelConfig: row.mc_provider ? stageModelConfig(row) : null,
       costUsd: row.cost_usd ?? null,
       carried: row.carried === 1,
@@ -363,6 +363,15 @@ export function closeRunningCalls(db: D1Database, stageId: string, now: string, 
 // that a device whose clock is off shows what the Worker would do.
 export function isStale(stage: { status: string; heartbeat_at: string | null }, now: number): boolean {
   return stage.status === "running" && (stage.heartbeat_at === null || now - Date.parse(stage.heartbeat_at) > STALE_MS);
+}
+
+// The error of a stage released when its run was given up (the user left the project mid-run, `POST release`).
+export const RELEASED = "Interrupted: the project was left while this stage ran.";
+
+// Whether a stage was interrupted, as the pipeline and the project list say it: running with its heartbeat stopped
+// (`isStale`), or released when its run was given up. Either can run again at once.
+export function wasInterrupted(stage: { status: string; heartbeat_at: string | null; error: string | null }, now: number): boolean {
+  return isStale(stage, now) || (stage.status === "failed" && stage.error === RELEASED);
 }
 
 // The same rule as SQL, for a stage `s` (one parameter: `staleBefore(now)`), so that a statement can act only on a stage

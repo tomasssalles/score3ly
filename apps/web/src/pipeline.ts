@@ -111,16 +111,18 @@ export type LocalRun = { stageId: string; progress: number; imagesDiffer?: boole
 
 // The pipeline as the Worker stores it, made ready to show. The first planned stage after the finished ones is
 // the one whose turn it is: "ready" (but a carried manual stage, which is kept or dropped as soon as its turn comes). A
-// stage running elsewhere shows no progress; one the Worker says was interrupted (its heartbeat stopped) counts as
-// failed, and can run again.
+// stage running elsewhere shows no progress; one the Worker says was interrupted (its heartbeat stopped, or its run was
+// given up when the project was left) counts as failed, and can run again.
 export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun | null = null): Pipeline {
   const stages = stored.stages.map((s, i) => {
     const stage = toStage(s, stored.stages.slice(0, i), fixesAfter(stored.stages, i));
     if (local?.stageId === s.id) {
       return { ...stage, status: "running" as const, progress: local.progress, runningHere: true, imagesDiffer: local.imagesDiffer ?? false, item: local.item };
     }
-    if (s.status === "running" && s.interrupted) {
-      return { ...stage, status: "failed" as const, interrupted: true, error: "Interrupted: the app was closed while this stage ran." };
+    if (s.interrupted) {
+      // A released stage (its project was left mid-run) says so in its stored error.
+      const error = s.status === "running" ? "Interrupted: the app was closed while this stage ran." : stage.error;
+      return { ...stage, status: "failed" as const, interrupted: true, error };
     }
     return stage;
   });

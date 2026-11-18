@@ -41,7 +41,7 @@ import { PipelinePanel, type PanelActions } from "./PipelinePanel";
 import { ProgressRing } from "./ProgressRing";
 import { ConfigDialog } from "./ConfigDialog";
 import { RUNNERS } from "./runners";
-import { CannotStart } from "./stageRunner";
+import { CannotStart, LEAVING } from "./stageRunner";
 import { useWakeLock } from "./wakeLock";
 import { setRunningProject } from "./leaveGuard";
 import { carriedInputs, FIX_STARTS, stepInfo, type ConfigContext } from "./steps";
@@ -131,9 +131,9 @@ export function ProjectView({
 
   useEffect(() => {
     fetchPipeline(project).then(setStored, (err) => setError(failure("Loading the pipeline failed", err)));
-    // Leaving the project stops nothing on the server: a stage this device ran counts as interrupted once its
-    // heartbeat is old, and can run again (docs/database.md).
-    return () => controller.current?.abort();
+    // Leaving the project gives up a run this device makes: the stage is released, failed as interrupted with its
+    // outputs kept, and can run again at once (docs/database.md, "An interrupted run").
+    return () => controller.current?.abort(LEAVING);
   }, [project.id]);
 
   // A stage running on another device: this one looks every few seconds, to show where the pipeline is, and that it

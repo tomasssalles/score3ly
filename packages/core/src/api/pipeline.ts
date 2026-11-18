@@ -26,8 +26,9 @@ export type Stage = {
   note: string | null;
   startedAt: string | null;
   heartbeatAt: string | null; // written once a minute while running
-  // A running stage whose heartbeat stopped (docs/database.md, "Interrupted runs"): decided by the Worker, on its clock,
-  // when it read the pipeline. It can run again.
+  // A running stage whose heartbeat stopped, or a failed one whose run was given up when its project was left (released;
+  // docs/database.md, "An interrupted run"): decided by the Worker, on its clock, when it read the pipeline. It can run
+  // again.
   interrupted: boolean;
   finishedAt: string | null;
   modelConfig: StageModelConfig | null; // LLM stages: the model config it names

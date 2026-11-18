@@ -19,6 +19,7 @@ import {
   newStageConfig,
   plannedStage,
   readPipeline,
+  RELEASED,
   rewriteFrom,
   stageEntry,
   type StageRow,
@@ -326,6 +327,27 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       db
         .prepare("UPDATE stages SET status = ?, note = ?, error = ?, finished_at = ?, heartbeat_at = NULL WHERE id = ?")
         .bind(status, note, error, now, sid),
+      touchProject(db, pid, now),
+    ]);
+    return c.body(null, 204);
+  });
+
+  // Releases a running stage whose run this device gave up (the user left the project): it ends failed, interrupted,
+  // with its outputs kept, so that it can run again at once, here or elsewhere, instead of looking like it runs until
+  // its heartbeat is old (docs/database.md, "An interrupted run"). Only its own run can release it.
+  app.post("/api/projects/:pid/stages/:sid/release", lock("raised"), async (c) => {
+    const db = c.env.DB;
+    const { pid, sid } = c.req.param();
+    const { stage } = stageEntry(c);
+    if (stage.status !== "running") return refuse(c, 409, notRunning(stage.status));
+    const refused = refusedRun(c, stage, (await c.req.json().catch(() => null))?.runId);
+    if (refused) return refused;
+    const now = new Date().toISOString();
+    await db.batch([
+      db
+        .prepare("UPDATE stages SET status = 'failed', error = ?, finished_at = ?, heartbeat_at = NULL WHERE id = ?")
+        .bind(RELEASED, now, sid),
+      closeRunningCalls(db, sid, now, INTERRUPTED_CALL),
       touchProject(db, pid, now),
     ]);
     return c.body(null, 204);
