@@ -3,9 +3,9 @@
 // review, a drop). The browser does the work; the Worker only records it, by the pipeline's rules (pipelineRules.ts).
 
 import { logFields } from "./requestLog.ts";
-import { BAD_REQUEST, badRequest, NO_PROJECT, notRunning, PICK_ANOTHER, refuse, RELOAD, STAGE_RUNNING, WAITS_FOR_TURN } from "./refusals.ts";
+import { BAD_REQUEST, badRequest, NO_PROJECT, notRunning, PICK_ANOTHER, refuse, RELOAD, RUN_OVER, STAGE_RUNNING, WAITS_FOR_TURN } from "./refusals.ts";
 import { isDroppable, isSha256Hex, quarterOf, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StartAnswer } from "@score3ly/core";
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import { lock } from "./versions.ts";
 import { deletedConfigMessage, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
 import {
@@ -21,6 +21,9 @@ import {
   readPipeline,
   rewriteFrom,
   stageEntry,
+  type StageRow,
+  startable,
+  staleBefore,
   STOPPED_CALL,
   touchProject,
   withItsApply,
@@ -28,6 +31,14 @@ import {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
+}
+
+// A running stage's requests (outputs, heartbeat, finish) come from its current run, which sends the id `start` gave it
+// (docs/database.md, "An interrupted run"): a run that is over (interrupted, then started again elsewhere) can't write.
+// Null when the request may go on.
+function refusedRun(c: Context, stage: StageRow, runId: unknown): Response | null {
+  if (typeof runId !== "string") return badRequest(c, "expected the run's 'runId'");
+  return runId === stage.run_id ? null : refuse(c, 409, RUN_OVER);
 }
 
 export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
@@ -120,9 +131,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const found = stageEntry(c);
     const { stage, position } = found;
     const now = new Date();
-    if (!(stage.status === "planned" || stage.status === "failed" || isStale(stage, now.getTime()))) {
-      return refuse(c, 409, `The stage can't start now. ${RELOAD} Details: its status is "${stage.status}".`);
-    }
+    const cantStart = (status: string) => refuse(c, 409, `The stage can't start now. ${RELOAD} Details: its status is "${status}".`);
+    if (!(stage.status === "planned" || stage.status === "failed" || isStale(stage, now.getTime()))) return cantStart(stage.status);
     const iso = now.toISOString();
     if (modelConfigId !== null) {
       const config = await db.prepare("SELECT * FROM model_configs WHERE id = ?").bind(modelConfigId).first<ModelConfigRow>();
@@ -149,20 +159,25 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       await db.batch(statements);
       return c.json<StartAnswer>({ reused: true, stageId: reusable.id });
     }
+    // The run starts only if the stage may still start (a start from another tab may have come first): checked and
+    // changed in one statement, so that of two starts at once, one runs.
+    const runId = crypto.randomUUID();
+    const claimed = await db
+      .prepare(
+        `UPDATE stages SET status = 'running', step_version = ?, config_json = ?, model_config_id = ?, stage_key = ?, page_count = ?, error = NULL, started_at = COALESCE(started_at, ?), heartbeat_at = ?, finished_at = NULL, run_id = ?, run_started_at = ? WHERE id = ? AND ${startable("stages")}`,
+      )
+      .bind(stepVersion, JSON.stringify(config), modelConfigId, stageKey, pageCount, iso, iso, runId, iso, sid, staleBefore(now.getTime()))
+      .run();
+    if (claimed.meta.changes !== 1) return cantStart("running");
     await db.batch([
       // A call of an earlier run of the stage still marked running (a closed tab) is over (docs/llm.md, "Stopped calls").
       closeRunningCalls(db, sid, iso, INTERRUPTED_CALL),
-      db
-        .prepare(
-          "UPDATE stages SET status = 'running', step_version = ?, config_json = ?, model_config_id = ?, stage_key = ?, page_count = ?, error = NULL, started_at = COALESCE(started_at, ?), heartbeat_at = ?, finished_at = NULL WHERE id = ?",
-        )
-        .bind(stepVersion, JSON.stringify(config), modelConfigId, stageKey, pageCount, iso, iso, sid),
       ...inputIds.map((outputId: string) =>
         db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(sid, outputId),
       ),
       touchProject(db, pid, iso),
     ]);
-    return c.json<StartAnswer>({ reused: false, stageId: sid });
+    return c.json<StartAnswer>({ reused: false, stageId: sid, runId });
   });
 
   // Records outputs of a running stage, as soon as each is done (docs/overview.md §5.2), or of a WIP manual stage, as the
@@ -193,6 +208,10 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const wip = found.stage.status === "wip";
     if (found.stage.status !== "running" && !wip) return refuse(c, 409, notRunning(found.stage.status));
     if (found.carried) return refuse(c, 409, WAITS_FOR_TURN);
+    if (!wip) {
+      const refused = refusedRun(c, found.stage, body.runId);
+      if (refused) return refused;
+    }
     const now = new Date().toISOString();
     const ids = outputs.map(() => crypto.randomUUID());
     // A WIP stage's item saved again: the new content replaces the old, in the same row.
@@ -258,6 +277,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const { pid, sid } = c.req.param();
     const found = stageEntry(c);
     if (found.stage.status !== "running") return refuse(c, 409, notRunning(found.stage.status));
+    const refused = refusedRun(c, found.stage, (await c.req.json().catch(() => null))?.runId);
+    if (refused) return refused;
     await db.prepare("UPDATE stages SET heartbeat_at = ? WHERE id = ?").bind(new Date().toISOString(), sid).run();
     return c.body(null, 204);
   });
@@ -285,6 +306,10 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       return refuse(c, 409, notRunning(stage.status));
     }
     if (found.carried) return refuse(c, 409, WAITS_FOR_TURN);
+    if (stage.status === "running") {
+      const refused = refusedRun(c, stage, body.runId);
+      if (refused) return refused;
+    }
     const now = new Date().toISOString();
     await db.batch([
       db

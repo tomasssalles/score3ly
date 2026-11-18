@@ -49,8 +49,9 @@ export type Output = {
 };
 
 // The answers of the requests that run and change stages (apps/worker/src/pipeline.ts).
-// `start`: the stage started, or a finished stage with the same key took its place (`reused`, its id).
-export type StartAnswer = { reused: boolean; stageId: string };
+// `start`: the stage started, with the id of this run, which the run's outputs, heartbeats and end send
+// (docs/database.md, "An interrupted run"); or a finished stage with the same key took its place (`reused`, its id).
+export type StartAnswer = { reused: false; stageId: string; runId: string } | { reused: true; stageId: string };
 // `outputs`: the recorded outputs' ids, in the order they were sent.
 export type OutputsAnswer = { ids: string[] };
 // `fix`, `review`, `human-review`, `edit`: the new stage and the pipeline with it.

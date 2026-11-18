@@ -63,10 +63,11 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
   const { items, note, ...start } = plan;
   const started = await startStage(project, stage.id, start);
   if (started.reused) return;
+  const { runId } = started;
   // A failed or interrupted run's outputs stay: only the missing items are made.
   const recorded = new Map(stage.outputs.map((o) => [`${o.type}\u0000${o.item}`, o]));
   const final: FinalOutput[] = [];
-  const heartbeat = setInterval(() => sendHeartbeat(project, stage.id).catch(() => {}), HEARTBEAT_MS);
+  const heartbeat = setInterval(() => sendHeartbeat(project, stage.id, runId).catch(() => {}), HEARTBEAT_MS);
   try {
     for (const [i, item] of items.entries()) {
       if (signal.aborted) return;
@@ -76,19 +77,19 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
         run.item?.({ item: item.item, chars: null });
         const { value: output, timing } = await timed(item.make);
         if (signal.aborted) return;
-        await recordOutputs(project, stage.id, [{ ...output, item: item.item, type: item.type, timing }]);
+        await recordOutputs(project, stage.id, [{ ...output, item: item.item, type: item.type, timing }], runId);
         final.push({ item: item.item, type: item.type, contentSha256: output.contentSha256 ?? null, recipe: output.recipe ?? null });
       }
       run.progress((i + 1) / items.length);
     }
     if (!signal.aborted) {
       const text = typeof note === "function" ? await note(final) : note;
-      if (!signal.aborted) await finishStage(project, stage.id, { status: "done", note: text });
+      if (!signal.aborted) await finishStage(project, stage.id, { status: "done", note: text }, runId);
     }
   } catch (err) {
     if (signal.aborted) return;
     const message = errorText(err);
-    await finishStage(project, stage.id, { status: "failed", error: message }).catch(() => {});
+    await finishStage(project, stage.id, { status: "failed", error: message }, runId).catch(() => {});
   } finally {
     clearInterval(heartbeat);
   }

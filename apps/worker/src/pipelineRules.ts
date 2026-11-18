@@ -93,9 +93,13 @@ export type StageRow = {
   page_count: number | null;
   error: string | null;
   note: string | null;
+  stage_key: string | null;
   started_at: string | null;
   heartbeat_at: string | null;
   finished_at: string | null;
+  run_id: string | null; // the current or last run's (docs/database.md, "An interrupted run")
+  run_started_at: string | null;
+  run_ms: number | null;
   mc_name?: string;
   mc_provider?: Provider | null;
   mc_model_id?: string | null;
@@ -360,6 +364,11 @@ export function closeRunningCalls(db: D1Database, stageId: string, now: string, 
 export function isStale(stage: { status: string; heartbeat_at: string | null }, now: number): boolean {
   return stage.status === "running" && (stage.heartbeat_at === null || now - Date.parse(stage.heartbeat_at) > STALE_MS);
 }
+
+// The same rule as SQL, for a stage `s` (one parameter: `staleBefore(now)`), so that a statement can act only on a stage
+// that may start: `start`'s conditional update.
+export const startable = (s: string) => `(${s}.status IN ('planned', 'failed') OR (${s}.status = 'running' AND (${s}.heartbeat_at IS NULL OR ${s}.heartbeat_at < ?)))`;
+export const staleBefore = (now: number) => new Date(now - STALE_MS).toISOString();
 
 // The last position that goes when the stage at `position` is dropped: a review's or a human review's `apply_review`
 // goes with it (docs/overview.md §5.5, "An `apply_review` goes with its review").

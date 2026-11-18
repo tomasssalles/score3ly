@@ -498,16 +498,31 @@ async function pipelineOf(projectId: string): Promise<StageJson[]> {
   return ((await response.json()) as { stages: StageJson[] }).stages;
 }
 
-function call(projectId: string, stageId: string, action: string, body?: unknown, method = "POST") {
-  return app.request(
+// The run id each stage's last start answered (docs/database.md, "An interrupted run"): `call` sends it with the run's
+// requests (outputs, heartbeat, finish, release) unless the body names one, as the browser's stage runner does.
+const runIds = new Map<string, string>();
+const RUN_ACTIONS = ["outputs", "heartbeat", "finish", "release"];
+
+async function call(projectId: string, stageId: string, action: string, body?: unknown, method = "POST") {
+  const runId = runIds.get(stageId);
+  const sent =
+    RUN_ACTIONS.includes(action) && runId !== undefined && !(typeof body === "object" && body !== null && "runId" in body)
+      ? { ...((body as object | undefined) ?? {}), runId }
+      : body;
+  const response = await app.request(
     `/api/projects/${projectId}/stages/${stageId}/${action}`,
     {
       method,
       headers: { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: sent === undefined ? undefined : JSON.stringify(sent),
     },
     env,
   );
+  if (action === "start" && response.ok) {
+    const answer = (await response.clone().json()) as { reused: boolean; runId?: string };
+    if (!answer.reused && answer.runId) runIds.set(stageId, answer.runId);
+  }
+  return response;
 }
 
 const KEY = "c".repeat(64);
@@ -641,7 +656,8 @@ test("a stage runs: started, outputs recorded as they are done, finished", async
   const project = await createdProject("sonata.pdf");
   const { response, ingest, rasterize } = await startRasterize(project.id);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { reused: false, stageId: rasterize.id });
+  const answer = (await response.json()) as { reused: boolean; stageId: string; runId: string };
+  assert.deepEqual({ ...answer, runId: typeof answer.runId }, { reused: false, stageId: rasterize.id, runId: "string" });
 
   let [, running] = await pipelineOf(project.id);
   assert.equal(running.status, "running");
@@ -711,6 +727,38 @@ test("a failed stage can run again; a running one only once its heartbeat is sta
   );
   assert.equal((await startRasterize(project.id)).response.status, 200);
   assert.equal((await call(project.id, rasterize.id, "finish", { status: "failed" })).status, 400);
+});
+
+// A run's identity (docs/database.md, "An interrupted run"; found 2026-11-17, the code review, A11): a stage started
+// twice at once runs once, and the requests of a run that is over are refused.
+test("two starts of a stage at once: one runs, the other is refused", async () => {
+  const project = await createdProject("sonata.pdf");
+  const [, rasterize] = await pipelineOf(project.id);
+  const start = () => call(project.id, rasterize.id, "start", { stepVersion: 1, config: {}, stageKey: KEY, pageCount: 2, inputIds: [] });
+  const statuses = (await Promise.all([start(), start(), start()])).map((r) => r.status).sort();
+  assert.deepEqual(statuses, [200, 409, 409]);
+});
+
+test("a run that is over can't write: a stale run's outputs, heartbeat and end are refused once the stage started again", async () => {
+  const project = await createdProject("sonata.pdf");
+  const { rasterize, response } = await startRasterize(project.id);
+  const first = ((await response.json()) as { runId: string }).runId;
+  await env.DB.prepare("UPDATE stages SET heartbeat_at = '2026-01-01T00:00:00.000Z' WHERE id = ?").bind(rasterize.id).run();
+  const second = ((await (await startRasterize(project.id)).response.json()) as { runId: string }).runId;
+  assert.notEqual(first, second);
+  const output = (n: number) => ({ outputs: [{ item: `p${n}`, type: "page_image", recipeKey: RECIPE_KEY(n) }] });
+
+  assert.equal((await call(project.id, rasterize.id, "outputs", { ...output(1), runId: first })).status, 409);
+  assert.equal((await call(project.id, rasterize.id, "heartbeat", { runId: first })).status, 409);
+  assert.equal((await call(project.id, rasterize.id, "finish", { status: "done", runId: first })).status, 409);
+  // Nor without a run id.
+  assert.equal((await call(project.id, rasterize.id, "outputs", { ...output(1), runId: undefined })).status, 400);
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM outputs WHERE stage_id = ?").bind(rasterize.id).first<{ n: number }>())?.n, 0);
+
+  assert.equal((await call(project.id, rasterize.id, "outputs", { ...output(2), runId: second })).status, 200);
+  assert.equal((await call(project.id, rasterize.id, "heartbeat", { runId: second })).status, 204);
+  assert.equal((await call(project.id, rasterize.id, "finish", { status: "done", runId: second })).status, 204);
+  assert.equal((await pipelineOf(project.id))[1].status, "done");
 });
 
 test("a planned stage's config is set in place; a finished stage's config replaces it with a planned one", async () => {
@@ -1806,12 +1854,14 @@ test("a person's change is refused when the project changed since the browser re
   // seen them can't change the pipeline on an old view; its outputs neither check nor raise it.
   const next = (await pipelineOf(project.id)).find((s) => s.status === "planned")!;
   v = await versionOf(project.id);
-  assert.equal((await withVersion(project.id, next.id, "start", "0", { stepVersion: 1, config: { modelConfigId: "fake-model" }, modelConfigId: "fake-model", stageKey: RECIPE_KEY(9), pageCount: 2, inputIds: [] })).status, 200);
+  const started = await withVersion(project.id, next.id, "start", "0", { stepVersion: 1, config: { modelConfigId: "fake-model" }, modelConfigId: "fake-model", stageKey: RECIPE_KEY(9), pageCount: 2, inputIds: [] });
+  assert.equal(started.status, 200);
+  const { runId } = (await started.json()) as { runId: string };
   assert.equal(Number(await versionOf(project.id)), Number(v) + 1);
   v = await versionOf(project.id);
-  assert.equal((await withVersion(project.id, next.id, "outputs", "0", { outputs: [{ item: "p1", type: "layout", contentSha256: sha }] })).status, 200);
+  assert.equal((await withVersion(project.id, next.id, "outputs", "0", { outputs: [{ item: "p1", type: "layout", contentSha256: sha }], runId })).status, 200);
   assert.equal(await versionOf(project.id), v);
-  assert.equal((await withVersion(project.id, next.id, "finish", "0", { status: "done" })).status, 204);
+  assert.equal((await withVersion(project.id, next.id, "finish", "0", { status: "done", runId })).status, 204);
   assert.equal(Number(await versionOf(project.id)), Number(v) + 1);
   v = await versionOf(project.id);
 

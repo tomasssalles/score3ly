@@ -41,6 +41,9 @@ export const NO_STAGE = "This stage isn't in the project's pipeline any more: it
 export function notRunning(status: string): string {
   return `The stage isn't running any more: it may have been stopped or finished in another tab or on another device. Reload to see the pipeline as it is. Details: its status is "${status}".`;
 }
+// A request of a run that is over: the stage was started again (in another tab or on another device, once this run's
+// heartbeat was old), or it ended (docs/database.md, "An interrupted run").
+export const RUN_OVER = "This run of the stage is over: the stage was started again in another tab or on another device. Reload to see the pipeline as it is. Details: the request's run id isn't the stage's current one.";
 export const WAITS_FOR_TURN = "The stage waits for its turn: the stages before it run first.";
 export const STAGE_RUNNING = "A stage of this project is running. Stop it, or let it finish, then try again.";
 // The pipeline changed since the page read it, in a way the version doesn't catch (a running stage's start or end).

@@ -208,20 +208,23 @@ export type NewOutput = {
   timing?: Timing; // a running stage's items: how long it took, what it found in the caches (itemTiming.ts)
 };
 
-export async function recordOutputs(project: Project, stageId: string, outputs: NewOutput[]): Promise<string[]> {
-  return ((await (await send(stageUrl(project, stageId, "outputs"), { outputs })).json()) as OutputsAnswer).ids;
+// A running stage's requests name its run (`runId`, from `startStage`; docs/database.md, "An interrupted run"); a WIP
+// manual stage's saves and Finish name none.
+export async function recordOutputs(project: Project, stageId: string, outputs: NewOutput[], runId?: string): Promise<string[]> {
+  return ((await (await send(stageUrl(project, stageId, "outputs"), { outputs, runId })).json()) as OutputsAnswer).ids;
 }
 
-export async function sendHeartbeat(project: Project, stageId: string): Promise<void> {
-  await send(stageUrl(project, stageId, "heartbeat"));
+export async function sendHeartbeat(project: Project, stageId: string, runId: string): Promise<void> {
+  await send(stageUrl(project, stageId, "heartbeat"), { runId });
 }
 
 export async function finishStage(
   project: Project,
   stageId: string,
   result: { status: "done"; note?: string } | { status: "failed"; error: string },
+  runId?: string,
 ): Promise<void> {
-  await send(stageUrl(project, stageId, "finish"), result);
+  await send(stageUrl(project, stageId, "finish"), { ...result, runId });
 }
 
 // Stops a running stage: a planned one with the same config takes its place.

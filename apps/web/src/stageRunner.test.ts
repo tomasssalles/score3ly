@@ -13,7 +13,7 @@ function fakeWorker() {
   globalThis.fetch = async (input, init) => {
     const url = String(input);
     requests.push({ url, body: init?.body ? JSON.parse(String(init.body)) : null });
-    if (url.endsWith("/start")) return Response.json({ reused: false, stageId: "s1" });
+    if (url.endsWith("/start")) return Response.json({ reused: false, stageId: "s1", runId: "r1" });
     if (url.endsWith("/outputs")) return Response.json({ ids: ["o"] });
     if (url.startsWith("/api/content/")) return Response.json(contents.get(url.slice("/api/content/".length)));
     return Response.json({});
@@ -65,5 +65,5 @@ test("a resumed run's note is computed from every output, the earlier run's too"
   );
   assert.deepEqual([...made.keys()], ["p2"]); // p1 wasn't made again
   const finish = requests.find((r) => r.url.endsWith("/finish"));
-  assert.deepEqual(finish?.body, { status: "done", note: "7 systems" });
+  assert.deepEqual(finish?.body, { status: "done", note: "7 systems", runId: "r1" });
 });
