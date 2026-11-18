@@ -5,7 +5,8 @@ import { pageOfItem, STEP_KINDS, systemOfItem, type StepId } from "@score3ly/cor
 import type { ApiStage } from "./api";
 import type { Artifact, StageKind } from "./pipeline";
 import { whoOf, type ChainStage } from "./attribution.ts";
-import { configError, configOf, resolveConfig, MAX_DPI, MIN_DPI, type PageRecipe } from "./rasterize.ts";
+import { configError, configOf, resolveConfig, MAX_DPI, MIN_DPI } from "./rasterize.ts";
+import type { PageRecipe } from "./recipes.ts";
 import { FIX_LAYOUT_VERSION } from "./fixLayout.ts";
 import { analyzeOutputs, FIX_METADATA_VERSION } from "./fixMetadata.ts";
 import { FIX_OBSERVATIONS_VERSION } from "./fixObservations.ts";

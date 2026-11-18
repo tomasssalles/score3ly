@@ -3,7 +3,6 @@
 // so that every stage finds them the same way.
 
 import { pageOfItem, systemItem } from "@score3ly/core";
-import { DESKEW_VERSION, ROTATE_VERSION } from "@score3ly/imaging";
 import { extractImageLabels } from "@score3ly/prompts";
 import type { ApiOutput, ApiStage } from "./api";
 import type { StoredObservations, StoredPieces } from "./analyze";
@@ -11,8 +10,7 @@ import { fetchJsonContent } from "./api";
 import { pieceBounds, stretchBox, type ScoreSystem } from "./extract";
 import { firstNumbers } from "./fixLayout";
 import type { PageLayout } from "./layout";
-import type { StraightRecipe } from "./pageImages";
-import type { PageRecipe } from "./rasterize";
+import { straightRecipe, type PageRecipe, type StraightRecipe } from "./recipes";
 import { CannotStart } from "./stageRunner";
 
 const LAYOUT_STEPS = ["layout", "fix_layout"];
@@ -82,7 +80,7 @@ export async function musicInputs(stage: ApiStage, stages: ApiStage[]): Promise<
     piecesOutput: pcs.output,
     systems,
     byNumber,
-    straight: (i) => ({ page: pages[i].image.recipe as PageRecipe, angle: layouts[i].angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION }),
+    straight: (i) => straightRecipe(pages[i].image.recipe as PageRecipe, layouts[i].angle),
     placeBox: (p) => {
       const s = byNumber.get(p.system);
       return s ? { page: s.page, box: stretchBox(s.layout, p.stretch) } : null;

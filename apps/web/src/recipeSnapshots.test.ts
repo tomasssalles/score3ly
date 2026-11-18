@@ -10,12 +10,29 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { keyOf, type LayoutSystem, type ModelConfig } from "@score3ly/core";
 import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION, type SizeLimit } from "@score3ly/imaging";
-import { pageRecipe, type PageRecipe } from "./rasterize.ts";
-import { MARGINS, stretchCropBoxes, systemCropBox, type StoredIssue } from "./extract.ts";
+import type { StoredIssue } from "./extract.ts";
+import { MARGINS, stretchCropBoxes, systemCropBox } from "./crops.ts";
 import { boxesOnCrop } from "./transcription.ts";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits.ts";
 import { RENDERING_VERSION, VEROVIO_VERSION } from "./rendering.ts";
-import type { CropRecipe, DrawnPageRecipe, LayoutPageRecipe, MarkedCropRecipe, ModelPageRecipe, StraightRecipe } from "./pageImages.ts";
+import {
+  cropRecipe,
+  drawnPageRecipe,
+  imageVersions,
+  layoutPageRecipe,
+  markedCropRecipe,
+  modelPageRecipe,
+  pageRecipe,
+  pdfRecipe,
+  straightRecipe,
+  type CropRecipe,
+  type DrawnPageRecipe,
+  type LayoutPageRecipe,
+  type MarkedCropRecipe,
+  type ModelPageRecipe,
+  type PageRecipe,
+  type StraightRecipe,
+} from "./recipes.ts";
 
 const PDF = "3f9a".repeat(16);
 const PDFJS = "5.4.296";
@@ -23,7 +40,10 @@ const CLAUDE = { provider: "bedrock", family: "claude" } as ModelConfig;
 const GEMINI = { provider: "vertex", family: "gemini" } as ModelConfig;
 
 // Page 3 of a scan (its own pixels: the dpi only for vector pages) and page 12 of a vector PDF at 200 dpi.
-const PAGES: PageRecipe[] = [pageRecipe(PDF, 3, 300, PDFJS), pageRecipe(PDF, 12, 200, PDFJS)];
+const PAGES: PageRecipe[] = [
+  { step: "rasterize", version: 1, pdf: PDF, page: 3, dpi: 300, pdfjs: PDFJS },
+  { step: "rasterize", version: 1, pdf: PDF, page: 12, dpi: 200, pdfjs: PDFJS },
+];
 const ANGLES = [-0.4137, null];
 
 // A page with four systems, unevenly spaced bar lines, one on its box's edge; a short system without bar lines.
@@ -42,9 +62,9 @@ const ISSUES = [
   issue(12, [{ page: 3, box: { left: 0.49, right: 0.53, top: 0.25, bottom: 0.35 } }, { page: 4, box: { left: 0.1, right: 0.2, top: 0.1, bottom: 0.2 } }]),
 ];
 
-// Today's literals, as the code builds them (runLayout, runAnalyze, musicInputs, ArtifactView, ExtractionView,
-// LayoutEditor; runExtract; runReview and runApplyReview).
-function recipes(): Record<string, unknown> {
+// The literals as the code built them before recipes.ts (runLayout, runAnalyze, musicInputs, ArtifactView,
+// ExtractionView, LayoutEditor; runExtract; runReview and runApplyReview; engraving.ts).
+function literals(): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [p, page] of PAGES.entries()) {
     out[`page ${p}`] = page;
@@ -117,10 +137,53 @@ function recipes(): Record<string, unknown> {
       margins: MARGINS,
     };
   }
-  // engraving.ts's `pdfRecipe` (PDF_VERSION 1); engraving.ts can't be loaded in Node.
   for (const pageSize of ["a4", "letter"]) {
     out[`pdf ${pageSize}`] = { mei: "b7e1".repeat(16), config: { pageSize }, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION, pdf: 1 };
   }
+  return out;
+}
+
+// The same, from recipes.ts's constructors.
+function constructed(): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [p, { page, dpi }] of PAGES.entries()) {
+    const pageR = pageRecipe(PDF, page, dpi, PDFJS);
+    out[`page ${p}`] = pageR;
+    for (const angle of ANGLES) {
+      const straight = straightRecipe(pageR, angle);
+      const name = `page ${p} at ${angle}`;
+      out[`${name}: straight`] = straight;
+      for (const [c, config] of [CLAUDE, GEMINI].entries()) {
+        const model = modelPageRecipe(straight, imageLimit(config));
+        out[`${name}: model page ${c}`] = model;
+        out[`${name}: score page ${c}`] = modelPageRecipe(straight, imageLimitFor(config, 30));
+        out[`${name}: drawn ${c}`] = drawnPageRecipe(model, SYSTEMS);
+        for (const gray of [false, true]) out[`${name}: layout page ${c} ${gray}`] = layoutPageRecipe(model, SYSTEMS, 5, gray);
+      }
+      for (const [s, system] of SYSTEMS.entries()) {
+        const boxes = [systemCropBox(system), ...stretchCropBoxes(system)];
+        for (const count of [1, 25]) {
+          for (const [b, box] of boxes.entries()) {
+            const crop = cropRecipe(straight, box, imageLimitFor(CLAUDE, count));
+            out[`${name}: system ${s} crop ${b} of ${count}`] = crop;
+            out[`${name}: system ${s} marked ${b} of ${count}`] = markedCropRecipe(crop, page, new Map(ISSUES.map((i) => [i.id, i])).values());
+          }
+        }
+      }
+    }
+  }
+  for (const [c, config] of [CLAUDE, GEMINI].entries()) {
+    out[`layout ${c}`] = { limit: imageLimit(config), ...imageVersions("scale", "deskew", "rotate", "draw") };
+    out[`analyze ${c}`] = { limit: imageLimit(config), scoreLimit: imageLimitFor(config, 30), ...imageVersions("scale", "deskew", "rotate", "draw") };
+    out[`extract ${c}`] = { limit: imageLimit(config), manyImages: requestLimits(config).manyImages, ...imageVersions("scale", "crop", "deskew", "rotate"), margins: MARGINS };
+    out[`review ${c}`] = {
+      limit: imageLimit(config),
+      manyImages: requestLimits(config).manyImages,
+      ...imageVersions("scale", "crop", "deskew", "rotate", "draw"),
+      margins: MARGINS,
+    };
+  }
+  for (const pageSize of ["a4", "letter"] as const) out[`pdf ${pageSize}`] = pdfRecipe("b7e1".repeat(16), { pageSize });
   return out;
 }
 
@@ -159,5 +222,9 @@ const EXPECTED: Record<string, string> = {
 };
 
 test("the images' recipes are what they were", async () => {
-  assert.deepEqual(await snapshot(recipes()), EXPECTED);
+  assert.deepEqual(await snapshot(literals()), EXPECTED);
+});
+
+test("recipes.ts's constructors give the same recipes", async () => {
+  assert.deepEqual(await snapshot(constructed()), EXPECTED);
 });

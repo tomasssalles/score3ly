@@ -9,7 +9,7 @@
 
 import { ImagesDiffer } from "./ImagesDiffer";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { CLAUDE_IMAGE_LIMIT, CROP_VERSION, DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
+import { CLAUDE_IMAGE_LIMIT, LAYOUT_COLOR_HEX } from "@score3ly/imaging";
 import { buildMei, serialize, type LensStretch, type Score } from "@score3ly/notation";
 import { overlaps, type Box } from "@score3ly/core";
 import { failure, fetchJsonContent, putJson, recordOutputs, reserveIssueNumbers, type Project } from "./api";
@@ -19,7 +19,8 @@ import { BoxesIcon, ChangesIcon, InfoIcon, MusicIcon, SourceIcon } from "./icons
 import type { PageLayout } from "./layout";
 import { ModeToggle, UnsavedNote } from "./pageEditor";
 import { saverOf, useSaver } from "./saving";
-import { cropImage, type CropRecipe } from "./pageImages";
+import { cropImage } from "./pageImages";
+import { cropRecipe, straightRecipe, type CropRecipe } from "./recipes";
 import type { Artifact } from "./pipeline";
 import { attributionOf, extend, type Attribution, type IssueWho } from "./attribution";
 import { attributionCache } from "./imageCache";
@@ -145,13 +146,7 @@ function useTranscription(artifact: Artifact, stageId: string | null): Loaded | 
           const system = layout?.systems[index - 1];
           if (!page || !layout || !system) return [];
           const shown = shownSystem(extraction, system);
-          const recipe: CropRecipe = {
-            straight: { page: page.recipe, angle: layout.angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION },
-            box: shown.crop,
-            crop: CROP_VERSION,
-            limit: CLAUDE_IMAGE_LIMIT,
-            scale: SCALE_VERSION,
-          };
+          const recipe = cropRecipe(straightRecipe(page.recipe, layout.angle), shown.crop, CLAUDE_IMAGE_LIMIT);
           return [{ ...shown, recipe }];
         });
       const score = scoreOf(systems, pieces);

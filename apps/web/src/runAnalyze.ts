@@ -5,7 +5,6 @@
 // size is checked before anything is paid for: a score too long for one call stops before its first paid call (a run
 // served entirely from the cache makes no images, so it doesn't check).
 
-import { DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import {
   ANALYZE_PAGE_MAX_OUTPUT_TOKENS,
   ANALYZE_PAGE_SCHEMA,
@@ -39,8 +38,8 @@ import { modelKeyOf, normalized, pageItem, pageOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 import { ask, plannedSizeProblem, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor } from "./requestLimits";
-import { layoutPage, modelPage, type LayoutPageRecipe, type ModelPageRecipe } from "./pageImages";
-import type { PageRecipe } from "./rasterize";
+import { layoutPage, modelPage } from "./pageImages";
+import { imageVersions, layoutPageRecipe, modelPageRecipe, straightRecipe, type PageRecipe } from "./recipes";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
 
 // The steps whose layout `analyze` reads: the latest before it counts.
@@ -72,7 +71,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
   const { config, start } = await llmStart(stage);
   const pageLimit = imageLimit(config);
   const scoreLimit = imageLimitFor(config, pages.length);
-  const imageRecipe = { limit: pageLimit, scoreLimit, scale: SCALE_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION, draw: DRAW_VERSION };
+  const imageRecipe = { limit: pageLimit, scoreLimit, ...imageVersions("scale", "deskew", "rotate", "draw") };
   const stageKey = await analyzeStageKey({
     promptVersion: ANALYZE_PROMPT_VERSION,
     model: modelKeyOf(config),
@@ -80,16 +79,9 @@ export async function runAnalyze(run: StageRun): Promise<void> {
     pages: pages.map((p) => ({ pageImageKey: p.image.recipeKey!, layoutSha256: p.output.contentSha256! })),
   });
 
-  const modelRecipe = (i: number, limit = pageLimit): ModelPageRecipe => ({
-    straight: { page: pages[i].image.recipe as PageRecipe, angle: layouts[i].angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION },
-    limit,
-    scale: SCALE_VERSION,
-  });
+  const modelRecipe = (i: number, limit = pageLimit) => modelPageRecipe(straightRecipe(pages[i].image.recipe as PageRecipe, layouts[i].angle), limit);
   const drawn = (i: number, limit: typeof pageLimit, gray: boolean) =>
-    requestImage<LayoutPageRecipe>(
-      { page: modelRecipe(i, limit), systems: layouts[i].systems, first: firsts[i], barLineNumbers: true, gray, draw: DRAW_VERSION },
-      layoutPage,
-    );
+    requestImage(layoutPageRecipe(modelRecipe(i, limit), layouts[i].systems, firsts[i], gray), layoutPage);
 
   // The whole score's request, without the pages' results (they come at the end).
   const scoreContent: RequestContent[] = [];

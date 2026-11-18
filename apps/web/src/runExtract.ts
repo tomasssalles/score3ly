@@ -5,7 +5,6 @@
 // can't be used stops the run there: the answers so far are kept, and a retry starts again at that system. Once every
 // system is in, the checks of the whole score run on all of them, and what they find is one more output.
 
-import { CROP_VERSION, DESKEW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { checkScore, checkSystem, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
 import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractText, lensFromExtract } from "@score3ly/prompts";
 import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
@@ -14,11 +13,8 @@ import {
   extractNote,
   extractRequest,
   extractStageKey,
-  MARGINS,
-  stretchCropBoxes,
   storedExtraction,
   storedScoreChecks,
-  systemCropBox,
   type StoredScoreChecks,
   type ImageSource,
   type ScoreSystem,
@@ -29,7 +25,9 @@ import { linkSpans, systemHints } from "./linking";
 import { musicInputs } from "./musicInputs";
 import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
-import { cropImage, type CropRecipe } from "./pageImages";
+import { cropImage } from "./pageImages";
+import { MARGINS, stretchCropBoxes, systemCropBox } from "./crops";
+import { cropRecipe, imageVersions } from "./recipes";
 import { runPlan, type StageRun } from "./stageRunner";
 
 
@@ -44,10 +42,7 @@ export async function runExtract(run: StageRun): Promise<void> {
   const imageRecipe = {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
-    scale: SCALE_VERSION,
-    crop: CROP_VERSION,
-    deskew: DESKEW_VERSION,
-    rotate: ROTATE_VERSION,
+    ...imageVersions("scale", "crop", "deskew", "rotate"),
     margins: MARGINS,
   };
   const stageKey = await extractStageKey({
@@ -122,7 +117,7 @@ export async function runExtract(run: StageRun): Promise<void> {
           const labels = labelsOf(s);
           const limit = imageLimitFor(config, labels.length);
           const crop = (system: (typeof systems)[number], box: ImageSource["box"]) =>
-            requestImage<CropRecipe>({ straight: straight(system.pageIndex), box, crop: CROP_VERSION, limit, scale: SCALE_VERSION }, cropImage);
+            requestImage(cropRecipe(straight(system.pageIndex), box, limit), cropImage);
 
           // The images, each after its label, and where each was cut from (for the model's issue boxes).
           const sources = new Map<string, ImageSource>();

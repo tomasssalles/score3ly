@@ -5,7 +5,8 @@
 import { area, intersection, onCrop, type Box, type LayoutSystem } from "@score3ly/core";
 import { buildScore, type Score } from "@score3ly/notation";
 
-import { systemCropBox, type StoredExtraction, type StoredIssue, type StoredWarning } from "./extract.ts";
+import type { StoredExtraction, StoredIssue, StoredWarning } from "./extract.ts";
+import { systemCropBox } from "./crops.ts";
 import type { IssueWho } from "./attribution.ts";
 import { errorText } from "@score3ly/core";
 

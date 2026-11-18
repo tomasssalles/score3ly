@@ -15,9 +15,8 @@ import { noteImage } from "./itemTiming";
 import { errorText, keyOf } from "@score3ly/core";
 import type { DeriveOptions, MadeImage, PageImageCalls } from "./pageImageWorker";
 import { oneAtATime, workerClient } from "./workerClient";
-import type { PageRecipe } from "./rasterize";
-import type { Box, LayoutSystem } from "@score3ly/core";
-import type { SizeLimit, Skew } from "@score3ly/imaging";
+import type { CropRecipe, DrawnPageRecipe, LayoutPageRecipe, MarkedCropRecipe, ModelPageRecipe, PageRecipe, StraightRecipe } from "./recipes";
+import type { Skew } from "@score3ly/imaging";
 
 // The PDFs opened in the worker: what pdf.js says about them, the most recently used last. Gone with the worker, when
 // it is replaced.
@@ -75,13 +74,6 @@ export async function measureSkew(png: Blob, maxAngle: number): Promise<Skew> {
   const bytes = await png.arrayBuffer();
   return images.ask("skew", { png: bytes, maxAngle }, [bytes]);
 }
-
-// A page straightened by an angle (docs/images.md §8.6): what `layout` and later stages see, and what the layout's
-// artifact shows. Null angle: the page as it is.
-export type StraightRecipe = { page: PageRecipe; angle: number | null; deskew: number; rotate: number };
-
-// A straightened page shrunk to a model's limits: the image sent in requests.
-export type ModelPageRecipe = { straight: StraightRecipe; limit: SizeLimit; scale: number };
 
 async function derive(png: Blob, options: DeriveOptions): Promise<MadeImage> {
   const bytes = await png.arrayBuffer();
@@ -210,6 +202,7 @@ export async function keepFingerprintOnce(recipe: unknown, png: () => Promise<Bl
   fingerprinted.delete(key);
 }
 
+// The images of the recipes in recipes.ts (docs/images.md §8.6). A straightened page with no angle is the page image.
 export async function straightPage(recipe: StraightRecipe): Promise<Blob> {
   if (recipe.angle === null) return pageImage(recipe.page);
   return cachedOr(recipe, async () => derive(await pageImage(recipe.page), { angle: recipe.angle! }));
@@ -219,27 +212,15 @@ export async function modelPage(recipe: ModelPageRecipe): Promise<Blob> {
   return cachedOr(recipe, async () => derive(await straightPage(recipe.straight), { limit: recipe.limit }));
 }
 
-// A part of a straightened page shrunk to a model's limits (docs/images.md §8.6): the system and stretch crops `extract`
-// sends, and its artifact shows. The box is a fraction of the straightened page, margins included; `crop` is the crop
-// code's version (CROP_VERSION).
-export type CropRecipe = { straight: StraightRecipe; box: Box; crop: number; limit: SizeLimit; scale: number };
-
 export async function cropImage(recipe: CropRecipe): Promise<Blob> {
   return cachedOr(recipe, async () => derive(await straightPage(recipe.straight), { crop: recipe.box, limit: recipe.limit }));
 }
 
-// The image sent to a model with its layout drawn on it, for it to check (`layout`'s rounds). Cached under its recipe
-// like the others: the drawing is ours and deterministic. `draw` is the drawing code's version (DRAW_VERSION).
-export type DrawnPageRecipe = { page: ModelPageRecipe; systems: LayoutSystem[]; draw: number };
-
+// The images with drawings on them are cached under their recipes like the others: the drawing is ours and
+// deterministic.
 export async function drawnPage(recipe: DrawnPageRecipe): Promise<Blob> {
   return cachedOr(recipe, async () => derive(await modelPage(recipe.page), { draw: recipe.systems }));
 }
-
-// A crop sent to a model with boxes drawn on it, each labelled (`review`: the issues on the crop, by their ids;
-// docs/stages/music.md). The boxes are fractions of the crop. Cached under its recipe: the drawing is ours and
-// deterministic. `draw` is the drawing code's version (DRAW_VERSION).
-export type MarkedCropRecipe = { crop: CropRecipe; boxes: Box[]; labels: string[]; draw: number };
 
 export async function markedCrop(recipe: MarkedCropRecipe): Promise<Blob> {
   if (recipe.boxes.length === 0) return cropImage(recipe.crop);
@@ -247,18 +228,6 @@ export async function markedCrop(recipe: MarkedCropRecipe): Promise<Blob> {
     derive(await cropImage(recipe.crop), { draw: recipe.boxes.map((box) => ({ box, barLines: [] })), drawOptions: { labels: recipe.labels } }),
   );
 }
-
-// A page sent to a model with its layout drawn on it, labelled for `analyze` (systems numbered in the whole score from
-// `first`, bar lines numbered), in colour or gray (docs/stages/analyze.md). Cached under its recipe: the drawing is ours and
-// deterministic. `draw` is the drawing code's version (DRAW_VERSION).
-export type LayoutPageRecipe = {
-  page: ModelPageRecipe;
-  systems: LayoutSystem[];
-  first: number;
-  barLineNumbers: boolean;
-  gray: boolean;
-  draw: number;
-};
 
 export async function layoutPage(recipe: LayoutPageRecipe): Promise<Blob> {
   return cachedOr(recipe, async () =>

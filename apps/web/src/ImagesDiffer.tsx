@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useHost } from "./host";
 import { keyOf } from "@score3ly/core";
 import { onImagesDiffer, pageDiffers } from "./pageImages";
-import type { PageRecipe } from "./rasterize";
+import type { PageRecipe } from "./recipes";
 
 // The likely causes: another device, or this one before an update (of the browser, or of Electron in the desktop app,
 // which is the only device its data is on).

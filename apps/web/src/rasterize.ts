@@ -49,14 +49,6 @@ export function resolveConfig(
   return { config: { pages: formatPages(selected.pages), dpi: config.dpi }, pages: selected.pages };
 }
 
-// What a page image is made from (§8.6). pdf.js's version is part of it: another version may draw vector pages
-// differently.
-export type PageRecipe = { step: "rasterize"; version: number; pdf: string; page: number; dpi: number; pdfjs: string };
-
-export function pageRecipe(pdfSha256: string, page: number, dpi: number, pdfjsVersion: string): PageRecipe {
-  return { step: "rasterize", version: RASTERIZE_VERSION, pdf: pdfSha256, page, dpi, pdfjs: pdfjsVersion };
-}
-
 // The stage key (§5.2): the step, its version and libraries, the resolved config, and the input's content: the PDF.
 export function stageKey(config: RasterizeConfig, pdfSha256: string, pdfjsVersion: string): Promise<string> {
   return keyOf({

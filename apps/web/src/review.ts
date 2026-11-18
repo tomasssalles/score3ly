@@ -8,7 +8,8 @@
 import type { Score } from "@score3ly/notation";
 import { issueForModel, reviewFromModel, stretchMeasures, systemForModel, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
 import { area, boxProblem, intersection, keyOf, onPage, type Box, type LayoutSystem } from "@score3ly/core";
-import { stretchBox, systemCropBox, type ImageSource, type StoredIssue, type StoredWarning } from "./extract.ts";
+import { stretchBox, type ImageSource, type StoredIssue, type StoredWarning } from "./extract.ts";
+import { systemCropBox } from "./crops.ts";
 import { count } from "./format.ts";
 
 export const REVIEW_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)

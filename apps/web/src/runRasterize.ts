@@ -5,7 +5,8 @@
 
 import { keyOf, pageItem } from "@score3ly/core";
 import { openPdfForImages, pageImage } from "./pageImages";
-import { configOf, pageRecipe, RASTERIZE_VERSION, resolveConfig, stageKey } from "./rasterize";
+import { configOf, RASTERIZE_VERSION, resolveConfig, stageKey } from "./rasterize";
+import { pageRecipe } from "./recipes";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 import { count } from "./format.ts";
 

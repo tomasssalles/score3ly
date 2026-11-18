@@ -8,19 +8,10 @@ import { fetchTextContent } from "./api";
 import { PAGE_SIZES, pageOptions, withoutDate, type EngraveConfig } from "./engrave";
 import { cachedPdfFile, cachePdfFile } from "./imageCache";
 import type { Artifact } from "./pipeline";
-import { RENDERING_VERSION, renderPages, VEROVIO_VERSION } from "./rendering";
+import { renderPages } from "./rendering";
+import { pdfRecipe } from "./recipes";
 
 type Engraving = NonNullable<Artifact["engraving"]>;
-
-// Our PDF code's version, in the recipe: a change of how the pages become a PDF makes it anew.
-export const PDF_VERSION = 1;
-
-// What the PDF is made from: the MEI, the page size, and the versions of the code that make it.
-export type PdfRecipe = { mei: string; config: EngraveConfig; verovio: string; rendering: number; pdf: number };
-
-export function pdfRecipe(meiSha256: string, config: EngraveConfig): PdfRecipe {
-  return { mei: meiSha256, config, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION, pdf: PDF_VERSION };
-}
 
 export async function engravedPages(engraving: Engraving): Promise<string[]> {
   return renderPages(await fetchTextContent(engraving.meiSha256), pageOptions(engraving.config));

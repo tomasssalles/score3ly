@@ -4,7 +4,8 @@
 
 import { keyOf } from "@score3ly/core";
 import { ENGRAVE_VERSION, engraveConfigOf, latestMei, pdfPageCount } from "./engrave";
-import { engravedPdf, pdfRecipe } from "./engraving";
+import { engravedPdf } from "./engraving";
+import { pdfRecipe } from "./recipes";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 import { count } from "./format.ts";
 

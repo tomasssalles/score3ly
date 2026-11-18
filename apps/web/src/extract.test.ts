@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { buildMei, buildScore, checkSystem, elements, pieceStart } from "@score3ly/notation";
 import { richScore } from "@score3ly/notation/testScore";
 import { extractImageLabels } from "@score3ly/prompts";
-import { extractNote, pieceBounds, storedExtraction, stretchBox, stretchCropBoxes, systemCropBox } from "./extract.ts";
+import { extractNote, pieceBounds, storedExtraction, stretchBox } from "./extract.ts";
+import { stretchCropBoxes, systemCropBox } from "./crops.ts";
 import { linkSpans, placeFor, systemHints } from "./linking.ts";
 import type { StoredObservations, StoredPage } from "./analyze.ts";
 

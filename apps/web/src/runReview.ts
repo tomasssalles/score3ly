@@ -5,17 +5,18 @@
 // crops with the issues' boxes drawn on them, and its request. Each answer is checked as soon as it arrives; one that
 // can't be used stops the run there, the calls before it kept.
 
-import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import { buildScore, checkSystem, LENS_VERSION, pieceStart, systemLinks, type LinkedSystem, type ScoreState } from "@score3ly/notation";
 import { REVIEW_MAX_OUTPUT_TOKENS, REVIEW_PROMPT_VERSION, REVIEW_SCHEMA, REVIEW_SYSTEM, reviewIssuesText, reviewLogText, reviewScoreText, reviewText } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
 import { EXTRACTION_STEPS } from "./engrave";
-import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks } from "./extract";
+import { type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks } from "./extract";
 import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
-import { markedCrop, type MarkedCropRecipe } from "./pageImages";
+import { markedCrop } from "./pageImages";
+import { MARGINS, stretchCropBoxes, systemCropBox } from "./crops";
+import { cropRecipe, imageVersions, markedCropRecipe } from "./recipes";
 import {
   applyEntries,
   checkReview,
@@ -34,7 +35,6 @@ import {
 } from "./review";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 import { reviewInputIds } from "./steps";
-import { boxesOnCrop } from "./transcription";
 
 
 export async function runReview(run: StageRun): Promise<void> {
@@ -82,11 +82,7 @@ export async function runReview(run: StageRun): Promise<void> {
   const imageRecipe = {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
-    scale: SCALE_VERSION,
-    crop: CROP_VERSION,
-    deskew: DESKEW_VERSION,
-    rotate: ROTATE_VERSION,
-    draw: DRAW_VERSION,
+    ...imageVersions("scale", "crop", "deskew", "rotate", "draw"),
     margins: MARGINS,
   };
   const transcription = [...extractionOutputs.values(), checksOutput].map((o) => o.contentSha256!).sort();
@@ -132,20 +128,13 @@ export async function runReview(run: StageRun): Promise<void> {
         const issues = issuesBefore(s.number);
         const labels = labelsOf(s);
         const limit = imageLimitFor(config, labels.length);
-        const notes = [...issues.values()].map((issue) => ({ key: `issue-${issue.id}`, boxes: issue.boxes, kind: "issue" as const, issue }));
 
         // The images, each after its label, with the issues' boxes drawn on them, and where each was cut from.
         const sources = new Map<string, ImageSource & { system: number }>();
         const images: RequestContent[] = [];
         const add = async (label: string, caption: string, system: MusicSystem, box: ImageSource["box"]) => {
           sources.set(label, { page: system.page, box, system: system.number });
-          const on = boxesOnCrop(notes, system.page, box);
-          const recipe: MarkedCropRecipe = {
-            crop: { straight: straight(system.pageIndex), box, crop: CROP_VERSION, limit, scale: SCALE_VERSION },
-            boxes: on.map((b) => b.box),
-            labels: on.map((b) => (b.note.kind === "issue" ? String(b.note.issue.id) : "")),
-            draw: DRAW_VERSION,
-          };
+          const recipe = markedCropRecipe(cropRecipe(straight(system.pageIndex), box, limit), system.page, issues.values());
           images.push({ type: "text", text: caption }, await requestImage(recipe, markedCrop));
         };
         await add("system", `System ${s.number}:`, s, systemCropBox(s.layout));

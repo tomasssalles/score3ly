@@ -3,7 +3,7 @@
 // to check, at most LAYOUT_ROUNDS answers in all. The last answer is stored as the page's layout; if the model still
 // wasn't satisfied, the page is flagged for a person.
 
-import { deskewAngle, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION, type Skew } from "@score3ly/imaging";
+import { deskewAngle, type Skew } from "@score3ly/imaging";
 import {
   checkLayoutAnswer,
   LAYOUT_FIRST,
@@ -20,8 +20,8 @@ import { modelKeyOf, pageOfItem } from "@score3ly/core";
 import { LAYOUT_VERSION, layoutNote, layoutStageKey, type PageLayout } from "./layout";
 import { ask, requestImage, llmStart, type PlannedRequest } from "./llm";
 import { imageLimit } from "./requestLimits";
-import { drawnPage, modelPage, pageImage, pngSize, type ModelPageRecipe } from "./pageImages";
-import type { PageRecipe } from "./rasterize";
+import { drawnPage, modelPage, pageImage, pngSize } from "./pageImages";
+import { drawnPageRecipe, imageVersions, modelPageRecipe, straightRecipe, type PageRecipe } from "./recipes";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
 
 // The steps whose lines say how to straighten the pages: the latest before `layout` counts.
@@ -41,7 +41,7 @@ export async function runLayout(run: StageRun): Promise<void> {
     .sort((a, b) => a.page - b.page);
 
   const { config, start } = await llmStart(stage);
-  const imageRecipe = { limit: imageLimit(config), scale: SCALE_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION, draw: DRAW_VERSION };
+  const imageRecipe = { limit: imageLimit(config), ...imageVersions("scale", "deskew", "rotate", "draw") };
   const stageKey = await layoutStageKey({
     promptVersion: LAYOUT_PROMPT_VERSION,
     model: modelKeyOf(config),
@@ -69,11 +69,7 @@ export async function runLayout(run: StageRun): Promise<void> {
         const skew = pageLines ? ((await fetchJsonContent(pageLines.contentSha256!)) as Skew) : null;
         // The page image is made for its width only when there are lines to go by.
         const angle = skew && skew.lines.length > 0 ? deskewAngle(skew.lines, (await pngSize(await pageImage(recipe))).width) : null;
-        const modelRecipe: ModelPageRecipe = {
-          straight: { page: recipe, angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION },
-          limit: imageRecipe.limit,
-          scale: imageRecipe.scale,
-        };
+        const modelRecipe = modelPageRecipe(straightRecipe(recipe, angle), imageRecipe.limit);
 
         const request: PlannedRequest = {
           system: LAYOUT_SYSTEM,
@@ -90,7 +86,7 @@ export async function runLayout(run: StageRun): Promise<void> {
             request.messages.push({
               role: "user",
               content: [
-                await requestImage({ page: modelRecipe, systems: layout.systems, draw: imageRecipe.draw }, drawnPage),
+                await requestImage(drawnPageRecipe(modelRecipe, layout.systems), drawnPage),
                 { type: "text", text: layoutCheck(round) },
               ],
             });

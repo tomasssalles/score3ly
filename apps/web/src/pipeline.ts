@@ -5,7 +5,7 @@ import type { ChainStage, Who } from "./attribution";
 import type { ItemProgress } from "./callProgress";
 import type { ApiPipeline, ApiStage, RunMode } from "./api";
 import type { EngraveConfig } from "./engrave.ts";
-import type { PageRecipe } from "./rasterize.ts";
+import type { PageRecipe } from "./recipes.ts";
 import { stepInfo } from "./steps.ts";
 
 export type { RunMode } from "./api";

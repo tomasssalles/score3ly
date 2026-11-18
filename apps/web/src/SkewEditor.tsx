@@ -26,7 +26,7 @@ import {
 import { ImagesDiffer } from "./ImagesDiffer";
 import { keepFingerprintOnce, pageImage } from "./pageImages";
 import { useSaver } from "./saving";
-import type { PageRecipe } from "./rasterize";
+import type { PageRecipe } from "./recipes";
 import { angleLabel } from "./skewAnalysis";
 
 export type EditorPage = { page: number; recipe: PageRecipe; linesSha256: string; item: string; parentId: string };

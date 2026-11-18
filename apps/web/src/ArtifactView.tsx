@@ -2,11 +2,11 @@ import { ImagesDiffer } from "./ImagesDiffer";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { failure, fetchJsonContent, pdfUrl, type Project } from "./api";
 import { CloseIcon } from "./icons";
-import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
+import { LAYOUT_COLOR_HEX } from "@score3ly/imaging";
 import type { PageLayout } from "./layout";
-import { pageImage, straightPage, type StraightRecipe } from "./pageImages";
+import { pageImage, straightPage } from "./pageImages";
 import type { Artifact } from "./pipeline";
-import type { PageRecipe } from "./rasterize";
+import { straightRecipe, type PageRecipe, type StraightRecipe } from "./recipes";
 import { angleLabel, type PageSkew } from "./skewAnalysis";
 import type { SkewLine } from "@score3ly/imaging";
 import { PdfView } from "./PdfView";
@@ -253,7 +253,7 @@ export function LayoutFilmstrip({
 // same colours the model saw, each box numbered (from `first`); a flag and the model's note when it wasn't
 // satisfied.
 function LayoutPageView({ recipe, layout, first }: { recipe: PageRecipe; layout: PageLayout; first: number }) {
-  const straight: StraightRecipe = { page: recipe, angle: layout.angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
+  const straight = straightRecipe(recipe, layout.angle);
   return (
     <>
       {(layout.flagged || layout.severelySkewed) && (

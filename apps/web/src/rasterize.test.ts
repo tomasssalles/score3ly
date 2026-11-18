@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { keyOf } from "@score3ly/core";
-import { configError, configOf, pageRecipe, resolveConfig, stageKey } from "./rasterize.ts";
+import { configError, configOf, resolveConfig, stageKey } from "./rasterize.ts";
+import { pageRecipe } from "./recipes.ts";
 
 test("a stored config gets defaults for what it lacks", () => {
   assert.deepEqual(configOf(null), { pages: "", dpi: 300 });

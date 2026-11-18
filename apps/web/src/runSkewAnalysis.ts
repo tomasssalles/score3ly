@@ -6,7 +6,7 @@ import type { Skew } from "@score3ly/imaging";
 import { putJson } from "./api";
 import { pageOfItem } from "@score3ly/core";
 import { keepFingerprints, measureSkew, pageImage } from "./pageImages";
-import type { PageRecipe } from "./rasterize";
+import type { PageRecipe } from "./recipes";
 import { SKEW_ANALYSIS_VERSION, skewConfigError, skewConfigOf, skewNote, skewStageKey } from "./skewAnalysis";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
 

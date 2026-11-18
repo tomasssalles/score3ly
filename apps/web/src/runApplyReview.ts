@@ -6,7 +6,6 @@
 // arrives; one that can't be used stops the run there, the calls before it kept. Once every call is in, the new
 // transcription is stored as `extract` stores one: an `extraction` per system, and the checks of the whole score.
 
-import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
 import {
   buildScore,
   checkScore,
@@ -53,16 +52,17 @@ import {
 } from "./applyReview";
 import { EXTRACTION_STEPS } from "./engrave";
 import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
-import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks, type StoredWarning } from "./extract";
+import { type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks, type StoredWarning } from "./extract";
 import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
-import { markedCrop, type MarkedCropRecipe } from "./pageImages";
+import { markedCrop } from "./pageImages";
+import { MARGINS, stretchCropBoxes, systemCropBox } from "./crops";
+import { cropRecipe, imageVersions, markedCropRecipe } from "./recipes";
 import { reviewedIssues, reviewIssues, reviewScore, reviewWarnings, systemsOf, type StoredReview } from "./review";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 import { choosingChain } from "./steps";
 import { attributionOf } from "./attribution";
-import { boxesOnCrop } from "./transcription";
 
 
 // The steps whose issues `apply_review` applies: the stages between the transcription and it (docs/stages/music.md), and
@@ -147,11 +147,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   const imageRecipe = {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
-    scale: SCALE_VERSION,
-    crop: CROP_VERSION,
-    deskew: DESKEW_VERSION,
-    rotate: ROTATE_VERSION,
-    draw: DRAW_VERSION,
+    ...imageVersions("scale", "crop", "deskew", "rotate", "draw"),
     margins: MARGINS,
   };
   const transcription = [...extractionOutputs.values(), checksOutput].map((o) => o.contentSha256!).sort();
@@ -242,18 +238,11 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           const allowed = [previous?.number, ...planned.window, next?.number].filter((n): n is number => n !== undefined);
 
           // The images, each after its caption, with the boxes of the issues drawn on them and labelled with their ids.
-          const notes = [...startIssues.values()].map((issue) => ({ key: `issue-${issue.id}`, boxes: issue.boxes, kind: "issue" as const, issue }));
           const count = window.reduce((n, s) => n + s.layout.barLines.length + 2, 0) + (previous ? 1 : 0) + (next ? 1 : 0);
           const limit = imageLimitFor(config, count);
           const images: RequestContent[] = [];
           const add = async (caption: string, system: MusicSystem, box: ImageSource["box"]) => {
-            const on = boxesOnCrop(notes, system.page, box);
-            const recipe: MarkedCropRecipe = {
-              crop: { straight: straight(system.pageIndex), box, crop: CROP_VERSION, limit, scale: SCALE_VERSION },
-              boxes: on.map((b) => b.box),
-              labels: on.map((b) => (b.note.kind === "issue" ? String(b.note.issue.id) : "")),
-              draw: DRAW_VERSION,
-            };
+            const recipe = markedCropRecipe(cropRecipe(straight(system.pageIndex), box, limit), system.page, startIssues.values());
             images.push({ type: "text", text: caption }, await requestImage(recipe, markedCrop));
           };
           if (previous) await add(`Previous system (${previous.number}):`, previous, systemCropBox(previous.layout));

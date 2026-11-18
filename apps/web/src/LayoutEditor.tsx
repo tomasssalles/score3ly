@@ -6,7 +6,7 @@
 // numbered top to bottom, continuing from page to page. Each change is saved at once; undo and redo per page.
 
 import { useRemembered } from "./ExtractionView";
-import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
+import { LAYOUT_COLOR_HEX } from "@score3ly/imaging";
 import type { LayoutSystem } from "@score3ly/core";
 import { useEffect, useRef, useState } from "react";
 import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
@@ -45,7 +45,7 @@ import {
 import { ImagesDiffer } from "./ImagesDiffer";
 import { keepFingerprintOnce, straightPage } from "./pageImages";
 import { useSaver } from "./saving";
-import type { PageRecipe } from "./rasterize";
+import { straightRecipe, type PageRecipe } from "./recipes";
 
 export type LayoutEditorPage = { page: number; recipe: PageRecipe; layoutSha256: string; item: string; parentId: string };
 
@@ -116,7 +116,7 @@ export function LayoutEditor({
         { item, type: "layout", contentSha256: sha256, parentOutputId: page.parentId, inputIds: [page.parentId] },
       ]);
       // The boxes are drawn on this image: its fingerprint is kept (§8.3), once per session, apart from the save.
-      const straight = { page: page.recipe, angle: layout.angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
+      const straight = straightRecipe(page.recipe, layout.angle);
       void keepFingerprintOnce(straight, () => straightPage(straight));
     });
   }
@@ -189,7 +189,7 @@ function PageEditor({
   const [marks, setMarks] = useRemembered<"shown" | "hidden">("score3ly.fixLayout.marks", "shown", ["shown", "hidden"]);
   const hidden = marks === "hidden";
   const { image, error: imageError } = usePageImage(
-    () => straightPage({ page: page.recipe, angle: layout.angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION }),
+    () => straightPage(straightRecipe(page.recipe, layout.angle)),
     page.item,
   );
   // While something is dragged: the systems as they are, not yet a change.

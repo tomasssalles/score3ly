@@ -35,7 +35,7 @@ import {
 import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./icons";
 import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
-import type { PageRecipe } from "./rasterize";
+import type { PageRecipe } from "./recipes";
 
 export function MetadataView({ project, artifact, onEdited }: { project: Project; artifact: Artifact; onEdited?: () => void }) {
   const analysis = artifact.analysis!;
