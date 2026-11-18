@@ -2,6 +2,8 @@
 // id>/llm`; docs/llm.md): the request, the call's place, its progress and its answer. The provider port's own shapes (the
 // Worker's `LlmRequest`, `LlmContent`) are apart: these are the wire's.
 
+import type { JsonSchema } from "../jsonSchema.ts";
+
 // The image types a request may carry.
 export const IMAGE_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ImageMediaType = (typeof IMAGE_MEDIA_TYPES)[number];
@@ -22,7 +24,7 @@ export type CallRequest = {
   system?: string;
   messages: { role: "user" | "assistant"; content: CallContent[] }[];
   maxOutputTokens?: number;
-  jsonSchema?: Record<string, unknown>;
+  jsonSchema?: JsonSchema;
 };
 
 // Where a call belongs in its stage (docs/overview.md §12, "Each call records its place"): the item, in the outputs'

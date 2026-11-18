@@ -52,6 +52,6 @@ test("a staff goes to the model's form and back unchanged", () => {
 test("the schemas of review and apply_review: no nullable field but a voice's music", () => {
   assert.doesNotMatch(JSON.stringify(REVIEW_SCHEMA), /"null"/);
   assert.equal(JSON.stringify(APPLY_REVIEW_SCHEMA).match(/"null"/g)?.length, 1);
-  const voice = (APPLY_REVIEW_SCHEMA.properties.voices as { items: { properties: { music: { anyOf: unknown[] } } } }).items.properties.music;
+  const voice = (APPLY_REVIEW_SCHEMA.properties!.voices as { items: { properties: { music: { anyOf: unknown[] } } } }).items.properties.music;
   assert.deepEqual(voice.anyOf, [{ type: "string" }, { type: "null" }]);
 });

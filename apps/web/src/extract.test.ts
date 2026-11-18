@@ -42,13 +42,13 @@ test("the images' labels, which issue boxes name", () => {
 });
 
 test("the answer's schema and the checks agree on every list of values", () => {
-  const stretch = (EXTRACT_SCHEMA.properties.stretches as { items: { properties: Record<string, { enum?: string[]; anyOf?: { enum?: string[] }[] }> } }).items.properties;
+  const stretch = (EXTRACT_SCHEMA.properties!.stretches as { items: { properties: Record<string, { enum?: string[]; anyOf?: { enum?: string[] }[] }> } }).items.properties;
   // The class and the measure's kind are one value in the answer (lensFromExtract splits them).
   assert.deepEqual(new Set(stretch.class.enum), new Set([...MEASURE_KINDS.map((k) => `new-${k}`), ...STRETCH_CLASSES.filter((c) => c !== "new")]));
   assert.deepEqual(stretch.rightBarLine.enum, [...BAR_LINES]);
-  const groups = (EXTRACT_SCHEMA.properties.groups as { items: { properties: { symbol: { enum: string[] } } } }).items.properties;
+  const groups = (EXTRACT_SCHEMA.properties!.groups as { items: { properties: { symbol: { enum: string[] } } } }).items.properties;
   assert.deepEqual(groups.symbol.enum, [...GROUP_SYMBOLS]);
-  const issues = (EXTRACT_SCHEMA.properties.issues as { items: { properties: { class: { enum: string[] } } } }).items.properties;
+  const issues = (EXTRACT_SCHEMA.properties!.issues as { items: { properties: { class: { enum: string[] } } } }).items.properties;
   assert.deepEqual(issues.class.enum, [...ISSUE_CLASSES]);
 });
 

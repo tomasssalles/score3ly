@@ -5,7 +5,8 @@
 // one before it and the provider's prompt cache serves the shared part; then its own system: the crops with the
 // issues' boxes drawn on them, and a request. Code checks the answer as soon as it arrives (apps/web/src/review.ts).
 
-import { described, LENS_SCHEMA_PARTS as P, lensRecap, MUSIC } from "./extract.ts";
+import { LENS_SCHEMA_PARTS as P, lensRecap, MUSIC } from "./extract.ts";
+import { described, int, list, nullable, object, str } from "./schema.ts";
 import { issueFromModel, orNull } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
@@ -77,54 +78,44 @@ export function reviewText(request: unknown): string {
   return `Review this system. The request:\n${JSON.stringify(request)}`;
 }
 
-const str = { type: "string" };
-const int = { type: "integer" };
-
-function object(properties: Record<string, unknown>) {
-  return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
-}
-
 const reason = described(str, '"", unless it adds something a reader wouldn\'t see by themselves.');
 
 export const REVIEW_SCHEMA = object({
   entries: described(
-    {
-      type: "array",
-      items: {
-        anyOf: [
-          object({
-            choice: described(
-              object({
-                issue: described(int, "The issue's id."),
-                key: described(str, 'An existing answer\'s key, or "" when you give newAnswer.'),
-                newAnswer: described(str, 'The text of an answer that isn\'t in the list, or "" when you give key. Exactly one of key and newAnswer.'),
-                reason,
-              }),
-              "A choice on an existing issue with a box on your system, never a resolved one. It must change the chosen answer.",
-            ),
-          }),
-          object({
-            newIssue: described(
-              object({
-                boxes: described(P.issueBoxes, "One or more boxes, each on one of the images you were sent; at least one on your system."),
-                location: P.location,
-                question: described(str, 'What the page says at this place, as a plain sentence a musician understands, naming places by measure ("m. 23"). Never refers to the transcription.'),
-                answers: described(
-                  { type: "array", items: object({ key: P.answerKey, text: P.answerText }) },
-                  "At least two: one for what the transcription has now, one for what you think is right.",
-                ),
-                applied: described(str, "The key of the answer the transcription has now."),
-                chosen: described(str, "The key of the answer you think is right. It differs from applied."),
-                reason,
-                class: P.issueClass,
-                lilypond: P.lilypond,
-              }),
-              "A new issue, for a correction you want or a doubt or gap of the format nobody raised. Never about what a resolved issue settled.",
-            ),
-          }),
-        ],
-      },
-    },
+    list({
+      anyOf: [
+        object({
+          choice: described(
+            object({
+              issue: described(int, "The issue's id."),
+              key: described(str, 'An existing answer\'s key, or "" when you give newAnswer.'),
+              newAnswer: described(str, 'The text of an answer that isn\'t in the list, or "" when you give key. Exactly one of key and newAnswer.'),
+              reason,
+            }),
+            "A choice on an existing issue with a box on your system, never a resolved one. It must change the chosen answer.",
+          ),
+        }),
+        object({
+          newIssue: described(
+            object({
+              boxes: described(P.issueBoxes, "One or more boxes, each on one of the images you were sent; at least one on your system."),
+              location: P.location,
+              question: described(str, 'What the page says at this place, as a plain sentence a musician understands, naming places by measure ("m. 23"). Never refers to the transcription.'),
+              answers: described(
+                list(object({ key: P.answerKey, text: P.answerText })),
+                "At least two: one for what the transcription has now, one for what you think is right.",
+              ),
+              applied: described(str, "The key of the answer the transcription has now."),
+              chosen: described(str, "The key of the answer you think is right. It differs from applied."),
+              reason,
+              class: P.issueClass,
+              lilypond: P.lilypond,
+            }),
+            "A new issue, for a correction you want or a doubt or gap of the format nobody raised. Never about what a resolved issue settled.",
+          ),
+        }),
+      ],
+    }),
     "Your choices and new issues, in any order; an empty list for a clean system.",
   ),
 });

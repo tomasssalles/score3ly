@@ -8,7 +8,8 @@
 // system, or two when an issue reaches the next): the crops with the issues' boxes drawn on them, and a request. Code
 // checks the answer as soon as it arrives (apps/web/src/applyReview.ts).
 
-import { described, LENS_SCHEMA_PARTS as P, lensRecap, MUSIC } from "./extract.ts";
+import { LENS_SCHEMA_PARTS as P, lensRecap, MUSIC } from "./extract.ts";
+import { described, int, list, nullable, object, str } from "./schema.ts";
 import { orNull, groupFromModel, staffFromModel, stretchFromModel, voiceFromModel } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
@@ -67,23 +68,14 @@ export function applyReviewText(request: unknown): string {
   return `Apply these issues. The request:\n${JSON.stringify(request)}`;
 }
 
-const str = { type: "string" };
-const int = { type: "integer" };
-const nullable = (schema: object) => ({ anyOf: [schema, { type: "null" }] }); // a voice's music only
-
-function object(properties: Record<string, unknown>) {
-  return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
-}
-
 const system = described(int, "The system's number.");
 const stretch = described(int, "The stretch's number in its system.");
 const reason = described(str, '"" for a change under the boxes of the issues it applies; for a change outside them, why it is needed.');
 
 export const APPLY_REVIEW_SCHEMA = object({
   voices: described(
-    {
-      type: "array",
-      items: object({
+    list(
+      object({
         system,
         stretch,
         voice: P.voice,
@@ -92,13 +84,12 @@ export const APPLY_REVIEW_SCHEMA = object({
         music: described(nullable(str), 'The voice\'s music in the stretch, replaced whole: one string, as in "The music of a voice". Null removes the voice from the stretch.'),
         reason,
       }),
-    },
+    ),
     "The voices of stretches that change, each replaced whole; a voice not in the stretch yet is added.",
   ),
   stretches: described(
-    {
-      type: "array",
-      items: object({
+    list(
+      object({
         system,
         stretch,
         class: P.class,
@@ -110,33 +101,31 @@ export const APPLY_REVIEW_SCHEMA = object({
         rightBarLine: P.rightBarLine,
         reason,
       }),
-    },
+    ),
     "The other fields of the stretches that change, all of them replaced (their voices stay).",
   ),
   systems: described(
-    {
-      type: "array",
-      items: object({
+    list(
+      object({
         system,
         startRepeat: P.startRepeat,
-        staves: described({ type: "array", items: P.staff }, "The system's staves, top to bottom."),
-        groups: described({ type: "array", items: P.group }, "The braces and brackets that join staves."),
+        staves: described(list(P.staff), "The system's staves, top to bottom."),
+        groups: described(list(P.group), "The braces and brackets that join staves."),
         lastMeasureContinues: P.lastMeasureContinues,
         reason,
       }),
-    },
+    ),
     "The fields of the systems that change, all of them replaced (their stretches stay).",
   ),
   choices: described(
-    {
-      type: "array",
-      items: object({
+    list(
+      object({
         issue: described(int, "The issue's id."),
         key: described(str, 'The issue\'s applied answer (what the transcription has now); for an issue whose applied is null, the answer that says what the transcription has, or "" when none does.'),
         newAnswer: described(str, '"", or, where key is "", a short text that says what the transcription has, about the page.'),
         reason: described(str, "What makes the chosen answer impossible to apply, for a musician who reads it in the app. Disagreeing is never a reason."),
       }),
-    },
+    ),
     "The issues you can't apply as given, reverted. Only when it truly can't be done; every other issue to apply counts as applied.",
   ),
 });

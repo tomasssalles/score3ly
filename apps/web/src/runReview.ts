@@ -178,7 +178,7 @@ export async function runReview(run: StageRun): Promise<void> {
           system: REVIEW_SYSTEM,
           messages: [{ role: "user", content: [scorePart, issuesPart, ...log, ...images, { type: "text", text: reviewText(request) }] }],
           maxOutputTokens: REVIEW_MAX_OUTPUT_TOKENS,
-          jsonSchema: REVIEW_SCHEMA as unknown as Record<string, unknown>,
+          jsonSchema: REVIEW_SCHEMA,
         };
 
         const kept = s.number > 1 ? ` The review of systems 1–${s.number - 1} is kept.` : "";

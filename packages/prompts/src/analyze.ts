@@ -4,6 +4,7 @@
 // are named by the labels drawn on the pages: "system 17, bar line 4", "system 17, stretch 2", "system 17, end".
 
 import { schemaProblem, type JsonSchema, type Problem } from "@score3ly/core";
+import { described, enumOf, int, list, nullable, object, str } from "./schema.ts";
 
 // Raise whenever the texts, the schemas or the checks change.
 export const ANALYZE_PROMPT_VERSION = 7;
@@ -345,26 +346,16 @@ function nestedScore(items: FlatScoreItem[]): ScoreObservations {
   return lists as unknown as ScoreObservations;
 }
 
-const str = { type: "string" };
-const int = { type: "integer" };
-
-function object(properties: Record<string, JsonSchema>) {
-  return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
-}
-
-// A schema with its description, which the model reads beside the field: short, in the prompt's words, so that it
-// points back to the prompt's longer explanations rather than repeating them.
-const described = <T extends object>(schema: T, description: string) => ({ ...schema, description });
-const nullable = (schema: object, description: string) => ({ anyOf: [schema, { type: "null" }], description });
-const list = (properties: Record<string, JsonSchema>, description: string) => described({ type: "array", items: object(properties) }, description);
+// A list of objects, with its description.
+const objects = (properties: Record<string, JsonSchema>, description: string) => described(list(object(properties)), description);
 
 const confidence = described(
-  { type: "string", enum: [...CONFIDENCES] },
+  enumOf(CONFIDENCES),
   '"high": clearly legible or clearly right; "medium": a reasonable guess; "low": very unsure (stained, faded, cut off).',
 );
 const place = object({
   system: described(int, "The system's number, from its label."),
-  at: described({ type: "string", enum: [...PLACE_KINDS] }, "Where in the system: its start, one of its bar lines, a stretch, or its end."),
+  at: described(enumOf(PLACE_KINDS), "Where in the system: its start, one of its bar lines, a stretch, or its end."),
   number: described(int, "The bar line's or the stretch's number, read from the labels; 0 for start and end."),
 });
 const staff = described(
@@ -376,11 +367,11 @@ const staff = described(
 );
 
 const metadataSchema = (extra: Record<string, JsonSchema> = {}) =>
-  list(
+  objects(
     {
-      category: described({ type: "string", enum: METADATA_CATEGORIES }, "What the item is: one of the categories of the metadata."),
+      category: described(enumOf(METADATA_CATEGORIES), "What the item is: one of the categories of the metadata."),
       text: described(str, "As printed, in the page's language and spelling. For a person, the name, with the printed role in parentheses where it says more."),
-      system: nullable(int, "For a piece: the system where it starts. Null for every other category."),
+      system: described(nullable(int), "For a piece: the system where it starts. Null for every other category."),
       ...extra,
       confidence,
     },
@@ -391,24 +382,24 @@ const metadataSchema = (extra: Record<string, JsonSchema> = {}) =>
 function pageObservationsSchema(extra: Record<string, JsonSchema> = {}, description: string) {
   return described(
     object({
-      systems: list(
+      systems: objects(
         {
           ...extra,
           system: described(int, "The system's number, from its label."),
           staves: described(int, "Its number of staves."),
-          instruments: described({ type: "array", items: str }, 'The probable instrument of each staff, top to bottom ("piano right hand", "violin", "voice").'),
+          instruments: described(list(str), 'The probable instrument of each staff, top to bottom ("piano right hand", "violin", "voice").'),
           confidence,
         },
         "Every system on the page.",
       ),
-      items: list(
+      items: objects(
         {
           ...extra,
-          kind: described({ type: "string", enum: OBSERVATION_KINDS }, "What the item is: one of the kinds of observations."),
+          kind: described(enumOf(OBSERVATION_KINDS), "What the item is: one of the kinds of observations."),
           text: described(str, 'What it is, as its kind says ("bass clef", "3/4", the sign or numbers as printed, the note); "" where the kind uses none.'),
-          staff: nullable(staff, "For a clef or an ottava, and a change on one staff only: its staff. Else null."),
-          start: nullable(place, "Its place, or where it starts. Null for a note, and for an ottava or ending that starts before this page."),
-          end: nullable(place, "Where an ottava or ending ends. Null where it ends after this page, and for an item at one place."),
+          staff: described(nullable(staff), "For a clef or an ottava, and a change on one staff only: its staff. Else null."),
+          start: described(nullable(place), "Its place, or where it starts. Null for a note, and for an ottava or ending that starts before this page."),
+          end: described(nullable(place), "Where an ottava or ending ends. Null where it ends after this page, and for an item at one place."),
           confidence,
         },
         "Everything else, one item per thing, each where it is printed, in any order. A field its kind doesn't use is null (the text \"\").",
@@ -432,12 +423,12 @@ export const ANALYZE_SCORE_SCHEMA = object({
     },
     "Corrections of the pages' systems and items (each whole, as it should be, with its id) and additions (id \"\"). Not the ones that are right.",
   ),
-  removals: described({ type: "array", items: str }, "The ids of the pages' systems and items that are wrong or duplicated."),
-  score: list(
+  removals: described(list(str), "The ids of the pages' systems and items that are wrong or duplicated."),
+  score: objects(
     {
-      kind: described({ type: "string", enum: SCORE_KINDS }, "What the item is about."),
+      kind: described(enumOf(SCORE_KINDS), "What the item is about."),
       text: str,
-      places: described({ type: "array", items: place }, "For recurringMaterial, its places; else an empty list."),
+      places: described(list(place), "For recurringMaterial, its places; else an empty list."),
       confidence,
     },
     "Observations about the whole score, one item per thing.",

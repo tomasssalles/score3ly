@@ -115,7 +115,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
       },
     ],
     maxOutputTokens: ANALYZE_SCORE_MAX_OUTPUT_TOKENS,
-    jsonSchema: ANALYZE_SCORE_SCHEMA as unknown as Record<string, unknown>,
+    jsonSchema: ANALYZE_SCORE_SCHEMA,
   });
   // Checked before the stage's first call that isn't served from the cache, with its images made.
   let sizeChecked: Promise<void> | null = null;
@@ -193,7 +193,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
               },
             ],
             maxOutputTokens: ANALYZE_PAGE_MAX_OUTPUT_TOKENS,
-            jsonSchema: ANALYZE_PAGE_SCHEMA as unknown as Record<string, unknown>,
+            jsonSchema: ANALYZE_PAGE_SCHEMA,
           };
           const answer = await ask(run, request, `Page ${page}`, { config, place: { item: pageItem(page), round: 1 }, beforeImages });
           const onPage = new Map(labels[i].map((n) => [n, allSystems.get(n)!]));

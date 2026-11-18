@@ -286,7 +286,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
             system: APPLY_REVIEW_SYSTEM,
             messages: [{ role: "user", content: [scorePart, issuesPart, ...log, ...images, { type: "text", text: applyReviewText(request) }] }],
             maxOutputTokens: APPLY_REVIEW_MAX_OUTPUT_TOKENS,
-            jsonSchema: APPLY_REVIEW_SCHEMA as unknown as Record<string, unknown>,
+            jsonSchema: APPLY_REVIEW_SCHEMA,
           };
 
           const kept = calls.size > 0 ? " The changes applied on the systems before it are kept." : "";

@@ -254,17 +254,3 @@ test("additions are on one of the pages, their places on that page", () => {
   assert.match(problem(checkScoreAnswer(added({ page: 2, ...change(2) }), full)), /system 2 isn't on page 2/);
   assert.match(problem(checkScoreAnswer(added({ page: 4, ...change(2) }), full)), /page 4, which isn't one of the pages/);
 });
-
-test("the schemas require every property and allow no others (for structured output)", () => {
-  const walk = (schema: Record<string, unknown>) => {
-    if (Array.isArray(schema.anyOf)) (schema.anyOf as Record<string, unknown>[]).forEach(walk);
-    if (schema.type === "object") {
-      assert.equal(schema.additionalProperties, false);
-      assert.deepEqual(schema.required, Object.keys(schema.properties as object));
-      Object.values(schema.properties as Record<string, Record<string, unknown>>).forEach(walk);
-    }
-    if (schema.type === "array") walk(schema.items as Record<string, unknown>);
-  };
-  walk(ANALYZE_PAGE_SCHEMA);
-  walk(ANALYZE_SCORE_SCHEMA);
-});

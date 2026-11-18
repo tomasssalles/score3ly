@@ -79,7 +79,7 @@ export async function runLayout(run: StageRun): Promise<void> {
           system: LAYOUT_SYSTEM,
           messages: [{ role: "user", content: [await requestImage(modelRecipe, modelPage), { type: "text", text: LAYOUT_FIRST }] }],
           maxOutputTokens: LAYOUT_MAX_OUTPUT_TOKENS,
-          jsonSchema: LAYOUT_SCHEMA as unknown as Record<string, unknown>,
+          jsonSchema: LAYOUT_SCHEMA,
         };
         let layout: LayoutAnswer | null = null;
         let callId = "";

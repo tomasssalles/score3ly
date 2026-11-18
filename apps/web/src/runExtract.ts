@@ -152,7 +152,7 @@ export async function runExtract(run: StageRun): Promise<void> {
             system: EXTRACT_SYSTEM,
             messages: [{ role: "user", content }],
             maxOutputTokens: EXTRACT_MAX_OUTPUT_TOKENS,
-            jsonSchema: EXTRACT_SCHEMA as unknown as Record<string, unknown>,
+            jsonSchema: EXTRACT_SCHEMA,
           };
 
           const kept = s.number > 1 ? ` The answers for systems 1–${s.number - 1} are kept.` : "";
