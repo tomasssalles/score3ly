@@ -226,6 +226,35 @@ test("multi-measure rests: every voice one, with the same count", () => {
   assert.match(unusable(s, context(1)), /every voice must be one, with the same count/);
 });
 
+// Marks that take no time are written in the voice they are printed at (a tempo mark, a segno, a breath mark, a change
+// of staff): a voice with one beside its multi-measure rest is still that rest alone.
+test("a multi-measure rest with a tempo mark or a sign in its voice is one all the same", () => {
+  for (const music of ['\\tempo "Allegro" R1*4', "\\segnoMark R1*4", "R1*4 \\breathe", '\\change Staff = "2" R1*4 \\change Staff = "1"', "\\clef bass \\stemDown R1*4"]) {
+    const s = system(2);
+    s.stretches[0].voices[0].music = music;
+    s.stretches[0].voices[1].music = "R1*4";
+    const checked = ok(s, context(2));
+    assert.equal(checked.state.count, 5, music);
+    assert.deepEqual(checked.warnings, [], music);
+  }
+});
+
+// A multi-measure rest with notes after it in its voice isn't one: it would count its measures, and the MEI would write
+// the notes after a `multiRest`.
+test("a multi-measure rest is its voice's only note or rest", () => {
+  for (const music of ["R1*2 c''4", "c''4 R1*2", "\\tuplet 3/2 { R1*2 }"]) {
+    const s = system(1);
+    s.stretches[0].voices[0].music = music;
+    s.stretches[0].voices[1].music = "R1*2";
+    assert.match(unusable(s, context(1)), /a multi-measure rest must be the only note or rest of its voice/, music);
+  }
+  // A whole-measure rest with notes beside it is no multi-measure rest, and stays usable.
+  const s = system(1);
+  s.stretches[0].voices[0].music = "R1 s4";
+  s.stretches[0].voices[1].music = "R1";
+  ok(s, context(1));
+});
+
 test("endings: contiguous and labelled, across systems too", () => {
   const s = system(2);
   s.stretches[0].ending = { startsHere: true, endsHere: false, label: "1." };

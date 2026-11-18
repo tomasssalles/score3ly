@@ -8,7 +8,7 @@ import { boxProblem, type Box } from "@score3ly/core";
 import { add, equal, less, show, ZERO, type Fraction } from "./fraction.ts";
 import { eventsDuration, durationValue, measureLength, parseKey, parseTime, type TimeSignature } from "./durations.ts";
 import { SpanTracker, type ClosedMark, type OpenMark } from "./spans.ts";
-import { measureStep } from "./structure.ts";
+import { measureStep, multiRest, stretchRest } from "./structure.ts";
 import { normalizeClef, parseVoice, walk, type Event, type Tempo } from "./symbolic.ts";
 
 export const STRETCH_CLASSES = ["none", "new", "continues"] as const;
@@ -246,11 +246,16 @@ function checkStructure(answer: LensSystem, context: SystemContext, before: Scor
     }
   }
 
-  // Multi-measure rests: every voice of the stretch is one, with the same count, and the next stretch doesn't
-  // continue the stretch's measures.
+  // Multi-measure rests: each its voice's only note or rest, every voice of the stretch one, with the same count, and
+  // the next stretch doesn't continue the stretch's measures.
   for (const s of answer.stretches) {
-    const rests = s.voices.map((v) => voices.get(`${s.stretch}/${v.voice}`)!.filter((e) => e.e !== "clef" && e.e !== "ottava" && e.e !== "stem"));
-    const counts = rests.map((events) => (events.length === 1 && events[0].e === "measureRest" ? events[0].count : null));
+    for (const v of s.voices) {
+      const events = voices.get(`${s.stretch}/${v.voice}`)!;
+      if (!multiRest(events) && [...walk(events)].some((e) => e.e === "measureRest" && e.count > 1)) {
+        fail(`stretch ${s.stretch}, voice ${v.voice}: a multi-measure rest must be the only note or rest of its voice`);
+      }
+    }
+    const counts = s.voices.map((v) => multiRest(voices.get(`${s.stretch}/${v.voice}`)!)?.count ?? null);
     const multi = counts.some((c) => c !== null && c > 1);
     if (!multi) continue;
     if (counts.some((c) => c !== counts[0])) fail(`stretch ${s.stretch}: with a multi-measure rest, every voice must be one, with the same count`);
@@ -402,7 +407,7 @@ function countMeasures(answer: LensSystem, context: SystemContext, before: Score
       continue;
     }
     const time = signatures.get(topStaff)!.time;
-    const multi = s.voices.map((v) => voices.get(`${s.stretch}/${v.voice}`)!).flatMap((events) => events.filter((e) => e.e === "measureRest"))[0];
+    const multi = stretchRest(s.voices.map((v) => voices.get(`${s.stretch}/${v.voice}`)!));
     if (step === "continue" && measure) {
       measure.length = add(measure.length, length);
       measure.places.push(here(s.stretch));
@@ -420,7 +425,7 @@ function countMeasures(answer: LensSystem, context: SystemContext, before: Score
         }
         offset = { value, at: here(s.stretch) };
       }
-      if (multi && multi.e === "measureRest" && multi.count > 1) {
+      if (multi) {
         count += multi.count;
         const parsedTime = time ? parseTime(time) : null;
         if (parsedTime && !equal(durationValue(multi.duration), measureLength(parsedTime))) {

@@ -201,3 +201,14 @@ test("every dynamic, pause and navigation sign the format has gets its MEI eleme
     assert.equal(found[0].children[0], text, name);
   }
 });
+
+// A tempo mark beside a multi-measure rest (D4 of the code review): the rest stays one `multiRest` for its four measures,
+// with the tempo mark as a control event.
+test("a multi-measure rest with a tempo mark in its voice is written as one, with the tempo", async () => {
+  const answer = system([stretch(1, [voice(1, 1, '\\tempo "Allegro" R1*4'), voice(2, 2, "R1*4")])], {}, true);
+  const root = buildMei(buildScore([{ number: 1, page: 1, box: box(0.1), barLines: [], answer }], [1]));
+  await assertValid(root);
+  assert.deepEqual(named(root, "multiRest").map((m) => attrOf(m, "num")), ["4", "4"]);
+  assert.deepEqual(named(root, "measure").map((m) => attrOf(m, "n")), ["1–4"]);
+  assert.equal(named(root, "tempo").length, 1);
+});

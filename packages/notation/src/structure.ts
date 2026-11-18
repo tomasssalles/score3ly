@@ -4,6 +4,7 @@
 // MEI (mei.ts).
 
 import type { LensStretch, LensSystem } from "./lens.ts";
+import type { Event } from "./symbolic.ts";
 
 // The systems grouped into pieces, in the score's order: a piece starts at each of `starts` (the `pieces` output, the
 // first system of every piece), and at the first system in any case.
@@ -36,4 +37,23 @@ export function trailingNoneStretches(answer: LensSystem): LensStretch[] {
 export function measureStep(stretch: Pick<LensStretch, "class">, open: boolean): "none" | "start" | "continue" {
   if (stretch.class === "none") return "none";
   return stretch.class === "new" || !open ? "start" : "continue";
+}
+
+type MeasureRest = Extract<Event, { e: "measureRest" }>;
+
+// What takes time in a voice, or holds what does: notes, chords, rests and the groups of them. Everything else is a
+// command or a mark printed where it stands (a clef, a tempo mark, a segno, a change of staff), which takes none.
+const NOTES_AND_RESTS: readonly Event["e"][] = ["note", "chord", "rest", "measureRest", "tuplet", "grace", "tremolo"];
+
+// A voice's whole-measure or multi-measure rest: its only note or rest is a measure rest (`R1`, `R1*4`), whatever
+// commands stand beside it; else null.
+export function multiRest(events: Event[]): MeasureRest | null {
+  const timed = events.filter((e) => NOTES_AND_RESTS.includes(e.e));
+  return timed.length === 1 && timed[0].e === "measureRest" ? timed[0] : null;
+}
+
+// A stretch's multi-measure rest, from its voices' events: the rest of the first voice that is one of more than one
+// measure (the checks make every voice the same), else null.
+export function stretchRest(voices: Event[][]): MeasureRest | null {
+  return voices.map(multiRest).find((r) => r !== null && r.count > 1) ?? null;
 }

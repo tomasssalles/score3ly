@@ -4,8 +4,10 @@
 // rule of the format. Durations, marks left open and the rest are worked out from the events (durations.ts,
 // spans.ts).
 
-// Raise whenever the format changes: what the prompt describes, what the parser accepts.
-export const LENS_VERSION = 3;
+// Raise whenever the format changes: what the prompt describes, what the parser and the checks accept.
+// 4: a multi-measure rest is its voice's only note or rest, commands beside it allowed; endings read over every
+// stretch, "none" ones too (the code review, batch 27).
+export const LENS_VERSION = 4;
 
 // The closed lists of tokens below are what the parser accepts, and also what `extract`'s prompt lists
 // (@score3ly/prompts, MUSIC, built from them): the two can't drift apart. Their order is the prompt's.

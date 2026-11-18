@@ -9,7 +9,7 @@ import { eventsDuration } from "./durations.ts";
 import type { Box } from "@score3ly/core";
 import type { LensStretch, LensSystem } from "./lens.ts";
 import { parseVoice, type Event } from "./symbolic.ts";
-import { measureStep, splitPieces } from "./structure.ts";
+import { measureStep, splitPieces, stretchRest } from "./structure.ts";
 
 // A system of the score: its number in the whole score, its page, its box on the (straightened) page and its inner
 // bar lines (fractions of the page, for the facsimile; null box when unknown), and its checked answer.
@@ -119,15 +119,6 @@ function pieceVoices(systems: ScoreSystemInput[]): { voice: number; description:
   return [...voices.entries()].sort((a, b) => a[0] - b[0]).map(([voice, description]) => ({ voice, description }));
 }
 
-// The multi-measure rest's count in a stretch, else 1.
-function restCount(s: ScoreStretch): number {
-  for (const run of s.runs) {
-    const rest = run.events.find((e) => e.e === "measureRest");
-    if (rest && rest.e === "measureRest") return rest.count;
-  }
-  return 1;
-}
-
 // The measures, from the classification: a "new" stretch starts one, "continues" adds to the one before (also across
 // a system break), "none" is part of none. A "continues" with no measure before it starts one of unknown kind (a
 // mismatch code raises as an issue).
@@ -145,7 +136,7 @@ function pieceMeasures(systems: ScoreSystemInput[], stretchOf: (system: number, 
       const step = measureStep(s, current !== null);
       if (step === "none") continue;
       if (step === "start" || current === null) {
-        current = { index: measures.length, n: 0, count: s.class === "new" ? restCount(stretchOf(system.number, s.stretch)) : 1, kind: s.class === "new" ? s.kind : null, parts: [{ system: system.number, stretches: [s.stretch] }], time: times.get(top) ?? null };
+        current = { index: measures.length, n: 0, count: s.class === "new" ? (stretchRest(stretchOf(system.number, s.stretch).runs.map((r) => r.events))?.count ?? 1) : 1, kind: s.class === "new" ? s.kind : null, parts: [{ system: system.number, stretches: [s.stretch] }], time: times.get(top) ?? null };
         measures.push(current);
         if (s.measureNumber !== null) printed.push({ index: current.index, number: s.measureNumber });
       } else {
