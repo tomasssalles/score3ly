@@ -11,7 +11,7 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { buildModelList, listChanges, modelListModule, type ProviderFile } from "../src/llm/generateModelList.ts";
-import { schemaProblems, type Schema } from "../src/llm/jsonSchema.ts";
+import { schemaProblems, type JsonSchema } from "@score3ly/core";
 import type { ModelList } from "../src/llm/models.ts";
 
 const workerDir = join(import.meta.dirname, "..");
@@ -19,12 +19,12 @@ const dataDir = join(workerDir, "model-list");
 const modulePath = join(workerDir, "src", "llm", "modelList.ts");
 const check = parseArgs({ options: { check: { type: "boolean", default: false } } }).values.check;
 
-const schema = JSON.parse(readFileSync(join(dataDir, "schema.json"), "utf8")) as Schema;
+const schema = JSON.parse(readFileSync(join(dataDir, "schema.json"), "utf8")) as JsonSchema;
 const files: ProviderFile[] = [];
 let failed = false;
 for (const name of readdirSync(dataDir).filter((f) => f.endsWith(".json") && f !== "schema.json").sort()) {
   const content = JSON.parse(readFileSync(join(dataDir, name), "utf8"));
-  const problems = schemaProblems(schema, content);
+  const problems = schemaProblems(schema, content, "$");
   if (problems.length > 0) {
     failed = true;
     console.error(`${name}:\n${problems.map((p) => `  ${p}`).join("\n")}`);

@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildModelList, listChanges, modelListModule, type ProviderFile } from "./generateModelList.ts";
-import { schemaProblems, type Schema } from "./jsonSchema.ts";
 import { MODEL_LIST } from "./modelList.ts";
+import { schemaProblems, type JsonSchema } from "@score3ly/core";
 import type { ModelList } from "./models.ts";
 
 const dataDir = join(import.meta.dirname, "..", "..", "model-list");
-const schema = JSON.parse(readFileSync(join(dataDir, "schema.json"), "utf8")) as Schema;
+const schema = JSON.parse(readFileSync(join(dataDir, "schema.json"), "utf8")) as JsonSchema;
 const files = readdirSync(dataDir)
   .filter((f) => f.endsWith(".json") && f !== "schema.json")
   .sort()
@@ -34,7 +34,7 @@ const bedrock = file("bedrock", {
 
 test("every file in model-list fits the schema, and the committed module is what they give", () => {
   assert.ok(files.length >= 4);
-  for (const f of files) assert.deepEqual(schemaProblems(schema, f), [], f.provider);
+  for (const f of files) assert.deepEqual(schemaProblems(schema, f, "$"), [], f.provider);
   const built = buildModelList(files, MODEL_LIST);
   assert.ok("list" in built, "problems" in built ? built.problems.join("\n") : "");
   assert.equal(modelListModule(built.list), readFileSync(join(import.meta.dirname, "modelList.ts"), "utf8"), "run `npm run model-list -w apps/worker`");
@@ -49,15 +49,15 @@ test("the schema's problems are found, each with its path", () => {
     regions: [{ region: "", routings: "global" }],
     prices: [{ model: "big", region: "", routing: null, input: -1, output: 20, cacheRead: 0.2, cacheWrite: 5 }],
   };
-  assert.deepEqual(schemaProblems(schema, broken), [
-    '$.provider: expected one of "anthropic", "bedrock", "ai-studio", "vertex", "openrouter", "fake", "fake-dev", found "openai"',
-    "$.collectedAt: doesn't match ^\\d{4}-\\d{2}-\\d{2}$",
-    "$.sources[0]: unexpected extra",
-    "$.models[0].id: doesn't match ^[a-z0-9][a-z0-9.-]*$",
-    "$.models[0].name: shorter than 1",
-    "$.regions[0].routings: expected array or null, found string",
-    "$.prices[0]: missing source",
-    "$.prices[0].input: below 0",
+  assert.deepEqual(schemaProblems(schema, broken, "$"), [
+    "$.provider isn't one of anthropic, bedrock, ai-studio, vertex, openrouter, fake, fake-dev",
+    "$.collectedAt doesn't match ^\\d{4}-\\d{2}-\\d{2}$",
+    "$.sources[0] has an unexpected extra",
+    "$.models[0].id doesn't match ^[a-z0-9][a-z0-9.-]*$",
+    "$.models[0].name is shorter than 1",
+    "$.regions[0].routings isn't a list or null",
+    "$.prices[0].input is below 0",
+    "$.prices[0].source isn't text",
   ]);
 });
 

@@ -3,6 +3,8 @@
 // bar lines numbered within their system), then one call for the whole score that merges the pages' results. Places
 // are named by the labels drawn on the pages: "system 17, bar line 4", "system 17, stretch 2", "system 17, end".
 
+import { schemaProblem, type JsonSchema, type Problem } from "@score3ly/core";
+
 // Raise whenever the texts, the schemas or the checks change.
 export const ANALYZE_PROMPT_VERSION = 7;
 
@@ -89,8 +91,6 @@ export type ScoreObservations<Extra = object> = {
   notesForTranscription: (TextItem & Extra)[];
 };
 export const SCORE_LISTS: (keyof ScoreObservations)[] = ["instrumentation", "style", "form", "recurringMaterial", "notesForTranscription"];
-
-type Problem = { problem: string };
 
 export type PageAnswer = { metadata: PageMetadata; observations: PageObservations };
 
@@ -348,7 +348,7 @@ function nestedScore(items: FlatScoreItem[]): ScoreObservations {
 const str = { type: "string" };
 const int = { type: "integer" };
 
-function object(properties: Record<string, unknown>) {
+function object(properties: Record<string, JsonSchema>) {
   return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
 }
 
@@ -356,7 +356,7 @@ function object(properties: Record<string, unknown>) {
 // points back to the prompt's longer explanations rather than repeating them.
 const described = <T extends object>(schema: T, description: string) => ({ ...schema, description });
 const nullable = (schema: object, description: string) => ({ anyOf: [schema, { type: "null" }], description });
-const list = (properties: Record<string, unknown>, description: string) => described({ type: "array", items: object(properties) }, description);
+const list = (properties: Record<string, JsonSchema>, description: string) => described({ type: "array", items: object(properties) }, description);
 
 const confidence = described(
   { type: "string", enum: [...CONFIDENCES] },
@@ -375,7 +375,7 @@ const staff = described(
   "Staff k of n in its system.",
 );
 
-const metadataSchema = (extra: Record<string, unknown> = {}) =>
+const metadataSchema = (extra: Record<string, JsonSchema> = {}) =>
   list(
     {
       category: described({ type: "string", enum: METADATA_CATEGORIES }, "What the item is: one of the categories of the metadata."),
@@ -388,7 +388,7 @@ const metadataSchema = (extra: Record<string, unknown> = {}) =>
   );
 
 // The page's systems and items, each with `extra` (an id, a page).
-function pageObservationsSchema(extra: Record<string, unknown> = {}, description: string) {
+function pageObservationsSchema(extra: Record<string, JsonSchema> = {}, description: string) {
   return described(
     object({
       systems: list(
@@ -553,42 +553,6 @@ export function stavesProblem(o: StavesOf, systemsOnPage: number[]): string | nu
   return null;
 }
 
-function shapeProblem(value: unknown, schema: Record<string, unknown>, path: string): string | null {
-  if (Array.isArray(schema.anyOf)) {
-    const problems = (schema.anyOf as Record<string, unknown>[]).map((option) => shapeProblem(value, option, path));
-    return problems.includes(null) ? null : problems[0];
-  }
-  if (Array.isArray(schema.enum)) return schema.enum.includes(value) ? null : `${path} isn't one of ${schema.enum.join(", ")}`;
-  switch (schema.type) {
-    case "object": {
-      if (typeof value !== "object" || value === null || Array.isArray(value)) return `${path} isn't an object`;
-      for (const [key, sub] of Object.entries(schema.properties as Record<string, Record<string, unknown>>)) {
-        const problem = shapeProblem((value as Record<string, unknown>)[key], sub, path ? `${path}.${key}` : key);
-        if (problem) return problem;
-      }
-      return null;
-    }
-    case "array": {
-      if (!Array.isArray(value)) return `${path} isn't a list`;
-      for (const [i, item] of value.entries()) {
-        const problem = shapeProblem(item, schema.items as Record<string, unknown>, `${path}[${i}]`);
-        if (problem) return problem;
-      }
-      return null;
-    }
-    case "string":
-      return typeof value === "string" ? null : `${path} isn't text`;
-    case "integer":
-      return Number.isInteger(value) ? null : `${path} isn't a whole number`;
-    case "boolean":
-      return typeof value === "boolean" ? null : `${path} isn't true or false`;
-    case "null":
-      return value === null ? null : `${path} isn't null`;
-    default:
-      return null;
-  }
-}
-
 // The answer with the start and the end of every place numbered 0, whatever the model gave.
 function normalized<T>(value: T): T {
   if (Array.isArray(value)) return value.map(normalized) as T;
@@ -619,7 +583,7 @@ function metadataProblem(metadata: Metadata<{ page?: number }>, context: Analyze
 // context's systems are the page's), and its staves.
 // Returns the reason it can't be used, or the answer in its lists.
 export function checkPageAnswer(json: unknown, context: AnalyzeContext): PageAnswer | Problem {
-  const shape = shapeProblem(json, ANALYZE_PAGE_SCHEMA, "");
+  const shape = schemaProblem(ANALYZE_PAGE_SCHEMA, json);
   if (shape) return { problem: `the answer doesn't have the expected form: ${shape}` };
   const flat = normalized(json as FlatPageAnswer);
   const metadata = nestedMetadata(flat.metadata);
@@ -641,7 +605,7 @@ export function checkPageAnswer(json: unknown, context: AnalyzeContext): PageAns
 // on its page. Whether the staves agree is checked on the pages as corrected (stavesProblem).
 // Returns the reason it can't be used, or the answer in its lists.
 export function checkScoreAnswer(json: unknown, context: AnalyzeContext): ScoreAnswer | Problem {
-  const shape = shapeProblem(json, ANALYZE_SCORE_SCHEMA, "");
+  const shape = schemaProblem(ANALYZE_SCORE_SCHEMA, json);
   if (shape) return { problem: `the answer doesn't have the expected form: ${shape}` };
   const flat = normalized(json as FlatScoreAnswer);
   const items = context.items ?? new Map<string, { list: PageList; page: number }>();
