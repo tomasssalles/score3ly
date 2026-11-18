@@ -64,8 +64,9 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
   const started = await startStage(project, stage.id, start);
   if (started.reused) return;
   const { runId } = started;
-  // A failed or interrupted run's outputs stay: only the missing items are made.
-  const recorded = new Map(stage.outputs.map((o) => [`${o.type}\u0000${o.item}`, o]));
+  // A failed or interrupted run's outputs stay: only the missing items are made. Unless that run had another key (the
+  // app was updated meanwhile): then the Worker dropped them, and every item is made again.
+  const recorded = new Map(started.keptOutputs ? stage.outputs.map((o) => [`${o.type}\u0000${o.item}`, o]) : []);
   const final: FinalOutput[] = [];
   const heartbeat = setInterval(() => sendHeartbeat(project, stage.id, runId).catch(() => {}), HEARTBEAT_MS);
   try {

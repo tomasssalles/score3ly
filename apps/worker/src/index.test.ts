@@ -657,7 +657,7 @@ test("a stage runs: started, outputs recorded as they are done, finished", async
   const { response, ingest, rasterize } = await startRasterize(project.id);
   assert.equal(response.status, 200);
   const answer = (await response.json()) as { reused: boolean; stageId: string; runId: string };
-  assert.deepEqual({ ...answer, runId: typeof answer.runId }, { reused: false, stageId: rasterize.id, runId: "string" });
+  assert.deepEqual({ ...answer, runId: typeof answer.runId }, { reused: false, stageId: rasterize.id, runId: "string", keptOutputs: true });
 
   let [, running] = await pipelineOf(project.id);
   assert.equal(running.status, "running");
@@ -759,6 +759,31 @@ test("a run that is over can't write: a stale run's outputs, heartbeat and end a
   assert.equal((await call(project.id, rasterize.id, "heartbeat", { runId: second })).status, 204);
   assert.equal((await call(project.id, rasterize.id, "finish", { status: "done", runId: second })).status, 204);
   assert.equal((await pipelineOf(project.id))[1].status, "done");
+});
+
+// Found 2026-11-17 (the code review, 06 #9): a failed stage retried after an update of the app (another step version or
+// prompt, so another stage key) kept the old run's items under the new key, for a later run with that key to reuse.
+test("a failed run's outputs are kept for a retry under the same key, and dropped under another", async () => {
+  const project = await createdProject("sonata.pdf");
+  const { rasterize, ingest } = await startRasterize(project.id);
+  const output = { outputs: [{ item: "p1", type: "page_image", recipeKey: RECIPE_KEY(1), inputIds: [ingest.outputs[0].id] }] };
+  await call(project.id, rasterize.id, "outputs", output);
+  await call(project.id, rasterize.id, "finish", { status: "failed", error: "Out of memory" });
+
+  const same = await startRasterize(project.id);
+  assert.equal(((await same.response.json()) as { keptOutputs: boolean }).keptOutputs, true);
+  assert.deepEqual((await pipelineOf(project.id))[1].outputs.map((o) => o.item), ["p1"]);
+  await call(project.id, rasterize.id, "finish", { status: "failed", error: "Out of memory" });
+
+  const other = await startRasterize(project.id, RECIPE_KEY(8));
+  assert.equal(((await other.response.json()) as { keptOutputs: boolean }).keptOutputs, false);
+  assert.deepEqual((await pipelineOf(project.id))[1].outputs, []);
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM output_inputs").first<{ n: number }>())?.n, 0);
+  // What it reads is recorded anew.
+  assert.deepEqual(
+    (await env.DB.prepare("SELECT output_id FROM stage_inputs WHERE stage_id = ?").bind(rasterize.id).all<{ output_id: string }>()).results.map((r) => r.output_id),
+    [ingest.outputs[0].id],
+  );
 });
 
 test("a planned stage's config is set in place; a finished stage's config replaces it with a planned one", async () => {

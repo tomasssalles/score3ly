@@ -169,7 +169,18 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       .bind(stepVersion, JSON.stringify(config), modelConfigId, stageKey, pageCount, iso, iso, runId, iso, sid, staleBefore(now.getTime()))
       .run();
     if (claimed.meta.changes !== 1) return cantStart("running");
+    // An earlier run's outputs (it failed or was interrupted) are kept for this one to resume from, unless that run had
+    // another key (the app was updated meanwhile: another step version or prompt): then its items, made by other code,
+    // are dropped, with what it read, and every item is made again (found 2026-11-17, the code review, 06 #9).
+    const keptOutputs = stage.stage_key === null || stage.stage_key === stageKey;
     await db.batch([
+      ...(keptOutputs
+        ? []
+        : [
+            db.prepare("DELETE FROM output_inputs WHERE output_id IN (SELECT id FROM outputs WHERE stage_id = ?)").bind(sid),
+            db.prepare("DELETE FROM outputs WHERE stage_id = ?").bind(sid),
+            db.prepare("DELETE FROM stage_inputs WHERE stage_id = ?").bind(sid),
+          ]),
       // A call of an earlier run of the stage still marked running (a closed tab) is over (docs/llm.md, "Stopped calls").
       closeRunningCalls(db, sid, iso, INTERRUPTED_CALL),
       ...inputIds.map((outputId: string) =>
@@ -177,7 +188,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       ),
       touchProject(db, pid, iso),
     ]);
-    return c.json<StartAnswer>({ reused: false, stageId: sid, runId });
+    return c.json<StartAnswer>({ reused: false, stageId: sid, runId, keptOutputs });
   });
 
   // Records outputs of a running stage, as soon as each is done (docs/overview.md §5.2), or of a WIP manual stage, as the
