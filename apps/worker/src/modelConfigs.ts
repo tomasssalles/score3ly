@@ -202,13 +202,10 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
     modelFamily = entry.family;
   } else {
     if (typeof modelString !== "string" || modelString.trim() === "") return "expected 'modelId', or 'modelString' with 'family'";
-    // A string the list has for this provider is a listed model: picked from the list, never added by hand.
+    // A string the list has for this provider is a listed model: picked from the list, never added by hand. (A model
+    // the list has with a string on a provider has a price there, `listProblems`; a retired one can be added.)
     const listed = modelByString(list, p, modelString.trim());
-    if (listed) {
-      return placesOf(list, listed.id, p).length > 0
-        ? `${listed.name} is in the app's list: pick it there`
-        : `The app no longer supports ${listed.name} on ${PROVIDER_NAMES[p]}`;
-    }
+    if (listed) return `${listed.name} is in the app's list: pick it there`;
     if (!supportedFamilies(p).includes(family as Family)) {
       return `'family' must be one the app supports on ${PROVIDER_NAMES[p]}: ${supportedFamilies(p).map((f) => FAMILY_NAMES[f]).join(", ")}`;
     }

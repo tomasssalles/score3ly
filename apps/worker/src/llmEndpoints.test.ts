@@ -7,7 +7,7 @@ import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList, type Provider } from "./llm/models.ts";
-import { convertAddedConfigs, modelOptions, secretNames, unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
+import { configProblem, convertAddedConfigs, modelOptions, secretNames, unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
 import { providerCost, spentInLastDay } from "./spending.ts";
 import { throttled, throttledProgress } from "./throttle.ts";
 import type { ModelOptions } from "@score3ly/core";
@@ -815,6 +815,23 @@ test("configs added by hand become listed ones when a new list has their string:
   ]);
   assert.equal(unsupportedOf(rows[3], undefined, list), null);
   assert.equal(unsupportedOf(rows[0], undefined, list), "uses Claude Opus 6 on Bedrock in us-east-1, which the app no longer supports");
+});
+
+test("a retired model's string can be added again by hand, as a model the list doesn't have (dec. 11), and stays so", async () => {
+  const list: ModelList = {
+    ...MODEL_LIST,
+    models: [...MODEL_LIST.models, { id: "claude-opus-3", name: "Claude Opus 3", family: "claude", strings: { anthropic: "claude-opus-3" }, retired: true }],
+  };
+  const body = { name: "Opus 3 by hand", provider: "anthropic", modelString: "claude-opus-3", family: "claude", region: "", secrets: { apiKey: "K" }, pricing: { kind: "unpriced" } };
+  assert.equal(configProblem(body, list), null);
+  await env.DB.prepare(
+    "INSERT INTO model_configs (id, name, provider, model_string, family, region, secrets_json, pricing_kind, created_at) VALUES ('opus-3', 'Opus 3 by hand', 'anthropic', 'claude-opus-3', 'claude', '', '{\"apiKey\":\"K\"}', 'unpriced', '2026-10-01')",
+  ).run();
+  await convertAddedConfigs(env.DB, list);
+  const row = (await env.DB.prepare("SELECT * FROM model_configs WHERE id = 'opus-3'").first<ModelConfigRow>())!;
+  assert.deepEqual([row.model_id, row.model_string, row.family], [null, "claude-opus-3", "claude"]);
+  assert.equal(unsupportedOf(row, undefined, list), null);
+  await env.DB.prepare("DELETE FROM model_configs WHERE id = 'opus-3'").run();
 });
 
 test("a stored config is supported when it is valid as a whole; otherwise the first part in the form's order that isn't says why", () => {

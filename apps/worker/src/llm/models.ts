@@ -102,9 +102,10 @@ export function modelById(list: ModelList, id: string): ModelEntry | null {
 }
 
 // The listed model a provider spells this way, if any: a config the user added becomes a listed one when a new list
-// has its string (docs/llm.md, "Configs").
+// has its string (docs/llm.md, "Configs"). Not a retired one (decided 2026-11-17, dec. 11): its string can be added by
+// hand again, as a model the list doesn't have, and stays so.
 export function modelByString(list: ModelList, provider: Provider, string: string): ModelEntry | null {
-  return list.models.find((m) => m.strings[provider] === string) ?? null;
+  return list.models.find((m) => !m.retired && m.strings[provider] === string) ?? null;
 }
 
 // A listed model's entries in the list's prices on a provider: where it is offered, with its price there (null where

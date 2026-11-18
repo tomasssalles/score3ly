@@ -129,6 +129,7 @@ test("the test's list has no problems", () => {
 test("a model's string depends on the provider", () => {
   assert.equal(modelByString(LIST, "bedrock", "anthropic.claude-small")?.id, "small");
   assert.equal(modelByString(LIST, "anthropic", "anthropic.claude-small"), null);
+  assert.equal(modelByString(LIST, "anthropic", "claude-old"), null); // retired: can be added by hand again (dec. 11)
 });
 
 test("a price is found by model, provider, region and routing", () => {
