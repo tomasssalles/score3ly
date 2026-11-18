@@ -44,6 +44,7 @@ The tasks below, in the file's order.
 - [Clean up the docs before the first release tag](#clean-up-the-docs-before-the-first-release-tag)
 - [Run the whole manual test suite before the first release tag](#run-the-whole-manual-test-suite-before-the-first-release-tag)
 - [The costs view: the order of long lists](#the-costs-view-the-order-of-long-lists)
+- [The costs view: mark costs from a borrowed price](#the-costs-view-mark-costs-from-a-borrowed-price)
 - [Heartbeats of manual stages being edited](#heartbeats-of-manual-stages-being-edited)
 - [Rethink the Statistics page as one concept](#rethink-the-statistics-page-as-one-concept)
 - [Zoom on the human review's screen](#zoom-on-the-human-reviews-screen)
@@ -246,6 +247,11 @@ Once, right before the first release tag: every story of `docs/manual-tests.md`,
 
 `docs/statistics.md`, "The costs view". **The order of the lists that grow** (projects, PDFs, configs) in the filters: today the most expensive first, over all time; to decide (sorting and searching the statistics' project lists are tasks of their own).
 
+### The costs view: mark costs from a borrowed price
+`#decision` `#owner`
+
+`docs/llm.md`, "Models the user adds, and their prices": the docs say the costs view marks the costs computed from a borrowed price (a model added by hand and priced as a listed one) as estimated from another model's, but nothing builds it (found by the code review, 2026-11-17). The calls keep the model the price was borrowed from (`price_json.borrowedFrom`), so the Worker could send it with the costs. To decide: build the mark (where, and how it reads), or drop the promise from the docs.
+
 ### Heartbeats of manual stages being edited
 `#optional` `#decision`
 
@@ -298,7 +304,7 @@ The Workers free plan allows 10 ms of CPU time per request; waiting for the prov
 - **The browser gets the call's progress since 2026-11-14** (`docs/llm.md`, "A call's progress"): the adapters read their streams as they arrive, and the Worker streams an event a second to the browser; measure with it.
 - **Gemini streams since 2026-11-12** (`docs/llm.md`, "Calling the providers"): the run on Debussy's first Arabesque with Gemini 3.1 Pro Preview on Vertex AI (2026-11-12) was measured with answers in one piece, so its `/llm` requests' CPU time doesn't carry over to a streamed answer (see candidate fix 2).
 - **Per request:** Workers Logs are on: every request with its CPU time, and since 2026-11-12 a log line of the Worker's own under it, with the step, the call's label and the answer (`docs/database.md`, "The Worker's logs"), since Cloudflare redacts the ids in URLs. **To check on the first deployment with it:** that Cloudflare leaves our lines readable (the shortened ids above all). Next: a run with a real model, looking at the `/llm` requests apart from the others (outputs, heartbeats).
-- **What the Worker does with an image today** (`apps/worker/src/llmRoutes.ts`): it parses the request with the image in base64, decodes it (`atob`) and hashes its bytes (`sha256Hex`) for the call record only, then hands the base64 to the adapter, which writes it into the provider's JSON body. Parsing the request once and writing the provider's body once can't be avoided; both are native string handling, roughly linear in megabytes.
+- **What the Worker does with an image today** (`apps/worker/src/llmCalls.ts`): it parses the request with the image in base64, decodes it (`atob`) and hashes its bytes (`sha256Hex`) for the call record only, then hands the base64 to the adapter, which writes it into the provider's JSON body. Parsing the request once and writing the provider's body once can't be avoided; both are native string handling, roughly linear in megabytes.
 - **Candidate fix 1: the browser sends each image's hash** with the image, so the Worker neither decodes nor hashes it. The browser has the bytes and hashes them for nothing (in a Web Worker). The only downside: the Worker records a hash it hasn't checked, so a bug in the browser could record a hash that doesn't match the bytes sent. The hash is only kept for checking the image later, never part of a key (keys use recipe keys), and the browser is trusted with far more anyway (it makes the images and runs every stage).
 - **Candidate fix 2: answers in one piece instead of streamed.** The adapters stream (`messages.stream(…).finalMessage()`; `docs/llm.md`: "so long answers don't hit timeouts"), so a long answer arrives as thousands of small events, each parsed apart in JavaScript, which may cost as much as the request. One response is one parse. Downsides: Anthropic's SDK may refuse a request without streaming when its expected duration is long (a large maximum of output tokens; to check); a connection silent for minutes risks being cut by something in between, which happened (2026-11-12): Cloudflare cuts a Worker's request that gets no response within 125 seconds (524), so this fix is out for long calls. Nothing is lost for progress: partial answers aren't shown.
 - **Strong candidate if the others aren't enough: the browser builds the provider's exact body** (the project owner, 2026-11-06), and the Worker adds the credentials and sends the bytes on without parsing them, so its CPU time per request hardly depends on the request's size. The costs:
@@ -874,5 +880,5 @@ Proposed by the project owner (2026-11-09). The list of model configs gets long 
 Stopping a stage cancels its LLM call down to the provider, and records the call as stopped, of unknown cost (built 2026-11-13, `docs/llm.md`, "Stopped calls"). What is left needs real calls and the providers' consoles; each check is one cheap call: a stage started on a slow model (an `extract` at high effort), stopped after a few seconds.
 - **On the deployed app, with the fake model `fake-slow`** (free): does the Worker learn that the browser went away (`enable_request_signal`), and does it live long enough to record it? Make a config with model string `fake-slow` on the Fake provider, start a stage, Stop after a few seconds: the Worker's log (Workers Logs) should show the `/llm` request ending at once, not after 30 s, and the call's row closed as stopped.
 - **Per provider (Anthropic, Bedrock, Google AI Studio, Vertex AI, OpenRouter):** is the call cancelled at the provider (its console or logs show it stopped, not finished), and what is it billed: nothing, the tokens produced until the stop, or the whole answer? OpenRouter is said to pass the cancellation on for some providers only.
-- **Per provider: can the usage so far be read after cancelling?** It usually comes at the end of the stream. If it can, record it and the cost so far instead of an unknown cost (`aborted` calls in `apps/worker/src/llmRoutes.ts`).
+- **Per provider: can the usage so far be read after cancelling?** It usually comes at the end of the stream. If it can, record it and the cost so far instead of an unknown cost (`aborted` calls in `apps/worker/src/llmCalls.ts`).
 - **If a provider bills the whole answer anyway,** say so somewhere the user sees it before stopping (the Stop button's tooltip, or the user guide).
