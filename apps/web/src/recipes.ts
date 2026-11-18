@@ -34,6 +34,12 @@ export function straightRecipe(page: PageRecipe, angle: number | null): Straight
   return { page, angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
 }
 
+// The recipe of the image a straightened page is: with no angle, the page image's (pageImages.ts makes no image of its
+// own then, so a fingerprint is kept and checked under the page image's key).
+export function straightImageRecipe(straight: StraightRecipe): PageRecipe | StraightRecipe {
+  return straight.angle === null ? straight.page : straight;
+}
+
 // A straightened page shrunk to a model's limits (`layout`, `analyze`). `scale` is the scaling code's version.
 export type ModelPageRecipe = { straight: StraightRecipe; limit: SizeLimit; scale: number };
 

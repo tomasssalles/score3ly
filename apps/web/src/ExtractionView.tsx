@@ -146,6 +146,10 @@ function useTranscription(artifact: Artifact, stageId: string | null): Loaded | 
           const system = layout?.systems[index - 1];
           if (!page || !layout || !system) return [];
           const shown = shownSystem(extraction, system);
+          // At the limit of a request with few images, the largest a model is sent. A system whose request had many
+          // images was sent smaller copies (requestLimits.ts, `imageLimitFor`): its crop here is sharper than the
+          // model's, and has no fingerprint of its own to be checked against. (Review's and Apply review's views show
+          // the plain crops, not the ones with the issues' boxes the model saw.)
           const recipe = cropRecipe(straightRecipe(page.recipe, layout.angle), shown.crop, CLAUDE_IMAGE_LIMIT);
           return [{ ...shown, recipe }];
         });

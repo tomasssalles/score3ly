@@ -45,7 +45,7 @@ import {
 import { ImagesDiffer } from "./ImagesDiffer";
 import { keepFingerprintOnce, straightPage } from "./pageImages";
 import { useSaver } from "./saving";
-import { straightRecipe, type PageRecipe } from "./recipes";
+import { straightImageRecipe, straightRecipe, type PageRecipe } from "./recipes";
 
 export type LayoutEditorPage = { page: number; recipe: PageRecipe; layoutSha256: string; item: string; parentId: string };
 
@@ -117,7 +117,7 @@ export function LayoutEditor({
       ]);
       // The boxes are drawn on this image: its fingerprint is kept (§8.3), once per session, apart from the save.
       const straight = straightRecipe(page.recipe, layout.angle);
-      void keepFingerprintOnce(straight, () => straightPage(straight));
+      void keepFingerprintOnce(straightImageRecipe(straight), () => straightPage(straight));
     });
   }
 

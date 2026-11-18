@@ -24,6 +24,7 @@ import {
   modelPageRecipe,
   pageRecipe,
   pdfRecipe,
+  straightImageRecipe,
   straightRecipe,
   type CropRecipe,
   type DrawnPageRecipe,
@@ -227,4 +228,11 @@ test("the images' recipes are what they were", async () => {
 
 test("recipes.ts's constructors give the same recipes", async () => {
   assert.deepEqual(await snapshot(constructed()), EXPECTED);
+});
+
+test("a straightened page with no angle is the page image", () => {
+  const page = pageRecipe(PDF, 3, 300, PDFJS);
+  assert.equal(straightImageRecipe(straightRecipe(page, null)), page);
+  const straight = straightRecipe(page, 0.25);
+  assert.equal(straightImageRecipe(straight), straight);
 });
