@@ -5,6 +5,7 @@
 // one before it and the provider's prompt cache serves the shared part; then its own system: the crops with the
 // issues' boxes drawn on them, and a request. Code checks the answer as soon as it arrives (apps/web/src/review.ts).
 
+import type { Box } from "@score3ly/core";
 import { lensRecap, MUSIC } from "./music.ts";
 import { described, int, list, nullable, object, str } from "./schema.ts";
 import { issueFromModel, LENS_SCHEMA_PARTS as P, orNull } from "./lensForm.ts";
@@ -122,7 +123,7 @@ export const REVIEW_SCHEMA = object({
 
 // The answer, as the code uses it: the model writes "" for a text with no value and an empty list of tokens on a reading
 // issue, which reviewFromModel makes null.
-export type ReviewBox = { image: string; box: { left: number; right: number; top: number; bottom: number } };
+export type ReviewBox = { image: string; box: Box };
 export type ReviewChoiceEntry = { choice: { issue: number; key: string | null; newAnswer: string | null; reason: string | null } };
 export type ReviewNewIssueEntry = {
   newIssue: {

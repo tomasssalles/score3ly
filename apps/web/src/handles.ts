@@ -1,7 +1,8 @@
 // The geometry of the page editors' handles (pageEditor.tsx draws them): where each is, and which one a pointer
 // takes hold of. Apart, so that the tests can import it without React.
 
-import { BOX_HANDLES, handlePoint, type Box, type BoxHandle } from "./fixLayout.ts";
+import type { Box } from "@score3ly/core";
+import { BOX_HANDLES, handlePoint, type BoxHandle } from "./fixLayout.ts";
 
 type Point = { x: number; y: number };
 

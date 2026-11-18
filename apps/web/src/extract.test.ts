@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkSystem, pieceStart } from "@score3ly/notation";
+import { buildMei, buildScore, checkSystem, elements, pieceStart } from "@score3ly/notation";
+import { richScore } from "@score3ly/notation/testScore";
 import { extractImageLabels } from "@score3ly/prompts";
-import { extractNote, onPage, pieceBounds, storedExtraction, stretchBox, stretchCropBoxes, systemCropBox } from "./extract.ts";
+import { extractNote, pieceBounds, storedExtraction, stretchBox, stretchCropBoxes, systemCropBox } from "./extract.ts";
 import { linkSpans, placeFor, systemHints } from "./linking.ts";
 import type { StoredObservations, StoredPage } from "./analyze.ts";
 
@@ -27,8 +28,17 @@ test("each stretch's crop reaches half into its neighbours", () => {
   assert.deepEqual(stretchBox(system, 2), { left: 0.3, right: 0.5, top: 0.2, bottom: 0.4 });
 });
 
-test("a box on a crop maps to the page exactly", () => {
-  assert.deepEqual(onPage({ left: 0.2, right: 0.6, top: 0.1, bottom: 0.3 }, { left: 0.5, right: 1, top: 0, bottom: 0.5 }), { left: 0.4, right: 0.6, top: 0.1, bottom: 0.2 });
+test("the MEI's zones and the stretch boxes issues point at have the same edges (core's stretchEdges)", () => {
+  const input = richScore();
+  const zones = [...elements(buildMei(buildScore(input, [1, 4])))].filter((e) => e.name === "zone");
+  assert.ok(zones.length > 0);
+  for (const zone of zones) {
+    const attr = (name: string) => zone.attrs.find(([k]) => k === name)?.[1];
+    const [, system, first, last] = /^z(\d+)t(\d+)-(\d+)$/.exec(String(attr("xml:id")))!.map(Number);
+    const layout = { box: input[system - 1].box!, barLines: input[system - 1].barLines };
+    assert.equal(Number(attr("ulx")), Math.round(stretchBox(layout, first).left * 10000), String(attr("xml:id")));
+    assert.equal(Number(attr("lrx")), Math.round(stretchBox(layout, last).right * 10000), String(attr("xml:id")));
+  }
 });
 
 test("pieces: a system begins or ends one", () => {

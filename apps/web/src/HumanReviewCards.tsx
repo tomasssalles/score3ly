@@ -1,7 +1,7 @@
 // What a human review in progress adds to its Transcription (docs/stages/music.md, `human_review`, "The screen"): an
 // issue's answers as a list to pick from, the user's own issues (clarifications) as cards, and boxes drawn on a crop.
 
-import type { Box } from "@score3ly/notation";
+import { onCrop, onPage, type Box } from "@score3ly/core";
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { AnswerTags } from "./ExtractionView";
@@ -343,8 +343,8 @@ export function DrawLayer({
   }, []);
   const w = crop.right - crop.left;
   const h = crop.bottom - crop.top;
-  const toCrop = (b: Box): Box => ({ left: (b.left - crop.left) / w, right: (b.right - crop.left) / w, top: (b.top - crop.top) / h, bottom: (b.bottom - crop.top) / h });
-  const toPage = (b: Box): Box => ({ left: crop.left + b.left * w, right: crop.left + b.right * w, top: crop.top + b.top * h, bottom: crop.top + b.bottom * h });
+  const toCrop = (b: Box) => onCrop(crop, b);
+  const toPage = (b: Box) => onPage(crop, b);
   const pointAt = (e: { clientX: number; clientY: number }): CropPoint => {
     const r = layer.current!.getBoundingClientRect();
     return { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) };

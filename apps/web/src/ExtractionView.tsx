@@ -10,7 +10,8 @@
 import { ImagesDiffer } from "./ImagesDiffer";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CLAUDE_IMAGE_LIMIT, CROP_VERSION, DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION, SCALE_VERSION } from "@score3ly/imaging";
-import { buildMei, serialize, type Box, type LensStretch, type Score } from "@score3ly/notation";
+import { buildMei, serialize, type LensStretch, type Score } from "@score3ly/notation";
+import { overlaps, type Box } from "@score3ly/core";
 import { failure, fetchJsonContent, putJson, recordOutputs, reserveIssueNumbers, type Project } from "./api";
 import { Filmstrip } from "./ArtifactView";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
@@ -500,9 +501,6 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
   );
 }
 
-// Whether two boxes on a page overlap (a clarification's box and a crop: its handles only on the crops it falls on).
-const overlaps = (a: Box, b: Box) => Math.min(a.right, b.right) > Math.max(a.left, b.left) && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
-
 // Starts work for an element once it scrolls near the view: a filmstrip of 50 systems would otherwise cut and render
 // every one at once.
 function useNear() {
@@ -554,7 +552,7 @@ function BoxOverlay({
   onPick,
   labelOf,
 }: {
-  boxes: { note: Note; box: { left: number; right: number; top: number; bottom: number }; k: number }[];
+  boxes: { note: Note; box: Box; k: number }[];
   colors: Map<string, string>;
   onPick: (key: string) => void;
   labelOf?: (note: Note, k: number) => { text: string; invalid: boolean } | null; // another label than the number

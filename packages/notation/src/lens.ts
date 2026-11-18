@@ -4,6 +4,7 @@
 // that runs on), and finds what is a question about the page (issues raised by code) or a problem of the extraction
 // (warnings).
 
+import { boxProblem, type Box } from "@score3ly/core";
 import { add, equal, less, show, ZERO, type Fraction } from "./fraction.ts";
 import { eventsDuration, durationValue, measureLength, parseKey, parseTime, type TimeSignature } from "./durations.ts";
 import { SpanTracker, type ClosedMark, type OpenMark } from "./spans.ts";
@@ -14,8 +15,6 @@ export const MEASURE_KINDS = ["normal", "incomplete", "unmeasured"] as const;
 export const BAR_LINES = ["single", "double", "final", "startRepeat", "endRepeat", "bothRepeats", "dashed", "none"] as const;
 export const GROUP_SYMBOLS = ["brace", "bracket", "bracketsq", "line"] as const;
 export const ISSUE_CLASSES = ["reading", "format"] as const;
-
-export type Box = { left: number; right: number; top: number; bottom: number };
 
 export type LensStaff = { staff: number; description: string | null; label: string | null; clef: string; key: string; time: string | null };
 export type LensGroup = { staves: number[]; symbol: (typeof GROUP_SYMBOLS)[number]; label: string | null };
@@ -249,8 +248,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     if (issue.boxes.length === 0) fail(`${what} has no boxes`);
     for (const b of issue.boxes) {
       if (!context.images.includes(b.image)) fail(`${what}: a box is on "${b.image}", which isn't one of the images (${context.images.join(", ")})`);
-      const { left, right, top, bottom } = b.box;
-      if (![left, right, top, bottom].every((v) => typeof v === "number" && v >= 0 && v <= 1) || left >= right || top >= bottom) {
+      if (boxProblem(b.box)) {
         fail(`${what}: a box isn't within its image (fractions from 0 to 1, left < right, top < bottom)`);
       }
     }

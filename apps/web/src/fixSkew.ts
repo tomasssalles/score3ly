@@ -2,6 +2,7 @@
 // with the lines `skew_analysis` found; the person deletes, draws and moves lines. Lines are the official requests for
 // deskewing: a page left without lines isn't straightened. This module has what doesn't need the browser.
 
+import { clamp, roundTo as round } from "@score3ly/core";
 import type { SkewLine } from "@score3ly/imaging";
 
 export const FIX_SKEW_VERSION = 1;
@@ -11,8 +12,6 @@ export const MAX_FIX_ANGLE = 89.9;
 
 // What is stored for a page: only its lines, in fractions of the page's width and height (as skew_analysis's).
 export type PageLines = { lines: SkewLine[] };
-
-const round = (value: number, digits: number) => Math.round(value * 10 ** digits) / 10 ** digits;
 
 // A line through two points, given in pixels of a page `width` × `height`, as stored: from left to right, in
 // fractions of the page, with its angle in degrees (positive when it descends to the right). An end off the page is
@@ -48,7 +47,6 @@ export function lineThrough(
     else t1 = Math.min(t1, t);
   }
   if (t0 >= t1) return null;
-  const clamp = (v: number) => Math.min(1, Math.max(0, v));
   return {
     x0: round(clamp((left.x + t0 * dx) / width), 5),
     y0: round(clamp((left.y + t0 * dy) / height), 5),

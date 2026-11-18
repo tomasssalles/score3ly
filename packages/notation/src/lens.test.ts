@@ -262,6 +262,10 @@ test("issues: boxes on the images sent, answers by letter, tokens only on format
   ok(system(1, { issues: [issue] }), context(1));
   assert.match(unusable(system(1, { issues: [{ ...issue, applied: "c" }] }), context(1)), /isn't one of its answers' keys/);
   assert.match(unusable(system(1, { issues: [{ ...issue, boxes: [{ ...issue.boxes[0], image: "page" }] }] }), context(1)), /isn't one of the images/);
+  for (const box of [{ left: 0.3, right: 0.1, top: 0.2, bottom: 0.4 }, { left: 0.1, right: 0.3, top: 0.2, bottom: 1.1 }, { left: 0.1, right: "0.3", top: 0.2, bottom: 0.4 }, null]) {
+    const bad = { ...issue, boxes: [{ image: "stretch 1", box: box as unknown as typeof issue.boxes[0]["box"] }] };
+    assert.match(unusable(system(1, { issues: [bad] }), context(1)), /^issue 1: a box isn't within its image \(fractions from 0 to 1, left < right, top < bottom\)$/);
+  }
   assert.match(unusable(system(1, { issues: [{ ...issue, class: "format" }] }), context(1)), /needs its list of LilyPond tokens/);
   ok(system(1, { issues: [{ ...issue, class: "format", lilypond: ["\\harmonic"] }] }), context(1));
   // Empty on a format issue: what is printed needs no new token, only what the format's rules forbid.

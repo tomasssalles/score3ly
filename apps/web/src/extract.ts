@@ -1,9 +1,8 @@
 // The `extract` step (docs/stages/music.md): what doesn't need the browser or the model. Its runner is runExtract.ts.
 
-import type { Box, CheckedSystem, CodeIssue, LensIssue, LensSystem, StretchPlace, Warning } from "@score3ly/notation";
+import type { CheckedSystem, CodeIssue, LensIssue, LensSystem, StretchPlace, Warning } from "@score3ly/notation";
 import { describeMark, type ScoreState } from "@score3ly/notation";
-import type { LayoutSystem } from "@score3ly/prompts";
-import { keyOf } from "@score3ly/core";
+import { clamp, keyOf, onPage, roundTo, stretchEdges, type Box, type LayoutSystem } from "@score3ly/core";
 import type { SystemHints } from "./linking.ts";
 import { count } from "./format.ts";
 
@@ -14,8 +13,7 @@ export const EXTRACT_VERSION = 3; // 3: answers checked against their schema fir
 // Stretch crops get half the neighbouring stretch on each side, so that a slur crossing a bar line shows where it ends.
 export const MARGINS = { version: 1, x: 0.01, y: 0.15, minY: 0.005 };
 
-const clamp = (v: number) => Math.min(1, Math.max(0, v));
-const round = (v: number) => Math.round(v * 1e6) / 1e6; // canonical numbers for the crop's recipe (§8.6)
+const round = (v: number) => roundTo(v, 6); // canonical numbers for the crop's recipe (§8.6)
 
 function margined(left: number, right: number, box: Box): Box {
   const y = Math.max(MARGINS.y * (box.bottom - box.top), MARGINS.minY);
@@ -23,9 +21,7 @@ function margined(left: number, right: number, box: Box): Box {
 }
 
 // The edges of a system's stretches, left to right: its box's edges and its bar lines.
-function edges(system: LayoutSystem): number[] {
-  return [system.box.left, ...system.barLines, system.box.right];
-}
+const edges = (system: LayoutSystem) => stretchEdges(system.box, system.barLines);
 
 // The system's crop: its box with margins.
 export function systemCropBox(system: LayoutSystem): Box {
@@ -48,13 +44,6 @@ export function stretchBox(system: LayoutSystem, stretch: number): Box {
   const x = edges(system);
   const i = Math.min(Math.max(stretch, 1), x.length - 1) - 1;
   return { left: x[i], right: x[i + 1], top: system.box.top, bottom: system.box.bottom };
-}
-
-// A box on an image cut from the page by `crop`, as a box on the page (exact: the crop's box is known).
-export function onPage(crop: Box, box: Box): Box {
-  const w = crop.right - crop.left;
-  const h = crop.bottom - crop.top;
-  return { left: crop.left + box.left * w, right: crop.left + box.right * w, top: crop.top + box.top * h, bottom: crop.top + box.bottom * h };
 }
 
 // A system of the score: its number in the whole score, its page, its output's item ("p3/s2") and its layout.

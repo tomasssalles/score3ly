@@ -7,7 +7,7 @@
 
 import { useRemembered } from "./ExtractionView";
 import { DESKEW_VERSION, LAYOUT_COLOR_HEX, ROTATE_VERSION } from "@score3ly/imaging";
-import type { LayoutSystem } from "@score3ly/prompts";
+import type { LayoutSystem } from "@score3ly/core";
 import { useEffect, useRef, useState } from "react";
 import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
 import {

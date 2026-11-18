@@ -2,8 +2,9 @@
 // of `extract` (each system's and those of the checks of the whole score), with their boxes on the pages: each box is
 // drawn on every crop it falls on, and each note's text goes below one system, the first its boxes fall on.
 
-import { buildScore, type Box, type Score } from "@score3ly/notation";
-import type { LayoutSystem } from "@score3ly/prompts";
+import { area, intersection, onCrop, type Box, type LayoutSystem } from "@score3ly/core";
+import { buildScore, type Score } from "@score3ly/notation";
+
 import { systemCropBox, type StoredExtraction, type StoredIssue, type StoredWarning } from "./extract.ts";
 import type { IssueWho } from "./attribution.ts";
 import { errorText } from "@score3ly/core";
@@ -25,11 +26,7 @@ export function notesOf(systems: ShownSystem[], checks: { issues: StoredIssue[];
   ];
 }
 
-const area = (b: Box) => Math.max(0, b.right - b.left) * Math.max(0, b.bottom - b.top);
-
-function overlap(a: Box, b: Box): number {
-  return area({ left: Math.max(a.left, b.left), right: Math.min(a.right, b.right), top: Math.max(a.top, b.top), bottom: Math.min(a.bottom, b.bottom) });
-}
+const overlap = (a: Box, b: Box) => area(intersection(a, b));
 
 // The system a note's text goes below: the first, in the score's order, that its first box falls on (most of it,
 // where crops overlap). Null when it falls on none.
@@ -47,22 +44,11 @@ export function homeOf(note: Note, systems: ShownSystem[]): number | null {
 
 // The boxes that fall on a crop, as fractions of the crop (cut at its edges), each with its index among its note's.
 export function boxesOnCrop(notes: Note[], page: number, crop: Box): { note: Note; box: Box; k: number }[] {
-  const w = crop.right - crop.left;
-  const h = crop.bottom - crop.top;
   return notes.flatMap((note) =>
     note.boxes
       .map((b, k) => ({ ...b, k }))
       .filter((b) => b.page === page && overlap(b.box, crop) > 0)
-      .map((b) => ({
-        note,
-        k: b.k,
-        box: {
-          left: Math.max(0, (b.box.left - crop.left) / w),
-          right: Math.min(1, (b.box.right - crop.left) / w),
-          top: Math.max(0, (b.box.top - crop.top) / h),
-          bottom: Math.min(1, (b.box.bottom - crop.top) / h),
-        },
-      })),
+      .map((b) => ({ note, k: b.k, box: onCrop(crop, b.box, { clip: true }) })),
   );
 }
 

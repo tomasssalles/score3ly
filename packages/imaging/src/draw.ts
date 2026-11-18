@@ -5,7 +5,7 @@
 // For the model, the lines are thin and solid: they should cover as little of the music as possible, and where a
 // drawn bar line lies exactly on a printed one it hides it, while one beside it shows as a pair of lines.
 
-import type { Box } from "./crop.ts";
+import type { LayoutSystem } from "@score3ly/core";
 import type { Rgb, RgbaImage } from "./image.ts";
 
 // The version of the drawing: part of every check round's request (through the image). Raise it whenever the
@@ -24,9 +24,6 @@ export const LAYOUT_COLORS: Rgb[] = [
 ];
 
 export const LAYOUT_COLOR_HEX = LAYOUT_COLORS.map((c) => `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`);
-
-// A system: its box (our boxes, crop.ts) and its bar lines' x positions, in fractions of the page.
-export type LayoutSystem = { box: Box; barLines: number[] };
 
 // How the systems are labelled: from `first` (the number of the page's first system in the whole score, default 1),
 // and, with `barLineNumbers`, each bar line numbered within its system, in a small label just above the box's top

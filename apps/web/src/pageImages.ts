@@ -16,7 +16,8 @@ import { errorText, keyOf } from "@score3ly/core";
 import { pdfUrl } from "./pdf";
 import type { PageImageRequest, PageImageResponse } from "./pageImageWorker";
 import type { PageRecipe } from "./rasterize";
-import type { Box, DrawOptions, LayoutSystem, SizeLimit, Skew } from "@score3ly/imaging";
+import type { Box, LayoutSystem } from "@score3ly/core";
+import type { DrawOptions, SizeLimit, Skew } from "@score3ly/imaging";
 
 // A request without its id (Omit on each member of the union, not on the union).
 type Unsent = PageImageRequest extends infer R ? (R extends PageImageRequest ? Omit<R, "id"> : never) : never;

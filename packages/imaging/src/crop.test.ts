@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createImage } from "./image.ts";
-import { boxProblem, crop, pixelRect } from "./crop.ts";
+import { crop, pixelRect } from "./crop.ts";
 import { parseRegions } from "./regions.ts";
 import { fillRect } from "./testPages.ts";
 
@@ -32,11 +32,8 @@ test("cropping copies exactly the pixels in the box", () => {
 });
 
 test("invalid boxes are refused", () => {
-  assert.equal(boxProblem({ left: 0, right: 1, top: 0, bottom: 1 }), null);
-  assert.match(boxProblem({ left: 0.5, right: 0.5, top: 0, bottom: 1 }) ?? "", /left/);
-  assert.match(boxProblem({ left: 0, right: 1.2, top: 0, bottom: 1 }) ?? "", /outside/);
-  assert.match(boxProblem({ left: 0, right: 1, top: 0 }) ?? "", /bottom/);
-  assert.throws(() => crop(createImage(4, 4), { left: 0.6, right: 0.2, top: 0, bottom: 1 }), /Invalid box/);
+  // The rule is core's boxProblem (core's box.test.ts).
+  assert.throws(() => crop(createImage(4, 4), { left: 0.6, right: 0.2, top: 0, bottom: 1 }), /^Error: Invalid box: "left" isn't less than "right"$/);
 });
 
 test("regions are read from JSON in its order", () => {

@@ -11,7 +11,7 @@ import { pngSize } from "./pageImages";
 import { BOX_HANDLES } from "./fixLayout";
 import { CORNER, EDGE, EDGE_SHARE, handleRect } from "./handles";
 export { handleAt } from "./handles";
-import type { Box } from "@score3ly/notation";
+import type { Box } from "@score3ly/core";
 
 export type Point = { x: number; y: number };
 import { clampView, PAD, wholePageScale, type View } from "./viewBounds";

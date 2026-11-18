@@ -15,15 +15,13 @@ import {
   openPdf,
   pageImage,
   shrinkToFit,
-  type Box,
   type DrawOptions,
   type Fingerprint,
-  type LayoutSystem,
   type PdfDocument,
   type SizeLimit,
   type Skew,
 } from "@score3ly/imaging";
-import { errorText } from "@score3ly/core";
+import { errorText, type Box, type LayoutSystem } from "@score3ly/core";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 

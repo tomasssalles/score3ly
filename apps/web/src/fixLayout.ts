@@ -2,19 +2,17 @@
 // with `layout`'s and is stored in the same format. This module has what doesn't need the browser; the editor is
 // LayoutEditor.tsx. Everything is in fractions of the straightened page, as in `layout`.
 
-import type { LayoutSystem } from "@score3ly/prompts";
+import { clamp, roundTo, type Box, type LayoutSystem } from "@score3ly/core";
 import type { PageLayout } from "./layout.ts";
 
 export const FIX_LAYOUT_VERSION = 1;
 
-export type Box = LayoutSystem["box"];
 type Point = { x: number; y: number }; // fractions of the page
 
 // A box smaller than this either way (a fraction of the page) isn't a system: a slip.
 export const MIN_BOX = 0.01;
 
-const clamp = (v: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
-const round = (v: number) => Math.round(v * 1e5) / 1e5;
+const round = (v: number) => roundTo(v, 5); // as stored (layouts: 5 digits)
 
 // Systems are numbered top to bottom, by their boxes' top edges (then left edges).
 export function sortSystems(systems: LayoutSystem[]): LayoutSystem[] {

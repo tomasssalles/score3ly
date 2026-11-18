@@ -11,7 +11,8 @@
 
 import { add, equal, fraction, less, mul, ZERO, type Fraction } from "./fraction.ts";
 import { durationValue, eventsDuration, parseKey, parseTime } from "./durations.ts";
-import type { Box, LensEnding, LensStretch, LensSystem } from "./lens.ts";
+import { stretchEdges, type Box } from "@score3ly/core";
+import type { LensEnding, LensStretch, LensSystem } from "./lens.ts";
 import { stretchOffsets, tstamp, type Run, type Score, type ScoreMeasure, type ScorePiece } from "./score.ts";
 import { isDynamic, JUMPS, type Accidental, type CommandName, type EVENT_COMMANDS, type Duration, type Event, type Head, type Mark, type Pitch, type Tempo } from "./symbolic.ts";
 import { el, elements, serialize, type XmlElement, type XmlNode } from "./xml.ts";
@@ -213,7 +214,7 @@ function segmentParts(segment: Segment): { system: number; stretches: number[] }
 
 function partBox(box: Box | null, barLines: number[], stretches: number[]): Box | null {
   if (!box) return null;
-  const x = [box.left, ...barLines, box.right];
+  const x = stretchEdges(box, barLines);
   const first = stretches[0];
   const last = stretches[stretches.length - 1];
   return { left: x[first - 1] ?? box.left, right: x[last] ?? box.right, top: box.top, bottom: box.bottom };

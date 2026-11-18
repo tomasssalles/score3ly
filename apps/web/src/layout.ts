@@ -1,6 +1,6 @@
 // The `layout` step (docs/stages/layout.md): what doesn't need the browser or the model. Its runner is runLayout.ts.
 
-import type { LayoutSystem } from "@score3ly/prompts";
+import type { LayoutSystem } from "@score3ly/core";
 import { keyOf } from "@score3ly/core";
 import { count } from "./format.ts";
 

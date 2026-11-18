@@ -8,7 +8,7 @@
 import type { ApiStage } from "./api.ts";
 import { EXTRACTION_STEPS } from "./engrave.ts";
 import type { StoredIssue } from "./extract.ts";
-import type { Box } from "@score3ly/notation";
+import type { Box } from "@score3ly/core";
 import { applyEntries, systemsOf, type PlacedSystem, type ReviewEntry } from "./review.ts";
 import { count } from "./format.ts";
 

@@ -6,7 +6,8 @@
 
 import { add, fraction, less, mul, ZERO, type Fraction } from "./fraction.ts";
 import { eventsDuration } from "./durations.ts";
-import type { Box, LensStretch, LensSystem } from "./lens.ts";
+import type { Box } from "@score3ly/core";
+import type { LensStretch, LensSystem } from "./lens.ts";
 import { parseVoice, type Event } from "./symbolic.ts";
 
 // A system of the score: its number in the whole score, its page, its box on the (straightened) page and its inner

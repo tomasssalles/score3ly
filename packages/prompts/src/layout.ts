@@ -2,7 +2,7 @@
 // draw-and-check loop: code draws the answer on the page, the model looks and corrects, at most LAYOUT_ROUNDS
 // answers in all. Boxes and positions are fractions of the image sent (left, right, top, bottom from 0 to 1).
 
-import type { JsonSchema } from "@score3ly/core";
+import { boxProblem, type JsonSchema, type LayoutSystem } from "@score3ly/core";
 import { bool, described, list, num, object, str } from "./schema.ts";
 
 // Raise whenever the texts, the schema or the checks change.
@@ -57,8 +57,6 @@ export const LAYOUT_SCHEMA: JsonSchema = object({
   note: described(str, 'On the last check, if the layout still isn\'t right: what is wrong with it, for a person to fix. Else "".'),
 });
 
-export type LayoutBox = { left: number; right: number; top: number; bottom: number };
-export type LayoutSystem = { box: LayoutBox; barLines: number[] };
 export type LayoutAnswer = { severelySkewed: boolean; systems: LayoutSystem[]; satisfied: boolean; note: string };
 
 // How far outside its box a bar line may be, as a fraction of the page's width.
@@ -76,12 +74,10 @@ export function checkLayoutAnswer(json: unknown): LayoutAnswer | { problem: stri
     if (typeof raw !== "object" || raw === null) return { problem: "the answer doesn't have the expected fields" };
     const s = raw as Record<string, unknown>;
     const n = i + 1;
-    const values = [s.left, s.right, s.top, s.bottom];
-    if (!values.every((v) => typeof v === "number" && v >= 0 && v <= 1)) {
-      return { problem: `system ${n}: its box isn't within the page (fractions from 0 to 1)` };
-    }
-    const [left, right, top, bottom] = values as number[];
-    if (left >= right || top >= bottom) return { problem: `system ${n}: its box is empty or the wrong way round` };
+    const problem = boxProblem(s);
+    if (problem?.kind === "values") return { problem: `system ${n}: its box isn't within the page (fractions from 0 to 1)` };
+    if (problem) return { problem: `system ${n}: its box is empty or the wrong way round` };
+    const { left, right, top, bottom } = s as { left: number; right: number; top: number; bottom: number };
     if (!Array.isArray(s.barLines) || !s.barLines.every((x) => typeof x === "number")) {
       return { problem: `system ${n}: its bar lines aren't numbers` };
     }

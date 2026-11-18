@@ -5,10 +5,10 @@
 // view: the issues of the transcription it reviewed, with its entries applied in the order of the calls, and its
 // agreements ("kept") added for the issues it left as they were.
 
-import type { Box, Score } from "@score3ly/notation";
-import { issueForModel, reviewFromModel, stretchMeasures, systemForModel, type LayoutSystem, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
-import { keyOf } from "@score3ly/core";
-import { onPage, stretchBox, systemCropBox, type ImageSource, type StoredIssue, type StoredWarning } from "./extract.ts";
+import type { Score } from "@score3ly/notation";
+import { issueForModel, reviewFromModel, stretchMeasures, systemForModel, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
+import { area, boxProblem, intersection, keyOf, onPage, type Box, type LayoutSystem } from "@score3ly/core";
+import { stretchBox, systemCropBox, type ImageSource, type StoredIssue, type StoredWarning } from "./extract.ts";
 import { count } from "./format.ts";
 
 export const REVIEW_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
@@ -16,8 +16,7 @@ export const REVIEW_VERSION = 2; // 2: answers checked against their schema firs
 // A system of the score, where it is: its number, its page and its layout.
 export type PlacedSystem = { number: number; page: number; layout: LayoutSystem };
 
-const area = (b: Box) => Math.max(0, b.right - b.left) * Math.max(0, b.bottom - b.top);
-const overlap = (a: Box, b: Box) => area({ left: Math.max(a.left, b.left), right: Math.min(a.right, b.right), top: Math.max(a.top, b.top), bottom: Math.min(a.bottom, b.bottom) });
+const overlap = (a: Box, b: Box) => area(intersection(a, b));
 
 // The systems and stretches boxes on the pages cover (docs/notation.md, "Issues": code works out the stretches under
 // the boxes): a box covers a system it overlaps (its tight box, else its crop with margins), and the stretches of it
@@ -193,8 +192,7 @@ function newIssue(n: ReviewNewIssueEntry["newIssue"], ctx: ReviewContext, id: nu
   for (const b of n.boxes) {
     const source = ctx.images.get(b.image);
     if (!source) return { problem: `${what} has a box on "${b.image}", which isn't one of the images sent` };
-    const { left, right, top, bottom } = b.box;
-    if (![left, right, top, bottom].every((v) => typeof v === "number" && v >= 0 && v <= 1) || left >= right || top >= bottom) return { problem: `${what} has a box that isn't a box inside its image` };
+    if (boxProblem(b.box)) return { problem: `${what} has a box that isn't a box inside its image` };
     boxes.push({ page: source.page, box: onPage(source.box, b.box) });
     systems.add(source.system);
   }

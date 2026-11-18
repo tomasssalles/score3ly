@@ -1,4 +1,4 @@
-import { type Box, boxProblem } from "./crop.ts";
+import { type Box, boxProblem } from "@score3ly/core";
 
 // Named regions of a score's pages: systems, measures, details. In JSON, an object mapping each name (e.g.
 // "system_3", "measure_12", "detail_1") to {"page": <number, from 1>, "bbox": <a Box>}.
@@ -30,7 +30,7 @@ export function parseRegions(json: unknown): Region[] {
     }
     const problem = boxProblem(bbox);
     if (problem) {
-      problems.push(`"${name}": "bbox" ${problem}`);
+      problems.push(`"${name}": "bbox" ${problem.text}`);
       continue;
     }
     regions.push({ name, page, box: bbox as Box });
