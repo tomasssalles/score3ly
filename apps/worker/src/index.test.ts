@@ -1878,6 +1878,24 @@ test("every route that changes something about a project declares its lock class
   assert.deepEqual(declared, expected);
 });
 
+// Found 2026-11-17 (the code review, A11): the version was checked, then raised after the change, in separate statements,
+// so two changes made at once on the same version both passed.
+test("two people's changes at once on the same version: one is made, the other refused", async () => {
+  const project = await createdProject("sonata.pdf");
+  const [, rasterize] = await pipelineOf(project.id);
+  const v0 = await versionOf(project.id);
+  const change = (pages: string) => withVersion(project.id, rasterize.id, "config", v0, { config: { pages } }, "PUT");
+  const answers = await Promise.all([change("1"), change("2"), change("3")]);
+  assert.deepEqual(answers.map((r) => r.status).sort(), [200, 409, 409]);
+  assert.equal(Number(await versionOf(project.id)), Number(v0) + 1);
+  // A refused change gives back the version it claimed: the next change on the new version is made.
+  const v1 = answers.find((r) => r.status === 200)!.headers.get("X-Project-Version")!;
+  const ingest = (await pipelineOf(project.id))[0];
+  assert.equal((await withVersion(project.id, ingest.id, "config", v1, { config: {} }, "PUT")).status, 409); // Ingest has no config
+  assert.equal(await versionOf(project.id), v1);
+  assert.equal((await withVersion(project.id, rasterize.id, "config", v1, { config: { pages: "4" } }, "PUT")).status, 200);
+});
+
 test("a person's change is refused when the project changed since the browser read it; a run's own requests aren't checked", async () => {
   const { project, skew } = await analyzedProject("versions.pdf");
   const v0 = await versionOf(project.id);

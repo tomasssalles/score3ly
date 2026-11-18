@@ -11,6 +11,9 @@
 // and the pipeline's own rules guard it (a running stage can't start again or be changed). Neither: a running stage's
 // outputs, heartbeats and LLM calls, which change nothing another page could act on.
 //
+// A checked change claims the version before it is made (`UPDATE … WHERE version = ?`), so the check and the raise are
+// one statement.
+//
 // Each route about a project declares its class where it is registered (`lock`), and a test walks the routes so that
 // none goes undeclared (found 2026-11-17, the code review: the classes were read off the URL, and a new route fell
 // through to "nothing" silently).
@@ -62,19 +65,32 @@ export function lock(declared: Lock): MiddlewareHandler<{ Bindings: Env }> {
     const db = c.env.DB;
     const projectId = projectOf(c);
     const what = projectId ? whatOf(declared, c) : null;
+    // A checked change claims the version it was made on before it is made: checked and raised in one statement, so
+    // that of two changes made at once on the same version, one passes (found 2026-11-17, the code review, A11). A
+    // change then refused gives it back, unless something raised it since.
+    let claimed: number | null = null;
     if (projectId && what === "checked") {
-      const sent = c.req.header(VERSION_HEADER);
+      const sent = c.req.header(VERSION_HEADER)?.trim();
       if (sent !== undefined) {
-        const current = await versionOf(db, projectId);
-        if (current !== null && String(current) !== sent.trim()) {
-          c.header(VERSION_HEADER, String(current));
-          return refuse(c, 409, STALE_MESSAGE, "stale_version");
+        const version = Number(sent);
+        const claim = Number.isInteger(version)
+          ? await db.prepare("UPDATE projects SET version = version + 1 WHERE id = ? AND version = ?").bind(projectId, version).run()
+          : null;
+        if (claim?.meta.changes === 1) claimed = version + 1;
+        else {
+          const current = await versionOf(db, projectId);
+          if (current !== null) {
+            c.header(VERSION_HEADER, String(current));
+            return refuse(c, 409, STALE_MESSAGE, "stale_version");
+          }
         }
       }
     }
     await next();
     if (projectId && what !== null) {
-      if (c.res.ok) await db.prepare("UPDATE projects SET version = version + 1 WHERE id = ?").bind(projectId).run();
+      if (claimed !== null) {
+        if (!c.res.ok) await db.prepare("UPDATE projects SET version = version - 1 WHERE id = ? AND version = ?").bind(projectId, claimed).run();
+      } else if (c.res.ok) await db.prepare("UPDATE projects SET version = version + 1 WHERE id = ?").bind(projectId).run();
       const current = await versionOf(db, projectId);
       if (current !== null) c.res.headers.set(VERSION_HEADER, String(current));
     }
