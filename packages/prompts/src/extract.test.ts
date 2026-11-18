@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { COMMAND_WORDS, GRADED_DYNAMICS, parseVoice } from "@score3ly/notation/symbolic";
-import { EXTRACT_SCHEMA, LENS_PITFALLS, MUSIC } from "./extract.ts";
+import { EXTRACT_SCHEMA } from "./extract.ts";
+import { LENS_PITFALLS, MUSIC } from "./music.ts";
 import { lensFromExtract } from "./lensForm.ts";
 
 // docs/notation.md, "The token list": the prompt and the parser can't drift apart.

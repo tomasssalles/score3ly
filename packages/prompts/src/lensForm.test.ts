@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { BAR_LINES, GROUP_SYMBOLS, ISSUE_CLASSES, MEASURE_KINDS, STRETCH_CLASSES } from "@score3ly/notation/lens";
 import { APPLY_REVIEW_SCHEMA } from "./applyReview.ts";
+import { EXTRACT_SCHEMA } from "./extract.ts";
 import { REVIEW_SCHEMA } from "./review.ts";
 import { staffForModel, staffFromModel, stretchForModel, stretchFromModel } from "./lensForm.ts";
 
@@ -54,4 +56,16 @@ test("the schemas of review and apply_review: no nullable field but a voice's mu
   assert.equal(JSON.stringify(APPLY_REVIEW_SCHEMA).match(/"null"/g)?.length, 1);
   const voice = (APPLY_REVIEW_SCHEMA.properties!.voices as { items: { properties: { music: { anyOf: unknown[] } } } }).items.properties.music;
   assert.deepEqual(voice.anyOf, [{ type: "string" }, { type: "null" }]);
+});
+
+test("the answer's schema and the checks agree on every list of values, in the schema's order", () => {
+  const stretch = EXTRACT_SCHEMA.properties!.stretches.items!.properties!;
+  // The class and the measure's kind are one value in the answer (lensFromExtract splits them); the order is the one the
+  // requests have always had.
+  assert.deepEqual(stretch.class.enum, ["new-normal", "new-incomplete", "new-unmeasured", "continues", "none"]);
+  assert.deepEqual(new Set(stretch.class.enum), new Set([...MEASURE_KINDS.map((k) => `new-${k}`), ...STRETCH_CLASSES.filter((c) => c !== "new")]));
+  assert.deepEqual(stretch.ending.enum, ["none", "start", "middle", "end", "whole"]);
+  assert.deepEqual(stretch.rightBarLine.enum, [...BAR_LINES]);
+  assert.deepEqual(EXTRACT_SCHEMA.properties!.groups.items!.properties!.symbol.enum, [...GROUP_SYMBOLS]);
+  assert.deepEqual(EXTRACT_SCHEMA.properties!.issues.items!.properties!.class.enum, [...ISSUE_CLASSES]);
 });

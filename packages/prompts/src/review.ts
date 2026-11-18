@@ -5,9 +5,9 @@
 // one before it and the provider's prompt cache serves the shared part; then its own system: the crops with the
 // issues' boxes drawn on them, and a request. Code checks the answer as soon as it arrives (apps/web/src/review.ts).
 
-import { LENS_SCHEMA_PARTS as P, lensRecap, MUSIC } from "./extract.ts";
+import { lensRecap, MUSIC } from "./music.ts";
 import { described, int, list, nullable, object, str } from "./schema.ts";
-import { issueFromModel, orNull } from "./lensForm.ts";
+import { issueFromModel, LENS_SCHEMA_PARTS as P, orNull } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
 export const REVIEW_PROMPT_VERSION = 7;

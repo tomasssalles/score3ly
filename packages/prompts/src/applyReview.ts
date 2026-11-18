@@ -8,9 +8,10 @@
 // system, or two when an issue reaches the next): the crops with the issues' boxes drawn on them, and a request. Code
 // checks the answer as soon as it arrives (apps/web/src/applyReview.ts).
 
-import { LENS_SCHEMA_PARTS as P, lensRecap, MUSIC } from "./extract.ts";
+import type { LensStretch, LensSystem, LensVoice } from "@score3ly/notation/lens";
+import { lensRecap, MUSIC } from "./music.ts";
 import { described, int, list, nullable, object, str } from "./schema.ts";
-import { orNull, groupFromModel, staffFromModel, stretchFromModel, voiceFromModel } from "./lensForm.ts";
+import { groupFromModel, LENS_SCHEMA_PARTS as P, orNull, staffFromModel, stretchFromModel, voiceFromModel } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
 export const APPLY_REVIEW_PROMPT_VERSION = 7;
@@ -132,35 +133,10 @@ export const APPLY_REVIEW_SCHEMA = object({
 
 // The answer, as the code uses it: the model writes the lens as models do (lensForm.ts), which applyReviewFromModel
 // turns into the lens as code uses it.
-export type ApplyVoiceUnit = {
-  system: number;
-  stretch: number;
-  voice: number;
-  staff: number;
-  description: string | null;
-  music: string | null;
-  reason: string | null;
-};
-export type ApplyStretchUnit = {
-  system: number;
-  stretch: number;
-  class: "none" | "new" | "continues";
-  kind: "normal" | "incomplete" | "unmeasured" | null;
-  printedNumber: string | null;
-  measureNumber: number | null;
-  changes: { staff: number; key: string | null; time: string | null }[];
-  ending: { startsHere: boolean; endsHere: boolean; label: string | null } | null;
-  rightBarLine: "single" | "double" | "final" | "startRepeat" | "endRepeat" | "bothRepeats" | "dashed" | "none";
-  reason: string | null;
-};
-export type ApplySystemUnit = {
-  system: number;
-  startRepeat: boolean;
-  staves: { staff: number; description: string | null; label: string | null; clef: string; key: string; time: string | null }[];
-  groups: { staves: number[]; symbol: "brace" | "bracket" | "bracketsq" | "line"; label: string | null }[];
-  lastMeasureContinues: boolean;
-  reason: string | null;
-};
+type Unit = { system: number; stretch: number };
+export type ApplyVoiceUnit = Unit & Omit<LensVoice, "music"> & { music: string | null; reason: string | null };
+export type ApplyStretchUnit = Unit & Omit<LensStretch, "stretch" | "voices"> & { reason: string | null };
+export type ApplySystemUnit = { system: number } & Omit<LensSystem, "stretches" | "issues"> & { reason: string | null };
 export type ApplyRevert = { issue: number; key: string | null; newAnswer: string | null; reason: string };
 export type ApplyReviewAnswer = { voices: ApplyVoiceUnit[]; stretches: ApplyStretchUnit[]; systems: ApplySystemUnit[]; choices: ApplyRevert[] };
 

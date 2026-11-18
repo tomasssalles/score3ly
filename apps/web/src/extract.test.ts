@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BAR_LINES, checkSystem, GROUP_SYMBOLS, ISSUE_CLASSES, MEASURE_KINDS, pieceStart, STRETCH_CLASSES } from "@score3ly/notation";
-import { EXTRACT_SCHEMA, extractImageLabels } from "@score3ly/prompts";
+import { checkSystem, pieceStart } from "@score3ly/notation";
+import { extractImageLabels } from "@score3ly/prompts";
 import { extractNote, onPage, pieceBounds, storedExtraction, stretchBox, stretchCropBoxes, systemCropBox } from "./extract.ts";
 import { linkSpans, placeFor, systemHints } from "./linking.ts";
 import type { StoredObservations, StoredPage } from "./analyze.ts";
@@ -39,17 +39,6 @@ test("pieces: a system begins or ends one", () => {
 
 test("the images' labels, which issue boxes name", () => {
   assert.deepEqual(extractImageLabels(2, true, false), ["system", "stretch 1", "stretch 2", "previous system"]);
-});
-
-test("the answer's schema and the checks agree on every list of values", () => {
-  const stretch = (EXTRACT_SCHEMA.properties!.stretches as { items: { properties: Record<string, { enum?: string[]; anyOf?: { enum?: string[] }[] }> } }).items.properties;
-  // The class and the measure's kind are one value in the answer (lensFromExtract splits them).
-  assert.deepEqual(new Set(stretch.class.enum), new Set([...MEASURE_KINDS.map((k) => `new-${k}`), ...STRETCH_CLASSES.filter((c) => c !== "new")]));
-  assert.deepEqual(stretch.rightBarLine.enum, [...BAR_LINES]);
-  const groups = (EXTRACT_SCHEMA.properties!.groups as { items: { properties: { symbol: { enum: string[] } } } }).items.properties;
-  assert.deepEqual(groups.symbol.enum, [...GROUP_SYMBOLS]);
-  const issues = (EXTRACT_SCHEMA.properties!.issues as { items: { properties: { class: { enum: string[] } } } }).items.properties;
-  assert.deepEqual(issues.class.enum, [...ISSUE_CLASSES]);
 });
 
 test("stored: the model's issue boxes on the pages, code's issues and warnings on their stretches, numbered", () => {

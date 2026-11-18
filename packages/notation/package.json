@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./symbolic": "./src/symbolic.ts",
+    "./lens": "./src/lens.ts",
     "./testScore": "./src/testScore.ts"
   },
   "scripts": {
