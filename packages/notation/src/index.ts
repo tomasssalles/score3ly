@@ -6,6 +6,7 @@ export * from "./durations.ts";
 export * from "./spans.ts";
 export * from "./lens.ts";
 export * from "./structure.ts";
+export * from "./issueRules.ts";
 export * from "./xml.ts";
 export * from "./score.ts";
 export * from "./mei.ts";
