@@ -1,8 +1,9 @@
 // `fix_mei`'s artifact (docs/stages/engrave.md): the MEI view, editable while the stage is WIP. The text
-// is saved a moment after typing stops and when the editor closes; Apply checks it and, if it passes, makes it the
-// applied version, from which the score is engraved again. Once finished, the applied MEI, read-only.
+// is saved a moment after typing stops, when the editor closes and when Finish asks for it (the stage's saver,
+// saving.ts); Apply checks it and, if it passes, makes it the applied version, from which the score is engraved again.
+// Once finished, the applied MEI, read-only (loaded again when the stage's status changes).
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import type { Project } from "./api";
 import { DEFAULT_ENGRAVE_CONFIG, pageOptions } from "./engrave";
@@ -14,6 +15,8 @@ import { renderPages } from "./rendering";
 import { count } from "./format";
 import { failure } from "./api";
 import { errorText } from "@score3ly/core";
+import { UnsavedNote } from "./pageEditor";
+import { saverOf, useHolding, useSaver } from "./saving";
 
 const SAVE_AFTER_MS = 2000;
 const PROBLEMS_SHOWN = 20;
@@ -22,10 +25,13 @@ export function FixMeiView({ project, artifact, onEdited }: { project: Project; 
   const { stage, earlier } = artifact.fixMei!;
   const [texts, setTexts] = useState<FixMeiTexts | "error" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const editable = !!artifact.editor;
   useEffect(() => {
     let cancelled = false;
+    setTexts(null);
     loadFixMei(project, stage, earlier).then(
-      (t) => !cancelled && setTexts(t),
+      // What this device saved comes first: the pipeline the app has may not show it yet.
+      (t) => !cancelled && setTexts(editable ? { ...t, draft: saverOf(stage.id).value<string>("") ?? t.draft, applied: saverOf(stage.id).value<string>("mei") ?? t.applied } : t),
       (err) => {
         if (cancelled) return;
         setTexts("error");
@@ -35,37 +41,10 @@ export function FixMeiView({ project, artifact, onEdited }: { project: Project; 
     return () => {
       cancelled = true;
     };
-  }, [stage.id]);
+  }, [stage.id, editable]);
   if (texts === "error") return <div className="text-view"><p className="error-text">The MEI couldn't be loaded. {loadError}</p></div>;
   if (!texts) return <div className="text-view"><p>Loading the MEI…</p></div>;
-  return <FixMeiEditor project={project} stageId={stage.id} texts={texts} editable={!!artifact.editor} onEdited={onEdited} />;
-}
-
-// Saves the text a moment after it last changed. Once closed (the editor went away), every change is saved at once.
-function draftSaver(save: (text: string) => Promise<void>, onError: (err: unknown) => void) {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let pending: string | null = null;
-  let closed = false;
-  const flush = () => {
-    clearTimeout(timer);
-    timer = undefined;
-    if (pending === null) return;
-    const text = pending;
-    pending = null;
-    save(text).catch(onError);
-  };
-  return {
-    changed(text: string) {
-      pending = text;
-      clearTimeout(timer);
-      if (closed) flush();
-      else timer = setTimeout(flush, SAVE_AFTER_MS);
-    },
-    close() {
-      closed = true;
-      flush();
-    },
-  };
+  return <FixMeiEditor key={`${stage.id}:${editable}`} project={project} stageId={stage.id} texts={texts} editable={editable} onEdited={onEdited} />;
 }
 
 function FixMeiEditor({
@@ -87,24 +66,30 @@ function FixMeiEditor({
   const [pagesError, setPagesError] = useState<string | null>(null);
   const [problems, setProblems] = useState<MeiProblem[] | null>(null);
   const [applying, setApplying] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
   const view = useRef<EditorView | null>(null);
-  const saved = useRef(texts.draft); // the draft as stored
-  const saver = useMemo(
-    () =>
-      draftSaver(
-        async (t) => {
-          if (t === saved.current) return;
-          await saveText(project, stageId, t, ["mei_draft"]);
-          saved.current = t;
-          setSaveError(null);
-        },
-        (err) => setSaveError(failure("The text couldn't be saved", err)),
-      ),
+  // The draft is saved a moment after typing stops, through the stage's saver: one save after the other, Apply's too.
+  const saver = useSaver(stageId);
+  const sent = useRef(texts.draft); // the last text given to the saver
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const closed = useRef(false);
+  const latest = useRef(texts.draft); // the text as the editor last reported it
+  function saveDraft(t: string) {
+    clearTimeout(timer.current);
+    timer.current = undefined;
+    if (t === sent.current) return;
+    sent.current = t;
+    saver.save("", t, () => saveText(project, stageId, t, ["mei_draft"]).then(() => undefined));
+  }
+  // Finish (and the saver's other waits) take the editor's text as it is now, not as it was a moment ago.
+  useHolding(stageId, () => editable && saveDraft(view.current?.state.doc.toString() ?? latest.current));
+  useEffect(
+    () => () => {
+      closed.current = true;
+      if (editable) saveDraft(latest.current);
+    },
     [],
   );
-  useEffect(() => () => saver.close(), []);
   // The schema is compiled while the user reads and types, not on the first Apply.
   useEffect(() => {
     if (editable) import("./meiValidation").then((m) => m.prepareMeiChecks());
@@ -135,8 +120,10 @@ function FixMeiEditor({
         setProblems(found);
         return;
       }
-      await saveText(project, stageId, current, ["mei_draft", "mei"]);
-      saved.current = current;
+      // The applied text, and the draft as it is now (typing may have gone on during the check), each the latest of its own.
+      saver.save("mei", current, () => saveText(project, stageId, current, ["mei"]).then(() => undefined));
+      saveDraft(view.current?.state.doc.toString() ?? current);
+      if (!(await saver.saver.settled())) return;
       setText(current);
       setApplied(current);
       onEdited?.();
@@ -159,7 +146,7 @@ function FixMeiEditor({
   );
   const notice = (
     <>
-      {saveError && <p className="editor-hint mei-problem error-text">{saveError}</p>}
+      <UnsavedNote className="editor-hint mei-problem error-text" state={saver.state} onRetry={saver.retry} />
       {problems && problems.length > 0 && (
         <div className="fix-mei-problems error-text" role="alert">
           <p>
@@ -188,8 +175,11 @@ function FixMeiEditor({
       text={text}
       editable={editable}
       onText={(t) => {
+        latest.current = t;
+        if (closed.current) return saveDraft(t);
         setText(t);
-        saver.changed(t);
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => saveDraft(latest.current), SAVE_AFTER_MS);
       }}
       onView={(v) => {
         view.current = v;
