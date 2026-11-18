@@ -4,7 +4,8 @@
 
 import { cachedSvg, cachedSvgs, cacheSvg, cacheSvgs } from "./imageCache.ts";
 import { keyOf } from "@score3ly/core";
-import type { RenderRequest, RenderResponse } from "./renderWorker.ts";
+import type { RenderCalls } from "./renderWorker.ts";
+import { workerClient } from "./workerClient.ts";
 import type { Box } from "@score3ly/core";
 
 // Verovio's version, in the cache key: a new version renders anew. A test keeps it equal to the installed one.
@@ -44,42 +45,17 @@ export function fittedOptions(box: Box, crop: Box): { options: typeof SYSTEM_OPT
   };
 }
 
-let worker: Worker | null = null;
-let nextId = 1;
-const pending = new Map<number, { resolve: (svgs: string[]) => void; reject: (error: Error) => void }>();
-
-function getWorker(): Worker {
-  if (worker) return worker;
-  worker = new Worker(new URL("./renderWorker.ts", import.meta.url), { type: "module" });
-  worker.addEventListener("message", (event: MessageEvent<RenderResponse>) => {
-    const waiting = pending.get(event.data.id);
-    if (!waiting) return;
-    pending.delete(event.data.id);
-    if ("error" in event.data) waiting.reject(new Error(event.data.error));
-    else waiting.resolve(event.data.svgs);
-  });
-  worker.addEventListener("error", (event) => {
-    for (const waiting of pending.values()) waiting.reject(new Error(event.message || "The rendering worker failed."));
-    pending.clear();
-    worker = null;
-  });
-  return worker;
-}
-
-function ask(mei: string, options: Record<string, unknown>, allPages: boolean, pageWidth?: number): Promise<string[]> {
-  const id = nextId++;
-  return new Promise<string[]>((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    getWorker().postMessage({ id, mei, options, allPages, ...(pageWidth !== undefined ? { pageWidth } : {}) } satisfies RenderRequest);
-  });
-}
+// The rendering worker: one that fails, or whose Verovio broke (an abort), is replaced at the next rendering.
+const renderer = workerClient<RenderCalls>(() => new Worker(new URL("./renderWorker.ts", import.meta.url), { type: "module" }), {
+  failure: (detail) => detail || "The rendering worker failed.",
+});
 
 // One system on one line (the Transcription), as wide as `pageWidth` where it is given (fittedOptions).
 export async function renderMei(mei: string, options: Record<string, unknown> = SYSTEM_OPTIONS, pageWidth?: number): Promise<string> {
   const key = await keyOf({ mei, options, pageWidth: pageWidth ?? null, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION });
   const cached = await cachedSvg(key);
   if (cached) return cached;
-  const [svg] = await ask(mei, options, false, pageWidth);
+  const [svg] = await renderer.ask("render", { mei, options, allPages: false, ...(pageWidth !== undefined ? { pageWidth } : {}) });
   await cacheSvg(key, svg);
   return svg;
 }
@@ -89,7 +65,7 @@ export async function renderPages(mei: string, options: Record<string, unknown>)
   const key = await keyOf({ mei, options, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION, pages: true });
   const cached = await cachedSvgs(key);
   if (cached) return cached;
-  const svgs = await ask(mei, options, true);
+  const svgs = await renderer.ask("render", { mei, options, allPages: true });
   await cacheSvgs(key, svgs);
   return svgs;
 }

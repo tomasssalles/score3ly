@@ -1,5 +1,5 @@
 // A Web Worker that turns PDF pages into images (docs/images.md §8.1) and encodes them as PNG (§8.6), so the page
-// stays responsive while large scans are decoded. Requests carry an id; each gets one answer with the same id.
+// stays responsive while large scans are decoded. Its requests and answers: workerClient.ts.
 
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
@@ -21,42 +21,25 @@ import {
   type SizeLimit,
   type Skew,
 } from "@score3ly/imaging";
-import { errorText, type Box, type LayoutSystem } from "@score3ly/core";
+import type { Box, LayoutSystem } from "@score3ly/core";
+import { serve } from "./workerClient.ts";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-export type PageImageRequest =
-  | { id: number; type: "open"; sha256: string; pdf: ArrayBuffer }
-  | { id: number; type: "page"; sha256: string; page: number; dpi: number }
-  | { id: number; type: "skew"; png: ArrayBuffer; maxAngle: number }
-  // The fingerprint of an image (docs/images.md §8.3), as decoded from its PNG.
-  | { id: number; type: "fingerprint"; png: ArrayBuffer }
-  // An image made from another: straightened by `angle`, then cut to `crop` (a box, fractions of the straightened
-  // image), then shrunk to `limit`, then with a layout drawn on it (labelled as `drawOptions` say), and stored as gray
-  // if `gray`.
-  | {
-      id: number;
-      type: "derive";
-      png: ArrayBuffer;
-      angle?: number;
-      crop?: Box;
-      limit?: SizeLimit;
-      draw?: LayoutSystem[];
-      drawOptions?: DrawOptions;
-      gray?: boolean;
-    };
+// An image made from another: straightened by `angle`, then cut to `crop` (a box, fractions of the straightened image),
+// then shrunk to `limit`, then with a layout drawn on it (labelled as `drawOptions` say), and stored as gray if `gray`.
+export type DeriveOptions = { angle?: number; crop?: Box; limit?: SizeLimit; draw?: LayoutSystem[]; drawOptions?: DrawOptions; gray?: boolean };
 
-export type PageImageResponse =
-  | { id: number; type: "opened"; pageCount: number; pdfjsVersion: string }
-  | { id: number; type: "page"; png: Uint8Array<ArrayBuffer>; width: number; height: number; source: string; dpi: number; fingerprint: Fingerprint }
-  | { id: number; type: "skew"; skew: Skew }
-  | { id: number; type: "fingerprint"; fingerprint: Fingerprint }
-  | { id: number; type: "derived"; png: Uint8Array<ArrayBuffer>; width: number; height: number; fingerprint: Fingerprint }
-  | { id: number; type: "error"; message: string };
+// An image as the worker makes it: its PNG and its fingerprint (docs/images.md §8.3).
+export type MadeImage = { png: Uint8Array<ArrayBuffer>; fingerprint: Fingerprint };
 
-const scope = self as unknown as {
-  addEventListener(type: "message", listener: (event: MessageEvent<PageImageRequest>) => void): void;
-  postMessage(message: PageImageResponse, transfer?: Transferable[]): void;
+export type PageImageCalls = {
+  open: { request: { sha256: string; pdf: ArrayBuffer }; response: { pageCount: number; pdfjsVersion: string } };
+  page: { request: { sha256: string; page: number; dpi: number }; response: MadeImage };
+  skew: { request: { png: ArrayBuffer; maxAngle: number }; response: Skew };
+  // The fingerprint of an image, as decoded from its PNG.
+  fingerprint: { request: ArrayBuffer; response: Fingerprint };
+  derive: { request: { png: ArrayBuffer } & DeriveOptions; response: MadeImage };
 };
 
 // pdf.js takes its canvases from the DOM unless told otherwise. A Web Worker has none: OffscreenCanvas instead.
@@ -114,59 +97,35 @@ const options = {
 
 const docs = new Map<string, Promise<PdfDocument>>();
 
-async function handle(request: PageImageRequest): Promise<void> {
-  if (request.type === "open") {
-    if (!docs.has(request.sha256)) docs.set(request.sha256, openPdf(new Uint8Array(request.pdf), options));
-    const doc = await docs.get(request.sha256)!;
-    scope.postMessage({ id: request.id, type: "opened", pageCount: doc.numPages, pdfjsVersion: pdfjs.version ?? "" });
-    return;
-  }
-  if (request.type === "skew") {
-    const image = await decodePng(new Uint8Array(request.png));
-    scope.postMessage({ id: request.id, type: "skew", skew: findSkew(image, { maxAngle: request.maxAngle }) });
-    return;
-  }
-  if (request.type === "fingerprint") {
-    const image = await decodePng(new Uint8Array(request.png));
-    scope.postMessage({ id: request.id, type: "fingerprint", fingerprint: await fingerprintOf(image) });
-    return;
-  }
-  if (request.type === "derive") {
-    let image = await decodePng(new Uint8Array(request.png));
-    if (request.angle !== undefined) image = deskew(image, request.angle);
-    if (request.crop) image = crop(image, request.crop);
-    if (request.limit) image = shrinkToFit(image, request.limit);
-    if (request.draw) image = drawLayout(image, request.draw, request.drawOptions);
-    const png = await encodePng(image, { gray: request.gray });
-    const fingerprint = await fingerprintOf(asStored(image, request.gray ?? false));
-    scope.postMessage({ id: request.id, type: "derived", png, width: image.width, height: image.height, fingerprint }, [png.buffer]);
-    return;
-  }
-  const doc = await docs.get(request.sha256);
-  if (!doc) throw new Error("The PDF isn't open.");
-  const page = await pageImage(doc, request.page, {
-    dpi: request.dpi,
-    createCanvas: (width, height) => new OffscreenCanvas(width, height),
-  });
-  const png = await encodePng(page.image);
-  scope.postMessage(
-    {
-      id: request.id,
-      type: "page",
-      png,
-      width: page.image.width,
-      height: page.image.height,
-      source: page.source,
-      dpi: page.dpi,
-      fingerprint: await fingerprintOf(page.image),
+serve<PageImageCalls>(
+  {
+    open: async ({ sha256, pdf }) => {
+      if (!docs.has(sha256)) docs.set(sha256, openPdf(new Uint8Array(pdf), options));
+      try {
+        const doc = await docs.get(sha256)!;
+        return { pageCount: doc.numPages, pdfjsVersion: pdfjs.version ?? "" };
+      } catch (err) {
+        docs.delete(sha256);
+        throw err;
+      }
     },
-    [png.buffer],
-  );
-}
-
-scope.addEventListener("message", (event) => {
-  handle(event.data).catch((err) => {
-    if (event.data.type === "open") docs.delete(event.data.sha256);
-    scope.postMessage({ id: event.data.id, type: "error", message: errorText(err) });
-  });
-});
+    page: async ({ sha256, page, dpi }) => {
+      const doc = await docs.get(sha256);
+      if (!doc) throw new Error("The PDF isn't open.");
+      const { image } = await pageImage(doc, page, { dpi, createCanvas: (width, height) => new OffscreenCanvas(width, height) });
+      return { png: await encodePng(image), fingerprint: await fingerprintOf(image) };
+    },
+    skew: async ({ png, maxAngle }) => findSkew(await decodePng(new Uint8Array(png)), { maxAngle }),
+    fingerprint: async (png) => fingerprintOf(await decodePng(new Uint8Array(png))),
+    derive: async ({ png, angle, crop: box, limit, draw, drawOptions, gray }) => {
+      let image = await decodePng(new Uint8Array(png));
+      if (angle !== undefined) image = deskew(image, angle);
+      if (box) image = crop(image, box);
+      if (limit) image = shrinkToFit(image, limit);
+      if (draw) image = drawLayout(image, draw, drawOptions);
+      return { png: await encodePng(image, { gray }), fingerprint: await fingerprintOf(asStored(image, gray ?? false)) };
+    },
+  },
+  // The PNGs are moved to the page, not copied.
+  (response) => (response && typeof response === "object" && "png" in response ? [response.png.buffer] : []),
+);

@@ -14,49 +14,19 @@ import { cachedImage, cacheImage, cachedJson, cacheJson } from "./imageCache";
 import { noteImage } from "./itemTiming";
 import { errorText, keyOf } from "@score3ly/core";
 import { pdfUrl } from "./pdf";
-import type { PageImageRequest, PageImageResponse } from "./pageImageWorker";
+import type { DeriveOptions, MadeImage, PageImageCalls } from "./pageImageWorker";
+import { workerClient } from "./workerClient";
 import type { PageRecipe } from "./rasterize";
 import type { Box, LayoutSystem } from "@score3ly/core";
-import type { DrawOptions, SizeLimit, Skew } from "@score3ly/imaging";
+import type { SizeLimit, Skew } from "@score3ly/imaging";
 
-// A request without its id (Omit on each member of the union, not on the union).
-type Unsent = PageImageRequest extends infer R ? (R extends PageImageRequest ? Omit<R, "id"> : never) : never;
-
-type Pending = { resolve: (response: PageImageResponse) => void; reject: (error: Error) => void };
-
-let worker: Worker | null = null;
-let nextId = 1;
-const pending = new Map<number, Pending>();
-// The PDFs opened in the worker: what pdf.js says about them.
+// The PDFs opened in the worker: what pdf.js says about them. Gone with the worker, when it is replaced.
 const opened = new Map<string, Promise<{ pageCount: number; pdfjsVersion: string }>>();
 
-function getWorker(): Worker {
-  if (worker) return worker;
-  worker = new Worker(new URL("./pageImageWorker.ts", import.meta.url), { type: "module" });
-  worker.addEventListener("message", (event: MessageEvent<PageImageResponse>) => {
-    const waiting = pending.get(event.data.id);
-    if (!waiting) return;
-    pending.delete(event.data.id);
-    if (event.data.type === "error") waiting.reject(new Error(event.data.message));
-    else waiting.resolve(event.data);
-  });
-  worker.addEventListener("error", (event) => {
-    // The worker itself failed (e.g. it couldn't load): every request waiting for it fails.
-    for (const waiting of pending.values()) waiting.reject(new Error(event.message || "The page image worker failed."));
-    pending.clear();
-    opened.clear();
-    worker = null;
-  });
-  return worker;
-}
-
-function ask(request: Unsent, transfer: Transferable[] = []): Promise<PageImageResponse> {
-  const id = nextId++;
-  return new Promise((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    getWorker().postMessage({ ...request, id }, transfer);
-  });
-}
+const images = workerClient<PageImageCalls>(() => new Worker(new URL("./pageImageWorker.ts", import.meta.url), { type: "module" }), {
+  failure: (detail) => detail || "The page image worker failed.",
+  onReset: () => opened.clear(),
+});
 
 // Opens the project's PDF in the worker (once per page load), and says how many pages it has.
 export function openPdfForImages(sha256: string): Promise<{ pageCount: number; pdfjsVersion: string }> {
@@ -67,9 +37,7 @@ export function openPdfForImages(sha256: string): Promise<{ pageCount: number; p
         throw new Error(`Loading the PDF failed: ${errorText(err)}`);
       });
       const pdf = await response.arrayBuffer();
-      const answer = await ask({ type: "open", sha256, pdf }, [pdf]);
-      if (answer.type !== "opened") throw new Error("Unexpected answer from the page image worker.");
-      return { pageCount: answer.pageCount, pdfjsVersion: answer.pdfjsVersion };
+      return images.ask("open", { sha256, pdf }, [pdf]);
     })();
     opened.set(sha256, result);
     result.catch(() => opened.delete(sha256));
@@ -84,8 +52,7 @@ export async function pageImage(recipe: PageRecipe): Promise<{ png: Blob; comput
   noteImage(cached !== null);
   if (cached) return { png: cached, computed: false };
   await openPdfForImages(recipe.pdf);
-  const answer = await ask({ type: "page", sha256: recipe.pdf, page: recipe.page, dpi: recipe.dpi });
-  if (answer.type !== "page") throw new Error("Unexpected answer from the page image worker.");
+  const answer = await images.ask("page", { sha256: recipe.pdf, page: recipe.page, dpi: recipe.dpi });
   await cacheImage(key, answer.png, recipe.pdf);
   await made(key, recipe, answer.fingerprint);
   return { png: new Blob([answer.png], { type: "image/png" }), computed: true };
@@ -94,9 +61,7 @@ export async function pageImage(recipe: PageRecipe): Promise<{ png: Blob; comput
 // The skew of a page image (docs/stages/pages.md, "Finding the skew"), measured in the worker.
 export async function measureSkew(png: Blob, maxAngle: number): Promise<Skew> {
   const bytes = await png.arrayBuffer();
-  const answer = await ask({ type: "skew", png: bytes, maxAngle }, [bytes]);
-  if (answer.type !== "skew") throw new Error("Unexpected answer from the page image worker.");
-  return answer.skew;
+  return images.ask("skew", { png: bytes, maxAngle }, [bytes]);
 }
 
 // A page straightened by an angle (docs/images.md §8.6): what `layout` and later stages see, and what the layout's
@@ -106,18 +71,12 @@ export type StraightRecipe = { page: PageRecipe; angle: number | null; deskew: n
 // A straightened page shrunk to a model's limits: the image sent in requests.
 export type ModelPageRecipe = { straight: StraightRecipe; limit: SizeLimit; scale: number };
 
-type DeriveOptions = { angle?: number; crop?: Box; limit?: SizeLimit; draw?: LayoutSystem[]; drawOptions?: DrawOptions; gray?: boolean };
-
-type Derived = { png: Uint8Array<ArrayBuffer>; fingerprint: Fingerprint };
-
-async function derive(png: Blob, options: DeriveOptions): Promise<Derived> {
+async function derive(png: Blob, options: DeriveOptions): Promise<MadeImage> {
   const bytes = await png.arrayBuffer();
-  const answer = await ask({ type: "derive", png: bytes, ...options }, [bytes]);
-  if (answer.type !== "derived") throw new Error("Unexpected answer from the page image worker.");
-  return answer;
+  return images.ask("derive", { png: bytes, ...options }, [bytes]);
 }
 
-async function cachedOr(recipe: unknown, make: () => Promise<Derived>): Promise<Blob> {
+async function cachedOr(recipe: unknown, make: () => Promise<MadeImage>): Promise<Blob> {
   const key = await keyOf(recipe);
   const pdf = pdfOf(recipe);
   const cached = await cachedImage(key, pdf);
@@ -187,10 +146,9 @@ async function fingerprintOf(key: string, pdf: string, png: Blob): Promise<Finge
   const kept = (await cachedJson(fingerprintName(key), pdf)) as Fingerprint | null;
   if (kept) return kept;
   const bytes = await png.arrayBuffer();
-  const answer = await ask({ type: "fingerprint", png: bytes }, [bytes]);
-  if (answer.type !== "fingerprint") throw new Error("Unexpected answer from the page image worker.");
-  await cacheJson(fingerprintName(key), answer.fingerprint, pdf);
-  return answer.fingerprint;
+  const fingerprint = await images.ask("fingerprint", bytes, [bytes]);
+  await cacheJson(fingerprintName(key), fingerprint, pdf);
+  return fingerprint;
 }
 
 // Stores the fingerprints of images a stored result was computed from (one already stored for a recipe stays).

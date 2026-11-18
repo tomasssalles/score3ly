@@ -45,8 +45,8 @@ test("a check is answered once the worker listens", async () => {
   const worker = FakeWorker.made.at(-1)!;
   worker.say({ listening: true });
   await tick();
-  assert.deepEqual(worker.sent, [{ id: 1, text: "<mei/>" }]);
-  worker.say({ id: 1, problems: [] });
+  assert.deepEqual(worker.sent, [{ id: 1, type: "check", request: "<mei/>" }]);
+  worker.say({ id: 1, response: [] });
   assert.deepEqual(await checked, []);
 });
 
@@ -63,7 +63,7 @@ test("a worker that fails rejects what waits, and the next check starts a new on
   const fresh = FakeWorker.made.at(-1)!;
   fresh.say({ listening: true });
   await tick();
-  fresh.say({ id: (fresh.sent[0] as { id: number }).id, problems: [] });
+  fresh.say({ id: (fresh.sent[0] as { id: number }).id, response: [] });
   assert.deepEqual(await again, []);
   // And one that fails before it listens (its script couldn't be loaded).
   fresh.fail("");

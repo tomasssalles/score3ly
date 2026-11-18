@@ -1,15 +1,15 @@
 // The checks of an MEI file edited by hand, in a Web Worker (meiValidation.ts): the schema is compiled as soon as the
-// worker starts, and kept, so checks are quick. libxml2 is loaded with a top-level await, and a message that arrives
-// before the module has run can be lost: the worker says when it listens, and only then is it sent anything.
+// worker starts, and kept, so checks are quick. libxml2 is loaded with a top-level await: `serve` says when the worker
+// listens, once the module has run, and only then is it sent anything (workerClient.ts).
 
 import schemaUrl from "../../../packages/notation/schemas/mei-all.rng?url";
 import { checkMei, type MeiProblem } from "./meiChecks";
 import { keptUntilFailure } from "./keptUntilFailure";
 import { meiValidator } from "./meiSchema";
-import { errorText } from "@score3ly/core";
+import { serve } from "./workerClient.ts";
 
-export type CheckRequest = { id: number; text: string };
-export type CheckResponse = { listening: true } | { id: number; problems: MeiProblem[] } | { id: number; error: string };
+// A check: the MEI's text in, its problems out.
+export type MeiCheckCalls = { check: { request: string; response: MeiProblem[] } };
 
 // Compiled once; a failure (the schema not fetched) is tried again at the next check.
 const ready = keptUntilFailure(() =>
@@ -18,16 +18,10 @@ const ready = keptUntilFailure(() =>
     .then(meiValidator),
 );
 
-self.addEventListener("message", async (event: MessageEvent<CheckRequest>) => {
-  const { id, text } = event.data;
-  try {
-    const validate = await ready();
-    const problems = await checkMei(text, async (t) => validate(t));
-    self.postMessage({ id, problems } satisfies CheckResponse);
-  } catch (err) {
-    self.postMessage({ id, error: errorText(err) } satisfies CheckResponse);
-  }
-});
-
 ready().catch(() => {}); // a failure shows with the first check
-self.postMessage({ listening: true } satisfies CheckResponse);
+serve<MeiCheckCalls>({
+  check: async (text) => {
+    const validate = await ready();
+    return checkMei(text, async (t) => validate(t));
+  },
+});
