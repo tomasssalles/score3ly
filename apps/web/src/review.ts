@@ -11,7 +11,7 @@ import { keyOf } from "@score3ly/core";
 import { onPage, stretchBox, systemCropBox, type ImageSource, type StoredIssue, type StoredWarning } from "./extract.ts";
 import { count } from "./format.ts";
 
-export const REVIEW_VERSION = 1;
+export const REVIEW_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
 
 // A system of the score, where it is: its number, its page and its layout.
 export type PlacedSystem = { number: number; page: number; layout: LayoutSystem };

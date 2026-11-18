@@ -17,7 +17,7 @@ import {
 import { keyOf } from "@score3ly/core";
 import { count } from "./format.ts";
 
-export const ANALYZE_VERSION = 3;
+export const ANALYZE_VERSION = 4; // 4: answers checked against their schema first, a malformed one refused (code review, batch 18)
 
 // What is stored per page (item p<n>, type `analysis`): the page's own answer, and which systems are on it.
 export type PageAnalysis = { page: number; systems: number[]; metadata: PageMetadata; observations: PageObservations };

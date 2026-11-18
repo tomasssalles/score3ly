@@ -7,7 +7,7 @@ import { keyOf } from "@score3ly/core";
 import type { SystemHints } from "./linking.ts";
 import { count } from "./format.ts";
 
-export const EXTRACT_VERSION = 2;
+export const EXTRACT_VERSION = 3; // 3: answers checked against their schema first, a malformed one refused (code review, batch 18)
 
 // The margins code adds to the tight boxes of the layout (§6, `layout`: "margins are code's"), in one place.
 // Horizontally a fraction of the page's width, vertically of the system's height (at least a little of the page's).

@@ -16,7 +16,7 @@ import type { StoredIssue, StoredWarning } from "./extract.ts";
 import { malformedRefused, modelName, placesOf, systemsOf, type PlacedSystem } from "./review.ts";
 import { count } from "./format.ts";
 
-export const APPLY_REVIEW_VERSION = 1;
+export const APPLY_REVIEW_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
 
 const latest = (issue: StoredIssue) => issue.choices[issue.choices.length - 1] ?? null;
 

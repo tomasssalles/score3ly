@@ -4,7 +4,7 @@ import type { LayoutSystem } from "@score3ly/prompts";
 import { keyOf } from "@score3ly/core";
 import { count } from "./format.ts";
 
-export const LAYOUT_VERSION = 1;
+export const LAYOUT_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
 
 // What is stored per page: the layout on the straightened page (fractions of it), and how it came about.
 export type PageLayout = {
