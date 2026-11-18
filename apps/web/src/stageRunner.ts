@@ -25,6 +25,13 @@ import { errorText } from "@score3ly/core";
 // stage released (docs/database.md, "An interrupted run"). Aborted for any other reason (Stop), it isn't: Stop ends it.
 export const LEAVING = "leaving the project";
 
+// The releases sent so far, until each is answered: the home waits for them before it loads the projects, so that its
+// card of the project just left says "interrupted", not still running.
+let releasing: Promise<void> = Promise.resolve();
+export function released(): Promise<void> {
+  return releasing;
+}
+
 export type StageRun = {
   project: Project;
   stage: ApiStage;
@@ -92,7 +99,10 @@ export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {
   // Left mid-run: the stage is released at once, not when the item being made ends (images can't be cancelled).
   const release = () => {
     clearInterval(heartbeat);
-    if (signal.reason === LEAVING) releaseStage(project, stage.id, runId).catch(() => {});
+    if (signal.reason === LEAVING) {
+      const release = releaseStage(project, stage.id, runId).catch(() => {});
+      releasing = Promise.all([releasing, release]).then(() => {});
+    }
   };
   if (signal.aborted) release();
   else signal.addEventListener("abort", release, { once: true });

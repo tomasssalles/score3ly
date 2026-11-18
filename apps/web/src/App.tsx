@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { released } from "./stageRunner";
 import { failure, ApiError, createProject, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type ListedProject, type PdfLookup, type Project } from "./api";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { ExportDialog } from "./ExportDialog";
@@ -47,6 +48,7 @@ export function App() {
 
   async function refresh() {
     try {
+      await released(); // a run given up on leaving a project (stageRunner.ts)
       setProjects(await listProjects());
     } catch (err) {
       setError(failure("Loading the projects failed", err));

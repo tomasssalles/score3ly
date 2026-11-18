@@ -1,7 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiStage, Project } from "./api.ts";
-import { CannotStart, contentsOf, failsTheStage, LEAVING, runPlan, type FinalOutput } from "./stageRunner.ts";
+import { CannotStart, contentsOf, failsTheStage, LEAVING, released, runPlan, type FinalOutput } from "./stageRunner.ts";
 
 // The Worker is a fake that records the requests and answers what runPlan asks.
 const realFetch = globalThis.fetch;
@@ -143,6 +143,7 @@ test("leaving the project mid-run releases the stage at once, and records nothin
   const abort = new AbortController();
   await runPlan(runOf([], abort.signal), abortedPlan(abort, LEAVING));
   assert.deepEqual(sent("release"), [{ runId: "r1" }]);
+  await released(); // answered: the home can load the projects
   assert.deepEqual(sent("outputs"), []);
   assert.deepEqual(sent("finish"), []);
 });

@@ -373,7 +373,7 @@ The look of the app (colours and themes, type, components, the brand: wordmark, 
 In `docs/database.md`: the tables of D1 and what each row holds, the Worker's requests while a stage runs and for manual stages, carried manual stages, interrupted runs, deleting, exporting and importing a project, page counts. In short:
 - **The pipeline is a list of pointers** (`pipeline_entries`) to stages (`stages`), which are shared, not owned: a fork copies pointers, never stages or outputs. Planned stages have a row too.
 - **Every output has a row** (`outputs`), with its content's hash (stored in R2) or its recipe (computed), and the outputs it was made from; every LLM call has a row (`llm_calls`), with its request and response in R2, its tokens and cost.
-- **The browser does the work, the Worker records it:** a stage's start, its outputs as each is done, a heartbeat once a minute, its end.
+- **The browser does the work, the Worker records it:** a stage's start, its outputs as each is done, a heartbeat once a minute, its end, each with the run's id, so that a run that is over can't write.
 - **Deleting marks rows instead of deleting them,** for the costs, and every cache lookup ignores marked rows.
 - **Two kinds of settings:** the user's, in D1, and the device's, in the browser.
 - **A project can be exported** as one file, `<name>.s3l` (a zip of its current pipeline's rows, its content and the PDF), and **imported** through "+ New project", looked up like a run: what this instance already has is reused, a deleted call brought back to life, only what is found nowhere added and counted.
