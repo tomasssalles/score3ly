@@ -47,7 +47,7 @@ export async function runSkewAnalysis(run: StageRun): Promise<void> {
       item: output.item,
       type: "skew",
       make: async () => {
-        const { png } = await pageImage(recipe);
+        const png = await pageImage(recipe);
         const skew = await measureSkew(png, config.maxAngle);
         await keepFingerprints([{ recipe, png }]);
         made.set(output.item, skew);

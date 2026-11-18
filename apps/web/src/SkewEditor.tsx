@@ -98,7 +98,7 @@ function PageEditor({
   nav: PageNavigation;
   onEdited?: () => void;
 }) {
-  const { image, error: imageError } = usePageImage(async () => (await pageImage(page.recipe)).png, page.item);
+  const { image, error: imageError } = usePageImage(() => pageImage(page.recipe), page.item);
   const [lines, setLinesState] = useState<SkewLine[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -114,7 +114,7 @@ function PageEditor({
         { item: page.item, type: "lines", contentSha256: sha256, parentOutputId: page.parentId, inputIds: [page.parentId] },
       ]);
       // The lines are drawn on this image: its fingerprint is kept (§8.3), once per session.
-      void keepFingerprintOnce(page.recipe, async () => (await pageImage(page.recipe)).png);
+      void keepFingerprintOnce(page.recipe, () => pageImage(page.recipe));
     });
 
   const setLines = (next: SkewLine[]) => {

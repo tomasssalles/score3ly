@@ -13,7 +13,7 @@ export type RasterizeConfig = {
   dpi: number; // for vector pages; scans keep their own pixels
 };
 
-export const DEFAULT_CONFIG: RasterizeConfig = { pages: "", dpi: DEFAULT_DPI };
+const DEFAULT_CONFIG: RasterizeConfig = { pages: "", dpi: DEFAULT_DPI };
 
 export const MIN_DPI = 72;
 export const MAX_DPI = 600;

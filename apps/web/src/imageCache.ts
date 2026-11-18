@@ -14,29 +14,25 @@
 // each file is kept in an index (`cache/lru.json`), merged once per page load with a scan of the folder, which gives
 // the sizes and catches what other tabs wrote. The memory fallback has a limit of its own.
 
+import { pngLooksWhole } from "@score3ly/imaging";
 import { cacheLimitMb, effectiveLimit, PRUNE_TO, toEvict, type CacheEntry } from "./cacheLru.ts";
 
-// The memory fallback, least recently used first (a Map keeps its insertion order: a use moves an entry to the end).
-const memory = new Map<string, Blob>();
+// The memory fallback, with the order of use (a counter: `toEvict` takes the least recently used first, as for OPFS).
+const memory = new Map<string, { blob: Blob; used: number }>();
 const MEMORY_LIMIT = 200 * 1024 * 1024;
+let uses = 0;
 
 function remember(path: string, blob: Blob) {
-  memory.delete(path);
-  memory.set(path, blob);
-  let total = [...memory.values()].reduce((sum, b) => sum + b.size, 0);
-  for (const [oldest, old] of memory) {
-    if (total <= MEMORY_LIMIT || oldest === path) break;
-    memory.delete(oldest);
-    total -= old.size;
-  }
+  memory.set(path, { blob, used: ++uses });
+  const entries = [...memory].map(([p, e]) => ({ path: p, size: e.blob.size, used: e.used }));
+  for (const entry of toEvict(entries, MEMORY_LIMIT, path)) memory.delete(entry.path);
 }
 
 function recall(path: string): Blob | null {
-  const blob = memory.get(path);
-  if (!blob) return null;
-  memory.delete(path);
-  memory.set(path, blob);
-  return blob;
+  const entry = memory.get(path);
+  if (!entry) return null;
+  entry.used = ++uses;
+  return entry.blob;
 }
 
 // The cache's folder, or a PDF's folder in it.
@@ -64,6 +60,30 @@ async function cachedFile(name: string, pdf?: string): Promise<Blob | null> {
   } catch {
     // Not in OPFS: it may be in memory, where a failed write (a full disk) put it.
     return recall(memoryName(name, pdf));
+  }
+}
+
+// A file found damaged: deleted, wherever it is, so that it is made again.
+async function forgetFile(name: string, pdf?: string): Promise<void> {
+  memory.delete(memoryName(name, pdf));
+  (await loadIndex()).delete(memoryName(name, pdf));
+  saveSoon();
+  try {
+    await (await folder(pdf))?.removeEntry(name);
+  } catch {
+    // Gone already.
+  }
+}
+
+// A JSON file of the cache, or null if it is missing or damaged (then deleted).
+async function cachedJsonFile(name: string, pdf?: string): Promise<unknown | null> {
+  const blob = await cachedFile(name, pdf);
+  if (!blob) return null;
+  try {
+    return JSON.parse(await blob.text());
+  } catch {
+    await forgetFile(name, pdf);
+    return null;
   }
 }
 
@@ -187,7 +207,7 @@ function prune(keep: string): Promise<void> {
 
 // How much the cache takes on this device (Settings).
 export async function cacheUsage(): Promise<number> {
-  const inMemory = [...memory.values()].reduce((sum, b) => sum + b.size, 0);
+  const inMemory = [...memory.values()].reduce((sum, e) => sum + e.blob.size, 0);
   return [...(await loadIndex()).values()].reduce((sum, e) => sum + e.size, 0) + inMemory;
 }
 
@@ -196,21 +216,30 @@ export function pruneNow(): Promise<void> {
   return prune("");
 }
 
-// An image made from the PDF `pdf`.
-export const cachedImage = (key: string, pdf: string): Promise<Blob | null> => cachedFile(`${key}.png`, pdf);
+// An image made from the PDF `pdf`. One that isn't whole (damaged outside the app: OPFS's writes are whole or not at
+// all) is deleted and missing, so that it is made again.
+export async function cachedImage(key: string, pdf: string): Promise<Blob | null> {
+  const png = await cachedFile(`${key}.png`, pdf);
+  if (!png) return null;
+  const [head, tail] = await Promise.all([png.slice(0, 24).arrayBuffer(), png.slice(Math.max(0, png.size - 12)).arrayBuffer()]);
+  if (pngLooksWhole(new Uint8Array(head), new Uint8Array(tail))) return png;
+  await forgetFile(`${key}.png`, pdf);
+  return null;
+}
 
 export const cacheImage = (key: string, png: Uint8Array<ArrayBuffer>, pdf: string): Promise<void> =>
   cacheFile(`${key}.png`, new Blob([png], { type: "image/png" }), pdf);
 
-// Deletes every image made from a PDF, and what is kept with them (a deleted project's, §4).
+// Deletes every image made from a PDF, and what is kept with them (a deleted project's, §4). The renderings and the
+// engraved PDFs at the cache's top stay: they are keyed by their content (the MEI), not by a project, may be another
+// project's too, and age out with the LRU; a new project that makes the same one again finds it, which shows nowhere.
 export async function deleteCachedPdf(pdf: string): Promise<void> {
   for (const name of [...memory.keys()]) if (name.startsWith(`${pdfFolder(pdf)}/`)) memory.delete(name);
   const entries = await loadIndex();
   for (const path of [...entries.keys()]) if (path.startsWith(`${pdfFolder(pdf)}/`)) entries.delete(path);
   saveSoon();
   try {
-    const root = await (await navigator.storage.getDirectory()).getDirectoryHandle("cache", { create: true });
-    await root.removeEntry(pdfFolder(pdf), { recursive: true });
+    await (await folder())?.removeEntry(pdfFolder(pdf), { recursive: true });
   } catch {
     // Not there, or no OPFS: nothing to delete.
   }
@@ -224,19 +253,13 @@ export async function cachedSvg(key: string): Promise<string | null> {
 export const cacheSvg = (key: string, svg: string): Promise<void> => cacheFile(`${key}.svg`, new Blob([svg], { type: "image/svg+xml" }));
 
 // An image's fingerprint (docs/images.md §8.3), next to it: what it was when this device made it.
-export async function cachedJson(name: string, pdf: string): Promise<unknown | null> {
-  const blob = await cachedFile(`${name}.json`, pdf);
-  return blob ? JSON.parse(await blob.text()) : null;
-}
+export const cachedJson = (name: string, pdf: string): Promise<unknown | null> => cachedJsonFile(`${name}.json`, pdf);
 
 export const cacheJson = (name: string, value: unknown, pdf: string): Promise<void> =>
   cacheFile(`${name}.json`, new Blob([JSON.stringify(value)], { type: "application/json" }), pdf);
 
 // Several renderings at once (an engraving's pages), as one JSON file.
-export async function cachedSvgs(key: string): Promise<string[] | null> {
-  const blob = await cachedFile(`${key}.json`);
-  return blob ? (JSON.parse(await blob.text()) as string[]) : null;
-}
+export const cachedSvgs = (key: string): Promise<string[] | null> => cachedJsonFile(`${key}.json`) as Promise<string[] | null>;
 
 export const cacheSvgs = (key: string, svgs: string[]): Promise<void> => cacheFile(`${key}.json`, new Blob([JSON.stringify(svgs)], { type: "application/json" }));
 

@@ -5,7 +5,7 @@
 import { cachedSvg, cachedSvgs, cacheSvg, cacheSvgs } from "./imageCache.ts";
 import { keyOf } from "@score3ly/core";
 import type { RenderCalls } from "./renderWorker.ts";
-import { workerClient } from "./workerClient.ts";
+import { oneAtATime, workerClient } from "./workerClient.ts";
 import type { Box } from "@score3ly/core";
 
 // Verovio's version, in the cache key: a new version renders anew. A test keeps it equal to the installed one.
@@ -50,22 +50,30 @@ const renderer = workerClient<RenderCalls>(() => new Worker(new URL("./renderWor
   failure: (detail) => detail || "The rendering worker failed.",
 });
 
+// What is being rendered: one rendering per key at a time (a view shown twice, or asked again while it renders).
+const renderingSystem = oneAtATime<string>();
+const renderingPages = oneAtATime<string[]>();
+
 // One system on one line (the Transcription), as wide as `pageWidth` where it is given (fittedOptions).
 export async function renderMei(mei: string, options: Record<string, unknown> = SYSTEM_OPTIONS, pageWidth?: number): Promise<string> {
   const key = await keyOf({ mei, options, pageWidth: pageWidth ?? null, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION });
-  const cached = await cachedSvg(key);
-  if (cached) return cached;
-  const [svg] = await renderer.ask("render", { mei, options, allPages: false, ...(pageWidth !== undefined ? { pageWidth } : {}) });
-  await cacheSvg(key, svg);
-  return svg;
+  return renderingSystem(key, async () => {
+    const cached = await cachedSvg(key);
+    if (cached) return cached;
+    const [svg] = await renderer.ask("render", { mei, options, allPages: false, ...(pageWidth !== undefined ? { pageWidth } : {}) });
+    await cacheSvg(key, svg);
+    return svg;
+  });
 }
 
 // Every page of an engraving (`engrave`).
 export async function renderPages(mei: string, options: Record<string, unknown>): Promise<string[]> {
   const key = await keyOf({ mei, options, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION, pages: true });
-  const cached = await cachedSvgs(key);
-  if (cached) return cached;
-  const svgs = await renderer.ask("render", { mei, options, allPages: true });
-  await cacheSvgs(key, svgs);
-  return svgs;
+  return renderingPages(key, async () => {
+    const cached = await cachedSvgs(key);
+    if (cached) return cached;
+    const svgs = await renderer.ask("render", { mei, options, allPages: true });
+    await cacheSvgs(key, svgs);
+    return svgs;
+  });
 }

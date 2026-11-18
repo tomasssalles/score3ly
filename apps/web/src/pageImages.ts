@@ -15,7 +15,7 @@ import { noteImage } from "./itemTiming";
 import { errorText, keyOf } from "@score3ly/core";
 import { pdfUrl } from "./pdf";
 import type { DeriveOptions, MadeImage, PageImageCalls } from "./pageImageWorker";
-import { workerClient } from "./workerClient";
+import { oneAtATime, workerClient } from "./workerClient";
 import type { PageRecipe } from "./rasterize";
 import type { Box, LayoutSystem } from "@score3ly/core";
 import type { SizeLimit, Skew } from "@score3ly/imaging";
@@ -45,17 +45,12 @@ export function openPdfForImages(sha256: string): Promise<{ pageCount: number; p
   return result;
 }
 
-// A page image as a PNG: from the cache, or computed now and cached. `computed` says which.
-export async function pageImage(recipe: PageRecipe): Promise<{ png: Blob; computed: boolean }> {
-  const key = await keyOf(recipe);
-  const cached = await cachedImage(key, recipe.pdf);
-  noteImage(cached !== null);
-  if (cached) return { png: cached, computed: false };
-  await openPdfForImages(recipe.pdf);
-  const answer = await images.ask("page", { sha256: recipe.pdf, page: recipe.page, dpi: recipe.dpi });
-  await cacheImage(key, answer.png, recipe.pdf);
-  await made(key, recipe, answer.fingerprint);
-  return { png: new Blob([answer.png], { type: "image/png" }), computed: true };
+// A page image as a PNG: from the cache, or computed now and cached.
+export function pageImage(recipe: PageRecipe): Promise<Blob> {
+  return cachedOr(recipe, async () => {
+    await openPdfForImages(recipe.pdf);
+    return images.ask("page", { sha256: recipe.pdf, page: recipe.page, dpi: recipe.dpi });
+  });
 }
 
 // The skew of a page image (docs/stages/pages.md, "Finding the skew"), measured in the worker.
@@ -76,16 +71,27 @@ async function derive(png: Blob, options: DeriveOptions): Promise<MadeImage> {
   return images.ask("derive", { png: bytes, ...options }, [bytes]);
 }
 
+// The images being made: one making per recipe at a time (a view and the running stage, or two images made from the
+// same straightened page, asking at once).
+const making = oneAtATime<Blob>();
+
+// An image from the cache, or made now (`make`), cached, and its fingerprint kept and checked.
 async function cachedOr(recipe: unknown, make: () => Promise<MadeImage>): Promise<Blob> {
   const key = await keyOf(recipe);
-  const pdf = pdfOf(recipe);
-  const cached = await cachedImage(key, pdf);
-  noteImage(cached !== null);
-  if (cached) return cached;
-  const { png, fingerprint } = await make();
-  await cacheImage(key, png, pdf);
-  await made(key, recipe, fingerprint);
-  return new Blob([png], { type: "image/png" });
+  let lookedUp = false;
+  const image = await making(key, async () => {
+    lookedUp = true;
+    const pdf = pdfOf(recipe);
+    const cached = await cachedImage(key, pdf);
+    noteImage(cached !== null);
+    if (cached) return cached;
+    const { png, fingerprint } = await make();
+    await cacheImage(key, png, pdf);
+    await made(key, recipe, fingerprint);
+    return new Blob([png], { type: "image/png" });
+  });
+  if (!lookedUp) noteImage(true); // made by another request: not made for this one
+  return image;
 }
 
 // Fingerprints.
@@ -188,8 +194,8 @@ export async function keepFingerprintOnce(recipe: unknown, png: () => Promise<Bl
 }
 
 export async function straightPage(recipe: StraightRecipe): Promise<Blob> {
-  if (recipe.angle === null) return (await pageImage(recipe.page)).png;
-  return cachedOr(recipe, async () => derive((await pageImage(recipe.page)).png, { angle: recipe.angle! }));
+  if (recipe.angle === null) return pageImage(recipe.page);
+  return cachedOr(recipe, async () => derive(await pageImage(recipe.page), { angle: recipe.angle! }));
 }
 
 export async function modelPage(recipe: ModelPageRecipe): Promise<Blob> {

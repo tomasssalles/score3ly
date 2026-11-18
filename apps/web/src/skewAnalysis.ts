@@ -9,7 +9,7 @@ export const SKEW_ANALYSIS_VERSION = 1;
 
 export type SkewConfig = { maxAngle: number }; // degrees searched either way
 
-export const DEFAULT_SKEW_CONFIG: SkewConfig = { maxAngle: 5 };
+const DEFAULT_SKEW_CONFIG: SkewConfig = { maxAngle: 5 };
 
 export const MIN_MAX_ANGLE = 0.5;
 export const MAX_MAX_ANGLE = 45;

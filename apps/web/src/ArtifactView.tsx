@@ -134,8 +134,8 @@ export function PageImageView({
     if (!near) return;
     let cancelled = false;
     let objectUrl: string | null = null;
-    (straight ? straightPage(straight).then((png) => ({ png })) : pageImage(recipe)).then(
-      ({ png }) => {
+    (straight ? straightPage(straight) : pageImage(recipe)).then(
+      (png) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(png);
         setUrl(objectUrl);

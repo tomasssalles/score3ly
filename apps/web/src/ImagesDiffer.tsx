@@ -13,18 +13,18 @@ export function differsCause(desktop: boolean): string {
   return desktop ? "probably before a recent update" : "probably on another device, or before a recent update";
 }
 
-export function imagesDifferText(desktop: boolean): string {
+function imagesDifferText(desktop: boolean): string {
   return `This image differs from the one the stored results were made from (${differsCause(desktop)}); boxes or answers may not fit it.`;
 }
 
 // Whether this device's images of the page differ from the ones stored results were computed from.
-export function usePageDiffers(page: PageRecipe | null): boolean {
+function usePageDiffers(page: PageRecipe): boolean {
   const [key, setKey] = useState<string | null>(null);
   const [differs, setDiffers] = useState(false);
   const recipe = JSON.stringify(page);
   useEffect(() => {
     let cancelled = false;
-    if (page) keyOf(page).then((k) => !cancelled && setKey(k));
+    keyOf(page).then((k) => !cancelled && setKey(k));
     return () => {
       cancelled = true;
     };
@@ -39,7 +39,7 @@ export function usePageDiffers(page: PageRecipe | null): boolean {
 
 // Over the image's top, or below it (`below`) where the image is a short strip (a system's crop) and a banner would
 // hide its music.
-export function ImagesDiffer({ page, below = false }: { page: PageRecipe | null; below?: boolean }) {
+export function ImagesDiffer({ page, below = false }: { page: PageRecipe; below?: boolean }) {
   const desktop = useHost() === "desktop";
   return usePageDiffers(page) ? (
     <p className={below ? "images-differ below" : "images-differ"} role="status">

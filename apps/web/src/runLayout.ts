@@ -68,7 +68,7 @@ export async function runLayout(run: StageRun): Promise<void> {
         // Straightened by the page's lines (§8.4); the decision needs the page's width in pixels.
         const skew = pageLines ? ((await fetchJsonContent(pageLines.contentSha256!)) as Skew) : null;
         // The page image is made for its width only when there are lines to go by.
-        const angle = skew && skew.lines.length > 0 ? deskewAngle(skew.lines, (await pngSize((await pageImage(recipe)).png)).width) : null;
+        const angle = skew && skew.lines.length > 0 ? deskewAngle(skew.lines, (await pngSize(await pageImage(recipe))).width) : null;
         const modelRecipe: ModelPageRecipe = {
           straight: { page: recipe, angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION },
           limit: imageRecipe.limit,

@@ -97,6 +97,15 @@ export function pngSize(bytes: Uint8Array): { width: number; height: number } {
   return { width: view.getUint32(16), height: view.getUint32(20) };
 }
 
+// The IEND chunk every PNG ends with: no data, so always the same 12 bytes.
+const IEND = [0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82];
+
+// Whether a PNG file is whole, as far as its two ends tell: the signature and the IHDR chunk at its start (`head`, its
+// first 24 bytes), the IEND chunk at its end (`tail`, its last 12). A file cut short, or damaged at either end, isn't.
+export function pngLooksWhole(head: Uint8Array, tail: Uint8Array): boolean {
+  return head.length >= 24 && SIGNATURE.every((b, i) => head[i] === b) && tail.length === 12 && IEND.every((b, i) => tail[i] === b);
+}
+
 function paeth(a: number, b: number, c: number): number {
   const p = a + b - c;
   const pa = Math.abs(p - a);

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { createImage, type RgbaImage } from "./image.ts";
-import { decodePng, encodePng, pngSize } from "./png.ts";
+import { decodePng, encodePng, pngLooksWhole, pngSize } from "./png.ts";
 
 function noisy(width: number, height: number): RgbaImage {
   const image = createImage(width, height);
@@ -71,4 +71,16 @@ test("a PNG's size is read from its header alone", async () => {
   assert.deepEqual(pngSize(await encodePng(noisy(5, 900))), { width: 5, height: 900 });
   assert.throws(() => pngSize(new Uint8Array(24)), /not a PNG file/);
   assert.throws(() => pngSize(bytes.subarray(0, 20)), /not a PNG file/);
+});
+
+test("a PNG looks whole by its two ends; one cut short or damaged at an end doesn't", async () => {
+  const bytes = await encodePng(noisy(37, 23));
+  const ends = (b: Uint8Array) => [b.subarray(0, 24), b.subarray(Math.max(0, b.length - 12))] as const;
+  assert.equal(pngLooksWhole(...ends(bytes)), true);
+  assert.equal(pngLooksWhole(...ends(bytes.subarray(0, bytes.length - 1))), false);
+  assert.equal(pngLooksWhole(...ends(bytes.subarray(0, 30))), false);
+  const damaged = bytes.slice();
+  damaged[1] = 0;
+  assert.equal(pngLooksWhole(...ends(damaged)), false);
+  assert.equal(pngLooksWhole(...ends(new Uint8Array(0))), false);
 });
