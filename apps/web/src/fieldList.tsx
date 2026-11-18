@@ -9,10 +9,7 @@ import { CONFIDENCE_SYMBOLS, type ShownConfidence } from "./analyze";
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
 import { FittedText } from "./FittedText";
 import { ChevronDownIcon, CloseIcon } from "./icons";
-import { failure } from "./api";
-
-// What forms saved on this device and isn't yet in the pipeline the app has, by stage.
-const saved = new Map<string, unknown[]>();
+import { loadKey, useSaver } from "./saving";
 
 // The field being edited: its row's index, what has been typed, whether it was just added, and why it can't be saved.
 export type Editing<R> = { index: number; draft: R; added: boolean; problem: string | null };
@@ -32,29 +29,28 @@ export function useFieldList<R extends { confirmed: boolean }>(
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing<R> | null>(null);
   const [focus, setFocus] = useState<number | null>(null); // the row whose pages are open
-  const chain = useRef(Promise.resolve());
+  // One saver for the stage (saving.ts): what the form saved is shown when it opens again.
+  const saver = useSaver(form?.stageId ?? "");
 
+  // Loaded once for a form being edited, its own saves never read back (the document changes with each); a view's
+  // when its document changes. A row being typed is never replaced (docs/style.md).
+  const editingNow = useRef(editing);
+  editingNow.current = editing;
   useEffect(() => {
     let cancelled = false;
-    const own = form && (saved.get(form.stageId) as R[] | undefined);
+    const own = form ? saver.value<R[]>("") : undefined;
     (own ? Promise.resolve(own) : source.load()).then(
-      (loaded) => !cancelled && setRows(loaded),
+      (loaded) => !cancelled && !(form && editingNow.current) && setRows(loaded),
       () => !cancelled && setError("This couldn't be loaded."),
     );
     return () => {
       cancelled = true;
     };
-  }, [source.sha256]);
+  }, [loadKey(source, form)]);
 
   function save(next: R[]) {
     if (!form) return;
-    saved.set(form.stageId, next);
-    chain.current = chain.current
-      .then(async () => {
-        await form.save(next);
-        setError(null);
-      })
-      .catch((err) => setError(failure("Saving failed", err)));
+    saver.save("", next, () => form.save(next));
   }
 
   // The field being edited, ended: saved if it changed (and confirmed, keeping the model's confidence), removed if it
@@ -167,6 +163,7 @@ export function useFieldList<R extends { confirmed: boolean }>(
   return {
     rows,
     error,
+    saving: { state: saver.state, retry: saver.retry },
     editing,
     setDraft: (draft: R) => editing && setEditing({ ...editing, draft, problem: null }),
     focus,

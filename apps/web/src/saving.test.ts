@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ApiError } from "./api.ts";
-import { discardUnsaved, hasUnsaved, saverOf, settled, StageSaver } from "./saving.ts";
+import { discardUnsaved, hasUnsaved, loadKey, saverOf, settled, StageSaver } from "./saving.ts";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -97,4 +97,12 @@ test("the stages' savers: Finish waits for its stage's saves; leaving forgets wh
   // What was saved before stays: an editor opened again shows it.
   assert.equal(saver.value("p1"), "old");
   assert.equal(await settled("stage-a"), true);
+});
+
+test("a form being edited is loaded once per stage, not again after its own saves; a view whenever its document changes (D3)", () => {
+  const form = { stageId: "s1" };
+  assert.equal(loadKey({ sha256: "a" }, form), loadKey({ sha256: "b" }, form));
+  assert.notEqual(loadKey({ sha256: "a" }, form), loadKey({ sha256: "a" }, { stageId: "s2" }));
+  assert.notEqual(loadKey({ sha256: "a" }, null), loadKey({ sha256: "b" }, null));
+  assert.notEqual(loadKey({ sha256: "a" }, form), loadKey({ sha256: "a" }, null));
 });

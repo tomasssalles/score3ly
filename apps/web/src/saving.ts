@@ -146,6 +146,12 @@ function warn(event: BeforeUnloadEvent) {
 }
 globalThis.addEventListener?.("beforeunload", warn as EventListener);
 
+// When a form's list is loaded again (fieldList.tsx): a form being edited once per stage (its own saves change the document's hash, and
+// reading them back would replace the rows, a row being typed included); a view whenever its document changes.
+export function loadKey(source: { sha256: string }, form: { stageId: string } | null): string {
+  return form ? `form ${form.stageId}` : `view ${source.sha256}`;
+}
+
 // The stage's saver, and its state as it changes. `onSaved` (the pipeline fetched again) runs after each save.
 export function useSaver(stageId: string, onSaved?: () => void) {
   const saver = saverOf(stageId);

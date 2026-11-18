@@ -9,6 +9,7 @@
 import type { Place } from "@score3ly/prompts";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { placeLabel } from "./analyze";
+import { UnsavedNote } from "./pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { LayoutFilmstrip } from "./ArtifactView";
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
@@ -148,6 +149,7 @@ export function ObservationsView({ project, artifact, onEdited }: { project: Pro
       {editor && (
         <div className="metadata-tools">
           {error && <p className="field-problem error-text">{error}</p>}
+          <UnsavedNote className="field-problem error-text" state={list.saving.state} onRetry={list.saving.retry} />
           <DropdownMenu
             icon={<PlusIcon />}
             label="Add an item"

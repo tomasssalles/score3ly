@@ -6,6 +6,7 @@
 // when it is confirmed or unconfirmed, and when the form closes. Saving an edit confirms the field; adding one too.
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { UnsavedNote } from "./pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { Filmstrip, PageImageView } from "./ArtifactView";
 import { DropdownMenu, type MenuItem } from "./DropdownMenu";
@@ -120,6 +121,7 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
       {editor && (
         <div className="metadata-tools">
           {error && <p className="field-problem error-text">{error}</p>}
+          <UnsavedNote className="field-problem error-text" state={list.saving.state} onRetry={list.saving.retry} />
           <DropdownMenu
             icon={<PlusIcon />}
             label="Add a field"
