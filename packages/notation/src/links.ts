@@ -6,7 +6,7 @@
 
 import { describeMark, sameMark, type OpenMark } from "./spans.ts";
 import type { CheckedSystem, StretchPlace, Warning } from "./lens.ts";
-import { firstMeasureStretch, splitPieces } from "./structure.ts";
+import { firstMeasureStretch, pieceEndings, splitPieces } from "./structure.ts";
 
 // An end repeat (the bar line at the right of `end`) and where it goes back to: a start repeat, the stretch after an
 // earlier end repeat (`|: A :| B :|` plays A A B B), or the piece's start.
@@ -33,29 +33,15 @@ export function repeatStructure(piece: Pick<CheckedSystem, "number" | "answer">[
   let open: StretchPlace | null = null; // a start repeat waiting for its end repeat
   let back: { to: StretchPlace; via: GoBack["via"] } = { to: placeOf(0), via: "pieceStart" };
   const start = (at: StretchPlace) => {
+    // The same start repeat given twice, as the bar line at a system's end and as the next system's start repeat: one.
+    if (open && open.system === at.system && open.stretch === at.stretch) return;
     if (open) warnings.push({ message: `Two start repeats without an end repeat between them (system ${open.system} and system ${at.system}): repeats don't nest.`, places: [open, at] });
     open = at;
     back = { to: at, via: "startRepeat" };
   };
-  type Building = { label: string | null; start: StretchPlace; end: StretchPlace; endBarLine: string; next: number };
-  const building: Building[] = [];
-  let current: Building | null = null;
   for (const [i, { system, stretch }] of stretches.entries()) {
     const at = placeOf(i);
     if (stretch.stretch === firstMeasureStretch(system.answer) && system.answer.startRepeat) start(at);
-    if (stretch.ending) {
-      if (stretch.ending.startsHere || !current) {
-        current = { label: stretch.ending.label, start: at, end: at, endBarLine: stretch.rightBarLine, next: -1 };
-        building.push(current);
-      }
-      current.label = current.label ?? stretch.ending.label;
-      current.end = at;
-      current.endBarLine = stretch.rightBarLine;
-      if (stretch.ending.endsHere) {
-        current.next = i + 1;
-        current = null;
-      }
-    }
     if (stretch.rightBarLine === "endRepeat" || stretch.rightBarLine === "bothRepeats") {
       goBacks.push({ end: at, ...back });
       open = null;
@@ -69,12 +55,12 @@ export function repeatStructure(piece: Pick<CheckedSystem, "number" | "answer">[
   }
 
   // Endings, with their neighbours: one that starts right where another ended follows it.
-  const same = (a: StretchPlace, i: number) => i >= 0 && i < stretches.length && a.system === placeOf(i).system && a.stretch === placeOf(i).stretch;
-  const endings: EndingSpan[] = building.map((b) => ({ label: b.label, start: b.start, end: b.end, endBarLine: b.endBarLine, previous: null, next: null }));
-  for (const [k, b] of building.entries()) {
-    if (k + 1 < building.length && same(building[k + 1].start, b.next)) {
-      endings[k].next = endings[k + 1];
-      endings[k + 1].previous = endings[k];
+  const runs = pieceEndings(piece);
+  const endings: EndingSpan[] = runs.map((r) => ({ label: r.label, start: r.start, end: r.end, endBarLine: r.endBarLine, previous: null, next: null }));
+  for (const [k, r] of runs.entries()) {
+    if (k > 0 && r.followsPrevious) {
+      endings[k - 1].next = endings[k];
+      endings[k].previous = endings[k - 1];
     }
   }
   const name = (e: EndingSpan) => (e.label ? `The ending "${e.label}"` : "An ending");

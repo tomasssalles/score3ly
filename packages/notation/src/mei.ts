@@ -12,11 +12,11 @@
 import { add, equal, fraction, less, mul, ZERO, type Fraction } from "./fraction.ts";
 import { durationValue, eventsDuration, parseKey, parseTime } from "./durations.ts";
 import { stretchEdges, type Box } from "@score3ly/core";
-import type { LensEnding, LensStretch, LensSystem } from "./lens.ts";
+import type { LensStretch, LensSystem } from "./lens.ts";
 import { stretchOffsets, tstamp, type Run, type Score, type ScoreMeasure, type ScorePiece } from "./score.ts";
 import { isDynamic, JUMPS, type Accidental, type CommandName, type EVENT_COMMANDS, type Duration, type Event, type Head, type Mark, type Pitch, type Tempo } from "./symbolic.ts";
 import { el, elements, serialize, type XmlElement, type XmlNode } from "./xml.ts";
-import { firstMeasureStretch } from "./structure.ts";
+import { firstMeasureStretch, pieceEndings, type EndingRun } from "./structure.ts";
 
 export const MEI_VERSION = "5.1";
 export const MEI_NS = "http://www.music-encoding.org/ns/mei";
@@ -413,6 +413,9 @@ class PieceWriter {
     for (const staff of [...this.openOttavas.keys()]) this.closeOttava(staff); // an ottava never ended: to the last note under it
     const sectionChildren: XmlNode[] = [];
     let firstScoreDef: XmlElement | null = null;
+    // The endings, as one walk over the piece's stretches finds them (structure.ts), by the stretches they cover.
+    const endingAt = new Map(pieceEndings(piece.systems).flatMap((e) => e.places.map((p) => [`${p.system}/${p.stretch}`, e] as const)));
+    let ending: EndingRun | null = null; // the ending being written
     let endingRun: XmlElement | null = null;
     const push = (node: XmlNode) => (endingRun ? endingRun.children.push(node) : sectionChildren.push(node));
     let lastSystem: number | null = null;
@@ -421,11 +424,12 @@ class PieceWriter {
       const segments = measureSegments(score, m, this.divide);
       for (const [k, segment] of segments.entries()) {
         if (only && !only.has(segment[0].system)) continue;
-        const ending = this.endingOf(segment);
-        if (ending && (ending.startsHere || !endingRun)) {
-          endingRun = el("ending", { "xml:id": `p${piece.index + 1}e${segment[0].system}t${segment[0].stretch}`, label: ending.label ?? undefined });
+        const inEnding = segment.map((t) => endingAt.get(`${t.system}/${t.stretch}`)).find((e) => e !== undefined) ?? null;
+        if (inEnding && inEnding !== ending) {
+          endingRun = el("ending", { "xml:id": `p${piece.index + 1}e${segment[0].system}t${segment[0].stretch}`, label: inEnding.label ?? undefined });
           sectionChildren.push(endingRun);
-        } else if (!ending) endingRun = null;
+        } else if (!inEnding) endingRun = null;
+        ending = inEnding;
         const first = segment[0].system;
         if (!firstScoreDef) firstScoreDef = this.scoreDefAt(first);
         else {
@@ -434,7 +438,11 @@ class PieceWriter {
         }
         push(this.measureElement(m, built, segments, k));
         lastSystem = segment[segment.length - 1].system;
-        if (ending?.endsHere) endingRun = null;
+        // After the ending's last measure: what follows (a system break, changes) is outside it.
+        if (ending && segment.some((t) => t.system === ending!.lastMeasure?.system && t.stretch === ending!.lastMeasure?.stretch)) {
+          ending = null;
+          endingRun = null;
+        }
       }
     }
     // A system alone: what points outside it is left out.
@@ -447,14 +455,6 @@ class PieceWriter {
     const attrs: Record<string, string | number | undefined> = { "xml:id": `piece-${piece.index + 1}`, n: piece.index + 1, label: title || undefined };
     if (!only && (this.score.pieces.length > 1 || (this.metadata?.pieces.length ?? 0) > 0)) attrs.corresp = `#work-piece-${piece.index + 1}`;
     return el("mdiv", attrs, [el("score", {}, [firstScoreDef ?? this.scoreDefAt(piece.systems[0].number), el("section", {}, sectionChildren)])]);
-  }
-
-  private endingOf(segment: Segment): (LensEnding & { endsHere: boolean }) | null {
-    const stretches = segment.map((s) => this.score.stretch(s.system, s.stretch).stretch);
-    const first = stretches.find((s) => s.ending);
-    if (!first?.ending) return null;
-    const label = stretches.find((s) => s.ending?.label)?.ending?.label ?? null;
-    return { startsHere: stretches[0].ending?.startsHere ?? false, endsHere: stretches.some((s) => s.ending?.endsHere), label };
   }
 
   // The score's definitions as they are at a system's start: the piece's staves (only the system's own, for a system
