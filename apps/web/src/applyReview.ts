@@ -10,10 +10,10 @@
 // as it reads `extract`'s.
 
 import { canonicalJson, keyOf } from "@score3ly/core";
-import { checkSystem, type CheckedSystem, type LensStretch, type LensSystem, type ScoreState, type StretchPlace } from "@score3ly/notation";
+import { checkSystem, type CheckedSystem, type LensStretch, type LensSystem, type Score, type ScoreState, type StretchPlace } from "@score3ly/notation";
 import { applyReviewFromModel, groupForModel, staffForModel, stretchForModel, voiceForModel, type ApplyReviewAnswer, type ApplyStretchUnit, type ApplySystemUnit, type ApplyVoiceUnit } from "@score3ly/prompts";
 import type { StoredIssue, StoredWarning } from "./extract.ts";
-import { placesOf, systemsOf, type PlacedSystem } from "./review.ts";
+import { modelName, placesOf, systemsOf, type PlacedSystem } from "./review.ts";
 import { count } from "./format.ts";
 
 export const APPLY_REVIEW_VERSION = 1;
@@ -341,4 +341,42 @@ export function applyReviewStageKey(input: {
   piecesSha256: string;
 }): Promise<string> {
   return keyOf({ step: "apply_review", version: APPLY_REVIEW_VERSION, ...input });
+}
+
+// The measure each stretch belongs to, as code numbers them ("system/stretch" to the number).
+export function measures(score: Score): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const piece of score.pieces) for (const m of piece.measures) for (const p of m.parts) for (const k of p.stretches) map.set(`${p.system}/${k}`, m.n);
+  return map;
+}
+
+// A system as a call's request gives it: in the lens's field names, each stretch with the measure code gave it, with
+// the descriptions (the model needs them to name a new voice or staff), without the issues.
+export function systemView(answer: LensSystem, system: { number: number; page: number }, measureOf: Map<string, number>): unknown {
+  return {
+    system: system.number,
+    page: system.page,
+    startRepeat: answer.startRepeat,
+    staves: answer.staves.map(staffForModel),
+    groups: answer.groups.map(groupForModel),
+    stretches: answer.stretches.map((s) => stretchForModel({ ...s, measure: measureOf.get(`${system.number}/${s.stretch}`) ?? -1 })),
+    lastMeasureContinues: answer.lastMeasureContinues,
+  };
+}
+
+// An issue to apply as a call's request gives it: its places, the latest choice (its answer and who made it).
+export function issueToApply(i: StoredIssue, placed: PlacedSystem[]): unknown {
+  const chosen = i.choices[i.choices.length - 1];
+  return {
+    id: i.id,
+    source: i.source,
+    places: placesOf(i.boxes, placed),
+    location: i.location ?? "",
+    question: i.question,
+    answers: i.answers,
+    chosen: chosen.key,
+    chosenBy: modelName(chosen.by),
+    applied: i.applied,
+    resolved: i.resolved,
+  };
 }

@@ -26,10 +26,7 @@ import {
   applyReviewIssuesText,
   applyReviewLogText,
   applyReviewText,
-  groupForModel,
   reviewScoreText,
-  staffForModel,
-  stretchForModel,
 } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, markUnusable, putJson, reserveIssueNumbers, type ApiStage } from "./api";
@@ -47,7 +44,10 @@ import {
   checkAll,
   checkPatch,
   isNewCodeIssue,
+  issueToApply,
+  measures,
   revertedCount,
+  systemView,
   type StoredApplyCall,
   type SystemToCheck,
 } from "./applyReview";
@@ -57,7 +57,7 @@ import { MARGINS, stretchCropBoxes, systemCropBox, type ImageSource, type Stored
 import { ask, imageLimit, imageLimitFor, requestImage, requestLimits, stageModelConfig, type PlannedRequest, type RequestContent } from "./llm";
 import { musicInputs, type MusicSystem } from "./musicInputs";
 import { markedCrop, type MarkedCropRecipe } from "./pageImages";
-import { modelName, placesOf, reviewedIssues, reviewIssues, reviewScore, reviewWarnings, systemsOf, type StoredReview } from "./review";
+import { reviewedIssues, reviewIssues, reviewScore, reviewWarnings, systemsOf, type StoredReview } from "./review";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
 import { choosingChain } from "./steps";
 import { attributionOf } from "./attribution";
@@ -278,21 +278,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
             before: previous ? systemView(answers.get(previous.number)!, previous, measureOf) : null,
             after: next ? systemView(answers.get(next.number)!, next, measureOf) : null,
             links: Object.fromEntries(planned.window.map((n) => [n, links.get(n) ?? []])),
-            apply: toApply.map((i) => {
-              const chosen = i.choices[i.choices.length - 1];
-              return {
-                id: i.id,
-                source: i.source,
-                places: placesOf(i.boxes, placed),
-                location: i.location ?? "",
-                question: i.question,
-                answers: i.answers,
-                chosen: chosen.key,
-                chosenBy: modelName(chosen.by),
-                applied: i.applied,
-                resolved: i.resolved,
-              };
-            }),
+            apply: toApply.map((i) => issueToApply(i, placed)),
             others: onWindow.filter((i) => !planned.issues.includes(i.id)).map((i) => i.id),
             warnings: planned.window.flatMap((n) => checked.get(n)!.warnings.map((w) => w.message)),
           };
@@ -401,25 +387,4 @@ export async function runApplyReview(run: StageRun): Promise<void> {
       },
     ],
   });
-}
-
-// The measure each stretch belongs to, as code numbers them ("system/stretch" to the number).
-function measures(score: Score): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const piece of score.pieces) for (const m of piece.measures) for (const p of m.parts) for (const k of p.stretches) map.set(`${p.system}/${k}`, m.n);
-  return map;
-}
-
-// A system as a call's request gives it: in the lens's field names, each stretch with the measure code gave it, with
-// the descriptions (the model needs them to name a new voice or staff), without the issues.
-function systemView(answer: LensSystem, system: MusicSystem, measureOf: Map<string, number>): unknown {
-  return {
-    system: system.number,
-    page: system.page,
-    startRepeat: answer.startRepeat,
-    staves: answer.staves.map(staffForModel),
-    groups: answer.groups.map(groupForModel),
-    stretches: answer.stretches.map((s) => stretchForModel({ ...s, measure: measureOf.get(`${system.number}/${s.stretch}`) ?? -1 })),
-    lastMeasureContinues: answer.lastMeasureContinues,
-  };
 }

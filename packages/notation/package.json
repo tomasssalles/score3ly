@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./symbolic": "./src/symbolic.ts"
+    "./symbolic": "./src/symbolic.ts",
+    "./testScore": "./src/testScore.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
