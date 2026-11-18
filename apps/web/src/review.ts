@@ -129,12 +129,28 @@ export type ReviewContext = {
 // makes the answer unusable, as in `extract`. Otherwise its entries, the new issues numbered from `first` (code
 // asks for as many numbers as `newIssues` says, before).
 export function checkReview(json: unknown, ctx: ReviewContext, first: number): { entries: ReviewEntry[] } | { problem: string } {
+  return malformedRefused(() => checkEntries(json, ctx, first));
+}
+
+// A check that reads a field of something that isn't an object, or a list that isn't one, found a malformed answer:
+// refused like any other unusable one, not a crash. (`ask` checks an answer's form against its schema first.)
+export function malformedRefused<T>(check: () => T | { problem: string }): T | { problem: string } {
+  try {
+    return check();
+  } catch (err) {
+    if (err instanceof TypeError) return { problem: `the answer doesn't have the expected form: ${err.message}` };
+    throw err;
+  }
+}
+
+function checkEntries(json: unknown, ctx: ReviewContext, first: number): { entries: ReviewEntry[] } | { problem: string } {
   const answer = reviewFromModel(json) as ReviewAnswer;
   if (typeof answer !== "object" || answer === null || !Array.isArray(answer.entries)) return { problem: "the answer doesn't have the expected form" };
   const entries: ReviewEntry[] = [];
   const chosen = new Set<number>();
   let id = first;
   for (const entry of answer.entries) {
+    if (typeof entry !== "object" || entry === null) return { problem: "an entry is neither a choice nor a new issue" };
     if ("choice" in entry && entry.choice) {
       const c = entry.choice;
       const issue = ctx.issues.get(c.issue);

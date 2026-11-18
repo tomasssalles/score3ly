@@ -306,3 +306,12 @@ test("reverts of an issue with no applied answer choose what the transcription h
   // A resolved issue: whatever it chose, taken (the stage then stops, runApplyReview).
   assert.deepEqual(problem([{ issue: 2, key: "zz", newAnswer: null, reason: "No such note." }]), null);
 });
+
+test("a malformed patch is refused, not a TypeError (code review C1)", () => {
+  const ctx: ApplyContext = { window: [2], allowed: [1, 2, 3], answers: answers(), toApply: [1], issues: new Map([issue(1, [on(2)])].map((i) => [i.id, i])) };
+  for (const json of [{ voices: [null] }, { stretches: [null] }, { systems: [null] }, { choices: [null] }, { systems: [{ system: 2, staves: null }] }]) {
+    const result = checkPatch({ ...empty, ...json }, ctx);
+    assert.ok("problem" in result, JSON.stringify(json));
+    assert.match(result.problem, /^the answer doesn't have the expected form/);
+  }
+});

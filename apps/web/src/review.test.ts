@@ -174,3 +174,9 @@ test("the log gives each change short", () => {
   const call: StoredReview = { system: 2, entries: [{ choice: { issue: 2, key: "c", newAnswer: { key: "c", text: "A dot" }, reason: null } }] };
   assert.deepEqual(logEntries(call), [{ choice: { issue: 2, key: "c", newAnswer: "A dot", reason: "" } }]);
 });
+
+test("a malformed answer is refused, not a TypeError (code review C1)", () => {
+  for (const entry of [null, 3, "choice"]) assert.equal(problem({ entries: [entry] }), "an entry is neither a choice nor a new issue");
+  assert.match(problem({ entries: [newIssue({ boxes: null })] }), /^the answer doesn't have the expected form/);
+  assert.match(problem({ entries: [newIssue({ answers: [null, null] })] }), /^the answer doesn't have the expected form/);
+});

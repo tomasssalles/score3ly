@@ -13,7 +13,7 @@ import { canonicalJson, keyOf } from "@score3ly/core";
 import { checkSystem, type CheckedSystem, type LensStretch, type LensSystem, type ScoreState, type StretchPlace } from "@score3ly/notation";
 import { applyReviewFromModel, issueForModel, stretchForModel, systemFieldsForModel, systemForModel, voiceForModel, type ApplyReviewAnswer, type ApplyStretchUnit, type ApplySystemUnit, type ApplyVoiceUnit } from "@score3ly/prompts";
 import type { StoredIssue, StoredWarning } from "./extract.ts";
-import { modelName, placesOf, systemsOf, type PlacedSystem } from "./review.ts";
+import { malformedRefused, modelName, placesOf, systemsOf, type PlacedSystem } from "./review.ts";
 import { count } from "./format.ts";
 
 export const APPLY_REVIEW_VERSION = 1;
@@ -109,6 +109,10 @@ export type ApplyContext = {
 // unusable, as in `extract`. Otherwise the patch as stored: a description the model left out (null) where the voice
 // or staff had one is kept, so that the unit replaces only what the model meant to change.
 export function checkPatch(json: unknown, ctx: ApplyContext): Pick<StoredApplyCall, "voices" | "stretches" | "systems" | "choices"> | { problem: string } {
+  return malformedRefused(() => checkUnits(json, ctx));
+}
+
+function checkUnits(json: unknown, ctx: ApplyContext): Pick<StoredApplyCall, "voices" | "stretches" | "systems" | "choices"> | { problem: string } {
   const answer = applyReviewFromModel(json) as ApplyReviewAnswer;
   if (
     typeof answer !== "object" ||

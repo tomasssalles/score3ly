@@ -107,6 +107,8 @@ export function checkSystem(json: unknown, context: SystemContext, before: Score
     return check(json, context, before);
   } catch (err) {
     if (err instanceof Unusable) return { problem: err.message };
+    // A field read on something that isn't an object, a list that isn't one: a malformed answer, refused, not a crash.
+    if (err instanceof TypeError) return { problem: `the answer doesn't have the expected form: ${err.message}` };
     throw err;
   }
 }
@@ -118,7 +120,14 @@ const fail = (message: string): never => {
 
 function check(json: unknown, context: SystemContext, before: ScoreState): CheckedSystem {
   const answer = json as LensSystem;
-  if (typeof answer !== "object" || answer === null || !Array.isArray(answer.stretches) || !Array.isArray(answer.staves)) {
+  if (
+    typeof answer !== "object" ||
+    answer === null ||
+    !Array.isArray(answer.stretches) ||
+    !Array.isArray(answer.staves) ||
+    !Array.isArray(answer.groups) ||
+    !Array.isArray(answer.issues)
+  ) {
     fail("the answer doesn't have the expected form");
   }
   const { system } = context;
@@ -150,7 +159,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     if (s.time !== null && !parseTime(s.time)) fail(`staff ${s.staff}: "${s.time}" isn't a time signature (e.g. "3/4", "C", "C|")`);
     if (context.firstOfPiece && s.time === null) fail(`staff ${s.staff}: the first system of a piece needs a time signature on every staff`);
   }
-  for (const g of answer.groups ?? []) {
+  for (const g of answer.groups) {
     const missing = g.staves.find((n) => !onSystem.has(n));
     if (missing !== undefined) fail(`a group names staff ${missing}, which isn't on the system`);
   }
@@ -235,7 +244,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
 
   // Issues: boxes on the images sent, answers with unique letters, `applied` one of them, a format issue with its
   // list of tokens.
-  for (const [n, issue] of (answer.issues ?? []).entries()) {
+  for (const [n, issue] of answer.issues.entries()) {
     const what = `issue ${n + 1}`;
     if (issue.boxes.length === 0) fail(`${what} has no boxes`);
     for (const b of issue.boxes) {

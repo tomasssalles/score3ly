@@ -68,11 +68,12 @@ const BAR_LINE_TOLERANCE = 0.02;
 // lines are sorted. Returns the reason the answer can't be used, or the answer.
 export function checkLayoutAnswer(json: unknown): LayoutAnswer | { problem: string } {
   const a = json as Record<string, unknown> | null;
-  if (!a || typeof a.severelySkewed !== "boolean" || typeof a.satisfied !== "boolean" || !Array.isArray(a.systems)) {
+  if (typeof a !== "object" || !a || typeof a.severelySkewed !== "boolean" || typeof a.satisfied !== "boolean" || !Array.isArray(a.systems)) {
     return { problem: "the answer doesn't have the expected fields" };
   }
   const systems: LayoutSystem[] = [];
   for (const [i, raw] of a.systems.entries()) {
+    if (typeof raw !== "object" || raw === null) return { problem: "the answer doesn't have the expected fields" };
     const s = raw as Record<string, unknown>;
     const n = i + 1;
     const values = [s.left, s.right, s.top, s.bottom];

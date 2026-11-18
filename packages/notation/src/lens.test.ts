@@ -300,3 +300,20 @@ test("tempo marks at the same moment on several staves must agree: a warning oth
   answer.stretches[0].voices[0].music = `\\tempo "Allegro" c''4 d''4 \\tempo "Meno mosso" e''4 f''4`;
   assert.deepEqual(ok(answer, context(1)).warnings, []);
 });
+
+test("an answer without its groups or issues is refused, not taken as empty (code review D11)", () => {
+  const { groups: _g, ...noGroups } = system(1);
+  const { issues: _i, ...noIssues } = system(1);
+  assert.equal(unusable(noGroups, context(1)), "the answer doesn't have the expected form");
+  assert.equal(unusable(noIssues, context(1)), "the answer doesn't have the expected form");
+});
+
+test("a malformed answer is refused, not a TypeError (code review C1)", () => {
+  const malformed: unknown[] = [
+    system(1, { stretches: [null as unknown as LensStretch] }),
+    system(1, { stretches: [stretch(1, true, { voices: null as unknown as LensStretch["voices"] })] }),
+    system(1, { groups: [null as unknown as LensSystem["groups"][number]] }),
+    system(1, { issues: [{ boxes: null } as unknown as LensSystem["issues"][number]] }),
+  ];
+  for (const json of malformed) assert.match(unusable(json, context(1)), /^the answer doesn't have the expected form/);
+});

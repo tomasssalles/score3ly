@@ -32,3 +32,10 @@ test("the boxes are tight, and the bar lines are the inner ones only", () => {
   assert.doesNotMatch(LAYOUT_SYSTEM, /including the one at the very end/);
   assert.match(layoutCheck(2), /none drawn at the system's start or end/);
 });
+
+test("a malformed answer is refused, not a TypeError (code review C1)", () => {
+  for (const bad of [null, 3, "box"]) {
+    assert.deepEqual(checkLayoutAnswer(answer([system(), bad])), { problem: "the answer doesn't have the expected fields" });
+  }
+  assert.deepEqual(checkLayoutAnswer(null), { problem: "the answer doesn't have the expected fields" });
+});
