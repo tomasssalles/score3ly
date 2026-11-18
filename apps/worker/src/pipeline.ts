@@ -16,6 +16,7 @@ import {
   isFurtherReview,
   isManual,
   isStale,
+  notDone,
   newStageConfig,
   plannedStage,
   readPipeline,
@@ -429,7 +430,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const found = stageEntry(c);
     if (!found.carried) return refuse(c, 409, `The stage isn't waiting to be kept or dropped any more. ${RELOAD}`);
     const before = await db
-      .prepare("SELECT COUNT(*) AS n FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position < ? AND (s.status != 'done' OR e.carried = 1)")
+      .prepare(`SELECT COUNT(*) AS n FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position < ? AND ${notDone("s", "e")}`)
       .bind(pid, found.position)
       .first<{ n: number }>();
     if ((before?.n ?? 0) > 0) return refuse(c, 409, "The stage can't be kept or dropped yet: the stages before it aren't all done.");

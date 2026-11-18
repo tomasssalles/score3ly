@@ -11,7 +11,7 @@ import { convertAddedConfigs, modelConfigRoutes } from "./modelConfigs.ts";
 import { readSettings, settingsRoutes } from "./settings.ts";
 import { llmCallRoutes } from "./llmCalls.ts";
 import { pipelineRoutes } from "./pipeline.ts";
-import { defaultForNewStages, isStale, newPipeline, stageEntries } from "./pipelineRules.ts";
+import { defaultForNewStages, isStale, newPipeline, notDone, stageEntries } from "./pipelineRules.ts";
 import { lock, versionRoutes } from "./versions.ts";
 import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
@@ -104,7 +104,7 @@ app.get("/api/projects", async (c) => {
        FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id
        WHERE e.position = (
          SELECT MIN(f.position) FROM pipeline_entries f JOIN stages t ON t.id = f.stage_id
-         WHERE f.project_id = e.project_id AND (t.status <> 'done' OR f.carried = 1)
+         WHERE f.project_id = e.project_id AND ${notDone("t", "f")}
        )`,
     ),
   ]);

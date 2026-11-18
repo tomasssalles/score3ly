@@ -2,7 +2,7 @@
 // the user doing it right then, "Layout done. Starting Analyze". What happened is found by comparing two snapshots of
 // the pipeline; the events of a short moment are joined into one text, which names the stages in bold.
 
-import type { Pipeline, StageStatus } from "./pipeline";
+import { firstNotDone, type Pipeline, type StageStatus } from "./pipeline.ts";
 
 export type Snapshot = {
   stages: { id: string; title: string; status: StageStatus; carried: boolean; interrupted: boolean }[];
@@ -45,7 +45,7 @@ export function eventsBetween(before: Snapshot, after: Snapshot): ToastEvent[] {
   for (const card of after.dropped) if (!known.has(card.id)) events.push({ kind: "dropped", title: card.title });
 
   // Where the pipeline is now: a stage that started, one that waits for the user, or the end.
-  const current = (s: Snapshot) => s.stages.find((stage) => stage.status !== "done");
+  const current = (s: Snapshot) => s.stages[firstNotDone(s.stages)];
   const was = current(before);
   const now = current(after);
   if (now) {

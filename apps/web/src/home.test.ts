@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ListedProject, PipelinePosition } from "./api.ts";
+import type { ApiPipeline, ApiStage, ListedProject, PipelinePosition } from "./api.ts";
 import { cardsThatFit, HOME_CARDS, positionState, recentProjects } from "./home.ts";
-import { stateLabel } from "./pipeline.ts";
+import { firstNotDone, pipelineState, stateLabel, toPipeline } from "./pipeline.ts";
 
 const at = (position: Partial<PipelinePosition> & { step: string }): PipelinePosition => ({
   status: "planned",
@@ -41,4 +41,51 @@ test("as many cards as fit: whole rows, at least one, at most 6", () => {
   // A wide screen: three columns, two rows.
   assert.equal(cardsThatFit(600, 120, 12, 3), 6);
   assert.equal(cardsThatFit(200, 120, 12, 3), 3);
+});
+
+// A stage as the Worker sends it, with only what the position needs.
+const stage = (step: string, fields: Partial<ApiStage> = {}): ApiStage => ({
+  id: step,
+  step,
+  stepVersion: 1,
+  status: "done",
+  config: null,
+  pageCount: null,
+  error: null,
+  note: null,
+  startedAt: null,
+  heartbeatAt: null,
+  finishedAt: null,
+  interrupted: false,
+  modelConfig: null,
+  costUsd: null,
+  carried: false,
+  inRecipe: true,
+  outputs: [],
+  ...fields,
+});
+
+test("a card and the panel's head name the same state for the same pipeline", () => {
+  const ingest = stage("ingest");
+  const pipelines: ApiPipeline["stages"][] = [
+    [ingest, stage("rasterize")],
+    [ingest, stage("rasterize", { status: "planned" }), stage("skew_analysis", { status: "planned" })],
+    [ingest, stage("rasterize", { status: "running" })],
+    [ingest, stage("rasterize", { status: "running", interrupted: true })],
+    [ingest, stage("rasterize", { status: "failed", error: "no" }), stage("skew_analysis", { status: "planned" })],
+    [ingest, stage("rasterize"), stage("skew_analysis"), stage("fix_skew", { status: "wip" }), stage("layout", { status: "planned" })],
+    // A finished manual stage carried through a re-run waits for its turn, and so does one still WIP.
+    [ingest, stage("rasterize"), stage("skew_analysis"), stage("fix_skew", { carried: true }), stage("layout", { status: "planned" })],
+    [ingest, stage("rasterize"), stage("skew_analysis"), stage("fix_skew", { status: "wip", carried: true })],
+    [ingest, stage("rasterize", { status: "planned" }), stage("skew_analysis", { status: "planned" }), stage("fix_skew", { carried: true })],
+  ];
+  for (const stages of pipelines) {
+    // Where the Worker's list says the pipeline is: its first stage not done (pipelineRules.ts' `notDone`).
+    const first = stages[firstNotDone(stages)];
+    const position: PipelinePosition | null = first ? { step: first.step, status: first.status, interrupted: first.interrupted, carried: first.carried } : null;
+    for (const mode of ["auto", "manual"] as const) {
+      const panel = pipelineState(toPipeline(mode, { stages, dropped: [] }))!;
+      assert.equal(label(position), stateLabel(panel), JSON.stringify(stages.map((s) => [s.step, s.status, s.carried])));
+    }
+  }
 });

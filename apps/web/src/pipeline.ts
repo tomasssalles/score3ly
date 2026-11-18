@@ -124,7 +124,7 @@ export function toPipeline(mode: RunMode, stored: ApiPipeline, local: LocalRun |
     }
     return stage;
   });
-  const next = stages.findIndex((stage) => stage.status !== "done");
+  const next = firstNotDone(stages);
   if (next >= 0 && stages[next].status === "planned" && !stages[next].carried) stages[next] = { ...stages[next], status: "ready" };
   const dropped = stored.dropped.map((d) => {
     const info = stepInfo(d.step);
@@ -189,9 +189,17 @@ export function runningStage(pipeline: Pipeline): Stage | null {
   return pipeline.stages.find((stage) => stage.status === "running") ?? null;
 }
 
+// Where a pipeline is: the index of its first stage that isn't done, or -1 when every stage is done. A carried stage
+// counts as not done, even a finished one: it waits for its turn (docs/overview.md §5.5). For the Worker's stages
+// (`ApiStage`) and the UI's alike (where a carried stage already shows as planned); the Worker's project list follows
+// the same rule (`notDone` in apps/worker/src/pipelineRules.ts).
+export function firstNotDone(stages: readonly { status: string; carried: boolean }[]): number {
+  return stages.findIndex((stage) => stage.carried || stage.status !== "done");
+}
+
 // The stage where the pipeline is: the first one that isn't done, or else the last one. The panel scrolls to it.
 export function currentStage(pipeline: Pipeline): Stage | null {
-  return pipeline.stages.find((stage) => stage.status !== "done") ?? pipeline.stages.at(-1) ?? null;
+  return pipeline.stages[firstNotDone(pipeline.stages)] ?? pipeline.stages.at(-1) ?? null;
 }
 
 // Where the pipeline is, for the panel's head and the collapsed strip (docs/project-view.md, "Progress"): all done; a stage
@@ -205,7 +213,7 @@ export type PipelineState =
 
 export function pipelineState(pipeline: Pipeline): PipelineState | null {
   if (pipeline.stages.length === 0) return null;
-  const stage = pipeline.stages.find((s) => s.status !== "done");
+  const stage = pipeline.stages[firstNotDone(pipeline.stages)];
   if (!stage) return { kind: "done" };
   if (stage.status === "running") return { kind: "running", stage, here: stage.runningHere };
   if (stage.status === "failed") return { kind: "failed", stage, interrupted: stage.interrupted };

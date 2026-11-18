@@ -76,6 +76,11 @@ export function newStageConfig(
   return { configJson: JSON.stringify({ ...config, modelConfigId: named }), modelConfigId: named };
 }
 
+// Where a pipeline is: its first stage that isn't done, a carried one included (it waits for its turn, even when it is
+// done; docs/overview.md §5.5). The condition for a stage `s` and its pipeline entry `e`, as SQL. The web follows the
+// same rule (`firstNotDone` in apps/web/src/pipeline.ts).
+export const notDone = (s: string, e: string) => `(${s}.status <> 'done' OR ${e}.carried = 1)`;
+
 // A running stage whose heartbeat is older than this was interrupted (the tab was closed): it can run again.
 export const STALE_MS = 3 * 60 * 1000;
 

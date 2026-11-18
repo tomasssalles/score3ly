@@ -22,6 +22,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { CheckIcon, ExpandIcon, PauseIcon, WarningIcon } from "./icons";
 import {
   currentStage,
+  firstNotDone,
   defaultArtifactId,
   findArtifact,
   findStage,
@@ -364,7 +365,7 @@ export function ProjectView({
   function resolveCarried(latest: ApiPipeline): Promise<ApiPipeline | null> {
     if (resolving.current) return resolving.current;
     // The first stage that isn't done (a carried one may be done, and still waits).
-    const index = latest.stages.findIndex((s) => s.carried || s.status !== "done");
+    const index = firstNotDone(latest.stages);
     const stage = latest.stages[index];
     if (!stage?.carried) return Promise.resolve(null);
     resolving.current = (async () => {

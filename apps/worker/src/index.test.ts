@@ -965,8 +965,14 @@ test("a carried manual stage is kept when what it reads is the same, as it was, 
 });
 
 test("the project list says where each pipeline is: its first stage not done, a carried one included", async () => {
-  const listed = async (id: string) =>
-    ((await (await app.request("/api/projects", {}, env)).json()) as { id: string; current: unknown }[]).find((p) => p.id === id)!.current;
+  const listed = async (id: string) => {
+    const current = ((await (await app.request("/api/projects", {}, env)).json()) as { id: string; current: unknown }[]).find((p) => p.id === id)!.current;
+    // The same stage as the pipeline's first not done, as the web finds it (`firstNotDone`), in the same state.
+    const stages = await pipelineOf(id);
+    const first = stages.find((s) => s.carried || s.status !== "done");
+    assert.deepEqual(current, first ? { step: first.step, status: first.status, interrupted: first.interrupted, carried: first.carried } : null);
+    return current;
+  };
   const fresh = await createdProject("where-fresh.pdf");
   assert.deepEqual(await listed(fresh.id), { step: "rasterize", status: "planned", interrupted: false, carried: false });
   const { response } = await startRasterize(fresh.id);
