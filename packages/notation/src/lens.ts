@@ -8,6 +8,7 @@ import { boxProblem, type Box } from "@score3ly/core";
 import { add, equal, less, show, ZERO, type Fraction } from "./fraction.ts";
 import { eventsDuration, durationValue, measureLength, parseKey, parseTime, type TimeSignature } from "./durations.ts";
 import { SpanTracker, type ClosedMark, type OpenMark } from "./spans.ts";
+import { measureStep } from "./structure.ts";
 import { normalizeClef, parseVoice, walk, type Event, type Tempo } from "./symbolic.ts";
 
 export const STRETCH_CLASSES = ["none", "new", "continues"] as const;
@@ -148,11 +149,28 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
   ) {
     fail("the answer doesn't have the expected form");
   }
-  const { system } = context;
-  const here = (stretch: number): StretchPlace => ({ system, stretch });
-  const codeIssues: CodeIssue[] = [];
-  const warnings: Warning[] = [];
+  const { voices, newVoices, ending } = checkStructure(answer, context, before);
 
+  // --- Usable. Now the questions about the page, and the problems of the extraction. ---
+
+  const codeIssues = pageQuestions(answer, context, before);
+  // The marks with two ends, voice by voice through the stretches.
+  const spans = new SpanTracker(context.system, before.open);
+  for (const s of answer.stretches) {
+    for (const v of s.voices) spans.voice(s.stretch, v.voice, v.staff, voices.get(`${s.stretch}/${v.voice}`)!);
+  }
+  for (const p of spans.finish()) {
+    codeIssues.push({ question: p.question, answers: [], applied: null, places: p.places });
+  }
+
+  const counted = countMeasures(answer, context, before, voices);
+  const { state, warnings } = carried(answer, context, before, voices, newVoices, counted, ending, spans.open);
+  return { number: context.system, answer, voices, codeIssues, warnings: [...counted.warnings, ...warnings], closed: spans.closed, state };
+}
+
+// The structure (§6, "Code checks the structure"): what makes an answer unusable. The voices parsed, the voices new on
+// the system with their descriptions, and the ending left open at its end.
+function checkStructure(answer: LensSystem, context: SystemContext, before: ScoreState) {
   // The stretches: exactly the ones asked for, in order.
   if (answer.stretches.length !== context.stretches || answer.stretches.some((s, i) => s.stretch !== i + 1)) {
     fail(`the answer must have exactly the stretches 1 to ${context.stretches}, in order, and has ${answer.stretches.map((s) => s.stretch).join(", ") || "none"}`);
@@ -283,8 +301,15 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     }
   }
 
-  // --- Usable. Now the questions about the page, and the problems of the extraction. ---
+  return { voices, newVoices, ending };
+}
 
+// The questions code asks about the page: how the stretches are part of measures, where the classification doesn't
+// fit what came before or a printed number.
+function pageQuestions(answer: LensSystem, context: SystemContext, before: ScoreState): CodeIssue[] {
+  const { system } = context;
+  const here = (stretch: number): StretchPlace => ({ system, stretch });
+  const codeIssues: CodeIssue[] = [];
   const first = answer.stretches[0];
   if (context.firstOfPiece && first.class === "continues") {
     codeIssues.push({
@@ -322,17 +347,23 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
       });
     }
   }
+  return codeIssues;
+}
 
-  // The marks with two ends, voice by voice through the stretches.
-  const spans = new SpanTracker(system, before.open);
-  for (const s of answer.stretches) {
-    for (const v of s.voices) spans.voice(s.stretch, v.voice, v.staff, voices.get(`${s.stretch}/${v.voice}`)!);
-  }
-  for (const p of spans.finish()) {
-    codeIssues.push({ question: p.question, answers: [], applied: null, places: p.places });
-  }
+type Counted = {
+  warnings: Warning[];
+  signatures: Map<number, { clef: string; key: string; time: string | null }>; // in effect at the system's end
+  measure: OpenMeasure | null; // the measure open at the system's end
+  count: number;
+  offset: ScoreState["offset"];
+};
 
-  // Durations and measures.
+// Durations and measures: the voices of each stretch against each other, the measures counted (a multi-measure rest
+// stands for its count) and their lengths against their kind and time, the printed numbers against the count.
+function countMeasures(answer: LensSystem, context: SystemContext, before: ScoreState, voices: Map<string, Event[]>): Counted {
+  const { system } = context;
+  const here = (stretch: number): StretchPlace => ({ system, stretch });
+  const warnings: Warning[] = [];
   const signatures = new Map<number, { clef: string; key: string; time: string | null }>();
   for (const s of answer.staves) {
     const carried = before.signatures.find((x) => x.staff === s.staff)?.time ?? null;
@@ -365,13 +396,17 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     // Tempo marks at the same moment (on several staves, as orchestral scores print them) must say the same.
     const tempoWarning = tempoProblem(s.voices.map((v) => ({ staff: v.staff, events: voices.get(`${s.stretch}/${v.voice}`)! })));
     if (tempoWarning) warnings.push({ message: `Stretch ${s.stretch}: ${tempoWarning}`, places: [here(s.stretch)] });
-    if (s.class === "none") {
+    const step = measureStep(s, measure !== null);
+    if (step === "none") {
       if (!equal(length, ZERO)) warnings.push({ message: `Stretch ${s.stretch} is part of no measure, but has notes or rests (${show(length)} of a whole note).`, places: [here(s.stretch)] });
       continue;
     }
     const time = signatures.get(topStaff)!.time;
     const multi = s.voices.map((v) => voices.get(`${s.stretch}/${v.voice}`)!).flatMap((events) => events.filter((e) => e.e === "measureRest"))[0];
-    if (s.class === "new") {
+    if (step === "continue" && measure) {
+      measure.length = add(measure.length, length);
+      measure.places.push(here(s.stretch));
+    } else if (s.class === "new") {
       closeMeasure();
       // The printed measure number, against code's count: a warning only where the offset changes.
       const counted = count + 1;
@@ -396,9 +431,6 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
       }
       count += 1;
       measure = { length, kind: s.kind, time, places: [here(s.stretch)] };
-    } else if (measure) {
-      measure.length = add(measure.length, length);
-      measure.places.push(here(s.stretch));
     } else {
       // Continues a measure that was never started (a mismatch, raised above): counted as a measure of unknown kind.
       count += 1;
@@ -406,7 +438,23 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     }
   }
   if (!answer.lastMeasureContinues) closeMeasure();
+  return { warnings, signatures, measure, count, offset };
+}
 
+// What the system leaves to the next, and the warning about the order of the staves.
+function carried(
+  answer: LensSystem,
+  context: SystemContext,
+  before: ScoreState,
+  voices: Map<string, Event[]>,
+  newVoices: Map<number, string>,
+  { signatures, measure, count, offset }: Counted,
+  ending: ScoreState["ending"],
+  open: OpenMark[],
+): { state: ScoreState; warnings: Warning[] } {
+  const { system } = context;
+  const here = (stretch: number): StretchPlace => ({ system, stretch });
+  const warnings: Warning[] = [];
   // The clefs in effect at the end: the last \clef on each staff, wherever a voice writes it.
   for (const s of answer.stretches) {
     for (const v of s.voices) {
@@ -442,12 +490,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
   }
 
   return {
-    number: system,
-    answer,
-    voices,
-    codeIssues,
     warnings,
-    closed: spans.closed,
     state: {
       staves,
       voices: voiceList,
@@ -456,7 +499,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
         ...[...signatures.entries()].map(([staff, sig]) => ({ staff, ...sig })),
       ].sort((a, b) => a.staff - b.staff),
       staffOrder: order,
-      open: spans.open,
+      open,
       measureContinues: answer.lastMeasureContinues,
       measure: answer.lastMeasureContinues ? measure : null,
       ending,

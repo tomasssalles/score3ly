@@ -9,7 +9,7 @@ import { eventsDuration } from "./durations.ts";
 import type { Box } from "@score3ly/core";
 import type { LensStretch, LensSystem } from "./lens.ts";
 import { parseVoice, type Event } from "./symbolic.ts";
-import { splitPieces } from "./structure.ts";
+import { measureStep, splitPieces } from "./structure.ts";
 
 // A system of the score: its number in the whole score, its page, its box on the (straightened) page and its inner
 // bar lines (fractions of the page, for the facsimile; null box when unknown), and its checked answer.
@@ -72,7 +72,7 @@ export function buildScore(input: ScoreSystemInput[], pieceStarts: number[]): Sc
   for (const piece of pieces) {
     piece.staves = pieceStaves(piece.systems);
     piece.voices = pieceVoices(piece.systems);
-    piece.measures = pieceMeasures(piece.systems);
+    piece.measures = pieceMeasures(piece.systems, (system, stretch) => stretches.get(stretchKey(system, stretch))!);
   }
   const bySystem = new Map(systems.map((s) => [s.number, s]));
   const pieceOf = new Map(pieces.flatMap((p) => p.systems.map((s) => [s.number, p] as const)));
@@ -120,13 +120,10 @@ function pieceVoices(systems: ScoreSystemInput[]): { voice: number; description:
 }
 
 // The multi-measure rest's count in a stretch, else 1.
-function restCount(s: LensStretch): number {
-  for (const v of s.voices) {
-    const parsed = parseVoice(v.music);
-    if ("events" in parsed) {
-      const rest = parsed.events.find((e) => e.e === "measureRest");
-      if (rest && rest.e === "measureRest") return rest.count;
-    }
+function restCount(s: ScoreStretch): number {
+  for (const run of s.runs) {
+    const rest = run.events.find((e) => e.e === "measureRest");
+    if (rest && rest.e === "measureRest") return rest.count;
   }
   return 1;
 }
@@ -134,7 +131,7 @@ function restCount(s: LensStretch): number {
 // The measures, from the classification: a "new" stretch starts one, "continues" adds to the one before (also across
 // a system break), "none" is part of none. A "continues" with no measure before it starts one of unknown kind (a
 // mismatch code raises as an issue).
-function pieceMeasures(systems: ScoreSystemInput[]): ScoreMeasure[] {
+function pieceMeasures(systems: ScoreSystemInput[], stretchOf: (system: number, stretch: number) => ScoreStretch): ScoreMeasure[] {
   const measures: ScoreMeasure[] = [];
   const times = new Map<number, string | null>();
   let current: ScoreMeasure | null = null;
@@ -145,9 +142,10 @@ function pieceMeasures(systems: ScoreSystemInput[]): ScoreMeasure[] {
     const top = answer.staves[0].staff;
     for (const s of answer.stretches) {
       for (const c of s.changes) if (c.time) times.set(c.staff, c.time);
-      if (s.class === "none") continue;
-      if (s.class === "new" || current === null) {
-        current = { index: measures.length, n: 0, count: s.class === "new" ? restCount(s) : 1, kind: s.class === "new" ? s.kind : null, parts: [{ system: system.number, stretches: [s.stretch] }], time: times.get(top) ?? null };
+      const step = measureStep(s, current !== null);
+      if (step === "none") continue;
+      if (step === "start" || current === null) {
+        current = { index: measures.length, n: 0, count: s.class === "new" ? restCount(stretchOf(system.number, s.stretch)) : 1, kind: s.class === "new" ? s.kind : null, parts: [{ system: system.number, stretches: [s.stretch] }], time: times.get(top) ?? null };
         measures.push(current);
         if (s.measureNumber !== null) printed.push({ index: current.index, number: s.measureNumber });
       } else {

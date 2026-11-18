@@ -28,3 +28,12 @@ export function trailingNoneStretches(answer: LensSystem): LensStretch[] {
   const last = reversed.findIndex((s) => s.class !== "none");
   return last === -1 ? reversed : reversed.slice(0, last);
 }
+
+// What a stretch does to the measures (docs/notation.md, "Bar lines, stretches and measures"): a "none" stretch is
+// part of no measure, a "new" one starts a measure, a "continues" one adds to the measure open before it, or, with
+// none open (a mismatch code asks about), starts one of unknown kind. The checks follow it system by system (lens.ts),
+// the score model piece by piece (score.ts).
+export function measureStep(stretch: Pick<LensStretch, "class">, open: boolean): "none" | "start" | "continue" {
+  if (stretch.class === "none") return "none";
+  return stretch.class === "new" || !open ? "start" : "continue";
+}
