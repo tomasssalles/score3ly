@@ -4,9 +4,9 @@
 // warn from the repeat structure, `review` gives each call the links of its system. Code links when the links are
 // needed; nothing here is stored.
 
-import type { CheckedScoreSystem } from "./scoreChecks.ts";
-import { describeMark, sameMark, type ClosedMark, type OpenMark } from "./spans.ts";
-import type { LensSystem, StretchPlace, Warning } from "./lens.ts";
+import { describeMark, sameMark, type OpenMark } from "./spans.ts";
+import type { CheckedSystem, StretchPlace, Warning } from "./lens.ts";
+import { firstMeasureStretch, splitPieces } from "./structure.ts";
 
 // An end repeat (the bar line at the right of `end`) and where it goes back to: a start repeat, the stretch after an
 // earlier end repeat (`|: A :| B :|` plays A A B B), or the piece's start.
@@ -24,7 +24,7 @@ export type EndingSpan = {
 };
 
 // The repeat structure of one piece, and what is wrong with it (warnings, for the checks of the whole score).
-export function repeatStructure(piece: { number: number; answer: LensSystem }[]): { goBacks: GoBack[]; endings: EndingSpan[]; warnings: Warning[] } {
+export function repeatStructure(piece: Pick<CheckedSystem, "number" | "answer">[]): { goBacks: GoBack[]; endings: EndingSpan[]; warnings: Warning[] } {
   const warnings: Warning[] = [];
   const goBacks: GoBack[] = [];
   const stretches = piece.flatMap((s) => s.answer.stretches.filter((t) => t.class !== "none").map((t) => ({ system: s, stretch: t })));
@@ -89,27 +89,15 @@ export function repeatStructure(piece: { number: number; answer: LensSystem }[])
 
 export const endingPlaces = (e: EndingSpan): StretchPlace[] => (e.start.system === e.end.system && e.start.stretch === e.end.stretch ? [e.start] : [e.start, e.end]);
 
-function firstMeasureStretch(answer: LensSystem): number {
-  return answer.stretches.find((s) => s.class !== "none")?.stretch ?? 1;
-}
-
-// A system checked on its own (lens.ts), with what it leaves and the marks from earlier systems it closed.
-export type LinkedSystem = CheckedScoreSystem & { closed: ClosedMark[] };
-
 // What links each system to the rest of its piece, as sentences a request can give a model: the end repeats on it
 // and where they go back to, the start repeats that are gone back to, the endings on it with their neighbours, and
-// the marks crossing into or out of it with where they open or close on the other side.
-export function systemLinks(systems: LinkedSystem[], pieceStarts: number[]): Map<number, string[]> {
+// the marks crossing into or out of it with where they open or close on the other side. Each system as checked
+// (lens.ts): what it leaves, and the marks from earlier systems it closed.
+export function systemLinks(systems: Pick<CheckedSystem, "number" | "answer" | "state" | "closed">[], pieceStarts: number[]): Map<number, string[]> {
   const links = new Map<number, string[]>();
   const add = (system: number, text: string) => links.set(system, [...(links.get(system) ?? []), text]);
   const where = (p: StretchPlace) => `system ${p.system}, stretch ${p.stretch}`;
-  const sorted = [...systems].sort((a, b) => a.number - b.number);
-  const pieces: LinkedSystem[][] = [];
-  for (const s of sorted) {
-    if (pieces.length === 0 || pieceStarts.includes(s.number)) pieces.push([]);
-    pieces[pieces.length - 1].push(s);
-  }
-  for (const piece of pieces) {
+  for (const piece of splitPieces(systems, pieceStarts)) {
     const { goBacks, endings } = repeatStructure(piece);
     for (const g of goBacks) {
       const to = g.via === "startRepeat" ? `the start repeat at ${where(g.to)}` : g.via === "endRepeat" ? `${where(g.to)}, after the previous end repeat` : `the piece's start (${where(g.to)})`;

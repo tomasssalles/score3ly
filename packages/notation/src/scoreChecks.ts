@@ -6,20 +6,16 @@
 
 import { repeatStructure } from "./links.ts";
 import { markName } from "./spans.ts";
-import type { CodeIssue, LensSystem, ScoreState, StretchPlace, Warning } from "./lens.ts";
+import type { CheckedSystem, CodeIssue, StretchPlace, Warning } from "./lens.ts";
+import { splitPieces, trailingNoneStretches } from "./structure.ts";
 
-export type CheckedScoreSystem = { number: number; answer: LensSystem; state: ScoreState }; // `state`: what it leaves
+// A system as checked on its own (lens.ts): its answer, and what it leaves (`state`).
+type ScoreSystem = Pick<CheckedSystem, "number" | "answer" | "state">;
 
-export function checkScore(systems: CheckedScoreSystem[], pieceStarts: number[]): { codeIssues: CodeIssue[]; warnings: Warning[] } {
+export function checkScore(systems: ScoreSystem[], pieceStarts: number[]): { codeIssues: CodeIssue[]; warnings: Warning[] } {
   const codeIssues: CodeIssue[] = [];
   const warnings: Warning[] = [];
-  const sorted = [...systems].sort((a, b) => a.number - b.number);
-  const pieces: CheckedScoreSystem[][] = [];
-  for (const s of sorted) {
-    if (pieces.length === 0 || pieceStarts.includes(s.number)) pieces.push([]);
-    pieces[pieces.length - 1].push(s);
-  }
-  for (const piece of pieces) {
+  for (const piece of splitPieces(systems, pieceStarts)) {
     pieceEnd(piece[piece.length - 1], codeIssues, warnings);
     repeats(piece, warnings);
     courtesies(piece, warnings);
@@ -27,10 +23,10 @@ export function checkScore(systems: CheckedScoreSystem[], pieceStarts: number[])
   return { codeIssues, warnings };
 }
 
-const lastPlace = (s: CheckedScoreSystem): StretchPlace => ({ system: s.number, stretch: s.answer.stretches.length });
+const lastPlace = (s: ScoreSystem): StretchPlace => ({ system: s.number, stretch: s.answer.stretches.length });
 
 // Where a piece ends, nothing may be left open: a measure, marks with two ends, an ending.
-function pieceEnd(last: CheckedScoreSystem, codeIssues: CodeIssue[], warnings: Warning[]) {
+function pieceEnd(last: ScoreSystem, codeIssues: CodeIssue[], warnings: Warning[]) {
   const here = lastPlace(last);
   if (last.answer.lastMeasureContinues) {
     codeIssues.push({
@@ -50,18 +46,16 @@ function pieceEnd(last: CheckedScoreSystem, codeIssues: CodeIssue[], warnings: W
 }
 
 // The repeat structure's warnings (links.ts works the structure out, for these checks and for `review`'s links).
-function repeats(piece: CheckedScoreSystem[], warnings: Warning[]) {
+function repeats(piece: ScoreSystem[], warnings: Warning[]) {
   warnings.push(...repeatStructure(piece).warnings);
 }
 
 // A courtesy key or time signature at a system's end (on a stretch of no measure) announces the next system's start.
-function courtesies(piece: CheckedScoreSystem[], warnings: Warning[]) {
+function courtesies(piece: ScoreSystem[], warnings: Warning[]) {
   for (const [i, system] of piece.entries()) {
     const next = piece[i + 1];
     if (!next) continue;
-    const trailing = [...system.answer.stretches].reverse();
-    const courtesy = trailing.slice(0, trailing.findIndex((s) => s.class !== "none") === -1 ? trailing.length : trailing.findIndex((s) => s.class !== "none"));
-    for (const s of courtesy) {
+    for (const s of trailingNoneStretches(system.answer)) {
       for (const c of s.changes) {
         const staff = next.answer.staves.find((x) => x.staff === c.staff);
         if (!staff) continue;

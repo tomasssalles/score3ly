@@ -9,6 +9,7 @@ import { eventsDuration } from "./durations.ts";
 import type { Box } from "@score3ly/core";
 import type { LensStretch, LensSystem } from "./lens.ts";
 import { parseVoice, type Event } from "./symbolic.ts";
+import { splitPieces } from "./structure.ts";
 
 // A system of the score: its number in the whole score, its page, its box on the (straightened) page and its inner
 // bar lines (fractions of the page, for the facsimile; null box when unknown), and its checked answer.
@@ -52,12 +53,9 @@ const stretchKey = (system: number, stretch: number) => `${system}/${stretch}`;
 
 export function buildScore(input: ScoreSystemInput[], pieceStarts: number[]): Score {
   const systems = [...input].sort((a, b) => a.number - b.number);
-  const starts = new Set([systems[0]?.number ?? 1, ...pieceStarts]);
   const stretches = new Map<string, ScoreStretch>();
-  const pieces: ScorePiece[] = [];
+  const pieces: ScorePiece[] = splitPieces(systems, pieceStarts).map((members, index) => ({ index, systems: members, staves: [], voices: [], measures: [] }));
   for (const system of systems) {
-    if (starts.has(system.number) || pieces.length === 0) pieces.push({ index: pieces.length, systems: [], staves: [], voices: [], measures: [] });
-    pieces[pieces.length - 1].systems.push(system);
     for (const s of system.answer.stretches) {
       const runs = s.voices.map((v) => {
         const parsed = parseVoice(v.music);

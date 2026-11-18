@@ -16,6 +16,7 @@ import type { LensEnding, LensStretch, LensSystem } from "./lens.ts";
 import { stretchOffsets, tstamp, type Run, type Score, type ScoreMeasure, type ScorePiece } from "./score.ts";
 import { isDynamic, JUMPS, type Accidental, type CommandName, type EVENT_COMMANDS, type Duration, type Event, type Head, type Mark, type Pitch, type Tempo } from "./symbolic.ts";
 import { el, elements, serialize, type XmlElement, type XmlNode } from "./xml.ts";
+import { firstMeasureStretch } from "./structure.ts";
 
 export const MEI_VERSION = "5.1";
 export const MEI_NS = "http://www.music-encoding.org/ns/mei";
@@ -599,7 +600,7 @@ class PieceWriter {
     const stretch = this.score.stretch(at.system, at.stretch).stretch;
     const previous = this.piece.systems[this.piece.systems.indexOf(system) - 1];
     const before = previous ? this.endState(previous.number) : null;
-    const startsSystem = measureStart && at.stretch === firstStretch(system.answer);
+    const startsSystem = measureStart && at.stretch === firstMeasureStretch(system.answer);
     const changed = new Map<number, Record<string, string | number>>();
     const set = (staff: number, attrs: Record<string, string | number>) => changed.set(staff, { ...(changed.get(staff) ?? {}), ...attrs });
     if (startsSystem && before) {
@@ -1035,7 +1036,7 @@ class PieceWriter {
     const system = score.system(segment[0].system);
     // A start repeat: the system's own, where the segment starts the system; or the bar line before it.
     const startRepeat =
-      (segment[0].stretch === firstStretch(system.answer) && system.answer.startRepeat) ||
+      (segment[0].stretch === firstMeasureStretch(system.answer) && system.answer.startRepeat) ||
       (before !== null && score.stretch(before.system, before.stretch).stretch.rightBarLine === "startRepeat");
     // Divided at a bar line inside it, or, for a system alone, at the system break: each part is incomplete.
     const finest = measureSegments(score, m, true).length > 1;
@@ -1065,10 +1066,6 @@ type RunContext = { run: Run; place: Place; home: number; staff: number; stem: "
 // A measure's content, by `${voice}/${system}/${stretch}`; its control events; each voice's staff (its layer is there);
 // where each stretch starts in it; the time signature's unit, for beats.
 type BuiltMeasure = { content: Map<string, XmlNode[]>; controls: Control[]; home: Map<number, number>; offsets: Map<string, Fraction>; unit: number };
-
-function firstStretch(answer: LensSystem): number {
-  return answer.stretches.find((s) => s.class !== "none")?.stretch ?? 1;
-}
 
 function sub(a: Fraction, b: Fraction): Fraction {
   return fraction(a.n * b.d - b.n * a.d, a.d * b.d);

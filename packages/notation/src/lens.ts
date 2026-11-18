@@ -90,6 +90,7 @@ export type SystemContext = {
 };
 
 export type CheckedSystem = {
+  number: number; // the system's number in the whole score
   answer: LensSystem;
   voices: Map<string, Event[]>; // parsed, by `${stretch}/${voice}`
   codeIssues: CodeIssue[];
@@ -110,6 +111,24 @@ export function checkSystem(json: unknown, context: SystemContext, before: Score
     if (err instanceof TypeError) return { problem: `the answer doesn't have the expected form: ${err.message}` };
     throw err;
   }
+}
+
+// The systems checked in the score's order, each from the state the one before it left: a piece's first system, or one
+// that doesn't follow the system before it in the list, starts afresh. The checked systems, or the first that can't
+// be used and why.
+export function checkSystems(systems: { context: SystemContext; answer: unknown }[]): CheckedSystem[] | { system: number; problem: string } {
+  const checked: CheckedSystem[] = [];
+  let state = pieceStart();
+  let previous: number | null = null;
+  for (const { context, answer } of systems) {
+    if (context.firstOfPiece || previous !== context.system - 1) state = pieceStart();
+    const result = checkSystem(answer, context, state);
+    if ("problem" in result) return { system: context.system, problem: result.problem };
+    checked.push(result);
+    state = result.state;
+    previous = context.system;
+  }
+  return checked;
 }
 
 class Unusable extends Error {}
@@ -423,6 +442,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
   }
 
   return {
+    number: system,
     answer,
     voices,
     codeIssues,

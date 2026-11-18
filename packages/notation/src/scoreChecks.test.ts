@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkSystem, pieceStart, type LensStretch, type LensSystem, type ScoreState } from "./lens.ts";
-import { checkScore, type CheckedScoreSystem } from "./scoreChecks.ts";
+import { checkSystems, type CheckedSystem, type LensStretch, type LensSystem } from "./lens.ts";
+import { checkScore } from "./scoreChecks.ts";
 
 function stretch(i: number, first: boolean, over: Partial<LensStretch> = {}): LensStretch {
   return {
@@ -31,16 +31,10 @@ function system(n: number, first: boolean, over: Partial<LensSystem> = {}, stret
 }
 
 // The systems checked one after the other, as `extract` does, with the pieces' starts.
-function checked(answers: LensSystem[], pieces: number[]): CheckedScoreSystem[] {
-  let state: ScoreState = pieceStart();
-  return answers.map((answer, i) => {
-    const number = i + 1;
-    if (pieces.includes(number)) state = pieceStart();
-    const result = checkSystem(answer, { system: number, stretches: answer.stretches.length, firstOfPiece: pieces.includes(number), images: [] }, state);
-    if ("problem" in result) assert.fail(result.problem);
-    state = result.state;
-    return { number, answer, state };
-  });
+function checked(answers: LensSystem[], pieces: number[]): CheckedSystem[] {
+  const result = checkSystems(answers.map((answer, i) => ({ answer, context: { system: i + 1, stretches: answer.stretches.length, firstOfPiece: pieces.includes(i + 1), images: [] } })));
+  if ("problem" in result) assert.fail(result.problem);
+  return result;
 }
 
 test("a clean score has nothing to say", () => {

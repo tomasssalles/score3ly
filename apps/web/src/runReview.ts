@@ -5,7 +5,7 @@
 // crops with the issues' boxes drawn on them, and its request. Each answer is checked as soon as it arrives; one that
 // can't be used stops the run there, the calls before it kept.
 
-import { buildScore, checkSystem, LENS_VERSION, pieceStart, systemLinks, type LinkedSystem, type ScoreState } from "@score3ly/notation";
+import { buildScore, checkSystem, LENS_VERSION, pieceStart, systemLinks, type CheckedSystem, type ScoreState } from "@score3ly/notation";
 import { REVIEW_MAX_OUTPUT_TOKENS, REVIEW_PROMPT_VERSION, REVIEW_SCHEMA, REVIEW_SYSTEM, reviewIssuesText, reviewLogText, reviewScoreText, reviewText } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
@@ -55,7 +55,7 @@ export async function runReview(run: StageRun): Promise<void> {
   const warnings = [...systems.flatMap((s) => extractions.get(s.number)!.warnings), ...checks.warnings];
 
   // The systems checked again, one after the other, for the links (what each leaves, and the marks it closed).
-  const linked: LinkedSystem[] = [];
+  const linked: CheckedSystem[] = [];
   let state: ScoreState = pieceStart();
   for (const s of systems) {
     if (bounds(s.number).first || !byNumber.has(s.number - 1)) state = pieceStart();
@@ -63,7 +63,7 @@ export async function runReview(run: StageRun): Promise<void> {
     const context = { system: s.number, stretches: s.layout.barLines.length + 1, firstOfPiece: bounds(s.number).first, images: labelsOf(s) };
     const checked = checkSystem(extraction.answer, context, state);
     if ("problem" in checked) throw new CannotStart(`the transcription of system ${s.number} no longer passes the checks: ${checked.problem}.`);
-    linked.push({ number: s.number, answer: checked.answer, state: checked.state, closed: checked.closed });
+    linked.push(checked);
     state = checked.state;
   }
   const links = systemLinks(linked, pieces);
