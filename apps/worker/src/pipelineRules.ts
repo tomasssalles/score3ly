@@ -1,0 +1,365 @@
+// A project's pipeline and its rules (docs/overview.md §5.5, docs/database.md): the stages' kinds as the Worker needs
+// them, a new project's pipeline, rewriting a pipeline after a change, reading it, and a stage's entry in it. The routes
+// that change a pipeline (pipeline.ts) apply these.
+
+import { COST_WITH_VAT } from "./vat.ts";
+import { logFields } from "./requestLog.ts";
+import { groupBy, RECIPE, stepsOfKind, type Pipeline, type StageModelConfig, type StageStatus } from "@score3ly/core";
+import { readSettings, resolvedModel, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
+import type { Family, Pricing, Provider, Routing } from "./llm/models.ts";
+
+// The pipeline as the API sends it (`Pipeline`, `Stage`, `Output`, `Dropped`) is in `@score3ly/core`.
+
+// A stage's status as stored: a stopped stage has left the pipeline, so the API's `StageStatus` (a pipeline's) lacks it.
+export type StoredStatus = StageStatus | "stopped";
+
+// The version of the Ingest step that new projects get.
+const INGEST_VERSION = 1;
+
+// The manual steps (docs/overview.md §5.4), by their kind in core: the Worker needs to know these to add, edit and drop
+// them, and to carry them when the stages after a change are replaced (§5.5). `human_review` is one too, though it is
+// added with an `apply_review` of its own (docs/stages/music.md, `human_review`).
+export const MANUAL_STEPS = stepsOfKind("manual");
+
+export function isManual(step: string): boolean {
+  return (MANUAL_STEPS as readonly string[]).includes(step);
+}
+
+// A further review (docs/overview.md §5.5): a review the user added, not the recipe's. It is carried through a re-run
+// like a manual stage once it has run, and dropped with the `apply_review` that follows it.
+export function isFurtherReview(row: { step: string; in_recipe: number }): boolean {
+  return row.step === "review" && row.in_recipe === 0;
+}
+
+// Whether a stage is carried through a re-run (docs/overview.md §5.5): a manual one, and a further review that has run.
+export function isCarried(row: { step: string; in_recipe: number; status: StoredStatus }): boolean {
+  return isManual(row.step) || (isFurtherReview(row) && row.status !== "planned");
+}
+
+// The LLM steps (docs/overview.md §7), by their kind in core: every stage of one names its model config from the moment
+// it is created (docs/llm.md, "Which config a stage uses").
+export const LLM_STEPS = stepsOfKind("llm");
+
+export function isLlm(step: string): boolean {
+  return (LLM_STEPS as readonly string[]).includes(step);
+}
+
+// A stage's config with another model config, everything else in it as it was.
+export function withModelConfig(configJson: string | null, modelConfigId: string): string {
+  return JSON.stringify({ ...(configJson === null ? {} : (JSON.parse(configJson) as Record<string, unknown>)), modelConfigId });
+}
+
+// The default model config for the LLM stages created now: the setting, if it names a config that exists (configs are
+// only marked deleted, so it does unless the database was changed by hand).
+export async function defaultForNewStages(db: D1Database): Promise<string | null> {
+  const { defaultModelConfigId } = await readSettings(db);
+  if (defaultModelConfigId === null) return null;
+  return (await db.prepare("SELECT id FROM model_configs WHERE id = ?").bind(defaultModelConfigId).first()) ? defaultModelConfigId : null;
+}
+
+// A new stage's config as stored, and its model config: an LLM stage's config names the model config it uses (its
+// `modelConfigId`), the default when it is created unless it names one already (a copy keeps the one of the stage it
+// replaces). Any other stage's config is as given, without a model config.
+export function newStageConfig(
+  step: string,
+  configJson: string | null,
+  defaultModelConfigId: string | null,
+): { configJson: string | null; modelConfigId: string | null } {
+  if (!isLlm(step)) return { configJson, modelConfigId: null };
+  const config = configJson === null ? {} : (JSON.parse(configJson) as Record<string, unknown>);
+  const named = typeof config.modelConfigId === "string" ? config.modelConfigId : defaultModelConfigId;
+  if (named === null) return { configJson, modelConfigId: null };
+  return { configJson: JSON.stringify({ ...config, modelConfigId: named }), modelConfigId: named };
+}
+
+// A running stage whose heartbeat is older than this was interrupted (the tab was closed): it can run again.
+export const STALE_MS = 3 * 60 * 1000;
+
+export type StageRow = {
+  id: string;
+  step: string;
+  step_version: number | null;
+  status: StoredStatus;
+  config_json: string | null;
+  page_count: number | null;
+  error: string | null;
+  note: string | null;
+  started_at: string | null;
+  heartbeat_at: string | null;
+  finished_at: string | null;
+  mc_name?: string;
+  mc_provider?: Provider | null;
+  mc_model_id?: string | null;
+  mc_model_string?: string | null;
+  mc_family?: Family | null;
+  mc_region?: string | null;
+  mc_routing?: Routing | null;
+  mc_pricing_kind?: Pricing["kind"] | null;
+  mc_pricing_reference?: string | null;
+  mc_effort?: ModelConfigRow["effort"];
+  mc_project?: string | null;
+  mc_account?: ModelConfigRow["account"];
+  mc_secrets_json?: string | null;
+  mc_deleted_at?: string | null;
+  cost_usd?: number | null;
+  carried?: number;
+  in_recipe: number;
+};
+
+type OutputRow = {
+  id: string;
+  stage_id: string;
+  item: string;
+  type: string;
+  content_sha256: string | null;
+  recipe_key: string | null;
+  recipe_json: string | null;
+};
+
+// The statements that give a new project its pipeline: Ingest, done, with the PDF as its output, and the other
+// stages of the recipe, planned. Run in the same batch as the project's own insert.
+export function newPipeline(
+  db: D1Database,
+  projectId: string,
+  pdfSha256: string,
+  defaultModelConfigId: string | null,
+  now: string,
+): D1PreparedStatement[] {
+  const ingestId = crypto.randomUUID();
+  // Ingest never runs and nothing looks it up, so it has no stage key.
+  const statements = [
+    db
+      .prepare(
+        "INSERT INTO stages (id, created_in, step, step_version, status, config_json, in_recipe, created_at, started_at, finished_at) VALUES (?, ?, 'ingest', ?, 'done', '{}', 1, ?, ?, ?)",
+      )
+      .bind(ingestId, projectId, INGEST_VERSION, now, now, now),
+    db
+      .prepare("INSERT INTO pipeline_entries (project_id, position, stage_id) VALUES (?, 1, ?)")
+      .bind(projectId, ingestId),
+    db
+      .prepare("INSERT INTO outputs (id, stage_id, item, type, content_sha256, created_at) VALUES (?, ?, '', 'pdf', ?, ?)")
+      .bind(crypto.randomUUID(), ingestId, pdfSha256, now),
+  ];
+  RECIPE.slice(1).forEach((step, i) =>
+    statements.push(...plannedStage(db, projectId, i + 2, step, null, true, defaultModelConfigId, now)),
+  );
+  return statements;
+}
+
+// A new planned stage at `position` of the project's pipeline (replacing what was there). `inRecipe`: whether it is
+// the recipe's or one the user added (docs/database.md); a stage that replaces another takes its mark. An LLM stage
+// gets its model config now (`newStageConfig`).
+export function plannedStage(
+  db: D1Database,
+  projectId: string,
+  position: number,
+  step: string,
+  configJson: string | null,
+  inRecipe: boolean,
+  defaultModelConfigId: string | null,
+  now: string,
+): D1PreparedStatement[] {
+  const id = crypto.randomUUID();
+  const config = newStageConfig(step, configJson, defaultModelConfigId);
+  return [
+    db
+      .prepare(
+        "INSERT INTO stages (id, created_in, step, status, config_json, model_config_id, in_recipe, created_at) VALUES (?, ?, ?, 'planned', ?, ?, ?, ?)",
+      )
+      .bind(id, projectId, step, config.configJson, config.modelConfigId, inRecipe ? 1 : 0, now),
+    db
+      .prepare("INSERT OR REPLACE INTO pipeline_entries (project_id, position, stage_id) VALUES (?, ?, ?)")
+      .bind(projectId, position, id),
+  ];
+}
+
+// The statements that rewrite a pipeline from `position` on: the entries before it stay, `head` (stage ids) comes
+// at `position`, and then the stages that were after `after`, replaced (docs/overview.md §5.5): a planned one keeps its
+// row, one that ran gets a planned copy with its config, and a manual one, WIP or done, is carried: it stays, waiting
+// for its turn, when it is kept if what it reads is the same as what it read (`resolve`).
+// `modelConfig`: given, the LLM stages after `after` get that model config, and nothing else in their configs changes
+// ("Apply to the remaining stages planned in this pipeline", docs/llm.md): a planned one in place, a copy as it is made,
+// further reviews that ran included, which then aren't carried.
+export async function rewriteFrom(
+  db: D1Database,
+  projectId: string,
+  position: number,
+  head: string[],
+  after: number,
+  now: string,
+  modelConfig: string | null = null,
+): Promise<D1PreparedStatement[]> {
+  const { results: later } = await db
+    .prepare(
+      "SELECT s.id, s.step, s.status, s.config_json, s.in_recipe FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position > ? ORDER BY e.position",
+    )
+    .bind(projectId, after)
+    .all<{ id: string; step: string; status: StageStatus; config_json: string | null; in_recipe: number }>();
+  const defaultModelConfigId = await defaultForNewStages(db);
+  const statements = [
+    // The cards of dropped stages in the part rewritten go (docs/overview.md §5.5).
+    db
+      .prepare(
+        "DELETE FROM dropped_stages WHERE project_id = ? AND after_stage_id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ? AND position >= ?)",
+      )
+      .bind(projectId, projectId, position),
+    db.prepare("DELETE FROM pipeline_entries WHERE project_id = ? AND position >= ?").bind(projectId, position),
+  ];
+  let next = position;
+  const point = (stageId: string, carried = false) =>
+    db
+      .prepare("INSERT INTO pipeline_entries (project_id, position, stage_id, carried) VALUES (?, ?, ?, ?)")
+      .bind(projectId, next++, stageId, carried ? 1 : 0);
+  for (const id of head) statements.push(point(id));
+  for (const row of later) {
+    const changed = modelConfig !== null && isLlm(row.step);
+    // A further review that ran is carried, unless the change gives the stages after it a model config: then it runs
+    // again with it, as a planned copy (decided 2026-11-09, docs/overview.md §5.5), and so does its Apply review.
+    if (isCarried(row) && !(changed && isFurtherReview(row))) statements.push(point(row.id, true));
+    else if (row.status === "planned") {
+      statements.push(point(row.id));
+      if (changed) {
+        statements.push(
+          db.prepare("UPDATE stages SET config_json = ?, model_config_id = ? WHERE id = ?").bind(withModelConfig(row.config_json, modelConfig), modelConfig, row.id),
+        );
+      }
+    } else {
+      const config = changed ? withModelConfig(row.config_json, modelConfig) : row.config_json;
+      statements.push(...plannedStage(db, projectId, next++, row.step, config, row.in_recipe === 1, defaultModelConfigId, now));
+    }
+  }
+  return statements;
+}
+
+// Whether a stage of the project's pipeline is running (an interrupted one doesn't count).
+export async function anyRunning(db: D1Database, projectId: string, now: number): Promise<boolean> {
+  const { results } = await db
+    .prepare(
+      "SELECT s.* FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND s.status = 'running'",
+    )
+    .bind(projectId)
+    .all<StageRow>();
+  return results.some((stage) => !isStale(stage, now));
+}
+
+export async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline> {
+  const [stages, outputs, dropped] = await db.batch([
+    db
+      .prepare(
+        `SELECT s.*, e.carried, m.name AS mc_name, m.provider AS mc_provider, m.model_id AS mc_model_id, m.model_string AS mc_model_string, m.family AS mc_family, m.region AS mc_region, m.routing AS mc_routing, m.pricing_kind AS mc_pricing_kind, m.pricing_reference AS mc_pricing_reference, m.effort AS mc_effort, m.project AS mc_project, m.account AS mc_account, m.secrets_json AS mc_secrets_json, m.deleted_at AS mc_deleted_at, (SELECT SUM(${COST_WITH_VAT}) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position`,
+      )
+      .bind(projectId),
+    db
+      .prepare(
+        "SELECT o.* FROM pipeline_entries e JOIN outputs o ON o.stage_id = e.stage_id WHERE e.project_id = ? ORDER BY o.created_at, o.item",
+      )
+      .bind(projectId),
+    db.prepare("SELECT id, after_stage_id, step FROM dropped_stages WHERE project_id = ? ORDER BY id").bind(projectId),
+  ]);
+  const byStage = groupBy(outputs.results as OutputRow[], (row) => row.stage_id);
+  return {
+    stages: (stages.results as StageRow[]).map((row) => ({
+      id: row.id,
+      step: row.step,
+      stepVersion: row.step_version,
+      status: row.status as StageStatus, // a stage in a pipeline is never stopped (`StoredStatus`)
+      config: row.config_json === null ? null : JSON.parse(row.config_json),
+      pageCount: row.page_count,
+      error: row.error,
+      note: row.note,
+      startedAt: row.started_at,
+      heartbeatAt: row.heartbeat_at,
+      finishedAt: row.finished_at,
+      modelConfig: row.mc_provider ? stageModelConfig(row) : null,
+      costUsd: row.cost_usd ?? null,
+      carried: row.carried === 1,
+      inRecipe: row.in_recipe === 1,
+      outputs: (byStage.get(row.id) ?? []).map((o) => ({
+        id: o.id,
+        item: o.item,
+        type: o.type,
+        contentSha256: o.content_sha256,
+        recipeKey: o.recipe_key,
+        recipe: o.recipe_json === null ? null : JSON.parse(o.recipe_json),
+      })),
+    })),
+    dropped: (dropped.results as { id: number; after_stage_id: string; step: string }[]).map((row) => ({
+      id: row.id,
+      afterStageId: row.after_stage_id,
+      step: row.step,
+    })),
+  };
+}
+
+// The stage at a position of a live project's pipeline, if it is there.
+export async function entry(
+  db: D1Database,
+  projectId: string,
+  stageId: string,
+  request?: Request,
+): Promise<{ position: number; stage: StageRow; carried: boolean } | null> {
+  const row = await db
+    .prepare(
+      "SELECT e.position, e.carried, s.* FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id JOIN projects p ON p.id = e.project_id WHERE e.project_id = ? AND e.stage_id = ? AND p.deleted_at IS NULL",
+    )
+    .bind(projectId, stageId)
+    .first<StageRow & { position: number }>();
+  // The stage's step, for the request's log line.
+  if (row && request) logFields(request, { step: row.step });
+  return row && { position: row.position, stage: row, carried: row.carried === 1 };
+}
+
+// The LLM calls of a stage still marked running, once its run is over (stopped, or interrupted and started again):
+// recorded as errors of kind `aborted`, without tokens, so the costs count them as calls of unknown cost (docs/llm.md,
+// "Stopped calls"). The Worker that made one may still record its real end afterwards, which then replaces this.
+export const STOPPED_CALL = "Stopped: the stage was stopped while this call ran. Whether the provider billed it is unknown.";
+export const INTERRUPTED_CALL = "Interrupted: the stage's run ended while this call ran. Whether the provider billed it is unknown.";
+
+export function closeRunningCalls(db: D1Database, stageId: string, now: string, message: string): D1PreparedStatement {
+  return db
+    .prepare("UPDATE llm_calls SET status = 'error', error = ?, error_kind = 'aborted', finished_at = ? WHERE stage_id = ? AND status = 'running'")
+    .bind(message, now, stageId);
+}
+
+export function isStale(stage: StageRow, now: number): boolean {
+  return stage.status === "running" && (stage.heartbeat_at === null || now - Date.parse(stage.heartbeat_at) > STALE_MS);
+}
+
+// The last position that goes when the stage at `position` is dropped: a review's or a human review's `apply_review`
+// goes with it (docs/overview.md §5.5, "An `apply_review` goes with its review").
+export async function withItsApply(db: D1Database, projectId: string, position: number): Promise<number> {
+  const next = await db
+    .prepare("SELECT s.step FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position = ?")
+    .bind(projectId, position + 1)
+    .first<{ step: string }>();
+  const stage = await db
+    .prepare("SELECT s.step FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position = ?")
+    .bind(projectId, position)
+    .first<{ step: string }>();
+  return (stage?.step === "review" || stage?.step === "human_review") && next?.step === "apply_review" ? position + 1 : position;
+}
+
+export function touchProject(db: D1Database, projectId: string, now: string): D1PreparedStatement {
+  return db.prepare("UPDATE projects SET last_modified_at = ? WHERE id = ?").bind(now, projectId);
+}
+
+// What a stage's card shows of its model config (`StageModelConfig`).
+export function stageModelConfig(row: StageRow): StageModelConfig {
+  const config = {
+    name: row.mc_name ?? "",
+    provider: row.mc_provider!,
+    model_id: row.mc_model_id ?? null,
+    model_string: row.mc_model_string ?? null,
+    family: row.mc_family ?? null,
+    effort: row.mc_effort ?? null,
+    region: row.mc_region ?? "",
+    routing: row.mc_routing ?? null,
+    project: row.mc_project ?? null,
+    account: row.mc_account ?? null,
+    secrets_json: row.mc_secrets_json ?? "{}",
+    pricing_kind: row.mc_pricing_kind ?? "unpriced",
+    pricing_reference: row.mc_pricing_reference ?? null,
+  } as ModelConfigRow;
+  const { model } = resolvedModel(config);
+  return { name: row.mc_name ?? model, model, deleted: Boolean(row.mc_deleted_at), unsupported: unsupportedOf(config) !== null };
+}

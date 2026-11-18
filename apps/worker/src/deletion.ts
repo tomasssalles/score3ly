@@ -5,7 +5,7 @@
 // deleted by collecting what no row refers to any more, which also collects the orphans other changes leave behind.
 
 import type { Deleted } from "@score3ly/core";
-import { anyRunning } from "./pipeline.ts";
+import { anyRunning } from "./pipelineRules.ts";
 
 // R2 objects younger than this are never collected: their rows may be on their way (content is uploaded before the
 // row that refers to it is written, e.g. by a stage running on another device).
