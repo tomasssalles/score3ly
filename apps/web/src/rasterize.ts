@@ -4,6 +4,7 @@
 
 import { keyOf } from "@score3ly/core";
 import { formatPages, parsePages, selectPages } from "@score3ly/core";
+import { DEFAULT_DPI } from "@score3ly/imaging";
 
 export const RASTERIZE_VERSION = 1;
 
@@ -12,7 +13,7 @@ export type RasterizeConfig = {
   dpi: number; // for vector pages; scans keep their own pixels
 };
 
-export const DEFAULT_CONFIG: RasterizeConfig = { pages: "", dpi: 300 };
+export const DEFAULT_CONFIG: RasterizeConfig = { pages: "", dpi: DEFAULT_DPI };
 
 export const MIN_DPI = 72;
 export const MAX_DPI = 600;

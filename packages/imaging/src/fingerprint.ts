@@ -3,7 +3,7 @@
 // pixels), close (a small grayscale thumbnail differs only a little), or different.
 
 import { type Fingerprint, fromBase64, sha256Hex, toBase64 } from "@score3ly/core";
-import { luminance, type RgbaImage } from "./image.ts";
+import { grayToRgba, luminance, type RgbaImage } from "./image.ts";
 import { resizeArea } from "./scale.ts";
 
 // Bump when the fingerprint changes: fingerprints of another version aren't compared.
@@ -39,10 +39,7 @@ export async function fingerprintOf(image: RgbaImage): Promise<Fingerprint> {
 // The image as decodePng reads it back after encodePng: with `gray`, each pixel its luminance, opaque.
 export function asStored(image: RgbaImage, gray: boolean): RgbaImage {
   if (!gray) return image;
-  const lum = luminance(image);
-  const data = new Uint8ClampedArray(image.width * image.height * 4);
-  for (let p = 0; p < lum.length; p++) data.set([lum[p], lum[p], lum[p], 255], p * 4);
-  return { width: image.width, height: image.height, data };
+  return { width: image.width, height: image.height, data: grayToRgba(luminance(image), image.width, image.height) };
 }
 
 export type FingerprintMatch = "identical" | "close" | "different";

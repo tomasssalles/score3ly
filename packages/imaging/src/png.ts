@@ -3,7 +3,7 @@
 // (CompressionStream "deflate" is the zlib format PNG wants), available in browsers, their Web Workers and Node.
 // The decoder reads what the encoder writes (8-bit RGBA or gray, not interlaced), with any of PNG's row filters.
 
-import { luminance, type RgbaImage } from "./image.ts";
+import { grayToRgba, luminance, type RgbaImage } from "./image.ts";
 
 const SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
 
@@ -86,11 +86,15 @@ export async function decodePng(bytes: Uint8Array): Promise<RgbaImage> {
   }
   if (channels === 4) return { width, height, data };
   // Gray: back to RGBA, opaque.
-  const rgba = new Uint8ClampedArray(width * height * 4);
-  for (let p = 0; p < width * height; p++) {
-    rgba.set([data[p], data[p], data[p], 255], p * 4);
-  }
-  return { width, height, data: rgba };
+  return { width, height, data: grayToRgba(data, width, height) };
+}
+
+// A PNG's size, from its header: the IHDR chunk always comes first, right after the signature, so only the first 24
+// bytes are needed.
+export function pngSize(bytes: Uint8Array): { width: number; height: number } {
+  if (bytes.length < 24 || !SIGNATURE.every((b, i) => bytes[i] === b)) throw new Error("not a PNG file");
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return { width: view.getUint32(16), height: view.getUint32(20) };
 }
 
 function paeth(a: number, b: number, c: number): number {

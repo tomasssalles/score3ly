@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { createImage, type RgbaImage } from "./image.ts";
-import { decodePng, encodePng } from "./png.ts";
+import { decodePng, encodePng, pngSize } from "./png.ts";
 
 function noisy(width: number, height: number): RgbaImage {
   const image = createImage(width, height);
@@ -63,4 +63,12 @@ test("a gray PNG holds the image's luminance, a quarter of the raw size, and rea
   const context = createCanvas(40, 30).getContext("2d");
   context.drawImage(loaded, 0, 0);
   assert.deepEqual(new Uint8ClampedArray(context.getImageData(0, 0, 40, 30).data), decoded.data);
+});
+
+test("a PNG's size is read from its header alone", async () => {
+  const bytes = await encodePng(noisy(37, 23), { gray: true });
+  assert.deepEqual(pngSize(bytes.subarray(0, 24)), { width: 37, height: 23 });
+  assert.deepEqual(pngSize(await encodePng(noisy(5, 900))), { width: 5, height: 900 });
+  assert.throws(() => pngSize(new Uint8Array(24)), /not a PNG file/);
+  assert.throws(() => pngSize(bytes.subarray(0, 20)), /not a PNG file/);
 });

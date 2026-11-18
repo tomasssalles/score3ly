@@ -21,6 +21,20 @@ export function createImage(width: number, height: number, fill: Rgb = [255, 255
   return { width, height, data };
 }
 
+// A gray image (one byte per pixel) as RGBA, opaque: how a gray PNG reads back (png.ts), so also what a fingerprint of
+// an image stored as gray is made from (fingerprint.ts `asStored`).
+export function grayToRgba(gray: ArrayLike<number>, width: number, height: number): Uint8ClampedArray {
+  const rgba = new Uint8ClampedArray(width * height * 4);
+  for (let p = 0, i = 0; p < width * height; p++, i += 4) {
+    rgba[i] = rgba[i + 1] = rgba[i + 2] = gray[p];
+    rgba[i + 3] = 255;
+  }
+  return rgba;
+}
+
+// The resolution vector pages are drawn at unless a stage says otherwise (rasterize's default, pdfPages.ts).
+export const DEFAULT_DPI = 300;
+
 // Luminance (BT.601) per pixel, 0 (black) to 255 (white), in integer arithmetic so it is exact everywhere.
 export function luminance(image: RgbaImage): Uint8Array {
   const { data } = image;

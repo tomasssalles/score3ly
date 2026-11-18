@@ -8,7 +8,7 @@
 // running stage's card show. Stages and editors store the fingerprints of the images their results are computed from
 // (`keepFingerprints`).
 
-import { compareFingerprints, type Fingerprint } from "@score3ly/imaging";
+import { compareFingerprints, pngSize as pngHeaderSize, type Fingerprint } from "@score3ly/imaging";
 import { checked, fetchFingerprint, storeFingerprints } from "./api";
 import { cachedImage, cacheImage, cachedJson, cacheJson } from "./imageCache";
 import { noteImage } from "./itemTiming";
@@ -291,6 +291,5 @@ export async function layoutPage(recipe: LayoutPageRecipe): Promise<Blob> {
 
 // A PNG's size, from its header.
 export async function pngSize(png: Blob): Promise<{ width: number; height: number }> {
-  const view = new DataView(await png.slice(16, 24).arrayBuffer());
-  return { width: view.getUint32(0), height: view.getUint32(4) };
+  return pngHeaderSize(new Uint8Array(await png.slice(0, 24).arrayBuffer()));
 }

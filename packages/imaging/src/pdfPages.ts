@@ -4,7 +4,7 @@
 // resolution. Colour is kept.
 
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import type { Rgb, RgbaImage } from "./image.ts";
+import { DEFAULT_DPI, type Rgb, type RgbaImage } from "./image.ts";
 
 export type PdfDocument = pdfjs.PDFDocumentProxy;
 
@@ -47,8 +47,6 @@ export type PageImage = {
   source: "embedded" | "rendered";
   dpi: number; // the scan's resolution, or the one the page was drawn at (rounded)
 };
-
-export const DEFAULT_DPI = 300;
 
 // A page's image (pages count from 1). `createCanvas` is only needed for pages that aren't plain scans.
 export async function pageImage(
