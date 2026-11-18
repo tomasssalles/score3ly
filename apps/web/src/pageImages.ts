@@ -19,8 +19,13 @@ import type { PageRecipe } from "./rasterize";
 import type { Box, LayoutSystem } from "@score3ly/core";
 import type { SizeLimit, Skew } from "@score3ly/imaging";
 
-// The PDFs opened in the worker: what pdf.js says about them. Gone with the worker, when it is replaced.
+// The PDFs opened in the worker: what pdf.js says about them, the most recently used last. Gone with the worker, when
+// it is replaced.
 const opened = new Map<string, Promise<{ pageCount: number; pdfjsVersion: string }>>();
+
+// How many PDFs the worker keeps open (each holds the whole file and what pdf.js parsed of it): the project open now,
+// and the one before, the least recently used closed.
+const OPEN_PDFS = 2;
 
 const images = workerClient<PageImageCalls>(() => new Worker(new URL("./pageImageWorker.ts", import.meta.url), { type: "module" }), {
   failure: (detail) => detail || "The page image worker failed.",
@@ -30,17 +35,31 @@ const images = workerClient<PageImageCalls>(() => new Worker(new URL("./pageImag
 // Opens the project's PDF in the worker (once per page load), and says how many pages it has.
 export function openPdfForImages(sha256: string): Promise<{ pageCount: number; pdfjsVersion: string }> {
   let result = opened.get(sha256);
-  if (!result) {
+  if (result) {
+    opened.delete(sha256);
+    opened.set(sha256, result);
+  } else {
     result = (async () => {
       const pdf = await fetchPdf(sha256).catch((err) => {
         throw new Error(`Loading the PDF failed: ${errorText(err)}`);
       });
       return images.ask("open", { sha256, pdf: pdf.buffer }, [pdf.buffer]);
     })();
-    opened.set(sha256, result);
-    result.catch(() => opened.delete(sha256));
+    const made = result;
+    opened.set(sha256, made);
+    made.catch(() => opened.get(sha256) === made && opened.delete(sha256));
+    for (const [oldest] of opened) {
+      if (opened.size <= OPEN_PDFS) break;
+      closePdfForImages(oldest);
+    }
   }
   return result;
+}
+
+// Closes a PDF in the worker (one not used for a while, or a deleted project's), freeing its memory.
+export function closePdfForImages(sha256: string): void {
+  if (!opened.delete(sha256)) return;
+  images.ask("close", { sha256 }).catch(() => {}); // a worker that failed has closed it already
 }
 
 // A page image as a PNG: from the cache, or computed now and cached.

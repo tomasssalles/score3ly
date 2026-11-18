@@ -3,6 +3,7 @@ import { failure, ApiError, deleteProject, type Project } from "./api";
 import { FittedText } from "./FittedText";
 import { useHost } from "./host";
 import { deleteCachedPdf } from "./imageCache";
+import { closePdfForImages } from "./pageImages";
 import { Dialog, useDialog } from "./ui/Dialog";
 
 // Deletes a project (docs/database.md, "Deleting a project"), once its name is typed exactly (case included; pasting doesn't count).
@@ -32,7 +33,10 @@ export function DeleteProjectDialog({
     try {
       const { pdfUnused } = await deleteProject(project);
       // The images made from its PDF on this device, unless another project still uses the PDF.
-      if (pdfUnused) await deleteCachedPdf(project.pdfSha256);
+      if (pdfUnused) {
+        closePdfForImages(project.pdfSha256);
+        await deleteCachedPdf(project.pdfSha256);
+      }
       dialog.close("deleted");
     } catch (err) {
       setError(

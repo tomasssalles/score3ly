@@ -36,6 +36,8 @@ export type MadeImage = { png: Uint8Array<ArrayBuffer>; fingerprint: Fingerprint
 
 export type PageImageCalls = {
   open: { request: { sha256: string; pdf: ArrayBuffer }; response: { pageCount: number; pdfjsVersion: string } };
+  // A PDF no longer needed: its memory freed.
+  close: { request: { sha256: string }; response: null };
   page: { request: { sha256: string; page: number; dpi: number }; response: MadeImage };
   skew: { request: { png: ArrayBuffer; maxAngle: number }; response: Skew };
   // The fingerprint of an image, as decoded from its PNG.
@@ -105,6 +107,12 @@ serve<PageImageCalls>(
         docs.delete(sha256);
         throw err;
       }
+    },
+    close: async ({ sha256 }) => {
+      const doc = docs.get(sha256);
+      docs.delete(sha256);
+      await (await doc?.catch(() => null))?.loadingTask.destroy();
+      return null;
     },
     page: async ({ sha256, page, dpi }) => {
       const doc = await docs.get(sha256);

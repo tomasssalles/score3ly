@@ -9,7 +9,6 @@ import { errorText } from "@score3ly/core";
 const RESIZE_DELAY = 150; // ms to wait for resizing to settle before redrawing
 
 export function PdfView({ url }: { url: string }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
   const { doc, error: loadError } = usePdf(url);
   const [drawn, setDrawn] = useState(false);
@@ -21,12 +20,15 @@ export function PdfView({ url }: { url: string }) {
     if (doc === undefined || width === 0) return;
     let cancelled = false;
     // Draw off-screen, then swap all pages in at once, so the view never shows a half-drawn state.
+    // The canvases replaced, or drawn for nothing, are released at once rather than when they are collected: a page
+    // drawn at a phone's device pixels takes several MB, and mobile Safari limits the canvases' memory (docs/images.md §8.5).
     drawPages(doc, width, () => cancelled)
       .then((pages) => {
-        if (!cancelled) {
-          pagesRef.current!.replaceChildren(...pages);
-          setDrawn(true);
-        }
+        if (cancelled) return release(pages);
+        const shown = [...pagesRef.current!.children];
+        pagesRef.current!.replaceChildren(...pages);
+        release(shown);
+        setDrawn(true);
       })
       .catch((e) => {
         if (!cancelled) setDrawError(errorText(e));
@@ -36,8 +38,13 @@ export function PdfView({ url }: { url: string }) {
     };
   }, [doc, width]);
 
+  useEffect(() => {
+    const pages = pagesRef.current!;
+    return () => release([...pages.children]);
+  }, []);
+
   return (
-    <div className="pdf-view" ref={scrollRef}>
+    <div className="pdf-view">
       {error ? (
         <p className="pdf-status pdf-error error-text">The PDF could not be shown: {error}</p>
       ) : (
@@ -46,6 +53,10 @@ export function PdfView({ url }: { url: string }) {
       <div className="pdf-pages" ref={pagesRef} />
     </div>
   );
+}
+
+function release(canvases: Element[]) {
+  for (const canvas of canvases) if (canvas instanceof HTMLCanvasElement) canvas.width = canvas.height = 0;
 }
 
 async function drawPages(doc: PdfDocument, width: number, isCancelled: () => boolean): Promise<HTMLCanvasElement[]> {
