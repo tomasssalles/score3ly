@@ -16,7 +16,7 @@
 // out, not counted as nothing. Projects on the same PDF needn't be merged, as the costs per page merge them: the cache
 // is already left out item by item.
 
-import { itemKind, type ItemKind, QUARTER_MS } from "@score3ly/core";
+import { groupBy, itemKind, type ItemKind, QUARTER_MS } from "@score3ly/core";
 import type { ActivityData, RunTimeData } from "./api";
 import { stepTitle } from "./costs.ts";
 import { endedNote } from "./format.ts";
@@ -98,8 +98,7 @@ function manualPerPage(stages: RunTimeData["stages"]): number | null {
 
 // A step's time per page over some stages: per project, then the mean over the projects that have one.
 function perPageOverProjects(data: RunTimeData, stages: RunTimeData["stages"]): number | null {
-  const byProject = new Map<string, RunTimeData["stages"]>();
-  for (const s of stages) byProject.set(s.projectId, [...(byProject.get(s.projectId) ?? []), s]);
+  const byProject = groupBy(stages, (s) => s.projectId);
   const values = [...byProject.values()].map((list) => perPage(data, list)).filter((v): v is number => v !== null);
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }

@@ -5,7 +5,7 @@
 import { COST_WITH_VAT } from "./vat.ts";
 import { logFields } from "./requestLog.ts";
 import { BAD_REQUEST, badRequest, NO_PROJECT, NO_STAGE, notRunning, PICK_ANOTHER, refuse, RELOAD, STAGE_RUNNING, WAITS_FOR_TURN } from "./refusals.ts";
-import { isSha256Hex, quarterOf, RECIPE, stepsOfKind, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StageModelConfig, type StageStatus, type StartAnswer } from "@score3ly/core";
+import { groupBy, isSha256Hex, quarterOf, RECIPE, stepsOfKind, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StageModelConfig, type StageStatus, type StartAnswer } from "@score3ly/core";
 import type { Hono } from "hono";
 import { deletedConfigMessage, readSettings, resolvedModel, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
 import type { Family, Pricing, Provider, Routing } from "./llm/models.ts";
@@ -258,10 +258,7 @@ async function readPipeline(db: D1Database, projectId: string): Promise<Pipeline
       .bind(projectId),
     db.prepare("SELECT id, after_stage_id, step FROM dropped_stages WHERE project_id = ? ORDER BY id").bind(projectId),
   ]);
-  const byStage = new Map<string, OutputRow[]>();
-  for (const row of outputs.results as OutputRow[]) {
-    byStage.set(row.stage_id, [...(byStage.get(row.stage_id) ?? []), row]);
-  }
+  const byStage = groupBy(outputs.results as OutputRow[], (row) => row.stage_id);
   return {
     stages: (stages.results as StageRow[]).map((row) => ({
       id: row.id,

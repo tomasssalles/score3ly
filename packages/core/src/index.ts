@@ -19,6 +19,7 @@ export { itemKind, pageItem, pageOfItem, systemItem, systemOfItem, type ItemKind
 export { QUARTER_MS, quarterOf } from "./time.ts";
 export { LEAVING_A_RUN } from "./texts.ts";
 export { amount, roundUsd } from "./money.ts";
+export { groupBy } from "./collections.ts";
 export type { ApiErrorBody, ErrorCode } from "./api/errors.ts";
 export { errorText } from "./api/errors.ts";
 export type { CallErrorKind, CostOutcome, Outcome } from "./api/outcomes.ts";

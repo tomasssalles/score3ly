@@ -9,7 +9,7 @@
 
 import type { RunTimeData } from "@score3ly/core";
 import type { Hono } from "hono";
-import { parsePages, RECIPE } from "@score3ly/core";
+import { groupBy, parsePages, RECIPE } from "@score3ly/core";
 import { manualQuarters } from "./activeTime.ts";
 import { modelGroupOf, resolvedModel, type ModelConfigRow } from "./llmRoutes.ts";
 
@@ -45,8 +45,7 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
       db.prepare(`SELECT project_id, stage_id FROM pipeline_entries WHERE project_id IN (${finished}) ORDER BY project_id, position`),
       db.prepare(`SELECT m.stage_id, m.quarter FROM manual_saves m JOIN stages s ON s.id = m.stage_id WHERE s.created_in IN (${finished})`),
     ]);
-    const pipelines = new Map<string, string[]>();
-    for (const e of entries.results as { project_id: string; stage_id: string }[]) pipelines.set(e.project_id, [...(pipelines.get(e.project_id) ?? []), e.stage_id]);
+    const pipelines = groupBy(entries.results as { project_id: string; stage_id: string }[], (e) => e.project_id, (e) => e.stage_id);
     const active = manualQuarters(saves.results as { stage_id: string; quarter: number }[]);
     type ProjectRow = { id: string; name: string; created_at: string; deleted_at: string | null; finished_at: string; rasterize_config: string | null };
     type StageRow = {

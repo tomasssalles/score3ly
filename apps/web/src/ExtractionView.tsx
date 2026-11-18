@@ -255,7 +255,10 @@ export function ExtractionView({ artifact, edit }: { artifact: Artifact; edit?: 
       for (const note of loaded.notes) {
         const home =
           homeOf(note, loaded.systems) ?? (note.kind === "issue" ? addedBelow.get(note.issue.id) : undefined) ?? loaded.systems[0]?.extraction.system;
-        if (home !== undefined) homes.set(home, [...(homes.get(home) ?? []), note]);
+        if (home === undefined) continue;
+        const list = homes.get(home);
+        if (list) list.push(note);
+        else homes.set(home, [note]);
       }
       const own = (note: Note) => note.kind === "issue" && note.issue.source === "user";
       for (const s of loaded.systems) {
