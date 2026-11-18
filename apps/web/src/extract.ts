@@ -1,8 +1,9 @@
 // The `extract` step (docs/stages/music.md): what doesn't need the browser or the model. Its runner is runExtract.ts.
 
+import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
 import type { CheckedSystem, CodeIssue, LensIssue, LensSystem, StretchPlace, Warning } from "@score3ly/notation";
 import { describeMark, type ScoreState } from "@score3ly/notation";
-import { keyOf, onPage, stretchEdges, type Box, type LayoutSystem } from "@score3ly/core";
+import { onPage, stretchEdges, type Box, type LayoutSystem } from "@score3ly/core";
 import type { SystemHints } from "./linking.ts";
 import { count } from "./format.ts";
 
@@ -158,9 +159,10 @@ function codeIssue(issue: CodeIssue, id: number, places: (list: StretchPlace[]) 
   };
 }
 
-// The stage key (§5.2): the step, its version, the prompt's and the lens's versions, the model, the images' recipe,
+// The stage key (§5.2, llmStageKey.ts): the step, its version, the prompt's and the lens's versions, the model, the images' recipe,
 // per page its image's recipe key and its stored layout, and the observations and pieces it reads.
 export function extractStageKey(input: {
+  config: LlmStageConfig;
   promptVersion: number;
   lensVersion: number;
   model: unknown;
@@ -169,7 +171,7 @@ export function extractStageKey(input: {
   observationsSha256: string;
   piecesSha256: string;
 }): Promise<string> {
-  return keyOf({ step: "extract", version: EXTRACT_VERSION, ...input });
+  return llmStageKey("extract", EXTRACT_VERSION, input);
 }
 
 // The card's short result, e.g. "54 systems · 12 issues · 3 warnings".

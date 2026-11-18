@@ -78,7 +78,7 @@ export async function runReview(run: StageRun): Promise<void> {
   const scorePart: RequestContent = { type: "text", text: reviewScoreText(reviewScore(score), observations) };
   const issuesPart: RequestContent = { type: "text", text: reviewIssuesText(reviewIssues(baseIssues, placed), reviewWarnings(warnings, placed)), cacheUpTo: true };
 
-  const { config, start } = await llmStart(stage);
+  const { config, stageConfig, start } = await llmStart(stage);
   const imageRecipe = {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
@@ -87,6 +87,7 @@ export async function runReview(run: StageRun): Promise<void> {
   };
   const transcription = [...extractionOutputs.values(), checksOutput].map((o) => o.contentSha256!).sort();
   const stageKey = await reviewStageKey({
+    config: stageConfig,
     promptVersion: REVIEW_PROMPT_VERSION,
     lensVersion: LENS_VERSION,
     model: modelKeyOf(config),

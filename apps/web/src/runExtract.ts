@@ -38,7 +38,7 @@ export async function runExtract(run: StageRun): Promise<void> {
   const obs = { output: inputs.observationsOutput };
   const pcs = { output: inputs.piecesOutput };
 
-  const { config, start } = await llmStart(stage);
+  const { config, stageConfig, start } = await llmStart(stage);
   const imageRecipe = {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
@@ -46,6 +46,7 @@ export async function runExtract(run: StageRun): Promise<void> {
     margins: MARGINS,
   };
   const stageKey = await extractStageKey({
+    config: stageConfig,
     promptVersion: EXTRACT_PROMPT_VERSION,
     lensVersion: LENS_VERSION,
     model: modelKeyOf(config),

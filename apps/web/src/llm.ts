@@ -9,6 +9,8 @@ import { CannotStart, type StageRun } from "./stageRunner";
 import { trackCall } from "./callProgress";
 import { requestSizeProblem } from "./requestLimits";
 import { checkedAnswer, type AnswerCheck } from "./checkedAnswer";
+import { LLM_CONFIG } from "./steps";
+import type { LlmStageConfig } from "./llmStageKey";
 
 // The model config of an LLM stage: the one its config names (`modelConfigId`), which it got when it was created, the
 // default then unless it was given one (docs/llm.md, "Which config a stage uses"). It is never looked up later.
@@ -22,11 +24,13 @@ export async function stageModelConfig(stageConfig: Record<string, unknown> | nu
   return config;
 }
 
-// An LLM stage's start: its model config, and what `runPlan` records with the stage: its config as it is (it names
-// the model config) and the model config's id.
-export async function llmStart(stage: ApiStage): Promise<{ config: ModelConfig; start: { config: ApiStage["config"]; modelConfigId: string } }> {
+// An LLM stage's start: its model config; its config as its step reads it, for the stage key (llmStageKey.ts); and what
+// `runPlan` records with the stage: its config as it is (it names the model config) and the model config's id.
+export async function llmStart(
+  stage: ApiStage,
+): Promise<{ config: ModelConfig; stageConfig: LlmStageConfig; start: { config: ApiStage["config"]; modelConfigId: string } }> {
   const config = await stageModelConfig(stage.config);
-  return { config, start: { config: stage.config, modelConfigId: config.id } };
+  return { config, stageConfig: LLM_CONFIG.read(stage.config), start: { config: stage.config, modelConfigId: config.id } };
 }
 
 async function pngContent(png: Blob): Promise<{ mediaType: "image/png"; base64: string }> {

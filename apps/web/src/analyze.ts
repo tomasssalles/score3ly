@@ -1,5 +1,6 @@
 // The `analyze` step (docs/stages/analyze.md): what doesn't need the browser or the model. Its runner is runAnalyze.ts.
 
+import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
 import {
   flatMetadata,
   flatObservations,
@@ -14,7 +15,6 @@ import {
   type ScoreMetadata,
   type ScoreObservations,
 } from "@score3ly/prompts";
-import { keyOf } from "@score3ly/core";
 import { count } from "./format.ts";
 
 export const ANALYZE_VERSION = 4; // 4: answers checked against their schema first, a malformed one refused (code review, batch 18)
@@ -44,15 +44,16 @@ export function piecesOf(metadata: { pieces: { system: number }[] }): StoredPiec
   return [...new Set([1, ...metadata.pieces.map((p) => p.system)])].sort((a, b) => a - b);
 }
 
-// The stage key (§5.2): the step, its version, the prompt's version, the model, the images' recipe, and per page the
+// The stage key (§5.2, llmStageKey.ts): the step, its version, the prompt's version, the model, the images' recipe, and per page the
 // page image's recipe key and the stored layout it is analysed with.
 export function analyzeStageKey(input: {
+  config: LlmStageConfig;
   promptVersion: number;
   model: unknown;
   imageRecipe: unknown;
   pages: { pageImageKey: string; layoutSha256: string }[];
 }): Promise<string> {
-  return keyOf({ step: "analyze", version: ANALYZE_VERSION, ...input });
+  return llmStageKey("analyze", ANALYZE_VERSION, input);
 }
 
 // The pages' results as the whole-score call reads them, flat as the model writes them: every metadata item with the

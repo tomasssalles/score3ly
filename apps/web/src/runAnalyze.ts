@@ -68,11 +68,12 @@ export async function runAnalyze(run: StageRun): Promise<void> {
     layouts.flatMap((l, i) => l.systems.map((s, j): [number, SystemInfo] => [firsts[i] + j, { barLines: s.barLines.length, page: pages[i].page }])),
   );
 
-  const { config, start } = await llmStart(stage);
+  const { config, stageConfig, start } = await llmStart(stage);
   const pageLimit = imageLimit(config);
   const scoreLimit = imageLimitFor(config, pages.length);
   const imageRecipe = { limit: pageLimit, scoreLimit, ...imageVersions("scale", "deskew", "rotate", "draw") };
   const stageKey = await analyzeStageKey({
+    config: stageConfig,
     promptVersion: ANALYZE_PROMPT_VERSION,
     model: modelKeyOf(config),
     imageRecipe,

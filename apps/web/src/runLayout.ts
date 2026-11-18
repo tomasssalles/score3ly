@@ -40,9 +40,10 @@ export async function runLayout(run: StageRun): Promise<void> {
     .map((o) => ({ output: o, page: pageOfItem(o.item) ?? 0, recipe: o.recipe as PageRecipe, lines: linesByItem.get(o.item) ?? null }))
     .sort((a, b) => a.page - b.page);
 
-  const { config, start } = await llmStart(stage);
+  const { config, stageConfig, start } = await llmStart(stage);
   const imageRecipe = { limit: imageLimit(config), ...imageVersions("scale", "deskew", "rotate", "draw") };
   const stageKey = await layoutStageKey({
+    config: stageConfig,
     promptVersion: LAYOUT_PROMPT_VERSION,
     model: modelKeyOf(config),
     imageRecipe,

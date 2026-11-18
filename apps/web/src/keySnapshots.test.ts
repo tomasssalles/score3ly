@@ -28,29 +28,35 @@ const transcription = [hex("e1"), hex("e2"), hex("e3"), hex("e4")];
 
 async function keys(): Promise<string[]> {
   const out: string[] = [];
-  for (const model of MODELS) {
+  for (const [m, model] of MODELS.entries()) {
+    // The stage's config as its step reads it: the model config's id, which isn't part of the key (llmStageKey.ts).
+    const config = { modelConfigId: `config-${m}` };
     out.push(
       await layoutStageKey({
+        config,
         promptVersion: 4,
         model,
         imageRecipe: { limit: LIMIT, scale: 1, deskew: 1, rotate: 1, draw: 2 },
         pages: pages.map((p, i) => ({ pageImageKey: p.pageImageKey, linesSha256: i === 1 ? null : hex(`${i}f`) })),
       }),
       await analyzeStageKey({
+        config,
         promptVersion: 5,
         model,
         imageRecipe: { limit: LIMIT, scoreLimit: { maxLongEdge: 1200, maxPixels: 1_000_000 }, scale: 1, deskew: 1, rotate: 1, draw: 2 },
         pages,
       }),
       await extractStageKey({
+        config,
         promptVersion: 7,
         model,
         imageRecipe: { limit: LIMIT, manyImages: MANY, scale: 1, crop: 1, deskew: 1, rotate: 1, margins: { top: 0.4, bottom: 0.4, side: 0.02 } },
         pages,
         ...music,
       }),
-      await reviewStageKey({ promptVersion: 7, model, imageRecipe: { limit: LIMIT, manyImages: null, scale: 1 }, transcription, pages, ...music }),
+      await reviewStageKey({ config, promptVersion: 7, model, imageRecipe: { limit: LIMIT, manyImages: null, scale: 1 }, transcription, pages, ...music }),
       await applyReviewStageKey({
+        config,
         promptVersion: 7,
         model,
         imageRecipe: { limit: LIMIT, manyImages: MANY, scale: 1 },

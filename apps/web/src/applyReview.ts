@@ -9,7 +9,8 @@
 // stored like `extract`'s (an `extraction` per system and the checks of the whole score), so every later stage reads it
 // as it reads `extract`'s.
 
-import { canonicalJson, keyOf } from "@score3ly/core";
+import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
+import { canonicalJson } from "@score3ly/core";
 import { checkSystem, type CheckedSystem, type LensStretch, type LensSystem, type ScoreState, type StretchPlace } from "@score3ly/notation";
 import { applyReviewFromModel, issueForModel, stretchForModel, systemFieldsForModel, systemForModel, voiceForModel, type ApplyReviewAnswer, type ApplyStretchUnit, type ApplySystemUnit, type ApplyVoiceUnit } from "@score3ly/prompts";
 import type { StoredIssue, StoredWarning } from "./extract.ts";
@@ -330,10 +331,11 @@ export function applyNote(applied: number, reverted: number): string {
 export const appliedCount = (calls: StoredApplyCall[]) => calls.reduce((n, c) => n + c.applied.length, 0);
 export const revertedCount = (calls: StoredApplyCall[]) => calls.reduce((n, c) => n + c.choices.length, 0);
 
-// The stage key (§5.2): the step, its version, the prompt's and the lens's versions, the model, the images' recipe,
+// The stage key (§5.2, llmStageKey.ts): the step, its version, the prompt's and the lens's versions, the model, the images' recipe,
 // the transcription it applies to (its stored outputs), the review it applies (its stored calls), the pages' images
 // and layouts, the observations and pieces.
 export function applyReviewStageKey(input: {
+  config: LlmStageConfig;
   promptVersion: number;
   lensVersion: number;
   model: unknown;
@@ -344,7 +346,7 @@ export function applyReviewStageKey(input: {
   observationsSha256: string;
   piecesSha256: string;
 }): Promise<string> {
-  return keyOf({ step: "apply_review", version: APPLY_REVIEW_VERSION, ...input });
+  return llmStageKey("apply_review", APPLY_REVIEW_VERSION, input);
 }
 
 // A system as a call's request gives it: in the lens's field names, each stretch with the measure code gave it, with

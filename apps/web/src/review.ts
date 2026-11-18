@@ -5,9 +5,10 @@
 // view: the issues of the transcription it reviewed, with its entries applied in the order of the calls, and its
 // agreements ("kept") added for the issues it left as they were.
 
+import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
 import type { Score } from "@score3ly/notation";
 import { issueForModel, reviewFromModel, stretchMeasures, systemForModel, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
-import { area, boxProblem, intersection, keyOf, onPage, type Box, type LayoutSystem } from "@score3ly/core";
+import { area, boxProblem, intersection, onPage, type Box, type LayoutSystem } from "@score3ly/core";
 import { stretchBox, type ImageSource, type StoredIssue, type StoredWarning } from "./extract.ts";
 import { systemCropBox } from "./crops.ts";
 import { count } from "./format.ts";
@@ -276,9 +277,10 @@ export function reviewNote(changes: number): string {
   return count(changes, "proposed change");
 }
 
-// The stage key (§5.2): the step, its version, the prompt's and the lens's versions, the model, the images' recipe,
+// The stage key (§5.2, llmStageKey.ts): the step, its version, the prompt's and the lens's versions, the model, the images' recipe,
 // the transcription it reviews (its stored outputs), the pages' images and layouts, the observations and pieces.
 export function reviewStageKey(input: {
+  config: LlmStageConfig;
   promptVersion: number;
   lensVersion: number;
   model: unknown;
@@ -288,5 +290,5 @@ export function reviewStageKey(input: {
   observationsSha256: string;
   piecesSha256: string;
 }): Promise<string> {
-  return keyOf({ step: "review", version: REVIEW_VERSION, ...input });
+  return llmStageKey("review", REVIEW_VERSION, input);
 }

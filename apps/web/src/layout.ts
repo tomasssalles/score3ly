@@ -1,7 +1,7 @@
 // The `layout` step (docs/stages/layout.md): what doesn't need the browser or the model. Its runner is runLayout.ts.
 
+import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
 import type { LayoutSystem } from "@score3ly/core";
-import { keyOf } from "@score3ly/core";
 import { count } from "./format.ts";
 
 export const LAYOUT_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
@@ -16,15 +16,16 @@ export type PageLayout = {
   rounds: number; // answers it took
 };
 
-// The stage key (§5.2): the step, its version, the prompt's version, the model, the image limit, and per page the
+// The stage key (§5.2, llmStageKey.ts): the step, its version, the prompt's version, the model, the image limit, and per page the
 // page image's recipe key and the stored lines it is straightened by.
 export function layoutStageKey(input: {
+  config: LlmStageConfig;
   promptVersion: number;
   model: unknown;
   imageRecipe: unknown;
   pages: { pageImageKey: string; linesSha256: string | null }[];
 }): Promise<string> {
-  return keyOf({ step: "layout", version: LAYOUT_VERSION, ...input });
+  return llmStageKey("layout", LAYOUT_VERSION, input);
 }
 
 // The card's short result, e.g. "54 systems on 12 pages · 2 flagged".

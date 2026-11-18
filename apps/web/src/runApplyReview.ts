@@ -143,7 +143,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   };
   checkedOrFail(startAnswers, "the transcription");
 
-  const { config, start } = await llmStart(stage);
+  const { config, stageConfig, start } = await llmStart(stage);
   const imageRecipe = {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
@@ -152,6 +152,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   };
   const transcription = [...extractionOutputs.values(), checksOutput].map((o) => o.contentSha256!).sort();
   const stageKey = await applyReviewStageKey({
+    config: stageConfig,
     promptVersion: APPLY_REVIEW_PROMPT_VERSION,
     lensVersion: LENS_VERSION,
     model: modelKeyOf(config),
