@@ -12,7 +12,7 @@ import { bedrockModel, cloudflareTimeoutMessage, createAdapter, LlmError, type L
 import { isReplay, replayProvider } from "./llm/replay.ts";
 import { llmTimeoutMs, timedOutMessage, withTimeout } from "./llm/timeouts.ts";
 import { costOf, type Price } from "./llm/prices.ts";
-import { configModel, FAMILY_NAMES, modelById, priceOfConfig, PROVIDER_NAMES } from "./llm/models.ts";
+import { configModel, FAMILY_NAMES, geographyOf, modelById, priceOfConfig, PROVIDER_NAMES } from "./llm/models.ts";
 import { MODEL_LIST } from "./llm/modelList.ts";
 import { capRefusal, feeOf, providerCost, withVat } from "./spending.ts";
 import { readSettings } from "./settings.ts";
@@ -159,7 +159,7 @@ async function prepareCall(env: Env, row: ModelConfigRow, forTest = false): Prom
     return { refusal: { error: `The app doesn't support ${FAMILY_NAMES[config.family]} on ${PROVIDER_NAMES[config.provider]}.`, code: "unsupported", status: 409 } };
   }
   // On Bedrock the routing is a prefix of the model string sent (`bedrockModel`, llm/anthropic.ts).
-  const geography = MODEL_LIST.regions.find((r) => r.provider === config.provider && r.region === config.region)?.geography;
+  const geography = geographyOf(MODEL_LIST, config.provider, config.region);
   const sentModel = config.provider === "bedrock" ? bedrockModel(config.model, config.routing, geography) : config.model;
   return { row, config, adapter, sentModel, priced, price };
 }

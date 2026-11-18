@@ -22,8 +22,9 @@ import {
   listedPrice,
   modelById,
   modelByString,
-  offered,
+  priceEntry,
   placesOf,
+  pricesOf,
   placesOfProvider,
   priceOfConfig,
   PRICED_BY_PROVIDER,
@@ -232,7 +233,7 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
   // A listed model only where the list offers it (with its price, or priced by the provider), however the config is
   // priced: elsewhere the app doesn't support it.
   const byProvider = PRICED_BY_PROVIDER.includes(p);
-  if (typeof modelId === "string" && modelId !== "" && !(byProvider ? offered(list, modelId, p, place) : listedPrice(list, modelId, p, place))) {
+  if (typeof modelId === "string" && modelId !== "" && !(byProvider ? priceEntry(list, modelId, p, place) : listedPrice(list, modelId, p, place))) {
     return `The app doesn't support ${modelById(list, modelId)!.name} on ${PROVIDER_NAMES[p]} there: pick another region`;
   }
   if (project !== undefined && project !== null && (p !== "vertex" || typeof project !== "string")) return "'project' is for Vertex AI only";
@@ -367,9 +368,7 @@ export function modelOptions(list: ModelList = MODEL_LIST, dev = false): ModelOp
         efforts: EFFORTS[family],
         secrets: secretSets(id, family)!,
       })),
-      places: list.regions
-        .filter((r) => r.provider === id)
-        .flatMap((r) => (r.routings ?? [null]).map((routing) => ({ region: r.region, routing, ...(r.geography ? { geography: r.geography } : {}) }))),
+      places: placesOfProvider(list, id),
       ...(PRICED_BY_PROVIDER.includes(id) ? { pricedByProvider: { fees: ACCOUNT_FEES, businessRegions: BUSINESS_REGIONS } } : {}),
     })),
     models: list.models
@@ -381,7 +380,7 @@ export function modelOptions(list: ModelList = MODEL_LIST, dev = false): ModelOp
         efforts: effortsOf(m.family, m),
         providers: Object.fromEntries(
           offered.filter((p) => m.strings[p] !== undefined)
-            .map((p) => [p, { string: m.strings[p]!, places: list.prices.filter((x) => x.model === m.id && x.provider === p).map((x) => ({ region: x.region, routing: x.routing, price: x.price })) }] as const)
+            .map((p) => [p, { string: m.strings[p]!, places: pricesOf(list, m.id, p).map((x) => ({ region: x.region, routing: x.routing, price: x.price })) }] as const)
             .filter(([, offer]) => offer.places.length > 0),
         ),
       }))

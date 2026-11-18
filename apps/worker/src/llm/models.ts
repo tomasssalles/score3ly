@@ -49,11 +49,16 @@ export type RegionEntry = {
   geography?: string;
 };
 
-// Every place a provider offers in the list, in the list's order.
-export function placesOfProvider(list: ModelList, provider: Provider): Place[] {
+// Every place a provider offers in the list, in the list's order, each with its region's geography where it has one.
+export function placesOfProvider(list: ModelList, provider: Provider): (Place & { geography?: string })[] {
   return list.regions
     .filter((r) => r.provider === provider)
-    .flatMap((r) => (r.routings ?? [null]).map((routing) => ({ region: r.region, routing })));
+    .flatMap((r) => (r.routings ?? [null]).map((routing) => ({ region: r.region, routing, ...(r.geography ? { geography: r.geography } : {}) })));
+}
+
+// A region's geography on a provider (Bedrock's geographic routing: EU, US, …), if it has one.
+export function geographyOf(list: ModelList, provider: Provider, region: string): string | undefined {
+  return list.regions.find((r) => r.provider === provider && r.region === region)?.geography;
 }
 
 // One model, whatever the provider.
@@ -96,42 +101,31 @@ export function modelById(list: ModelList, id: string): ModelEntry | null {
   return list.models.find((m) => m.id === id) ?? null;
 }
 
-// The model string a listed model has on a provider, or null where the provider doesn't offer it.
-export function modelString(list: ModelList, id: string, provider: Provider): string | null {
-  return modelById(list, id)?.strings[provider] ?? null;
-}
-
 // The listed model a provider spells this way, if any: a config the user added becomes a listed one when a new list
 // has its string (docs/llm.md, "Configs").
 export function modelByString(list: ModelList, provider: Provider, string: string): ModelEntry | null {
   return list.models.find((m) => m.strings[provider] === string) ?? null;
 }
 
-// Whether the list offers a listed model on a provider at a place: with a price, or priced by the provider.
-export function offered(list: ModelList, model: string, provider: Provider, place: Place): boolean {
-  return list.prices.some((p) => p.model === model && p.provider === provider && samePlace(p, place));
+// A listed model's entries in the list's prices on a provider: where it is offered, with its price there (null where
+// the provider prices each call itself).
+export function pricesOf(list: ModelList, model: string, provider: Provider): PriceEntry[] {
+  return list.prices.filter((p) => p.model === model && p.provider === provider);
+}
+
+// A listed model's entry on a provider at a place, if the list offers it there: with a price, or priced by the provider.
+export function priceEntry(list: ModelList, model: string, provider: Provider, place: Place): PriceEntry | undefined {
+  return pricesOf(list, model, provider).find((p) => samePlace(p, place));
 }
 
 // A listed model's price on a provider at a place, or null where the list has none (or the provider prices each call).
 export function listedPrice(list: ModelList, model: string, provider: Provider, place: Place): Price | null {
-  return list.prices.find((p) => p.model === model && p.provider === provider && samePlace(p, place))?.price ?? null;
+  return priceEntry(list, model, provider, place)?.price ?? null;
 }
 
 // The places where a listed model has a price on a provider (the region picker for a listed model).
 export function placesOf(list: ModelList, model: string, provider: Provider): Place[] {
-  return list.prices
-    .filter((p) => p.model === model && p.provider === provider)
-    .map(({ region, routing }) => ({ region, routing }));
-}
-
-// The models a provider offers with a price, at a place or anywhere (the model picker), retired ones left out.
-export function modelsOf(list: ModelList, provider: Provider, place?: Place): ModelEntry[] {
-  return list.models.filter(
-    (m) =>
-      !m.retired &&
-      m.strings[provider] !== undefined &&
-      list.prices.some((p) => p.model === m.id && p.provider === provider && (!place || samePlace(p, place))),
-  );
+  return pricesOf(list, model, provider).map(({ region, routing }) => ({ region, routing }));
 }
 
 // A config's model: listed (the list gives its string and family) or added by the user (its own string and family).

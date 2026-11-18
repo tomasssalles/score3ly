@@ -1,14 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
   configBaseName,
   effortsOf,
   listedPrice,
   listProblems,
   modelByString,
-  modelsOf,
-  modelString,
   placesOf,
+  priceEntry,
+  geographyOf,
   placesOfProvider,
   priceOfConfig,
   resolveModel,
@@ -120,17 +121,12 @@ const EU_GLOBAL = { region: "eu-west-1", routing: "global" as const };
 const EU_IN_REGION = { region: "eu-west-1", routing: "in-region" as const };
 const NOWHERE = { region: "", routing: null };
 
-test("the app's list has no problems", () => {
-  assert.deepEqual(listProblems(MODEL_LIST), []);
-
+// The app's own list is checked by generateModelList.test.ts (the module is what the files give, without problems).
+test("the test's list has no problems", () => {
   assert.deepEqual(listProblems(LIST), []);
 });
 
 test("a model's string depends on the provider", () => {
-  assert.equal(modelString(LIST, "big", "anthropic"), "claude-big");
-  assert.equal(modelString(LIST, "big", "bedrock"), "anthropic.claude-big");
-  assert.equal(modelString(LIST, "big", "vertex"), null);
-  assert.equal(modelString(LIST, "nope", "anthropic"), null);
   assert.equal(modelByString(LIST, "bedrock", "anthropic.claude-small")?.id, "small");
   assert.equal(modelByString(LIST, "anthropic", "anthropic.claude-small"), null);
 });
@@ -155,20 +151,11 @@ test("a price is found by model, provider, region and routing", () => {
   );
 });
 
-test("the pickers: a model's places, and the models at a place, without retired ones", () => {
+test("a model's places, and whether it is offered at one", () => {
   assert.deepEqual(placesOf(LIST, "big", "bedrock"), [EU_GLOBAL, EU_IN_REGION]);
-  assert.deepEqual(
-    modelsOf(LIST, "bedrock").map((m) => m.id),
-    ["big", "small"],
-  );
-  assert.deepEqual(
-    modelsOf(LIST, "bedrock", EU_IN_REGION).map((m) => m.id),
-    ["big"],
-  );
-  assert.deepEqual(
-    modelsOf(LIST, "anthropic").map((m) => m.id),
-    ["big"],
-  );
+  assert.equal(priceEntry(LIST, "big", "bedrock", EU_IN_REGION)?.price?.input, 4.4);
+  assert.equal(priceEntry(LIST, "big", "bedrock", { region: "eu-west-1", routing: "geographic" }), undefined);
+  assert.equal(priceEntry(LIST, "big", "vertex", NOWHERE), undefined);
 });
 
 test("a config's model: listed, added by the user, retired, or not offered", () => {
@@ -270,28 +257,19 @@ test("default names: the model's name, the provider, the effort", () => {
     configBaseName(LIST, "bedrock", { modelString: "anthropic.claude-new", family: "claude" }, "max"),
     "anthropic.claude-new (Bedrock) · max",
   );
-  assert.equal(
-    configBaseName(MODEL_LIST, "bedrock", { modelId: "claude-opus-5-5" }, "high"),
-    "Claude Opus 5.5 (Bedrock) · high",
-  );
 });
 
 test("a provider's places come from the list's regions", () => {
   assert.deepEqual(placesOfProvider(LIST, "bedrock"), [
-    EU_GLOBAL,
-    { region: "eu-west-1", routing: "geographic" },
-    EU_IN_REGION,
+    { ...EU_GLOBAL, geography: "EU" },
+    { region: "eu-west-1", routing: "geographic", geography: "EU" },
+    { ...EU_IN_REGION, geography: "EU" },
     { region: "us-east-1", routing: "global" },
   ]);
   assert.deepEqual(placesOfProvider(LIST, "anthropic"), [NOWHERE]);
   assert.deepEqual(placesOfProvider(LIST, "fake"), []);
-  // The app's list has Bedrock's regions as AWS's model cards list them for bedrock-runtime.
-  const bedrock = MODEL_LIST.regions.filter((r) => r.provider === "bedrock");
-  assert.equal(bedrock.length, 35);
-  assert.deepEqual(
-    bedrock.find((r) => r.region === "eu-central-1"),
-    { provider: "bedrock", region: "eu-central-1", routings: ["global", "geographic"], geography: "EU" },
-  );
+  assert.equal(geographyOf(LIST, "bedrock", "eu-west-1"), "EU");
+  assert.equal(geographyOf(LIST, "bedrock", "us-east-1"), undefined);
 });
 
 test("the supported pairs of provider and family are the adapters'", () => {
@@ -387,4 +365,15 @@ test("the default name of every listed model, on every provider, at every effort
     }
   }
   assert.ok(names > 0);
+});
+
+test("the pickers' options from a list (a guard of batch 21: the lookups under them changed, the options didn't)", async () => {
+  const { modelOptions } = await import("../modelConfigs.ts");
+  const hash = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
+  assert.equal(hash(modelOptions(LIST, false)), "56aee9037ce8de2269e7ff31267fb7b1057f8e1353c7e95bcf75060a9f8cbef2");
+  assert.equal(hash(modelOptions(LIST, true)), "265cc99a5181a8f70a108dd4a990baf21fa9343c8f11817ac6f5577ea253dd4a");
+});
+
+test("a config priced by the provider is priced so, whatever the list has", () => {
+  assert.deepEqual(priceOfConfig(LIST, { provider: "openrouter", model: { modelId: "big" }, place: NOWHERE, pricing: { kind: "provider" } }), { kind: "provider" });
 });
