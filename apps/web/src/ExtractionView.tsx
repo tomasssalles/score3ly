@@ -13,7 +13,7 @@ import { CLAUDE_IMAGE_LIMIT, LAYOUT_COLOR_HEX } from "@score3ly/imaging";
 import { buildMei, serialize, type LensStretch, type Score } from "@score3ly/notation";
 import { overlaps, type Box } from "@score3ly/core";
 import { failure, fetchJsonContent, putJson, recordOutputs, reserveIssueNumbers, type Project } from "./api";
-import { Filmstrip } from "./ArtifactView";
+import { Filmstrip } from "./ui/Filmstrip";
 import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
 import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
 import { useNear, useObjectUrl } from "./ui/hooks";

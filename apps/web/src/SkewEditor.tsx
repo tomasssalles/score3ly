@@ -25,9 +25,9 @@ import {
   type Point,
 } from "./editor/pageEditor";
 import { END_REACH, LINE_REACH } from "./editor/handles";
+import { LineMarks } from "./editor/marks";
 import { ImagesDiffer } from "./ImagesDiffer";
 import { keepFingerprintOnce, pageImage } from "./pageImages";
-import { angleLabel } from "./skewAnalysis";
 
 type Mode = "hand" | "draw";
 
@@ -258,17 +258,7 @@ function PageEditor({ project, stageId, page, shell }: { project: Project; stage
       >
         {image && lines && (
           <>
-            {lines.map((line, i) => {
-              const [a, b] = ends(line);
-              return (
-                <g key={i} className={i === selected ? "skew-line selected" : "skew-line"}>
-                  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
-                  <text x={a.x} y={a.y - 8 / s} fontSize={12 / s}>
-                    {angleLabel(line.angle)}
-                  </text>
-                </g>
-              );
-            })}
+            <LineMarks lines={lines} ends={ends} scale={s} selected={selected} />
             {selectedLine &&
               ends(selectedLine).map((end, e) => (
                 <circle key={e} className="editor-handle" cx={end.x} cy={end.y} r={9 / s} strokeWidth={2 / s} />

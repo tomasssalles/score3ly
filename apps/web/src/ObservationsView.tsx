@@ -11,7 +11,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { placeLabel } from "./analyze";
 import { UnsavedNote } from "./editor/pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
-import { LayoutFilmstrip } from "./ArtifactView";
+import { LayoutFilmstrip } from "./editor/PageViews";
 import { DropdownMenu, type MenuItem } from "./ui/DropdownMenu";
 import { Confidence, fieldActions, FieldStrip, FieldPicker, useFieldList, type Editing } from "./fieldList";
 import { observationsOutput } from "./finishFixObservations";

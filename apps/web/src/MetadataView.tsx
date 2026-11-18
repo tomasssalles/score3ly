@@ -5,10 +5,10 @@
 // edited while looking at the page, and one "+" adds any kind of field. A field is saved when it leaves edit mode,
 // when it is confirmed or unconfirmed, and when the form closes. Saving an edit confirms the field; adding one too.
 
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { UnsavedNote } from "./editor/pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
-import { Filmstrip, PageImageView } from "./ArtifactView";
+import { PagesFilmstrip } from "./editor/PageViews";
 import { DropdownMenu, type MenuItem } from "./ui/DropdownMenu";
 import { Confidence, fieldActions, FieldStrip, FieldPicker, useFieldList, type Editing } from "./fieldList";
 import { metadataOutputs, type MetadataParents } from "./finishFixMetadata";
@@ -35,7 +35,6 @@ import {
 import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./ui/icons";
 import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
-import type { PageRecipe } from "./recipes";
 
 export function MetadataView({ project, artifact, onEdited }: { project: Project; artifact: Artifact; onEdited?: () => void }) {
   const analysis = artifact.analysis!;
@@ -290,23 +289,5 @@ function FieldEditor({
       )}
       {editing.problem && <p className="field-problem error-text">{editing.problem}</p>}
     </li>
-  );
-}
-
-// The pages as they are, opened at one of them (at the first without one).
-function PagesFilmstrip({ pages, page }: { pages: { page: number; recipe: PageRecipe }[]; page?: number }): ReactNode {
-  const index = pages.findIndex((p) => p.page === page);
-  return (
-    <Filmstrip
-      count={pages.length}
-      wide={false}
-      focus={index >= 0 ? { index } : undefined}
-      render={(i) => (
-        <figure className="film-item">
-          <figcaption>Page {pages[i].page}</figcaption>
-          <PageImageView recipe={pages[i].recipe} />
-        </figure>
-      )}
-    />
   );
 }

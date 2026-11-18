@@ -6,7 +6,6 @@
 // numbered top to bottom, continuing from page to page. Each change is saved at once; undo and redo per page.
 
 import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
-import { LAYOUT_COLOR_HEX } from "@score3ly/imaging";
 import type { LayoutSystem } from "@score3ly/core";
 import { useEffect, useRef, useState } from "react";
 import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
@@ -34,6 +33,7 @@ import {
   type Point,
 } from "./editor/pageEditor";
 import { handleAt, LINE_REACH } from "./editor/handles";
+import { LABEL, labelWidth, LayoutMarks } from "./editor/marks";
 import { ImagesDiffer } from "./ImagesDiffer";
 import { keepFingerprintOnce, straightPage } from "./pageImages";
 import { straightImageRecipe, straightRecipe } from "./recipes";
@@ -46,8 +46,6 @@ const MODES = [
   { value: "bar" as const, label: "Bar line", title: "Bar line: click or tap where a bar line goes", icon: <BarLineIcon /> },
 ];
 
-// A label's size in screen px, per digit and fixed.
-const LABEL = { height: 18, digit: 8, padding: 8 };
 
 export function LayoutEditor({
   project,
@@ -226,7 +224,7 @@ function PageEditor({
   function labelAt(q: Point, scale: number): number | null {
     for (let i = systems.length - 1; i >= 0; i--) {
       const { left, top } = systems[i].box;
-      const width = (String(first + i).length * LABEL.digit + LABEL.padding) / scale;
+      const width = labelWidth(String(first + i), scale);
       const height = LABEL.height / scale;
       if (q.x >= left * W && q.x <= left * W + width && q.y >= top * H && q.y <= top * H + height) return i;
     }
@@ -405,47 +403,7 @@ function PageEditor({
           <g />
         ) : (
           <>
-            {systems.map((system, i) => {
-              const color = LAYOUT_COLOR_HEX[i % LAYOUT_COLOR_HEX.length];
-              const { left, right, top, bottom } = system.box;
-              const isSelected = selected?.system === i;
-              const label = String(first + i);
-              return (
-                <g
-                  key={i}
-                  stroke={color}
-                  className={isSelected ? "layout-box selected" : selected ? "layout-box dimmed" : "layout-box"}
-                >
-                  <rect x={left * W} y={top * H} width={(right - left) * W} height={(bottom - top) * H} fill="none" />
-                  {system.barLines.map((x, j) => (
-                    <line
-                      key={j}
-                      className="layout-bar"
-                      x1={x * W}
-                      x2={x * W}
-                      y1={top * H}
-                      y2={bottom * H}
-                    />
-                  ))}
-                  <rect
-                    className="layout-label"
-                    x={left * W}
-                    y={top * H}
-                    width={(label.length * LABEL.digit + LABEL.padding) / s}
-                    height={LABEL.height / s}
-                    fill={color}
-                  />
-                  <text
-                    className="layout-label-text"
-                    x={left * W + LABEL.padding / 2 / s}
-                    y={top * H + (LABEL.height - 5) / s}
-                    fontSize={13 / s}
-                  >
-                    {label}
-                  </text>
-                </g>
-              );
-            })}
+            <LayoutMarks systems={systems} first={first} size={{ width: W, height: H }} scale={s} selected={selected?.system ?? null} />
             {selected && systems[selected.system] && selected.bar === null && <BoxHandles box={systems[selected.system].box} size={{ width: W, height: H }} scale={s} />}
             {selected && systems[selected.system] && selected.bar !== null && systems[selected.system].barLines[selected.bar] !== undefined && (
               <LineHandle
