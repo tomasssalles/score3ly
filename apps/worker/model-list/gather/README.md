@@ -7,7 +7,8 @@ Run this before a release that should carry new models or prices; never from the
 ## What is where
 
 - `claude-models.json`: **kept by hand.** The Claude models the app lists (the 4.x and 5.x generations), with the app's id, the name for people, the effort levels each takes (`[]` for none) and whether the adapter must ask for adaptive thinking. A model a provider's sources list that isn't here stops the gathering, so new models are decided on, not slipped in. Its facts come from Anthropic's documentation (model pages, "Thinking & Effort"); check them for each new model.
-- `<provider>.ts`: the parsing for one provider. Expected to change from release to release (URLs move, formats change); each file's header says what it reads.
+- `<provider>.ts`: the parsing for one provider. Expected to change from release to release (URLs move, formats change); each file's header says what it reads. Its file is typed (`satisfies ProviderFile`) and checked by the Worker's typecheck.
+- `common.ts`: what the scripts share: where each provider's files are, the download loop, the excerpts' heads (an excerpt that doesn't say when it was fetched stops the parsing, never dated today), the models kept by hand, typed once, the provider file as it is written, the HTML tables' and dates' readers. `all.ts`: every script's parsing, for the check.
 - `sources/<provider>/`: **the excerpts, committed**: only the entries and tables the parsing reads, each with the URL it came from and the day it was fetched (decided 2026-11-05: not the whole downloads, which are protected by copyright where prices, as facts, aren't, and large). The parsing runs on these, so anyone can check each price against its source and run it again on exactly what was seen.
 - `downloads/`: the whole downloads. **Not committed** (`.gitignore`).
 
@@ -17,7 +18,7 @@ Run this before a release that should carry new models or prices; never from the
 2. If it stops with a model it doesn't know: look the model up, decide whether the app lists it (the 4.x and 5.x Claude models, for now), and add it to `claude-models.json` with its efforts and thinking; run again.
 3. If it stops because a format changed (a table or a sentence not found, two prices for one thing): look at the download, fix the parsing, run again.
 4. Read the diff of `sources/<provider>/` and `<provider>.json`: models, regions and prices that appear or vanish should make sense.
-5. Run `npm run model-list -w apps/worker` and spot-check its report: models added and retired, prices changed. Then `npm test -w apps/worker`.
+5. Run `npm run model-list -w apps/worker` and spot-check its report: models added, retired and back, their names, efforts, thinking and strings, regions, prices. Then `npm run model-list -w apps/worker -- --check` and `npm test -w apps/worker`: both parse every provider's committed excerpts again and fail where a file isn't what they give (a hand edit, or a parsing changed without running it).
 6. Commit the excerpts, the JSON file and the module together.
 
 ## Bedrock
@@ -58,7 +59,7 @@ A model in the pricing table that isn't in `claude-models.json`, or isn't in the
 - **Google's page "Vertex AI pricing"** (`cloud.google.com/vertex-ai/generative-ai/pricing`), its "Standard" tabs: the Gemini prices, input, output and cached input, short context, "Global" and "Non-global" (Gemini 2.5: one price everywhere). **Dated prices** (an introductory or promotional one "through December 31, 2026", the standard one "starting January 1, 2027"): **the standard one is taken** (decided 2026-11-06), which is what Google's billing catalog charges (the promotions are paid back as credits); it keeps the spending cap on the safe side, and no `#date` task is needed. Audio input is left out; implicit caching has no write price (cache write 0).
 - **Google's page "Vertex AI locations"** (`cloud.google.com/vertex-ai/generative-ai/docs/learn/locations`), in HTML (the Markdown version has lost the marks): the section "Google model endpoint locations", which locations serve each Gemini model, and its string.
 
-**Slips on Google's pages are left out, not guessed:** a model at a location whose table doesn't have exactly one price of each kind (a row missing, an output row labelled input, a row twice) and a model without prices are printed at the end, for the spot-check. A model on the locations page in neither list of `gemini-models.json` stops the gathering. `gemini-models.json` marks with `onlyOn` the models only one of AI Studio and Vertex AI offers.
+**Slips on Google's pages are left out, not guessed:** a model at a location whose table doesn't have exactly one price of each kind (a row missing, an output row labelled input, a row twice) and a model without prices are printed at the end, for the spot-check. A model on the locations page in neither list of `gemini-models.json` stops the gathering. `gemini-models.json` marks with `onlyOn` the models only one of AI Studio and Vertex AI offers; a marked model the other's page has stops either gathering, to check the mark and remove it.
 
 ### Cross-checking with Google's billing catalog, by hand
 
