@@ -17,18 +17,12 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseArgs } from "node:util";
+import { claudeModels, command, download as fetchAll, failOn, fetchedOn, type Gathered, paths, type ProviderFile, today } from "./common.ts";
 
 const PRICING_URL = "https://platform.claude.com/docs/en/about-claude/pricing.md";
 const DEPRECATIONS_URL = "https://platform.claude.com/docs/en/about-claude/model-deprecations.md";
 
-const here = import.meta.dirname;
-const downloads = join(here, "downloads", "anthropic");
-const sources = join(here, "sources", "anthropic");
-const output = join(here, "..", "anthropic.json");
-const today = new Date().toISOString().slice(0, 10);
-
-type Known = { name: string; efforts: string[]; thinking?: "adaptive" };
+const { downloads, sources } = paths("anthropic");
 
 // The table's columns the parsing reads, by their headers.
 const COLUMNS = {
@@ -55,16 +49,10 @@ const PRICING_HEADER = /\|\s*Model\s*\|\s*Base input tokens\s*\|/;
 const DEPRECATIONS_HEADER = /\|\s*API model name\s*\|\s*Current state\s*\|/;
 
 async function download(): Promise<void> {
-  mkdirSync(downloads, { recursive: true });
-  for (const [url, file] of [
+  await fetchAll(downloads, [
     [PRICING_URL, "pricing.md"],
     [DEPRECATIONS_URL, "model-deprecations.md"],
-  ]) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-    writeFileSync(join(downloads, file), Buffer.from(await response.arrayBuffer()));
-    console.log(`Downloaded ${url}`);
-  }
+  ]);
 }
 
 // From the downloads, what the parsing reads: the two tables, each with where and when it was fetched.
@@ -73,8 +61,8 @@ function excerpt(): void {
   const deprecations = table(readFileSync(join(downloads, "model-deprecations.md"), "utf8").split("\n"), DEPRECATIONS_HEADER);
   if (pricing.length < 3 || deprecations.length < 3) throw new Error("The pages' tables weren't found: their format changed.");
   mkdirSync(sources, { recursive: true });
-  writeFileSync(join(sources, "pricing.md"), [`# ${PRICING_URL}`, `# fetched ${today}; the table "Model pricing"`, "", ...pricing, ""].join("\n"));
-  writeFileSync(join(sources, "model-deprecations.md"), [`# ${DEPRECATIONS_URL}`, `# fetched ${today}; the table of the models' states`, "", ...deprecations, ""].join("\n"));
+  writeFileSync(join(sources, "pricing.md"), [`# ${PRICING_URL}`, `# fetched ${today()}; the table "Model pricing"`, "", ...pricing, ""].join("\n"));
+  writeFileSync(join(sources, "model-deprecations.md"), [`# ${DEPRECATIONS_URL}`, `# fetched ${today()}; the table of the models' states`, "", ...deprecations, ""].join("\n"));
   console.log(`Excerpts: ${pricing.length - 2} price rows, ${deprecations.length - 2} models' states.`);
 }
 
@@ -84,11 +72,11 @@ function dollars(cell: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
-function parse(): void {
-  const known = (JSON.parse(readFileSync(join(here, "claude-models.json"), "utf8")) as { models: Record<string, Known> }).models;
+export function parse(): Gathered {
+  const known = claudeModels();
   const byName = new Map(Object.entries(known).map(([id, k]) => [k.name, id]));
   const pricingLines = readFileSync(join(sources, "pricing.md"), "utf8").split("\n");
-  const fetched = /fetched (\d{4}-\d{2}-\d{2})/.exec(pricingLines[1])?.[1] ?? today;
+  const fetched = fetchedOn("sources/anthropic/pricing.md", pricingLines[1]);
   const problems: string[] = [];
 
   // The states: "| claude-opus-4-5-20251101   | Active        | N/A | …"
@@ -105,7 +93,7 @@ function parse(): void {
   for (const [kind, i] of Object.entries(index)) if (i < 0) problems.push(`The pricing table has no column "${COLUMNS[kind as keyof typeof COLUMNS]}": its format changed.`);
 
   const models: { id: string; string: string }[] = [];
-  const prices: Record<string, unknown>[] = [];
+  const prices: ProviderFile["prices"] = [];
   for (const line of rows) {
     const row = cells(line);
     if (/for prompts over/i.test(row[0])) continue; // the long-context prices
@@ -132,15 +120,11 @@ function parse(): void {
       continue;
     }
     models.push({ id, string: state.string });
-    prices.push({ model: id, region: "", routing: null, input: price.input, output: price.output, cacheRead: price.cacheRead, cacheWrite: price.cacheWrite, source: `pricing table: ${row[0]}` });
+    prices.push({ model: id, region: "", routing: null, input: price.input!, output: price.output!, cacheRead: price.cacheRead!, cacheWrite: price.cacheWrite!, source: `pricing table: ${row[0]}` });
   }
-  if (problems.length > 0) {
-    console.error(problems.map((p) => `  ${p}`).join("\n"));
-    process.exit(1);
-  }
+  failOn(problems);
 
   const file = {
-    $schema: "./schema.json",
     provider: "anthropic",
     collectedAt: fetched,
     sources: [
@@ -150,20 +134,15 @@ function parse(): void {
     models: models.map((m) => ({
       id: m.id,
       name: known[m.id].name,
-      family: "claude",
+      family: "claude" as const,
       string: m.string,
       efforts: known[m.id].efforts,
       ...(known[m.id].thinking ? { thinking: known[m.id].thinking } : {}),
     })),
     regions: [{ region: "", routings: null }],
     prices,
-  };
-  writeFileSync(output, JSON.stringify(file, null, 2) + "\n");
-  console.log(`anthropic.json: ${models.length} models, ${prices.length} prices.`);
+  } satisfies ProviderFile;
+  return { file, notes: [] };
 }
 
-if (parseArgs({ options: { download: { type: "boolean", default: false } } }).values.download) {
-  await download();
-  excerpt();
-}
-parse();
+await command(import.meta, { download, excerpt, parse, summary: (file) => `anthropic.json: ${file.models.length} models, ${file.prices.length} prices.` });

@@ -19,21 +19,16 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseArgs } from "node:util";
+import type { Routing } from "../../src/llm/models.ts";
+import { claudeModels, command, download as fetchAll, failOn, fetchedOn, type Gathered, paths, type ProviderFile, readJsonl, today, writeJsonl } from "./common.ts";
 
 const PRICE_LIST_URL = "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrockFoundationModels/current/index.json";
 const cardUrl = (id: string) => `https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-${id}.html`;
 
-const here = import.meta.dirname;
-const downloads = join(here, "downloads", "bedrock");
-const sources = join(here, "sources", "bedrock");
-const output = join(here, "..", "bedrock.json");
-const today = new Date().toISOString().slice(0, 10);
+const { downloads, sources } = paths("bedrock");
 
-type Routing = "global" | "geographic" | "in-region";
 type Kind = "input" | "output" | "cacheRead" | "cacheWrite";
 type PriceRow = { model: string; region: string; kind: Kind; global: boolean; usd: number; usagetype: string };
-type Known = { name: string; efforts: string[]; thinking?: "adaptive" };
 
 const KINDS: Record<string, Kind> = {
   "Input tokens": "input",
@@ -47,21 +42,12 @@ function kept(usagetype: string): boolean {
   return !/batch|long_?ctx|longcontext|_1h|1h|reserved|provisioned|flex|priority/i.test(usagetype);
 }
 
-const known = (): Record<string, Known> => (JSON.parse(readFileSync(join(here, "claude-models.json"), "utf8")) as { models: Record<string, Known> }).models;
+const known = claudeModels;
 
 async function download(): Promise<void> {
   mkdirSync(join(downloads, "cards"), { recursive: true });
   const files: [string, string][] = [[PRICE_LIST_URL, "price-list.json"], ...Object.keys(known()).map((id): [string, string] => [cardUrl(id), join("cards", `${id}.html`)])];
-  for (const [url, file] of files) {
-    const response = await fetch(url);
-    if (response.status === 404) {
-      console.log(`No model card: ${url}`);
-      continue;
-    }
-    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-    writeFileSync(join(downloads, file), Buffer.from(await response.arrayBuffer()));
-    console.log(`Downloaded ${url}`);
-  }
+  await fetchAll(downloads, files, { skip404: true }); // a model without a card isn't listed
 }
 
 type Card = { id: string; base: string; global: boolean; geos: Record<string, string[]>; regions: { region: string; inRegion: boolean; geo: boolean; global: boolean }[] };
@@ -102,7 +88,7 @@ function readCard(id: string, html: string): Card | null {
 // From the downloads, what the parsing reads: each card's IDs, availability and geographies (as text lines), and the
 // price list's rows for the listed models in those regions, in the usage types kept. Each with where and when it was fetched.
 function excerpt(): void {
-  const lines = [`# AWS's model cards, ${cardUrl("<id>")}; fetched ${today}; for bedrock-runtime: the model ID, the routings per region, the geographies' source regions`, ""];
+  const lines = [`# AWS's model cards, ${cardUrl("<id>")}; fetched ${today()}; for bedrock-runtime: the model ID, the routings per region, the geographies' source regions`, ""];
   const regionCodes = new Set<string>();
   for (const id of Object.keys(known())) {
     let html: string;
@@ -132,30 +118,32 @@ function excerpt(): void {
     products: Record<string, { attributes: Record<string, string> }>;
     terms: { OnDemand: Record<string, Record<string, { priceDimensions: Record<string, { unit: string; pricePerUnit: { USD: string } }> }>> };
   };
-  const rows: string[] = [];
+  const rows: { model: string; region: string; inferenceType: string; usagetype: string; usd: number }[] = [];
   for (const [sku, product] of Object.entries(list.products)) {
     const a = product.attributes;
     if (!names.has(a.model) || !regionCodes.has(a.regionCode) || a.feature !== "On-demand Inference" || !KINDS[a.inferenceType] || !kept(a.usagetype)) continue;
     for (const offer of Object.values(list.terms.OnDemand[sku] ?? {})) {
       for (const dimension of Object.values(offer.priceDimensions)) {
         if (dimension.unit !== "1M tokens") continue;
-        rows.push(JSON.stringify({ model: a.model, region: a.regionCode, inferenceType: a.inferenceType, usagetype: a.usagetype, usd: Number(dimension.pricePerUnit.USD) }));
+        rows.push({ model: a.model, region: a.regionCode, inferenceType: a.inferenceType, usagetype: a.usagetype, usd: Number(dimension.pricePerUnit.USD) });
       }
     }
   }
-  rows.sort();
-  writeFileSync(
+  rows.sort((a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : JSON.stringify(a) > JSON.stringify(b) ? 1 : 0)); // as the lines they are written as
+  writeJsonl(
     join(sources, "price-list.jsonl"),
-    [JSON.stringify({ url: PRICE_LIST_URL, fetched: today, publicationDate: list.publicationDate, note: "the on-demand, short-context rows of the listed models in the cards' regions, per million tokens" }), ...rows, ""].join("\n"),
+    { url: PRICE_LIST_URL, fetched: today(), publicationDate: list.publicationDate, note: "the on-demand, short-context rows of the listed models in the cards' regions, per million tokens" },
+    rows,
   );
   console.log(`Excerpts: ${lines.filter((l) => l.startsWith("## ")).length} model cards, ${regionCodes.size} regions, ${rows.length} price rows.`);
 }
 
-function parse(): void {
+export function parse(): Gathered {
   const knownModels = known();
   const text = readFileSync(join(sources, "cards.txt"), "utf8").split("\n");
-  const fetched = /fetched (\d{4}-\d{2}-\d{2})/.exec(text[0])?.[1] ?? today;
+  const fetched = fetchedOn("sources/bedrock/cards.txt", text[0]);
   const problems: string[] = [];
+  const notes: string[] = [];
 
   // The cards: "## claude-opus-5-5 | anthropic.claude-opus-5-5 | global: yes", its regions
   // "| eu-central-1 | in-region: no | geo: yes | global: yes" and geographies "geo EU: eu-central-1, …".
@@ -186,7 +174,7 @@ function parse(): void {
   for (const [region, byGeo] of counts) {
     const ranked = [...byGeo.entries()].sort(([a, x], [b, y]) => y - x || a.localeCompare(b));
     geographyOf.set(region, ranked[0][0]);
-    if (ranked.length > 1) console.log(`  ${region}: geography ${ranked[0][0]}; left out: ${ranked.slice(1).map(([g]) => g).join(", ")}.`);
+    if (ranked.length > 1) notes.push(`  ${region}: geography ${ranked[0][0]}; left out: ${ranked.slice(1).map(([g]) => g).join(", ")}.`);
   }
   // Which routings a model has at a region: the card's table, a geographic one only where the model's profile for the
   // region's geography starts there.
@@ -204,12 +192,10 @@ function parse(): void {
   const models = cards.filter((c) => knownModels[c.id]).map((c) => ({ id: c.id, awsName: knownModels[c.id].name, string: c.base, card: c }));
 
   // The prices.
-  const [, ...rowLines] = readFileSync(join(sources, "price-list.jsonl"), "utf8").trim().split("\n");
-  const rows: PriceRow[] = rowLines.map((l) => {
-    const r = JSON.parse(l) as { model: string; region: string; inferenceType: string; usagetype: string; usd: number };
+  const rows: PriceRow[] = readJsonl<{ model: string; region: string; inferenceType: string; usagetype: string; usd: number }>(join(sources, "price-list.jsonl")).rows.map((r) => {
     return { model: r.model, region: r.region, kind: KINDS[r.inferenceType], global: /global/i.test(r.usagetype), usd: r.usd, usagetype: r.usagetype };
   });
-  const prices: Record<string, unknown>[] = [];
+  const prices: ProviderFile["prices"] = [];
   const listed = models;
   const offered = new Map<string, Set<Routing>>(); // what some priced model offers at a region
   for (const m of listed) {
@@ -246,13 +232,9 @@ function parse(): void {
       const routings = ORDER.filter((r) => set.has(r));
       return { region, routings, ...(set.has("geographic") ? { geography: geographyOf.get(region)! } : {}) };
     });
-  if (problems.length > 0) {
-    console.error(problems.map((p) => `  ${p}`).join("\n"));
-    process.exit(1);
-  }
+  failOn(problems);
 
   const file = {
-    $schema: "./schema.json",
     provider: "bedrock",
     collectedAt: fetched,
     sources: [
@@ -262,20 +244,20 @@ function parse(): void {
     models: listed.map((m) => ({
       id: m.id,
       name: knownModels[m.id].name,
-      family: "claude",
+      family: "claude" as const,
       string: m.string,
       efforts: knownModels[m.id].efforts,
       ...(knownModels[m.id].thinking ? { thinking: knownModels[m.id].thinking } : {}),
     })),
     regions,
     prices,
-  };
-  writeFileSync(output, JSON.stringify(file, null, 2) + "\n");
-  console.log(`bedrock.json: ${listed.length} models, ${regions.length} regions, ${prices.length} prices.`);
+  } satisfies ProviderFile;
+  return { file, notes };
 }
 
-if (parseArgs({ options: { download: { type: "boolean", default: false } } }).values.download) {
-  await download();
-  excerpt();
-}
-parse();
+await command(import.meta, {
+  download,
+  excerpt,
+  parse,
+  summary: (file) => `bedrock.json: ${file.models.length} models, ${file.regions.length} regions, ${file.prices.length} prices.`,
+});

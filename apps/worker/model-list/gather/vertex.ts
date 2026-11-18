@@ -20,54 +20,20 @@
 // - gemini-models.json, kept by hand: which models the app lists, their names and efforts.
 // Only Gemini: the app doesn't support Claude on Vertex AI (docs/llm.md, "Calling the providers").
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseArgs } from "node:util";
+import { command, download as fetchAll, failOn, type Gathered, geminiModels, isoDay, paths, type ProviderFile, readJsonl, tables, today, writeJsonl } from "./common.ts";
 
 const GEMINI_PRICES_URL = "https://cloud.google.com/vertex-ai/generative-ai/pricing?hl=en";
 const LOCATIONS_URL = "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations?hl=en";
 
-const here = import.meta.dirname;
-const downloads = join(here, "downloads", "vertex");
-const sources = join(here, "sources", "vertex");
-const output = join(here, "..", "vertex.json");
-const today = new Date().toISOString().slice(0, 10);
-
-type KnownGemini = { id: string; name: string; efforts: string[]; onlyOn?: "ai-studio" | "vertex" };
+const { downloads, sources } = paths("vertex");
 
 // The excerpts' rows.
 type GeminiPrice = { model: string; type: string; region: string; price: string; cached: string };
 type GeminiPlaces = { name: string; string: string; locations: string[] };
 
-// ---- HTML, read with regular expressions: enough for these pages' tables.
-
-function decode(s: string): string {
-  return s
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-    .replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, "&");
-}
-
-// An element's text: tags removed, a <br> as a space, whitespace collapsed.
-function text(html: string): string {
-  return decode(html.replace(/<br[^>]*>/g, " ").replace(/<[^>]+>/g, ""))
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-type Cell = { attributes: string; text: string };
-type Table = { start: number; rows: Cell[][] };
-
-function tables(html: string): Table[] {
-  return [...html.matchAll(/<table[\s\S]*?<\/table>/g)].map((t) => ({
-    start: t.index,
-    rows: [...t[0].matchAll(/<tr[\s\S]*?<\/tr>/g)].map((r) => [...r[0].matchAll(/<t([dh])([^>]*)>([\s\S]*?)<\/t\1>/g)].map((c) => ({ attributes: c[2], text: text(c[3]) }))),
-  }));
-}
+// ---- HTML (common.ts reads the tables).
 
 // The label of the tab a table is in: the nearest tab panel opened before it, named by its tab button.
 function tabOf(html: string, start: number): string | undefined {
@@ -81,23 +47,17 @@ function tabOf(html: string, start: number): string | undefined {
 // ---- Downloads and excerpts.
 
 async function download(): Promise<void> {
-  mkdirSync(downloads, { recursive: true });
-  for (const [url, file] of [
-    [GEMINI_PRICES_URL, "pricing.html"],
-    [LOCATIONS_URL, "locations.html"],
-  ]) {
-    const response = await fetch(url, { headers: { "Accept-Language": "en" } }); // Google localizes its pages otherwise
-    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-    writeFileSync(join(downloads, file), Buffer.from(await response.arrayBuffer()));
-    console.log(`Downloaded ${url}`);
-  }
+  await fetchAll(
+    downloads,
+    [
+      [GEMINI_PRICES_URL, "pricing.html"],
+      [LOCATIONS_URL, "locations.html"],
+    ],
+    { headers: { "Accept-Language": "en" } }, // Google localizes its pages otherwise
+  );
 }
 
-const header = (url: string, note: string) => JSON.stringify({ url, fetched: today, note });
-
-function writeJsonl(file: string, head: string, rows: unknown[]): void {
-  writeFileSync(join(sources, file), [head, ...rows.map((r) => JSON.stringify(r)), ""].join("\n"));
-}
+const header = (url: string, note: string) => ({ url, fetched: today(), note });
 
 // Gemini's locations: every Gemini row of the section "Google model endpoint locations", with the locations marked
 // as supported, merged across the tables (one per area).
@@ -119,7 +79,7 @@ function excerptLocations(): GeminiPlaces[] {
   }
   const found = [...byString.values()];
   if (found.length === 0) throw new Error("No Gemini models found on the locations page: its format changed.");
-  writeJsonl("locations.jsonl", header(LOCATIONS_URL, "every Gemini model of \"Google model endpoint locations\", with the locations marked as supported"), found);
+  writeJsonl(join(sources, "locations.jsonl"), header(LOCATIONS_URL, "every Gemini model of \"Google model endpoint locations\", with the locations marked as supported"), found);
   return found;
 }
 
@@ -141,7 +101,7 @@ function cellNames(cell: string): string[] {
 // and cached-input cells.
 function excerptGeminiPrices(places: GeminiPlaces[]): number {
   const html = readFileSync(join(downloads, "pricing.html"), "utf8");
-  const listed = new Set(Object.keys(geminiKnown().models));
+  const listed = new Set(Object.keys(geminiModels().models));
   const names = new Set(places.filter((p) => listed.has(p.string)).map((p) => normal(p.name)));
   const rows: GeminiPrice[] = [];
   for (const table of tables(html)) {
@@ -161,7 +121,7 @@ function excerptGeminiPrices(places: GeminiPlaces[]): number {
       rows.push({ model, type, region: regionColumn >= 0 ? row[regionColumn]?.text ?? "" : "", price: row[priceColumn[0]]?.text ?? "", cached: row[cachedColumn[0]]?.text ?? "" });
     }
   }
-  writeJsonl("gemini-prices.jsonl", header(GEMINI_PRICES_URL, "of the Standard tabs, the rows of the Gemini models the app lists: model, type, region, the short-context price and cached-input cells, per million tokens"), rows);
+  writeJsonl(join(sources, "gemini-prices.jsonl"), header(GEMINI_PRICES_URL, "of the Standard tabs, the rows of the Gemini models the app lists: model, type, region, the short-context price and cached-input cells, per million tokens"), rows);
   return rows.length;
 }
 
@@ -174,27 +134,22 @@ function excerpt(): void {
 
 // ---- Parsing the excerpts.
 
-function geminiKnown(): { models: Record<string, KnownGemini>; ignored: string[] } {
-  return JSON.parse(readFileSync(join(here, "gemini-models.json"), "utf8"));
-}
+const readExcerpt = <T>(file: string) => readJsonl<T>(join(sources, file));
 
-function readJsonl<T>(file: string): { fetched: string; rows: T[] } {
-  const [head, ...lines] = readFileSync(join(sources, file), "utf8").trim().split("\n");
-  return { fetched: (JSON.parse(head) as { fetched: string }).fetched, rows: lines.map((l) => JSON.parse(l) as T) };
-}
-
-type Price = { model: string; region: string; routing: null; input: number; output: number; cacheRead: number; cacheWrite: number; source: string };
-type Model = { id: string; name: string; family: "gemini"; string: string; efforts: string[] };
+type Price = ProviderFile["prices"][number];
+type Model = ProviderFile["models"][number];
 
 const usd = (cell: string) => (/^\$\d+(\.\d+)?$/.test(cell) ? Number(cell.slice(1)) : null);
 
 function parseGemini(problems: string[], notes: string[]): { models: Model[]; prices: Price[] } {
-  const { models: listed, ignored } = geminiKnown();
-  const places = readJsonl<GeminiPlaces>("locations.jsonl").rows;
-  const { rows } = readJsonl<GeminiPrice>("gemini-prices.jsonl");
+  const { models: listed, ignored } = geminiModels();
+  const places = readExcerpt<GeminiPlaces>("locations.jsonl").rows;
+  const { rows } = readExcerpt<GeminiPrice>("gemini-prices.jsonl");
 
   for (const p of places) if (!listed[p.string] && !ignored.includes(p.string)) problems.push(`${p.name} (${p.string}) is in neither list of gemini-models.json: decide whether the app lists it.`);
   for (const [string, k] of Object.entries(listed)) if (k.onlyOn !== "ai-studio" && !places.some((p) => p.string === string)) problems.push(`${string}: not on the locations page.`);
+  // A model marked as AI Studio's only that this page has: the mark is out of date.
+  for (const [string, k] of Object.entries(listed)) if (k.onlyOn === "ai-studio" && places.some((p) => p.string === string)) problems.push(`${string}: marked onlyOn "ai-studio" in gemini-models.json, but on the locations page: check it and remove the mark.`);
 
   const models: Model[] = [];
   const prices: Price[] = [];
@@ -205,10 +160,10 @@ function parseGemini(problems: string[], notes: string[]): { models: Model[]; pr
     const mine = rows.filter((r) => cellNames(r.model).some((n) => normal(n) === normal(place.name)));
     const startOf = (r: GeminiPrice) => {
       const date = /starting (\w+ \d+, \d{4})/i.exec(r.model)?.[1];
-      return date ? Date.parse(date) : null;
+      return date ? isoDay(date) : null;
     };
-    const starts = mine.map(startOf).filter((s) => s !== null);
-    const latest = starts.length > 0 ? mine.filter((r) => startOf(r) === Math.max(...starts)) : mine.filter((r) => !/through \w+ \d+, \d{4}/i.test(r.model));
+    const starts = mine.map(startOf).filter((s) => s !== null).sort();
+    const latest = starts.length > 0 ? mine.filter((r) => startOf(r) === starts.at(-1)) : mine.filter((r) => !/through \w+ \d+, \d{4}/i.test(r.model));
     const dropped = new Set(mine.filter((r) => !latest.includes(r)).map((r) => r.model));
     for (const cell of dropped) notes.push(`${k.id}: the prices of "${cell}" left out, the standard ones taken.`);
     for (const location of place.locations) {
@@ -243,19 +198,15 @@ function regionOrder(r: string): string {
   return `${r === "global" ? 0 : r.includes("-") ? 2 : 1} ${r}`;
 }
 
-function parse(): void {
-  const fetched = readJsonl("gemini-prices.jsonl").fetched;
+export function parse(): Gathered {
+  const fetched = readExcerpt("gemini-prices.jsonl").head.fetched;
   const problems: string[] = [];
   const notes: string[] = [];
   const gemini = parseGemini(problems, notes);
-  if (problems.length > 0) {
-    console.error(problems.map((p) => `  ${p}`).join("\n"));
-    process.exit(1);
-  }
+  failOn(problems);
   const prices = gemini.prices;
   const regions = [...new Set(prices.map((p) => p.region))].sort((a, b) => regionOrder(a).localeCompare(regionOrder(b)));
   const file = {
-    $schema: "./schema.json",
     provider: "vertex",
     collectedAt: fetched,
     sources: [
@@ -265,14 +216,13 @@ function parse(): void {
     models: gemini.models,
     regions: regions.map((region) => ({ region, routings: null })),
     prices,
-  };
-  writeFileSync(output, JSON.stringify(file, null, 2) + "\n");
-  console.log(`vertex.json: ${file.models.length} models, ${regions.length} locations, ${prices.length} prices.`);
-  if (notes.length > 0) console.log(`Left out:\n${notes.map((n) => `  ${n}`).join("\n")}`);
+  } satisfies ProviderFile;
+  return { file, notes: notes.length > 0 ? [`Left out:\n${notes.map((n) => `  ${n}`).join("\n")}`] : [] };
 }
 
-if (parseArgs({ options: { download: { type: "boolean", default: false } } }).values.download) {
-  await download();
-  excerpt();
-}
-parse();
+await command(import.meta, {
+  download,
+  excerpt,
+  parse,
+  summary: (file) => `vertex.json: ${file.models.length} models, ${file.regions.length} locations, ${file.prices.length} prices.`,
+});

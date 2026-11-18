@@ -17,19 +17,14 @@
 //   write price, so cacheWrite is 0). The free tier is left out: it is a config's pricing kind, not the list's.
 // - gemini-models.json, kept by hand: which models the app lists, their ids, names and efforts, and which are ignored.
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseArgs } from "node:util";
+import { command, download as fetchAll, failOn, type Gathered, geminiModels, isoDay, type KnownGemini as Known, paths, type ProviderFile, readJsonl, today, writeJsonl } from "./common.ts";
 
 const PAGE_URL = "https://ai.google.dev/gemini-api/docs/pricing.md.txt";
 
-const here = import.meta.dirname;
-const downloads = join(here, "downloads", "ai-studio");
-const sources = join(here, "sources", "ai-studio");
-const output = join(here, "..", "ai-studio.json");
-const today = new Date().toISOString().slice(0, 10);
+const { downloads, sources } = paths("ai-studio");
 
-type Known = { id: string; name: string; efforts: string[]; onlyOn?: "ai-studio" | "vertex" };
 type Kind = "input" | "output" | "cacheRead";
 type Section = { heading: string; strings: string[]; cells?: Record<Kind, string> };
 
@@ -39,20 +34,6 @@ const ROWS: Record<Kind, RegExp> = {
   output: /^Output price/,
   cacheRead: /^Context caching price$/,
 };
-
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-// "December 1, 2026" → "2026-12-01"
-function isoDay(date: string): string {
-  const [, month, day, year] = /^(\w+) (\d+), (\d{4})$/.exec(date) ?? [];
-  const m = MONTHS.indexOf(month);
-  if (m < 0) throw new Error(`Not a date: "${date}"`);
-  return `${year}-${String(m + 1).padStart(2, "0")}-${day.padStart(2, "0")}`;
-}
-
-function known(): { models: Record<string, Known>; ignored: string[] } {
-  return JSON.parse(readFileSync(join(here, "gemini-models.json"), "utf8"));
-}
 
 // The page's model sections: a section's heading, its model strings, and, for the models the app lists, the paid
 // tier's cells of the Standard tab, as text.
@@ -81,25 +62,18 @@ function sections(page: string, listed: Record<string, Known>): Section[] {
 }
 
 async function download(): Promise<void> {
-  mkdirSync(downloads, { recursive: true });
-  const response = await fetch(PAGE_URL);
-  if (!response.ok) throw new Error(`${PAGE_URL}: HTTP ${response.status}`);
-  writeFileSync(join(downloads, "pricing.md"), Buffer.from(await response.arrayBuffer()));
-  console.log(`Downloaded ${PAGE_URL}`);
+  await fetchAll(downloads, [[PAGE_URL, "pricing.md"]]);
 }
 
 // From the download, what the parsing reads: every model section's heading and strings, and the price cells of the
 // models the app lists, with where and when it was fetched.
 function excerpt(): void {
-  const found = sections(readFileSync(join(downloads, "pricing.md"), "utf8"), known().models);
+  const found = sections(readFileSync(join(downloads, "pricing.md"), "utf8"), geminiModels().models);
   mkdirSync(sources, { recursive: true });
-  writeFileSync(
+  writeJsonl(
     join(sources, "pricing.jsonl"),
-    [
-      JSON.stringify({ url: PAGE_URL, fetched: today, note: "every model section's heading and model strings; for the models the app lists, the paid tier's cells of the Standard tab" }),
-      ...found.map((s) => JSON.stringify(s)),
-      "",
-    ].join("\n"),
+    { url: PAGE_URL, fetched: today(), note: "every model section's heading and model strings; for the models the app lists, the paid tier's cells of the Standard tab" },
+    found,
   );
   console.log(`Excerpt: ${found.length} model sections, ${found.filter((s) => s.cells).length} with prices.`);
 }
@@ -131,19 +105,20 @@ function price(cell: string, day: string): { usd: number | null; later: string[]
   return { usd: valid[0], later };
 }
 
-function parse(): void {
-  const { models: listed, ignored } = known();
-  const [head, ...lines] = readFileSync(join(sources, "pricing.jsonl"), "utf8").trim().split("\n");
-  const fetched = (JSON.parse(head) as { fetched: string }).fetched;
-  const found = lines.map((l) => JSON.parse(l) as Section);
+export function parse(): Gathered {
+  const { models: listed, ignored } = geminiModels();
+  const { head, rows: found } = readJsonl<Section>(join(sources, "pricing.jsonl"));
+  const fetched = head.fetched;
   const problems: string[] = [];
   const changes: string[] = [];
 
   for (const s of found) if (!listed[s.strings[0]] && !ignored.includes(s.strings[0])) problems.push(`${s.heading} (${s.strings[0]}) is in neither list of gemini-models.json: decide whether the app lists it.`);
   for (const [string, k] of Object.entries(listed)) if (k.onlyOn !== "vertex" && !found.some((s) => s.strings[0] === string)) problems.push(`${string}: not on the pricing page.`);
+  // A model marked as Vertex AI's only that this page has: the mark is out of date.
+  for (const [string, k] of Object.entries(listed)) if (k.onlyOn === "vertex" && found.some((s) => s.strings[0] === string)) problems.push(`${string}: marked onlyOn "vertex" in gemini-models.json, but on the pricing page: check it and remove the mark.`);
 
   const models: { string: string; known: Known }[] = [];
-  const prices: Record<string, unknown>[] = [];
+  const prices: ProviderFile["prices"] = [];
   for (const s of found) {
     if (!s.cells) continue;
     const k = listed[s.strings[0]];
@@ -154,29 +129,20 @@ function parse(): void {
     }
     if (Object.values(p).some((r) => r.usd === null)) continue;
     models.push({ string: s.strings[0], known: k });
-    prices.push({ model: k.id, region: "", routing: null, input: p.input.usd, output: p.output.usd, cacheRead: p.cacheRead.usd, cacheWrite: 0, source: `pricing page: ${s.heading}, Standard, paid tier` });
+    prices.push({ model: k.id, region: "", routing: null, input: p.input.usd!, output: p.output.usd!, cacheRead: p.cacheRead.usd!, cacheWrite: 0, source: `pricing page: ${s.heading}, Standard, paid tier` });
   }
-  if (problems.length > 0) {
-    console.error(problems.map((p) => `  ${p}`).join("\n"));
-    process.exit(1);
-  }
+  failOn(problems);
 
   const file = {
-    $schema: "./schema.json",
     provider: "ai-studio",
     collectedAt: fetched,
     sources: [{ url: PAGE_URL, note: "the models, their strings and prices: gather/sources/ai-studio/pricing.jsonl" }],
-    models: models.map((m) => ({ id: m.known.id, name: m.known.name, family: "gemini", string: m.string, efforts: m.known.efforts })),
+    models: models.map((m) => ({ id: m.known.id, name: m.known.name, family: "gemini" as const, string: m.string, efforts: m.known.efforts })),
     regions: [{ region: "", routings: null }],
     prices,
-  };
-  writeFileSync(output, JSON.stringify(file, null, 2) + "\n");
-  console.log(`ai-studio.json: ${models.length} models, ${prices.length} prices.`);
-  if (changes.length > 0) console.log(`Prices that change after ${fetched} (the list has the current ones; note them in docs/tasks.md):\n${changes.map((c) => `  ${c}`).join("\n")}`);
+  } satisfies ProviderFile;
+  const notes = changes.length > 0 ? [`Prices that change after ${fetched} (the list has the current ones; note them in docs/tasks.md):\n${changes.map((c) => `  ${c}`).join("\n")}`] : [];
+  return { file, notes };
 }
 
-if (parseArgs({ options: { download: { type: "boolean", default: false } } }).values.download) {
-  await download();
-  excerpt();
-}
-parse();
+await command(import.meta, { download, excerpt, parse, summary: (file) => `ai-studio.json: ${file.models.length} models, ${file.prices.length} prices.` });
