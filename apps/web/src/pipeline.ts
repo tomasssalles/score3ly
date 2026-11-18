@@ -31,7 +31,7 @@ export type Artifact = {
   kind: ArtifactKind;
   count: number; // 1 for a single item
   item?: "Page" | "System"; // what each item of a group is
-  // Page images: what each one is made from, and, for lines drawn over it, the stored lines (a PageSkew).
+  // Page images: what each one is made from, and, for lines drawn over it, the stored lines (read as PageLines: `skew_analysis` stores more, `fix_skew` only them).
   // With `layoutSha256`, the stored layout (a PageLayout): the page straightened as it says, with its boxes.
   // `item` and `parentId` (the output a manual stage corrects) are there for an editor.
   pages?: { page: number; recipe: PageRecipe; linesSha256?: string; layoutSha256?: string; item?: string; parentId?: string }[];

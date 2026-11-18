@@ -3,7 +3,8 @@
 // finishing means every page was checked.
 
 import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
-import { fixedLayout, fixLayoutNote, systemsChanged } from "./fixLayout";
+import { fixedLayout, systemsChanged } from "./fixLayout";
+import { fixNote } from "./format";
 import type { PageLayout } from "./layout";
 
 // Records what is missing and returns the card's note.
@@ -27,5 +28,5 @@ export async function finishFixLayout(project: Project, stage: ApiStage, pipelin
       { item: output.item, type: "layout", contentSha256: sha256, parentOutputId: output.id, inputIds: [output.id] },
     ]);
   }
-  return fixLayoutNote(changed, pages.length);
+  return fixNote("layout", changed, pages.length);
 }

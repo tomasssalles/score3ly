@@ -20,6 +20,13 @@ export function percent(n: number, of: number): string {
   return of === 0 ? "–" : `${Math.round((n / of) * 100)}%`;
 }
 
+// The card's note of a manual stage that corrects pages (`fix_skew`, `fix_layout`): "lines changed on 2 of 10 pages",
+// "layout changed" for a single page, "no changes".
+export function fixNote(noun: string, changed: number, pages: number): string {
+  if (changed === 0) return "no changes";
+  return pages === 1 ? `${noun} changed` : `${noun} changed on ${changed} of ${count(pages, "page")}`;
+}
+
 const MB = 1024 * 1024;
 
 // A size in bytes: "120 MB", "1.4 GB".

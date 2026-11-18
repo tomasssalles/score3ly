@@ -3,7 +3,8 @@
 // to check, at most LAYOUT_ROUNDS answers in all. The last answer is stored as the page's layout; if the model still
 // wasn't satisfied, the page is flagged for a person.
 
-import { deskewAngle, type Skew } from "@score3ly/imaging";
+import { deskewAngle } from "@score3ly/imaging";
+import type { PageLines } from "./fixSkew";
 import {
   checkLayoutAnswer,
   LAYOUT_FIRST,
@@ -67,7 +68,7 @@ export async function runLayout(run: StageRun): Promise<void> {
       type: "layout",
       make: async () => {
         // Straightened by the page's lines (§8.4); the decision needs the page's width in pixels.
-        const skew = pageLines ? ((await fetchJsonContent(pageLines.contentSha256!)) as Skew) : null;
+        const skew = pageLines ? ((await fetchJsonContent(pageLines.contentSha256!)) as PageLines) : null;
         // The page image is made for its width only when there are lines to go by.
         const angle = skew && skew.lines.length > 0 ? deskewAngle(skew.lines, (await pngSize(await pageImage(recipe))).width) : null;
         const modelRecipe = modelPageRecipe(straightRecipe(recipe, angle), imageRecipe.limit);

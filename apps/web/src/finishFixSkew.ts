@@ -2,7 +2,8 @@
 // saved as they worked; each of the others gets the lines `skew_analysis` found, as a person would have left them.
 
 import { fetchJsonContent, jsonBytes, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
-import { fixSkewNote, type PageLines } from "./fixSkew";
+import type { PageLines } from "./fixSkew";
+import { fixNote } from "./format";
 import { sha256Hex } from "@score3ly/core";
 
 // Records what is missing and returns the card's note.
@@ -26,5 +27,5 @@ export async function finishFixSkew(project: Project, stage: ApiStage, pipeline:
       { item: output.item, type: "lines", contentSha256: sha256, parentOutputId: output.id, inputIds: [output.id] },
     ]);
   }
-  return fixSkewNote(changed, pages.length);
+  return fixNote("lines", changed, pages.length);
 }

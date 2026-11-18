@@ -8,7 +8,8 @@ import { firstNumbers, numberSystems, type PageLayout } from "./layout";
 import { pageImage, straightPage } from "./pageImages";
 import type { Artifact } from "./pipeline";
 import { straightRecipe, type PageRecipe, type StraightRecipe } from "./recipes";
-import { angleLabel, type PageSkew } from "./skewAnalysis";
+import { angleLabel } from "./skewAnalysis";
+import type { PageLines } from "./fixSkew";
 import type { SkewLine } from "@score3ly/imaging";
 import { PdfView } from "./PdfView";
 import { SkewEditor } from "./SkewEditor";
@@ -150,7 +151,7 @@ function LinesOverlay({ sha256 }: { sha256: string }) {
   useEffect(() => {
     let cancelled = false;
     fetchJsonContent(sha256).then(
-      (skew) => !cancelled && setLines((skew as PageSkew).lines),
+      (skew) => !cancelled && setLines((skew as PageLines).lines),
       () => !cancelled && setError(true),
     );
     return () => {

@@ -104,8 +104,3 @@ export function systemsChanged(original: LayoutSystem[], fixed: LayoutSystem[]):
   return JSON.stringify(sortSystems(original)) !== JSON.stringify(sortSystems(fixed));
 }
 
-// The card's short result, e.g. "layout changed on 2 of 10 pages".
-export function fixLayoutNote(changed: number, pages: number): string {
-  if (changed === 0) return "no changes";
-  return pages === 1 ? "layout changed" : `layout changed on ${changed} of ${pages} pages`;
-}

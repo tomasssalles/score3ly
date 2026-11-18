@@ -66,7 +66,7 @@ const BAR_LINE_TOLERANCE = 0.02;
 // lines are sorted. Returns the reason the answer can't be used, or the answer.
 export function checkLayoutAnswer(json: unknown): LayoutAnswer | { problem: string } {
   const a = json as Record<string, unknown> | null;
-  if (typeof a !== "object" || !a || typeof a.severelySkewed !== "boolean" || typeof a.satisfied !== "boolean" || !Array.isArray(a.systems)) {
+  if (typeof a !== "object" || !a || typeof a.severelySkewed !== "boolean" || typeof a.satisfied !== "boolean" || typeof a.note !== "string" || !Array.isArray(a.systems)) {
     return { problem: "the answer doesn't have the expected fields" };
   }
   const systems: LayoutSystem[] = [];
@@ -86,5 +86,5 @@ export function checkLayoutAnswer(json: unknown): LayoutAnswer | { problem: stri
     if (outside !== undefined) return { problem: `system ${n}: a bar line at ${outside} is outside its box` };
     systems.push({ box: { left, right, top, bottom }, barLines });
   }
-  return { severelySkewed: a.severelySkewed, systems, satisfied: a.satisfied, note: typeof a.note === "string" ? a.note : "" };
+  return { severelySkewed: a.severelySkewed, systems, satisfied: a.satisfied, note: a.note };
 }

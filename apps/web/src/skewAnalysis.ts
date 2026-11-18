@@ -1,8 +1,7 @@
-// The `skew_analysis` step (docs/stages/analyze.md, docs/stages/pages.md, "Finding the skew"): per page, the lines that should be horizontal, measured on the
+// The `skew_analysis` step (docs/stages/pages.md, and "Finding the skew" there): per page, the lines that should be horizontal, measured on the
 // page images, not rotated. It measures and doesn't decide: whether to deskew is a function of the lines
 // (deskewAngle), computed by the stage that makes straightened pages. This module has what doesn't need the browser.
 
-import type { Skew } from "@score3ly/imaging";
 import { keyOf } from "@score3ly/core";
 
 export const SKEW_ANALYSIS_VERSION = 1;
@@ -31,9 +30,6 @@ export function skewConfigError(config: SkewConfig): string | null {
 export function skewStageKey(config: SkewConfig, pageImageKeys: string[]): Promise<string> {
   return keyOf({ step: "skew_analysis", version: SKEW_ANALYSIS_VERSION, config, inputs: pageImageKeys });
 }
-
-// What is stored for a page: everything findSkew measured.
-export type PageSkew = Skew;
 
 // The card's short result, e.g. "lines on 10 of 12 pages", and how many pages had their angle at the limit of the
 // search (no lines reported, docs/stages/pages.md): "lines on 9 of 10 pages · 1 at the angle limit".

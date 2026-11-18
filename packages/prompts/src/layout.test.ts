@@ -39,3 +39,11 @@ test("a malformed answer is refused, not a TypeError (code review C1)", () => {
   }
   assert.deepEqual(checkLayoutAnswer(null), { problem: "the answer doesn't have the expected fields" });
 });
+
+test("a note that isn't a string is refused, not taken as empty (code review B31)", () => {
+  for (const note of [3, null, ["wrong"]]) {
+    assert.deepEqual(checkLayoutAnswer({ ...answer([system()]), note }), { problem: "the answer doesn't have the expected fields" });
+  }
+  const { note: _, ...without } = answer([system()]);
+  assert.deepEqual(checkLayoutAnswer(without), { problem: "the answer doesn't have the expected fields" });
+});

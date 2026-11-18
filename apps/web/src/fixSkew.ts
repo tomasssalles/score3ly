@@ -56,8 +56,3 @@ export function lineThrough(
   };
 }
 
-// The card's short result, e.g. "lines changed on 2 of 10 pages".
-export function fixSkewNote(changed: number, pages: number): string {
-  if (changed === 0) return "no changes";
-  return pages === 1 ? "lines changed" : `lines changed on ${changed} of ${pages} pages`;
-}

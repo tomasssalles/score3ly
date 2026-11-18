@@ -1,4 +1,4 @@
-// Runs `skew_analysis` (docs/stages/analyze.md): per page of the latest `rasterize` before it, the page image (from the
+// Runs `skew_analysis` (docs/stages/pages.md): per page of the latest `rasterize` before it, the page image (from the
 // device's cache, or drawn again) is measured in the Web Worker, and what was found is stored as JSON in R2: the
 // lines are what later stages and `fix_skew` build on, and must not move when measured again on another device.
 
@@ -28,7 +28,7 @@ export async function runSkewAnalysis(run: StageRun): Promise<void> {
   const error = skewConfigError(config);
   if (error) throw new CannotStart(error);
 
-  const made = new Map<string, Skew>();
+  const made = new Map<string, Skew>(); // what is stored for a page: everything findSkew measured
   await runPlan(run, {
     stepVersion: SKEW_ANALYSIS_VERSION,
     config,

@@ -37,6 +37,8 @@ export function homeOf(note: Note, systems: ShownSystem[]): number | null {
   let best: { system: number; share: number } | null = null;
   for (const s of systems) {
     if (s.extraction.page !== first.page) continue;
+    // A system the box overlaps tightly always beats one it overlaps only with the margins: the crop's overlap is
+    // scaled down a thousandfold, below any tight overlap a box drawn by hand has.
     const share = overlap(first.box, s.layout.box) || overlap(first.box, s.crop) / 1e3;
     if (share > 0 && (!best || share > best.share)) best = { system: s.extraction.system, share };
   }

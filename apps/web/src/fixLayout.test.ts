@@ -4,7 +4,6 @@ import {
   addBarLine,
   boxThrough,
   fixedLayout,
-  fixLayoutNote,
   moveBarLine,
   resizeBox,
   sortSystems,
@@ -68,7 +67,3 @@ test("fix_layout's output is sorted and not flagged; only the systems count as a
   assert.equal(systemsChanged(layout.systems, fixed.systems.slice(1)), true);
 });
 
-test("the note counts the pages whose layout changed", () => {
-  assert.equal(fixLayoutNote(0, 10), "no changes");
-  assert.equal(fixLayoutNote(2, 10), "layout changed on 2 of 10 pages");
-});
