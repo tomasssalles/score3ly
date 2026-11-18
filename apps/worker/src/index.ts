@@ -9,7 +9,7 @@ import { defaultName } from "./names.ts";
 import { fingerprintRoutes } from "./fingerprints.ts";
 import { llmRoutes, readSettings, convertAddedConfigs } from "./llmRoutes.ts";
 import { pipelineRoutes } from "./pipeline.ts";
-import { defaultForNewStages, newPipeline } from "./pipelineRules.ts";
+import { defaultForNewStages, newPipeline, stageEntries } from "./pipelineRules.ts";
 import { versionRoutes } from "./versions.ts";
 import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
@@ -333,6 +333,8 @@ app.post("/api/projects/:id/issue-numbers", async (c) => {
   return c.json({ first: row.next_issue_number - count });
 });
 
+// Every route about a stage reads its entry first (pipelineRules.ts).
+stageEntries(app);
 pipelineRoutes(app);
 llmRoutes(app);
 projectFileRoutes(app);

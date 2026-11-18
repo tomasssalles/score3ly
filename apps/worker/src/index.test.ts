@@ -786,6 +786,40 @@ function addFix(projectId: string, stageId: string, step = "fix_skew") {
   return call(projectId, stageId, "fix", { step, stepVersion: 1, pageCount: 2, inputIds: [] });
 }
 
+test("a config isn't changed while another stage runs: it would replace the running one (found 2026-11-17, the code review)", async () => {
+  const { project, skew } = await analyzedProject("config-running.pdf");
+  const layout = (await pipelineOf(project.id))[3];
+  assert.equal((await call(project.id, layout.id, "start", { stepVersion: 1, config: {}, stageKey: RECIPE_KEY(6), pageCount: 2, inputIds: [] })).status, 200);
+
+  const refused = await call(project.id, skew.id, "config", { config: { maxAngle: 3 } }, "PUT");
+  assert.equal(refused.status, 409);
+  assert.equal((await json<{ code: string }>(refused)).code, "running");
+  const stages = await pipelineOf(project.id);
+  assert.equal(stages[2].id, skew.id);
+  assert.equal(stages[3].id, layout.id);
+  assert.equal(stages[3].status, "running");
+
+  // Once it has stopped, the change is made.
+  await call(project.id, layout.id, "stop");
+  assert.equal((await call(project.id, skew.id, "config", { config: { maxAngle: 3 } }, "PUT")).status, 200);
+});
+
+test("every route of a stage refuses a stage that isn't in the project's pipeline, before anything else", async () => {
+  const { project, skew } = await analyzedProject("no-stage.pdf");
+  const other = await createdProject("other-stage.pdf");
+  const actions: [string, string][] = [
+    ["config", "PUT"], ["start", "POST"], ["outputs", "POST"], ["heartbeat", "POST"], ["finish", "POST"], ["stop", "POST"],
+    ["fix", "POST"], ["edit", "POST"], ["resolve", "POST"], ["review", "POST"], ["human-review", "POST"], ["drop", "POST"],
+    ["llm", "POST"], ["llm-calls/x/unusable", "POST"],
+  ];
+  for (const [action, method] of actions) {
+    for (const [pid, sid] of [[project.id, "no-such-stage"], [other.id, skew.id]]) {
+      const response = await call(pid, sid, action, {}, method);
+      assert.equal(response.status, 404, `${method} ${action}`);
+    }
+  }
+});
+
 test("a manual stage is added WIP after a done stage, saved as the user works, and finished", async () => {
   const { project, skew, stages } = await analyzedProject("fix.pdf");
   const response = await addFix(project.id, skew.id);

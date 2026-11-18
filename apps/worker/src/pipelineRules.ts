@@ -2,7 +2,9 @@
 // them, a new project's pipeline, rewriting a pipeline after a change, reading it, and a stage's entry in it. The routes
 // that change a pipeline (pipeline.ts) apply these.
 
+import type { Context, Hono } from "hono";
 import { COST_WITH_VAT } from "./vat.ts";
+import { NO_STAGE, refuse } from "./refusals.ts";
 import { logFields } from "./requestLog.ts";
 import { groupBy, RECIPE, stepsOfKind, type Pipeline, type StageModelConfig, type StageStatus } from "@score3ly/core";
 import { readSettings, resolvedModel, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
@@ -81,6 +83,7 @@ export type StageRow = {
   step_version: number | null;
   status: StoredStatus;
   config_json: string | null;
+  model_config_id: string | null;
   page_count: number | null;
   error: string | null;
   note: string | null;
@@ -291,13 +294,17 @@ export async function readPipeline(db: D1Database, projectId: string): Promise<P
   };
 }
 
+// A stage's entry in a live project's pipeline: where it is, the stage, and whether it is carried (waiting for its turn).
+export type Entry = { position: number; stage: StageRow; carried: boolean };
+
+declare module "hono" {
+  interface ContextVariableMap {
+    entry: Entry;
+  }
+}
+
 // The stage at a position of a live project's pipeline, if it is there.
-export async function entry(
-  db: D1Database,
-  projectId: string,
-  stageId: string,
-  request?: Request,
-): Promise<{ position: number; stage: StageRow; carried: boolean } | null> {
+async function entry(db: D1Database, projectId: string, stageId: string, request: Request): Promise<Entry | null> {
   const row = await db
     .prepare(
       "SELECT e.position, e.carried, s.* FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id JOIN projects p ON p.id = e.project_id WHERE e.project_id = ? AND e.stage_id = ? AND p.deleted_at IS NULL",
@@ -305,8 +312,27 @@ export async function entry(
     .bind(projectId, stageId)
     .first<StageRow & { position: number }>();
   // The stage's step, for the request's log line.
-  if (row && request) logFields(request, { step: row.step });
+  if (row) logFields(request, { step: row.step });
   return row && { position: row.position, stage: row, carried: row.carried === 1 };
+}
+
+// Every request about a stage (`/api/projects/:pid/stages/:sid/…`) is about one in the project's pipeline: its entry is
+// read once, here, before anything else (a stage that isn't there is refused), and the route takes it from the context
+// (`stageEntry`). Registered before every route under that path.
+export function stageEntries(app: Hono<{ Bindings: Env }>) {
+  app.use("/api/projects/:pid/stages/:sid/*", async (c, next) => {
+    const found = await entry(c.env.DB, c.req.param("pid"), c.req.param("sid"), c.req.raw);
+    if (!found) return refuse(c, 404, NO_STAGE);
+    c.set("entry", found);
+    await next();
+  });
+}
+
+// The entry `stageEntries` read for this request.
+export function stageEntry(c: Context): Entry {
+  const found = c.get("entry");
+  if (!found) throw new Error("No stage entry: the route isn't under /api/projects/:pid/stages/:sid/.");
+  return found;
 }
 
 // The LLM calls of a stage still marked running, once its run is over (stopped, or interrupted and started again):

@@ -3,7 +3,7 @@
 // review, a drop). The browser does the work; the Worker only records it, by the pipeline's rules (pipelineRules.ts).
 
 import { logFields } from "./requestLog.ts";
-import { BAD_REQUEST, badRequest, NO_PROJECT, NO_STAGE, notRunning, PICK_ANOTHER, refuse, RELOAD, STAGE_RUNNING, WAITS_FOR_TURN } from "./refusals.ts";
+import { BAD_REQUEST, badRequest, NO_PROJECT, notRunning, PICK_ANOTHER, refuse, RELOAD, STAGE_RUNNING, WAITS_FOR_TURN } from "./refusals.ts";
 import { isSha256Hex, quarterOf, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StartAnswer } from "@score3ly/core";
 import type { Hono } from "hono";
 import { deletedConfigMessage, unsupportedConfigMessage, unsupportedOf, type ModelConfigRow } from "./llmRoutes.ts";
@@ -11,7 +11,6 @@ import {
   anyRunning,
   closeRunningCalls,
   defaultForNewStages,
-  entry,
   INTERRUPTED_CALL,
   isFurtherReview,
   isManual,
@@ -20,6 +19,7 @@ import {
   plannedStage,
   readPipeline,
   rewriteFrom,
+  stageEntry,
   STOPPED_CALL,
   touchProject,
   withItsApply,
@@ -52,8 +52,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (body.applyModelConfigToLater !== undefined && typeof body.applyModelConfigToLater !== "boolean") {
       return badRequest(c, "'applyModelConfigToLater' must be true or false");
     }
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     const now = new Date().toISOString();
     const { stage, position } = found;
     // An LLM stage's config names its model config: the one given, else the default now (docs/llm.md).
@@ -76,6 +75,9 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     }
     if (stage.step === "ingest") return refuse(c, 409, "Ingest has no config to change.");
     if (isManual(stage.step)) return refuse(c, 409, "A manual stage has no config to change.");
+    // Another stage running: a change here would replace it (if it comes later) under the run (found 2026-11-17, the
+    // code review); one rule for every change of the pipeline while a stage runs.
+    if (await anyRunning(db, pid, Date.now())) return refuse(c, 409, STAGE_RUNNING, "running");
     const statements: D1PreparedStatement[] = [touchProject(db, pid, now)];
     if (stage.status === "planned") {
       statements.push(db.prepare("UPDATE stages SET config_json = ?, model_config_id = ? WHERE id = ?").bind(configJson, modelConfigId, sid));
@@ -114,8 +116,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     ) {
       return badRequest(c, "expected 'stepVersion', 'config', 'stageKey', 'pageCount' and 'inputIds'");
     }
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     const { stage, position } = found;
     const now = new Date();
     if (!(stage.status === "planned" || stage.status === "failed" || isStale(stage, now.getTime()))) {
@@ -187,8 +188,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       );
     if (!valid) return badRequest(c, "expected 'outputs' with an item, a type, and a content hash or a recipe key");
     logFields(c.req.raw, { outputs: outputs.length, items: outputs.map((o: { item: string }) => o.item).join(" ").slice(0, 200) });
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     const wip = found.stage.status === "wip";
     if (found.stage.status !== "running" && !wip) return refuse(c, 409, notRunning(found.stage.status));
     if (found.carried) return refuse(c, 409, WAITS_FOR_TURN);
@@ -255,8 +255,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/heartbeat", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     if (found.stage.status !== "running") return refuse(c, 409, notRunning(found.stage.status));
     await db.prepare("UPDATE stages SET heartbeat_at = ? WHERE id = ?").bind(new Date().toISOString(), sid).run();
     return c.body(null, 204);
@@ -279,8 +278,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     ) {
       return badRequest(c, "expected 'status' 'done' (with an optional 'note') or 'failed' with an 'error'");
     }
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     const { stage } = found;
     if (stage.status !== "running" && !(stage.status === "wip" && status === "done")) {
       return refuse(c, 409, notRunning(stage.status));
@@ -302,8 +300,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/stop", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     const { stage, position } = found;
     if (stage.status !== "running") return refuse(c, 409, notRunning(stage.status));
     const now = new Date().toISOString();
@@ -342,8 +339,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       return badRequest(c, "expected a manual 'step', 'stepVersion', 'pageCount' and 'inputIds'");
     }
     if (step === "human_review") return refuse(c, 409, `${BAD_REQUEST} Details: a Human review is added with its Apply review (POST …/human-review), not as a fix.`);
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     const { stage, position } = found;
     if (stage.status !== "done") return refuse(c, 409, `A fix can only follow a stage that is done. ${RELOAD}`);
     const { results: following } = await db
@@ -384,8 +380,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/edit", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     const { stage, position } = found;
     if (!isManual(stage.step) || stage.status !== "done") {
       return refuse(c, 409, `Only a finished manual stage can be edited. ${RELOAD}`);
@@ -430,8 +425,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     const { pid, sid } = c.req.param();
     const body = await c.req.json().catch(() => null);
     if (!isStringArray(body?.inputIds)) return badRequest(c, "expected 'inputIds'");
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     if (!found.carried) return refuse(c, 409, `The stage isn't waiting to be kept or dropped any more. ${RELOAD}`);
     const before = await db
       .prepare("SELECT COUNT(*) AS n FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? AND e.position < ? AND (s.status != 'done' OR e.carried = 1)")
@@ -481,8 +475,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/review", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     const { stage, position } = found;
     if (stage.step !== "apply_review") return refuse(c, 409, "A Review can only be added after an Apply review.");
     if (found.carried) return refuse(c, 409, WAITS_FOR_TURN);
@@ -514,8 +507,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
     if (!Number.isInteger(stepVersion) || !(pageCount === null || Number.isInteger(pageCount)) || !isStringArray(inputIds)) {
       return badRequest(c, "expected 'stepVersion', 'pageCount' and 'inputIds'");
     }
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     const { stage, position } = found;
     if (stage.step !== "apply_review") return refuse(c, 409, "A Human review can only be added after an Apply review.");
     if (stage.status !== "done") return refuse(c, 409, `A Human review can only follow an Apply review that is done. ${RELOAD}`);
@@ -554,8 +546,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
   app.post("/api/projects/:pid/stages/:sid/drop", async (c) => {
     const db = c.env.DB;
     const { pid, sid } = c.req.param();
-    const found = await entry(db, pid, sid, c.req.raw);
-    if (!found) return refuse(c, 404, NO_STAGE);
+    const found = stageEntry(c);
     const { stage, position } = found;
     if (!isManual(stage.step) && !isFurtherReview(stage)) return refuse(c, 409, "Only stages outside the recipe can be dropped.");
     const now = new Date();

@@ -5,7 +5,8 @@
 
 import { COST_WITH_VAT, isVatPercent, withVat } from "./vat.ts";
 import { deferLog, logFields } from "./requestLog.ts";
-import { badRequest, NO_MODEL_CONFIG, NO_STAGE, notRunning, PICK_ONE, problemText, refuse } from "./refusals.ts";
+import { stageEntry } from "./pipelineRules.ts";
+import { badRequest, NO_MODEL_CONFIG, notRunning, PICK_ONE, problemText, refuse } from "./refusals.ts";
 import type { Hono } from "hono";
 import { amount, type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, firstFreeName, fromBase64, isSha256Hex, keyOf, MAX_NAME_LENGTH, modelKeyOf, nameTooLong, roundUsd, sameConfigValues, sameValuesMessage, sha256Hex, type ModelConfig, type ModelOptions, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult } from "@score3ly/core";
 import { fetchPriceRange, freeOnOpenRouter } from "./llm/openrouter.ts";
@@ -767,14 +768,7 @@ export function llmRoutes(app: Hono<{ Bindings: Env }>) {
     const images = request.messages.reduce((n, m) => n + m.content.filter((part) => part.type === "image" && part.image).length, 0);
     logFields(c.req.raw, { ...(typeof body.label === "string" ? { label: body.label.slice(0, 100) } : {}), item: place.item, round: place.round, images });
 
-    const stage = await db
-      .prepare(
-        "SELECT s.step, s.status, s.model_config_id FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id JOIN projects p ON p.id = e.project_id WHERE e.project_id = ? AND e.stage_id = ? AND p.deleted_at IS NULL",
-      )
-      .bind(pid, sid)
-      .first<{ step: string; status: string; model_config_id: string | null }>();
-    if (!stage) return refuse(c, 404, NO_STAGE);
-    logFields(c.req.raw, { step: stage.step });
+    const { stage } = stageEntry(c);
     if (stage.status !== "running") return refuse(c, 409, notRunning(stage.status));
     if (!stage.model_config_id) return refuse(c, 409, `The stage has no model config. ${PICK_ONE}`, "no_model_config");
     const row = await db.prepare("SELECT * FROM model_configs WHERE id = ?").bind(stage.model_config_id).first<ModelConfigRow>();
