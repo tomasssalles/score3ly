@@ -2,63 +2,22 @@
 // with `layout`'s and is stored in the same format. This module has what doesn't need the browser; the editor is
 // LayoutEditor.tsx. Everything is in fractions of the straightened page, as in `layout`.
 
-import { clamp, roundTo, type Box, type LayoutSystem } from "@score3ly/core";
+import { clamp, roundTo, type LayoutSystem } from "@score3ly/core";
 import type { PageLayout } from "./layout.ts";
+
+// The boxes are edited as any box drawn by hand (editor/boxEdit.ts); re-exported for the geometry snapshots, which
+// pin them under this module (geometrySnapshots.test.ts).
+export { boxThrough, BOX_HANDLES, MIN_BOX, resizeBox, type BoxHandle } from "./editor/boxEdit.ts";
 
 export const FIX_LAYOUT_VERSION = 1;
 
 type Point = { x: number; y: number }; // fractions of the page
-
-// A box smaller than this either way (a fraction of the page) isn't a system: a slip.
-export const MIN_BOX = 0.01;
 
 const round = (v: number) => roundTo(v, 5); // as stored (layouts: 5 digits)
 
 // Systems are numbered top to bottom, by their boxes' top edges (then left edges).
 export function sortSystems(systems: LayoutSystem[]): LayoutSystem[] {
   return [...systems].sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left);
-}
-
-// The box with two opposite corners at these points, or null if it is too small to be a system.
-export function boxThrough(a: Point, b: Point): Box | null {
-  const box = {
-    left: round(clamp(Math.min(a.x, b.x))),
-    right: round(clamp(Math.max(a.x, b.x))),
-    top: round(clamp(Math.min(a.y, b.y))),
-    bottom: round(clamp(Math.max(a.y, b.y))),
-  };
-  return box.right - box.left < MIN_BOX || box.bottom - box.top < MIN_BOX ? null : box;
-}
-
-// A box's handle: a corner moves two edges, the middle of an edge moves one.
-export type BoxHandle = { x: "left" | "right" | null; y: "top" | "bottom" | null };
-
-export const BOX_HANDLES: BoxHandle[] = [
-  { x: "left", y: "top" },
-  { x: null, y: "top" },
-  { x: "right", y: "top" },
-  { x: "right", y: null },
-  { x: "right", y: "bottom" },
-  { x: null, y: "bottom" },
-  { x: "left", y: "bottom" },
-  { x: "left", y: null },
-];
-
-export function handlePoint(box: Box, handle: BoxHandle): Point {
-  return {
-    x: handle.x === null ? (box.left + box.right) / 2 : box[handle.x],
-    y: handle.y === null ? (box.top + box.bottom) / 2 : box[handle.y],
-  };
-}
-
-// The box with a handle moved to a point. An edge can't pass the opposite one: the box keeps at least MIN_BOX.
-export function resizeBox(box: Box, handle: BoxHandle, p: Point): Box {
-  const next = { ...box };
-  if (handle.x === "left") next.left = round(clamp(p.x, 0, box.right - MIN_BOX));
-  if (handle.x === "right") next.right = round(clamp(p.x, box.left + MIN_BOX, 1));
-  if (handle.y === "top") next.top = round(clamp(p.y, 0, box.bottom - MIN_BOX));
-  if (handle.y === "bottom") next.bottom = round(clamp(p.y, box.top + MIN_BOX, 1));
-  return next;
 }
 
 // The system without the bar lines its box no longer covers (after it was made smaller).

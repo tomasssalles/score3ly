@@ -9,7 +9,7 @@
 import type { Place } from "@score3ly/prompts";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { placeLabel } from "./analyze";
-import { UnsavedNote } from "./pageEditor";
+import { UnsavedNote } from "./editor/pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { LayoutFilmstrip } from "./ArtifactView";
 import { DropdownMenu, type MenuItem } from "./ui/DropdownMenu";

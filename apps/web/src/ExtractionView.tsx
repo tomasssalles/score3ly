@@ -20,7 +20,7 @@ import { useNear, useObjectUrl } from "./ui/hooks";
 import { BoxesIcon, ChangesIcon, MusicIcon, SourceIcon } from "./ui/icons";
 import { InfoButton } from "./ui/Info";
 import { numberSystems, type PageLayout } from "./layout";
-import { ModeToggle, UnsavedNote } from "./pageEditor";
+import { ModeToggle, UnsavedNote } from "./editor/pageEditor";
 import { saverOf, useSaver } from "./saving";
 import { cropImage } from "./pageImages";
 import { cropRecipe, straightRecipe, type CropRecipe } from "./recipes";

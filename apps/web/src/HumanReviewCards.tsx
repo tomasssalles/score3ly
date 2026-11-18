@@ -6,9 +6,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as Reac
 import { ConfirmDialog } from "./ConfirmDialog";
 import { AnswerTags } from "./ExtractionView";
 import type { StoredIssue } from "./extract";
-import { boxThrough, resizeBox, type BoxHandle } from "./fixLayout";
-import { handleAt } from "./handles";
-import { BoxHandles } from "./pageEditor";
+import { boxThrough, resizeBox, type BoxHandle } from "./editor/boxEdit";
+import { handleAt } from "./editor/handles";
+import { BoxHandles } from "./editor/pageEditor";
 import { NO_TEXT } from "./humanReview";
 import { Info } from "./ui/Info";
 import type { PlacedSystem } from "./review";

@@ -15,7 +15,7 @@ import { renderPages } from "./rendering";
 import { count } from "./format";
 import { failure } from "./api";
 import { errorText } from "@score3ly/core";
-import { UnsavedNote } from "./pageEditor";
+import { UnsavedNote } from "./editor/pageEditor";
 import { saverOf, useHolding, useSaver } from "./saving";
 
 const SAVE_AFTER_MS = 2000;

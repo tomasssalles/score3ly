@@ -6,17 +6,16 @@
 // phone the user zooms in close for each point and zooms out and pans in between.
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { BoxesIcon, ChevronLeftIcon, ChevronRightIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "./ui/icons";
-import { pngSize } from "./pageImages";
-import { BOX_HANDLES } from "./fixLayout";
+import { BoxesIcon, ChevronLeftIcon, ChevronRightIcon, FitWidthIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from "../ui/icons";
+import { pngSize } from "../pageImages";
+import { BOX_HANDLES } from "./boxEdit";
 import { CORNER, EDGE, EDGE_SHARE, handleRect } from "./handles";
-export { handleAt } from "./handles";
 import type { Box } from "@score3ly/core";
 
 export type Point = { x: number; y: number };
 import { clampView, PAD, wholePageScale, type View } from "./viewBounds";
-import { failure } from "./api";
-import type { SaverState } from "./saving";
+import { failure } from "../api";
+import type { SaverState } from "../saving";
 
 // A pointer that moves less than this between down and up tapped; more, it dragged.
 const TAP_SLOP = { mouse: 4, touch: 10 };
@@ -265,13 +264,6 @@ export function useViewport<G>(image: { width: number; height: number } | null, 
     center,
     zoomBy,
     view, // screen px per image px, and where the image's corner is
-    // The point of the image (in image px) in the middle of the view, if the view has a size.
-    middle: (): Point | null => {
-      const el = ref.current;
-      if (!el || !el.clientWidth) return null;
-      const v = viewRef.current;
-      return { x: (el.clientWidth / 2 - v.x) / v.scale, y: (el.clientHeight / 2 - v.y) / v.scale };
-    },
     focus: () => ref.current?.focus({ preventScroll: true }),
     dragging: () => gesture.current.kind === "drag",
     handlers: {

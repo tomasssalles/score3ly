@@ -1,18 +1,20 @@
 // The geometry of the page editors' handles (pageEditor.tsx draws them): where each is, and which one a pointer
-// takes hold of. Apart, so that the tests can import it without React.
+// takes hold of; and how close a pointer must come to a line or a handle, in screen px. Apart, so that the tests can
+// import it without React.
 
 import type { Box } from "@score3ly/core";
-import { BOX_HANDLES, handlePoint, type BoxHandle } from "./fixLayout.ts";
+import { BOX_HANDLES, handlePoint, type BoxHandle } from "./boxEdit.ts";
 
 type Point = { x: number; y: number };
 
 // The handles of a box being resized (docs/stages/layout.md, `fix_layout`; also one's own issues in a human review):
 // a corner moves two edges, the middle of an edge one. Corners are squares; an edge's handle is a long bar along it,
 // over most of the edge (decided 2026-11-12, the project owner: easier to hit than a square). In screen px: a corner
-// square's side, an edge handle's thickness, and how close a pointer has to be to grab one.
+// square's side, an edge handle's thickness, and how close a pointer has to be to a handle's drawn shape to grab it
+// (15 px: 22 from a corner square's centre).
 export const CORNER = 14;
 export const EDGE = 10;
-const HANDLE_REACH = 22;
+const HANDLE_REACH = 15;
 // The share of its edge an edge handle covers, centred on the edge.
 export const EDGE_SHARE = 0.6;
 
@@ -38,8 +40,13 @@ export function handleAt(box: Box, q: Point, size: { width: number; height: numb
     // The distance from the pointer to the drawn shape, in screen px.
     const dx = Math.max(r.x - q.x, 0, q.x - (r.x + r.width)) * scale;
     const dy = Math.max(r.y - q.y, 0, q.y - (r.y + r.height)) * scale;
-    if (Math.hypot(dx, dy) < HANDLE_REACH - CORNER / 2) return handle;
+    if (Math.hypot(dx, dy) < HANDLE_REACH) return handle;
   }
   return null;
 }
 
+
+// In screen px: a tap this close to a line (a skew line in `fix_skew`, a bar line in `fix_layout`) selects it.
+export const LINE_REACH = 14;
+// In screen px: a pointer this close to an end of the selected line in `fix_skew` (its round handle's centre) grabs it.
+export const END_REACH = 26;

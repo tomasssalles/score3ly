@@ -10,23 +10,13 @@ import { LAYOUT_COLOR_HEX } from "@score3ly/imaging";
 import type { LayoutSystem } from "@score3ly/core";
 import { useEffect, useRef, useState } from "react";
 import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
-import {
-  addBarLine,
-  boxThrough,
-  fixedLayout,
-  moveBarLine,
-  resizeBox,
-  sortSystems,
-  systemAt,
-  withinBox,
-  type BoxHandle,
-} from "./fixLayout";
+import { addBarLine, fixedLayout, moveBarLine, sortSystems, systemAt, withinBox } from "./fixLayout";
+import { boxThrough, resizeBox, type BoxHandle } from "./editor/boxEdit";
 import { canRedo, canUndo, pushState, redo, startHistory, undo, type UndoStack } from "./history";
 import { BarLineIcon, BoxIcon, HandIcon, TrashIcon } from "./ui/icons";
 import { firstNumbers, type PageLayout } from "./layout";
 import {
   BoxHandles,
-  handleAt,
   LineHandle,
   ModeToggle,
   ShowToggle,
@@ -40,7 +30,8 @@ import {
   ZoomTools,
   type PageNavigation,
   type Point,
-} from "./pageEditor";
+} from "./editor/pageEditor";
+import { handleAt, LINE_REACH } from "./editor/handles";
 import { ImagesDiffer } from "./ImagesDiffer";
 import { keepFingerprintOnce, straightPage } from "./pageImages";
 import { useSaver } from "./saving";
@@ -56,8 +47,6 @@ const MODES = [
   { value: "bar" as const, label: "Bar line", title: "Bar line: click or tap where a bar line goes", icon: <BarLineIcon /> },
 ];
 
-// In screen px: a tap this close to a bar line selects it.
-const LINE_REACH = 14;
 // A label's size in screen px, per digit and fixed.
 const LABEL = { height: 18, digit: 8, padding: 8 };
 

@@ -2,10 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   addBarLine,
-  boxThrough,
   fixedLayout,
   moveBarLine,
-  resizeBox,
   sortSystems,
   systemAt,
   systemsChanged,
@@ -18,19 +16,6 @@ const system = (b: ReturnType<typeof box>, barLines: number[] = []) => ({ box: b
 test("systems are numbered top to bottom", () => {
   const sorted = sortSystems([system(box(0.1, 0.5, 0.9, 0.7)), system(box(0.1, 0.1, 0.9, 0.3))]);
   assert.deepEqual(sorted.map((s) => s.box.top), [0.1, 0.5]);
-});
-
-test("a box drawn by two opposite corners, in any order; too small or off the page", () => {
-  assert.deepEqual(boxThrough({ x: 0.9, y: 0.3 }, { x: 0.1, y: 0.1 }), box(0.1, 0.1, 0.9, 0.3));
-  assert.equal(boxThrough({ x: 0.1, y: 0.1 }, { x: 0.105, y: 0.5 }), null);
-  assert.deepEqual(boxThrough({ x: -0.2, y: 0.1 }, { x: 1.3, y: 0.3 }), box(0, 0.1, 1, 0.3));
-});
-
-test("a handle moves its edges, which can't pass the opposite ones", () => {
-  const b = box(0.1, 0.1, 0.9, 0.3);
-  assert.deepEqual(resizeBox(b, { x: "left", y: "top" }, { x: 0.2, y: 0.05 }), box(0.2, 0.05, 0.9, 0.3));
-  assert.deepEqual(resizeBox(b, { x: null, y: "bottom" }, { x: 0.5, y: 0.4 }), box(0.1, 0.1, 0.9, 0.4));
-  assert.deepEqual(resizeBox(b, { x: "right", y: null }, { x: 0.0, y: 0.2 }), box(0.1, 0.1, 0.11, 0.3));
 });
 
 test("bar lines stay within their box, sorted", () => {

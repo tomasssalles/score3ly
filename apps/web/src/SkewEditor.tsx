@@ -22,7 +22,8 @@ import {
   ZoomTools,
   type PageNavigation,
   type Point,
-} from "./pageEditor";
+} from "./editor/pageEditor";
+import { END_REACH, LINE_REACH } from "./editor/handles";
 import { ImagesDiffer } from "./ImagesDiffer";
 import { keepFingerprintOnce, pageImage } from "./pageImages";
 import { useSaver } from "./saving";
@@ -38,9 +39,6 @@ const MODES = [
   { value: "draw" as const, label: "Draw", title: "Draw: click or tap at both ends of a line", icon: <LineIcon /> },
 ];
 
-// What a line is aimed at, in screen px: a tap this close to a line selects it, this close to a handle grabs it.
-const LINE_REACH = 14;
-const HANDLE_REACH = 26;
 
 // Each page's changes while the editor is open, by item: a page keeps its own when the user flips to another.
 type Histories = Map<string, UndoStack<SkewLine[]>>;
@@ -200,7 +198,7 @@ function PageEditor({
       const current = linesRef.current;
       if (mode !== "hand" || selected === null || !current?.[selected]) return null;
       let best: Grab | null = null;
-      let bestDist = HANDLE_REACH;
+      let bestDist = END_REACH;
       ends(current[selected]).forEach((end, e) => {
         const dist = Math.hypot(end.x - q.x, end.y - q.y) * scale;
         if (dist < bestDist) {

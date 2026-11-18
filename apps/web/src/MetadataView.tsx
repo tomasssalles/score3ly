@@ -6,7 +6,7 @@
 // when it is confirmed or unconfirmed, and when the form closes. Saving an edit confirms the field; adding one too.
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { UnsavedNote } from "./pageEditor";
+import { UnsavedNote } from "./editor/pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { Filmstrip, PageImageView } from "./ArtifactView";
 import { DropdownMenu, type MenuItem } from "./ui/DropdownMenu";
