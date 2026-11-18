@@ -4,6 +4,7 @@ import { createProvider } from "./index.ts";
 import { vertexHost } from "./google.ts";
 import { parseServiceAccount, sharedTokenSource, tokenSource } from "./googleServiceAccount.ts";
 import { LlmError } from "./types.ts";
+import { sseData } from "@score3ly/core";
 
 // A service account with a freshly made key, and its public key to check signatures with.
 async function makeAccount() {
@@ -93,7 +94,7 @@ function fakeVertexGemini(calls: Call[], reply: object, status = 200): typeof fe
       return Response.json({ access_token: `token-${calls.length}`, expires_in: 3600, token_type: "Bearer" });
     }
     if (status !== 200) return new Response(JSON.stringify(reply), { status, headers: { "content-type": "application/json" } });
-    return new Response(`data: ${JSON.stringify(reply)}\r\n\r\n`, { status, headers: { "content-type": "text/event-stream" } });
+    return new Response(sseData(reply), { status, headers: { "content-type": "text/event-stream" } });
   }) as typeof fetch;
 }
 
@@ -205,16 +206,15 @@ test("Gemini on Vertex AI: a streamed answer is put together; an error in the st
       model: "gemini-3.1-pro",
       messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
     });
-  const event = (chunk: object) => `data: ${JSON.stringify(chunk)}\r\n\r\n`;
   const first = { candidates: [{ content: { role: "model", parts: [{ text: "Six " }] } }] };
   const response = await ask(
-    event(first) + event({ candidates: [{ content: { role: "model", parts: [{ text: "systems." }] }, finishReason: "STOP" }], usageMetadata: geminiReply.usageMetadata, modelVersion: "gemini-3.1-pro" }),
+    sseData(first) + sseData({ candidates: [{ content: { role: "model", parts: [{ text: "systems." }] }, finishReason: "STOP" }], usageMetadata: geminiReply.usageMetadata, modelVersion: "gemini-3.1-pro" }),
   );
   assert.equal(response.text, "Six systems.");
   assert.equal(response.stop, "end");
   assert.equal(response.usage.outputTokens, 512);
-  await assert.rejects(ask(event(first) + event({ error: { code: 429, message: "Resource exhausted." } })), (err: unknown) => err instanceof LlmError && err.kind === "rate_limit" && /Vertex AI: Resource exhausted\./.test(err.message));
-  await assert.rejects(ask(event(first) + 'data: {"candidates":['), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
+  await assert.rejects(ask(sseData(first) + sseData({ error: { code: 429, message: "Resource exhausted." } })), (err: unknown) => err instanceof LlmError && err.kind === "rate_limit" && /Vertex AI: Resource exhausted\./.test(err.message));
+  await assert.rejects(ask(sseData(first) + 'data: {"candidates":['), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
   await assert.rejects(ask(""), (err: unknown) => err instanceof LlmError && err.kind === "unreadable_response");
 });
 

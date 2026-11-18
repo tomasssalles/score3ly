@@ -2,12 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { GoogleProvider, mergeChunks } from "./google.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
+import { sseData } from "@score3ly/core";
 
 type Captured = { url: string; headers: Headers; body: any };
 
 // Server-sent events, as Gemini streams its answer: one "data:" event per chunk.
-export function sse(chunks: object[]): string {
-  return chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\r\n\r\n`).join("");
+function sse(chunks: object[]): string {
+  return chunks.map((chunk) => sseData(chunk)).join("");
 }
 
 // A successful reply is streamed: an object is sent as one chunk, a list as its chunks. An error is plain JSON.

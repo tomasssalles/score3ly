@@ -3,7 +3,7 @@
 // otherwise checks the spending cap, calls the provider, and records the call with its tokens and cost.
 
 import type { Hono } from "hono";
-import { type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, fromBase64, isSha256Hex, keyOf, modelKeyOf, sha256Hex, type ModelConfig } from "@score3ly/core";
+import { type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, fromBase64, isSha256Hex, keyOf, modelKeyOf, sha256Hex, sseData, type ModelConfig } from "@score3ly/core";
 import { deferLog, logFields } from "./requestLog.ts";
 import { stageEntry } from "./pipelineRules.ts";
 import { badRequest, notRunning, PICK_ONE, problemText, refuse } from "./refusals.ts";
@@ -407,7 +407,7 @@ export function llmCallRoutes(app: Hono<{ Bindings: Env }>) {
     const writer = writable.getWriter();
     const encoder = new TextEncoder();
     // A browser that went away can't be written to: the call is stopped by its signal, and recorded all the same.
-    const write = (data: StreamEvent) => writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`)).catch(() => {});
+    const write = (data: StreamEvent) => writer.write(encoder.encode(sseData(data))).catch(() => {});
     const done = (async () => {
       try {
         const answer = await runCall(c.env, prepared, request, requestKey, sid, place, llmTimeoutMs(stage.step), c.req.raw.signal, (event) => void write(event));

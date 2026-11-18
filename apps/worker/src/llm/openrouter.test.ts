@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createProvider } from "./index.ts";
 import { fetchPriceRange, freeOnOpenRouter, priceRange } from "./openrouter.ts";
 import { LlmError, type LlmRequest } from "./types.ts";
+import { sseData } from "@score3ly/core";
 
 type Call = { url: string; headers: Headers; body: any };
 
@@ -21,7 +22,7 @@ function sse(answer: any): string {
     events.push({ ...base, choices: [{ delta: {}, finish_reason: choice.finish_reason, native_finish_reason: choice.native_finish_reason }] });
     events.push({ ...base, choices: [], usage: answer.usage });
   }
-  return [": OPENROUTER PROCESSING", "", ...events.flatMap((e) => [`data: ${JSON.stringify(e)}`, ""]), "data: [DONE]", ""].join("\n");
+  return [": OPENROUTER PROCESSING\n\n", ...events.map((e) => sseData(e)), sseData("[DONE]")].join("");
 }
 
 // OpenRouter's Chat Completions, faked: one streamed answer, or an HTTP error (plain JSON).

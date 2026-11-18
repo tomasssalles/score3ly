@@ -1,6 +1,6 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { sha256Hex } from "@score3ly/core";
+import { sha256Hex, sseData } from "@score3ly/core";
 import { ApiError, callLlm, dropStage, fetchPipeline, putJson, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, type Project, type ProjectExport } from "./api.ts";
 
 // The tests replace the browser's fetch with a fake that records each request and answers with a fixed response.
@@ -179,7 +179,7 @@ test("a sent call's streamed answer: its start and progress go to the listener, 
   let body: Record<string, unknown> = {};
   globalThis.fetch = async (_input, init) => {
     body = JSON.parse(String(init?.body));
-    return new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
+    return new Response(events.map((e) => sseData(e)).join(""), { headers: { "Content-Type": "text/event-stream" } });
   };
   const seen: unknown[] = [];
   const answer = await callLlm(project, "s1", { messages: [] }, { item: "p1", round: 2 }, "Page 1", undefined, (e) => seen.push(e));
@@ -191,9 +191,9 @@ test("a sent call's streamed answer: its start and progress go to the listener, 
 
 test("a streamed answer that ends without one fails with the server's error, or says the connection ended", async () => {
   globalThis.fetch = async () =>
-    new Response(`data: ${JSON.stringify({ event: "error", error: "D1 is down" })}\n\n`, { headers: { "Content-Type": "text/event-stream" } });
+    new Response(sseData({ event: "error", error: "D1 is down" }), { headers: { "Content-Type": "text/event-stream" } });
   await assert.rejects(callLlm(project, "s1", { messages: [] }, { item: "", round: 1 }), /D1 is down/);
-  globalThis.fetch = async () => new Response(`data: ${JSON.stringify({ event: "started", callId: "c", startedAt: "", timeoutMs: 1 })}\n\n`, { headers: { "Content-Type": "text/event-stream" } });
+  globalThis.fetch = async () => new Response(sseData({ event: "started", callId: "c", startedAt: "", timeoutMs: 1 }), { headers: { "Content-Type": "text/event-stream" } });
   await assert.rejects(callLlm(project, "s1", { messages: [] }, { item: "", round: 1 }), /ended before the answer came/);
 });
 
