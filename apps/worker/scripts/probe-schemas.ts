@@ -9,7 +9,7 @@
 
 import { parseArgs } from "node:util";
 import Anthropic from "@anthropic-ai/sdk";
-import { ANALYZE_PAGE_SCHEMA, ANALYZE_SCORE_SCHEMA } from "../../../packages/prompts/src/analyze.ts";
+import { ANALYZE_PAGE_SCHEMA, ANALYZE_SCORE_SCHEMA } from "../../../packages/prompts/src/analyzeForm.ts";
 import { APPLY_REVIEW_SCHEMA } from "../../../packages/prompts/src/applyReview.ts";
 import { EXTRACT_SCHEMA } from "../../../packages/prompts/src/extract.ts";
 import { LAYOUT_SCHEMA } from "../../../packages/prompts/src/layout.ts";

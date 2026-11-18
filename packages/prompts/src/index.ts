@@ -2,6 +2,9 @@
 // changed prompt runs again where it is used, and nowhere else.
 export * from "./layout.ts";
 export * from "./analyze.ts";
+export * from "./analyzeForm.ts";
+export * from "./analyzeChecks.ts";
+export * from "./places.ts";
 export * from "./extract.ts";
 export * from "./music.ts";
 export * from "./lensForm.ts";

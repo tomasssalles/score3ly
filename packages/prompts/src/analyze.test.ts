@@ -1,21 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  ANALYZE_PAGE_SCHEMA,
-  ANALYZE_SCORE_SCHEMA,
-  checkPageAnswer,
-  checkScoreAnswer,
-  flatMetadata,
-  flatObservations,
-  PAGE_LISTS,
-  TEXT_FIELDS,
-  withIds,
-  type AnalyzeContext,
-  type Metadata,
-  type PageAnswer,
-  type PageObservations,
-  type ScoreAnswer,
-} from "./analyze.ts";
+import { checkPageAnswer, checkScoreAnswer, type AnalyzeContext } from "./analyzeChecks.ts";
+import { flatMetadata, flatObservations, PAGE_LISTS, TEXT_FIELDS, withIds, type Metadata, type PageAnswer, type PageObservations, type ScoreAnswer } from "./analyzeForm.ts";
 
 // The answers are written here in their lists, as the code uses them, and turned flat, as the model writes them.
 const flatLists = (o: object) => flatObservations(o as PageObservations<object>);

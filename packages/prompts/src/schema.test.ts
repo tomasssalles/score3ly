@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { JsonSchema } from "@score3ly/core";
-import { ANALYZE_PAGE_SCHEMA, ANALYZE_SCORE_SCHEMA } from "./analyze.ts";
+import { ANALYZE_PAGE_SCHEMA, ANALYZE_SCORE_SCHEMA } from "./analyzeForm.ts";
 import { APPLY_REVIEW_SCHEMA } from "./applyReview.ts";
 import { EXTRACT_SCHEMA } from "./extract.ts";
 import { LAYOUT_SCHEMA } from "./layout.ts";
