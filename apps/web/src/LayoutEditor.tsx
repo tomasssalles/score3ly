@@ -12,32 +12,31 @@ import { useEffect, useRef, useState } from "react";
 import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
 import { addBarLine, fixedLayout, moveBarLine, sortSystems, systemAt, withinBox } from "./fixLayout";
 import { boxThrough, resizeBox, type BoxHandle } from "./editor/boxEdit";
-import { canRedo, canUndo, pushState, redo, startHistory, undo, type UndoStack } from "./history";
+import { canRedo, canUndo, redo, undo, type UndoStack } from "./history";
 import { BarLineIcon, BoxIcon, HandIcon, TrashIcon } from "./ui/icons";
 import { firstNumbers, type PageLayout } from "./layout";
 import {
   BoxHandles,
+  editorKeys,
   LineHandle,
   ModeToggle,
   ShowToggle,
   PageCanvas,
   PageNav,
-  undoKey,
   UndoRedo,
   UnsavedNote,
+  usePageEditorShell,
   usePageImage,
   useViewport,
   ZoomTools,
+  type EditorPage,
   type PageNavigation,
   type Point,
 } from "./editor/pageEditor";
 import { handleAt, LINE_REACH } from "./editor/handles";
 import { ImagesDiffer } from "./ImagesDiffer";
 import { keepFingerprintOnce, straightPage } from "./pageImages";
-import { useSaver } from "./saving";
-import { straightImageRecipe, straightRecipe, type PageRecipe } from "./recipes";
-
-export type LayoutEditorPage = { page: number; recipe: PageRecipe; layoutSha256: string; item: string; parentId: string };
+import { straightImageRecipe, straightRecipe } from "./recipes";
 
 type Mode = "hand" | "box" | "bar";
 
@@ -58,32 +57,27 @@ export function LayoutEditor({
 }: {
   project: Project;
   stageId: string;
-  pages: LayoutEditorPage[];
+  pages: EditorPage[]; // their content: the layouts
   onEdited?: () => void; // a page was saved: the pipeline can be fetched again
 }) {
-  const [index, setIndex] = useState(0);
-  const [mode, setMode] = useState<Mode>("hand");
+  // The stage's saver (saving.ts): what it saved is shown when the editor opens again.
+  const shell = usePageEditorShell<LayoutSystem[], Mode>(pages, stageId, onEdited, "hand");
+  const { saver } = shell;
   // Every page's layout, for the numbers that continue from page to page; the systems sorted.
   const [layouts, setLayouts] = useState<Map<string, PageLayout> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Each page's changes while the editor is open, by item.
-  const histories = useRef(new Map<string, UndoStack<LayoutSystem[]>>());
-  // One saver for the stage (saving.ts): what it saved is shown when the editor opens again.
-  const saver = useSaver(stageId, onEdited);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all(
       pages.map(async (p) => {
-        const layout = saver.value<PageLayout>(p.item) ?? ((await fetchJsonContent(p.layoutSha256)) as PageLayout);
+        const layout = saver.value<PageLayout>(p.item) ?? ((await fetchJsonContent(p.contentSha256)) as PageLayout);
         return [p.item, { ...layout, systems: sortSystems(layout.systems) }] as const;
       }),
     ).then(
       (loaded) => {
         if (cancelled) return;
-        for (const [item, layout] of loaded) {
-          if (!histories.current.has(item)) histories.current.set(item, startHistory(layout.systems));
-        }
+        for (const [item, layout] of loaded) shell.startHistory(item, layout.systems);
         setLayouts(new Map(loaded));
       },
       () => !cancelled && setError("The layouts couldn't be loaded."),
@@ -109,11 +103,10 @@ export function LayoutEditor({
     });
   }
 
-  const page = pages[Math.min(index, pages.length - 1)];
-  const go = (i: number) => setIndex(Math.max(0, Math.min(pages.length - 1, i)));
+  const { page } = shell;
   const firsts = layouts ? firstNumbers(pages.map((p) => ({ page: p.page, systems: layouts.get(p.item)?.systems ?? [] }))) : [];
   const layout = layouts?.get(page.item);
-  const history = histories.current.get(page.item);
+  const history = shell.history(page.item);
 
   if (!layout || !history) {
     return <div className="page-placeholder">{error ?? "Loading the layouts…"}</div>;
@@ -123,22 +116,20 @@ export function LayoutEditor({
       key={page.item}
       page={page}
       layout={layout}
-      first={firsts[Math.min(index, pages.length - 1)]}
+      first={firsts[shell.at]}
       history={history}
-      mode={mode}
-      setMode={setMode}
-      nav={{ index, count: pages.length, go }}
+      mode={shell.mode}
+      setMode={shell.setMode}
+      nav={shell.nav}
       error={error}
       unsaved={<UnsavedNote className="editor-error error-text" state={saver.state} onRetry={saver.retry} />}
       change={(systems) => {
-        histories.current.set(page.item, pushState(history, systems));
-        show(page.item, systems);
+        if (shell.push(page.item, systems)) show(page.item, systems);
       }}
       step={(move) => {
-        const next = move(history);
-        if (next === history) return false;
-        histories.current.set(page.item, next);
-        show(page.item, next.present);
+        const present = shell.step(page.item, move);
+        if (present === null) return false;
+        show(page.item, present);
         return true;
       }}
     />
@@ -162,7 +153,7 @@ function PageEditor({
   change,
   step,
 }: {
-  page: LayoutEditorPage;
+  page: EditorPage;
   layout: PageLayout;
   first: number; // the number of the page's first system
   history: UndoStack<LayoutSystem[]>;
@@ -330,26 +321,27 @@ function PageEditor({
   });
 
   function onKeyDown(event: React.KeyboardEvent) {
-    if (undoKey(event, () => stepBack(undo), () => stepBack(redo))) return;
     const bar = selected?.bar ?? null;
-    if (event.key === "Delete" || event.key === "Backspace") {
-      event.preventDefault();
-      deleteSelected();
-    } else if (event.key === "Escape") {
-      setAnchor(null);
-      setSelected(null);
-    } else if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && selected && bar !== null) {
+    editorKeys(event, {
+      undo: () => stepBack(undo),
+      redo: () => stepBack(redo),
+      remove: deleteSelected,
+      escape: () => {
+        setAnchor(null);
+        setSelected(null);
+      },
+      nav,
       // Nudges the selected bar line by a pixel, ten with Shift.
-      event.preventDefault();
-      const px = (event.shiftKey ? 10 : 1) * (event.key === "ArrowLeft" ? -1 : 1);
-      const system = systems[selected.system];
-      const moved = moveBarLine(system, bar, system.barLines[bar] + px / W);
-      commit(replace(selected.system, moved.system), { system: moved.system, bar: moved.index });
-    } else if (event.key === "ArrowLeft" && nav.index > 0) {
-      nav.go(nav.index - 1);
-    } else if (event.key === "ArrowRight" && nav.index < nav.count - 1) {
-      nav.go(nav.index + 1);
-    }
+      arrow: (event) => {
+        if (!((event.key === "ArrowLeft" || event.key === "ArrowRight") && selected && bar !== null)) return false;
+        event.preventDefault();
+        const px = (event.shiftKey ? 10 : 1) * (event.key === "ArrowLeft" ? -1 : 1);
+        const system = systems[selected.system];
+        const moved = moveBarLine(system, bar, system.barLines[bar] + px / W);
+        commit(replace(selected.system, moved.system), { system: moved.system, bar: moved.index });
+        return true;
+      },
+    });
   }
 
   function switchMode(next: Mode) {

@@ -1,5 +1,6 @@
 // What the editors of manual stages share (docs/stages/layout.md): a page that is zoomed and
-// panned by hand, the gestures on it, the parts of the toolbar, and the note of an edit not saved (saving.ts does the saving).
+// panned by hand, the gestures on it, the parts of the toolbar, and the note of an edit not saved (saving.ts does the saving);
+// and what the page editors (`fix_skew`, `fix_layout`) hold around the page shown: the shell and the keys.
 //
 // Gestures: two fingers always pan and zoom; so do Ctrl + wheel and the buttons. One finger (or the mouse) either
 // taps, drags something the editor lets it grab (a handle), or pans. Never press and drag to create anything: on a
@@ -15,7 +16,9 @@ import type { Box } from "@score3ly/core";
 export type Point = { x: number; y: number };
 import { clampView, PAD, wholePageScale, type View } from "./viewBounds";
 import { failure } from "../api";
-import type { SaverState } from "../saving";
+import { useSaver, type SaverState } from "../saving";
+import { pushState, startHistory, type UndoStack } from "../history";
+import type { PageRecipe } from "../recipes";
 
 // A pointer that moves less than this between down and up tapped; more, it dragged.
 const TAP_SLOP = { mouse: 4, touch: 10 };
@@ -365,6 +368,74 @@ export function PageCanvas({
       {image && notice}
     </div>
   );
+}
+
+// A page of a page editor: its number, its image's recipe, its item (`p<n>`), the output it corrects and the stored
+// content it starts from (its lines, its layout).
+export type EditorPage = { page: number; recipe: PageRecipe; item: string; parentId: string; contentSha256: string };
+
+// What a page editor holds around the page shown: which page (and flipping to another), the mode, each page's changes
+// while the editor is open (kept when the user flips to another page; read when they are used, not from a render), and
+// the stage's saver (saving.ts: one for the stage, the pages' saves one after the other).
+export function usePageEditorShell<T, M extends string>(pages: EditorPage[], stageId: string, onEdited: (() => void) | undefined, firstMode: M) {
+  const [index, setIndex] = useState(0);
+  const [mode, setMode] = useState<M>(firstMode);
+  const histories = useRef(new Map<string, UndoStack<T>>()).current;
+  const saver = useSaver(stageId, onEdited);
+  const at = Math.min(index, pages.length - 1);
+  const go = (i: number) => setIndex(Math.max(0, Math.min(pages.length - 1, i)));
+  return {
+    page: pages[at],
+    at, // the page's index, within the pages
+    nav: { index, count: pages.length, go } satisfies PageNavigation,
+    mode,
+    setMode,
+    saver,
+    history: (item: string) => histories.get(item),
+    // A page's history starts with what it held when it was loaded first.
+    startHistory: (item: string, present: T) => {
+      if (!histories.has(item)) histories.set(item, startHistory(present));
+    },
+    // A change by the user: a new state in the page's history. False when it changes nothing (e.g. a handle that was
+    // grabbed and couldn't move) or the page has no history yet.
+    push: (item: string, next: T): boolean => {
+      const history = histories.get(item);
+      if (!history || next === history.present) return false;
+      histories.set(item, pushState(history, next));
+      return true;
+    },
+    // One step back or forward in the page's history: what it holds now, or null when there was no step to take.
+    step: (item: string, move: (history: UndoStack<T>) => UndoStack<T>): T | null => {
+      const history = histories.get(item);
+      if (!history) return null;
+      const next = move(history);
+      if (next === history) return null;
+      histories.set(item, next);
+      return next.present;
+    },
+  };
+}
+
+// The keys of a page editor: undo and redo (undoKey), Delete or Backspace, Escape, and the arrows flipping the pages.
+// `arrow` may take an arrow key first (fix_layout nudges a selected bar line), saying whether it did.
+export function editorKeys(
+  event: React.KeyboardEvent,
+  keys: { undo: () => void; redo: () => void; remove: () => void; escape: () => void; nav: PageNavigation; arrow?: (event: React.KeyboardEvent) => boolean },
+) {
+  const { nav } = keys;
+  if (undoKey(event, keys.undo, keys.redo)) return;
+  if (event.key === "Delete" || event.key === "Backspace") {
+    event.preventDefault();
+    keys.remove();
+  } else if (event.key === "Escape") {
+    keys.escape();
+  } else if (keys.arrow?.(event)) {
+    return;
+  } else if (event.key === "ArrowLeft" && nav.index > 0) {
+    nav.go(nav.index - 1);
+  } else if (event.key === "ArrowRight" && nav.index < nav.count - 1) {
+    nav.go(nav.index + 1);
+  }
 }
 
 // The toolbar's parts.

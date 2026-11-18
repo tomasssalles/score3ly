@@ -8,29 +8,26 @@ import type { SkewLine } from "@score3ly/imaging";
 import { useEffect, useRef, useState } from "react";
 import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
 import { lineThrough, type PageLines } from "./fixSkew";
-import { canRedo, canUndo, pushState, redo, startHistory, undo, type UndoStack } from "./history";
+import { canRedo, canUndo, redo, undo } from "./history";
 import { HandIcon, LineIcon, TrashIcon } from "./ui/icons";
 import {
+  editorKeys,
   ModeToggle,
   PageCanvas,
   PageNav,
-  undoKey,
   UndoRedo,
   UnsavedNote,
+  usePageEditorShell,
   usePageImage,
   useViewport,
   ZoomTools,
-  type PageNavigation,
+  type EditorPage,
   type Point,
 } from "./editor/pageEditor";
 import { END_REACH, LINE_REACH } from "./editor/handles";
 import { ImagesDiffer } from "./ImagesDiffer";
 import { keepFingerprintOnce, pageImage } from "./pageImages";
-import { useSaver } from "./saving";
-import type { PageRecipe } from "./recipes";
 import { angleLabel } from "./skewAnalysis";
-
-export type EditorPage = { page: number; recipe: PageRecipe; linesSha256: string; item: string; parentId: string };
 
 type Mode = "hand" | "draw";
 
@@ -40,8 +37,7 @@ const MODES = [
 ];
 
 
-// Each page's changes while the editor is open, by item: a page keeps its own when the user flips to another.
-type Histories = Map<string, UndoStack<SkewLine[]>>;
+type Shell = ReturnType<typeof usePageEditorShell<SkewLine[], Mode>>;
 
 export function SkewEditor({
   project,
@@ -51,51 +47,18 @@ export function SkewEditor({
 }: {
   project: Project;
   stageId: string;
-  pages: EditorPage[];
+  pages: EditorPage[]; // their content: the lines
   onEdited?: () => void; // a page was saved: the pipeline can be fetched again
 }) {
-  const [index, setIndex] = useState(0);
-  const [mode, setMode] = useState<Mode>("hand");
-  const histories = useRef<Histories>(new Map());
-  const page = pages[Math.min(index, pages.length - 1)];
-  const go = (i: number) => setIndex(Math.max(0, Math.min(pages.length - 1, i)));
-  return (
-    <PageEditor
-      key={page.item}
-      project={project}
-      stageId={stageId}
-      page={page}
-      mode={mode}
-      setMode={setMode}
-      histories={histories.current}
-      nav={{ index, count: pages.length, go }}
-      onEdited={onEdited}
-    />
-  );
+  const shell = usePageEditorShell<SkewLine[], Mode>(pages, stageId, onEdited, "hand");
+  return <PageEditor key={shell.page.item} project={project} stageId={stageId} page={shell.page} shell={shell} />;
 }
 
 // What a pointer can take hold of: an end of the selected line.
 type Grab = { line: number; end: 0 | 1 };
 
-function PageEditor({
-  project,
-  stageId,
-  page,
-  mode,
-  setMode,
-  histories,
-  nav,
-  onEdited,
-}: {
-  project: Project;
-  stageId: string;
-  page: EditorPage;
-  mode: Mode;
-  setMode: (mode: Mode) => void;
-  histories: Histories;
-  nav: PageNavigation;
-  onEdited?: () => void;
-}) {
+function PageEditor({ project, stageId, page, shell }: { project: Project; stageId: string; page: EditorPage; shell: Shell }) {
+  const { mode, setMode, nav, saver } = shell;
   const { image, error: imageError } = usePageImage(() => pageImage(page.recipe), page.item);
   const [lines, setLinesState] = useState<SkewLine[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -103,8 +66,6 @@ function PageEditor({
   const [anchor, setAnchor] = useState<Point | null>(null); // drawing: the first end, in image px
   const [hover, setHover] = useState<Point | null>(null); // drawing with a mouse: where the pointer is
   const linesRef = useRef(lines); // the latest, for a drag
-  // One saver for the stage (saving.ts): the pages' saves one after the other, kept when the page is flipped.
-  const saver = useSaver(stageId, onEdited);
   const save = (next: SkewLine[]) =>
     saver.save(page.item, next, async () => {
       const sha256 = await putJson({ lines: next } satisfies PageLines);
@@ -123,10 +84,10 @@ function PageEditor({
   useEffect(() => {
     let cancelled = false;
     const local = saver.value<SkewLine[]>(page.item);
-    (local ? Promise.resolve(local) : fetchJsonContent(page.linesSha256).then((json) => (json as PageLines).lines)).then(
+    (local ? Promise.resolve(local) : fetchJsonContent(page.contentSha256).then((json) => (json as PageLines).lines)).then(
       (found) => {
         if (cancelled) return;
-        if (!histories.has(page.item)) histories.set(page.item, startHistory(found));
+        shell.startHistory(page.item, found);
         setLines(found);
       },
       () => !cancelled && setLoadError("The lines couldn't be loaded."),
@@ -162,9 +123,7 @@ function PageEditor({
 
   // A change by the user: a new state in the page's history, saved.
   function change(next: SkewLine[]) {
-    const history = histories.get(page.item);
-    if (!history || next === history.present) return; // e.g. a handle that was grabbed and couldn't move
-    histories.set(page.item, pushState(history, next));
+    if (!shell.push(page.item, next)) return; // e.g. a handle that was grabbed and couldn't move
     setLines(next);
     save(next);
   }
@@ -172,18 +131,16 @@ function PageEditor({
   // One step back or forward in the page's history, saved like any change. A line that was started is dropped
   // first, as the last thing done.
   function step(move: typeof undo) {
-    const history = histories.get(page.item);
-    if (!history || viewport.dragging()) return;
+    if (!shell.history(page.item) || viewport.dragging()) return;
     if (anchor) {
       setAnchor(null);
       if (move === undo) return;
     }
-    const next = move(history);
-    if (next === history) return;
-    histories.set(page.item, next);
+    const present = shell.step(page.item, move);
+    if (present === null) return;
     setSelected(null);
-    setLines(next.present);
-    save(next.present);
+    setLines(present);
+    save(present);
   }
 
   function deleteSelected() {
@@ -241,18 +198,16 @@ function PageEditor({
   });
 
   function onKeyDown(event: React.KeyboardEvent) {
-    if (undoKey(event, () => step(undo), () => step(redo))) return;
-    if (event.key === "Delete" || event.key === "Backspace") {
-      event.preventDefault();
-      deleteSelected();
-    } else if (event.key === "Escape") {
-      setAnchor(null);
-      setSelected(null);
-    } else if (event.key === "ArrowLeft" && nav.index > 0) {
-      nav.go(nav.index - 1);
-    } else if (event.key === "ArrowRight" && nav.index < nav.count - 1) {
-      nav.go(nav.index + 1);
-    }
+    editorKeys(event, {
+      undo: () => step(undo),
+      redo: () => step(redo),
+      remove: deleteSelected,
+      escape: () => {
+        setAnchor(null);
+        setSelected(null);
+      },
+      nav,
+    });
   }
 
   function switchMode(next: Mode) {
@@ -264,7 +219,7 @@ function PageEditor({
 
   const s = viewport.scale;
   const selectedLine = selected === null ? null : lines?.[selected];
-  const history = histories.get(page.item);
+  const history = shell.history(page.item);
 
   return (
     <div className="page-editor" onKeyDown={onKeyDown}>

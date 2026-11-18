@@ -18,6 +18,7 @@ import { EngravingView } from "./EngravingView";
 import { ExtractionView } from "./ExtractionView";
 import { FixMeiView } from "./FixMeiView";
 import { LayoutEditor } from "./LayoutEditor";
+import type { EditorPage } from "./editor/pageEditor";
 
 // Loaded when first opened, to keep it out of the bundle every visit downloads (docs/tasks.md, the build's warning).
 
@@ -65,18 +66,16 @@ export function ArtifactContent({
     const edit = artifact.editor?.step === "human_review" ? { project, stageId: artifact.editor.stageId, onEdited } : undefined;
     return <ExtractionView key={artifact.id} artifact={artifact} edit={edit} />;
   }
-  // A WIP manual stage's artifact is its editor (docs/project-view.md).
-  if (artifact.editor?.step === "fix_skew" && pages) {
-    const editable = pages.flatMap((p) =>
-      p.linesSha256 && p.item && p.parentId ? [{ ...p, linesSha256: p.linesSha256, item: p.item, parentId: p.parentId }] : [],
+  // A WIP manual stage's artifact is its editor (docs/project-view.md): its pages, each with the content it edits.
+  const editable = (content: "linesSha256" | "layoutSha256"): EditorPage[] =>
+    (pages ?? []).flatMap(({ page, recipe, item, parentId, [content]: contentSha256 }) =>
+      contentSha256 && item && parentId ? [{ page, recipe, item, parentId, contentSha256 }] : [],
     );
-    return <SkewEditor key={artifact.id} project={project} stageId={artifact.editor.stageId} pages={editable} onEdited={onEdited} />;
+  if (artifact.editor?.step === "fix_skew" && pages) {
+    return <SkewEditor key={artifact.id} project={project} stageId={artifact.editor.stageId} pages={editable("linesSha256")} onEdited={onEdited} />;
   }
   if (artifact.editor?.step === "fix_layout" && pages) {
-    const editable = pages.flatMap((p) =>
-      p.layoutSha256 && p.item && p.parentId ? [{ ...p, layoutSha256: p.layoutSha256, item: p.item, parentId: p.parentId }] : [],
-    );
-    return <LayoutEditor key={artifact.id} project={project} stageId={artifact.editor.stageId} pages={editable} onEdited={onEdited} />;
+    return <LayoutEditor key={artifact.id} project={project} stageId={artifact.editor.stageId} pages={editable("layoutSha256")} onEdited={onEdited} />;
   }
   if (artifact.kind === "images" && pages?.some((p) => p.layoutSha256)) {
     return <LayoutFilmstrip key={artifact.id} pages={pages.flatMap((p) => (p.layoutSha256 ? [{ ...p, layoutSha256: p.layoutSha256 }] : []))} />;
