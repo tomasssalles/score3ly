@@ -23,6 +23,7 @@
     "hono": "^4.13.12"
   },
   "devDependencies": {
+    "@score3ly/prompts": "*",
     "@types/node": "^26.6.4",
     "typescript": "^7.0.2",
     "wrangler": "^4.153.0"

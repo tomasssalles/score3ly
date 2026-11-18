@@ -36,8 +36,8 @@ export type LlmRequest = {
   // themselves, or take no thinking setting the adapter knows.
   adaptiveThinking?: true;
   // A JSON schema the answer must follow (the provider's schema-constrained output, §7.2). The answer is then
-  // parsed into `json`, or `invalidJson` says why it couldn't be; checking it further (e.g. with Zod) is up to the
-  // caller.
+  // parsed into `json`, or `invalidJson` says why it couldn't be; checking it further is up to the caller (the
+  // stages' checks, docs/llm.md).
   jsonSchema?: Record<string, unknown>;
 };
 
