@@ -10,7 +10,6 @@ import { axisLabel, bucketTitle, defaultGranularity, GRANULARITIES, granularitie
 import {
   averagePerPage,
   costView,
-  createdBefore,
   DIMENSIONS,
   grouper,
   GROUPINGS,
@@ -24,16 +23,18 @@ import {
   type Split,
   unfinished,
 } from "./costs";
-import { ChartModes, ProjectChecks, StatHead, type ChartMode } from "./statsParts";
+import { ageActions, ChartModes, ProjectChecks, projectItem, StatHead, type ChartMode } from "./statsParts";
 import { OptionPicker } from "./ui/Picker";
 import { EffortTab } from "./EffortTab";
 import { RunTimesTab } from "./RunTimesTab";
 import { UsageTab } from "./UsageTab";
 import type { TabOf } from "./route";
-import { CheckList } from "./CheckList";
-import { ChevronDownIcon, ExpandIcon, FilterIcon, InfoIcon, SplitIcon } from "./icons";
+import { CheckList } from "./ui/CheckList";
+import { FilterSection } from "./ui/FilterSection";
+import { Tabs } from "./ui/Tabs";
+import { FilterIcon, InfoIcon, SplitIcon } from "./icons";
 import { dollars } from "./money";
-import { count, deletedNote, percent, shortDate } from "./format";
+import { count, percent } from "./format";
 import { TimeChart, type ChartSeries } from "./TimeChart";
 
 // The page's tabs, each with its own URL ("#/stats/usage"; "#/stats" opens the first). Switching tabs replaces the URL rather than adding to the
@@ -49,20 +50,7 @@ export function StatsPage({ tab, onTab }: { tab: TabOf<"stats">; onTab: (tab: Ta
   return (
     <div className="page-view stats">
       <h2>Statistics</h2>
-      <div className="stats-tabs" role="tablist" aria-label="Statistics">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={t.id === tab}
-            className="stats-tab"
-            onClick={() => onTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs tabs={TABS} current={tab} onTab={onTab} label="Statistics" />
       <div role="tabpanel" aria-label={TABS.find((t) => t.id === tab)?.label}>
         {tab === "costs" && <CostsTab />}
         {tab === "usage" && <UsageTab />}
@@ -329,59 +317,39 @@ function SplitPanel({ split, onChange }: { split: Split; onChange: (split: Split
 // is hidden from the chart and the table. Another grouping starts with nothing hidden. Every group is listed, whatever
 // the time range (costs.ts, allGroups).
 function FilterPanel({ data, filters, onChange }: { data: CostData; filters: Filters; onChange: (filters: Filters) => void }) {
-  const [collapsed, setCollapsed] = useState<Set<Dimension>>(new Set());
   return (
     <div className="costs-panel filter-panel">
       {DIMENSIONS.map(({ id: dimension, label }) => {
         const filter = filters[dimension] ?? { grouping: GROUPINGS[dimension][0].id, hidden: [] };
         const groups = allGroups(data, dimension, grouper(data, dimension, filter.grouping));
-        const isCollapsed = collapsed.has(dimension);
-        const setOn = (keys: string[], on: boolean) => {
-          const hidden = new Set(filter.hidden);
-          for (const key of keys) {
-            if (on) hidden.delete(key);
-            else hidden.add(key);
-          }
-          onChange({ ...filters, [dimension]: { ...filter, hidden: [...hidden] } });
-        };
         return (
-          <div key={dimension} className="filter-section">
-            <div className="costs-panel-row">
-              <button
-                type="button"
-                className="section-toggle"
-                aria-expanded={!isCollapsed}
-                onClick={() => {
-                  const next = new Set(collapsed);
-                  if (isCollapsed) next.delete(dimension);
-                  else next.add(dimension);
-                  setCollapsed(next);
-                }}
-              >
-                {isCollapsed ? <ExpandIcon /> : <ChevronDownIcon />}
-                {label}
-                {isCollapsed && filter.hidden.length > 0 && <span className="inline-dot" aria-label="some hidden" />}
-              </button>
-              <span className="muted">grouped by</span>
-              <OptionPicker
-                label={`${label}: grouped by`}
-                value={filter.grouping}
-                options={GROUPINGS[dimension]}
-                onChange={(grouping) => onChange({ ...filters, [dimension]: { grouping, hidden: [] } })}
-              />
-            </div>
-            {!isCollapsed &&
-              (groups.length === 0 ? (
-                <span className="muted">Nothing spent yet.</span>
-              ) : (
-                <CheckList
-                  allLabel="All"
-                  items={groups.map((g) => ({ key: g.key, name: g.label, note: g.note }))}
-                  isOn={(key) => !filter.hidden.includes(key)}
-                  setOn={setOn}
+          <FilterSection
+            key={dimension}
+            label={label}
+            dot={filter.hidden.length > 0}
+            controls={
+              <>
+                <span className="muted">grouped by</span>
+                <OptionPicker
+                  label={`${label}: grouped by`}
+                  value={filter.grouping}
+                  options={GROUPINGS[dimension]}
+                  onChange={(grouping) => onChange({ ...filters, [dimension]: { grouping, hidden: [] } })}
                 />
-              ))}
-          </div>
+              </>
+            }
+          >
+            {groups.length === 0 ? (
+              <span className="muted">Nothing spent yet.</span>
+            ) : (
+              <CheckList
+                allLabel="All"
+                items={groups.map((g) => ({ key: g.key, name: g.label, note: g.note }))}
+                out={filter.hidden}
+                onOut={(hidden) => onChange({ ...filters, [dimension]: { ...filter, hidden: [...hidden] } })}
+              />
+            )}
+          </FilterSection>
         );
       })}
       {hiddenCount(filters) > 0 && (
@@ -461,19 +429,11 @@ function CostPerPage({ projects, now }: { projects: CostProject[]; now: number }
               <ProjectChecks
                 items={[...projects].reverse().map((p) => {
                   const own = perPage(p);
-                  const facts = [shortDate(p.createdAt, now), count(p.pages.length, "page"), p.finished ? null : "unfinished pipeline"];
-                  return { key: p.id, name: p.name, note: deletedNote(p.deletedAt), facts: facts.filter(Boolean).join(" · "), amounts: [dollars(p.costUsd), own === null ? "–" : `${dollars(own)}/page`] };
+                  return projectItem(p, now, { facts: [p.finished ? null : "unfinished pipeline"], amounts: [dollars(p.costUsd), own === null ? "–" : `${dollars(own)}/page`] });
                 })}
                 out={out}
                 onChange={setOut}
-                actions={[
-                  [{ label: "Remove projects with unfinished pipelines", ids: unfinished(projects) }],
-                  [
-                    { label: "Remove projects created more than 30 days ago", ids: createdBefore(projects, "30d", now) },
-                    { label: "Remove projects created more than 3 months ago", ids: createdBefore(projects, "3m", now) },
-                    { label: "Remove projects created more than 12 months ago", ids: createdBefore(projects, "12m", now) },
-                  ],
-                ]}
+                actions={[[{ label: "Remove projects with unfinished pipelines", ids: unfinished(projects) }], ageActions(projects, now)]}
               />
             </>
           )}

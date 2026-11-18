@@ -2,9 +2,11 @@
 // head, the toggle between a chart's bars and its running total, and the list of projects to select.
 
 import { useState, type ReactNode } from "react";
-import { CheckList, type CheckItem } from "./CheckList";
+import { CheckList, type CheckItem } from "./ui/CheckList";
+import { createdBefore } from "./costs";
+import { count, deletedNote, shortDate } from "./format";
 import { DropdownMenu } from "./DropdownMenu";
-import { BarsIcon, InfoIcon, MoreIcon, RunningTotalIcon } from "./icons";
+import { BarsIcon, FilterIcon, InfoIcon, MoreIcon, RunningTotalIcon } from "./icons";
 
 export type ChartMode = "bars" | "line";
 
@@ -65,15 +67,8 @@ export function ProjectChecks({
     <CheckList
       allLabel="All projects"
       items={items}
-      isOn={(id) => !out.has(id)}
-      setOn={(ids, on) => {
-        const next = new Set(out);
-        for (const id of ids) {
-          if (on) next.delete(id);
-          else next.add(id);
-        }
-        onChange(next);
-      }}
+      out={out}
+      onOut={onChange}
       menu={
         <DropdownMenu
           icon={<MoreIcon />}
@@ -82,5 +77,73 @@ export function ProjectChecks({
         />
       }
     />
+  );
+}
+
+type ListedProject = { id: string; name: string; createdAt: string; deletedAt: string | null; pages: unknown[] };
+
+// A project in a list to select: its name (marked if deleted), the day it was created and its pages, and `more` facts
+// and amounts.
+export function projectItem(p: ListedProject, now: number, more: { facts?: (string | null)[]; amounts?: string[] } = {}): CheckItem {
+  const facts = [shortDate(p.createdAt, now), count(p.pages.length, "page"), ...(more.facts ?? [])];
+  return { key: p.id, name: p.name, note: deletedNote(p.deletedAt), facts: facts.filter(Boolean).join(" · "), ...(more.amounts ? { amounts: more.amounts } : {}) };
+}
+
+// The actions that take the older projects out of a selection.
+const AGE_ACTIONS = [
+  ["30d", "30 days"],
+  ["3m", "3 months"],
+  ["12m", "12 months"],
+] as const;
+
+export function ageActions(projects: { id: string; createdAt: string }[], now: number): { label: string; ids: string[] }[] {
+  return AGE_ACTIONS.map(([age, words]) => ({ label: `Remove projects created more than ${words} ago`, ids: createdBefore(projects, age, now) }));
+}
+
+// The filter of the tabs that work on finished projects only (Run times, Effort): no title of its own, so it doesn't
+// read as a block, since it applies to the whole tab. On the right, an "i" and the filter button, and under them how
+// many projects are selected; the list opens below (the same check list and actions as the average cost per page's,
+// without the action on unfinished pipelines: none is listed).
+export function FinishedProjectsFilter({
+  projects,
+  out,
+  onChange,
+}: {
+  projects: { id: string; name: string; createdAt: string; deletedAt: string | null; pages: number[] }[];
+  out: Set<string>; // the projects taken out
+  onChange: (out: Set<string>) => void;
+}) {
+  const [now] = useState(() => Date.now());
+  const [open, setOpen] = useState(false);
+  const [about, setAbout] = useState(false);
+  const selected = projects.filter((p) => !out.has(p.id)).length;
+  return (
+    <section className="run-times-filter">
+      <div className="run-times-filter-line">
+        <button type="button" className="icon-button stat-info" aria-expanded={about} aria-label="About: the projects" title="About: the projects" onClick={() => setAbout(!about)}>
+          <InfoIcon />
+        </button>
+        <button type="button" className="editor-mode" aria-pressed={open} aria-label="Select the projects" title="Select the projects" onClick={() => setOpen(!open)}>
+          <FilterIcon />
+          {out.size > 0 && <span className="toggle-dot" />}
+        </button>
+      </div>
+      <p className="stat-note run-times-selected">{count(selected, "project")} selected</p>
+      {about && (
+        <div className="settings-hint stat-about">
+          <p>Only projects whose pipeline is finished are listed.</p>
+        </div>
+      )}
+      {open && (
+        <div className="costs-panel per-page-panel">
+          <ProjectChecks
+            items={[...projects].reverse().map((p) => projectItem(p, now))}
+            out={out}
+            onChange={onChange}
+            actions={[ageActions(projects, now)]}
+          />
+        </div>
+      )}
+    </section>
   );
 }

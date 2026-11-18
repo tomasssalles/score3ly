@@ -27,8 +27,10 @@ import { count, formatSize } from "./format";
 import { useHost } from "./host";
 import { ACCOUNT_NAMES, pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
-import { ChevronDownIcon, ExpandIcon, FilterIcon, MoreIcon, PlusIcon } from "./icons";
-import { CheckList } from "./CheckList";
+import { FilterIcon, MoreIcon, PlusIcon } from "./icons";
+import { CheckList } from "./ui/CheckList";
+import { FilterSection } from "./ui/FilterSection";
+import { Tabs } from "./ui/Tabs";
 import { OptionPicker, Picker } from "./ui/Picker";
 import {
   CONFIG_FACETS,
@@ -80,20 +82,7 @@ export function SettingsPage({ tab, onTab }: { tab: TabOf<"settings">; onTab: (t
   return (
     <div className="page-view settings">
       <h2>Settings</h2>
-      <div className="stats-tabs" role="tablist" aria-label="Settings">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={t.id === tab}
-            className="stats-tab"
-            onClick={() => onTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs tabs={TABS} current={tab} onTab={onTab} label="Settings" />
       {error && <p className="settings-error error-text">{error}</p>}
       {tab === "configs" && settings && configs && (
         <ModelConfigs
@@ -310,49 +299,18 @@ function Secrets() {
 // that can be collapsed (expanded at first, a coral dot while collapsed with anything taken out), as the statistics'
 // filters are. Each lists the values the configs have; one unticked hides the configs that have it.
 function ConfigFilterPanel({ configs, filter, onChange }: { configs: ModelConfig[]; filter: ConfigFilter; onChange: (filter: ConfigFilter) => void }) {
-  const [collapsed, setCollapsed] = useState<Set<ConfigFacet>>(new Set());
   return (
     <div className="costs-panel filter-panel">
-      {CONFIG_FACETS.map(({ id: facet, label }) => {
-        const out = filter[facet];
-        const isCollapsed = collapsed.has(facet);
-        return (
-          <div key={facet} className="filter-section">
-            <div className="costs-panel-row">
-              <button
-                type="button"
-                className="section-toggle"
-                aria-expanded={!isCollapsed}
-                onClick={() => {
-                  const next = new Set(collapsed);
-                  if (isCollapsed) next.delete(facet);
-                  else next.add(facet);
-                  setCollapsed(next);
-                }}
-              >
-                {isCollapsed ? <ExpandIcon /> : <ChevronDownIcon />}
-                {label}
-                {isCollapsed && out.length > 0 && <span className="inline-dot" aria-label="some hidden" />}
-              </button>
-            </div>
-            {!isCollapsed && (
-              <CheckList
-                allLabel="All"
-                items={facetValues(configs, facet, providerName).map((v) => ({ key: v.key, name: v.label }))}
-                isOn={(key) => !out.includes(key)}
-                setOn={(keys, on) => {
-                  const next = new Set(out);
-                  for (const key of keys) {
-                    if (on) next.delete(key);
-                    else next.add(key);
-                  }
-                  onChange({ ...filter, [facet]: [...next] });
-                }}
-              />
-            )}
-          </div>
-        );
-      })}
+      {CONFIG_FACETS.map(({ id: facet, label }) => (
+        <FilterSection key={facet} label={label} dot={filter[facet].length > 0}>
+          <CheckList
+            allLabel="All"
+            items={facetValues(configs, facet, providerName).map((v) => ({ key: v.key, name: v.label }))}
+            out={filter[facet]}
+            onOut={(out) => onChange({ ...filter, [facet]: [...out] })}
+          />
+        </FilterSection>
+      ))}
       {filtering(filter) && (
         <button type="button" className="link-button" onClick={() => onChange(NO_FILTER)}>
           Show all

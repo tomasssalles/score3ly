@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchRunTimes, type RunTimeData } from "./api";
 import { effortView } from "./effort";
-import { FinishedProjectsFilter } from "./ProjectFilter";
+import { FinishedProjectsFilter } from "./statsParts";
 import { percent, statDuration } from "./format";
 import { StatHead } from "./statsParts";
 

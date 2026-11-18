@@ -4,23 +4,27 @@
 // holding it does, as one.
 
 import type { ReactNode } from "react";
-import { CheckIcon } from "./icons";
+import { CheckIcon } from "../icons";
+import { toggled } from "./checks";
 
 export type CheckItem = { key: string; name: string; note?: string; facts?: string; amounts?: string[] };
 
 export function CheckList({
   allLabel,
   items,
-  isOn,
-  setOn,
+  out,
+  onOut,
   menu,
 }: {
   allLabel: string; // e.g. "All projects"
   items: CheckItem[];
-  isOn: (key: string) => boolean;
-  setOn: (keys: string[], on: boolean) => void;
+  out: ReadonlySet<string> | readonly string[]; // the items taken out (not selected), by key
+  onOut: (out: Set<string>) => void; // the items taken out after a tap
   menu?: ReactNode;
 }) {
+  const outSet: ReadonlySet<string> = out instanceof Set ? out : new Set(out);
+  const isOn = (key: string) => !outSet.has(key);
+  const setOn = (keys: string[], on: boolean) => onOut(toggled(outSet, keys, on));
   const on = items.filter((item) => isOn(item.key)).length;
   const all = on === items.length;
   const none = on === 0;
