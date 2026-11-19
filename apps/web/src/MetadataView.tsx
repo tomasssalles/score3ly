@@ -5,12 +5,11 @@
 // edited while looking at the page, and one "+" adds any kind of field. A field is saved when it leaves edit mode,
 // when it is confirmed or unconfirmed, and when the form closes. Saving an edit confirms the field; adding one too.
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { UnsavedNote } from "./editor/pageEditor";
+import { useEffect, useRef } from "react";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { PagesFilmstrip } from "./editor/PageViews";
-import { DropdownMenu, type MenuItem } from "./ui/DropdownMenu";
-import { Confidence, fieldActions, FieldStrip, FieldPicker, useFieldList, type Editing } from "./fieldList";
+import type { MenuItem } from "./ui/DropdownMenu";
+import { EditorRow, fieldActions, FieldListView, FieldPicker, FieldRow, useFieldList, useLayoutSystems, type Editing } from "./fieldList";
 import { metadataOutputs, type MetadataParents } from "./finishFixMetadata";
 import {
   FIELD_KINDS,
@@ -26,13 +25,10 @@ import {
   takenSystems,
   withKind,
   withSystem,
-  type FieldKind,
   type MetadataRow,
   type Systems,
 } from "./fixMetadata";
-import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./ui/icons";
 import { normalizeMetadata, shownConfidence } from "./analyze";
-import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
 
 export function MetadataView({ project, artifact, onEdited }: { project: Project; artifact: Artifact; onEdited?: () => void }) {
@@ -40,8 +36,13 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
   const parents = analysis.parents;
   const editor = artifact.editor?.step === "fix_metadata" && parents ? artifact.editor : null;
   const pages = artifact.pages ?? [];
-  const [systems, setSystems] = useState<Systems>({ pageOf: [] });
-  const [layoutError, setLayoutError] = useState<string | null>(null);
+  // The systems a piece can start at: all of them, numbered across the pages, each with its page.
+  const layouts = useLayoutSystems(
+    pages.flatMap((p) => (p.layoutSha256 ? [{ page: p.page, layoutSha256: p.layoutSha256 }] : [])),
+    !!editor,
+    analysis.sha256,
+  );
+  const systems: Systems = { pageOf: layouts.systems.map((s) => s.page) };
   const list = useFieldList<MetadataRow>(
     { sha256: analysis.sha256, load: async () => rowsOf(normalizeMetadata(await fetchJsonContent(analysis.sha256))) },
     editor && {
@@ -55,31 +56,14 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
   );
   const { rows, editing, focus } = list;
 
-  // The systems a piece can start at: all of them, numbered across the pages, each with its page.
-  useEffect(() => {
-    if (!editor) return;
-    let cancelled = false;
-    const withLayout = pages.filter((p) => p.layoutSha256);
-    Promise.all(withLayout.map((p) => fetchJsonContent(p.layoutSha256!) as Promise<PageLayout>)).then(
-      (layouts) => !cancelled && setSystems({ pageOf: layouts.flatMap((l, i) => l.systems.map(() => withLayout[i].page)) }),
-      () => !cancelled && setLayoutError("The layout couldn't be loaded."),
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [analysis.sha256]);
-
-  const error = list.error ?? layoutError;
-  if (!rows) return <div className="text-view"><p>{error ?? "Loading…"}</p></div>;
-
   const field = (index: number) => {
-    const row = rows[index];
+    const row = rows![index];
     if (editing?.index === index) {
       return (
         <FieldEditor
           key={index}
           editing={editing}
-          rows={rows}
+          rows={rows!}
           systems={systems}
           pages={pages.map((p) => p.page)}
           onChange={list.setDraft}
@@ -88,57 +72,48 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
         />
       );
     }
+    const { label, text } = shown(row);
     return (
-      <Field
+      <FieldRow
         key={index}
-        row={row}
+        className="analysis-row metadata-row"
+        label={label}
+        text={text}
+        page={<span className="field-page">p. {row.page ?? "–"}</span>}
         onOpen={focus === null ? () => list.setFocus(index) : undefined}
+        confidence={shownConfidence(row)}
         actions={
-          editor && {
+          editor &&
+          fieldActions(row, {
             edit: () => list.edit(index),
             confirm: () => list.confirm(index, !row.confirmed),
             remove: () => list.remove(index),
-          }
+          })
         }
       />
     );
   };
 
-  if (focus !== null && rows[focus]) {
-    const page = rows[focus].page;
-    return (
-      <FieldStrip field={field(focus)} editing={editing?.index === focus} onClose={() => list.setFocus(null)}>
-        <PagesFilmstrip key={`${focus}:${page}`} pages={pages} page={page ?? undefined} />
-      </FieldStrip>
-    );
-  }
-
-  const sections = sectionsOf(rows);
   return (
-    <div className="text-view analysis">
-      {editor && (
-        <div className="metadata-tools">
-          {error && <p className="field-problem error-text">{error}</p>}
-          <UnsavedNote className="field-problem error-text" state={list.saving.state} onRetry={list.saving.retry} />
-          <DropdownMenu
-            icon={<PlusIcon />}
-            label="Add a field"
-            className="metadata-add"
-            groups={SECTIONS.map((s) =>
-              FIELD_KINDS.filter((k) => k.section === s).map((k) => ({ label: k.label, onSelect: () => list.add((rows) => newRow(k, rows, systems)) })),
-            )}
-            headings={SECTIONS}
-          />
-        </div>
-      )}
-      {sections.length === 0 && <p className="muted">{editor ? "No metadata yet: add fields with +." : "No metadata was found on the pages."}</p>}
-      {sections.map((section) => (
-        <section key={section.title}>
-          <h3>{section.title}</h3>
-          <ul>{section.indices.map(field)}</ul>
-        </section>
-      ))}
-    </div>
+    <FieldListView
+      list={list}
+      error={list.error ?? layouts.error}
+      editor={!!editor}
+      add={{
+        label: "Add a field",
+        groups: SECTIONS.map((s) =>
+          FIELD_KINDS.filter((k) => k.section === s).map((k) => ({ label: k.label, onSelect: () => list.add((rows) => newRow(k, rows, systems)) })),
+        ),
+        headings: SECTIONS,
+      }}
+      sections={sectionsOf}
+      field={field}
+      strip={(index) => {
+        const page = rows![index].page;
+        return <PagesFilmstrip key={`${index}:${page}`} pages={pages} page={page ?? undefined} />;
+      }}
+      empty={{ form: "No metadata yet: add fields with +.", view: "No metadata was found on the pages." }}
+    />
   );
 }
 
@@ -146,33 +121,6 @@ export function MetadataView({ project, artifact, onEdited }: { project: Project
 function shown(row: MetadataRow): { label: string; text: string } {
   if (row.kind === "piece") return { label: row.system === null ? "Piece or movement" : `From system ${row.system}`, text: row.text };
   return { label: kindOf(row).label, text: row.text };
-}
-
-function Field({
-  row,
-  onOpen,
-  actions,
-}: {
-  row: MetadataRow;
-  onOpen?: () => void; // none in the strip, where the pages are open already
-  actions: { edit: () => void; confirm: () => void; remove: () => void } | null;
-}) {
-  const confidence = shownConfidence(row);
-  const { label, text } = shown(row);
-  return (
-    <li className="analysis-row metadata-row">
-      <span className="field-label">{label}</span>
-      <span className="field-text">{text}</span>
-      <span className="field-page">p. {row.page ?? "–"}</span>
-      {onOpen && (
-        <button type="button" className="icon-button field-open" aria-label="Show in the score" title="Show in the score" onClick={onOpen}>
-          <EyeIcon />
-        </button>
-      )}
-      <Confidence value={confidence} />
-      {actions && <DropdownMenu icon={<MoreIcon />} label={`${label}: actions`} className="field-actions" groups={fieldActions(row, actions)} />}
-    </li>
-  );
 }
 
 // A field in edit mode, in two rows (docs/stages/analyze.md): its kind, its page (a piece: its system, which sets the page) and
@@ -200,16 +148,6 @@ function FieldEditor({
   const kind = kindOf(row);
   const taken = takenSystems(rows, editing.index);
 
-  function onKeyDown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      onCancel();
-    } else if (e.key === "Enter" && e.target === text.current && !(e.target instanceof HTMLTextAreaElement)) {
-      e.preventDefault();
-      onDone();
-    }
-  }
-
   const picker = (value: string, label: string, groups: MenuItem[][], headings?: string[], className = "") => (
     <FieldPicker value={value} label={label} groups={groups} headings={headings} className={className} />
   );
@@ -217,55 +155,51 @@ function FieldEditor({
     values.map((n) => ({ label: String(n), current: n === current, disabled: disabled?.has(n), onSelect: () => pick(n) }));
 
   return (
-    <li
-      className="analysis-row editing"
-      onKeyDown={onKeyDown}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onDone();
-      }}
+    <EditorRow
+      problem={editing.problem}
+      onDone={onDone}
+      onCancel={onCancel}
+      head={
+        <>
+          {picker(
+            kind.short ?? kind.label,
+            "Kind of field",
+            SECTIONS.map((s) =>
+              FIELD_KINDS.filter((k) => k.section === s).map((k) => ({
+                label: k.label,
+                current: k.id === kind.id,
+                onSelect: () => onChange(withKind(row, k, rows, editing.index, systems)),
+              })),
+            ),
+            SECTIONS,
+            "field-kind-picker",
+          )}
+          {row.kind === "piece" ? (
+            <>
+              <span className="field-edit-label">from system</span>
+              {picker(
+                row.system === null ? "–" : String(row.system),
+                "Starts at system",
+                [numbers(systems.pageOf.map((_, i) => i + 1), row.system, (n) => onChange(withSystem(row, n, systems)), taken)],
+                undefined,
+                "number-picker",
+              )}
+            </>
+          ) : (
+            <>
+              <span className="field-edit-label">p.</span>
+              {picker(
+                row.page === null ? "–" : String(row.page),
+                "Page",
+                [[{ label: "–", current: row.page === null, onSelect: () => onChange({ ...row, page: null }) }, ...numbers(pages, row.page, (n) => onChange({ ...row, page: n }))]],
+                undefined,
+                "number-picker",
+              )}
+            </>
+          )}
+        </>
+      }
     >
-      <div className="field-edit-head">
-        {picker(
-          kind.short ?? kind.label,
-          "Kind of field",
-          SECTIONS.map((s) =>
-            FIELD_KINDS.filter((k) => k.section === s).map((k) => ({
-              label: k.label,
-              current: k.id === kind.id,
-              onSelect: () => onChange(withKind(row, k, rows, editing.index, systems)),
-            })),
-          ),
-          SECTIONS,
-          "field-kind-picker",
-        )}
-        {row.kind === "piece" ? (
-          <>
-            <span className="field-edit-label">from system</span>
-            {picker(
-              row.system === null ? "–" : String(row.system),
-              "Starts at system",
-              [numbers(systems.pageOf.map((_, i) => i + 1), row.system, (n) => onChange(withSystem(row, n, systems)), taken)],
-              undefined,
-              "number-picker",
-            )}
-          </>
-        ) : (
-          <>
-            <span className="field-edit-label">p.</span>
-            {picker(
-              row.page === null ? "–" : String(row.page),
-              "Page",
-              [[{ label: "–", current: row.page === null, onSelect: () => onChange({ ...row, page: null }) }, ...numbers(pages, row.page, (n) => onChange({ ...row, page: n }))]],
-              undefined,
-              "number-picker",
-            )}
-          </>
-        )}
-        <span className="field-edit-space" />
-        <button type="button" className="field-done" aria-label="Done" title="Done" onClick={onDone}>
-          <CheckIcon />
-        </button>
-      </div>
       {row.kind === "text:comments" ? (
         <textarea
           ref={text}
@@ -286,7 +220,6 @@ function FieldEditor({
           onChange={(e) => onChange({ ...row, text: e.target.value })}
         />
       )}
-      {editing.problem && <p className="field-problem error-text">{editing.problem}</p>}
-    </li>
+    </EditorRow>
   );
 }

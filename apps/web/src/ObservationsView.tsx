@@ -7,12 +7,11 @@
 // (fieldList.tsx).
 
 import { placeLabel, positionLabel, samePlace, type Place } from "@score3ly/prompts";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { UnsavedNote } from "./editor/pageEditor";
+import { useEffect, useRef } from "react";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { LayoutFilmstrip } from "./editor/PageViews";
-import { DropdownMenu, type MenuItem } from "./ui/DropdownMenu";
-import { Confidence, fieldActions, FieldStrip, FieldPicker, useFieldList, type Editing } from "./fieldList";
+import type { MenuItem } from "./ui/DropdownMenu";
+import { EditorRow, fieldActions, FieldListView, FieldPicker, FieldRow, useFieldList, useLayoutSystems, type Editing } from "./fieldList";
 import { observationsOutput } from "./finishFixObservations";
 import {
   addStaff,
@@ -40,9 +39,7 @@ import {
   type ObsRow,
   type ScoreSystems,
 } from "./fixObservations";
-import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./ui/icons";
 import { shownConfidence } from "./analyze";
-import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
 import { count } from "./format";
 
@@ -52,8 +49,9 @@ export function ObservationsView({ project, artifact, onEdited }: { project: Pro
   const editor = artifact.editor?.step === "fix_observations" && parent ? artifact.editor : null;
   const pages = (artifact.pages ?? []).flatMap((p) => (p.layoutSha256 ? [{ ...p, layoutSha256: p.layoutSha256 }] : []));
   const pageNumbers = pages.map((p) => p.page);
-  const [systems, setSystems] = useState<ScoreSystems>([]);
-  const [layoutError, setLayoutError] = useState<string | null>(null);
+  // The systems, numbered across the pages, with their pages and bar lines: what places are picked from.
+  const layouts = useLayoutSystems(pages, !!editor, analysis.sha256);
+  const systems: ScoreSystems = layouts.systems;
   const list = useFieldList<ObsRow>(
     { sha256: analysis.sha256, load: async () => rowsOf(normalizeObservations(await fetchJsonContent(analysis.sha256))) },
     editor && {
@@ -67,31 +65,14 @@ export function ObservationsView({ project, artifact, onEdited }: { project: Pro
   );
   const { rows, editing, focus } = list;
 
-  // The systems, numbered across the pages, with their pages and bar lines: what places are picked from.
-  useEffect(() => {
-    if (!editor) return;
-    let cancelled = false;
-    Promise.all(pages.map((p) => fetchJsonContent(p.layoutSha256) as Promise<PageLayout>)).then(
-      (layouts) =>
-        !cancelled && setSystems(layouts.flatMap((l, i) => l.systems.map((s) => ({ page: pages[i].page, barLines: s.barLines.length })))),
-      () => !cancelled && setLayoutError("The layout couldn't be loaded."),
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [analysis.sha256]);
-
-  const error = list.error ?? layoutError;
-  if (!rows) return <div className="text-view"><p>{error ?? "Loading…"}</p></div>;
-
   const field = (index: number) => {
-    const row = rows[index];
+    const row = rows![index];
     if (editing?.index === index) {
       return (
         <ItemEditor
           key={index}
           editing={editing}
-          rows={rows}
+          rows={rows!}
           systems={systems}
           pages={pageNumbers}
           onChange={list.setDraft}
@@ -110,71 +91,56 @@ export function ObservationsView({ project, artifact, onEdited }: { project: Pro
           ]
         : [];
     return (
-      <Item
+      <FieldRow
         key={index}
-        row={row}
+        className="analysis-row metadata-row obs-row"
+        label={obsKindOf(row).label}
+        text={body(row)}
         onOpen={focus === null ? () => list.setFocus(index) : undefined}
+        keepColumn
+        confidence={shownConfidence(row)}
         actions={
-          editor && {
-            groups: fieldActions(
-              row,
-              {
-                edit: () => list.edit(index),
-                confirm: () => list.confirm(index, !row.confirmed),
-                remove: () => list.remove(index, (rows, i) => removeProblem(rows, i, systems)),
-              },
-              staves,
-            ),
-          }
+          editor &&
+          fieldActions(
+            row,
+            {
+              edit: () => list.edit(index),
+              confirm: () => list.confirm(index, !row.confirmed),
+              remove: () => list.remove(index, (rows, i) => removeProblem(rows, i, systems)),
+            },
+            staves,
+          )
         }
       />
     );
   };
 
-  if (focus !== null && rows[focus]) {
-    const row = rows[focus];
-    return (
-      <FieldStrip field={field(focus)} editing={editing?.index === focus} onClose={() => list.setFocus(null)}>
-        <LayoutFilmstrip key={focus} pages={pages} focusSystem={focusSystem(row, pages, systems)} />
-      </FieldStrip>
-    );
-  }
-
-  const sections = sectionsOf(rows);
   return (
-    <div className="text-view analysis">
-      {editor && (
-        <div className="metadata-tools">
-          {error && <p className="field-problem error-text">{error}</p>}
-          <UnsavedNote className="field-problem error-text" state={list.saving.state} onRetry={list.saving.retry} />
-          <DropdownMenu
-            icon={<PlusIcon />}
-            label="Add an item"
-            className="metadata-add"
-            groups={OBS_SECTIONS.map((s) =>
-              OBS_KINDS.filter((k) => k.section === s).map((k) => ({
-                label: k.label,
-                onSelect: () => list.add((rows) => newRow(k, rows, systems, pageNumbers)),
-              })),
-            )}
-            headings={OBS_SECTIONS}
-          />
-        </div>
-      )}
-      {sections.length === 0 && <p className="muted">{editor ? "No observations yet: add items with +." : "Nothing was observed."}</p>}
-      {sections.map((section) => (
-        <section key={section.title}>
-          <h3>{section.title}</h3>
-          <ul>{section.indices.map(field)}</ul>
-        </section>
-      ))}
-    </div>
+    <FieldListView
+      list={list}
+      error={list.error ?? layouts.error}
+      editor={!!editor}
+      add={{
+        label: "Add an item",
+        groups: OBS_SECTIONS.map((s) =>
+          OBS_KINDS.filter((k) => k.section === s).map((k) => ({
+            label: k.label,
+            onSelect: () => list.add((rows) => newRow(k, rows, systems, pageNumbers)),
+          })),
+        ),
+        headings: OBS_SECTIONS,
+      }}
+      sections={sectionsOf}
+      field={field}
+      strip={(index) => <LayoutFilmstrip key={index} pages={pages} focusSystem={focusSystem(rows![index], systems)} />}
+      empty={{ form: "No observations yet: add items with +.", view: "Nothing was observed." }}
+    />
   );
 }
 
 // The system the pages open at for an item: its first place's, else the first on its page (none for the whole
 // score's items without a place).
-function focusSystem(row: ObsRow, pages: { page: number; layoutSha256: string }[], systems: ScoreSystems): number | undefined {
+function focusSystem(row: ObsRow, systems: ScoreSystems): number | undefined {
   const place = row.place ?? row.start ?? row.end ?? row.places[0];
   if (place) return place.system;
   if (row.system !== null) return row.system;
@@ -240,25 +206,6 @@ function body(row: ObsRow) {
   }
 }
 
-function Item({ row, onOpen, actions }: { row: ObsRow; onOpen?: () => void; actions: { groups: MenuItem[][] } | null }) {
-  const label = obsKindOf(row).label;
-  return (
-    <li className="analysis-row metadata-row obs-row">
-      <span className="field-label">{label}</span>
-      <span className="field-text">{body(row)}</span>
-      {onOpen ? (
-        <button type="button" className="icon-button field-open" aria-label="Show in the score" title="Show in the score" onClick={onOpen}>
-          <EyeIcon />
-        </button>
-      ) : (
-        <span />
-      )}
-      <Confidence value={shownConfidence(row)} />
-      {actions && <DropdownMenu icon={<MoreIcon />} label={`${label}: actions`} className="field-actions" groups={actions.groups} />}
-    </li>
-  );
-}
-
 // An item in edit mode: its kind (where its list has kinds) and the ✓; its places, staff, staves or page, each a line
 // of pickers; then its text (a system's instruments, one per staff).
 function ItemEditor({
@@ -284,16 +231,6 @@ function ItemEditor({
   const kinds = sameShapeKinds(row);
   // The other items as they are, for the staves the draft's system has.
   const others = rows.filter((_, i) => i !== editing.index);
-
-  function onKeyDown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      onCancel();
-    } else if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
-      e.preventDefault();
-      onDone();
-    }
-  }
 
   // The systems by page, for a picker: `pick` gets the system's number.
   const systemGroups = (current: number | null, pick: (n: number) => void, disabled?: Set<number>) => {
@@ -516,15 +453,12 @@ function ItemEditor({
   }
 
   return (
-    <li
-      className="analysis-row editing"
-      onKeyDown={onKeyDown}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onDone();
-      }}
-    >
-      <div className="field-edit-head">
-        {kinds.length > 0 ? (
+    <EditorRow
+      problem={editing.problem}
+      onDone={onDone}
+      onCancel={onCancel}
+      head={
+        kinds.length > 0 ? (
           <FieldPicker
             value={obsKindOf(row).label}
             label="Kind of item"
@@ -533,14 +467,10 @@ function ItemEditor({
           />
         ) : (
           <span className="field-edit-kind">{obsKindOf(row).label}</span>
-        )}
-        <span className="field-edit-space" />
-        <button type="button" className="field-done" aria-label="Done" title="Done" onClick={onDone}>
-          <CheckIcon />
-        </button>
-      </div>
+        )
+      }
+    >
       {lines}
-      {editing.problem && <p className="field-problem error-text">{editing.problem}</p>}
-    </li>
+    </EditorRow>
   );
 }
