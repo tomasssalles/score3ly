@@ -133,13 +133,15 @@ const hash = (value: unknown) => createHash("sha256").update(canonicalJson(value
 
 const at = (step: string, turn = 1) => stages.map((s, i) => [s, i] as const).filter(([s]) => s.step === step)[turn - 1][1];
 
-// Per stage: the hash of everything sent, and how many requests of each kind.
+// Per stage: the hash of everything sent, and how many requests of each kind. Changed once on purpose (the code
+// review's batch 29): the starts' stage keys (`LENS_VERSION` 5) and step versions (`review` and `apply_review` 3);
+// everything else the same, checked with those two fields left out.
 const EXPECTED: Record<string, { hash: string; counts: Record<string, number> }> = {
-  extract: { hash: "977d03b456c8ff84", counts: { start: 1, llm: 6, "issue-numbers": 6, outputs: 7, finish: 1 } },
-  review: { hash: "6c96e054b2a0c770", counts: { start: 1, llm: 6, "issue-numbers": 1, outputs: 6, finish: 1 } },
-  "apply_review 1": { hash: "cf7b3f52155363a0", counts: { start: 1, llm: 2, outputs: 9, finish: 1 } },
-  "apply_review 2": { hash: "8e52d71509df5e1b", counts: { start: 1, outputs: 7, finish: 1 } },
-  build_mei: { hash: "a6f52eeed9db5291", counts: { start: 1, outputs: 1, finish: 1 } },
+  extract: { hash: "7efc2f8c77a3e8c2", counts: { start: 1, llm: 6, "issue-numbers": 6, outputs: 7, finish: 1 } },
+  review: { hash: "47ee8444d7b342ac", counts: { start: 1, llm: 6, "issue-numbers": 1, outputs: 6, finish: 1 } },
+  "apply_review 1": { hash: "2dbd3b73a16ae01f", counts: { start: 1, llm: 2, outputs: 9, finish: 1 } },
+  "apply_review 2": { hash: "ad99aa3ed9c17ad9", counts: { start: 1, outputs: 7, finish: 1 } },
+  build_mei: { hash: "f9c01eee702a35a4", counts: { start: 1, outputs: 1, finish: 1 } },
 };
 
 const RUNS: [string, number, () => Promise<(r: never) => Promise<void>>][] = [

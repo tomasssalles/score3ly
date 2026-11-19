@@ -17,7 +17,9 @@ import { latest, needsApplying, placesOf, sameAnswer, systemsOf, type PlacedSyst
 import { malformedRefused, modelName } from "./review.ts";
 import { count } from "./format.ts";
 
-export const APPLY_REVIEW_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
+// 2: answers checked against their schema first, a malformed one refused (code review, batch 18). 3: a box is on the
+// systems whose boxes it overlaps, their crops only as the fallback, so the calls' windows (batch 29).
+export const APPLY_REVIEW_VERSION = 3;
 
 // The calls of the stage: per system where at least one issue that needs applying begins (the first system its boxes
 // cover), those issues, in the order of their ids. An issue whose boxes cover no system goes with the first system.

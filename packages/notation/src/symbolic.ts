@@ -6,8 +6,9 @@
 
 // Raise whenever the format changes: what the prompt describes, what the parser and the checks accept.
 // 4: a multi-measure rest is its voice's only note or rest, commands beside it allowed; endings read over every
-// stretch, "none" ones too (the code review, batch 27).
-export const LENS_VERSION = 4;
+// stretch, "none" ones too (the code review, batch 27). 5: an issue's answers keyed "a", "b", "c", … in order and its
+// boxes on at most two consecutive systems; code's issues carry their kind (batch 29).
+export const LENS_VERSION = 5;
 
 // The closed lists of tokens below are what the parser accepts, and also what `extract`'s prompt lists
 // (@score3ly/prompts, MUSIC, built from them): the two can't drift apart. Their order is the prompt's.

@@ -13,7 +13,9 @@ import type { ImageSource } from "./extract.ts";
 import { latest, placesOf, sameAnswer, systemsOf, type PlacedSystem, type StoredIssue, type StoredWarning } from "./issues.ts";
 import { count } from "./format.ts";
 
-export const REVIEW_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
+// 2: answers checked against their schema first, a malformed one refused (code review, batch 18). 3: a box is on the
+// systems whose boxes it overlaps, their crops only as the fallback; case counts in a new answer (batch 29).
+export const REVIEW_VERSION = 3;
 
 // The score as the model reads it (docs/stages/music.md, `review`, "The score as text"): per piece its staves and voices
 // with their descriptions, once; per system its staves, groups and stretches as `extract` wrote them, without the
