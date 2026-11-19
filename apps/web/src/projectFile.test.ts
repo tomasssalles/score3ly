@@ -30,3 +30,19 @@ test("a project's file: refused with a reason when it isn't one, is newer, or mi
   incomplete.content = new Map();
   await assert.rejects(unzipArchive(await zipArchive(incomplete)), /some of its content is missing/);
 });
+
+// Taken before the code review's batch 31 moved the zipping to files.ts: the entries, their order, bytes and
+// compression (8: deflated, 0: stored, the PDF), as the export wrote them.
+test("a project's file: its entries, in order, the PDF stored and the rest deflated", async () => {
+  const { unzipSync } = await import("fflate");
+  const entries: [string, number][] = [];
+  const files = unzipSync(await zipArchive(archive()), { filter: (f) => (entries.push([f.name, f.compression]), true) });
+  assert.deepEqual(entries, [
+    ["manifest.json", 8],
+    ["project.json", 8],
+    [`pdf/${"a".repeat(64)}.pdf`, 0],
+    [`content/${"b".repeat(64)}`, 8],
+  ]);
+  assert.equal(new TextDecoder().decode(files["manifest.json"]), JSON.stringify(archive().manifest, null, 2) + "\n");
+  assert.equal(new TextDecoder().decode(files["project.json"]), JSON.stringify(archive().rows, null, 2) + "\n");
+});
