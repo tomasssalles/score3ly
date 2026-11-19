@@ -8,19 +8,33 @@
 // the Transcription, each system on its own (`systems`): then every part of a measure is a measure of its own, a
 // measure split across a system break half a measure on each (`@metcon="false"`), and what points outside the system
 // is left out.
+//
+// The header is meiHeader.ts, the facsimile and how measures divide facsimile.ts.
 
 import { add, equal, fraction, less, mul, sub, ZERO, type Fraction } from "./fraction.ts";
 import { durationValue, eventsDuration, parseKey, parseTime } from "./durations.ts";
-import { stretchEdges, type Box } from "@score3ly/core";
 import type { LensStretch, LensSystem } from "./lens.ts";
 import { stretchKey, stretchOffsets, tstamp, type Run, type Score, type ScoreMeasure, type ScorePiece } from "./score.ts";
 import { BREVE, isDynamic, JUMPS, NOTE_BASES, type Accidental, type CommandName, type EVENT_COMMANDS, type Duration, type Event, type Head, type Mark, type Pitch, type Tempo } from "./symbolic.ts";
 import { el, elements, serialize, type XmlElement, type XmlNode } from "./xml.ts";
 import { firstMeasureStretch, pieceEndings, type EndingRun } from "./structure.ts";
+import { meiHead, pieceTitle, type MeiApplication, type MeiMetadata } from "./meiHeader.ts";
+import { facsimile, measureSegments, segmentParts, zoneId, type Segment } from "./facsimile.ts";
+
+export { pieceTitle, type MeiApplication, type MeiMetadata } from "./meiHeader.ts";
+export { measureSegments, zoneId, type Segment } from "./facsimile.ts";
 
 export const MEI_VERSION = "5.1";
 
-// The version of what the builder writes from the lens (this file and score.ts): raise it whenever the MEI written for
+// A measure's `@n`: its number, or a multi-measure rest's range ("12–15"); `measureRange` reads it back (the MEI view).
+export const measureNumberText = (n: number, count: number): string => (count > 1 ? `${n}–${n + count - 1}` : String(n));
+
+export function measureRange(text: string): { from: number; to: number } | null {
+  const m = /^(\d+)(?:–(\d+))?$/.exec(text.trim());
+  return m ? { from: Number(m[1]), to: Number(m[2] ?? m[1]) } : null;
+}
+
+// The version of what the builder writes from the lens (this file, meiHeader.ts, facsimile.ts and score.ts): raise it whenever the MEI written for
 // the same answers changes. In `build_mei`'s stage key (apps/web engrave.ts), beside the lens's own version.
 // 1: as the code review's batch 27 found it, with the endings read over every stretch.
 export const MEI_BUILDER_VERSION = 1;
@@ -38,33 +52,6 @@ export const BEYOND_BASIC = {
   ],
 };
 
-// The metadata as the header needs it (`analyze`'s or `fix_metadata`'s, without pages and confidences).
-export type MeiMetadata = {
-  titles: { text: string; type: "main" | "subtitle" | "alternative" | "translated" }[];
-  people: { name: string; role: "composer" | "arranger" | "editor" | "lyricist" | "librettist" | "translator" | "other" }[];
-  pieces: { title: string; system: number }[];
-  catalogueNumbers?: { text: string }[];
-  dedications?: { text: string }[];
-  instrumentation?: { text: string }[];
-  compositionDates?: { text: string }[];
-  publishers?: { text: string }[];
-  places?: { text: string }[];
-  dates?: { text: string }[];
-  plateNumbers?: { text: string }[];
-  notices?: { text: string }[];
-  comments?: { text: string }[];
-};
-
-// How the file was made (`encodingDesc/appInfo`).
-// A piece's title, the same in the header's `work` and the music's `mdiv`: the metadata's piece starting at its first
-// system, trimmed (the first, should two start there: `analyze` and `fix_metadata` refuse that); none when there is
-// no such piece or its title is empty.
-export function pieceTitle(metadata: MeiMetadata | null | undefined, system: number): string | undefined {
-  return metadata?.pieces.find((p) => p.system === system)?.title.trim() || undefined;
-}
-
-export type MeiApplication = { name: string; version: string; url: string };
-
 export type MeiOptions = {
   metadata?: MeiMetadata | null;
   application?: MeiApplication | null;
@@ -77,7 +64,7 @@ export function buildMei(score: Score, options: MeiOptions = {}): XmlElement {
   const only = options.systems ? new Set(options.systems) : null;
   const pieces = score.pieces.filter((p) => !only || p.systems.some((s) => only.has(s.number)));
   const music = pieces.map((piece) => new PieceWriter(score, piece, only, options.metadata ?? null).mdiv());
-  const header = header_(score, options.metadata ?? null, options.application ?? null, !only);
+  const header = meiHead(score, options.metadata ?? null, options.application ?? null, !only);
   const body = el("music", {}, [!only ? facsimile(score) : null, el("body", {}, music)]);
   return el("mei", { xmlns: MEI_NS, meiversion: MEI_VERSION }, [header, body]);
 }
@@ -92,143 +79,6 @@ export function withoutBeyondBasic(root: XmlElement): XmlElement {
     children: e.children.flatMap((c): XmlNode[] => (typeof c === "string" ? [c] : BEYOND_BASIC.elements.includes(c.name) ? [] : [strip(c)])),
   });
   return strip(root);
-}
-
-// --- The header --------------------------------------------------------------------------------------------------
-
-const TITLE_TYPES: Record<MeiMetadata["titles"][number]["type"], string> = { main: "main", subtitle: "subordinate", alternative: "alternative", translated: "translated" };
-
-function header_(score: Score, m: MeiMetadata | null, app: MeiApplication | null, full: boolean): XmlElement {
-  const texts = (list: { text: string }[] | undefined) => (list ?? []).map((t) => t.text.trim()).filter(Boolean);
-  const titles = (m?.titles ?? []).filter((t) => t.text.trim());
-  const titleEls = () =>
-    titles.length > 0 ? titles.map((t) => el("title", { type: TITLE_TYPES[t.type] }, [t.text.trim()])) : [el("title", {}, ["Untitled"])];
-  const people = (m?.people ?? []).filter((p) => p.name.trim());
-  const named = (role: string) => people.filter((p) => p.role === role).map((p) => p.name.trim());
-  const respStmt = (roles: string[]) => {
-    const list = people.filter((p) => roles.includes(p.role));
-    return list.length ? el("respStmt", {}, list.map((p) => el("persName", { role: p.role }, [p.name.trim()]))) : null;
-  };
-  const fileDesc = el("fileDesc", {}, [
-    el("titleStmt", {}, [
-      ...titleEls(),
-      ...named("composer").map((n) => el("composer", {}, [n])),
-      ...named("lyricist").map((n) => el("lyricist", {}, [n])),
-      ...named("arranger").map((n) => el("arranger", {}, [n])),
-      respStmt(["librettist", "translator", "editor", "other"]),
-    ]),
-    el("pubStmt"),
-    full && texts(m?.comments).length ? el("notesStmt", {}, texts(m?.comments).map((t) => el("annot", {}, [t]))) : null,
-  ]);
-  if (!full) return el("meiHead", {}, [fileDesc]);
-
-  const encodingDesc = app
-    ? el("encodingDesc", {}, [el("appInfo", {}, [el("application", { version: app.version }, [el("name", {}, [app.name]), el("ptr", { target: app.url })])])])
-    : null;
-  const creation = [...texts(m?.dedications).map((t) => el("dedication", {}, [t])), ...texts(m?.compositionDates).map((t) => el("date", {}, [t]))];
-  const work = el("work", { "xml:id": "work" }, [
-    ...texts(m?.catalogueNumbers).map((t) => el("identifier", {}, [t])),
-    ...titleEls(),
-    ...named("composer").map((n) => el("composer", {}, [n])),
-    ...named("lyricist").map((n) => el("lyricist", {}, [n])),
-    ...named("librettist").map((n) => el("librettist", {}, [n])),
-    ...named("arranger").map((n) => el("arranger", {}, [n])),
-    ...named("translator").map((n) => el("contributor", { role: "translator" }, [n])),
-    creation.length ? el("creation", {}, creation) : null,
-    texts(m?.instrumentation).length ? el("perfMedium", {}, [el("perfResList", {}, texts(m?.instrumentation).map((t) => el("perfRes", {}, [t])))]) : null,
-    score.pieces.length > 1 || (m?.pieces.length ?? 0) > 0
-      ? el(
-          "componentList",
-          {},
-          score.pieces.map((p) => el("work", { "xml:id": `work-piece-${p.index + 1}` }, [el("title", {}, [pieceTitle(m, p.systems[0].number) ?? `Piece ${p.index + 1}`])])),
-        )
-      : null,
-  ]);
-  const plate = texts(m?.plateNumbers);
-  const pub = [...texts(m?.publishers).map((t) => el("publisher", {}, [t])), ...texts(m?.places).map((t) => el("pubPlace", {}, [t])), ...texts(m?.dates).map((t) => el("date", {}, [t]))];
-  const notices = texts(m?.notices);
-  const manifestation = el("manifestation", {}, [
-    el("titleStmt", {}, [...titleEls(), respStmt(["editor", "other"])]),
-    pub.length ? el("pubStmt", {}, pub) : null,
-    notices.length ? el("availability", {}, notices.map((t) => el("useRestrict", {}, [t]))) : null,
-    plate.length ? el("physDesc", {}, plate.map((t) => el("plateNum", {}, [t]))) : null,
-  ]);
-  return el("meiHead", {}, [fileDesc, encodingDesc, el("workList", {}, [work]), el("manifestationList", {}, [manifestation])]);
-}
-
-// --- The facsimile -----------------------------------------------------------------------------------------------
-
-// Our coordinate space: fractions of the straightened page, scaled to whole numbers (MEI wants them so).
-const FACS_SCALE = 10000;
-const scaled = (v: number) => Math.round(v * FACS_SCALE);
-export const zoneId = (system: number, stretches: number[]) => `z${system}t${stretches[0]}-${stretches[stretches.length - 1]}`;
-
-// A surface per page ("surface 3 is page 3 of the project's PDF"), a zone per MEI measure and system it is on.
-function facsimile(score: Score): XmlElement | null {
-  const pages = new Map<number, XmlElement[]>();
-  for (const piece of score.pieces) {
-    for (const m of piece.measures) {
-      for (const segment of measureSegments(score, m, false)) {
-        for (const part of segmentParts(segment)) {
-          const system = score.system(part.system);
-          const box = partBox(system.box, system.barLines, part.stretches);
-          if (!box) continue;
-          const zones = pages.get(system.page) ?? [];
-          zones.push(el("zone", { "xml:id": zoneId(part.system, part.stretches), ulx: scaled(box.left), uly: scaled(box.top), lrx: scaled(box.right), lry: scaled(box.bottom) }));
-          pages.set(system.page, zones);
-        }
-      }
-    }
-  }
-  if (pages.size === 0) return null;
-  return el(
-    "facsimile",
-    {},
-    [...pages.entries()].sort((a, b) => a[0] - b[0]).map(([page, zones]) => el("surface", { "xml:id": `surface-${page}`, n: page, ulx: 0, uly: 0, lrx: FACS_SCALE, lry: FACS_SCALE }, zones)),
-  );
-}
-
-// A measure as MEI measures (docs/notation.md, "MEI"): an MEI measure runs from bar line to bar line, so a measure is
-// divided at every bar line printed inside it (a repeat after a pickup), each part `@metcon="false"` with the
-// measure's number. A system break inside a measure is layout, not a bar line: the full score keeps such a measure
-// whole, with the break inside it; a system alone (`atSystems`) has only its own part.
-export type Segment = { system: number; stretch: number }[];
-
-export function measureSegments(score: Score, m: ScoreMeasure, atSystems: boolean): Segment[] {
-  const segments: Segment[] = [];
-  let current: Segment = [];
-  for (const part of m.parts) {
-    for (const stretch of part.stretches) {
-      const prev = current[current.length - 1];
-      const divides = prev && (prev.system !== part.system ? atSystems : score.stretch(prev.system, prev.stretch).stretch.rightBarLine !== "none");
-      if (divides) {
-        segments.push(current);
-        current = [];
-      }
-      current.push({ system: part.system, stretch });
-    }
-  }
-  if (current.length) segments.push(current);
-  return segments;
-}
-
-// A segment's stretches by system.
-function segmentParts(segment: Segment): { system: number; stretches: number[] }[] {
-  const parts: { system: number; stretches: number[] }[] = [];
-  for (const s of segment) {
-    const last = parts[parts.length - 1];
-    if (last && last.system === s.system) last.stretches.push(s.stretch);
-    else parts.push({ system: s.system, stretches: [s.stretch] });
-  }
-  return parts;
-}
-
-function partBox(box: Box | null, barLines: number[], stretches: number[]): Box | null {
-  if (!box) return null;
-  const x = stretchEdges(box, barLines);
-  const first = stretches[0];
-  const last = stretches[stretches.length - 1];
-  return { left: x[first - 1] ?? box.left, right: x[last] ?? box.right, top: box.top, bottom: box.bottom };
 }
 
 // --- Values ------------------------------------------------------------------------------------------------------
@@ -1053,7 +903,7 @@ class PieceWriter {
     const divided = segments.length > 1;
     const attrs: Record<string, string | number | undefined> = {
       "xml:id": `p${piece.index + 1}m${m.index + 1}${finest ? `-s${segment[0].system}t${segment[0].stretch}` : ""}`,
-      n: m.count > 1 ? `${m.n}–${m.n + m.count - 1}` : m.n,
+      n: measureNumberText(m.n, m.count),
       metcon: m.kind === "incomplete" || divided ? "false" : undefined,
       left: startRepeat ? "rptstart" : undefined,
       // A start repeat between two measures is the next one's left bar line.

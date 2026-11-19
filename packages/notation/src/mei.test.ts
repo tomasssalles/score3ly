@@ -2,11 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { validateXML } from "xmllint-wasm";
-import { BEYOND_BASIC, buildMei, withoutBeyondBasic } from "./mei.ts";
+import { BEYOND_BASIC, buildMei, measureNumberText, measureRange, withoutBeyondBasic } from "./mei.ts";
 import { box, METADATA, richScore, stretch, system, voice } from "./testScore.ts";
 import { buildScore } from "./score.ts";
 import { DYNAMICS, EVENT_COMMANDS } from "./symbolic.ts";
-import { elements, serialize, type XmlElement } from "./xml.ts";
+import { elements, escapeAttr, serialize, unescapeAttr, type XmlElement } from "./xml.ts";
 
 const schema = (name: string) => readFileSync(new URL(`../schemas/${name}.rng`, import.meta.url), "utf8");
 const SCHEMAS = { all: schema("mei-all"), basic: schema("mei-basic") };
@@ -220,4 +220,20 @@ test("a piece's title is one in the header and the music, the first where a syst
   // Without one: "Piece n" in the header, no label in the music.
   assert.deepEqual(named(find(root, "work-piece-1")!, "title")[0].children, ["Piece 1"]);
   assert.equal(attrOf(find(root, "piece-1"), "label"), undefined);
+});
+
+// Code review, group 21 #8: the file format's small contracts, written and read by one pair each.
+test("a measure's number reads back, a multi-measure rest's range too", () => {
+  assert.deepEqual(measureRange(measureNumberText(7, 1)), { from: 7, to: 7 });
+  assert.deepEqual(measureRange(measureNumberText(12, 4)), { from: 12, to: 15 });
+  assert.equal(measureNumberText(12, 4), "12–15");
+  assert.equal(measureRange("x"), null);
+  assert.equal(measureRange(""), null);
+});
+
+test("an attribute's text reads back as it was escaped", () => {
+  for (const text of ['a "quote" <tag> & more', "tab\there\r\nand a new line", "&amp; written by a person", "ü, ♩ and 𝄞"]) {
+    assert.equal(unescapeAttr(escapeAttr(text)), text);
+  }
+  assert.equal(unescapeAttr("&apos;&#65;&#x42;"), "'AB");
 });

@@ -2,14 +2,12 @@
 // (pieces and measures, from the file's own `mdiv` and `measure @n`), the elements and their ids (to go between a
 // line and the engraving), and searching. The file is the builder's, one element per line, so lines are enough.
 
-const attr = (line: string, name: string): string | null => {
-  const m = new RegExp(`\\s${name.replace(".", "\\.")}="([^"]*)"`).exec(line);
-  return m ? unescape(m[1]) : null;
-};
+import { measureRange, unescapeAttr } from "@score3ly/notation";
 
-function unescape(text: string): string {
-  return text.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#10;/g, "\n").replace(/&amp;/g, "&");
-}
+const attr = (line: string, name: string): string | null => {
+  const m = new RegExp(`\\s${name.replaceAll(".", "\\.")}="([^"]*)"`).exec(line);
+  return m ? unescapeAttr(m[1]) : null;
+};
 
 export type MeiIndex = {
   pieces: { n: number; label: string | null; line: number }[];
@@ -81,8 +79,8 @@ export function elementsAt(index: MeiIndex, line: number): { line: number; id: s
 export function findMeasure(index: MeiIndex, piece: number, n: number): number | null {
   for (const m of index.measures) {
     if (m.piece !== piece) continue;
-    const [from, to] = m.n.split("–").map(Number);
-    if (from === n || (to !== undefined && from <= n && n <= to)) return m.line;
+    const range = measureRange(m.n);
+    if (range && range.from <= n && n <= range.to) return m.line;
   }
   return null;
 }

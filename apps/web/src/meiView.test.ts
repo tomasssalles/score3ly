@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { buildScore, meiString, type LensSystem } from "@score3ly/notation";
 import { elementsAt, findMeasure, indexMei, lineOfId, search } from "./meiView.ts";
 
 const FILE = `<mei>
@@ -72,4 +73,20 @@ test("searching ignores case", () => {
     { line: 1, start: 1, end: 5 },
     { line: 1, start: 8, end: 12 },
   ]);
+});
+
+const ONE_SYSTEM = {
+  startRepeat: false,
+  staves: [{ staff: 1, description: null, label: null, clef: "treble", key: "0", time: "4/4" }],
+  groups: [],
+  stretches: [{ stretch: 1, class: "new", kind: "normal", printedNumber: null, measureNumber: null, changes: [], ending: null, rightBarLine: "single", voices: [{ voice: 1, staff: 1, description: null, music: "c'1" }] }],
+  lastMeasureContinues: false,
+  issues: [],
+} as unknown as LensSystem;
+
+// Code review, group 21 #8: the MEI view read back only some of what the builder escapes (a tab, a carriage return).
+test("a piece's label reads back as the builder wrote it, whatever it holds", () => {
+  const label = 'Tab\there, "quoted" <&> and\r\nnew line';
+  const index = indexMei(meiString(buildScore([{ number: 1, page: 1, box: null, barLines: [], answer: ONE_SYSTEM }], [1]), { metadata: { titles: [], people: [], pieces: [{ title: label, system: 1 }] } }).split("\n"));
+  assert.deepEqual(index.pieces.map((p) => p.label), [label]);
 });

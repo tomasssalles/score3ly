@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiStage } from "./api.ts";
-import { downloadName, engraveStageKey, latestMei, meiMetadata, meiNote, pdfPageCount, withoutDate } from "./engrave.ts";
+import { downloadName, engraveStageKey, latestMei, meiMetadata, pdfPageCount, withoutDate } from "./engrave.ts";
 import { pdfRecipe } from "./recipes.ts";
 import { FIELD_KINDS, metadataOf, newRow, type MetadataRow } from "./fixMetadata.ts";
 
@@ -32,20 +32,6 @@ test("the PDF has no date, its offsets kept: the same recipe gives the same byte
   assert.ok(!out.includes("CreationDate") && !out.includes("2026"));
   assert.ok(out.includes("<< /Producer (jsPDF)"));
   assert.equal(pdfPageCount("<< /Type /Pages /Kids [3 0 R 5 0 R] >> << /Type /Page >> << /Type /Page /Parent 2 0 R >>"), 2);
-});
-
-test("an edited MEI's result: its pieces and measures, a multi-measure rest counting each", () => {
-  const mei = [
-    '<mdiv xml:id="piece-1" n="1">',
-    '  <measure xml:id="p1m1" n="1">',
-    '  <measure xml:id="p1m2-s1t2" n="2">',
-    '  <measure xml:id="p1m2-s1t3" n="2">',
-    '  <measure xml:id="p1m3" n="3–5">',
-    '<mdiv xml:id="piece-2" n="2">',
-    '  <measure xml:id="p2m1" n="1">',
-  ].join("\n");
-  assert.equal(meiNote(mei), "2 pieces · 6 measures");
-  assert.equal(meiNote('<mdiv n="1">\n<measure n="1">'), "1 measure");
 });
 
 test("the downloads' names: the project's name, then what the file is, never `.s3l` (an export's)", () => {

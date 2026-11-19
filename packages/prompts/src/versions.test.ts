@@ -7,7 +7,7 @@
 //
 // What is hashed: every text a stage sends that doesn't depend on the project (system prompts, fixed texts), the text
 // builders on fixed inputs (their wording around the request), the images' labels, and the answer's schema(s). Not
-// the limits on output tokens or the rounds: those are parameters, not the prompt.
+// the limits on output tokens: a parameter, not the prompt.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

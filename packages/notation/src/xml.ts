@@ -24,6 +24,16 @@ export function escapeAttr(text: string): string {
   return escapeText(text).replace(/"/g, "&quot;").replace(/\n/g, "&#10;").replace(/\t/g, "&#9;").replace(/\r/g, "&#13;");
 }
 
+// The inverse of `escapeAttr` (and of `escapeText`), for readers of the files the builder writes (the MEI view): the
+// five named entities and character references, `&amp;` last.
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+
+export function unescapeAttr(text: string): string {
+  return text.replace(/&(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);/g, (whole, name: string) =>
+    name[0] !== "#" ? ENTITIES[name] : String.fromCodePoint(name[1] === "x" ? parseInt(name.slice(2), 16) : Number(name.slice(1))),
+  );
+}
+
 // Indented, one element per line; an element with text keeps its content on its line.
 export function serialize(root: XmlElement): string {
   const lines: string[] = ['<?xml version="1.0" encoding="UTF-8"?>'];

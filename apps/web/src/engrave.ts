@@ -13,7 +13,6 @@ import type { PdfRecipe } from "./recipes.ts";
 import { normalizeMetadata } from "./analyze.ts";
 import { keyOf, pageOfItem, systemOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
-import { indexMei } from "./meiView.ts";
 import { count } from "./format.ts";
 
 export const BUILD_MEI_VERSION = 1;
@@ -163,19 +162,6 @@ export function meiMetadata(stored: unknown): MeiMetadata {
 export function engraveNote(score: Score): string {
   const measures = score.pieces.reduce((n, p) => n + p.measures.reduce((k, m) => k + m.count, 0), 0);
   return [...(score.pieces.length > 1 ? [count(score.pieces.length, "piece")] : []), count(measures, "measure")].join(" · ");
-}
-
-// The same for an MEI file edited by hand (`fix_mei`): its pieces (`mdiv`) and measures (`measure @n`, a
-// multi-measure rest's range counting each, a measure divided by a bar line inside it once).
-export function meiNote(text: string): string {
-  const index = indexMei(text.split("\n"));
-  const numbers = new Set<string>();
-  for (const m of index.measures) {
-    const [from, to = from] = m.n.split("–").map(Number);
-    if (!Number.isInteger(from) || !Number.isInteger(to)) numbers.add(`${m.piece}/line ${m.line}`); // a number edited away
-    else for (let n = from; n <= to; n++) numbers.add(`${m.piece}/${n}`);
-  }
-  return [...(index.pieces.length > 1 ? [count(index.pieces.length, "piece")] : []), count(numbers.size, "measure")].join(" · ");
 }
 
 // A file name from the project's name: what a file system would refuse is replaced.
