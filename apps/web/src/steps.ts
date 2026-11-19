@@ -6,7 +6,7 @@ import type { ApiStage } from "./api";
 import type { Artifact, StageKind } from "./pipeline";
 import { whoOf, type ChainStage } from "./attribution.ts";
 import { configError, configOf, resolveConfig, MAX_DPI, MIN_DPI } from "./rasterize.ts";
-import type { PageRecipe } from "./recipes.ts";
+import type { PageRecipe, PdfRecipe } from "./recipes.ts";
 import { FIX_LAYOUT_VERSION } from "./fixLayout.ts";
 import { analyzeOutputs, FIX_METADATA_VERSION } from "./fixMetadata.ts";
 import { FIX_OBSERVATIONS_VERSION } from "./fixObservations.ts";
@@ -463,12 +463,13 @@ const engraveStep: StepDeclaration = {
     read: (stored) => engraveConfigOf(stored),
     check: () => null,
   },
-  // The PDF, made from its recipe (the MEI it engraved and the config), shown as the file it is.
+  // The PDF, made from its stored recipe (the MEI it engraved and the page size), shown as the file it is. Made by
+  // today's code: a recipe of other versions or options isn't marked (decided; docs/stages/engrave.md).
   artifacts: (stage) => {
     const pdf = stage.outputs.find((o) => o.item === "" && o.type === "pdf" && o.recipe);
-    const recipe = pdf?.recipe as { mei?: string } | undefined;
-    if (!recipe?.mei) return [];
-    return [{ id: `${stage.id}.pdf`, title: "PDF", kind: "pdf", count: 1, engraving: { view: "pdf", meiSha256: recipe.mei, config: engraveConfigOf(stage.config) } }];
+    const recipe = pdf?.recipe as Partial<PdfRecipe> | undefined;
+    if (typeof recipe?.mei !== "string") return [];
+    return [{ id: `${stage.id}.pdf`, title: "PDF", kind: "pdf", count: 1, engraving: { view: "pdf", meiSha256: recipe.mei, config: engraveConfigOf(recipe.config ?? null) } }];
   },
 };
 

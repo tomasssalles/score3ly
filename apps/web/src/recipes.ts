@@ -5,7 +5,7 @@
 
 import type { Box, LayoutSystem } from "@score3ly/core";
 import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION, type SizeLimit } from "@score3ly/imaging";
-import type { EngraveConfig } from "./engravePage.ts";
+import { pageOptions, type EngraveConfig } from "./engravePage.ts";
 import { RASTERIZE_VERSION } from "./rasterize.ts";
 import { RENDERING_VERSION, VEROVIO_VERSION } from "./rendering.ts";
 import { boxesOnCrop } from "./transcription.ts";
@@ -96,9 +96,12 @@ export function layoutPageRecipe(page: ModelPageRecipe, systems: LayoutSystem[],
 // Our PDF code's version: a change of how the engraving's pages become a PDF makes it anew.
 export const PDF_VERSION = 1;
 
-// `engrave`'s PDF (docs/stages/engrave.md): the MEI, the page size, and the versions of the code that make it.
-export type PdfRecipe = { mei: string; config: EngraveConfig; verovio: string; rendering: number; pdf: number };
+// `engrave`'s PDF (docs/stages/engrave.md): the MEI, the page size, Verovio's options for it, and the versions of the
+// code that make it. Stored as `engrave`'s output, and read back for its artifact (the MEI and the page size); the PDF
+// is always made by today's code, which a stored recipe of other versions or options doesn't describe (decided: such
+// a stage stays shown as done).
+export type PdfRecipe = { mei: string; config: EngraveConfig; options: Record<string, unknown>; verovio: string; rendering: number; pdf: number };
 
 export function pdfRecipe(meiSha256: string, config: EngraveConfig): PdfRecipe {
-  return { mei: meiSha256, config, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION, pdf: PDF_VERSION };
+  return { mei: meiSha256, config, options: pageOptions(config), verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION, pdf: PDF_VERSION };
 }

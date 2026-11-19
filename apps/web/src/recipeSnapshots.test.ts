@@ -138,8 +138,12 @@ function literals(): Record<string, unknown> {
       margins: MARGINS,
     };
   }
-  for (const pageSize of ["a4", "letter"]) {
-    out[`pdf ${pageSize}`] = { mei: "b7e1".repeat(16), config: { pageSize }, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION, pdf: 1 };
+  // The PDF's recipe holds Verovio's options since the code review's batch 31 (D13).
+  const size = { a4: [2100, 2970], letter: [2159, 2794] };
+  for (const pageSize of ["a4", "letter"] as const) {
+    const [pageWidth, pageHeight] = size[pageSize];
+    const options = { breaks: "auto", pageWidth, pageHeight, scale: 40, footer: "none", svgViewBox: true };
+    out[`pdf ${pageSize}`] = { mei: "b7e1".repeat(16), config: { pageSize }, options, verovio: VEROVIO_VERSION, rendering: RENDERING_VERSION, pdf: 1 };
   }
   return out;
 }
@@ -210,7 +214,7 @@ async function snapshot(all: Record<string, unknown>): Promise<Record<string, st
 
 const EXPECTED: Record<string, string> = {
   count: "344",
-  all: "0438f85fb1b730dd",
+  all: "3059d92b62a49048",
   page: "7f91305dd692dadf",
   straight: "429d775f9df8fabc",
   modelPage: "5ee351a6d52adc0e",
@@ -219,7 +223,7 @@ const EXPECTED: Record<string, string> = {
   layoutPage: "26451386be63b006",
   extract: "78e86f13a885776a",
   review: "f226cf6f5f627e5a",
-  pdf: "14968ec0228100c2",
+  pdf: "9d2f2676e202e5e5", // batch 31: the page options in the PDF's recipe (D13)
 };
 
 test("the images' recipes are what they were", async () => {

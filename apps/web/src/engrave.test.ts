@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiStage } from "./api.ts";
 import { engraveStageKey, latestMei, meiMetadata } from "./engrave.ts";
-import { pdfPageCount, withoutDate } from "./engravePage.ts";
+import { pageOptions, pdfPageCount, withoutDate } from "./engravePage.ts";
+import { keyOf } from "@score3ly/core";
 import { pdfRecipe } from "./recipes.ts";
 import { FIELD_KINDS, metadataOf, newRow, type MetadataRow } from "./fixMetadata.ts";
 
@@ -35,10 +36,11 @@ test("the PDF has no date, its offsets kept: the same recipe gives the same byte
   assert.equal(pdfPageCount("<< /Type /Pages /Kids [3 0 R 5 0 R] >> << /Type /Page >> << /Type /Page /Parent 2 0 R >>"), 2);
 });
 
-// Taken before the code review's batch 28 moved the key out of runEngrave.ts: the same recipe, the same key.
+// Taken before the code review's batch 28 moved the key out of runEngrave.ts: the same recipe, the same key. Batch 31
+// changed both (the page options in the PDF's recipe, D13).
 test("engrave's stage key: the step, its version and the PDF's recipe", async () => {
-  assert.equal(await engraveStageKey(pdfRecipe("ab".repeat(32), { pageSize: "a4" })), "b31fe18c55c6eedfd27e1fa6db54c65d40244fc58a3975e1c602f1d083f747eb");
-  assert.equal(await engraveStageKey(pdfRecipe("ab".repeat(32), { pageSize: "letter" })), "8d648ea0349be7d8b2379d8575fa90a6228ef678485b996ee1982a8a902d0d2e");
+  assert.equal(await engraveStageKey(pdfRecipe("ab".repeat(32), { pageSize: "a4" })), "a8529c69dadfc07a05eb92d65c970987d68269be2fd95ade640b807aabce7cd9");
+  assert.equal(await engraveStageKey(pdfRecipe("ab".repeat(32), { pageSize: "letter" })), "93905efcf0b8fac59dd194efabb12bc7c8029b1d352bd5d286593572756752ce");
 });
 
 // Code review, D26: `meiMetadata` was tested on nothing; here on what `fix_metadata`'s form stores.
@@ -77,4 +79,14 @@ test("the MEI's header takes the form's metadata: every field without its page a
   const analyzed = { ...stored, pieces: [], comments: undefined, titles: [{ text: "Kinderscenen", type: "main", page: 1, confidence: "high" }] };
   assert.deepEqual(meiMetadata(analyzed).titles, [{ text: "Kinderscenen", type: "main" }]);
   assert.deepEqual(meiMetadata(analyzed).comments, []);
+});
+
+// Code review, D13: the PDF's recipe left out Verovio's options, so a change to them reached neither the PDF's key on the
+// device nor `engrave`'s stage key, and done stages kept the old engraving.
+test("the PDF's recipe holds the page options: a changed option changes the PDF's key and engrave's", async () => {
+  const recipe = pdfRecipe("ab".repeat(32), { pageSize: "a4" });
+  assert.deepEqual(recipe.options, pageOptions({ pageSize: "a4" }));
+  const changed = { ...recipe, options: { ...recipe.options, scale: 41 } };
+  assert.notEqual(await keyOf(changed), await keyOf(recipe));
+  assert.notEqual(await engraveStageKey(changed), await engraveStageKey(recipe));
 });

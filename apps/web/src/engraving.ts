@@ -15,14 +15,17 @@ export async function engravedPages(engraving: Engraving): Promise<string[]> {
   return renderPages(await fetchTextContent(engraving.meiSha256), pageOptions(engraving.config));
 }
 
+// The PDF's key on the device: its recipe's.
+const pdfKey = (engraving: Engraving): Promise<string> => keyOf(pdfRecipe(engraving.meiSha256, engraving.config));
+
 // The PDF, from the device's cache, or null when it isn't there.
 export async function cachedEngravedPdf(engraving: Engraving): Promise<Blob | null> {
-  return cachedPdfFile(await keyOf(pdfRecipe(engraving.meiSha256, engraving.config)));
+  return cachedPdfFile(await pdfKey(engraving));
 }
 
 // The PDF: from the cache, else made (Verovio's pages, then the PDF) and cached.
 export async function engravedPdf(engraving: Engraving): Promise<Blob> {
-  const key = await keyOf(pdfRecipe(engraving.meiSha256, engraving.config));
+  const key = await pdfKey(engraving);
   const cached = await cachedPdfFile(key);
   if (cached) return cached;
   const pdf = await pdfOfPages(await engravedPages(engraving), engraving.config.pageSize, key.slice(0, 32));
