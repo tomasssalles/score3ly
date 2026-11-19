@@ -6,11 +6,12 @@ import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiSta
 import { fixedLayout, systemsChanged } from "./fixLayout";
 import { fixNote } from "./format";
 import type { PageLayout } from "./layout";
+import { latestStage } from "./stageInputs";
 
 // Records what is missing and returns the card's note.
 export async function finishFixLayout(project: Project, stage: ApiStage, pipeline: ApiPipeline): Promise<string> {
   const index = pipeline.stages.findIndex((s) => s.id === stage.id);
-  const layout = pipeline.stages.slice(0, index).reverse().find((s) => s.step === "layout");
+  const layout = latestStage(pipeline.stages.slice(0, index), ["layout"]);
   if (!layout) throw new Error("There is no layout before this stage.");
   const own = new Map(stage.outputs.filter((o) => o.type === "layout").map((o) => [o.item, o]));
   const pages = layout.outputs.filter((o) => o.type === "layout" && o.contentSha256);

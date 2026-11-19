@@ -33,30 +33,22 @@ import {
   type StoredObservations,
 } from "./analyze";
 import { fetchJsonContent, putJson } from "./api";
-import { modelKeyOf, normalized, pageItem, pageOfItem } from "@score3ly/core";
+import { modelKeyOf, normalized, pageItem } from "@score3ly/core";
 import { firstNumbers, numberSystems, type PageLayout } from "./layout";
 import { ask, plannedSizeProblem, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor } from "./requestLimits";
 import { layoutPage, modelPage } from "./pageImages";
 import { imageVersions, layoutPageRecipe, modelPageRecipe, straightRecipe, type PageRecipe } from "./recipes";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
-
-// The steps whose layout `analyze` reads: the latest before it counts.
-const LAYOUT_STEPS = ["layout", "fix_layout"];
+import { musicSources } from "./stageInputs";
 
 
 export async function runAnalyze(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
-  const earlier = pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id)).reverse();
-  const rasterize = earlier.find((s) => s.step === "rasterize");
+  // The page images and the latest layout before it, by page.
+  const { rasterize, layout: layoutStage, pages } = musicSources(pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id)));
   if (!rasterize || rasterize.status !== "done") throw new CannotStart("there are no page images: Rasterize hasn't run.");
-  const layoutStage = earlier.find((s) => LAYOUT_STEPS.includes(s.step));
   if (!layoutStage || layoutStage.status !== "done") throw new CannotStart("the layout hasn't been found yet.");
-  const images = new Map(rasterize.outputs.filter((o) => o.type === "page_image").map((o) => [o.item, o]));
-  const pages = layoutStage.outputs
-    .filter((o) => o.type === "layout" && o.contentSha256 && images.get(o.item)?.recipe)
-    .map((o) => ({ output: o, image: images.get(o.item)!, page: pageOfItem(o.item) ?? 0 }))
-    .sort((a, b) => a.page - b.page);
   if (pages.length === 0) throw new CannotStart("the layout has no pages.");
   const layouts = await Promise.all(pages.map((p) => fetchJsonContent(p.output.contentSha256!) as Promise<PageLayout>));
   const layoutPages = layouts.map((l, i) => ({ page: pages[i].page, systems: l.systems }));

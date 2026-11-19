@@ -1,9 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pageOfItem } from "@score3ly/core";
+import { createHash } from "node:crypto";
+import { pageOfItem, type StepId } from "@score3ly/core";
 import type { ApiOutput, ApiStage } from "./api.ts";
 import { applyReviewInputIds, latestOutput, latestStage, musicSources, PRODUCERS, reviewInputIds } from "./stageInputs.ts";
 import { fakeFixture } from "./testing/fixture.ts";
+import { carriedInputs, STEPS } from "./steps.ts";
+import { engraveSources, latestMei } from "./engrave.ts";
 
 const fixture = fakeFixture();
 const stages = fixture.pipeline.stages;
@@ -131,4 +134,25 @@ test("musicSources: the reviews after the transcription, in order", () => {
   const sources = musicSources(pipeline.slice(0, pipeline.map((s) => s.step).lastIndexOf("review") + 1));
   assert.deepEqual(sources.transcription?.reviews.map((s) => s.step), ["human_review", "review"]);
   assert.equal(sources.transcription?.stage.step, "apply_review");
+});
+
+// What the lookups give on the fixture, as a snapshot taken before batch 28 put them on `latestStage` and
+// `latestOutput`: every stage's artifacts (done and WIP), `build_mei`'s sources, the latest MEI, and what each stage
+// would read if carried.
+test("the artifacts and sources found on the fixture's pipeline are unchanged", () => {
+  const found: unknown[] = [];
+  for (let i = 0; i < stages.length; i++) {
+    for (const status of ["done", "wip"] as const) found.push(STEPS[stages[i].step as StepId].artifacts({ ...stages[i], status }, stages.slice(0, i)));
+    found.push(engraveSources(stages.slice(0, i)), latestMei(stages.slice(0, i)), carriedInputs(stages, i));
+  }
+  assert.equal(createHash("sha256").update(JSON.stringify(found)).digest("hex"), "8fa0e01309a72e3f8697a0cfff89827b947202668e4d0cf54e995f349e95f206");
+  // And on the variants, with fixes and stages not done.
+  const more: unknown[] = [];
+  for (const [, pipeline] of variants.slice(1)) {
+    for (let i = 0; i < pipeline.length; i++) {
+      for (const status of ["done", "wip"] as const) more.push(STEPS[pipeline[i].step as StepId].artifacts({ ...pipeline[i], status }, pipeline.slice(0, i)));
+      more.push(engraveSources(pipeline.slice(0, i)), latestMei(pipeline.slice(0, i)), carriedInputs(pipeline, i));
+    }
+  }
+  assert.equal(createHash("sha256").update(JSON.stringify(more)).digest("hex"), "91422e4b03e7b61314f36447a5721675a209dbe6449cdd06106bb6ae55386861");
 });

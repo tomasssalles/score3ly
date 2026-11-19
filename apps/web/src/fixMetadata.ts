@@ -28,7 +28,7 @@ export type ShownMetadata = {
 export type MetadataRow = Common & { kind: string; text: string; system: number | null };
 
 // `analyze`'s metadata output, and its pieces output if it has one.
-export function analyzeOutputs(analyze: ApiStage | undefined) {
+export function analyzeOutputs(analyze: ApiStage | null | undefined) {
   const metadata = analyze?.outputs.find((o) => o.item === "" && o.type === "metadata" && o.contentSha256);
   return metadata ? { metadata, pieces: analyze!.outputs.find((o) => o.item === "" && o.type === "pieces") } : null;
 }

@@ -5,11 +5,12 @@ import { fetchJsonContent, jsonBytes, putContent, recordOutputs, type ApiPipelin
 import type { PageLines } from "./fixSkew";
 import { fixNote } from "./format";
 import { sha256Hex } from "@score3ly/core";
+import { latestStage } from "./stageInputs";
 
 // Records what is missing and returns the card's note.
 export async function finishFixSkew(project: Project, stage: ApiStage, pipeline: ApiPipeline): Promise<string> {
   const index = pipeline.stages.findIndex((s) => s.id === stage.id);
-  const skew = pipeline.stages.slice(0, index).reverse().find((s) => s.step === "skew_analysis");
+  const skew = latestStage(pipeline.stages.slice(0, index), ["skew_analysis"]);
   if (!skew) throw new Error("There is no skew analysis before this stage.");
   const own = new Map(stage.outputs.filter((o) => o.type === "lines").map((o) => [o.item, o]));
   const pages = skew.outputs.filter((o) => o.type === "skew" && o.contentSha256);

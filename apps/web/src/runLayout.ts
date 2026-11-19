@@ -24,16 +24,15 @@ import { imageLimit } from "./requestLimits";
 import { drawnPage, modelPage, pageImage, pngSize } from "./pageImages";
 import { drawnPageRecipe, imageVersions, modelPageRecipe, straightRecipe, type PageRecipe } from "./recipes";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
-
-// The steps whose lines say how to straighten the pages: the latest before `layout` counts.
-const LINE_STEPS = ["skew_analysis", "fix_skew"];
+import { latestProducer } from "./stageInputs";
 
 export async function runLayout(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
-  const earlier = pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id)).reverse();
-  const rasterize = earlier.find((s) => s.step === "rasterize");
+  const earlier = pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id));
+  const rasterize = latestProducer(earlier, "page_image");
   if (!rasterize || rasterize.status !== "done") throw new CannotStart("there are no page images: Rasterize hasn't run.");
-  const lines = earlier.find((s) => LINE_STEPS.includes(s.step));
+  // The lines that say how to straighten the pages: the latest before it count.
+  const lines = latestProducer(earlier, "lines");
   if (lines && lines.status !== "done") throw new CannotStart("the skew analysis hasn't run.");
   const linesByItem = new Map((lines?.outputs ?? []).filter((o) => o.contentSha256).map((o) => [o.item, o]));
   const pages = rasterize.outputs

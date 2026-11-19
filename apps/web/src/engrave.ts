@@ -8,6 +8,7 @@ import { buildScore, meiString, type MeiMetadata, type Score } from "@score3ly/n
 import { REPOSITORY_URL } from "./about.ts";
 import type { ApiStage } from "./api";
 import { scoreInput, type StoredExtraction } from "./extract.ts";
+import { latestOutput, latestProducer } from "./stageInputs.ts";
 import { normalizeMetadata } from "./fixMetadata.ts";
 import { keyOf, pageOfItem, systemOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
@@ -55,20 +56,13 @@ export type EngraveSources = {
   pieces: { id: string; sha256: string };
 };
 
-// The steps whose stages produce the extraction (what `build_mei` and the reviews read).
-export const EXTRACTION_STEPS = ["extract", "apply_review"];
-const LAYOUT_STEPS = ["layout", "fix_layout"];
-const METADATA_STEPS = ["fix_metadata", "analyze"];
-
 export function engraveSources(earlier: ApiStage[]): EngraveSources | { missing: string } {
-  const latest = [...earlier].reverse();
-  const extraction = latest.find((s) => EXTRACTION_STEPS.includes(s.step));
+  const extraction = latestProducer(earlier, "extraction");
   if (!extraction || extraction.status !== "done") return { missing: "the music hasn't been extracted yet." };
-  const layout = latest.find((s) => LAYOUT_STEPS.includes(s.step));
-  const withOutput = (type: string) => {
-    const stage = latest.find((s) => METADATA_STEPS.includes(s.step) && s.outputs.some((o) => o.item === "" && o.type === type && o.contentSha256));
-    const output = stage?.outputs.find((o) => o.item === "" && o.type === type && o.contentSha256);
-    return stage && output && stage.status === "done" ? { id: output.id, sha256: output.contentSha256! } : null;
+  const layout = latestProducer(earlier, "layout");
+  const withOutput = (type: "metadata" | "pieces") => {
+    const found = latestOutput(earlier, type);
+    return found && found.stage.status === "done" ? { id: found.output.id, sha256: found.output.contentSha256! } : null;
   };
   const metadata = withOutput("metadata");
   const pieces = withOutput("pieces");
@@ -87,10 +81,8 @@ export function engraveSources(earlier: ApiStage[]): EngraveSources | { missing:
 
 // The latest MEI before a stage: `fix_mei`'s when it comes right before, else the latest `build_mei`'s. What `engrave`
 // engraves, and what a `fix_mei` starts from (its parent).
-export const MEI_STEPS = ["build_mei", "fix_mei"];
-
 export function latestMei(earlier: ApiStage[]): { id: string; sha256: string; step: string } | { missing: string } {
-  const stage = [...earlier].reverse().find((s) => MEI_STEPS.includes(s.step));
+  const stage = latestProducer(earlier, "mei");
   const mei = stage?.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
   if (!stage) return { missing: "the MEI hasn't been built yet." };
   if (stage.status !== "done" || !mei) return { missing: stage.step === "fix_mei" ? "\"Fix MEI\" isn't finished yet." : "the MEI hasn't been built yet." };

@@ -9,14 +9,12 @@ import { keepFingerprints, measureSkew, pageImage } from "./pageImages";
 import type { PageRecipe } from "./recipes";
 import { SKEW_ANALYSIS_VERSION, skewConfigError, skewConfigOf, skewNote, skewStageKey } from "./skewAnalysis";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
+import { latestProducer } from "./stageInputs";
 
 export async function runSkewAnalysis(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
   const position = pipeline.stages.findIndex((s) => s.id === stage.id);
-  const rasterize = pipeline.stages
-    .slice(0, position)
-    .reverse()
-    .find((s) => s.step === "rasterize");
+  const rasterize = latestProducer(pipeline.stages.slice(0, position), "page_image");
   const pages = (rasterize?.outputs ?? [])
     .filter((o) => o.type === "page_image" && o.recipe !== null && o.recipeKey !== null)
     .map((o) => ({ output: o, page: pageOfItem(o.item) ?? 0, recipe: o.recipe as PageRecipe }))

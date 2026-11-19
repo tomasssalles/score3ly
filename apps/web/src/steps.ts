@@ -12,10 +12,10 @@ import { analyzeOutputs, FIX_METADATA_VERSION } from "./fixMetadata.ts";
 import { FIX_OBSERVATIONS_VERSION } from "./fixObservations.ts";
 import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
-import { DEFAULT_ENGRAVE_CONFIG, engraveConfigOf, EXTRACTION_STEPS, PAGE_SIZES } from "./engrave.ts";
+import { DEFAULT_ENGRAVE_CONFIG, engraveConfigOf, PAGE_SIZES } from "./engrave.ts";
 import { fixMeiStart } from "./fixMei.ts";
 import { humanReviewStart } from "./humanReview.ts";
-import { musicSources, reviewInputIds } from "./stageInputs.ts";
+import { latestOutput, latestProducer, latestStage, musicSources, reviewInputIds } from "./stageInputs.ts";
 
 // One field of a step's config form.
 export type ConfigField = {
@@ -77,7 +77,7 @@ export const LLM_CONFIG: StepConfig = {
 
 // The page images of the latest `rasterize` before a stage: what each page is made from, by page number.
 function pageRecipes(earlier: ApiStage[]): Map<number, PageRecipe> {
-  const rasterize = [...earlier].reverse().find((stage) => stage.step === "rasterize");
+  const rasterize = latestProducer(earlier, "page_image");
   const recipes = new Map<number, PageRecipe>();
   for (const output of rasterize?.outputs ?? []) {
     const page = pageOfItem(output.item);
@@ -199,7 +199,7 @@ const fixLayoutStep: StepDeclaration = {
   // artifact is the editor.
   artifacts: (stage, earlier) => {
     const recipes = pageRecipes(earlier);
-    const layout = [...earlier].reverse().find((s) => s.step === "layout");
+    const layout = latestStage(earlier, ["layout"]);
     const own = new Map(stage.outputs.filter((o) => o.type === "layout").map((o) => [o.item, o]));
     const pages = (layout?.outputs ?? [])
       .filter((output) => output.type === "layout" && output.contentSha256 !== null)
@@ -223,7 +223,7 @@ const fixSkewStep: StepDeclaration = {
   // the artifact is the editor.
   artifacts: (stage, earlier) => {
     const recipes = pageRecipes(earlier);
-    const skew = [...earlier].reverse().find((s) => s.step === "skew_analysis");
+    const skew = latestStage(earlier, ["skew_analysis"]);
     const own = new Map(stage.outputs.filter((o) => o.type === "lines").map((o) => [o.item, o]));
     const pages = (skew?.outputs ?? [])
       .filter((output) => output.type === "skew" && output.contentSha256 !== null)
@@ -243,7 +243,7 @@ const fixSkewStep: StepDeclaration = {
 // The pages of the latest layout (`layout` or `fix_layout`) before a stage, with their page images.
 function layoutPages(earlier: ApiStage[]): { page: number; recipe: PageRecipe; layoutSha256: string }[] {
   const recipes = pageRecipes(earlier);
-  const layout = [...earlier].reverse().find((s) => s.step === "layout" || s.step === "fix_layout");
+  const layout = latestProducer(earlier, "layout");
   return (layout?.outputs ?? [])
     .filter((o) => o.type === "layout" && o.contentSha256 !== null)
     .flatMap((o) => {
@@ -296,7 +296,7 @@ const fixMetadataStep: StepDeclaration = {
   // The metadata the user saved, else `analyze`'s, with the pages. While WIP, the artifact is the form. The pages
   // carry their layouts, for the systems a piece can start at.
   artifacts: (stage, earlier) => {
-    const parents = analyzeOutputs([...earlier].reverse().find((s) => s.step === "analyze"));
+    const parents = analyzeOutputs(latestStage(earlier, ["analyze"]));
     if (!parents) return [];
     const own = stage.outputs.find((o) => o.item === "" && o.type === "metadata")?.contentSha256;
     const editor = stage.status === "wip" ? { stageId: stage.id, step: "fix_metadata" } : undefined;
@@ -324,7 +324,7 @@ const fixObservationsStep: StepDeclaration = {
   // The observations the user saved, else `analyze`'s, with the pages and their layouts (the boxes, and the systems
   // and bar lines places are picked from). While WIP, the artifact is the form.
   artifacts: (stage, earlier) => {
-    const analyze = [...earlier].reverse().find((s) => s.step === "analyze");
+    const analyze = latestStage(earlier, ["analyze"]);
     const parent = analyze?.outputs.find((o) => o.item === "" && o.type === "observations" && o.contentSha256);
     if (!parent) return [];
     const own = stage.outputs.find((o) => o.item === "" && o.type === "observations")?.contentSha256;
@@ -358,10 +358,7 @@ function transcription(
     .map((o) => ({ item: o.item, sha256: o.contentSha256!, index: systemOfItem(o.item)?.index ?? 1 }));
   if (systems.length === 0) return [];
   const checksSha256 = transcribed.outputs.find((o) => o.item === "" && o.type === "score_checks")?.contentSha256 ?? null;
-  const pieces = [...earlier]
-    .reverse()
-    .find((s) => (s.step === "fix_metadata" || s.step === "analyze") && s.outputs.some((o) => o.item === "" && o.type === "pieces" && o.contentSha256));
-  const piecesSha256 = pieces?.outputs.find((o) => o.item === "" && o.type === "pieces")?.contentSha256 ?? null;
+  const piecesSha256 = latestOutput(earlier, "pieces")?.output.contentSha256 ?? null;
   const pages = layoutPages(earlier);
   const chain = choosingChain([...earlier, stage]);
   const extraction = { systems, checksSha256, piecesSha256, chain: chain.slice(0, -1), who: chain.at(-1)!.who, ...extra };
@@ -382,7 +379,7 @@ const reviewStep: StepDeclaration = {
   // The Transcription it reviewed, with its issues as the review leaves them: its calls' entries, and, once it is
   // done, its agreements.
   artifacts: (stage, earlier) => {
-    const transcribed = [...earlier].reverse().find((s) => EXTRACTION_STEPS.includes(s.step));
+    const transcribed = latestProducer(earlier, "extraction");
     if (!transcribed) return [];
     const calls = stage.outputs.filter((o) => o.type === "review" && o.contentSha256).map((o) => ({ item: o.item, sha256: o.contentSha256! }));
     if (calls.length === 0) return [];
@@ -407,7 +404,7 @@ const humanReviewStep: StepDeclaration = {
   title: "Human review",
   fixes: [],
   artifacts: (stage, earlier) => {
-    const transcribed = [...earlier].reverse().find((s) => EXTRACTION_STEPS.includes(s.step));
+    const transcribed = latestProducer(earlier, "extraction");
     if (!transcribed) return [];
     const sha256 = stage.outputs.find((o) => o.item === "" && o.type === "human_review")?.contentSha256 ?? null;
     const artifacts = transcription(stage, transcribed, earlier, { human: { stageId: stage.id, sha256 } });

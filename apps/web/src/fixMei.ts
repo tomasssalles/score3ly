@@ -6,6 +6,7 @@
 
 import { fetchTextContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api.ts";
 import { changesNote, linesChanged, type MeiProblem } from "./meiChecks.ts";
+import { latestStage } from "./stageInputs.ts";
 
 export const FIX_MEI_VERSION = 1;
 
@@ -45,7 +46,7 @@ export async function loadFixMei(project: Project, stage: ApiStage, earlier: Api
   };
   let base = await text("mei_base");
   if (base === null) {
-    const buildMei = [...earlier].reverse().find((s) => s.step === "build_mei");
+    const buildMei = latestStage(earlier, ["build_mei"]);
     const mei = buildMei && parentMei(buildMei);
     if (!mei) throw new Error("The MEI hasn't been built yet.");
     base = await fetchTextContent(mei.contentSha256!);

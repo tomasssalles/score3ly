@@ -5,6 +5,7 @@ import { pageOfItem } from "@score3ly/core";
 import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import { humanReviewNote, ownIssueProblems, type StoredHumanReview } from "./humanReview";
 import { numberSystems, type PageLayout } from "./layout";
+import { latestProducer } from "./stageInputs";
 
 export async function finishHumanReview(project: Project, stage: ApiStage, pipeline: ApiPipeline): Promise<string> {
   const saved = stage.outputs.find((o) => o.item === "" && o.type === "human_review" && o.contentSha256);
@@ -13,7 +14,7 @@ export async function finishHumanReview(project: Project, stage: ApiStage, pipel
   // here, not while the user draws.
   if (stored.entries.some((e) => "newIssue" in e)) {
     const index = pipeline.stages.findIndex((s) => s.id === stage.id);
-    const layout = pipeline.stages.slice(0, index).reverse().find((s) => s.step === "layout" || s.step === "fix_layout");
+    const layout = latestProducer(pipeline.stages.slice(0, index), "layout");
     const pages = await Promise.all(
       (layout?.outputs ?? [])
         .filter((o) => o.type === "layout" && o.contentSha256)

@@ -6,7 +6,7 @@
 // user, one answer, chosen by the user, resolved, `applied` null).
 
 import type { ApiStage } from "./api.ts";
-import { EXTRACTION_STEPS } from "./engrave.ts";
+import { PRODUCERS } from "./stageInputs.ts";
 import type { StoredIssue } from "./extract.ts";
 import type { Box } from "@score3ly/core";
 import { applyEntries, systemsOf, type PlacedSystem, type ReviewEntry } from "./review.ts";
@@ -37,7 +37,7 @@ export function humanReviewNote(stored: StoredHumanReview): string {
 
 // What a human review reads, added after an `apply_review` (docs/database.md): the transcription it reviews.
 export function humanReviewStart(after: ApiStage): { stepVersion: number; pageCount: number | null; inputIds: string[] } {
-  const inputs = EXTRACTION_STEPS.includes(after.step)
+  const inputs = (PRODUCERS.extraction as readonly string[]).includes(after.step)
     ? after.outputs.filter((o) => (o.type === "extraction" || (o.item === "" && o.type === "score_checks")) && o.contentSha256)
     : [];
   return { stepVersion: HUMAN_REVIEW_VERSION, pageCount: after.pageCount, inputIds: inputs.map((o) => o.id) };

@@ -5,6 +5,7 @@ import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiSta
 import type { StoredObservations } from "./analyze";
 import { fixNote } from "./fixMetadata";
 import { changedItems, confirmedItems, normalizeObservations } from "./fixObservations";
+import { latestStage } from "./stageInputs";
 
 // The output for some observations: item '', type `observations`, its parent `analyze`'s.
 export async function observationsOutput(o: StoredObservations, parent: string) {
@@ -19,7 +20,7 @@ export async function observationsOutput(o: StoredObservations, parent: string) 
 
 export async function finishFixObservations(project: Project, stage: ApiStage, pipeline: ApiPipeline): Promise<string> {
   const index = pipeline.stages.findIndex((s) => s.id === stage.id);
-  const analyze = pipeline.stages.slice(0, index).reverse().find((s) => s.step === "analyze");
+  const analyze = latestStage(pipeline.stages.slice(0, index), ["analyze"]);
   const parent = analyze?.outputs.find((o) => o.item === "" && o.type === "observations" && o.contentSha256);
   if (!parent) throw new Error("There is no analysis before this stage.");
   const original = normalizeObservations(await fetchJsonContent(parent.contentSha256!));
