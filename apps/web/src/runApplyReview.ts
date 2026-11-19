@@ -51,12 +51,11 @@ import {
 import { applyReviewInputIds, reviewEntries } from "./stageInputs";
 import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
 import { scoreInput, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks, type StoredWarning } from "./extract";
-import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
-import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
+import { ask, llmStart, type PlannedRequest, type RequestContent } from "./llm";
+import { imageLimitFor } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
-import { markedCrop } from "./pageImages";
-import { MARGINS, stretchCropBoxes, systemCropBox } from "./crops";
-import { cropRecipe, imageVersions, markedCropRecipe } from "./recipes";
+import { loadTranscription, logContent, markedImage, markedImageRecipe, transcribedFor } from "./musicStage";
+import { stretchCropBoxes, systemCropBox } from "./crops";
 import { reviewedIssues, reviewIssues, reviewScore, reviewWarnings, systemsOf, type StoredReview } from "./review";
 import { CannotStart, recordedContent, runPlan, type StageRun } from "./stageRunner";
 import { choosingChain } from "./steps";
@@ -66,23 +65,18 @@ import { attributionOf } from "./attribution";
 export async function runApplyReview(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
   const inputs = await musicInputs(stage, pipeline.stages);
-  const { pages, observations, pieces, systems, byNumber, straight, bounds, contextOf, placeBox } = inputs;
+  const { pages, observations, pieces, systems, byNumber, bounds, contextOf, placeBox } = inputs;
 
   // The transcription it applies to, and the reviews after it whose choices it applies.
-  const transcribed = inputs.sources.transcription;
-  if (!transcribed || transcribed.stage.status !== "done") throw new CannotStart("there is no transcription to apply the review to yet.");
+  const transcribed = transcribedFor(inputs, "there is no transcription to apply the review to yet.");
   const reviewers = transcribed.reviews;
   if (reviewers.length === 0) throw new CannotStart("there is no review before it to apply.");
   if (reviewers.some((s) => s.status !== "done")) {
     throw new CannotStart(reviewers.some((s) => s.step === "human_review") ? "the human review before it isn't finished yet." : "the review before it hasn't finished yet.");
   }
 
-  const extractionOutputs = transcribed.extractions;
-  const checksOutput = transcribed.checks;
-  if (systems.some((s) => !extractionOutputs.has(s.item)) || !checksOutput) throw new CannotStart("the transcription doesn't match the layout: run Extract again.");
-  const extractions = new Map<number, StoredExtraction>();
-  await Promise.all(systems.map(async (s) => extractions.set(s.number, (await fetchJsonContent(extractionOutputs.get(s.item)!.contentSha256!)) as StoredExtraction)));
-  const checks = (await fetchJsonContent(checksOutput.contentSha256!)) as StoredScoreChecks;
+  const transcription = await loadTranscription(inputs, transcribed);
+  const { extractions, checks } = transcription;
   const reviewOutputs = reviewers.flatMap(reviewEntries);
   // A review's calls; a human review's single output, its entries as one (docs/stages/music.md, `human_review`).
   const reviewCalls = new Map<string, StoredReview[]>();
@@ -100,11 +94,9 @@ export async function runApplyReview(run: StageRun): Promise<void> {
     ),
   );
 
-  const placed = systems.map((s) => ({ number: s.number, page: s.page, layout: s.layout }));
-
   // The issues as the reviews left them: the transcription's, with each review's entries and agreements.
   const checkIds = new Set(checks.issues.map((i) => i.id));
-  let issues = new Map<number, StoredIssue>([...systems.flatMap((s) => extractions.get(s.number)!.issues), ...checks.issues].map((i) => [i.id, i]));
+  let issues = new Map<number, StoredIssue>(transcription.issues.map((i) => [i.id, i]));
   for (const r of reviewers) {
     issues =
       r.step === "human_review"
@@ -112,7 +104,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
         : reviewedIssues([...issues.values()], reviewCalls.get(r.id)!);
   }
   const startIssues = issues;
-  const startWarnings = [...systems.flatMap((s) => extractions.get(s.number)!.warnings), ...checks.warnings];
+  const startWarnings = transcription.warnings;
 
   // The systems as the checks need them, and the transcription's answers.
   const toCheck = systems.map(contextOf);
@@ -130,20 +122,14 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   checkedOrFail(startAnswers, "the transcription");
 
   const { config, stageConfig, start } = await llmStart(stage);
-  const imageRecipe = {
-    limit: imageLimit(config),
-    manyImages: requestLimits(config).manyImages,
-    ...imageVersions("scale", "crop", "deskew", "rotate", "draw"),
-    margins: MARGINS,
-  };
-  const transcription = [...extractionOutputs.values(), checksOutput].map((o) => o.contentSha256!).sort();
+  const imageRecipe = markedImageRecipe(config);
   const stageKey = await applyReviewStageKey({
     config: stageConfig,
     promptVersion: APPLY_REVIEW_PROMPT_VERSION,
     lensVersion: LENS_VERSION,
     model: modelKeyOf(config),
     imageRecipe,
-    transcription,
+    transcription: transcription.outputs.map((o) => o.contentSha256!).sort(),
     reviews: reviewOutputs.map((o) => o.contentSha256!).sort(),
     pages: pages.map((p) => ({ pageImageKey: p.image.recipeKey!, layoutSha256: p.output.contentSha256! })),
     observationsSha256: inputs.observationsOutput.contentSha256!,
@@ -154,11 +140,11 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   const scorePart: RequestContent = { type: "text", text: reviewScoreText(reviewScore(scoreOf(startAnswers)), observations) };
   const issuesPart: RequestContent = {
     type: "text",
-    text: applyReviewIssuesText(reviewIssues([...startIssues.values()], placed), reviewWarnings(startWarnings, placed)),
+    text: applyReviewIssuesText(reviewIssues([...startIssues.values()], systems), reviewWarnings(startWarnings, systems)),
     cacheUpTo: true,
   };
 
-  const plannedCalls = applyCalls(startIssues.values(), placed);
+  const plannedCalls = applyCalls(startIssues.values(), systems);
   const itemOf = (n: number) => byNumber.get(n)!.item;
 
   // Calls a failed run already recorded.
@@ -183,10 +169,10 @@ export async function runApplyReview(run: StageRun): Promise<void> {
     return final;
   };
   const warningOf = (w: { message: string; places: StretchPlace[] }): StoredWarning => ({ message: w.message, boxes: w.places.flatMap((p) => placeBox(p) ?? []) });
-  const callWarningsHere = (n: number) => [...calls.values()].flatMap((c) => c.warnings).filter((w) => (systemsOf(w.boxes, placed)[0] ?? null) === n);
+  const callWarningsHere = (n: number) => [...calls.values()].flatMap((c) => c.warnings).filter((w) => (systemsOf(w.boxes, systems)[0] ?? null) === n);
   // An issue's home among the outputs: the checks' issues stay there; every other one goes with the first system its
   // boxes cover (the checks' when none).
-  const homeOf = (issue: StoredIssue): number | null => (checkIds.has(issue.id) ? null : (systemsOf(issue.boxes, placed)[0] ?? null));
+  const homeOf = (issue: StoredIssue): number | null => (checkIds.has(issue.id) ? null : (systemsOf(issue.boxes, systems)[0] ?? null));
 
   await runPlan(run, {
     stepVersion: APPLY_REVIEW_VERSION,
@@ -217,8 +203,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           const limit = imageLimitFor(config, count);
           const images: RequestContent[] = [];
           const add = async (caption: string, system: MusicSystem, box: ImageSource["box"]) => {
-            const recipe = markedCropRecipe(cropRecipe(straight(system.pageIndex), box, limit), system.page, startIssues.values());
-            images.push({ type: "text", text: caption }, await requestImage(recipe, markedCrop));
+            images.push(...(await markedImage(inputs, caption, system, box, limit, startIssues.values())));
           };
           if (previous) await add(`Previous system (${previous.number}):`, previous, systemCropBox(previous.layout));
           for (const s of window) {
@@ -227,14 +212,10 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           }
           if (next) await add(`Next system (${next.number}):`, next, systemCropBox(next.layout));
 
-          // The log: one block per earlier call, the last marked for the cache.
-          const log: RequestContent[] = [...calls.values()]
-            .filter((c) => c.system < planned.system)
-            .sort((a, b) => a.system - b.system)
-            .map((c) => ({ type: "text", text: applyReviewLogText(c.system, applyLogEntries(c)) }));
-          if (log.length > 0) log[log.length - 1] = { ...log[log.length - 1], cacheUpTo: true };
+          // The log: one block per earlier call.
+          const log = logContent(calls.values(), planned.system, (c) => applyReviewLogText(c.system, applyLogEntries(c)));
 
-          const onWindow = [...startIssues.values()].filter((i) => systemsOf(i.boxes, placed).some((n) => planned.window.includes(n)));
+          const onWindow = [...startIssues.values()].filter((i) => systemsOf(i.boxes, systems).some((n) => planned.window.includes(n)));
           const toApply = planned.issues.map((id) => startIssues.get(id)!);
           const request = {
             window: planned.window,
@@ -242,7 +223,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
             before: previous ? systemView(answers.get(previous.number)!, previous, measureOf) : null,
             after: next ? systemView(answers.get(next.number)!, next, measureOf) : null,
             links: Object.fromEntries(planned.window.map((n) => [n, links.get(n) ?? []])),
-            apply: toApply.map((i) => issueToApply(i, placed)),
+            apply: toApply.map((i) => issueToApply(i, systems)),
             others: onWindow.filter((i) => !planned.issues.includes(i.id)).map((i) => i.id),
             warnings: planned.window.flatMap((n) => checked.get(n)!.warnings.map((w) => w.message)),
           };
@@ -300,7 +281,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
               changed,
               applied: appliedIds.map((id) => startIssues.get(id)!),
               patch,
-              systems: placed,
+              systems,
               placeBox,
               measureOf: (p) => afterMeasures.get(`${p.system}/${p.stretch}`) ?? null,
             }),
@@ -357,7 +338,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
                 all.values(),
               )),
             ],
-            warnings: [...scoreChecks.warnings.map(warningOf), ...[...calls.values()].flatMap((c) => c.warnings).filter((w) => systemsOf(w.boxes, placed).length === 0)],
+            warnings: [...scoreChecks.warnings.map(warningOf), ...[...calls.values()].flatMap((c) => c.warnings).filter((w) => systemsOf(w.boxes, systems).length === 0)],
           };
           const contentSha256 = await putJson(result);
           return { contentSha256, inputIds };
