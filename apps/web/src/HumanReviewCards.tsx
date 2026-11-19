@@ -12,7 +12,7 @@ import { NO_TEXT } from "./humanReview";
 import { Info } from "./ui/Info";
 import { answerTags } from "./transcription";
 import type { IssueWho } from "./attribution";
-import type { PlacedSystem, StoredIssue } from "./issues";
+import { systemsOf, type PlacedSystem, type StoredIssue } from "./issues";
 
 // An issue's answers, one to pick (docs/stages/music.md, `human_review`): a radio mark on each, its suffixes as the
 // user's choices leave them; tapping the chosen answer again takes it back. The last row is an answer of the user's
@@ -184,9 +184,10 @@ export function ClarificationCard({
     clearTimeout(timer.current);
     if (value.trim() !== (issue.answers[0]?.text ?? "")) onWrite(value);
   }
+  // The systems a box is on, by the rule its problems are checked by (`boxProblems`).
   const where = (b: { page: number; box: Box }) => {
-    const covered = systems.filter((s) => s.page === b.page && Math.min(b.box.bottom, s.layout.box.bottom) > Math.max(b.box.top, s.layout.box.top));
-    return `page ${b.page}${covered.length ? `, system ${covered.map((s) => s.number).join(" and ")}` : ""}`;
+    const covered = systemsOf([b], systems);
+    return `page ${b.page}${covered.length ? `, system ${covered.join(" and ")}` : ""}`;
   };
   return (
     <div

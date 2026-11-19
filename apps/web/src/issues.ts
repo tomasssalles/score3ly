@@ -63,14 +63,27 @@ export type PlacedSystem = { number: number; page: number; layout: LayoutSystem 
 
 const overlap = (a: Box, b: Box) => area(intersection(a, b));
 
+// The systems a box on a page is on (docs/notation.md, "Issues"), each with how much of the box is on it: those whose
+// tight box it overlaps; only a box on none of them is on systems by their margins, those whose crops with margins it
+// overlaps. (Crops overlap their neighbours' boxes where systems are close: counting them for every box put a box at
+// the top of a system on the system above it too.)
+function systemsUnder(b: PageBox, systems: PlacedSystem[]): { system: PlacedSystem; share: number }[] {
+  const onPage = systems.filter((s) => s.page === b.page);
+  const under = (box: (s: PlacedSystem) => Box) =>
+    onPage.flatMap((s) => {
+      const share = overlap(b.box, box(s));
+      return share > 0 ? [{ system: s, share }] : [];
+    });
+  const tight = under((s) => s.layout.box);
+  return tight.length > 0 ? tight : under((s) => systemCropBox(s.layout));
+}
+
 // The systems and stretches boxes on the pages cover (docs/notation.md, "Issues": code works out the stretches under
-// the boxes): a box covers a system it overlaps (its tight box, else its crop with margins), and the stretches of it
-// it overlaps horizontally.
+// the boxes): the systems each box is on (`systemsUnder`), and the stretches of each it overlaps horizontally.
 export function placesOf(boxes: PageBox[], systems: PlacedSystem[]): { system: number; stretches: number[] }[] {
   const places = new Map<number, Set<number>>();
   for (const b of boxes) {
-    for (const s of systems) {
-      if (s.page !== b.page || (overlap(b.box, s.layout.box) === 0 && overlap(b.box, systemCropBox(s.layout)) === 0)) continue;
+    for (const { system: s } of systemsUnder(b, systems)) {
       const stretches = places.get(s.number) ?? new Set<number>();
       for (let k = 1; k <= s.layout.barLines.length + 1; k++) {
         const x = stretchBox(s.layout, k);
@@ -82,22 +95,17 @@ export function placesOf(boxes: PageBox[], systems: PlacedSystem[]): { system: n
   return [...places.entries()].sort((a, b) => a[0] - b[0]).map(([system, set]) => ({ system, stretches: [...set].sort((a, b) => a - b) }));
 }
 
+// The systems boxes are on, in the score's order.
 export const systemsOf = (boxes: PageBox[], systems: PlacedSystem[]) => placesOf(boxes, systems).map((p) => p.system);
 
-// The system whose card an issue's or a warning's text goes below in the Transcription: the one its first box falls on
-// (most of it, where crops overlap). Null when it falls on none.
+// The system whose card an issue's or a warning's text goes below in the Transcription: of those its first box is on,
+// the one most of it is on. Null when it is on none.
 export function homeOf(boxes: PageBox[], systems: PlacedSystem[]): number | null {
   const first = boxes[0];
   if (!first) return null;
-  let best: { system: number; share: number } | null = null;
-  for (const s of systems) {
-    if (s.page !== first.page) continue;
-    // A system the box overlaps tightly always beats one it overlaps only with the margins: the crop's overlap is
-    // scaled down a thousandfold, below any tight overlap a box drawn by hand has.
-    const share = overlap(first.box, s.layout.box) || overlap(first.box, systemCropBox(s.layout)) / 1e3;
-    if (share > 0 && (!best || share > best.share)) best = { system: s.number, share };
-  }
-  return best?.system ?? null;
+  let best: { system: PlacedSystem; share: number } | null = null;
+  for (const on of systemsUnder(first, systems)) if (!best || on.share > best.share) best = on;
+  return best?.system.number ?? null;
 }
 
 // --- Issues and warnings raised by code ---
