@@ -9,7 +9,7 @@ import { buildScore, checkSystems, LENS_VERSION, systemLinks } from "@score3ly/n
 import { REVIEW_MAX_OUTPUT_TOKENS, REVIEW_PROMPT_VERSION, REVIEW_SCHEMA, REVIEW_SYSTEM, reviewIssuesText, reviewLogText, reviewScoreText, reviewText } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
-import { type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks } from "./extract";
+import { scoreInput, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks } from "./extract";
 import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
@@ -58,7 +58,7 @@ export async function runReview(run: StageRun): Promise<void> {
   if ("problem" in checked) throw new CannotStart(`the transcription of system ${checked.system} no longer passes the checks: ${checked.problem}.`);
   const links = systemLinks(checked, pieces);
   const score = buildScore(
-    systems.map((s) => ({ number: s.number, page: s.page, box: s.layout.box, barLines: s.layout.barLines, answer: extractions.get(s.number)!.answer })),
+    systems.map((s) => scoreInput(s, extractions.get(s.number)!.answer)),
     pieces,
   );
 

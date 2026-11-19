@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { buildMei, buildScore, checkSystem, elements, pieceStart } from "@score3ly/notation";
 import { richScore } from "@score3ly/notation/testScore";
 import { extractImageLabels } from "@score3ly/prompts";
-import { extractNote, pieceBounds, storedExtraction, stretchBox } from "./extract.ts";
+import { extractNote, pieceBounds, scoreInput, storedExtraction, stretchBox } from "./extract.ts";
 import { stretchCropBoxes, systemCropBox } from "./crops.ts";
 import { linkSpans, placeFor, systemHints } from "./linking.ts";
 import type { StoredObservations, StoredPage } from "./analyze.ts";
@@ -131,4 +131,11 @@ test("a system's hints: its staves, what is on it, the spans in effect, its page
   assert.deepEqual(three.spans, [{ what: "ottava", text: "8va", staff: "staff 1/2", from: "system 2, stretch 3", to: "system 4, bar line 1", state: "low" }]);
   assert.deepEqual(three.pageNotes, [{ text: "cross-staff writing", state: "medium" }]);
   assert.equal(placeFor(3, null, "after"), "after the pages seen");
+});
+
+test("scoreInput: a system as notation builds the score from it, without a layout no box and no bar lines", () => {
+  const answer = { staves: [] } as unknown as Parameters<typeof scoreInput>[1];
+  const layout = { box: { left: 0.1, right: 0.9, top: 0.2, bottom: 0.4 }, barLines: [0.5] };
+  assert.deepEqual(scoreInput({ number: 3, page: 2, layout }, answer), { number: 3, page: 2, box: layout.box, barLines: [0.5], answer });
+  assert.deepEqual(scoreInput({ number: 3, page: 2 }, answer), { number: 3, page: 2, box: null, barLines: [], answer });
 });

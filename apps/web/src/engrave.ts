@@ -7,7 +7,7 @@
 import { buildScore, meiString, type MeiMetadata, type Score } from "@score3ly/notation";
 import { REPOSITORY_URL } from "./about.ts";
 import type { ApiStage } from "./api";
-import type { StoredExtraction } from "./extract.ts";
+import { scoreInput, type StoredExtraction } from "./extract.ts";
 import { normalizeMetadata } from "./fixMetadata.ts";
 import { keyOf, pageOfItem, systemOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
@@ -129,8 +129,7 @@ export async function loadScore(sources: EngraveSources, fetch: (sha256: string)
   ]);
   const systems = extractions.map(({ item, extraction }) => {
     const index = systemOfItem(item)?.index ?? 1;
-    const layout = layouts.get(extraction.page)?.systems[index - 1];
-    return { number: extraction.system, page: extraction.page, box: layout?.box ?? null, barLines: layout?.barLines ?? [], answer: extraction.answer };
+    return scoreInput({ number: extraction.system, page: extraction.page, layout: layouts.get(extraction.page)?.systems[index - 1] }, extraction.answer);
   });
   if (systems.length === 0) throw new Error("There are no systems to engrave.");
   return { score: buildScore(systems, pieces), metadata: meiMetadata(metadata) };

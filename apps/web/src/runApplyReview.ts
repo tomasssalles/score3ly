@@ -50,7 +50,7 @@ import {
 } from "./applyReview";
 import { applyReviewInputIds, reviewEntries } from "./stageInputs";
 import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
-import { type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks, type StoredWarning } from "./extract";
+import { scoreInput, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks, type StoredWarning } from "./extract";
 import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
@@ -119,7 +119,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   const startAnswers = new Map<number, LensSystem>(systems.map((s) => [s.number, extractions.get(s.number)!.answer]));
   const scoreOf = (answers: Map<number, LensSystem>): Score =>
     buildScore(
-      systems.map((s) => ({ number: s.number, page: s.page, box: s.layout.box, barLines: s.layout.barLines, answer: answers.get(s.number)! })),
+      systems.map((s) => scoreInput(s, answers.get(s.number)!)),
       pieces,
     );
   const checkedOrFail = (answers: Map<number, LensSystem>, what: string): Map<number, CheckedSystem> => {

@@ -1,7 +1,7 @@
 // The `extract` step (docs/stages/music.md): what doesn't need the browser or the model. Its runner is runExtract.ts.
 
 import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
-import type { CheckedSystem, CodeIssue, LensIssue, LensSystem, StretchPlace, Warning } from "@score3ly/notation";
+import type { CheckedSystem, CodeIssue, LensIssue, LensSystem, ScoreSystemInput, StretchPlace, Warning } from "@score3ly/notation";
 import { describeMark, type ScoreState } from "@score3ly/notation";
 import { onPage, stretchEdges, type Box, type LayoutSystem } from "@score3ly/core";
 import type { SystemHints } from "./linking.ts";
@@ -18,6 +18,12 @@ export function stretchBox(system: LayoutSystem, stretch: number): Box {
 
 // A system of the score: its number in the whole score, its page, its output's item ("p3/s2") and its layout.
 export type ScoreSystem = { number: number; page: number; item: string; layout: LayoutSystem };
+
+// A system as notation builds the score from it (`buildScore`): its number, page, box and bar lines, and its answer. A
+// system whose layout is missing has no box and no bar lines.
+export function scoreInput(system: { number: number; page: number; layout?: LayoutSystem }, answer: LensSystem): ScoreSystemInput {
+  return { number: system.number, page: system.page, box: system.layout?.box ?? null, barLines: system.layout?.barLines ?? [], answer };
+}
 
 // Whether systems begin or end a piece (`pieces`: the first system of every piece, starting with 1).
 export function pieceBounds(pieces: number[], system: number, last: number): { first: boolean; last: boolean } {

@@ -5,7 +5,7 @@
 import { area, intersection, onCrop, type Box, type LayoutSystem } from "@score3ly/core";
 import { buildScore, type Score } from "@score3ly/notation";
 
-import type { StoredExtraction, StoredIssue, StoredWarning } from "./extract.ts";
+import { scoreInput, type StoredExtraction, type StoredIssue, type StoredWarning } from "./extract.ts";
 import { systemCropBox } from "./crops.ts";
 import type { IssueWho } from "./attribution.ts";
 import { errorText } from "@score3ly/core";
@@ -63,7 +63,7 @@ export function shownSystem(extraction: StoredExtraction, layout: LayoutSystem):
 export function scoreOf(systems: ShownSystem[], pieces: number[]): Score | { problem: string } {
   try {
     return buildScore(
-      systems.map((s) => ({ number: s.extraction.system, page: s.extraction.page, box: s.layout.box, barLines: s.layout.barLines, answer: s.extraction.answer })),
+      systems.map((s) => scoreInput({ number: s.extraction.system, page: s.extraction.page, layout: s.layout }, s.extraction.answer)),
       pieces,
     );
   } catch (err) {
