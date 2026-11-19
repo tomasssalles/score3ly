@@ -188,8 +188,7 @@ export function usePipelineRun({
     }
     setStored(next);
     onChanged();
-    const position = latest.stages.indexOf(stage);
-    const finished = next.stages[position]?.status === "done";
+    const finished = next.stages.find((s) => s.id === stage.id)?.status === "done";
     if (finished && modeRef.current === "auto") await run(next);
   }
 

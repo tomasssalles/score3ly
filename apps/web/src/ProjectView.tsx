@@ -48,7 +48,6 @@ import { usePipelineRun } from "./usePipelineRun";
 import { useWide } from "./useWide";
 import { DEVICE_KEYS, readDevice, writeDevice } from "./deviceStorage";
 
-// What the user must know before stages that already ran are replaced (docs/overview.md §5.5).
 // The confirmation before a change that replaces stages that have run (docs/overview.md §5.5): the same text for every
 // change, a sentence before it for a new config, the button naming the change.
 const CONFIRM_TEXT =
@@ -259,7 +258,9 @@ export function ProjectView({
     finish: (id) => void finish(id),
     changeConfig: (id) => {
       const stage = findStage(pipeline, id);
-      if (stage && stepInfo(stage.stepId).config) {
+      if (!stage) return;
+      if (!stepInfo(stage.stepId).config) setError(`"${stage.title}" has nothing to set.`);
+      else {
         const llm = stage.kind === "llm";
         const position = pipeline.stages.indexOf(stage);
         void Promise.all([
@@ -275,7 +276,6 @@ export function ProjectView({
           (err) => setError(failure("The model configs couldn't be loaded", err)),
         );
       }
-      else setError(`"${stage?.title}" has nothing to set.`);
     },
     addFix: (id, step) => change(id, "addFix", () => void addFix(id, step), "Add stage"),
     addReview: (id) => change(id, "addReview", () => void addReview(id), "Add Review"),
@@ -310,15 +310,16 @@ export function ProjectView({
   };
 
   const configForm = configuring ? stepInfo(configuring.stage.stepId).config : undefined;
-  const configDialog = configuring && configForm && (
+  // The stage's config as stored, in the form's values: what the dialog starts from, and what a save is compared with.
+  const initial = configuring && configForm?.read(stored?.stages.find((s) => s.id === configuring.stage.id)?.config ?? null);
+  const configDialog = configuring && configForm && initial && (
     <ConfigDialog
       title={configuring.stage.title}
       config={configForm}
-      values={configForm.read(stored?.stages.find((s) => s.id === configuring.stage.id)?.config ?? null)}
+      values={initial}
       context={configuring.context}
       onSave={(values, applyModelConfigToLater) => {
         const { stage } = configuring;
-        const initial = configForm.read(stored?.stages.find((s) => s.id === stage.id)?.config ?? null);
         const changed = configForm.fields.some((f) => values[f.key] !== initial[f.key]);
         // No manual stage has a config: if one ever has, this text must change (§5.5).
         const before =
