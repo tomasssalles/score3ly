@@ -4,7 +4,7 @@ import { BAR_LINES, GROUP_SYMBOLS, ISSUE_CLASSES, MEASURE_KINDS, STRETCH_CLASSES
 import { APPLY_REVIEW_SCHEMA } from "./applyReview.ts";
 import { EXTRACT_SCHEMA } from "./extract.ts";
 import { REVIEW_SCHEMA } from "./review.ts";
-import { buildScore } from "@score3ly/notation";
+import { buildScore, checkSystems } from "@score3ly/notation";
 import { richScore } from "@score3ly/notation/testScore";
 import {
   groupForModel,
@@ -102,6 +102,17 @@ test("every part of a system goes to the model's form and back unchanged", () =>
     const model = { ...systemFieldsForModel(fields), stretches: stretches.map((s) => stretchForModel(s)), issues: [] };
     assert.deepEqual(lensFromExtract(model), { ...answer, issues: [] });
   }
+});
+
+// The seam between the two packages: extract's answers in the model's form, read back (lensFromExtract), are checked
+// by notation exactly as the lens they stand for.
+test("extract's answers in the model's form pass the checks as the lens they stand for", () => {
+  const input = richScore();
+  const contexts = input.map((s) => ({ system: s.number, stretches: s.answer.stretches.length, firstOfPiece: s.number === 1 || s.number === 4, images: [] }));
+  const model = input.map(({ answer: { stretches, issues: _, ...fields } }) => ({ ...systemFieldsForModel(fields), stretches: stretches.map((s) => stretchForModel(s)), issues: [] }));
+  const fromModel = checkSystems(model.map((m, i) => ({ context: contexts[i], answer: lensFromExtract(m) })));
+  assert.ok(!("problem" in fromModel), "problem" in fromModel ? fromModel.problem : "");
+  assert.deepEqual(fromModel, checkSystems(input.map((s, i) => ({ context: contexts[i], answer: s.answer }))));
 });
 
 test("a system as review and apply_review read it: its place, each stretch's measure, descriptions only for apply_review", () => {
