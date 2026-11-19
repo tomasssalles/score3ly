@@ -305,6 +305,14 @@ export function progressOf(pipeline: Pipeline): Progress {
   return { stage: running?.progress ?? null, pipeline: (done + (running?.progress ?? 0)) / stages.length };
 }
 
+// Whether the stage a run was given is done in the pipeline read after the run. Found by its position, not its id: a
+// stage whose stage key finds a finished stage is reused, and the pipeline then points to that one, another id
+// (docs/overview.md §5.2; docs/database.md, "a reused stage keeps its own mark"). Nothing before it can change meanwhile.
+export function ranToDone(before: readonly { id: string }[], stageId: string, after: readonly { status: string }[]): boolean {
+  const position = before.findIndex((stage) => stage.id === stageId);
+  return position >= 0 && after[position]?.status === "done";
+}
+
 // The confirmation before a re-run (docs/overview.md §5.5, "Confirmation before a re-run"): a change asks first when it
 // replaces stages that have already run (done, failed, WIP or running). On the pipeline as the panel shows it, where a
 // carried manual stage looks planned: it hasn't run in this pipeline yet, and is kept or dropped at its turn either way.

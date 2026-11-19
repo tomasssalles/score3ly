@@ -5,6 +5,7 @@ import {
   asksFirst,
   canRun,
   fixReplaces,
+  ranToDone,
   replacesLater,
   replacesWork,
   currentStage,
@@ -379,4 +380,14 @@ test("dropping a stage always asks", () => {
   assert.equal(replacesWork(stages, "s3"), true);
   const planned = toPipeline("manual", { dropped: [], stages: [ingest, stage("s2", "skew_analysis"), stage("s3", "fix_skew", { carried: true })] }).stages;
   assert.equal(asksFirst(planned, "drop", "s3"), true);
+});
+
+test("a run's stage is found again by its position: a reused stage is another id, done", () => {
+  const before = [ingest, stage("s2", "rasterize", { status: "planned" }), stage("s3", "skew_analysis", { status: "planned" })];
+  // The rasterize's stage key found a finished stage of another project on the same PDF: the pipeline points to it.
+  const reused = [ingest, stage("x9", "rasterize"), stage("s3", "skew_analysis", { status: "planned" })];
+  assert.equal(ranToDone(before, "s2", reused), true);
+  assert.equal(ranToDone(before, "s2", [ingest, stage("s2", "rasterize"), before[2]]), true);
+  assert.equal(ranToDone(before, "s2", [ingest, stage("s2", "rasterize", { status: "failed" }), before[2]]), false);
+  assert.equal(ranToDone(before, "nowhere", reused), false);
 });

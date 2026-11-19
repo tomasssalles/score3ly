@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { failure, failStage, fetchPipeline, finishStage, resolveStage, stopStage, type ApiPipeline, type Project } from "./api";
 import { FINISHERS } from "./finishers";
 import { settled } from "./saving";
-import { canRun, currentStage, firstNotDone, toPipeline, type LocalRun, type Pipeline, type RunMode } from "./pipeline";
+import { canRun, currentStage, firstNotDone, ranToDone, toPipeline, type LocalRun, type Pipeline, type RunMode } from "./pipeline";
 import { RUNNERS } from "./runners";
 import { CannotStart, failsTheStage, LEAVING } from "./stageRunner";
 import { useWakeLock } from "./wakeLock";
@@ -188,8 +188,7 @@ export function usePipelineRun({
     }
     setStored(next);
     onChanged();
-    const finished = next.stages.find((s) => s.id === stage.id)?.status === "done";
-    if (finished && modeRef.current === "auto") await run(next);
+    if (ranToDone(latest.stages, stage.id, next.stages) && modeRef.current === "auto") await run(next);
   }
 
   // Stops the running stage (on this device, or another: the Worker stops it either way).
