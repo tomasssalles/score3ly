@@ -1,7 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { sha256Hex, sseData } from "@score3ly/core";
-import { ApiError, callLlm, dropStage, fetchPipeline, putJson, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, STALE_EVENT, testModelConfig, type Project, type ProjectExport } from "./api.ts";
+import { ApiError, callLlm, dropStage, fetchPipeline, putJson, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, reserveIssueNumbers, STALE_EVENT, testModelConfig, type Project, type ProjectExport } from "./api.ts";
 
 // The tests replace the browser's fetch with a fake that records each request and answers with a fixed response.
 const realFetch = globalThis.fetch;
@@ -282,4 +282,17 @@ test("a config's Test is sent with the signal that stops it (the dialog closed)"
   const controller = new AbortController();
   await testModelConfig("m1", controller.signal);
   assert.equal(sent, controller.signal);
+});
+
+// The issue counter (docs/notation.md, "Issue ids"): the numbers continue above the largest the caller knows of, which
+// the replay relies on (it sets the counter where each recorded stage started).
+test("reserveIssueNumbers asks for the count above the largest known number", async () => {
+  answerWith(200, { first: 12 });
+  assert.equal(await reserveIssueNumbers(project, 3, [{ id: 4 }, { id: 9 }, { id: 2 }]), 12);
+  assert.equal(requests[0].url, "/api/projects/p1/issue-numbers");
+  assert.deepEqual(JSON.parse(String(requests[0].init.body)), { count: 3, above: 9 });
+
+  answerWith(200, { first: 1 });
+  await reserveIssueNumbers(project, 1);
+  assert.deepEqual(JSON.parse(String(requests[0].init.body)), { count: 1, above: 0 });
 });
