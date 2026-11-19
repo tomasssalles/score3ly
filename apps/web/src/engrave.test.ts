@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiStage } from "./api.ts";
-import { downloadName, latestMei, meiNote, pdfPageCount, withoutDate } from "./engrave.ts";
+import { downloadName, engraveStageKey, latestMei, meiNote, pdfPageCount, withoutDate } from "./engrave.ts";
+import { pdfRecipe } from "./recipes.ts";
 
 const stage = (step: string, status: ApiStage["status"], outputs: { id: string; type: string; sha: string }[] = []): ApiStage =>
   ({
@@ -52,4 +53,10 @@ test("the downloads' names: the project's name, then what the file is, never `.s
   assert.equal(downloadName("x", "pdf"), "x.score3ly-render.pdf");
   assert.equal(downloadName("x", "report.json"), "x.score3ly-report.json");
   assert.equal(downloadName("  ", "zip"), "score.score3ly-bundle.zip");
+});
+
+// Taken before the code review's batch 28 moved the key out of runEngrave.ts: the same recipe, the same key.
+test("engrave's stage key: the step, its version and the PDF's recipe", async () => {
+  assert.equal(await engraveStageKey(pdfRecipe("ab".repeat(32), { pageSize: "a4" })), "b31fe18c55c6eedfd27e1fa6db54c65d40244fc58a3975e1c602f1d083f747eb");
+  assert.equal(await engraveStageKey(pdfRecipe("ab".repeat(32), { pageSize: "letter" })), "8d648ea0349be7d8b2379d8575fa90a6228ef678485b996ee1982a8a902d0d2e");
 });

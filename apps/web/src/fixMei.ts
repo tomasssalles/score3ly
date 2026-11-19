@@ -2,10 +2,10 @@
 // before `engrave`. It reads `build_mei`'s MEI, its parent, like every fix reads the output it corrects. Its outputs
 // (item '', all overwritten while WIP): `mei_base`, the MEI it started from, written when the editor first opens (what
 // "lines changed" counts against); `mei_draft`, the text as last saved; `mei`, the text last applied (it passed the
-// checks). The editor is FixMeiView.tsx; finishing, finishFixMei below.
+// checks). The editor is FixMeiView.tsx; finishing, finishFixMei.ts.
 
-import { fetchTextContent, putContent, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api.ts";
-import { changesNote, linesChanged, type MeiProblem } from "./meiChecks.ts";
+import { fetchTextContent, putContent, recordOutputs, type ApiStage, type Project } from "./api.ts";
+import type { MeiProblem } from "./meiChecks.ts";
 import { latestStage } from "./stageInputs.ts";
 
 export const FIX_MEI_VERSION = 1;
@@ -59,17 +59,3 @@ export async function loadFixMei(project: Project, stage: ApiStage, earlier: Api
 
 // A problem as one line of text.
 export const problemText = (p: MeiProblem): string => (p.line === null ? p.message : `Line ${p.line}: ${p.message}`);
-
-// Finishing applies the text last saved: it must pass the checks. Returns the card's result, the lines changed.
-export async function finishFixMei(project: Project, stage: ApiStage, pipeline: ApiPipeline): Promise<string> {
-  const earlier = pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id));
-  const { base, draft } = await loadFixMei(project, stage, earlier);
-  const { checkMeiText } = await import("./meiValidation");
-  const problems = await checkMeiText(draft);
-  if (problems.length > 0) {
-    const more = problems.length > 1 ? ` (and ${problems.length - 1} more)` : "";
-    throw new Error(`the MEI doesn't pass the checks. ${problemText(problems[0])}${more}. Apply it in the editor to see them all.`);
-  }
-  await saveText(project, stage.id, draft, ["mei_draft", "mei"]);
-  return changesNote(linesChanged(base, draft));
-}

@@ -3,7 +3,7 @@
 // recipe; the PDF itself is cached on the device and made again where it is missing (engraving.ts).
 
 import { keyOf } from "@score3ly/core";
-import { ENGRAVE_VERSION, engraveConfigOf, latestMei, pdfPageCount } from "./engrave";
+import { ENGRAVE_VERSION, engraveConfigOf, engraveStageKey, latestMei, pdfPageCount } from "./engrave";
 import { engravedPdf } from "./engraving";
 import { pdfRecipe } from "./recipes";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
@@ -24,7 +24,7 @@ export async function runEngrave(run: StageRun): Promise<void> {
   await runPlan(run, {
     stepVersion: ENGRAVE_VERSION,
     config,
-    stageKey: await keyOf({ step: "engrave", version: ENGRAVE_VERSION, recipe }),
+    stageKey: await engraveStageKey(recipe),
     pageCount: rasterize?.outputs.filter((o) => o.type === "page_image").length ?? null,
     inputIds: [mei.id],
     // Counted from the PDF, made again (or found on the device) when an earlier run recorded it.

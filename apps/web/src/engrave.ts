@@ -9,6 +9,7 @@ import { REPOSITORY_URL } from "./about.ts";
 import type { ApiStage } from "./api";
 import { scoreInput, type StoredExtraction } from "./extract.ts";
 import { latestOutput, latestProducer } from "./stageInputs.ts";
+import type { PdfRecipe } from "./recipes.ts";
 import { normalizeMetadata } from "./fixMetadata.ts";
 import { keyOf, pageOfItem, systemOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
@@ -109,6 +110,11 @@ export function buildMeiStageKey(sources: EngraveSources, versions: { lensVersio
     metadata: sources.metadata.sha256,
     pieces: sources.pieces.sha256,
   });
+}
+
+// `engrave`'s stage key (§5.2): the step, its version, and the PDF's recipe (the MEI it engraves and the page options).
+export function engraveStageKey(recipe: PdfRecipe): Promise<string> {
+  return keyOf({ step: "engrave", version: ENGRAVE_VERSION, recipe });
 }
 
 // The score and the metadata, from the sources' content (fetched by `fetch`).
