@@ -6,11 +6,11 @@ import {
   flatObservations,
   PAGE_LISTS,
   SCORE_LISTS,
+  firstPlace,
   withIds,
   type Confidence,
   type PageMetadata,
   type PageObservations,
-  type Place,
   type ScoreAnswer,
   type ScoreMetadata,
   type ScoreObservations,
@@ -81,22 +81,6 @@ export function pageItems(pages: PageAnalysis[]): Map<string, { list: (typeof PA
   );
 }
 
-// Where a place is in the score, for sorting: by system, then start, stretch 1, bar line 1, stretch 2, …, end.
-function placeOrder(p: Place): number {
-  const within = p.at === "start" ? 1 : p.at === "stretch" ? 2 * p.number : p.at === "barLine" ? 2 * p.number + 1 : 1e6;
-  return p.system * 1e7 + within;
-}
-
-// Where an item starts, for sorting a list: an item open at its start before everything on its end's system, one open
-// at both ends before everything.
-export function firstPlace(item: object): number {
-  const i = item as { system?: number; place?: Place; start?: Place | null; end?: Place | null };
-  if (i.system !== undefined) return i.system * 1e7;
-  if (i.place) return placeOrder(i.place);
-  if (i.start) return placeOrder(i.start);
-  return i.end ? i.end.system * 1e7 : 0;
-}
-
 // The observations as one document: the whole score's answer applied to the pages' items. Corrected items keep their
 // id and page, removed ones go, added ones join their page with a new id; every list but the notes in the score's
 // order.
@@ -121,13 +105,6 @@ export function combineObservations(pages: PageAnalysis[], answer: ScoreAnswer):
     SCORE_LISTS.map((list) => [list, (answer.score[list] as object[]).map((item) => ({ id: `s${++n}`, ...item }))]),
   ) as StoredScore;
   return { pages: stored, score };
-}
-
-// A place by name, as the views say it: "system 17, start", "system 17, bar line 4", "system 17, stretch 3",
-// "system 17, end".
-export function placeLabel(p: Place): string {
-  const where = p.at === "start" || p.at === "end" ? p.at : `${p.at === "barLine" ? "bar line" : "stretch"} ${p.number}`;
-  return `system ${p.system}, ${where}`;
 }
 
 // The card's short result, e.g. "12 pages · 3 pieces".

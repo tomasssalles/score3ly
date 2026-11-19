@@ -6,9 +6,8 @@
 // of item. Places are picked, never typed: a system, then one of its positions. Saving as in `fix_metadata`
 // (fieldList.tsx).
 
-import type { Place } from "@score3ly/prompts";
+import { placeLabel, positionLabel, samePlace, type Place } from "@score3ly/prompts";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { placeLabel } from "./analyze";
 import { UnsavedNote } from "./editor/pageEditor";
 import { fetchJsonContent, recordOutputs, type Project } from "./api";
 import { LayoutFilmstrip } from "./editor/PageViews";
@@ -26,7 +25,6 @@ import {
   obsKindOf,
   obsProblem,
   observationsOf,
-  positionLabel,
   positionsIn,
   removeProblem,
   removeStaff,
@@ -34,7 +32,6 @@ import {
   rowEmpty,
   rowsOf,
   sameItem,
-  samePlace,
   sameShapeKinds,
   sectionsOf,
   shownConfidence,

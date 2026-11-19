@@ -25,7 +25,7 @@ import {
   type Staff,
   type SystemItem,
 } from "./analyzeForm.ts";
-import { BAR_LINE_PLACES, placeName, type Place } from "./places.ts";
+import { BAR_LINE_PLACES, placeLabel, type Place } from "./places.ts";
 
 // What the checks need to know: the systems that can be named (by number) with their number of bar lines and their
 // page; for the whole score also the pages, and the pages' items by id.
@@ -83,7 +83,7 @@ function observationsProblem(
     }
   }
   for (const b of o.specialBarLines) {
-    if (!BAR_LINE_PLACES.includes(b.place.at)) return `a ${b.kind} bar line is in ${placeName(b.place)}, not at a bar line`;
+    if (!BAR_LINE_PLACES.includes(b.place.at)) return `a ${b.kind} bar line is in ${placeLabel(b.place)}, not at a bar line`;
   }
   return null;
 }

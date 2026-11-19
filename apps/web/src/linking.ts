@@ -4,8 +4,8 @@
 // instead of leaving the model to find it in the whole document. What can't be linked unambiguously stays as it is:
 // a hint less, said nothing about. A linked item is as certain as its weakest part.
 
-import type { Confidence, Place } from "@score3ly/prompts";
-import { placeLabel, type Stored, type StoredObservations, type StoredPage } from "./analyze.ts";
+import { placeLabel, type Confidence, type Place } from "@score3ly/prompts";
+import type { Stored, StoredObservations, StoredPage } from "./analyze.ts";
 
 // An item's state as the requests give it (§6, `extract`): its confidence, or "confirmed" when a person checked it or
 // wrote it.

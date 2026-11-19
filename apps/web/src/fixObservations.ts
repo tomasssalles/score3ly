@@ -4,15 +4,17 @@
 
 import {
   BAR_LINE_PLACES,
+  firstPlace,
   PAGE_LISTS,
   SCORE_LISTS,
   stavesProblem,
   type Confidence,
   type PageList,
   type Place,
+  samePlace,
   type Staff,
 } from "@score3ly/prompts";
-import { firstPlace, type ShownConfidence, type StoredObservations, type StoredPage, type StoredScore } from "./analyze.ts";
+import { type ShownConfidence, type StoredObservations, type StoredPage, type StoredScore } from "./analyze.ts";
 import { canonicalJson } from "@score3ly/core";
 
 export const FIX_OBSERVATIONS_VERSION = 1;
@@ -208,19 +210,12 @@ export function sectionsOf(rows: ObsRow[]): { title: string; indices: number[] }
 export function positionsIn(system: number, barLines: number, barLinesOnly = false): Place[] {
   const places: Place[] = [{ system, at: "start", number: 0 }];
   for (let k = 1; k <= barLines + 1; k++) {
-    if (!barLinesOnly) places.push({ system, at: "stretch", number: k });
+    places.push({ system, at: "stretch", number: k });
     if (k <= barLines) places.push({ system, at: "barLine", number: k });
   }
   places.push({ system, at: "end", number: 0 });
-  return places;
+  return barLinesOnly ? places.filter((p) => BAR_LINE_PLACES.includes(p.at)) : places;
 }
-
-export function positionLabel(p: Place): string {
-  return p.at === "start" || p.at === "end" ? p.at : `${p.at === "barLine" ? "bar line" : "stretch"} ${p.number}`;
-}
-
-export const samePlace = (a: Place | null, b: Place | null) =>
-  a === b || (a !== null && b !== null && a.system === b.system && a.at === b.at && a.number === b.number);
 
 // A place moved to another system: the same position if that system has it, else its start.
 export function inSystem(p: Place, system: number, systems: ScoreSystems, barLinesOnly = false): Place {

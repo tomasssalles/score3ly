@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { stavesProblem, type PageObservations, type ScoreAnswer } from "@score3ly/prompts";
-import { analyzeNote, combineObservations, pageItems, pageResultsForScore, piecesOf, placeLabel, type PageAnalysis } from "./analyze.ts";
+import { placeLabel, stavesProblem, type PageObservations, type ScoreAnswer } from "@score3ly/prompts";
+import { analyzeNote, combineObservations, pageItems, pageResultsForScore, piecesOf, type PageAnalysis } from "./analyze.ts";
 
 const emptyMetadata = {
   titles: [],

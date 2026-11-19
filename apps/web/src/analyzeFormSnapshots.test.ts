@@ -9,8 +9,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { buildScore, meiString } from "@score3ly/notation";
 import { richScore } from "@score3ly/notation/testScore";
-import { checkScoreAnswer, flatMetadata, PLACE_KINDS, type AnalyzeContext, type PageMetadata, type PageObservations, type Place } from "@score3ly/prompts";
-import { combineObservations, firstPlace, pageItems, piecesOf, placeLabel, type PageAnalysis } from "./analyze.ts";
+import { checkScoreAnswer, firstPlace, flatMetadata, PLACE_KINDS, placeLabel, positionLabel, type AnalyzeContext, type PageMetadata, type PageObservations, type Place } from "@score3ly/prompts";
+import { combineObservations, pageItems, piecesOf, type PageAnalysis } from "./analyze.ts";
 import * as fixMetadata from "./fixMetadata.ts";
 import * as fixObservations from "./fixObservations.ts";
 import { linkSpans, systemHints } from "./linking.ts";
@@ -206,7 +206,7 @@ function snapshots(): Record<string, string> {
     "observations confidences": json(obsEdited.map(fixObservations.shownConfidence)),
     "hints from analyze": json(hints(observations)),
     "hints from the form": json(hints(obsStored)),
-    "place labels": json(places.map((p) => [placeLabel(p), fixObservations.positionLabel(p), firstPlace({ place: p })])),
+    "place labels": json(places.map((p) => [placeLabel(p), positionLabel(p), firstPlace({ place: p })])),
     "place kinds": json(PLACE_KINDS),
     "mei metadata, analyze": json(meiMetadata(metadata)),
     "mei metadata, form": json(meiMetadata(stored)),
