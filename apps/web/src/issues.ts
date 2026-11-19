@@ -37,6 +37,9 @@ export type StoredIssue = {
   applications?: { by: string; key: string }[];
   resolved: boolean;
   lilypond: string[] | null;
+  // An issue raised by code: which question it is (notation's `CodeIssue.kind`) and the places it asks about, what
+  // makes it the same issue when the checks find it again, whatever the question's wording or the boxes' rounding.
+  code?: { kind: string; places: StretchPlace[] };
 };
 
 export type StoredWarning = { message: string; boxes: PageBox[] };
@@ -135,16 +138,17 @@ export function codeIssue(issue: CodeIssue, id: number, placeBox: PlaceBox, writ
     ...(writtenBy === null ? {} : { applications: issue.applied === null ? [] : [{ by: writtenBy, key: issue.applied }] }),
     resolved: false,
     lilypond: null,
+    code: { kind: issue.kind, places: issue.places },
   };
 }
 
 export const storedWarning = (w: Warning, placeBox: PlaceBox): StoredWarning => ({ message: w.message, boxes: placesOnPages(w.places, placeBox) });
 
-// A code issue found again on the new transcription is new only if no issue raised by code asks the same about the
-// same places (docs/notation.md, "Issues": otherwise every rebuild would raise it again).
-export function isNewCodeIssue(issue: Pick<StoredIssue, "question" | "boxes">, existing: Iterable<StoredIssue>): boolean {
-  const boxes = canonicalJson(issue.boxes);
-  for (const e of existing) if (e.source === "code" && e.question === issue.question && canonicalJson(e.boxes) === boxes) return false;
+// A code issue found again on the new transcription is new only if no issue raised by code is the same question about
+// the same places (docs/notation.md, "Issues": otherwise every rebuild would raise it again): the same `code`.
+export function isNewCodeIssue(issue: Pick<StoredIssue, "code">, existing: Iterable<StoredIssue>): boolean {
+  const code = canonicalJson(issue.code ?? null);
+  for (const e of existing) if (e.source === "code" && e.code && canonicalJson(e.code) === code) return false;
   return true;
 }
 

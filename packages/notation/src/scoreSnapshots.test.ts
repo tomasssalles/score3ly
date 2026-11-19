@@ -49,7 +49,8 @@ const EXPECTED: Record<string, string> = {
   "mei of system 4": "f15b3e48eabd8b9ed71e00d3f63eb76a06ef528972e029aa568a352161642016",
   checks: "f4e33f64af9ca52296d8983af0abee2176509e4c6d40a3623070bf0e8bc41c70",
   links: "9689d8d8201b692e5fd9f838c8277d41f53cca24d480a527cc36743d2b42dfdc",
-  scoreChecks: "30562551883c2b927b654be83234ecdd7f0fc7ccb3761d64cbfb78ff273e5836",
+  // Changed once on purpose (the code review's batch 29, D12): code issues carry their `kind`; the same without it.
+  scoreChecks: "c99e620824d423298a07332ec952666425357b51ffa610410123f1299e2d8126",
 };
 
 test("the rich score's MEI, checks and links are as they were", () => {

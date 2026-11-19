@@ -57,8 +57,11 @@ export type LensSystem = {
 // A place in the score: a stretch of a system (systems numbered in the whole score).
 export type StretchPlace = { system: number; stretch: number };
 
-// A question code asks about the page (§6, "Bar lines, stretches and measures", "Loose ends across systems").
-export type CodeIssue = { question: string; answers: LensAnswer[]; applied: string | null; places: StretchPlace[] };
+// A question code asks about the page (§6, "Bar lines, stretches and measures", "Loose ends across systems"). `kind`
+// says which question it is, whatever its wording, so that the same question about the same places is known again
+// (docs/notation.md, "Issues"): "first-stretch", "continuation", "stretch-class", "printed-number", "piece-end",
+// "mark-end:<mark>", "mark-start:<mark>".
+export type CodeIssue = { kind: string; question: string; answers: LensAnswer[]; applied: string | null; places: StretchPlace[] };
 // A problem of the extraction itself (§6, "Warnings").
 export type Warning = { message: string; places: StretchPlace[] };
 
@@ -161,7 +164,7 @@ function check(json: unknown, context: SystemContext, before: ScoreState): Check
     for (const v of s.voices) spans.voice(s.stretch, v.voice, v.staff, voices.get(`${s.stretch}/${v.voice}`)!);
   }
   for (const p of spans.finish()) {
-    codeIssues.push({ question: p.question, answers: [], applied: null, places: p.places });
+    codeIssues.push({ kind: p.kind, question: p.question, answers: [], applied: null, places: p.places });
   }
 
   const counted = countMeasures(answer, context, before, voices);
@@ -324,6 +327,7 @@ function pageQuestions(answer: LensSystem, context: SystemContext, before: Score
   const first = answer.stretches[0];
   if (context.firstOfPiece && first.class === "continues") {
     codeIssues.push({
+      kind: "first-stretch",
       question: `What part of a measure is the first stretch of this piece?`,
       answers: stretchAnswers(),
       applied: "b",
@@ -331,6 +335,7 @@ function pageQuestions(answer: LensSystem, context: SystemContext, before: Score
     });
   } else if (!context.firstOfPiece && before.measureContinues !== (first.class === "continues")) {
     codeIssues.push({
+      kind: "continuation",
       question: `Is the first stretch of system ${system} a continuation of the measure that ends system ${system - 1}?`,
       answers: [
         { key: "a", text: "Yes" },
@@ -343,10 +348,11 @@ function pageQuestions(answer: LensSystem, context: SystemContext, before: Score
   for (const [i, s] of answer.stretches.entries()) {
     const later = answer.stretches.slice(i + 1);
     if (s.class === "none" && later.some((t) => t.class !== "none")) {
-      codeIssues.push({ question: `What part of a measure is stretch ${s.stretch} of system ${system}?`, answers: stretchAnswers(), applied: "c", places: [here(s.stretch)] });
+      codeIssues.push({ kind: "stretch-class", question: `What part of a measure is stretch ${s.stretch} of system ${system}?`, answers: stretchAnswers(), applied: "c", places: [here(s.stretch)] });
     }
     if (s.printedNumber !== null && s.class !== "new") {
       codeIssues.push({
+        kind: "printed-number",
         question: `Stretch ${s.stretch} of system ${system} has a printed measure number ("${s.printedNumber}"). What part of a measure is it?`,
         answers: [
           { key: "a", text: "The start of a measure, because there is a printed measure number next to it" },

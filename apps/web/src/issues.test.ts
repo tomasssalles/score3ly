@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { placesOf, systemsOf, type PlacedSystem, type StoredIssue } from "./issues.ts";
+import { codeIssue, freshCodeIssues, placesOf, systemsOf, type PlacedSystem, type StoredIssue } from "./issues.ts";
 import { boxProblems, userChoice, writeAnswer, writtenAnswerKey } from "./humanReview.ts";
 import { applyCalls, checkPatch } from "./applyReview.ts";
 import { checkReview } from "./review.ts";
@@ -107,4 +107,18 @@ test("case matters in answers (dec. 25): a review's new answer that differs only
   assert.equal(userChoice(writeAnswer({ entries: [] }, issue, "answer b"), 7)?.key, "c");
   assert.equal(writtenAnswerKey(issue, " Answer B "), "b");
   assert.equal(writtenAnswerKey(issue, "answer b"), null);
+});
+
+// --- Issues raised by code ---
+
+test("an answered code issue isn't raised again for a reworded question or a box moved by a rounding (D12)", () => {
+  const found = { kind: "mark-end:curve", question: "Where does this slur or tie end?", answers: [], applied: null, places: [{ system: 5, stretch: 2 }] };
+  const placeBox = (p: { system: number; stretch: number }) => ({ page: 1, box: { ...CLOSE[p.system - 1].layout.box, left: 0.5 } });
+  const stored = codeIssue(found, 12, placeBox, "extract");
+  const answered = { ...stored, answers: [{ key: "a", text: "On the next E" }], choices: [{ by: "human_review", key: "a", reason: null }], resolved: true };
+  const moved = (p: { system: number; stretch: number }) => ({ page: 1, box: { ...placeBox(p).box, top: placeBox(p).box.top + 1e-6 } });
+  assert.deepEqual(freshCodeIssues([{ ...found, question: "Where does this curve end?" }], [answered], moved), []);
+  // Another place, or another kind of question, is another issue.
+  assert.equal(freshCodeIssues([{ ...found, places: [{ system: 5, stretch: 1 }] }], [answered], placeBox).length, 1);
+  assert.equal(freshCodeIssues([{ ...found, kind: "mark-start:curve" }], [answered], placeBox).length, 1);
 });

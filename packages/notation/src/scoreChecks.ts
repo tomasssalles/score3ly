@@ -5,7 +5,7 @@
 // warnings otherwise.
 
 import { repeatStructure } from "./links.ts";
-import { markName } from "./spans.ts";
+import { whereEnds } from "./spans.ts";
 import type { CheckedSystem, CodeIssue, StretchPlace, Warning } from "./lens.ts";
 import { splitPieces, trailingNoneStretches } from "./structure.ts";
 
@@ -30,6 +30,7 @@ function pieceEnd(last: ScoreSystem, codeIssues: CodeIssue[], warnings: Warning[
   const here = lastPlace(last);
   if (last.answer.lastMeasureContinues) {
     codeIssues.push({
+      kind: "piece-end",
       question: `Does the piece end with the measure at the end of system ${last.number}?`,
       answers: [
         { key: "a", text: "Yes, the measure ends with the piece" },
@@ -40,7 +41,7 @@ function pieceEnd(last: ScoreSystem, codeIssues: CodeIssue[], warnings: Warning[
     });
   }
   for (const m of last.state.open) {
-    codeIssues.push({ question: `Where does this ${markName(m.kind)} end?`, answers: [], applied: null, places: [here] });
+    codeIssues.push({ ...whereEnds(m.kind), answers: [], applied: null, places: [here] });
   }
   if (last.state.ending) warnings.push({ message: `An ending is still open where the piece ends, on system ${last.number}.`, places: [here] });
 }

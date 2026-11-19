@@ -254,11 +254,12 @@ test("after the calls: a reverted issue gets the stage's choice of its applied a
   assert.equal(applyNote(1, 0), "1 change applied");
 });
 
-test("an issue raised by code again is new only if none asks the same about the same places", () => {
-  const existing = [issue(7, [on(2)], { source: "code", question: "Where does the slur end?" })];
-  assert.equal(isNewCodeIssue({ question: "Where does the slur end?", boxes: [on(2)] }, existing), false);
-  assert.equal(isNewCodeIssue({ question: "Where does the slur end?", boxes: [on(3)] }, existing), true);
-  assert.equal(isNewCodeIssue({ question: "Where does the tie end?", boxes: [on(2)] }, existing), true);
+test("an issue raised by code again is new only if none is the same question about the same places", () => {
+  const code = { kind: "mark-end:curve", places: [{ system: 2, stretch: 1 }] };
+  const existing = [issue(7, [on(2)], { source: "code", question: "Where does the slur end?", code })];
+  assert.equal(isNewCodeIssue({ code }, existing), false);
+  assert.equal(isNewCodeIssue({ code: { ...code, places: [{ system: 3, stretch: 1 }] } }, existing), true);
+  assert.equal(isNewCodeIssue({ code: { ...code, kind: "mark-start:curve" } }, existing), true);
 });
 
 // docs/stages/music.md, `apply_review`, "When an answer can't be applied as given" (decided 2026-11-03).
