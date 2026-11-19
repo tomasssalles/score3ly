@@ -184,8 +184,6 @@ function checkEntries(json: unknown, ctx: ReviewContext, first: number): { entri
   return { entries };
 }
 
-export const newIssueCount = (json: unknown) => ((json as ReviewAnswer)?.entries ?? []).filter((e) => "newIssue" in e && e.newIssue).length;
-
 function newIssue(n: ReviewNewIssueEntry["newIssue"], ctx: ReviewContext, id: number): StoredIssue | { problem: string } {
   const what = `the new issue "${n.question}"`;
   if (n.boxes.length === 0) return { problem: `${what} has no boxes` };

@@ -8,7 +8,7 @@
 import { buildScore, checkSystems, LENS_VERSION, systemLinks } from "@score3ly/notation";
 import { REVIEW_MAX_OUTPUT_TOKENS, REVIEW_PROMPT_VERSION, REVIEW_SCHEMA, REVIEW_SYSTEM, reviewIssuesText, reviewLogText, reviewScoreText, reviewText } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
-import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
+import { fetchJsonContent, numberIssues, putJson } from "./api";
 import { scoreInput, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks } from "./extract";
 import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
@@ -20,7 +20,6 @@ import {
   applyEntries,
   checkReview,
   logEntries,
-  newIssueCount,
   proposedChanges,
   REVIEW_VERSION,
   reviewIssues,
@@ -167,9 +166,8 @@ export async function runReview(run: StageRun): Promise<void> {
           unusable: (problem) => `Couldn't use the review of system ${s.number}: ${problem}.${kept}`,
         });
         // The new issues get their numbers from the project's counter, now that the answer is usable.
-        const count = newIssueCount(normalized(answer.json));
-        let id = count > 0 ? await reserveIssueNumbers(run.project, count, issues.values()) : 1;
-        const entries: ReviewEntry[] = checked.entries.map((e) => ("newIssue" in e ? { newIssue: { ...e.newIssue, id: id++ } } : e));
+        const numbered = await numberIssues(run.project, checked.entries.flatMap((e) => ("newIssue" in e ? [e.newIssue] : [])), issues.values());
+        const entries: ReviewEntry[] = checked.entries.map((e) => ("newIssue" in e ? { newIssue: numbered.shift()! } : e));
         const result: StoredReview = { system: s.number, entries };
         // As it reads back from storage (canonical JSON): the later calls' log is then the same in this run and in a
         // retry, and the cache finds them.

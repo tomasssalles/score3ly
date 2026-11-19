@@ -442,6 +442,14 @@ export async function reserveIssueNumbers(project: Project, count: number, known
   return ((await (await send(`/api/projects/${project.id}/issue-numbers`, { count, above })).json()) as { first: number }).first;
 }
 
+// Numbers the issues a stage raised (`unnumbered`, in their order) from the project's counter, above the issues the
+// caller works on (`known`, as `reserveIssueNumbers`). None asks for nothing.
+export async function numberIssues<T extends { id: number }>(project: Project, unnumbered: T[], known: Iterable<{ id: number }> = []): Promise<T[]> {
+  if (unnumbered.length === 0) return [];
+  const first = await reserveIssueNumbers(project, unnumbered.length, known);
+  return unnumbered.map((issue, i) => ({ ...issue, id: first + i }));
+}
+
 export async function fetchModelOptions(): Promise<ModelOptions> {
   return (await checked(await fetch("/api/models"))).json();
 }

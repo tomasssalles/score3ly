@@ -28,7 +28,7 @@ import {
   stretchMeasures,
 } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
-import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
+import { fetchJsonContent, numberIssues, putJson } from "./api";
 import {
   appliedCount,
   appliedIssues,
@@ -321,14 +321,17 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           const fresh = here.codeIssues
             .map((c) => ({ question: c.question, answers: c.answers, applied: c.applied, boxes: c.places.flatMap((p) => placeBox(p) ?? []) }))
             .filter((c) => isNewCodeIssue(c, all.values()));
-          let id = fresh.length > 0 ? await reserveIssueNumbers(run.project, fresh.length, all.values()) : 1;
           const result: StoredExtraction = {
             system: s.number,
             page: s.page,
             answer: answers.get(s.number)!,
             issues: [
               ...[...all.values()].filter((i) => homeOf(i) === s.number).sort((a, b) => a.id - b.id),
-              ...fresh.map((c): StoredIssue => ({ id: id++, source: "code", class: "reading", boxes: c.boxes, location: null, question: c.question, answers: c.answers, choices: [], applied: c.applied, resolved: false, lilypond: null })),
+              ...(await numberIssues(
+                run.project,
+                fresh.map((c): StoredIssue => ({ id: 0, source: "code", class: "reading", boxes: c.boxes, location: null, question: c.question, answers: c.answers, choices: [], applied: c.applied, resolved: false, lilypond: null })),
+                all.values(),
+              )),
             ],
             warnings: [...here.warnings.map(warningOf), ...callWarningsHere(s.number)],
           };
@@ -345,11 +348,14 @@ export async function runApplyReview(run: StageRun): Promise<void> {
           const fresh = scoreChecks.codeIssues
             .map((c) => ({ question: c.question, answers: c.answers, applied: c.applied, boxes: c.places.flatMap((p) => placeBox(p) ?? []) }))
             .filter((c) => isNewCodeIssue(c, all.values()));
-          let id = fresh.length > 0 ? await reserveIssueNumbers(run.project, fresh.length, all.values()) : 1;
           const result: StoredScoreChecks = {
             issues: [
               ...[...all.values()].filter((i) => homeOf(i) === null).sort((a, b) => a.id - b.id),
-              ...fresh.map((c): StoredIssue => ({ id: id++, source: "code", class: "reading", boxes: c.boxes, location: null, question: c.question, answers: c.answers, choices: [], applied: c.applied, resolved: false, lilypond: null })),
+              ...(await numberIssues(
+                run.project,
+                fresh.map((c): StoredIssue => ({ id: 0, source: "code", class: "reading", boxes: c.boxes, location: null, question: c.question, answers: c.answers, choices: [], applied: c.applied, resolved: false, lilypond: null })),
+                all.values(),
+              )),
             ],
             warnings: [...scoreChecks.warnings.map(warningOf), ...[...calls.values()].flatMap((c) => c.warnings).filter((w) => systemsOf(w.boxes, placed).length === 0)],
           };

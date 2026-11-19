@@ -1,7 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { sha256Hex, sseData } from "@score3ly/core";
-import { ApiError, callLlm, dropStage, fetchPipeline, putJson, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, renameProject, reserveIssueNumbers, STALE_EVENT, testModelConfig, type Project, type ProjectExport } from "./api.ts";
+import { ApiError, callLlm, dropStage, fetchPipeline, putJson, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, numberIssues, renameProject, reserveIssueNumbers, STALE_EVENT, testModelConfig, type Project, type ProjectExport } from "./api.ts";
 
 // The tests replace the browser's fetch with a fake that records each request and answers with a fixed response.
 const realFetch = globalThis.fetch;
@@ -295,4 +295,15 @@ test("reserveIssueNumbers asks for the count above the largest known number", as
   answerWith(200, { first: 1 });
   await reserveIssueNumbers(project, 1);
   assert.deepEqual(JSON.parse(String(requests[0].init.body)), { count: 1, above: 0 });
+});
+
+test("numberIssues numbers issues in their order from the counter, above the known ones; none asks nothing", async () => {
+  answerWith(200, { first: 7 });
+  const numbered = await numberIssues(project, [{ id: 0, question: "a" }, { id: 0, question: "b" }], [{ id: 6 }, { id: 3 }]);
+  assert.deepEqual(numbered, [{ id: 7, question: "a" }, { id: 8, question: "b" }]);
+  assert.deepEqual(JSON.parse(String(requests[0].init.body)), { count: 2, above: 6 });
+
+  answerWith(200, { first: 1 });
+  assert.deepEqual(await numberIssues(project, [], [{ id: 6 }]), []);
+  assert.equal(requests.length, 0);
 });

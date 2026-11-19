@@ -7,7 +7,7 @@
 
 import { checkScore, checkSystem, checkSystems, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
 import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractText, lensFromExtract } from "@score3ly/prompts";
-import { putJson, reserveIssueNumbers } from "./api";
+import { numberIssues, putJson } from "./api";
 import {
   EXTRACT_VERSION,
   extractNote,
@@ -151,9 +151,8 @@ export async function runExtract(run: StageRun): Promise<void> {
             unusable: (problem) => `Couldn't use the answer for system ${s.number}: ${problem}.${kept}`,
           });
           states.set(s.number, checked.state);
-          const count = checked.answer.issues.length + checked.codeIssues.length;
-          const firstId = count > 0 ? await reserveIssueNumbers(run.project, count, [...stored.values()].flatMap((e) => e.issues)) : 1;
-          const result = storedExtraction(s, checked, sources, placeBox, firstId);
+          const unnumbered = storedExtraction(s, checked, sources, placeBox, 0);
+          const result = { ...unnumbered, issues: await numberIssues(run.project, unnumbered.issues, [...stored.values()].flatMap((e) => e.issues)) };
           stored.set(s.number, result);
           const contentSha256 = await putJson(result);
           return { contentSha256, inputIds: inputsOf(s), callId: answer.callId };
@@ -167,9 +166,8 @@ export async function runExtract(run: StageRun): Promise<void> {
             systems.map((s) => ({ number: s.number, answer: stored.get(s.number)!.answer, state: stateAfter(s.number) })),
             pieces,
           );
-          const count = checked.codeIssues.length;
-          const firstId = count > 0 ? await reserveIssueNumbers(run.project, count, [...stored.values()].flatMap((e) => e.issues)) : 1;
-          scoreChecks = storedScoreChecks(checked, placeBox, firstId);
+          const unnumbered = storedScoreChecks(checked, placeBox, 0);
+          scoreChecks = { ...unnumbered, issues: await numberIssues(run.project, unnumbered.issues, [...stored.values()].flatMap((e) => e.issues)) };
           const contentSha256 = await putJson(scoreChecks);
           return { contentSha256, inputIds: [...new Set(systems.flatMap(inputsOf))] };
         },
