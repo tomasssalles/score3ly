@@ -10,7 +10,7 @@ import type { ApiStage } from "./api";
 import { scoreInput, type StoredExtraction } from "./extract.ts";
 import { latestOutput, latestProducer } from "./stageInputs.ts";
 import type { PdfRecipe } from "./recipes.ts";
-import { normalizeMetadata } from "./fixMetadata.ts";
+import { normalizeMetadata } from "./analyze.ts";
 import { keyOf, pageOfItem, systemOfItem } from "@score3ly/core";
 import type { PageLayout } from "./layout";
 import { indexMei } from "./meiView.ts";

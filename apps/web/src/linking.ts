@@ -5,20 +5,14 @@
 // a hint less, said nothing about. A linked item is as certain as its weakest part.
 
 import { placeLabel, type Confidence, type Place } from "@score3ly/prompts";
-import type { Stored, StoredObservations, StoredPage } from "./analyze.ts";
+import { shownConfidence, type ShownConfidence, type Stored, type StoredObservations, type StoredPage } from "./analyze.ts";
 
-// An item's state as the requests give it (§6, `extract`): its confidence, or "confirmed" when a person checked it or
-// wrote it.
-export type ItemState = Confidence | "confirmed";
+// An item's state as the requests give it (§6, `extract`) is its shownConfidence: its confidence, or "confirmed" when
+// a person checked it or wrote it.
+const RANK: Record<ShownConfidence, number> = { low: 0, medium: 1, high: 2, confirmed: 3 };
+const weakest = (states: ShownConfidence[]): ShownConfidence => states.reduce((a, b) => (RANK[a] <= RANK[b] ? a : b));
 
-export function stateOf(item: { confidence: Confidence | null; confirmed?: boolean }): ItemState {
-  return item.confirmed || item.confidence === null ? "confirmed" : item.confidence;
-}
-
-const RANK: Record<ItemState, number> = { low: 0, medium: 1, high: 2, confirmed: 3 };
-const weakest = (states: ItemState[]): ItemState => states.reduce((a, b) => (RANK[a] <= RANK[b] ? a : b));
-
-type Spanning = { kind: "ottava" | "ending"; text: string; staff: string | null; start: Place | null; end: Place | null; page: number; state: ItemState };
+type Spanning = { kind: "ottava" | "ending"; text: string; staff: string | null; start: Place | null; end: Place | null; page: number; state: ShownConfidence };
 
 // A spanning item, with all its parts joined: where it starts and ends in the score (null: before or after the pages
 // seen), and the systems it is in effect on.
@@ -30,13 +24,13 @@ export type Span = {
   end: Place | null;
   from: number; // the first system it covers (in part)
   to: number; // the last
-  state: ItemState;
+  state: ShownConfidence;
 };
 
 function spanningItems(page: StoredPage): Spanning[] {
   return [
-    ...page.ottavas.map((o) => ({ kind: "ottava" as const, text: o.text, staff: `staff ${o.staff.number}/${o.staff.of}`, start: o.start, end: o.end, page: page.page, state: stateOf(o) })),
-    ...page.endings.map((e) => ({ kind: "ending" as const, text: e.numbers, staff: null, start: e.start, end: e.end, page: page.page, state: stateOf(e) })),
+    ...page.ottavas.map((o) => ({ kind: "ottava" as const, text: o.text, staff: `staff ${o.staff.number}/${o.staff.of}`, start: o.start, end: o.end, page: page.page, state: shownConfidence(o) })),
+    ...page.endings.map((e) => ({ kind: "ending" as const, text: e.numbers, staff: null, start: e.start, end: e.end, page: page.page, state: shownConfidence(e) })),
   ];
 }
 
@@ -101,10 +95,10 @@ export function placeFor(system: number, p: Place | null, open: "before" | "afte
 // What the observations say about one system, for its request: its staves, the items placed on it, the spans in
 // effect on it (or starting or ending there), and the notes of its page.
 export type SystemHints = {
-  staves: { count: number; instruments: string[]; state: ItemState } | null;
-  onThisSystem: { what: string; text: string; place: string; staff: string | null; state: ItemState }[];
-  spans: { what: string; text: string; staff: string | null; from: string; to: string; state: ItemState }[];
-  pageNotes: { text: string; state: ItemState }[];
+  staves: { count: number; instruments: string[]; state: ShownConfidence } | null;
+  onThisSystem: { what: string; text: string; place: string; staff: string | null; state: ShownConfidence }[];
+  spans: { what: string; text: string; staff: string | null; from: string; to: string; state: ShownConfidence }[];
+  pageNotes: { text: string; state: ShownConfidence }[];
 };
 
 export function systemHints(observations: StoredObservations, spans: Span[], system: number, page: number): SystemHints {
@@ -113,15 +107,15 @@ export function systemHints(observations: StoredObservations, spans: Span[], sys
   const here = <T extends { place: Place }>(list: Stored<T>[] | undefined) => (list ?? []).filter((i) => i.place.system === system);
   const staffName = (s: { number: number; of: number } | null) => (s ? `staff ${s.number}/${s.of}` : null);
   return {
-    staves: staves ? { count: staves.staves, instruments: staves.instruments, state: stateOf(staves) } : null,
+    staves: staves ? { count: staves.staves, instruments: staves.instruments, state: shownConfidence(staves) } : null,
     onThisSystem: [
-      ...here(p?.changes).map((c) => ({ what: `${c.kind} change`, text: c.text, place: placeFor(system, c.place, "before"), staff: staffName(c.staff), state: stateOf(c) })),
-      ...here(p?.specialBarLines).map((b) => ({ what: "special bar line", text: b.kind, place: placeFor(system, b.place, "before"), staff: null, state: stateOf(b) })),
-      ...here(p?.directions).map((d) => ({ what: "direction", text: d.text, place: placeFor(system, d.place, "before"), staff: null, state: stateOf(d) })),
+      ...here(p?.changes).map((c) => ({ what: `${c.kind} change`, text: c.text, place: placeFor(system, c.place, "before"), staff: staffName(c.staff), state: shownConfidence(c) })),
+      ...here(p?.specialBarLines).map((b) => ({ what: "special bar line", text: b.kind, place: placeFor(system, b.place, "before"), staff: null, state: shownConfidence(b) })),
+      ...here(p?.directions).map((d) => ({ what: "direction", text: d.text, place: placeFor(system, d.place, "before"), staff: null, state: shownConfidence(d) })),
     ],
     spans: spans
       .filter((s) => s.from <= system && system <= s.to)
       .map((s) => ({ what: s.kind, text: s.text, staff: s.staff, from: placeFor(system, s.start, "before"), to: placeFor(system, s.end, "after"), state: s.state })),
-    pageNotes: (p?.notes ?? []).map((n) => ({ text: n.text, state: stateOf(n) })),
+    pageNotes: (p?.notes ?? []).map((n) => ({ text: n.text, state: shownConfidence(n) })),
   };
 }

@@ -3,7 +3,8 @@
 // bar lines numbered within their system), then one call for the whole score that merges the pages' results. Places
 // are named by the labels drawn on the pages: "system 17, bar line 4", "system 17, stretch 2", "system 17, end".
 
-// Raise whenever the texts, the schemas or the checks change.
+// Raise whenever the texts or the schemas change: what is sent. The checks (analyzeChecks.ts) and the conversions
+// (analyzeForm.ts) are code: a change to them raises the step's version, ANALYZE_VERSION (apps/web/src/analyze.ts).
 export const ANALYZE_PROMPT_VERSION = 7;
 
 export const ANALYZE_PAGE_MAX_OUTPUT_TOKENS = 16_000;

@@ -1,5 +1,6 @@
 // `analyze`'s answers (docs/stages/analyze.md): what a page and the whole score give, in the lists code uses; the flat
-// form the model writes, and the conversions both ways; the schemas. ANALYZE_PROMPT_VERSION (analyze.ts) covers them.
+// form the model writes, and the conversions both ways; the schemas. ANALYZE_PROMPT_VERSION (analyze.ts) covers the
+// schemas (they are sent), ANALYZE_VERSION (apps/web/src/analyze.ts) the conversions (code).
 
 import type { JsonSchema, Problem } from "@score3ly/core";
 import { PLACE_KINDS, type Place } from "./places.ts";

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Place } from "@score3ly/prompts";
-import type { StoredObservations } from "./analyze.ts";
+import { shownConfidence, type StoredObservations } from "./analyze.ts";
 import {
   addStaff,
   changedItems,
@@ -17,7 +17,6 @@ import {
   removeStaff,
   rowsOf,
   sectionsOf,
-  shownConfidence,
   withPlace,
   type ObsRow,
   type ScoreSystems,

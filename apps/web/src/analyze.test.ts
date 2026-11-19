@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { placeLabel, stavesProblem, type PageObservations, type ScoreAnswer } from "@score3ly/prompts";
-import { analyzeNote, combineObservations, pageItems, pageResultsForScore, piecesOf, type PageAnalysis } from "./analyze.ts";
+import { analyzeNote, combineObservations, pageItems, pageResultsForScore, piecesOf, scoreObservations, type PageAnalysis } from "./analyze.ts";
 
 const emptyMetadata = {
   titles: [],
@@ -118,6 +118,32 @@ test("a correction that changes a system's staves leaves the staves named on it 
   const corrections = { ...noObservations<{ id: string }>(), systems: [{ id: "p1-1", system: 1, staves: 3, instruments: [], confidence: "high" as const }] };
   const [stored] = combineObservations([page], answer({ corrections })).pages;
   assert.match(stavesProblem(stored, [1])!, /staff 1\/2 of system 1, which has 3 staves/);
+});
+
+test("the whole score's answer is checked, applied, and the pages as corrected checked once more", () => {
+  const page: PageAnalysis = {
+    page: 1,
+    systems: [1],
+    metadata: emptyMetadata,
+    observations: {
+      ...noObservations(),
+      systems: [{ system: 1, staves: 2, instruments: [], confidence: "high" }], // p1-1
+      ottavas: [{ text: "8va", staff: { number: 1, of: 2 }, start: at(1, "stretch", 1), end: null, confidence: "high" }], // p1-2
+    },
+  };
+  const context = { systems: new Map([[1, { barLines: 2, page: 1 }]]), pages: [1] };
+  // As the model writes it: flat.
+  const flat = (staves: number, removals: string[] = []) => ({
+    metadata: [],
+    edits: { systems: [{ id: "p1-1", page: 1, system: 1, staves, instruments: [], confidence: "high" }], items: [] },
+    removals,
+    score: [],
+  });
+  const used = scoreObservations([page], flat(2), context);
+  assert.ok(!("problem" in used));
+  assert.deepEqual(used.observations, combineObservations([page], used.answer));
+  assert.equal((scoreObservations([page], flat(3), context) as { problem: string }).problem, 'page 1: the ottava "8va" names staff 1/2 of system 1, which has 3 staves');
+  assert.equal((scoreObservations([page], flat(2, ["p1-9"]), context) as { problem: string }).problem, "a removal names the item p1-9, which doesn't exist");
 });
 
 test("places by name", () => {

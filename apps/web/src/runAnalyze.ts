@@ -16,18 +16,15 @@ import {
   ANALYZE_SCORE_TEXT,
   analyzePageText,
   checkPageAnswer,
-  checkScoreAnswer,
-  stavesProblem,
   type ScoreAnswer,
 } from "@score3ly/prompts";
 import {
   analyzeNote,
   analyzeStageKey,
   ANALYZE_VERSION,
-  combineObservations,
-  pageItems,
   pageResultsForScore,
   piecesOf,
+  scoreObservations,
   type PageAnalysis,
   type StoredPieces,
   type StoredObservations,
@@ -121,17 +118,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
   const scoreAnswer = () =>
     (score ??= (async () => {
       const all = await Promise.all(pages.map((p) => resultOf(p.output.item)));
-      const check = (json: unknown) => {
-        const checked = checkScoreAnswer(json, { systems: allSystems, pages: pages.map((p) => p.page), items: pageItems(all) });
-        if ("problem" in checked) return checked;
-        // The pages as corrected: their staves must still agree.
-        const observations = combineObservations(all, checked);
-        const staves = observations.pages
-          .map((p) => stavesProblem(p, all.find((r) => r.page === p.page)!.systems))
-          .map((problem, i) => problem && `page ${observations.pages[i].page}: ${problem}`)
-          .find((problem) => problem);
-        return staves ? { problem: staves } : { answer: checked, observations };
-      };
+      const check = (json: unknown) => scoreObservations(all, json, { systems: allSystems, pages: pages.map((p) => p.page) });
       const { answer, checked } = await ask(run, scoreRequest(all), "The whole score", { config, place: { item: "", round: 1 }, beforeImages, check });
       return { ...checked, callId: answer.callId };
     })());

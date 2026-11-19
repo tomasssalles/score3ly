@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkPageAnswer, flatMetadata, flatObservations, PAGE_LISTS, TEXT_FIELDS, withIds, type Place } from "@score3ly/prompts";
+import { normalizeMetadata } from "./analyze.ts";
 import * as fixMetadata from "./fixMetadata.ts";
 import * as fixObservations from "./fixObservations.ts";
 
@@ -36,7 +37,7 @@ function observation(list: "ottavas" | "endings", item: object): { analyze: bool
 function pieces(at: number[]): { analyze: boolean; form: boolean } {
   const metadata = { ...emptyMetadata(), pieces: at.map((system, i) => ({ title: `No. ${i + 1}`, system, confidence: "high" })) };
   const answer = { metadata: flatMetadata(metadata as never), observations: flatObservations({ ...emptyLists(), systems: staves } as never) };
-  const rows = fixMetadata.rowsOf(fixMetadata.normalizeMetadata({ ...metadata, pieces: metadata.pieces.map((p) => ({ ...p, page: 1 })) }));
+  const rows = fixMetadata.rowsOf(normalizeMetadata({ ...metadata, pieces: metadata.pieces.map((p) => ({ ...p, page: 1 })) }));
   const last = rows.length - 1;
   return {
     analyze: !("problem" in checkPageAnswer(answer, context)),

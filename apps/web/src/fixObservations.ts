@@ -15,7 +15,7 @@ import {
   samePlace,
   type Staff,
 } from "@score3ly/prompts";
-import { type ShownConfidence, type StoredObservations, type StoredPage, type StoredScore } from "./analyze.ts";
+import type { StoredObservations, StoredPage, StoredScore } from "./analyze.ts";
 import { canonicalJson } from "@score3ly/core";
 
 export const FIX_OBSERVATIONS_VERSION = 1;
@@ -141,10 +141,6 @@ export function observationsOf(rows: ObsRow[], pages: number[]): StoredObservati
 export function normalizeObservations(json: unknown): StoredObservations {
   const o = json as StoredObservations;
   return observationsOf(rowsOf(o), o.pages.map((p) => p.page));
-}
-
-export function shownConfidence(row: { confidence: Confidence | null; confirmed?: boolean }): ShownConfidence | null {
-  return row.confirmed ? "confirmed" : row.confidence;
 }
 
 // The kinds of item, in the order of "+" (the whole score's, then a page's), each in a section of the menu.

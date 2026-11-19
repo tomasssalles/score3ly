@@ -1,16 +1,17 @@
 // Finishing a `fix_metadata` stage (docs/stages/analyze.md): the metadata and where the pieces start are recorded, from what the
 // user saved, else from `analyze`'s. Finishing confirms nothing: only what the user confirmed is.
 
-import { piecesOf } from "./analyze";
+import { piecesOf } from "./analyze.ts";
 import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
-import { analyzeOutputs, changedFields, confirmedFields, fixNote, normalizeMetadata, type ShownMetadata } from "./fixMetadata";
+import { normalizeMetadata, type StoredMetadata } from "./analyze.ts";
+import { analyzeOutputs, changedFields, confirmedFields, fixNote } from "./fixMetadata";
 import { latestStage } from "./stageInputs";
 
 // The ids of `analyze`'s outputs that `fix_metadata` corrects (its pieces are missing from a version-1 `analyze`).
 export type MetadataParents = { metadata: string; pieces?: string };
 
 // The two outputs for some metadata.
-export async function metadataOutputs(m: ShownMetadata, parents: MetadataParents) {
+export async function metadataOutputs(m: StoredMetadata, parents: MetadataParents) {
   const parent = parents.metadata;
   return [
     {

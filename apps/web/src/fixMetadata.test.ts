@@ -7,17 +7,16 @@ import {
   fixNote,
   metadataOf,
   newRow,
-  normalizeMetadata,
   pieceProblem,
   rowsOf,
   sectionsOf,
-  shownConfidence,
   takenSystems,
   withKind,
   withSystem,
   type MetadataRow,
   type Systems,
 } from "./fixMetadata.ts";
+import { normalizeMetadata, shownConfidence } from "./analyze.ts";
 
 const analyzed = normalizeMetadata({
   titles: [{ text: "Kinderscenen", type: "main", page: 1, confidence: "high" }],

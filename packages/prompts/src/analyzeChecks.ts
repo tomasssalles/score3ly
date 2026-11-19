@@ -2,7 +2,7 @@
 // place on its page, no span ending before it starts, no two pieces at one system, the staves in agreement. Returns
 // the answer in its lists, or why it can't be used. `fix_metadata`'s and `fix_observations`' forms refuse by the
 // same rules (`startsWithAnother`, `endsBeforeStart`, `stavesProblem`).
-// ANALYZE_PROMPT_VERSION (analyze.ts) covers them.
+// Code, not what is sent: a change raises ANALYZE_VERSION (apps/web/src/analyze.ts), the step's version.
 
 import { schemaProblem, type Problem } from "@score3ly/core";
 import {

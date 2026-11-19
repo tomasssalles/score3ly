@@ -17,14 +17,12 @@ import {
   kindOf,
   metadataOf,
   newRow,
-  normalizeMetadata,
   pieceProblem,
   rowEmpty,
   rowsOf,
   sameField,
   SECTIONS,
   sectionsOf,
-  shownConfidence,
   takenSystems,
   withKind,
   withSystem,
@@ -33,6 +31,7 @@ import {
   type Systems,
 } from "./fixMetadata";
 import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./ui/icons";
+import { normalizeMetadata, shownConfidence } from "./analyze";
 import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
 

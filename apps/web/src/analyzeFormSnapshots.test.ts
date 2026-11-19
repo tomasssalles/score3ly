@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { buildScore, meiString } from "@score3ly/notation";
 import { richScore } from "@score3ly/notation/testScore";
 import { checkScoreAnswer, firstPlace, flatMetadata, PLACE_KINDS, placeLabel, positionLabel, type AnalyzeContext, type PageMetadata, type PageObservations, type Place } from "@score3ly/prompts";
-import { combineObservations, pageItems, piecesOf, type PageAnalysis } from "./analyze.ts";
+import { combineObservations, normalizeMetadata, pageItems, piecesOf, shownConfidence, type PageAnalysis } from "./analyze.ts";
 import * as fixMetadata from "./fixMetadata.ts";
 import * as fixObservations from "./fixObservations.ts";
 import { linkSpans, systemHints } from "./linking.ts";
@@ -143,7 +143,7 @@ function snapshots(): Record<string, string> {
 
   // fix_metadata: analyze's metadata read, edited (a field confirmed, one changed, a piece moved, fields added and
   // retyped), stored, and read back.
-  const shown = fixMetadata.normalizeMetadata(metadata);
+  const shown = normalizeMetadata(metadata);
   const rows = fixMetadata.rowsOf(shown);
   const metaSystems: fixMetadata.Systems = { pageOf: scoreSystems.map((s) => s.page) };
   const pieceIndex = rows.findIndex((r) => r.kind === "piece" && r.system === 4);
@@ -191,10 +191,10 @@ function snapshots(): Record<string, string> {
     "metadata rows": json(rows),
     "metadata sections": json(fixMetadata.sectionsOf(edited)),
     "metadata stored": json(stored),
-    "metadata stored, read back": json(fixMetadata.normalizeMetadata(JSON.parse(JSON.stringify(stored)))),
+    "metadata stored, read back": json(normalizeMetadata(JSON.parse(JSON.stringify(stored)))),
     "metadata counts": json([fixMetadata.changedFields(shown, stored), fixMetadata.confirmedFields(stored), fixMetadata.fixNote(2, 3)]),
     "metadata problems": json(metadataProblems),
-    "metadata confidences": json(rows.map(fixMetadata.shownConfidence)),
+    "metadata confidences": json(rows.map(shownConfidence)),
     "metadata pieces": json(piecesOf(stored)),
     "observations read": json(obs),
     "observations rows": json(obsRows),
@@ -203,7 +203,7 @@ function snapshots(): Record<string, string> {
     "observations stored, read back": json(fixObservations.normalizeObservations(JSON.parse(JSON.stringify(obsStored)))),
     "observations counts": json([fixObservations.changedItems(obs, obsStored), fixObservations.confirmedItems(obsStored)]),
     "observations problems": json([...obsProblems, ...removeProblems, fixObservations.obsProblem(reversed, obsRows.filter((_, i) => i !== ottava), scoreSystems)]),
-    "observations confidences": json(obsEdited.map(fixObservations.shownConfidence)),
+    "observations confidences": json(obsEdited.map(shownConfidence)),
     "hints from analyze": json(hints(observations)),
     "hints from the form": json(hints(obsStored)),
     "place labels": json(places.map((p) => [placeLabel(p), positionLabel(p), firstPlace({ place: p })])),

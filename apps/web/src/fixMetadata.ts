@@ -2,30 +2,16 @@
 // sections, the stored format and the rows the form edits, the checks, and the card's note. The form is in
 // MetadataView.tsx, finishing in finishFixMetadata.ts.
 
-import { startsWithAnother, TEXT_FIELDS, TITLE_TYPES, type Confidence, type Role, type TextField } from "@score3ly/prompts";
-import type { ShownConfidence } from "./analyze";
+import { startsWithAnother, TEXT_FIELDS, type Role } from "@score3ly/prompts";
+import { normalizeMetadata, type MetadataItem, type StoredMetadata, type TextKind } from "./analyze.ts";
 import type { ApiStage } from "./api";
 
 export const FIX_METADATA_VERSION = 1;
 
-type TitleType = (typeof TITLE_TYPES)[number];
-// The text fields the form knows: the model's, and the user's comment (never set by `analyze`).
-export type TextKind = TextField | "comments";
-
-// Every item: its page (none for what the user adds without one), the model's confidence (none for what the user
-// added) and whether the user confirmed it (docs/stages/analyze.md: stored beside the confidence, not instead of it).
-type Common = { page: number | null; confidence: Confidence | null; confirmed: boolean };
-
-// The metadata as stored by `analyze` (pages always set, nothing confirmed) and by `fix_metadata`, and as shown.
-export type ShownMetadata = {
-  titles: ({ text: string; type: TitleType } & Common)[];
-  people: ({ name: string; role: Role } & Common)[];
-  pieces: ({ title: string; system: number } & Common)[];
-} & Record<TextKind, ({ text: string } & Common)[]>;
-
+type TitleType = StoredMetadata["titles"][number]["type"];
 // One field of the form: its kind (an id in FIELD_KINDS), its text, and for a piece the system where it starts (null
 // only when every system already starts another piece). A piece's page is its system's.
-export type MetadataRow = Common & { kind: string; text: string; system: number | null };
+export type MetadataRow = MetadataItem & { kind: string; text: string; system: number | null };
 
 // `analyze`'s metadata output, and its pieces output if it has one.
 export function analyzeOutputs(analyze: ApiStage | null | undefined) {
@@ -33,26 +19,8 @@ export function analyzeOutputs(analyze: ApiStage | null | undefined) {
   return metadata ? { metadata, pieces: analyze!.outputs.find((o) => o.item === "" && o.type === "pieces") } : null;
 }
 
-// Stored metadata as the form uses it: `analyze`'s has no `confirmed` (nothing is), and the lists an older version
-// didn't have (e.g. `compositionDates`, `comments`) are empty.
-export function normalizeMetadata(json: unknown): ShownMetadata {
-  const m = (json ?? {}) as Partial<ShownMetadata>;
-  const common = <T extends Partial<Common>>(item: T) => ({ ...item, confidence: item.confidence ?? null, confirmed: item.confirmed ?? false });
-  return {
-    titles: (m.titles ?? []).map(common),
-    people: (m.people ?? []).map(({ name, role, page, confidence, confirmed }) => common({ name, role, page, confidence, confirmed })),
-    pieces: (m.pieces ?? []).map(common),
-    ...(Object.fromEntries([...TEXT_FIELDS, "comments"].map((f) => [f, (m[f as TextKind] ?? []).map(common)])) as Record<TextKind, []>),
-  };
-}
-
-// A field's confidence as the views show it: confirmed, else the model's.
-export function shownConfidence(item: Common): ShownConfidence | null {
-  return item.confirmed ? "confirmed" : item.confidence;
-}
-
-export function rowsOf(m: ShownMetadata): MetadataRow[] {
-  const row = (kind: string, text: string, item: Common, system: number | null = null): MetadataRow => ({
+export function rowsOf(m: StoredMetadata): MetadataRow[] {
+  const row = (kind: string, text: string, item: MetadataItem, system: number | null = null): MetadataRow => ({
     kind,
     text,
     system,
@@ -74,7 +42,7 @@ export function rowEmpty(row: MetadataRow): boolean {
 }
 
 // The rows as stored: empty ones dropped, the pieces by their system.
-export function metadataOf(rows: MetadataRow[]): ShownMetadata {
+export function metadataOf(rows: MetadataRow[]): StoredMetadata {
   const m = normalizeMetadata({});
   for (const row of rows) {
     if (rowEmpty(row)) continue;
@@ -113,7 +81,7 @@ export function pieceProblem(row: MetadataRow, others: MetadataRow[]): string | 
 
 // How many fields changed between the model's metadata and the user's: an edit, an addition and a removal each
 // count once (an edited field is one the original no longer has, and one it didn't have). Confirming isn't a change.
-export function changedFields(before: ShownMetadata, after: ShownMetadata): number {
+export function changedFields(before: StoredMetadata, after: StoredMetadata): number {
   const unmatched = rowsOf(before);
   let added = 0;
   for (const row of rowsOf(after)) {
@@ -124,7 +92,7 @@ export function changedFields(before: ShownMetadata, after: ShownMetadata): numb
   return Math.max(added, unmatched.length);
 }
 
-export function confirmedFields(m: ShownMetadata): number {
+export function confirmedFields(m: StoredMetadata): number {
   return rowsOf(m).filter((row) => row.confirmed).length;
 }
 

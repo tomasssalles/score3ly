@@ -34,7 +34,6 @@ import {
   sameItem,
   sameShapeKinds,
   sectionsOf,
-  shownConfidence,
   stavesOf,
   staffSystems,
   withPlace,
@@ -42,6 +41,7 @@ import {
   type ScoreSystems,
 } from "./fixObservations";
 import { CheckIcon, EyeIcon, MoreIcon, PlusIcon } from "./ui/icons";
+import { shownConfidence } from "./analyze";
 import type { PageLayout } from "./layout";
 import type { Artifact } from "./pipeline";
 import { count } from "./format";
