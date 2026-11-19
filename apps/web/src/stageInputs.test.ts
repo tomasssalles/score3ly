@@ -1,0 +1,134 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { pageOfItem } from "@score3ly/core";
+import type { ApiOutput, ApiStage } from "./api.ts";
+import { applyReviewInputIds, latestOutput, latestStage, musicSources, PRODUCERS, reviewInputIds } from "./stageInputs.ts";
+import { fakeFixture } from "./testing/fixture.ts";
+
+const fixture = fakeFixture();
+const stages = fixture.pipeline.stages;
+
+// What the code derived before `musicSources` (code review, batch 28), copied as it was: steps.ts' `reviewInputIds`,
+// and runApplyReview's input ids over musicInputs' lookups. `musicSources` must give the same ids.
+function reviewInputIdsBefore(earlier: ApiStage[]): string[] {
+  const latest = [...earlier].reverse();
+  const transcribed = latest.find((s) => ["extract", "apply_review"].includes(s.step));
+  const rasterize = latest.find((s) => s.step === "rasterize");
+  const layout = latest.find((s) => s.step === "layout" || s.step === "fix_layout");
+  const latestOutput = (steps: string[], type: string) =>
+    latest.find((s) => steps.includes(s.step) && s.outputs.some((o) => o.item === "" && o.type === type))?.outputs.find((o) => o.item === "" && o.type === type && o.contentSha256);
+  const observations = latestOutput(["fix_observations", "analyze"], "observations");
+  const pieces = latestOutput(["fix_metadata", "analyze"], "pieces");
+  if (!transcribed || !rasterize || !layout || !observations || !pieces) return [];
+  const images = new Map(rasterize.outputs.filter((o) => o.type === "page_image").map((o) => [o.item, o]));
+  const pages = layout.outputs
+    .filter((o) => o.type === "layout" && o.contentSha256 && images.get(o.item)?.recipe)
+    .sort((a, b) => (pageOfItem(a.item) ?? 0) - (pageOfItem(b.item) ?? 0));
+  return [
+    ...transcribed.outputs.filter((o) => (o.type === "extraction" || (o.item === "" && o.type === "score_checks")) && o.contentSha256).map((o) => o.id),
+    ...pages.flatMap((p) => [p.id, images.get(p.item)!.id]),
+    observations.id,
+    pieces.id,
+  ];
+}
+
+function applyReviewInputIdsBefore(stagesBefore: ApiStage[]): string[] | null {
+  const earlier = [...stagesBefore].reverse();
+  const rasterize = earlier.find((s) => s.step === "rasterize");
+  const layoutStage = earlier.find((s) => ["layout", "fix_layout"].includes(s.step));
+  if (!rasterize || !layoutStage) return null;
+  const latest = (steps: string[], type: string) => {
+    const s = earlier.find((x) => steps.includes(x.step) && x.outputs.some((o) => o.item === "" && o.type === type));
+    return s ? { stage: s, output: s.outputs.find((o) => o.item === "" && o.type === type && o.contentSha256)! } : null;
+  };
+  const obs = latest(["fix_observations", "analyze"], "observations");
+  const pcs = latest(["fix_metadata", "analyze"], "pieces");
+  if (!obs || !pcs) return null;
+  const images = new Map(rasterize.outputs.filter((o) => o.type === "page_image").map((o) => [o.item, o]));
+  const pages = layoutStage.outputs
+    .filter((o) => o.type === "layout" && o.contentSha256 && images.get(o.item)?.recipe)
+    .map((o) => ({ output: o, image: images.get(o.item)!, page: pageOfItem(o.item) ?? 0 }))
+    .sort((a, b) => a.page - b.page);
+  const at = earlier.findIndex((s) => ["extract", "apply_review"].includes(s.step));
+  const transcribed = at >= 0 ? earlier[at] : null;
+  if (!transcribed) return null;
+  const steps: Record<string, string> = { review: "review", human_review: "human_review" };
+  const reviewers = earlier.slice(0, at).filter((s) => s.step in steps).reverse();
+  const entriesOf = (r: ApiStage) => r.outputs.filter((o) => o.type === steps[r.step] && o.contentSha256);
+  const extractionOutputs = new Map(transcribed.outputs.filter((o) => o.type === "extraction" && o.contentSha256).map((o) => [o.item, o]));
+  const checksOutput = transcribed.outputs.find((o) => o.item === "" && o.type === "score_checks" && o.contentSha256);
+  if (!checksOutput) return null;
+  return [
+    ...[...extractionOutputs.values(), checksOutput].map((o) => o.id),
+    ...reviewers.flatMap(entriesOf).map((o) => o.id),
+    ...pages.flatMap((p) => [p.output.id, p.image.id]),
+    obs.output.id,
+    pcs.output.id,
+  ];
+}
+
+// Pipelines to compare on: the fixture's, and the same with fixes, a second review and stages that aren't done.
+let n = 0;
+const output = (type: string, item = "", content = true): ApiOutput => ({ id: `x${++n}`, item, type, contentSha256: content ? `${n}`.padStart(64, "0") : null, recipeKey: null, recipe: null });
+const stage = (step: string, outputs: ApiOutput[], status: ApiStage["status"] = "done"): ApiStage => ({ ...stages[0], id: `s${++n}`, step, status, outputs });
+const at = (step: string) => stages.findIndex((s) => s.step === step);
+const insert = (after: string, ...added: ApiStage[]) => [...stages.slice(0, at(after) + 1), ...added, ...stages.slice(at(after) + 1)];
+const variants: [string, ApiStage[]][] = [
+  ["the fixture", stages],
+  ["fix_metadata and fix_observations", insert("analyze", stage("fix_metadata", [output("metadata"), output("pieces")]), stage("fix_observations", [output("observations")]))],
+  ["a WIP fix_observations not yet saved", insert("analyze", stage("fix_observations", [], "wip"))],
+  ["a WIP fix_metadata, saved", insert("analyze", stage("fix_metadata", [output("metadata"), output("pieces")], "wip"))],
+  ["a second fix_layout, WIP", insert("fix_layout", stage("fix_layout", [output("layout", "p1")], "wip"))],
+  ["a second review", insert("human_review", stage("review", [output("review", "p1/s1"), output("review", "p1/s2", false)]))],
+  ["no layout", stages.filter((s) => s.step !== "layout" && s.step !== "fix_layout")],
+  ["no analysis", stages.filter((s) => s.step !== "analyze")],
+];
+
+test("musicSources gives the ids the code derived before, on every prefix of each pipeline", () => {
+  let compared = 0;
+  for (const [name, pipeline] of variants) {
+    for (let i = 0; i <= pipeline.length; i++) {
+      const earlier = pipeline.slice(0, i);
+      const sources = musicSources(earlier);
+      assert.deepEqual(reviewInputIds(sources), reviewInputIdsBefore(earlier), `${name}, ${i}: review`);
+      const before = applyReviewInputIdsBefore(earlier);
+      if (before) assert.deepEqual(applyReviewInputIds(sources), before, `${name}, ${i}: apply_review`);
+      if (before) compared++;
+    }
+  }
+  assert.ok(compared > 20);
+});
+
+test("the review's ids on the fixture are those it recorded", () => {
+  const review = at("review");
+  assert.deepEqual(reviewInputIds(musicSources(stages.slice(0, review))), [
+    "d3713976-d7e6-444b-80c7-c134b6b2f9ea",
+    "823c3caa-d454-4404-aec9-4a7b6d3e6ccd",
+    "6e9e542f-d4ae-4b49-9e7f-963c1274a1a3",
+    "74b8c26f-8df0-41c2-96b1-47d523e2f1b2",
+    "36c7ca04-3b61-4a18-ad0b-fbb368998e06",
+    "1486318a-3218-4023-b317-be2386054a7d",
+    "9f00c5bb-671c-446e-b86f-67450c0cba63",
+    "28d49109-1275-4c41-a628-40e93c121f53",
+    "f2b939e7-e7db-41f1-b055-96e5f6e1d218",
+    "4e302372-2c78-4f4a-b92b-31e7712802e5",
+    "3cfb036d-6d34-4ae2-874f-a12e8a0aa95b",
+  ]);
+});
+
+test("latestStage and latestOutput find the latest producer, a fix not yet saved passed over", () => {
+  const pipeline = variants[2][1];
+  assert.equal(latestStage(pipeline, PRODUCERS.observations)?.step, "fix_observations");
+  assert.equal(latestOutput(pipeline, "observations")?.stage.step, "analyze");
+  assert.equal(latestOutput(variants[1][1], "pieces")?.stage.step, "fix_metadata");
+  assert.equal(latestOutput(variants[1][1], "metadata")?.output.type, "metadata");
+  assert.equal(latestStage(stages, PRODUCERS.mei)?.step, "build_mei");
+  assert.equal(latestStage([], PRODUCERS.layout), null);
+});
+
+test("musicSources: the reviews after the transcription, in order", () => {
+  const pipeline = variants[5][1];
+  const sources = musicSources(pipeline.slice(0, pipeline.map((s) => s.step).lastIndexOf("review") + 1));
+  assert.deepEqual(sources.transcription?.reviews.map((s) => s.step), ["human_review", "review"]);
+  assert.equal(sources.transcription?.stage.step, "apply_review");
+});

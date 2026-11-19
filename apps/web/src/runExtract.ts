@@ -7,7 +7,7 @@
 
 import { checkScore, checkSystem, checkSystems, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
 import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractText, lensFromExtract } from "@score3ly/prompts";
-import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
+import { putJson, reserveIssueNumbers } from "./api";
 import {
   EXTRACT_VERSION,
   extractNote,
@@ -28,7 +28,7 @@ import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
 import { cropImage } from "./pageImages";
 import { MARGINS, stretchCropBoxes, systemCropBox } from "./crops";
 import { cropRecipe, imageVersions } from "./recipes";
-import { runPlan, type StageRun } from "./stageRunner";
+import { recordedContent, runPlan, type StageRun } from "./stageRunner";
 
 
 export async function runExtract(run: StageRun): Promise<void> {
@@ -59,13 +59,8 @@ export async function runExtract(run: StageRun): Promise<void> {
   const spans = linkSpans(observations, (page) => systems.filter((s) => s.page === page).map((s) => s.number));
 
   // Systems a failed run already recorded: loaded now, for the counts and for the state the next system starts from.
-  const recorded = new Map(stage.outputs.filter((o) => o.type === "extraction" && o.contentSha256).map((o) => [o.item, o]));
-  const stored = new Map<number, StoredExtraction>();
-  await Promise.all(
-    systems
-      .filter((s) => recorded.has(s.item))
-      .map(async (s) => stored.set(s.number, (await fetchJsonContent(recorded.get(s.item)!.contentSha256!)) as StoredExtraction)),
-  );
+  const recorded = await recordedContent<StoredExtraction>(stage, "extraction");
+  const stored = new Map(systems.filter((s) => recorded.has(s.item)).map((s) => [s.number, recorded.get(s.item)!]));
 
   // The state each system leaves: as checked in this run, or, for a recorded one, from its answer checked again with the
   // other recorded ones (the checks are deterministic), once something needs it.
@@ -87,8 +82,7 @@ export async function runExtract(run: StageRun): Promise<void> {
   const stateBefore = (n: number): ScoreState => (bounds(n).first || !byNumber.has(n - 1) ? pieceStart() : stateAfter(n - 1));
   // The checks of the whole score, once every system is in: stored as an output of their own.
   let scoreChecks: StoredScoreChecks | null = null;
-  const recordedChecks = stage.outputs.find((o) => o.item === "" && o.type === "score_checks" && o.contentSha256);
-  if (recordedChecks) scoreChecks = (await fetchJsonContent(recordedChecks.contentSha256!)) as StoredScoreChecks;
+  scoreChecks = (await recordedContent<StoredScoreChecks>(stage, "score_checks")).get("") ?? null;
 
   const inputsOf = (s: (typeof systems)[number]) => [pages[s.pageIndex].output.id, pages[s.pageIndex].image.id, obs.output.id, pcs.output.id];
 

@@ -2,7 +2,6 @@
 // latest layout, observations and pieces, and the systems of the score with what is needed to crop them. In one place,
 // so that every stage finds them the same way.
 
-import { pageOfItem } from "@score3ly/core";
 import type { SystemContext } from "@score3ly/notation";
 import { extractImageLabels } from "@score3ly/prompts";
 import type { ApiOutput, ApiStage } from "./api";
@@ -12,16 +11,14 @@ import { pieceBounds, stretchBox, type ScoreSystem } from "./extract";
 import { numberSystems, type PageLayout } from "./layout";
 import { straightRecipe, type PageRecipe, type StraightRecipe } from "./recipes";
 import { CannotStart } from "./stageRunner";
-
-const LAYOUT_STEPS = ["layout", "fix_layout"];
-const OBSERVATION_STEPS = ["fix_observations", "analyze"];
-const PIECE_STEPS = ["fix_metadata", "analyze"];
+import { musicSources, type MusicPage, type MusicSources } from "./stageInputs";
 
 export type MusicSystem = ScoreSystem & { pageIndex: number };
 
 export type MusicInputs = {
   earlier: ApiStage[]; // the stages before this one, the latest first
-  pages: { output: ApiOutput; image: ApiOutput; page: number }[]; // per page: its layout's output and its image's
+  sources: MusicSources;
+  pages: MusicPage[]; // per page: its layout's output and its image's
   layouts: PageLayout[];
   observations: StoredObservations;
   observationsOutput: ApiOutput;
@@ -37,26 +34,18 @@ export type MusicInputs = {
 };
 
 export async function musicInputs(stage: ApiStage, stages: ApiStage[]): Promise<MusicInputs> {
-  const earlier = stages.slice(0, stages.findIndex((s) => s.id === stage.id)).reverse();
-  const rasterize = earlier.find((s) => s.step === "rasterize");
+  const before = stages.slice(0, stages.findIndex((s) => s.id === stage.id));
+  const earlier = [...before].reverse();
+  const sources = musicSources(before);
+  const { rasterize, layout: layoutStage, pages } = sources;
   if (!rasterize || rasterize.status !== "done") throw new CannotStart("there are no page images: Rasterize hasn't run.");
-  const layoutStage = earlier.find((s) => LAYOUT_STEPS.includes(s.step));
   if (!layoutStage || layoutStage.status !== "done") throw new CannotStart("the layout hasn't been found yet.");
   // The latest observations and pieces: a fix's, else analyze's (a WIP fix must be finished first).
-  const latest = (steps: string[], type: string) => {
-    const s = earlier.find((x) => steps.includes(x.step) && x.outputs.some((o) => o.item === "" && o.type === type));
-    return s ? { stage: s, output: s.outputs.find((o) => o.item === "" && o.type === type && o.contentSha256)! } : null;
-  };
-  const obs = latest(OBSERVATION_STEPS, "observations");
-  const pcs = latest(PIECE_STEPS, "pieces");
+  const obs = sources.observations;
+  const pcs = sources.pieces;
   if (!obs || !pcs) throw new CannotStart("the score hasn't been analysed yet.");
   if (obs.stage.status !== "done" || pcs.stage.status !== "done") throw new CannotStart("a fix of the analysis isn't finished yet.");
 
-  const images = new Map(rasterize.outputs.filter((o) => o.type === "page_image").map((o) => [o.item, o]));
-  const pages = layoutStage.outputs
-    .filter((o) => o.type === "layout" && o.contentSha256 && images.get(o.item)?.recipe)
-    .map((o) => ({ output: o, image: images.get(o.item)!, page: pageOfItem(o.item) ?? 0 }))
-    .sort((a, b) => a.page - b.page);
   const [layouts, observations, pieces] = await Promise.all([
     Promise.all(pages.map((p) => fetchJsonContent(p.output.contentSha256!) as Promise<PageLayout>)),
     fetchJsonContent(obs.output.contentSha256!) as Promise<StoredObservations>,
@@ -75,6 +64,7 @@ export async function musicInputs(stage: ApiStage, stages: ApiStage[]): Promise<
 
   return {
     earlier,
+    sources,
     pages,
     layouts,
     observations,

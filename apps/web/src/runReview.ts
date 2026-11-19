@@ -9,7 +9,6 @@ import { buildScore, checkSystems, LENS_VERSION, systemLinks } from "@score3ly/n
 import { REVIEW_MAX_OUTPUT_TOKENS, REVIEW_PROMPT_VERSION, REVIEW_SCHEMA, REVIEW_SYSTEM, reviewIssuesText, reviewLogText, reviewScoreText, reviewText } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
-import { EXTRACTION_STEPS } from "./engrave";
 import { type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks } from "./extract";
 import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits";
@@ -33,8 +32,8 @@ import {
   type ReviewEntry,
   type StoredReview,
 } from "./review";
-import { CannotStart, runPlan, type StageRun } from "./stageRunner";
-import { reviewInputIds } from "./steps";
+import { CannotStart, recordedContent, runPlan, type StageRun } from "./stageRunner";
+import { reviewInputIds } from "./stageInputs";
 
 
 export async function runReview(run: StageRun): Promise<void> {
@@ -43,10 +42,10 @@ export async function runReview(run: StageRun): Promise<void> {
   const { pages, observations, pieces, systems, byNumber, straight, bounds, labelsOf, contextOf } = inputs;
 
   // The transcription it reviews: the latest stage before it that produces the extraction.
-  const reviewed = inputs.earlier.find((s) => EXTRACTION_STEPS.includes(s.step));
-  if (!reviewed || reviewed.status !== "done") throw new CannotStart("there is no transcription to review yet.");
-  const extractionOutputs = new Map(reviewed.outputs.filter((o) => o.type === "extraction" && o.contentSha256).map((o) => [o.item, o]));
-  const checksOutput = reviewed.outputs.find((o) => o.item === "" && o.type === "score_checks" && o.contentSha256);
+  const reviewed = inputs.sources.transcription;
+  if (!reviewed || reviewed.stage.status !== "done") throw new CannotStart("there is no transcription to review yet.");
+  const extractionOutputs = reviewed.extractions;
+  const checksOutput = reviewed.checks;
   if (systems.some((s) => !extractionOutputs.has(s.item)) || !checksOutput) throw new CannotStart("the transcription doesn't match the layout: run Extract again.");
   const extractions = new Map<number, StoredExtraction>();
   await Promise.all(systems.map(async (s) => extractions.set(s.number, (await fetchJsonContent(extractionOutputs.get(s.item)!.contentSha256!)) as StoredExtraction)));
@@ -90,11 +89,8 @@ export async function runReview(run: StageRun): Promise<void> {
   });
 
   // Calls a failed run already recorded.
-  const recorded = new Map(stage.outputs.filter((o) => o.type === "review" && o.contentSha256).map((o) => [o.item, o]));
-  const calls = new Map<number, StoredReview>();
-  await Promise.all(
-    systems.filter((s) => recorded.has(s.item)).map(async (s) => calls.set(s.number, (await fetchJsonContent(recorded.get(s.item)!.contentSha256!)) as StoredReview)),
-  );
+  const recorded = await recordedContent<StoredReview>(stage, "review");
+  const calls = new Map(systems.filter((s) => recorded.has(s.item)).map((s) => [s.number, recorded.get(s.item)!]));
   // The issues before a system's call: the reviewed ones with the earlier calls' entries applied, in score order.
   const issuesBefore = (n: number) => {
     let map = new Map(baseIssues.map((i) => [i.id, i]));
@@ -103,7 +99,7 @@ export async function runReview(run: StageRun): Promise<void> {
   };
 
   // What it reads, as a further review carried through a re-run is compared by (steps.ts).
-  const inputIds = reviewInputIds(pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id)));
+  const inputIds = reviewInputIds(inputs.sources);
 
   await runPlan(run, {
     stepVersion: REVIEW_VERSION,

@@ -80,6 +80,13 @@ export function contentsOf<T>(outputs: FinalOutput[], type: string, made: Readon
   );
 }
 
+// The stored JSON of a stage's outputs of one type, by item: what a failed or interrupted run recorded, which a runner
+// loads before it resumes (the answers so far, the state the next item starts from).
+export async function recordedContent<T>(stage: ApiStage, type: string): Promise<Map<string, T>> {
+  const outputs = stage.outputs.filter((o) => o.type === type && o.contentSha256);
+  return new Map(await Promise.all(outputs.map(async (o) => [o.item, (await fetchJsonContent(o.contentSha256!)) as T] as const)));
+}
+
 const HEARTBEAT_MS = 60 * 1000;
 
 export async function runPlan(run: StageRun, plan: StagePlan): Promise<void> {

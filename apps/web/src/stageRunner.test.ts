@@ -1,7 +1,7 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiStage, Project } from "./api.ts";
-import { CannotStart, contentsOf, failsTheStage, LEAVING, released, runPlan, type FinalOutput } from "./stageRunner.ts";
+import { CannotStart, contentsOf, failsTheStage, LEAVING, recordedContent, released, runPlan, type FinalOutput } from "./stageRunner.ts";
 
 // The Worker is a fake that records the requests and answers what runPlan asks.
 const realFetch = globalThis.fetch;
@@ -163,4 +163,21 @@ test("an error before the start fails the stage, unless the user has to do somet
   const refused = await runPlan(runOf([]), plan([])).catch((err: unknown) => err);
   assert.ok(refused instanceof Error);
   assert.equal(failsTheStage(refused), false);
+});
+
+test("recordedContent loads a stage's stored outputs of one type, by item", async () => {
+  fakeWorker();
+  contents.set("sha-a", { system: 1 });
+  contents.set("sha-b", { system: 2 });
+  const recorded = await recordedContent<{ system: number }>(
+    stage([
+      { id: "o1", item: "p1/s1", type: "review", contentSha256: "sha-a", recipeKey: null, recipe: null },
+      { id: "o2", item: "p1/s2", type: "review", contentSha256: "sha-b", recipeKey: null, recipe: null },
+      { id: "o3", item: "p1/s3", type: "review", contentSha256: null, recipeKey: "k", recipe: {} },
+      { id: "o4", item: "", type: "score_checks", contentSha256: "sha-c", recipeKey: null, recipe: null },
+    ]),
+    "review",
+  );
+  assert.deepEqual([...recorded], [["p1/s1", { system: 1 }], ["p1/s2", { system: 2 }]]);
+  assert.deepEqual(requests.map((r) => r.url), ["/api/content/sha-a", "/api/content/sha-b"]);
 });

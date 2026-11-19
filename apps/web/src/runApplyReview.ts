@@ -28,7 +28,7 @@ import {
   stretchMeasures,
 } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
-import { fetchJsonContent, putJson, reserveIssueNumbers, type ApiStage } from "./api";
+import { fetchJsonContent, putJson, reserveIssueNumbers } from "./api";
 import {
   appliedCount,
   appliedIssues,
@@ -48,7 +48,7 @@ import {
   systemView,
   type StoredApplyCall,
 } from "./applyReview";
-import { EXTRACTION_STEPS } from "./engrave";
+import { applyReviewInputIds, reviewEntries } from "./stageInputs";
 import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
 import { type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks, type StoredWarning } from "./extract";
 import { ask, requestImage, llmStart, type PlannedRequest, type RequestContent } from "./llm";
@@ -58,14 +58,10 @@ import { markedCrop } from "./pageImages";
 import { MARGINS, stretchCropBoxes, systemCropBox } from "./crops";
 import { cropRecipe, imageVersions, markedCropRecipe } from "./recipes";
 import { reviewedIssues, reviewIssues, reviewScore, reviewWarnings, systemsOf, type StoredReview } from "./review";
-import { CannotStart, runPlan, type StageRun } from "./stageRunner";
+import { CannotStart, recordedContent, runPlan, type StageRun } from "./stageRunner";
 import { choosingChain } from "./steps";
 import { attributionOf } from "./attribution";
 
-
-// The steps whose issues `apply_review` applies: the stages between the transcription and it (docs/stages/music.md), and
-// the type of the outputs each stores its entries in.
-const REVIEWING_STEPS: Record<string, string> = { review: "review", human_review: "human_review" };
 
 export async function runApplyReview(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
@@ -73,23 +69,21 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   const { pages, observations, pieces, systems, byNumber, straight, bounds, contextOf, placeBox } = inputs;
 
   // The transcription it applies to, and the reviews after it whose choices it applies.
-  const at = inputs.earlier.findIndex((s) => EXTRACTION_STEPS.includes(s.step));
-  const transcribed = at >= 0 ? inputs.earlier[at] : null;
-  if (!transcribed || transcribed.status !== "done") throw new CannotStart("there is no transcription to apply the review to yet.");
-  const reviewers: ApiStage[] = inputs.earlier.slice(0, at).filter((s) => s.step in REVIEWING_STEPS).reverse();
+  const transcribed = inputs.sources.transcription;
+  if (!transcribed || transcribed.stage.status !== "done") throw new CannotStart("there is no transcription to apply the review to yet.");
+  const reviewers = transcribed.reviews;
   if (reviewers.length === 0) throw new CannotStart("there is no review before it to apply.");
   if (reviewers.some((s) => s.status !== "done")) {
     throw new CannotStart(reviewers.some((s) => s.step === "human_review") ? "the human review before it isn't finished yet." : "the review before it hasn't finished yet.");
   }
-  const entriesOf = (r: ApiStage) => r.outputs.filter((o) => o.type === REVIEWING_STEPS[r.step] && o.contentSha256);
 
-  const extractionOutputs = new Map(transcribed.outputs.filter((o) => o.type === "extraction" && o.contentSha256).map((o) => [o.item, o]));
-  const checksOutput = transcribed.outputs.find((o) => o.item === "" && o.type === "score_checks" && o.contentSha256);
+  const extractionOutputs = transcribed.extractions;
+  const checksOutput = transcribed.checks;
   if (systems.some((s) => !extractionOutputs.has(s.item)) || !checksOutput) throw new CannotStart("the transcription doesn't match the layout: run Extract again.");
   const extractions = new Map<number, StoredExtraction>();
   await Promise.all(systems.map(async (s) => extractions.set(s.number, (await fetchJsonContent(extractionOutputs.get(s.item)!.contentSha256!)) as StoredExtraction)));
   const checks = (await fetchJsonContent(checksOutput.contentSha256!)) as StoredScoreChecks;
-  const reviewOutputs = reviewers.flatMap(entriesOf);
+  const reviewOutputs = reviewers.flatMap(reviewEntries);
   // A review's calls; a human review's single output, its entries as one (docs/stages/music.md, `human_review`).
   const reviewCalls = new Map<string, StoredReview[]>();
   await Promise.all(
@@ -97,7 +91,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
       reviewCalls.set(
         r.id,
         await Promise.all(
-          entriesOf(r).map(async (o) => {
+          reviewEntries(r).map(async (o) => {
             const content = await fetchJsonContent(o.contentSha256!);
             return r.step === "human_review" ? { system: 0, entries: (content as StoredHumanReview).entries } : (content as StoredReview);
           }),
@@ -168,13 +162,8 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   const itemOf = (n: number) => byNumber.get(n)!.item;
 
   // Calls a failed run already recorded.
-  const recorded = new Map(stage.outputs.filter((o) => o.type === "apply_review" && o.contentSha256).map((o) => [o.item, o]));
-  const calls = new Map<number, StoredApplyCall>();
-  await Promise.all(
-    plannedCalls
-      .filter((c) => recorded.has(itemOf(c.system)))
-      .map(async (c) => calls.set(c.system, (await fetchJsonContent(recorded.get(itemOf(c.system))!.contentSha256!)) as StoredApplyCall)),
-  );
+  const recorded = await recordedContent<StoredApplyCall>(stage, "apply_review");
+  const calls = new Map(plannedCalls.filter((c) => recorded.has(itemOf(c.system))).map((c) => [c.system, recorded.get(itemOf(c.system))!]));
   // The answers before a call: the transcription's, with the earlier calls' patches applied in the score's order.
   const answersBefore = (n: number) => {
     let answers = startAnswers;
@@ -182,13 +171,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
     return answers;
   };
 
-  const inputIds = [
-    ...[...extractionOutputs.values(), checksOutput].map((o) => o.id),
-    ...reviewOutputs.map((o) => o.id),
-    ...pages.flatMap((p) => [p.output.id, p.image.id]),
-    inputs.observationsOutput.id,
-    inputs.piecesOutput.id,
-  ];
+  const inputIds = applyReviewInputIds(inputs.sources);
 
   // The new transcription, once every call is in: the answers, checked, and the issues with the calls' choices.
   let final: { answers: Map<number, LensSystem>; checked: Map<number, CheckedSystem>; issues: Map<number, StoredIssue> } | null = null;

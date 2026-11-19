@@ -15,6 +15,7 @@ import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./s
 import { DEFAULT_ENGRAVE_CONFIG, engraveConfigOf, EXTRACTION_STEPS, PAGE_SIZES } from "./engrave.ts";
 import { fixMeiStart } from "./fixMei.ts";
 import { humanReviewStart } from "./humanReview.ts";
+import { musicSources, reviewInputIds } from "./stageInputs.ts";
 
 // One field of a step's config form.
 export type ConfigField = {
@@ -534,7 +535,7 @@ export const FIX_STARTS: Record<string, (after: ApiStage, earlier: ApiStage[]) =
 // stage it fixes, the latest stage before it that isn't manual.
 export function carriedInputs(stages: ApiStage[], index: number): string[] {
   // A further review reads what any review reads (§5.5: carried like a manual stage).
-  if (stages[index].step === "review") return reviewInputIds(stages.slice(0, index));
+  if (stages[index].step === "review") return reviewInputIds(musicSources(stages.slice(0, index)));
   let after = index - 1;
   while (after >= 0 && stepInfo(stages[after].step).kind === "manual") after--;
   const start = FIX_STARTS[stages[index].step];
@@ -545,29 +546,4 @@ export function carriedInputs(stages: ApiStage[], index: number): string[] {
 // A step this version of the app doesn't know (e.g. from a newer one) is shown by its id, without artifacts.
 export function stepInfo(step: string): StepInfo {
   return Object.hasOwn(STEPS, step) ? STEPS[step as StepId] : { title: step, kind: "computed", fixes: [], artifacts: () => [] };
-}
-
-// What a review reads (docs/stages/music.md, `review`), by output ids: the latest transcription (its extractions and
-// the checks of the whole score), each page's layout and image, the latest observations and pieces. The same list
-// runReview.ts records when the stage starts, so a carried review is kept exactly when it would read the same.
-export function reviewInputIds(earlier: ApiStage[]): string[] {
-  const latest = [...earlier].reverse();
-  const transcribed = latest.find((s) => EXTRACTION_STEPS.includes(s.step));
-  const rasterize = latest.find((s) => s.step === "rasterize");
-  const layout = latest.find((s) => s.step === "layout" || s.step === "fix_layout");
-  const latestOutput = (steps: string[], type: string) =>
-    latest.find((s) => steps.includes(s.step) && s.outputs.some((o) => o.item === "" && o.type === type))?.outputs.find((o) => o.item === "" && o.type === type && o.contentSha256);
-  const observations = latestOutput(["fix_observations", "analyze"], "observations");
-  const pieces = latestOutput(["fix_metadata", "analyze"], "pieces");
-  if (!transcribed || !rasterize || !layout || !observations || !pieces) return [];
-  const images = new Map(rasterize.outputs.filter((o) => o.type === "page_image").map((o) => [o.item, o]));
-  const pages = layout.outputs
-    .filter((o) => o.type === "layout" && o.contentSha256 && images.get(o.item)?.recipe)
-    .sort((a, b) => (pageOfItem(a.item) ?? 0) - (pageOfItem(b.item) ?? 0));
-  return [
-    ...transcribed.outputs.filter((o) => (o.type === "extraction" || (o.item === "" && o.type === "score_checks")) && o.contentSha256).map((o) => o.id),
-    ...pages.flatMap((p) => [p.id, images.get(p.item)!.id]),
-    observations.id,
-    pieces.id,
-  ];
 }
