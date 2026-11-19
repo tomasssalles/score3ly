@@ -1,6 +1,7 @@
 // Engraves every candidate in the test set that has no PDF yet (docs/evaluation.md):
 // <piece>.<method>.ly with LilyPond, <piece>.<method>.musicxml with MuseScore,
-// <piece>.<method>.mei with Verovio, as the app's `engrave` does.
+// <piece>.<method>.mei with Verovio, on the app's `engrave` pages (A4, Verovio's own breaks; its PDF drawn here with
+// pdfkit, where the app's is drawn in the browser).
 // Never overwrites an existing PDF.
 //
 // Each .ly is compiled from a temporary copy, updated to the installed LilyPond version
@@ -17,6 +18,7 @@ import SVGtoPDF from "svg-to-pdfkit";
 import createVerovioModule from "verovio/wasm";
 import { VerovioToolkit } from "verovio/esm";
 import { METRONOME_FONT } from "../../web/src/metronomeFont.ts";
+import { DEFAULT_ENGRAVE_CONFIG, pageOptions } from "../../web/src/engravePage.ts";
 import { warningLines } from "./lilypond.ts";
 import { type Candidate, TESTSET_DIR, planEngraving } from "./testset.ts";
 
@@ -61,9 +63,8 @@ async function engraveMuseScore(candidate: Candidate, workDir: string): Promise<
   }
 }
 
-// The app's engraving (apps/web/src/engraving.ts, `pageOptions`): Verovio's own breaks, A4 (its units are tenths of
-// a millimetre), no footer.
-const VEROVIO_OPTIONS = { breaks: "auto", pageWidth: 2100, pageHeight: 2970, scale: 40, footer: "none", svgViewBox: true };
+// The app's engraving (apps/web/src/engravePage.ts): Verovio's own breaks, A4, no footer.
+const VEROVIO_OPTIONS = pageOptions(DEFAULT_ENGRAVE_CONFIG);
 const A4_POINTS = { width: 595.28, height: 841.89 };
 
 let verovio: Promise<VerovioToolkit> | null = null;

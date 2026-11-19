@@ -5,13 +5,11 @@
 
 import { keyOf } from "@score3ly/core";
 import { fetchTextContent } from "./api";
-import { PAGE_SIZES, pageOptions, withoutDate, type EngraveConfig } from "./engrave";
+import { PAGE_SIZES, pageOptions, withoutDate, type EngraveConfig } from "./engravePage";
 import { cachedPdfFile, cachePdfFile } from "./imageCache";
-import type { Artifact } from "./pipeline";
+import type { Engraving } from "./pipeline";
 import { renderPages } from "./rendering";
 import { pdfRecipe } from "./recipes";
-
-type Engraving = NonNullable<Artifact["engraving"]>;
 
 export async function engravedPages(engraving: Engraving): Promise<string[]> {
   return renderPages(await fetchTextContent(engraving.meiSha256), pageOptions(engraving.config));
@@ -103,16 +101,4 @@ function flattened(root: SVGSVGElement, width: number, height: number): SVGSVGEl
 
 export async function meiFile(engraving: Engraving): Promise<Blob> {
   return new Blob([await fetchTextContent(engraving.meiSha256)], { type: "application/xml" });
-}
-
-// Hands a file to the browser to save.
-export function saveFile(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }

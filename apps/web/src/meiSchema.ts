@@ -2,12 +2,10 @@
 // for MEI 5.1's), then each check takes only what the file needs (docs/stages/engrave.md). Verovio is no check:
 // it loads what the schema refuses and leaves out what it doesn't know, silently.
 
-import { RelaxNGValidator, XmlDocument, XmlElement, XmlParseError, XmlValidateError } from "libxml2-wasm";
+import { RelaxNGValidator, XmlDocument, XmlElement, XmlParseError, XmlValidateError, type XmlLibError } from "libxml2-wasm";
 import type { MeiElement, MeiProblem, Validated } from "./meiChecks.ts";
 
-type Details = { details?: { message: string; line: number }[] };
-
-const problemsOf = (error: Details, syntax: boolean): MeiProblem[] =>
+const problemsOf = (error: XmlLibError, syntax: boolean): MeiProblem[] =>
   (error.details ?? []).map((d) => ({ line: d.line > 0 ? d.line : null, message: d.message.trim(), ...(syntax ? { syntax: true as const } : {}) }));
 
 // Every element of the document, in document order, with its attributes (meiChecks.ts checks the ids on them).
@@ -28,7 +26,7 @@ export function meiValidator(rng: string): (text: string) => Validated {
     try {
       doc = XmlDocument.fromString(text);
     } catch (err) {
-      if (err instanceof XmlParseError) return { problems: problemsOf(err as Details, true), elements: [] };
+      if (err instanceof XmlParseError) return { problems: problemsOf(err, true), elements: [] };
       throw err;
     }
     try {
@@ -36,7 +34,7 @@ export function meiValidator(rng: string): (text: string) => Validated {
       try {
         validator.validate(doc);
       } catch (err) {
-        if (err instanceof XmlValidateError) problems = problemsOf(err as Details, false);
+        if (err instanceof XmlValidateError) problems = problemsOf(err, false);
         else throw err;
       }
       return { problems, elements: elementsOf(doc.root) };

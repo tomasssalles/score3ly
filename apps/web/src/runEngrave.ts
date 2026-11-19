@@ -3,7 +3,8 @@
 // recipe; the PDF itself is cached on the device and made again where it is missing (engraving.ts).
 
 import { keyOf } from "@score3ly/core";
-import { ENGRAVE_VERSION, engraveConfigOf, engraveStageKey, latestMei, pdfPageCount } from "./engrave";
+import { ENGRAVE_VERSION, engraveStageKey, latestMei } from "./engrave";
+import { engraveConfigOf, pdfPageCount } from "./engravePage";
 import { engravedPdf } from "./engraving";
 import { pdfRecipe } from "./recipes";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";

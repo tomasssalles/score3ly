@@ -7,9 +7,7 @@ import { cachedEngravedPdf, engravedPages, engravedPdf } from "./engraving";
 import { PdfView } from "./PdfView";
 import { useObjectUrl } from "./ui/hooks";
 import { MeiWorkspace } from "./MeiWorkspace";
-import type { Artifact } from "./pipeline";
-
-type Engraving = NonNullable<Artifact["engraving"]>;
+import type { Artifact, Engraving } from "./pipeline";
 
 export function EngravingView({ artifact }: { artifact: Artifact }) {
   const engraving = artifact.engraving!;

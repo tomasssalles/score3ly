@@ -25,7 +25,8 @@ const POINTERS = new Set([
   "xlink:role", "xml:base",
 ]);
 
-// Duplicate ids and references to ids nothing has, on the elements as libxml2 parsed them (any quoting, any layout).
+// Duplicate ids and references to ids nothing has, on the elements as libxml2 parsed them (any quoting, any layout); in
+// the order found (`checkMei` sorts every problem by line).
 export function idProblems(elements: MeiElement[]): MeiProblem[] {
   const ids = new Map<string, number>();
   const problems: MeiProblem[] = [];
@@ -47,7 +48,7 @@ export function idProblems(elements: MeiElement[]): MeiProblem[] {
       }
     }
   }
-  return problems.sort((a, b) => a.line! - b.line!);
+  return problems;
 }
 
 // Every check: the schema's first (a file that isn't well formed has nothing else worth checking), then the ids.

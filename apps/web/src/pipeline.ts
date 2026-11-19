@@ -4,7 +4,7 @@
 import type { ChainStage, Who } from "./attribution";
 import type { ItemProgress } from "./callProgress";
 import type { ApiPipeline, ApiStage, RunMode } from "./api";
-import type { EngraveConfig } from "./engrave.ts";
+import type { EngraveConfig } from "./engravePage.ts";
 import type { PageRecipe } from "./recipes.ts";
 import { stepInfo } from "./steps.ts";
 
@@ -60,11 +60,15 @@ export type Artifact = {
   };
   // `engrave`'s MEI file, with the stage's config for its engraving; shown as the file or as the engraving. Both can be
   // downloaded.
-  engraving?: { view: "mei" | "pdf"; meiSha256: string; config: EngraveConfig };
+  engraving?: Engraving;
   // `fix_mei`'s MEI: the stage and the ones before it, as stored (its texts are its outputs, or built from
   // theirs). Shown as the MEI view, editable while the stage is WIP (with `editor`).
   fixMei?: { stage: ApiStage; earlier: ApiStage[] };
 };
+
+// The MEI file of `build_mei` or `engrave`, with the config of its engraving: shown as the file (`mei`) or as the
+// engraved PDF (`pdf`).
+export type Engraving = { view: "mei" | "pdf"; meiSha256: string; config: EngraveConfig };
 
 export type Stage = {
   id: string; // unique within the project, used in the URL

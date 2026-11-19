@@ -2,7 +2,8 @@
 // systems' stored answers, their layout, where the pieces start) and the metadata, and stores it: the file a user
 // downloads, unless `fix_mei` edits it. `engrave`, the last stage, always, engraves the latest MEI as a PDF of its page
 // size: its output is the PDF's recipe, the PDF itself cached on the device (engraving.ts). What doesn't need the
-// browser is here; the runners are runBuildMei.ts and runEngrave.ts, the views EngravingView.tsx.
+// browser is here (the page sizes and Verovio's options: engravePage.ts); the runners are runBuildMei.ts and runEngrave.ts,
+// the views EngravingView.tsx, the downloads downloads.ts.
 
 import { buildScore, meiString, type MeiMetadata, type Score } from "@score3ly/notation";
 import { REPOSITORY_URL } from "./about.ts";
@@ -17,35 +18,6 @@ import { count } from "./format.ts";
 
 export const BUILD_MEI_VERSION = 1;
 export const ENGRAVE_VERSION = 2; // 2: the PDF is made by the stage; the MEI by `build_mei`
-
-// The page size. The engraving always has Verovio's own breaks (docs/stages/engrave.md).
-export type EngraveConfig = { pageSize: "a4" | "letter" };
-
-export const DEFAULT_ENGRAVE_CONFIG: EngraveConfig = { pageSize: "a4" };
-
-// Page sizes in millimetres (Verovio counts tenths of them).
-export const PAGE_SIZES = {
-  a4: { label: "A4", width: 210, height: 297 },
-  letter: { label: "US Letter", width: 215.9, height: 279.4 },
-} as const;
-
-// Verovio's options for a page of the given size (its units are tenths of a millimetre).
-export function pageOptions(config: EngraveConfig): Record<string, unknown> {
-  const size = PAGE_SIZES[config.pageSize];
-  return {
-    breaks: "auto",
-    pageWidth: Math.round(size.width * 10),
-    pageHeight: Math.round(size.height * 10),
-    scale: 40,
-    footer: "none",
-    svgViewBox: true,
-  };
-}
-
-export function engraveConfigOf(stored: Record<string, unknown> | null): EngraveConfig {
-  const pageSize = stored?.pageSize === "a4" || stored?.pageSize === "letter" ? stored.pageSize : DEFAULT_ENGRAVE_CONFIG.pageSize;
-  return { pageSize };
-}
 
 // What `build_mei` builds the MEI from: the latest extraction's systems, the latest layout's pages, the latest metadata
 // and pieces before it. Null where something is missing (the stage can't run yet).
@@ -162,33 +134,4 @@ export function meiMetadata(stored: unknown): MeiMetadata {
 export function engraveNote(score: Score): string {
   const measures = score.pieces.reduce((n, p) => n + p.measures.reduce((k, m) => k + m.count, 0), 0);
   return [...(score.pieces.length > 1 ? [count(score.pieces.length, "piece")] : []), count(measures, "measure")].join(" · ");
-}
-
-// A file name from the project's name: what a file system would refuse is replaced.
-export function fileBase(projectName: string): string {
-  return projectName.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_").trim() || "score";
-}
-
-// The downloads' names (docs/stages/engrave.md, "Downloads"): the project's name, then what the file is. Not `.s3l`,
-// which is a project's export (docs/database.md, "Exporting and importing a project").
-const DOWNLOAD_SUFFIXES = { zip: "score3ly-bundle.zip", mei: "score3ly-source.mei", pdf: "score3ly-render.pdf", "report.json": "score3ly-report.json" } as const;
-
-export function downloadName(projectName: string, kind: keyof typeof DOWNLOAD_SUFFIXES): string {
-  return `${fileBase(projectName)}.${DOWNLOAD_SUFFIXES[kind]}`;
-}
-
-// jsPDF always writes the creation date: it is overwritten with spaces, so every offset in the file stays right and
-// the same recipe gives the same bytes.
-export function withoutDate(bytes: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
-  const text = new TextDecoder("latin1").decode(bytes);
-  const at = text.indexOf("/CreationDate (");
-  if (at < 0) return bytes;
-  const end = text.indexOf(")", at);
-  bytes.fill(0x20, at, end + 1);
-  return bytes;
-}
-
-// How many pages a PDF made by jsPDF has: its page objects.
-export function pdfPageCount(text: string): number {
-  return (text.match(/\/Type \/Page\b(?!s)/g) ?? []).length;
 }

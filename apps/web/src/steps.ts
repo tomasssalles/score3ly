@@ -12,7 +12,7 @@ import { analyzeOutputs, FIX_METADATA_VERSION } from "./fixMetadata.ts";
 import { FIX_OBSERVATIONS_VERSION } from "./fixObservations.ts";
 import { FIX_SKEW_VERSION } from "./fixSkew.ts";
 import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./skewAnalysis.ts";
-import { DEFAULT_ENGRAVE_CONFIG, engraveConfigOf, PAGE_SIZES } from "./engrave.ts";
+import { DEFAULT_ENGRAVE_CONFIG, engraveConfigOf, PAGE_SIZES } from "./engravePage.ts";
 import { fixMeiStart } from "./fixMei.ts";
 import { humanReviewStart } from "./humanReview.ts";
 import { latestOutput, latestProducer, latestStage, musicSources, reviewInputIds } from "./stageInputs.ts";

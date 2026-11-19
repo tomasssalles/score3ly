@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import createVerovioModule from "verovio/wasm";
 import { VerovioToolkit } from "verovio/esm";
-import { pageOptions } from "./engrave.ts";
+import { pageOptions } from "./engravePage.ts";
 import { SYSTEM_OPTIONS } from "./rendering.ts";
 import { renderFitted, renderWith, viewBoxWidth } from "./verovioRender.ts";
 

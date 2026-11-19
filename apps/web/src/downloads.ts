@@ -3,9 +3,9 @@
 
 import { fetchModelConfig, type ApiStage, type ModelConfig, type Project } from "./api";
 import { REPOSITORY_URL } from "./about";
-import { downloadName } from "./engrave";
-import { engravedPdf, meiFile, saveFile } from "./engraving";
-import type { Artifact } from "./pipeline";
+import { engravedPdf, meiFile } from "./engraving";
+import { bundleFiles, downloadName, saveFile, zipFiles } from "./files";
+import type { Engraving } from "./pipeline";
 import { VEROVIO_VERSION } from "./rendering";
 import { runReport } from "./runReport";
 import { stepInfo } from "./steps";
@@ -19,8 +19,6 @@ export const DOWNLOADS: { kind: DownloadKind; label: string }[] = [
   { kind: "pdf", label: "Re-engraved score (.pdf)" },
   { kind: "report", label: "Report (.json)" },
 ];
-
-type Engraving = NonNullable<Artifact["engraving"]>;
 
 // The report on the pipeline up to the stage that made the files (`stages`: first to that stage).
 async function report(project: Project, stages: ApiStage[], engraving: Engraving): Promise<Blob> {
@@ -44,13 +42,7 @@ export async function download(kind: DownloadKind, project: Project, stages: Api
   if (kind === "mei") return saveFile(await meiFile(engraving), name("mei"));
   if (kind === "pdf") return saveFile(await engravedPdf(engraving), name("pdf"));
   if (kind === "report") return saveFile(await report(project, stages, engraving), name("report.json"));
-  const [mei, pdf, json, { zip }] = await Promise.all([meiFile(engraving), engravedPdf(engraving), report(project, stages, engraving), import("fflate")]);
-  const bytes = async (blob: Blob) => new Uint8Array(await blob.arrayBuffer());
-  const files = {
-    [name("mei")]: [await bytes(mei), { level: 6 }],
-    [name("pdf")]: [await bytes(pdf), { level: 0 }], // already compressed
-    [name("report.json")]: [await bytes(json), { level: 6 }],
-  } as const;
-  const archive = await new Promise<Uint8Array>((resolve, reject) => zip(files as never, (err, data) => (err ? reject(err) : resolve(data))));
-  saveFile(new Blob([archive as Uint8Array<ArrayBuffer>], { type: "application/zip" }), name("zip"));
+  const bytes = async (blob: Promise<Blob>) => new Uint8Array(await (await blob).arrayBuffer());
+  const [mei, pdf, json] = await Promise.all([bytes(meiFile(engraving)), bytes(engravedPdf(engraving)), bytes(report(project, stages, engraving))]);
+  saveFile(new Blob([await zipFiles(bundleFiles(project.name, { mei, pdf, report: json }))], { type: "application/zip" }), name("zip"));
 }

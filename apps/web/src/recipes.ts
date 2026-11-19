@@ -5,7 +5,7 @@
 
 import type { Box, LayoutSystem } from "@score3ly/core";
 import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION, type SizeLimit } from "@score3ly/imaging";
-import type { EngraveConfig } from "./engrave.ts";
+import type { EngraveConfig } from "./engravePage.ts";
 import { RASTERIZE_VERSION } from "./rasterize.ts";
 import { RENDERING_VERSION, VEROVIO_VERSION } from "./rendering.ts";
 import { boxesOnCrop } from "./transcription.ts";

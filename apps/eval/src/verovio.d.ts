@@ -1,22 +1,6 @@
-// The parts of Verovio's JavaScript package the engraver uses (it ships no types).
-declare module "verovio/wasm" {
-  const createVerovioModule: () => Promise<unknown>;
-  export default createVerovioModule;
-}
+// Verovio's types are the web app's (apps/web/src/verovio.d.ts, in this package's tsconfig).
 
-declare module "verovio/esm" {
-  export class VerovioToolkit {
-    constructor(module: unknown);
-    getVersion(): string;
-    setOptions(options: Record<string, unknown>): void;
-    loadData(data: string): boolean;
-    renderToSVG(page: number): string;
-    getPageCount(): number;
-    getLog(): string;
-  }
-}
-
-// svg-to-pdfkit ships no types either.
+// svg-to-pdfkit ships no types.
 declare module "svg-to-pdfkit" {
   const SVGtoPDF: (
     doc: PDFKit.PDFDocument,

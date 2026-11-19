@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import type { Project } from "./api";
-import { DEFAULT_ENGRAVE_CONFIG, pageOptions } from "./engrave";
+import { DEFAULT_ENGRAVE_CONFIG, pageOptions } from "./engravePage";
 import { loadFixMei, problemText, saveText, type FixMeiTexts } from "./fixMei";
 import type { MeiProblem } from "./meiChecks";
 import { MeiWorkspace, type Selection } from "./MeiWorkspace";
@@ -23,8 +23,7 @@ const PROBLEMS_SHOWN = 20;
 
 export function FixMeiView({ project, artifact, onEdited }: { project: Project; artifact: Artifact; onEdited?: () => void }) {
   const { stage, earlier } = artifact.fixMei!;
-  const [texts, setTexts] = useState<FixMeiTexts | "error" | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [texts, setTexts] = useState<FixMeiTexts | { error: string } | null>(null);
   const editable = !!artifact.editor;
   useEffect(() => {
     let cancelled = false;
@@ -34,15 +33,14 @@ export function FixMeiView({ project, artifact, onEdited }: { project: Project; 
       (t) => !cancelled && setTexts(editable ? { ...t, draft: saverOf(stage.id).value<string>("") ?? t.draft, applied: saverOf(stage.id).value<string>("mei") ?? t.applied } : t),
       (err) => {
         if (cancelled) return;
-        setTexts("error");
-        setLoadError(errorText(err));
+        setTexts({ error: errorText(err) });
       },
     );
     return () => {
       cancelled = true;
     };
   }, [stage.id, editable]);
-  if (texts === "error") return <div className="text-view"><p className="error-text">The MEI couldn't be loaded. {loadError}</p></div>;
+  if (texts && "error" in texts) return <div className="text-view"><p className="error-text">The MEI couldn't be loaded. {texts.error}</p></div>;
   if (!texts) return <div className="text-view"><p>Loading the MEI…</p></div>;
   return <FixMeiEditor key={`${stage.id}:${editable}`} project={project} stageId={stage.id} texts={texts} editable={editable} onEdited={onEdited} />;
 }

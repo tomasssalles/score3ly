@@ -10,7 +10,7 @@
 import { formatProblem, type Imported, type ProjectExport, sha256Hex } from "@score3ly/core";
 import type { Project } from "./api.ts";
 import { fetchContent, fetchExport, fetchPdf, importRows, missingContent, putContent, storePdf } from "./api.ts";
-import { fileBase } from "./engrave.ts";
+import { fileBase, zipFiles } from "./files.ts";
 
 export const EXTENSION = ".s3l";
 
@@ -29,15 +29,14 @@ export function exportName(projectName: string): string {
 }
 
 export async function zipArchive(archive: ProjectArchive): Promise<Uint8Array<ArrayBuffer>> {
-  const { zip } = await import("fflate");
   const text = (value: unknown) => new TextEncoder().encode(JSON.stringify(value, null, 2) + "\n");
-  const files: Record<string, [Uint8Array, { level: number }]> = {
+  const files: Record<string, [Uint8Array, { level: 0 | 6 }]> = {
     "manifest.json": [text(archive.manifest), { level: 6 }],
     "project.json": [text(archive.rows), { level: 6 }],
     [`pdf/${archive.rows.project.pdf_sha256}.pdf`]: [archive.pdf, { level: 0 }], // already compressed
   };
   for (const [sha, bytes] of archive.content) files[`content/${sha}`] = [bytes, { level: 6 }];
-  return new Promise((resolve, reject) => zip(files as never, (err, data) => (err ? reject(err) : resolve(data as Uint8Array<ArrayBuffer>))));
+  return zipFiles(files);
 }
 
 // Reads a file made by `zipArchive`, or says, for the user, why it can't be imported.

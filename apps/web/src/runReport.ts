@@ -4,7 +4,7 @@
 
 import { roundUsd } from "@score3ly/core";
 import type { ApiStage, ModelConfig, Project } from "./api";
-import type { EngraveConfig } from "./engrave";
+import type { EngraveConfig } from "./engravePage";
 import { runSeconds, type StageKind } from "./pipeline.ts";
 
 // 2: the costs include VAT, at the rate in force when each call was made (docs/llm.md, "VAT").
