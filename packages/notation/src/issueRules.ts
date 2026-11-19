@@ -1,6 +1,6 @@
 // Rules every issue keeps, whoever writes it, a model or a person (docs/notation.md, "Issues"): its answers' keys, and
-// the systems its boxes are on. One rule each, here; the stages that write issues are to check them (`extract`'s checks
-// and the human review don't yet: the code review's batch 29 puts them there).
+// the systems its boxes are on. One rule each, here, checked where issues are written: `extract`'s checks (lens.ts),
+// a review's (apps/web review.ts), a human review's clarifications and written answers (humanReview.ts).
 
 const A = "a".charCodeAt(0);
 const LETTERS = 26;

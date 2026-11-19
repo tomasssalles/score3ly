@@ -6,7 +6,7 @@
 // agreements ("kept") added for the issues it left as they were.
 
 import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
-import { answerKeysProblem, nextAnswerKey, type Score } from "@score3ly/notation";
+import { answerKeysProblem, nextAnswerKey, systemsRuleProblem, type Score } from "@score3ly/notation";
 import { issueForModel, reviewFromModel, stretchMeasures, systemForModel, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
 import { boxProblem, onPage, type Box } from "@score3ly/core";
 import type { ImageSource } from "./extract.ts";
@@ -170,8 +170,8 @@ function newIssue(n: ReviewNewIssueEntry["newIssue"], ctx: ReviewContext, id: nu
     systems.add(source.system);
   }
   if (!systems.has(ctx.system)) return { problem: `${what} has no box on system ${ctx.system}` };
-  const list = [...systems].sort((a, b) => a - b);
-  if (list.length > 2 || (list.length === 2 && list[1] - list[0] !== 1)) return { problem: `${what} covers more than two consecutive systems` };
+  const systemsProblem = systemsRuleProblem([...systems]);
+  if (systemsProblem) return { problem: `${what} ${systemsProblem}` };
   if (n.answers.length < 2) return { problem: `${what} needs at least two answers: what the transcription has and what is right` };
   const keys = n.answers.map((a) => a.key);
   const keysProblem = answerKeysProblem(keys);

@@ -319,6 +319,30 @@ test("an issue's answers are keyed \"a\", \"b\", \"c\", … in order (D7)", () =
   assert.match(unusable(system(1, { issues: [{ ...issue, answers: [issue.answers[1], issue.answers[0]], applied: "c" }] }), context(1)), /in order/);
 });
 
+test("an issue's boxes are on at most two consecutive systems (D8)", () => {
+  const box = { left: 0.1, right: 0.3, top: 0.2, bottom: 0.4 };
+  const issue = {
+    boxes: [
+      { image: "previous system", box },
+      { image: "next system", box },
+    ],
+    location: null,
+    question: "Where does this slur end?",
+    answers: [
+      { key: "a", text: "On the next system" },
+      { key: "b", text: "On this system" },
+    ],
+    applied: "a",
+    class: "reading" as const,
+    lilypond: null,
+  };
+  const ctx = context(1, { system: 2, images: ["system", "stretch 1", "previous system", "next system"] });
+  assert.match(unusable(system(1, { issues: [issue] }), ctx), /^issue 1 covers more than two consecutive systems$/);
+  assert.match(unusable(system(1, { issues: [{ ...issue, boxes: [...issue.boxes, { image: "stretch 1", box }] }] }), ctx), /more than two consecutive/);
+  ok(system(1, { issues: [{ ...issue, boxes: [{ image: "system", box }, { image: "next system", box }] }] }), ctx);
+  ok(system(1, { issues: [{ ...issue, boxes: [{ image: "previous system", box }, { image: "stretch 1", box }] }] }), ctx);
+});
+
 test("a change in the order of the staves is a warning", () => {
   const first = ok(system(1), context(1));
   const swapped = system(1, {}, false);

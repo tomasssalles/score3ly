@@ -8,7 +8,7 @@
 import type { ApiStage } from "./api.ts";
 import { PRODUCERS } from "./stageInputs.ts";
 import type { Box } from "@score3ly/core";
-import { nextAnswerKey } from "@score3ly/notation";
+import { nextAnswerKey, systemsRuleProblem } from "@score3ly/notation";
 import { sameAnswer, systemsOf, type PlacedSystem, type StoredIssue } from "./issues.ts";
 import type { ReviewEntry } from "./review.ts";
 import { count } from "./format.ts";
@@ -119,7 +119,7 @@ export function boxProblems(boxes: { page: number; box: Box }[], systems: Placed
   const off = boxes.flatMap((b, k) => (systemsOf([b], systems).length === 0 ? [k] : []));
   if (off.length > 0) return { problem: OFF_SYSTEM, bad: off };
   const covered = systemsOf(boxes, systems);
-  if (covered.length > 2 || (covered.length === 2 && covered[1] - covered[0] !== 1)) {
+  if (systemsRuleProblem(covered)) {
     return {
       problem: `The boxes are on systems ${covered.join(", ")}. They can be on one system, or on two neighbouring systems.`,
       bad: boxes.map((_, k) => k),

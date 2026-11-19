@@ -4,7 +4,7 @@
 // that runs on), and finds what is a question about the page (issues raised by code) or a problem of the extraction
 // (warnings).
 
-import { answerKeysProblem } from "./issueRules.ts";
+import { answerKeysProblem, systemsRuleProblem } from "./issueRules.ts";
 import { boxProblem, type Box } from "@score3ly/core";
 import { add, equal, less, show, ZERO, type Fraction } from "./fraction.ts";
 import { eventsDuration, durationValue, measureLength, parseKey, parseTime, type TimeSignature } from "./durations.ts";
@@ -285,8 +285,8 @@ function checkStructure(answer: LensSystem, context: SystemContext, before: Scor
     }
   }
 
-  // Issues: boxes on the images sent, answers keyed "a", "b", "c", … in order (issueRules.ts), `applied` one of
-  // them, a format issue with its list of tokens.
+  // Issues: boxes on the images sent and on at most two consecutive systems, answers keyed "a", "b", "c", … in order
+  // (issueRules.ts), `applied` one of them, a format issue with its list of tokens.
   for (const [n, issue] of answer.issues.entries()) {
     const what = `issue ${n + 1}`;
     if (issue.boxes.length === 0) fail(`${what} has no boxes`);
@@ -296,6 +296,10 @@ function checkStructure(answer: LensSystem, context: SystemContext, before: Scor
         fail(`${what}: a box isn't within its image (fractions from 0 to 1, left < right, top < bottom)`);
       }
     }
+    // The systems its boxes are on: the neighbours' images are theirs, every other image this system's.
+    const systems = issue.boxes.map((b) => context.system + (b.image === "previous system" ? -1 : b.image === "next system" ? 1 : 0));
+    const systemsProblem = systemsRuleProblem(systems);
+    if (systemsProblem) fail(`${what} ${systemsProblem}`);
     if (issue.answers.length === 0) fail(`${what} has no answers`);
     const keys = issue.answers.map((a) => a.key);
     const keysProblem = answerKeysProblem(keys);
