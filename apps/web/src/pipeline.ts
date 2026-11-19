@@ -288,6 +288,53 @@ export function progressOf(pipeline: Pipeline): Progress {
   return { stage: running?.progress ?? null, pipeline: (done + (running?.progress ?? 0)) / stages.length };
 }
 
+// The confirmation before a re-run (docs/overview.md §5.5, "Confirmation before a re-run"): a change asks first when it
+// replaces stages that have already run (done, failed, WIP or running). On the pipeline as the panel shows it, where a
+// carried manual stage looks planned: it hasn't run in this pipeline yet, and is kept or dropped at its turn either way.
+type RerunStage = Pick<Stage, "id" | "status" | "kind">;
+
+// The changes made from a stage's menu that can replace later stages.
+export type RerunChange = "config" | "addFix" | "addReview" | "addHumanReview" | "edit" | "drop";
+
+// Whether a change at this stage replaces stages that have already run: the stage itself, or one after it.
+export function replacesWork(stages: readonly RerunStage[], stageId: string): boolean {
+  const i = stages.findIndex((stage) => stage.id === stageId);
+  return stages.slice(i).some((stage) => stage.status !== "planned" && stage.status !== "ready");
+}
+
+// Whether a change right after this stage replaces stages that have already run.
+export function replacesLater(stages: readonly RerunStage[], stageId: string): boolean {
+  const i = stages.findIndex((stage) => stage.id === stageId);
+  return i >= 0 && i + 1 < stages.length && replacesWork(stages, stages[i + 1].id);
+}
+
+// Whether adding a fix after this stage replaces stages that have already run: the fix goes after the manual
+// stages that already follow it, which stay (docs/overview.md §6).
+export function fixReplaces(stages: readonly RerunStage[], stageId: string): boolean {
+  let j = stages.findIndex((stage) => stage.id === stageId) + 1;
+  if (j <= 0) return false;
+  while (j < stages.length && stages[j].kind === "manual") j++;
+  return j < stages.length && replacesWork(stages, stages[j].id);
+}
+
+// Whether a change from this stage's menu asks first: a new config replaces the stage and what follows it; a fix, a
+// review or a human review added after it, or the stage edited (a new stage in its place, whose later stages follow it),
+// replaces what follows; dropping always asks, since the stage's own work is lost.
+export function asksFirst(stages: readonly RerunStage[], change: RerunChange, stageId: string): boolean {
+  switch (change) {
+    case "config":
+      return replacesWork(stages, stageId);
+    case "addFix":
+      return fixReplaces(stages, stageId);
+    case "addReview":
+    case "addHumanReview":
+    case "edit":
+      return replacesLater(stages, stageId);
+    case "drop":
+      return true;
+  }
+}
+
 // How a model config that can't be used is marked after its name (docs/llm.md): deleted, or no longer supported.
 export function unusableMark(config: { deleted: boolean; unsupported: boolean }): string {
   return config.deleted ? " (deleted)" : config.unsupported ? " (no longer supported)" : "";

@@ -2,7 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiStage } from "./api.ts";
 import {
+  asksFirst,
   canRun,
+  fixReplaces,
+  replacesLater,
+  replacesWork,
   currentStage,
   defaultArtifactId,
   findArtifact,
@@ -294,4 +298,85 @@ test("whether a running stage was interrupted is the Worker's to say, on its clo
   } finally {
     Date.now = realNow;
   }
+});
+
+// The confirmation before a re-run (docs/overview.md §5.5): on the pipeline as the panel shows it.
+test("a new config asks first when the stage or one after it has run: done, failed, WIP or running; not when all are planned or ready", () => {
+  const at = (...rest: ApiStage[]) => toPipeline("manual", { dropped: [], stages: [ingest, ...rest] }).stages;
+  const fresh = at(stage("s2", "rasterize", { status: "planned" }), stage("s3", "skew_analysis", { status: "planned" }));
+  assert.deepEqual(fresh.map((s) => s.status), ["done", "ready", "planned"]);
+  assert.equal(replacesWork(fresh, "s2"), false);
+  assert.equal(replacesWork(fresh, "s3"), false);
+  assert.equal(asksFirst(fresh, "config", "s2"), false);
+  // Ingest is done: a change there would replace it.
+  assert.equal(replacesWork(fresh, "s1"), true);
+  for (const status of ["done", "failed", "wip", "running"] as const) {
+    const ran = at(stage("s2", "rasterize"), stage("s3", "skew_analysis", { status }), stage("s4", "layout", { status: "planned" }));
+    assert.equal(replacesWork(ran, "s2"), true, status);
+    assert.equal(replacesWork(ran, "s3"), true, status);
+    assert.equal(asksFirst(ran, "config", "s3"), true, status);
+    assert.equal(replacesWork(ran, "s4"), false, status);
+  }
+  // The stage running on this device counts as running.
+  const here = toPipeline("auto", { dropped: [], stages: [ingest, stage("s2", "rasterize", { status: "planned" })] }, { stageId: "s2", progress: 0.5 }).stages;
+  assert.equal(replacesWork(here, "s2"), true);
+  // An interrupted one as failed.
+  const interrupted = at(stage("s2", "rasterize", { status: "running", interrupted: true }));
+  assert.equal(replacesWork(interrupted, "s2"), true);
+});
+
+test("a carried manual stage hasn't run in this pipeline: it alone asks nothing (it is kept or dropped at its turn either way)", () => {
+  const stages = toPipeline("manual", { dropped: [],
+    stages: [ingest, stage("s2", "rasterize"), stage("s3", "skew_analysis", { status: "planned" }), stage("s4", "fix_skew", { carried: true }), stage("s5", "layout", { status: "planned" })],
+  }).stages;
+  assert.deepEqual(stages.map((s) => s.status), ["done", "done", "ready", "planned", "planned"]);
+  assert.equal(replacesWork(stages, "s3"), false);
+  assert.equal(asksFirst(stages, "config", "s3"), false);
+  assert.equal(asksFirst(stages, "config", "s2"), true);
+});
+
+test("a change right after a stage (a review, a human review, an edit) asks when the stage after it has run, or one after that", () => {
+  const stages = toPipeline("manual", { dropped: [],
+    stages: [ingest, stage("s2", "rasterize"), stage("s3", "skew_analysis"), stage("s4", "layout", { status: "planned" }), stage("s5", "analyze", { status: "planned" })],
+  }).stages;
+  assert.equal(replacesLater(stages, "s2"), true); // skew_analysis is done
+  assert.equal(replacesLater(stages, "s3"), false); // layout ready, analyze planned
+  assert.equal(replacesLater(stages, "s5"), false); // the last stage: nothing after it
+  assert.equal(replacesLater(stages, "nowhere"), false);
+  for (const change of ["addReview", "addHumanReview", "edit"] as const) {
+    assert.equal(asksFirst(stages, change, "s2"), true, change);
+    assert.equal(asksFirst(stages, change, "s3"), false, change);
+  }
+  // A failed stage later on counts too.
+  const failedLater = toPipeline("manual", { dropped: [], stages: [ingest, stage("s2", "rasterize"), stage("s3", "skew_analysis", { status: "planned" }), stage("s4", "layout", { status: "failed" })] }).stages;
+  assert.equal(replacesLater(failedLater, "s2"), true);
+});
+
+test("a fix goes after the manual stages that already follow the stage, which stay: only what comes after them counts", () => {
+  const stages = (extract: ApiStage["status"]) =>
+    toPipeline("manual", { dropped: [],
+      stages: [ingest, stage("s2", "analyze"), stage("s3", "fix_metadata", { status: "wip" }), stage("s4", "extract", { status: extract })],
+    }).stages;
+  // fix_metadata is WIP, but the second fix goes after it: nothing that ran is replaced.
+  assert.equal(fixReplaces(stages("planned"), "s2"), false);
+  assert.equal(asksFirst(stages("planned"), "addFix", "s2"), false);
+  // replacesLater, by contrast, would count the WIP stage.
+  assert.equal(replacesLater(stages("planned"), "s2"), true);
+  assert.equal(fixReplaces(stages("done"), "s2"), true);
+  assert.equal(asksFirst(stages("done"), "addFix", "s2"), true);
+  // Only manual stages followed by nothing: nothing replaced.
+  const last = toPipeline("manual", { dropped: [], stages: [ingest, stage("s2", "skew_analysis"), stage("s3", "fix_skew")] }).stages;
+  assert.equal(fixReplaces(last, "s2"), false);
+  assert.equal(fixReplaces(last, "nowhere"), false);
+  // A stage done right after it.
+  const done = toPipeline("manual", { dropped: [], stages: [ingest, stage("s2", "skew_analysis"), stage("s3", "layout")] }).stages;
+  assert.equal(fixReplaces(done, "s2"), true);
+});
+
+test("dropping a stage always asks", () => {
+  const stages = toPipeline("manual", { dropped: [], stages: [ingest, stage("s2", "skew_analysis"), stage("s3", "fix_skew", { status: "wip" })] }).stages;
+  assert.equal(asksFirst(stages, "drop", "s3"), true);
+  assert.equal(replacesWork(stages, "s3"), true);
+  const planned = toPipeline("manual", { dropped: [], stages: [ingest, stage("s2", "skew_analysis"), stage("s3", "fix_skew", { carried: true })] }).stages;
+  assert.equal(asksFirst(planned, "drop", "s3"), true);
 });
