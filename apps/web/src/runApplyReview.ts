@@ -42,7 +42,7 @@ import { reviewIssues, reviewScore, reviewWarnings, type StoredReview } from "./
 import { CannotStart, recordedContent, runPlan, type StageRun } from "./stageRunner";
 import { choosingChain } from "./steps";
 import { attributionOf } from "./attribution";
-import { appliedIssues, freshCodeIssues, humanReviewedIssues, reviewedIssues, storedWarning, systemsOf, type StoredIssue, type StoredWarning } from "./issues";
+import { appliedIssues, freshCodeIssues, issuesAfter, storedWarning, systemsOf, type StageIssues, type StoredIssue, type StoredWarning } from "./issues";
 
 
 export async function runApplyReview(run: StageRun): Promise<void> {
@@ -61,31 +61,19 @@ export async function runApplyReview(run: StageRun): Promise<void> {
   const transcription = await loadTranscription(inputs, transcribed);
   const { extractions, checks } = transcription;
   const reviewOutputs = reviewers.flatMap(reviewEntries);
-  // A review's calls; a human review's single output, its entries as one (docs/stages/music.md, `human_review`).
-  const reviewCalls = new Map<string, StoredReview[]>();
-  await Promise.all(
-    reviewers.map(async (r) =>
-      reviewCalls.set(
-        r.id,
-        await Promise.all(
-          reviewEntries(r).map(async (o) => {
-            const content = await fetchJsonContent(o.contentSha256!);
-            return r.step === "human_review" ? { system: 0, entries: (content as StoredHumanReview).entries } : (content as StoredReview);
-          }),
-        ),
-      ),
-    ),
+  // What each review stored: a review's calls; a human review's single output (docs/stages/music.md, `human_review`).
+  const loaded = await Promise.all(
+    reviewers.map(async (r): Promise<StageIssues> => {
+      const contents = await Promise.all(reviewEntries(r).map((o) => fetchJsonContent(o.contentSha256!)));
+      return r.step === "human_review"
+        ? { step: "human_review", stored: { entries: (contents as StoredHumanReview[]).flatMap((c) => c.entries) } }
+        : { step: "review", calls: contents as StoredReview[], done: true };
+    }),
   );
 
   // The issues as the reviews left them: the transcription's, with each review's entries and agreements.
   const checkIds = new Set(checks.issues.map((i) => i.id));
-  let issues = new Map<number, StoredIssue>(transcription.issues.map((i) => [i.id, i]));
-  for (const r of reviewers) {
-    issues =
-      r.step === "human_review"
-        ? reviewCalls.get(r.id)!.reduce((map, call) => humanReviewedIssues(map, call), issues)
-        : reviewedIssues([...issues.values()], reviewCalls.get(r.id)!);
-  }
+  const issues = loaded.reduce(issuesAfter, new Map<number, StoredIssue>(transcription.issues.map((i) => [i.id, i])));
   const startIssues = issues;
   const startWarnings = transcription.warnings;
 

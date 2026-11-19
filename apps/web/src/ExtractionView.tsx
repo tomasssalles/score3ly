@@ -18,7 +18,6 @@ import type { StoredExtraction, StoredScoreChecks } from "./extract";
 import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
 import { useNear, useObjectUrl } from "./ui/hooks";
 import { BoxesIcon, ChangesIcon, MusicIcon, SourceIcon } from "./ui/icons";
-import { InfoButton } from "./ui/Info";
 import { numberSystems, type PageLayout } from "./layout";
 import { ModeToggle, UnsavedNote } from "./editor/pageEditor";
 import { saverOf, useSaver } from "./saving";
@@ -32,11 +31,11 @@ import type { StoredReview } from "./review";
 import type { StoredApplyCall } from "./applyReview";
 import { boxProblems, chooseAnswer, clearChoice, ownIssue, ownIssues, putOwnIssue, removeOwnIssue, userChoice, writeAnswer, type StoredHumanReview } from "./humanReview";
 import { AnswerPicker, ClarificationCard, DrawLayer } from "./HumanReviewCards";
+import { AnswerTags, Choices } from "./IssueParts";
 import type { Who } from "./attribution";
-import { stepInfo } from "./steps";
-import { answerTags, type AnswerTag, boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
+import { answerTags, boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
 import { count } from "./format";
-import { applyEntries, changedBy, humanReviewedIssues, type PlacedSystem, type StoredIssue, type StoredWarning, withKept } from "./issues";
+import { changedBy, humanReviewedIssues, reviewedIssues, type PlacedSystem, type StoredIssue, type StoredWarning } from "./issues";
 
 // `changed`: in a later stage's Transcription (a review's), the keys of the notes of the issues it changed: raised, or
 // chose on (its kept agreements aren't changes). Null in `extract`'s, where everything is new.
@@ -100,10 +99,7 @@ function useTranscription(artifact: Artifact, stageId: string | null): Loaded | 
       if (data.review) {
         const review = data.review;
         const calls = await Promise.all(review.calls.map(async (c) => (await fetchJsonContent(c.sha256)) as StoredReview));
-        const base = [...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])];
-        let issues = new Map(base.map((i) => [i.id, i]));
-        for (const call of [...calls].sort((a, b) => a.system - b.system)) issues = applyEntries(issues, call.entries);
-        if (review.done) issues = withKept(issues, changedBy(calls));
+        const issues = reviewedIssues([...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])], calls, review.done);
         const raised = new Map(calls.map((c) => [c.system, c.entries.flatMap((e) => ("newIssue" in e ? [issues.get(e.newIssue.id)!] : []))]));
         for (const e of extractions) {
           e.extraction = { ...e.extraction, issues: [...e.extraction.issues.map((i) => issues.get(i.id)!), ...(raised.get(e.extraction.system) ?? [])] };
@@ -690,66 +686,6 @@ function IssueCard({ id, issue, color, who, answers }: { id: string; issue: Stor
       )}
       {issue.choices.length > 0 && <Choices choices={issue.choices} who={who} />}
     </div>
-  );
-}
-
-// An answer's suffixes, muted, the stage they name in bold (docs/stages/music.md, "An issue's card").
-export function AnswerTags({ tags }: { tags: AnswerTag[] }) {
-  return (
-    <>
-      {tags.map((t) => (
-        <span key={t.words} className="answer-tag">
-          {" "}[{t.words}
-          {t.stage && (
-            <>
-              {" "}
-              <strong>{t.stage}</strong>
-            </>
-          )}
-          ]
-        </span>
-      ))}
-    </>
-  );
-}
-
-// Who chose which answer, in order; a choice with a reason has an "i" after it that shows the reason on a line below
-// (docs/stages/music.md, "An issue's card": the reasons are for later reviewers, shown only on request).
-export function Choices({ choices, who }: { choices: StoredIssue["choices"]; who: IssueWho | undefined }) {
-  const [open, setOpen] = useState<Set<number>>(new Set());
-  const named = choices.map((c, i) => who?.choices[i]?.label ?? stepInfo(c.by).title);
-  const toggle = (i: number) => {
-    const next = new Set(open);
-    if (!next.delete(i)) next.add(i);
-    setOpen(next);
-  };
-  return (
-    <>
-      <p className="issue-facts">
-        Choices:{" "}
-        {choices.map((c, i) => (
-          <span key={i}>
-            {i > 0 ? " • " : ""}
-            {named[i]} → {c.key}
-            {c.reason && (
-              <InfoButton
-                open={open.has(i)}
-                onToggle={() => toggle(i)}
-                label={`${open.has(i) ? "Hide" : "Show"} the reason of ${named[i]}`}
-                title={`${open.has(i) ? "Hide" : "Show"} the reason`}
-              />
-            )}
-          </span>
-        ))}
-      </p>
-      {choices.map((c, i) =>
-        c.reason && open.has(i) ? (
-          <p key={i} className="issue-reason">
-            {named[i]}: {c.reason}
-          </p>
-        ) : null,
-      )}
-    </>
   );
 }
 

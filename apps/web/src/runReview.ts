@@ -18,7 +18,7 @@ import { stretchCropBoxes, systemCropBox } from "./crops";
 import { checkReview, logEntries, proposedChanges, REVIEW_VERSION, reviewIssues, reviewNote, reviewScore, reviewStageKey, reviewWarnings, type ReviewEntry, type StoredReview } from "./review";
 import { CannotStart, recordedContent, runPlan, type StageRun } from "./stageRunner";
 import { reviewInputIds } from "./stageInputs";
-import { applyEntries, systemsOf } from "./issues";
+import { reviewedIssues, systemsOf } from "./issues";
 
 
 export async function runReview(run: StageRun): Promise<void> {
@@ -61,11 +61,7 @@ export async function runReview(run: StageRun): Promise<void> {
   const recorded = await recordedContent<StoredReview>(stage, "review");
   const calls = new Map(systems.filter((s) => recorded.has(s.item)).map((s) => [s.number, recorded.get(s.item)!]));
   // The issues before a system's call: the reviewed ones with the earlier calls' entries applied, in score order.
-  const issuesBefore = (n: number) => {
-    let map = new Map(baseIssues.map((i) => [i.id, i]));
-    for (const call of [...calls.values()].filter((c) => c.system < n).sort((a, b) => a.system - b.system)) map = applyEntries(map, call.entries);
-    return map;
-  };
+  const issuesBefore = (n: number) => reviewedIssues(baseIssues, [...calls.values()].filter((c) => c.system < n), false);
 
   // What it reads, as a further review carried through a re-run is compared by (steps.ts).
   const inputIds = reviewInputIds(inputs.sources);

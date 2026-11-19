@@ -14,7 +14,7 @@ import { keyOf } from "@score3ly/core";
 import type { StoredExtraction, StoredScoreChecks } from "./extract.ts";
 import type { StoredReview } from "./review.ts";
 import type { StoredHumanReview } from "./humanReview.ts";
-import { humanReviewedIssues, reviewedIssues, type StoredIssue } from "./issues.ts";
+import { issuesAfter as foldIssues, type StoredIssue } from "./issues.ts";
 
 // A stage as an issue's card names it, and its step; `person`: a human review.
 export type Who = { label: string; person: boolean; step: string };
@@ -76,21 +76,21 @@ export type Sources = {
   report?: (m: Mismatch) => void; // a stored step that doesn't match its stage's (`extend`)
 };
 
-// The issues after a stage, from those after the stage before it.
+// The issues after a stage, from those after the stage before it: its stored content loaded, then issues.ts' fold.
 async function issuesAfter(stage: ChainStage, before: Map<number, StoredIssue>, sources: Sources): Promise<Map<number, StoredIssue>> {
   switch (stage.step) {
     case "extract":
     case "apply_review": {
       const systems = await Promise.all(stage.systems.map(async (s) => (await sources.json(s)) as StoredExtraction));
       const checks = stage.checks ? ((await sources.json(stage.checks)) as StoredScoreChecks) : null;
-      return new Map([...systems.flatMap((s) => s.issues), ...(checks?.issues ?? [])].map((i) => [i.id, i]));
+      return foldIssues(before, { step: stage.step, issues: [...systems.flatMap((s) => s.issues), ...(checks?.issues ?? [])] });
     }
     case "review": {
       const calls = await Promise.all(stage.calls.map(async (c) => (await sources.json(c)) as StoredReview));
-      return reviewedIssues([...before.values()], calls, stage.done);
+      return foldIssues(before, { step: "review", calls, done: stage.done });
     }
     case "human_review":
-      return stage.sha256 ? humanReviewedIssues(before, (await sources.json(stage.sha256)) as StoredHumanReview) : before;
+      return foldIssues(before, { step: "human_review", stored: stage.sha256 ? ((await sources.json(stage.sha256)) as StoredHumanReview) : null });
   }
 }
 

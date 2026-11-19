@@ -4,7 +4,7 @@
 import { onCrop, onPage, type Box } from "@score3ly/core";
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { AnswerTags } from "./ExtractionView";
+import { AnswerTags } from "./IssueParts";
 import { boxThrough, resizeBox, type BoxHandle } from "./editor/boxEdit";
 import { handleAt } from "./editor/handles";
 import { BoxHandles } from "./editor/pageEditor";

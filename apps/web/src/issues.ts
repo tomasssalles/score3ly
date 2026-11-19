@@ -234,3 +234,25 @@ export function appliedIssues(issues: Map<number, StoredIssue>, calls: StoredApp
   }
   return out;
 }
+
+// A stage that chooses or applies, with what it stored (attribution.ts' `ChainStage`, loaded): a transcription's
+// issues (`extract`'s, `apply_review`'s: every system's and the checks of the whole score's), a review's calls (its
+// agreements only once it is done), a human review's entries (none stored yet: null).
+export type StageIssues =
+  | { step: "extract" | "apply_review"; issues: StoredIssue[] }
+  | { step: "review"; calls: StoredReview[]; done: boolean }
+  | { step: "human_review"; stored: StoredHumanReview | null };
+
+// The issues after a stage, from those after the stage before it: the one fold of the chain, under attribution's walk
+// and `apply_review`'s issues to apply.
+export function issuesAfter(before: Map<number, StoredIssue>, stage: StageIssues): Map<number, StoredIssue> {
+  switch (stage.step) {
+    case "extract":
+    case "apply_review":
+      return new Map(stage.issues.map((i) => [i.id, i]));
+    case "review":
+      return reviewedIssues(before.values(), stage.calls, stage.done);
+    case "human_review":
+      return stage.stored ? humanReviewedIssues(before, stage.stored) : before;
+  }
+}

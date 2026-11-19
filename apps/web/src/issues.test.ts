@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { codeIssue, freshCodeIssues, placesOf, systemsOf, type PlacedSystem, type StoredIssue } from "./issues.ts";
-import { boxProblems, userChoice, writeAnswer, writtenAnswerKey } from "./humanReview.ts";
-import { applyCalls, checkPatch } from "./applyReview.ts";
+import { appliedIssues, codeIssue, freshCodeIssues, issuesAfter, needsApplying, placesOf, systemsOf, type PlacedSystem, type StoredIssue } from "./issues.ts";
+import { boxProblems, chooseAnswer, ownIssue, putOwnIssue, userChoice, writeAnswer, writtenAnswerKey } from "./humanReview.ts";
+import { applyCalls, checkPatch, type StoredApplyCall } from "./applyReview.ts";
+import { EXTRACT, extend, whoOf, type Attribution, type Who } from "./attribution.ts";
 import { checkReview } from "./review.ts";
 import { systemCropBox } from "./crops.ts";
 
@@ -121,4 +122,78 @@ test("an answered code issue isn't raised again for a reworded question or a box
   // Another place, or another kind of question, is another issue.
   assert.equal(freshCodeIssues([{ ...found, places: [{ system: 5, stretch: 1 }] }], [answered], placeBox).length, 1);
   assert.equal(freshCodeIssues([{ ...found, kind: "mark-start:curve" }], [answered], placeBox).length, 1);
+});
+
+// --- The chain: extract → review → apply_review → human_review → apply_review, on the pure folds (D27) ---
+
+test("through the chain, ids stay, choices and applications are only appended, and nothing needs applying after an apply", () => {
+  const placeBox = (p: { system: number; stretch: number }) => ({ page: 1, box: CLOSE[p.system - 1].layout.box });
+  // Extract: a model's issue and one raised by code.
+  const extracted: StoredIssue[] = [
+    { ...keyed(["a", "b"]), id: 1, source: "extract", applications: [{ by: "extract", key: "a" }] },
+    codeIssue({ kind: "continuation", question: "Does it continue?", answers: [{ key: "a", text: "Yes" }, { key: "b", text: "No" }], applied: "b", places: [{ system: 5, stretch: 1 }] }, 2, placeBox, "extract"),
+  ];
+  const stages: { who: Who; issues: Map<number, StoredIssue> }[] = [{ who: EXTRACT, issues: issuesAfter(new Map(), { step: "extract", issues: extracted }) }];
+  const last = () => stages[stages.length - 1].issues;
+
+  // A review of system 5: a choice on issue 1, a new issue on its image.
+  const images = new Map([["system", { page: 1, box: systemCropBox(CLOSE[4].layout), system: 5 }]]);
+  const reviewed = checkReview(
+    {
+      entries: [
+        { choice: { issue: 1, key: "b", newAnswer: "", reason: "As in m. 7" } },
+        { newIssue: { boxes: [{ image: "system", box: { left: 0.2, right: 0.3, top: 0.3, bottom: 0.6 } }], location: null, question: "A D or an E?", answers: [{ key: "a", text: "A D" }, { key: "b", text: "An E" }], applied: "a", chosen: "b", reason: "", class: "reading", lilypond: null } },
+      ],
+    },
+    { system: 5, issues: last(), systems: CLOSE, images },
+    3,
+  );
+  assert.ok(!("problem" in reviewed), JSON.stringify(reviewed));
+  stages.push({ who: whoOf("review", 1), issues: issuesAfter(last(), { step: "review", calls: [{ system: 5, entries: reviewed.entries }], done: true }) });
+
+  // Apply review: every call applies what it was given.
+  const apply = (n: number) => {
+    const calls = applyCalls(last().values(), CLOSE).map((c): StoredApplyCall => ({ system: c.system, window: c.window, voices: [], stretches: [], systems: [], choices: [], applied: c.issues, changed: [], warnings: [] }));
+    assert.ok(calls.length > 0);
+    const applied = appliedIssues(last(), calls);
+    stages.push({ who: whoOf("apply_review", n), issues: issuesAfter(last(), { step: "apply_review", issues: [...applied.values()] }) });
+    for (const issue of last().values()) assert.equal(needsApplying(issue), false, `issue ${issue.id} after Apply review ${n}`);
+  };
+  apply(1);
+
+  // A human review: an answer chosen on code's issue, one written on issue 3, a clarification.
+  let stored = chooseAnswer({ entries: [] }, last().get(2)!, "a");
+  stored = writeAnswer(stored, last().get(3)!, "An F");
+  stored = putOwnIssue(stored, ownIssue(4, [topOf5], "A tie, not a slur"));
+  stages.push({ who: whoOf("human_review", 1), issues: issuesAfter(last(), { step: "human_review", stored }) });
+  assert.deepEqual(
+    [...last().values()].filter((i) => i.resolved).map((i) => i.id),
+    [2, 3, 4],
+  );
+  apply(2);
+
+  // Ids only added; every issue's choices and applications those before it, with more after them.
+  for (const [k, stage] of stages.entries()) {
+    if (k === 0) continue;
+    const before = stages[k - 1].issues;
+    for (const [id, issue] of before) {
+      const after = stage.issues.get(id);
+      assert.ok(after, `issue ${id} is still there after ${stage.who.label}`);
+      assert.deepEqual(after.choices.slice(0, issue.choices.length), issue.choices);
+      assert.deepEqual((after.applications ?? []).slice(0, (issue.applications ?? []).length), issue.applications ?? []);
+      assert.deepEqual(after.answers.slice(0, issue.answers.length), issue.answers);
+    }
+  }
+  // Attribution names every entry by the stage that added it, with no mismatch.
+  let attribution: Attribution = {};
+  for (const stage of stages) attribution = extend(attribution, stage.issues.values(), stage.who, (m) => assert.fail(JSON.stringify(m)));
+  assert.deepEqual(
+    attribution[3].choices.map((w) => w.label),
+    ["Review 1", "Human review 1"],
+  );
+  assert.deepEqual(
+    attribution[1].applications.map((w) => w.label),
+    ["Extract", "Apply review 1"],
+  );
+  assert.equal(last().get(3)!.applied, "c");
 });
