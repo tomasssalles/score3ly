@@ -210,3 +210,14 @@ test("a multi-measure rest with a tempo mark in its voice is written as one, wit
   assert.deepEqual(named(root, "measure").map((m) => attrOf(m, "n")), ["1–4"]);
   assert.equal(named(root, "tempo").length, 1);
 });
+
+// Code review, D10: the header's `work` took the last title of a system with two, the `mdiv` the first.
+test("a piece's title is one in the header and the music, the first where a system has two", () => {
+  const metadata = { ...METADATA, pieces: [{ title: "No. 2", system: 4 }, { title: " Kuriose Geschichte ", system: 4 }] };
+  const root = buildMei(buildScore(richScore(), [1, 4]), { metadata });
+  assert.deepEqual(named(find(root, "work-piece-2")!, "title")[0].children, ["No. 2"]);
+  assert.equal(attrOf(find(root, "piece-2"), "label"), "No. 2");
+  // Without one: "Piece n" in the header, no label in the music.
+  assert.deepEqual(named(find(root, "work-piece-1")!, "title")[0].children, ["Piece 1"]);
+  assert.equal(attrOf(find(root, "piece-1"), "label"), undefined);
+});

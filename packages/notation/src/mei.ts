@@ -56,6 +56,13 @@ export type MeiMetadata = {
 };
 
 // How the file was made (`encodingDesc/appInfo`).
+// A piece's title, the same in the header's `work` and the music's `mdiv`: the metadata's piece starting at its first
+// system, trimmed (the first, should two start there: `analyze` and `fix_metadata` refuse that); none when there is
+// no such piece or its title is empty.
+export function pieceTitle(metadata: MeiMetadata | null | undefined, system: number): string | undefined {
+  return metadata?.pieces.find((p) => p.system === system)?.title.trim() || undefined;
+}
+
 export type MeiApplication = { name: string; version: string; url: string };
 
 export type MeiOptions = {
@@ -118,7 +125,6 @@ function header_(score: Score, m: MeiMetadata | null, app: MeiApplication | null
   const encodingDesc = app
     ? el("encodingDesc", {}, [el("appInfo", {}, [el("application", { version: app.version }, [el("name", {}, [app.name]), el("ptr", { target: app.url })])])])
     : null;
-  const pieceTitles = new Map((m?.pieces ?? []).map((p) => [p.system, p.title.trim()]));
   const creation = [...texts(m?.dedications).map((t) => el("dedication", {}, [t])), ...texts(m?.compositionDates).map((t) => el("date", {}, [t]))];
   const work = el("work", { "xml:id": "work" }, [
     ...texts(m?.catalogueNumbers).map((t) => el("identifier", {}, [t])),
@@ -130,11 +136,11 @@ function header_(score: Score, m: MeiMetadata | null, app: MeiApplication | null
     ...named("translator").map((n) => el("contributor", { role: "translator" }, [n])),
     creation.length ? el("creation", {}, creation) : null,
     texts(m?.instrumentation).length ? el("perfMedium", {}, [el("perfResList", {}, texts(m?.instrumentation).map((t) => el("perfRes", {}, [t])))]) : null,
-    score.pieces.length > 1 || pieceTitles.size > 0
+    score.pieces.length > 1 || (m?.pieces.length ?? 0) > 0
       ? el(
           "componentList",
           {},
-          score.pieces.map((p) => el("work", { "xml:id": `work-piece-${p.index + 1}` }, [el("title", {}, [pieceTitles.get(p.systems[0].number) || `Piece ${p.index + 1}`])])),
+          score.pieces.map((p) => el("work", { "xml:id": `work-piece-${p.index + 1}` }, [el("title", {}, [pieceTitle(m, p.systems[0].number) ?? `Piece ${p.index + 1}`])])),
         )
       : null,
   ]);
@@ -411,7 +417,7 @@ class PieceWriter {
 
   mdiv(): XmlElement {
     const { piece, score, only } = this;
-    const title = this.metadata?.pieces.find((p) => p.system === piece.systems[0].number)?.title.trim();
+    const title = pieceTitle(this.metadata, piece.systems[0].number);
     // The pass runs over the whole piece (accidentals, ties, ottavas need it); only the measures asked for are written.
     const measures = piece.measures.map((m) => this.measure(m));
     for (const staff of [...this.openOttavas.keys()]) this.closeOttava(staff); // an ottava never ended: to the last note under it
@@ -456,7 +462,7 @@ class PieceWriter {
         if (e.name === "measure") e.children = e.children.filter((c) => typeof c === "string" || c.name === "staff" || refsOf(c).every((r) => ids.has(r)));
       }
     }
-    const attrs: Record<string, string | number | undefined> = { "xml:id": `piece-${piece.index + 1}`, n: piece.index + 1, label: title || undefined };
+    const attrs: Record<string, string | number | undefined> = { "xml:id": `piece-${piece.index + 1}`, n: piece.index + 1, label: title };
     if (!only && (this.score.pieces.length > 1 || (this.metadata?.pieces.length ?? 0) > 0)) attrs.corresp = `#work-piece-${piece.index + 1}`;
     return el("mdiv", attrs, [el("score", {}, [firstScoreDef ?? this.scoreDefAt(piece.systems[0].number), el("section", {}, sectionChildren)])]);
   }
