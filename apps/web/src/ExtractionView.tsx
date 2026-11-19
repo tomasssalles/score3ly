@@ -14,7 +14,7 @@ import { buildMei, serialize, type LensStretch, type Score } from "@score3ly/not
 import { overlaps, type Box } from "@score3ly/core";
 import { failure, fetchJsonContent, putJson, recordOutputs, reserveIssueNumbers, type Project } from "./api";
 import { Filmstrip } from "./ui/Filmstrip";
-import type { StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
+import type { StoredExtraction, StoredScoreChecks } from "./extract";
 import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
 import { useNear, useObjectUrl } from "./ui/hooks";
 import { BoxesIcon, ChangesIcon, MusicIcon, SourceIcon } from "./ui/icons";
@@ -28,27 +28,15 @@ import type { Artifact } from "./pipeline";
 import { attributionOf, extend, type Attribution, type IssueWho } from "./attribution";
 import { attributionCache } from "./imageCache";
 import { fittedOptions, renderMei } from "./rendering";
-import { applyEntries, changedBy, withKept, type StoredReview } from "./review";
+import type { StoredReview } from "./review";
 import type { StoredApplyCall } from "./applyReview";
-import {
-  boxProblems,
-  chooseAnswer,
-  clearChoice,
-  humanReviewedIssues,
-  ownIssue,
-  ownIssues,
-  putOwnIssue,
-  removeOwnIssue,
-  userChoice,
-  writeAnswer,
-  type StoredHumanReview,
-} from "./humanReview";
+import { boxProblems, chooseAnswer, clearChoice, ownIssue, ownIssues, putOwnIssue, removeOwnIssue, userChoice, writeAnswer, type StoredHumanReview } from "./humanReview";
 import { AnswerPicker, ClarificationCard, DrawLayer } from "./HumanReviewCards";
-import type { PlacedSystem } from "./review";
 import type { Who } from "./attribution";
 import { stepInfo } from "./steps";
 import { answerTags, type AnswerTag, boxesOnCrop, homeOf, notesOf, scoreOf, shownSystem, type Note, type ShownSystem } from "./transcription";
 import { count } from "./format";
+import { applyEntries, changedBy, humanReviewedIssues, type PlacedSystem, type StoredIssue, type StoredWarning, withKept } from "./issues";
 
 // `changed`: in a later stage's Transcription (a review's), the keys of the notes of the issues it changed: raised, or
 // chose on (its kept agreements aren't changes). Null in `extract`'s, where everything is new.
@@ -114,7 +102,7 @@ function useTranscription(artifact: Artifact, stageId: string | null): Loaded | 
         const calls = await Promise.all(review.calls.map(async (c) => (await fetchJsonContent(c.sha256)) as StoredReview));
         const base = [...extractions.flatMap((e) => e.extraction.issues), ...(checks?.issues ?? [])];
         let issues = new Map(base.map((i) => [i.id, i]));
-        for (const call of [...calls].sort((a, b) => a.system - b.system)) issues = applyEntries(issues, call);
+        for (const call of [...calls].sort((a, b) => a.system - b.system)) issues = applyEntries(issues, call.entries);
         if (review.done) issues = withKept(issues, changedBy(calls));
         const raised = new Map(calls.map((c) => [c.system, c.entries.flatMap((e) => ("newIssue" in e ? [issues.get(e.newIssue.id)!] : []))]));
         for (const e of extractions) {

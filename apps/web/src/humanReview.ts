@@ -7,9 +7,9 @@
 
 import type { ApiStage } from "./api.ts";
 import { PRODUCERS } from "./stageInputs.ts";
-import type { StoredIssue } from "./extract.ts";
 import type { Box } from "@score3ly/core";
-import { applyEntries, systemsOf, type PlacedSystem, type ReviewEntry } from "./review.ts";
+import { systemsOf, type PlacedSystem, type StoredIssue } from "./issues.ts";
+import type { ReviewEntry } from "./review.ts";
 import { count } from "./format.ts";
 
 export const HUMAN_REVIEW_VERSION = 1;
@@ -17,17 +17,6 @@ export const HUMAN_REVIEW_VERSION = 1;
 // What a human review stores (item '', type `human_review`): its entries, as a review's call stores them: the user's
 // choices on existing issues (a written answer as a new answer), and the user's own issues, numbered by code.
 export type StoredHumanReview = { entries: ReviewEntry[] };
-
-// The issues after a human review: its entries applied, and every issue it chose on or raised resolved (a person
-// decided it, docs/notation.md, "Issues").
-export function humanReviewedIssues(issues: Map<number, StoredIssue>, stored: StoredHumanReview): Map<number, StoredIssue> {
-  const out = applyEntries(issues, { system: 0, entries: stored.entries }, "human_review");
-  for (const e of stored.entries) {
-    const issue = out.get("choice" in e ? e.choice.issue : e.newIssue.id);
-    if (issue) out.set(issue.id, { ...issue, resolved: true });
-  }
-  return out;
-}
 
 // The card's short result, e.g. "3 changes".
 export function humanReviewNote(stored: StoredHumanReview): string {

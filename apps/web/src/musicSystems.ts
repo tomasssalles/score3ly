@@ -5,10 +5,11 @@
 import type { SystemContext } from "@score3ly/notation";
 import { extractImageLabels } from "@score3ly/prompts";
 import type { StoredPieces } from "./analyze.ts";
-import { pieceBounds, stretchBox, type ScoreSystem } from "./extract.ts";
+import { pieceBounds, type ScoreSystem } from "./extract.ts";
 import { numberSystems, type NumberedSystem, type PageLayout } from "./layout.ts";
 import { straightRecipe, type PageRecipe, type StraightRecipe } from "./recipes.ts";
 import type { MusicPage } from "./stageInputs.ts";
+import { stretchBox } from "./crops.ts";
 
 export type MusicSystem = NumberedSystem;
 

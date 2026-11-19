@@ -6,10 +6,10 @@
 import type { Box, LayoutSystem } from "@score3ly/core";
 import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION, type SizeLimit } from "@score3ly/imaging";
 import type { EngraveConfig } from "./engrave.ts";
-import type { StoredIssue } from "./extract.ts";
 import { RASTERIZE_VERSION } from "./rasterize.ts";
 import { RENDERING_VERSION, VEROVIO_VERSION } from "./rendering.ts";
 import { boxesOnCrop } from "./transcription.ts";
+import type { StoredIssue } from "./issues.ts";
 
 // The versions of our image code (packages/imaging), by operation: an LLM stage's image recipe (in its stage key) names
 // those its images go through.

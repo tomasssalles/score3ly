@@ -1,23 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { LensSystem } from "@score3ly/notation";
-import type { StoredIssue } from "./extract.ts";
-import {
-  appliedIssues,
-  applyLogEntries,
-  applyCalls,
-  applyNote,
-  applyPatch,
-  callWarnings,
-  changedStretches,
-  checkAll,
-  checkPatch,
-  isNewCodeIssue,
-  needsApplying,
-  type ApplyContext,
-  type StoredApplyCall,
-} from "./applyReview.ts";
-import type { PlacedSystem } from "./review.ts";
+import { applyLogEntries, applyCalls, applyNote, applyPatch, callWarnings, changedStretches, checkAll, checkPatch, type ApplyContext, type StoredApplyCall } from "./applyReview.ts";
+import { appliedIssues, isNewCodeIssue, needsApplying, type PlacedSystem, type StoredIssue } from "./issues.ts";
 
 // Three systems on page 1, each with one bar line at 0.5 (two stretches), one piece.
 const systems: PlacedSystem[] = [1, 2, 3].map((n) => ({

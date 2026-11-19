@@ -13,20 +13,11 @@ import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
 import { canonicalJson } from "@score3ly/core";
 import { checkSystems, type CheckedSystem, type LensStretch, type LensSystem, type StretchPlace, type SystemContext } from "@score3ly/notation";
 import { applyReviewFromModel, issueForModel, stretchForModel, systemFieldsForModel, systemForModel, voiceForModel, type ApplyReviewAnswer, type ApplyStretchUnit, type ApplySystemUnit, type ApplyVoiceUnit } from "@score3ly/prompts";
-import type { StoredIssue, StoredWarning } from "./extract.ts";
-import { malformedRefused, modelName, placesOf, systemsOf, type PlacedSystem } from "./review.ts";
+import { latest, needsApplying, placesOf, systemsOf, type PlacedSystem, type StoredIssue, type StoredWarning } from "./issues.ts";
+import { malformedRefused, modelName } from "./review.ts";
 import { count } from "./format.ts";
 
 export const APPLY_REVIEW_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
-
-const latest = (issue: StoredIssue) => issue.choices[issue.choices.length - 1] ?? null;
-
-// An issue needs applying when it has a choice and its latest choice differs from `applied`, null included
-// (docs/notation.md, "Issues").
-export function needsApplying(issue: StoredIssue): boolean {
-  const last = latest(issue);
-  return last !== null && last.key !== issue.applied;
-}
 
 // The calls of the stage: per system where at least one issue that needs applying begins (the first system its boxes
 // cover), those issues, in the order of their ids. An issue whose boxes cover no system goes with the first system.
@@ -266,32 +257,6 @@ export function callWarnings(input: {
   return warnings;
 }
 
-// The issues after the stage's calls (docs/stages/music.md, `apply_review`): a reverted issue gets the stage's choice
-// of its applied answer, with the reason; one without an applied answer gets the answer chosen as `applied` (a new one
-// added first), with no application (who wrote that music isn't known: "[in this transcription]"); every other issue a
-// call applied has its latest choice as `applied`.
-export function appliedIssues(issues: Map<number, StoredIssue>, calls: StoredApplyCall[]): Map<number, StoredIssue> {
-  const out = new Map(issues);
-  for (const call of [...calls].sort((a, b) => a.system - b.system)) {
-    for (const c of call.choices) {
-      const issue = out.get(c.issue);
-      if (!issue) continue;
-      out.set(c.issue, {
-        ...issue,
-        answers: c.newAnswer ? [...issue.answers, c.newAnswer] : issue.answers,
-        choices: [...issue.choices, { by: "apply_review", key: c.key, reason: c.reason, reverted: true }],
-        applied: issue.applied ?? c.key,
-      });
-    }
-    for (const id of call.applied) {
-      const issue = out.get(id);
-      const last = issue && latest(issue);
-      if (issue && last) out.set(id, { ...issue, applied: last.key, applications: [...(issue.applications ?? []), { by: "apply_review", key: last.key }] });
-    }
-  }
-  return out;
-}
-
 // The entries of a call as the log gives them to later calls: what changed, short, in the lens as models read it
 // (lensForm.ts).
 export function applyLogEntries(call: StoredApplyCall): unknown[] {
@@ -302,14 +267,6 @@ export function applyLogEntries(call: StoredApplyCall): unknown[] {
     ...call.choices.map((c) => ({ reverted: c })),
     ...(call.applied.length > 0 ? [{ applied: call.applied }] : []),
   ];
-}
-
-// A code issue found again on the new transcription is new only if no issue raised by code asks the same about the
-// same places (docs/notation.md, "Issues": otherwise every rebuild would raise it again).
-export function isNewCodeIssue(issue: { question: string; boxes: StoredIssue["boxes"] }, existing: Iterable<StoredIssue>): boolean {
-  const boxes = canonicalJson(issue.boxes);
-  for (const e of existing) if (e.source === "code" && e.question === issue.question && canonicalJson(e.boxes) === boxes) return false;
-  return true;
 }
 
 // The card's short result, e.g. "4 changes applied, 2 reverted".

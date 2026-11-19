@@ -10,11 +10,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { reviewIssuesText } from "@score3ly/prompts";
-import type { StoredExtraction, StoredIssue, StoredWarning } from "./extract.ts";
-import { checkReview, placesOf, reviewedIssues, reviewIssues, reviewWarnings, systemsOf, type PlacedSystem, type StoredReview } from "./review.ts";
-import { appliedIssues, applyCalls, callWarnings, issueToApply, needsApplying, type StoredApplyCall } from "./applyReview.ts";
-import { boxProblems, humanReviewedIssues } from "./humanReview.ts";
+import type { StoredExtraction } from "./extract.ts";
+import { checkReview, reviewIssues, reviewWarnings, type StoredReview } from "./review.ts";
+import { applyCalls, callWarnings, issueToApply, type StoredApplyCall } from "./applyReview.ts";
+import { boxProblems } from "./humanReview.ts";
 import { homeOf, shownSystem, type Note } from "./transcription.ts";
+import { appliedIssues, humanReviewedIssues, needsApplying, type PlacedSystem, placesOf, reviewedIssues, type StoredIssue, type StoredWarning, systemsOf } from "./issues.ts";
 
 const hash = (value: unknown) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex").slice(0, 16);
 

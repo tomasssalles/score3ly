@@ -10,7 +10,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { keyOf, type LayoutSystem, type ModelConfig } from "@score3ly/core";
 import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION, type SizeLimit } from "@score3ly/imaging";
-import type { StoredIssue } from "./extract.ts";
 import { MARGINS, stretchCropBoxes, systemCropBox } from "./crops.ts";
 import { boxesOnCrop } from "./transcription.ts";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits.ts";
@@ -34,6 +33,7 @@ import {
   type PageRecipe,
   type StraightRecipe,
 } from "./recipes.ts";
+import type { StoredIssue } from "./issues.ts";
 
 const PDF = "3f9a".repeat(16);
 const PDFJS = "5.4.296";

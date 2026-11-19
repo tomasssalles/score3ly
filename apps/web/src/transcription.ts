@@ -5,7 +5,8 @@
 import { area, intersection, onCrop, type Box, type LayoutSystem } from "@score3ly/core";
 import { buildScore, type Score } from "@score3ly/notation";
 
-import { scoreInput, type StoredExtraction, type StoredIssue, type StoredWarning } from "./extract.ts";
+import { scoreInput, type StoredExtraction } from "./extract.ts";
+import { homeOf as issueHome, type StoredIssue, type StoredWarning } from "./issues.ts";
 import { systemCropBox } from "./crops.ts";
 import type { IssueWho } from "./attribution.ts";
 import { errorText } from "@score3ly/core";
@@ -27,30 +28,19 @@ export function notesOf(systems: ShownSystem[], checks: { issues: StoredIssue[];
   ];
 }
 
-const overlap = (a: Box, b: Box) => area(intersection(a, b));
-
-// The system a note's text goes below: the first, in the score's order, that its first box falls on (most of it,
-// where crops overlap). Null when it falls on none.
-export function homeOf(note: Note, systems: ShownSystem[]): number | null {
-  const first = note.boxes[0];
-  if (!first) return null;
-  let best: { system: number; share: number } | null = null;
-  for (const s of systems) {
-    if (s.extraction.page !== first.page) continue;
-    // A system the box overlaps tightly always beats one it overlaps only with the margins: the crop's overlap is
-    // scaled down a thousandfold, below any tight overlap a box drawn by hand has.
-    const share = overlap(first.box, s.layout.box) || overlap(first.box, s.crop) / 1e3;
-    if (share > 0 && (!best || share > best.share)) best = { system: s.extraction.system, share };
-  }
-  return best?.system ?? null;
-}
+// The system a note's text goes below (issues.ts' `homeOf`).
+export const homeOf = (note: Note, systems: ShownSystem[]): number | null =>
+  issueHome(
+    note.boxes,
+    systems.map((s) => ({ number: s.extraction.system, page: s.extraction.page, layout: s.layout })),
+  );
 
 // The boxes that fall on a crop, as fractions of the crop (cut at its edges), each with its index among its note's.
 export function boxesOnCrop(notes: Note[], page: number, crop: Box): { note: Note; box: Box; k: number }[] {
   return notes.flatMap((note) =>
     note.boxes
       .map((b, k) => ({ ...b, k }))
-      .filter((b) => b.page === page && overlap(b.box, crop) > 0)
+      .filter((b) => b.page === page && area(intersection(b.box, crop)) > 0)
       .map((b) => ({ note, k: b.k, box: onCrop(crop, b.box, { clip: true }) })),
   );
 }

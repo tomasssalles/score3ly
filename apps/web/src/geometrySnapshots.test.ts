@@ -12,12 +12,13 @@ import { buildMei, buildScore, serialize } from "@score3ly/notation";
 import { richScore } from "@score3ly/notation/testScore";
 import { checkLayoutAnswer } from "@score3ly/prompts";
 import { onPage } from "@score3ly/core";
-import { stretchBox, type StoredExtraction } from "./extract.ts";
-import { stretchCropBoxes, systemCropBox } from "./crops.ts";
+import type { StoredExtraction } from "./extract.ts";
+import { stretchBox, stretchCropBoxes, systemCropBox } from "./crops.ts";
 import { addBarLine, boxThrough, moveBarLine, resizeBox, systemAt, withinBox, BOX_HANDLES } from "./fixLayout.ts";
 import { lineThrough } from "./fixSkew.ts";
-import { checkReview, placesOf, type PlacedSystem, type ReviewContext } from "./review.ts";
+import { checkReview, type ReviewContext } from "./review.ts";
 import { boxesOnCrop, homeOf, shownSystem, type Note } from "./transcription.ts";
+import { type PlacedSystem, placesOf } from "./issues.ts";
 
 const json = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 16);
 

@@ -34,3 +34,10 @@ export function stretchCropBoxes(system: LayoutSystem): Box[] {
     return margined(left - before, right + after, system.box);
   });
 }
+
+// A stretch's own box on the page, without margins: what issues raised by code and warnings point at.
+export function stretchBox(system: LayoutSystem, stretch: number): Box {
+  const x = stretchEdges(system.box, system.barLines);
+  const i = Math.min(Math.max(stretch, 1), x.length - 1) - 1;
+  return { left: x[i], right: x[i + 1], top: system.box.top, bottom: system.box.bottom };
+}

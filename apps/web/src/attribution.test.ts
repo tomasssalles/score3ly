@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { attributionOf, extend, whoOf, type Attribution, type ChainStage, type Mismatch } from "./attribution.ts";
-import type { StoredIssue } from "./extract.ts";
 import type { StoredReview } from "./review.ts";
+import type { StoredIssue } from "./issues.ts";
 
 // Who chose and applied: worked out from the pipeline's stages in order, never stored (docs/stages/music.md, "Who chose").
 

@@ -14,7 +14,7 @@ import {
   type CheckedSystem,
   type LensSystem,
   type Score,
-  type StretchPlace,
+  type Warning,
 } from "@score3ly/notation";
 import {
   APPLY_REVIEW_MAX_OUTPUT_TOKENS,
@@ -29,37 +29,20 @@ import {
 } from "@score3ly/prompts";
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, numberIssues, putJson } from "./api";
-import {
-  appliedCount,
-  appliedIssues,
-  applyCalls,
-  applyLogEntries,
-  applyNote,
-  applyPatch,
-  APPLY_REVIEW_VERSION,
-  applyReviewStageKey,
-  callWarnings,
-  changedStretches,
-  checkAll,
-  checkPatch,
-  isNewCodeIssue,
-  issueToApply,
-  revertedCount,
-  systemView,
-  type StoredApplyCall,
-} from "./applyReview";
+import { appliedCount, applyCalls, applyLogEntries, applyNote, applyPatch, APPLY_REVIEW_VERSION, applyReviewStageKey, callWarnings, changedStretches, checkAll, checkPatch, issueToApply, revertedCount, systemView, type StoredApplyCall } from "./applyReview";
 import { applyReviewInputIds, reviewEntries } from "./stageInputs";
-import { humanReviewedIssues, type StoredHumanReview } from "./humanReview";
-import { scoreInput, type ImageSource, type StoredExtraction, type StoredIssue, type StoredScoreChecks, type StoredWarning } from "./extract";
+import type { StoredHumanReview } from "./humanReview";
+import { scoreInput, type ImageSource, type StoredExtraction, type StoredScoreChecks } from "./extract";
 import { ask, llmStart, type PlannedRequest, type RequestContent } from "./llm";
 import { imageLimitFor } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
 import { loadTranscription, logContent, markedImage, markedImageRecipe, transcribedFor } from "./musicStage";
 import { stretchCropBoxes, systemCropBox } from "./crops";
-import { reviewedIssues, reviewIssues, reviewScore, reviewWarnings, systemsOf, type StoredReview } from "./review";
+import { reviewIssues, reviewScore, reviewWarnings, type StoredReview } from "./review";
 import { CannotStart, recordedContent, runPlan, type StageRun } from "./stageRunner";
 import { choosingChain } from "./steps";
 import { attributionOf } from "./attribution";
+import { appliedIssues, freshCodeIssues, humanReviewedIssues, reviewedIssues, storedWarning, systemsOf, type StoredIssue, type StoredWarning } from "./issues";
 
 
 export async function runApplyReview(run: StageRun): Promise<void> {
@@ -168,7 +151,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
     }
     return final;
   };
-  const warningOf = (w: { message: string; places: StretchPlace[] }): StoredWarning => ({ message: w.message, boxes: w.places.flatMap((p) => placeBox(p) ?? []) });
+  const warningOf = (w: Warning): StoredWarning => storedWarning(w, placeBox);
   const callWarningsHere = (n: number) => [...calls.values()].flatMap((c) => c.warnings).filter((w) => (systemsOf(w.boxes, systems)[0] ?? null) === n);
   // An issue's home among the outputs: the checks' issues stay there; every other one goes with the first system its
   // boxes cover (the checks' when none).
@@ -299,20 +282,13 @@ export async function runApplyReview(run: StageRun): Promise<void> {
         make: async () => {
           const { answers, checked, issues: all } = finalTranscription();
           const here = checked.get(s.number)!;
-          const fresh = here.codeIssues
-            .map((c) => ({ question: c.question, answers: c.answers, applied: c.applied, boxes: c.places.flatMap((p) => placeBox(p) ?? []) }))
-            .filter((c) => isNewCodeIssue(c, all.values()));
           const result: StoredExtraction = {
             system: s.number,
             page: s.page,
             answer: answers.get(s.number)!,
             issues: [
               ...[...all.values()].filter((i) => homeOf(i) === s.number).sort((a, b) => a.id - b.id),
-              ...(await numberIssues(
-                run.project,
-                fresh.map((c): StoredIssue => ({ id: 0, source: "code", class: "reading", boxes: c.boxes, location: null, question: c.question, answers: c.answers, choices: [], applied: c.applied, resolved: false, lilypond: null })),
-                all.values(),
-              )),
+              ...(await numberIssues(run.project, freshCodeIssues(here.codeIssues, all.values(), placeBox), all.values())),
             ],
             warnings: [...here.warnings.map(warningOf), ...callWarningsHere(s.number)],
           };
@@ -326,17 +302,10 @@ export async function runApplyReview(run: StageRun): Promise<void> {
         make: async () => {
           const { checked, issues: all } = finalTranscription();
           const scoreChecks = checkScore([...checked.values()], pieces);
-          const fresh = scoreChecks.codeIssues
-            .map((c) => ({ question: c.question, answers: c.answers, applied: c.applied, boxes: c.places.flatMap((p) => placeBox(p) ?? []) }))
-            .filter((c) => isNewCodeIssue(c, all.values()));
           const result: StoredScoreChecks = {
             issues: [
               ...[...all.values()].filter((i) => homeOf(i) === null).sort((a, b) => a.id - b.id),
-              ...(await numberIssues(
-                run.project,
-                fresh.map((c): StoredIssue => ({ id: 0, source: "code", class: "reading", boxes: c.boxes, location: null, question: c.question, answers: c.answers, choices: [], applied: c.applied, resolved: false, lilypond: null })),
-                all.values(),
-              )),
+              ...(await numberIssues(run.project, freshCodeIssues(scoreChecks.codeIssues, all.values(), placeBox), all.values())),
             ],
             warnings: [...scoreChecks.warnings.map(warningOf), ...[...calls.values()].flatMap((c) => c.warnings).filter((w) => systemsOf(w.boxes, systems).length === 0)],
           };

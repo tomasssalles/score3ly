@@ -1,8 +1,9 @@
 import { whoOf } from "./attribution.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { StoredExtraction, StoredIssue } from "./extract.ts";
+import type { StoredExtraction } from "./extract.ts";
 import { answerTags, boxesOnCrop, homeOf, notesOf, shownSystem, type Note } from "./transcription.ts";
+import type { StoredIssue } from "./issues.ts";
 
 const extraction = (system: number, page: number): StoredExtraction => ({
   system,

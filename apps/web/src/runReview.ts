@@ -15,23 +15,10 @@ import { imageLimitFor } from "./requestLimits";
 import { musicInputs, type MusicSystem } from "./musicInputs";
 import { loadTranscription, logContent, markedImage, markedImageRecipe, transcribedFor } from "./musicStage";
 import { stretchCropBoxes, systemCropBox } from "./crops";
-import {
-  applyEntries,
-  checkReview,
-  logEntries,
-  proposedChanges,
-  REVIEW_VERSION,
-  reviewIssues,
-  reviewNote,
-  reviewScore,
-  reviewStageKey,
-  reviewWarnings,
-  systemsOf,
-  type ReviewEntry,
-  type StoredReview,
-} from "./review";
+import { checkReview, logEntries, proposedChanges, REVIEW_VERSION, reviewIssues, reviewNote, reviewScore, reviewStageKey, reviewWarnings, type ReviewEntry, type StoredReview } from "./review";
 import { CannotStart, recordedContent, runPlan, type StageRun } from "./stageRunner";
 import { reviewInputIds } from "./stageInputs";
+import { applyEntries, systemsOf } from "./issues";
 
 
 export async function runReview(run: StageRun): Promise<void> {
@@ -76,7 +63,7 @@ export async function runReview(run: StageRun): Promise<void> {
   // The issues before a system's call: the reviewed ones with the earlier calls' entries applied, in score order.
   const issuesBefore = (n: number) => {
     let map = new Map(baseIssues.map((i) => [i.id, i]));
-    for (const call of [...calls.values()].filter((c) => c.system < n).sort((a, b) => a.system - b.system)) map = applyEntries(map, call);
+    for (const call of [...calls.values()].filter((c) => c.system < n).sort((a, b) => a.system - b.system)) map = applyEntries(map, call.entries);
     return map;
   };
 

@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { StoredIssue } from "./extract.ts";
-import { humanReviewedIssues, humanReviewNote, humanReviewStart, HUMAN_REVIEW_VERSION } from "./humanReview.ts";
+import { humanReviewNote, humanReviewStart, HUMAN_REVIEW_VERSION } from "./humanReview.ts";
 import type { ApiStage } from "./api.ts";
 
 function issue(id: number, over: Partial<StoredIssue> = {}): StoredIssue {
@@ -78,6 +77,7 @@ test("the user's choice: one per issue, an existing answer or a written one, tak
 
 import { numberSystems } from "./layout.ts";
 import { boxProblems, ownIssue, ownIssueProblems, ownIssues, putOwnIssue, removeOwnIssue } from "./humanReview.ts";
+import { humanReviewedIssues, type StoredIssue } from "./issues.ts";
 
 test("clarifications: raised, written, replaced in place, removed; one without text keeps Finish waiting", () => {
   const box = { page: 1, box: { left: 0.2, right: 0.3, top: 0.15, bottom: 0.25 } };

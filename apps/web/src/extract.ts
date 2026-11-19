@@ -1,20 +1,14 @@
 // The `extract` step (docs/stages/music.md): what doesn't need the browser or the model. Its runner is runExtract.ts.
 
 import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
-import type { CheckedSystem, CodeIssue, LensIssue, LensSystem, ScoreSystemInput, StretchPlace, Warning } from "@score3ly/notation";
+import type { CheckedSystem, CodeIssue, LensIssue, LensSystem, ScoreSystemInput, Warning } from "@score3ly/notation";
 import { describeMark, type ScoreState } from "@score3ly/notation";
-import { onPage, stretchEdges, type Box, type LayoutSystem } from "@score3ly/core";
+import { onPage, type Box, type LayoutSystem } from "@score3ly/core";
+import { codeIssue, storedWarning, type PlaceBox, type StoredIssue, type StoredWarning } from "./issues.ts";
 import type { SystemHints } from "./linking.ts";
 import { count } from "./format.ts";
 
 export const EXTRACT_VERSION = 3; // 3: answers checked against their schema first, a malformed one refused (code review, batch 18)
-
-// A stretch's own box on the page, without margins: what issues raised by code and warnings point at.
-export function stretchBox(system: LayoutSystem, stretch: number): Box {
-  const x = stretchEdges(system.box, system.barLines);
-  const i = Math.min(Math.max(stretch, 1), x.length - 1) - 1;
-  return { left: x[i], right: x[i + 1], top: system.box.top, bottom: system.box.bottom };
-}
 
 // A system of the score: its number in the whole score, its page, its output's item ("p3/s2") and its layout.
 export type ScoreSystem = { number: number; page: number; item: string; layout: LayoutSystem };
@@ -59,32 +53,6 @@ export function extractRequest(input: {
   };
 }
 
-// An issue as stored (§6, "Issues"): one schema for every source, its boxes on the pages, its id from the project's
-// counter, who chose which answer.
-export type StoredIssue = {
-  id: number;
-  source: "extract" | "review" | "code" | "user"; // "user": a person's own correction, raised in a human review
-  class: "reading" | "format";
-  boxes: { page: number; box: Box }[];
-  location: string | null;
-  question: string;
-  answers: { key: string; text: string }[];
-  // `by`: the step of the stage that chose ("extract", "review", "apply_review", "human_review"), never its id or turn:
-  // which stage of the pipeline that is, the app works out (attribution.ts); `kept`: a review's agreement, added
-  // by code for an issue it left as it was (docs/stages/music.md, `review`); `reverted`: `apply_review`'s choice of the
-  // answer already applied, for an answer it couldn't apply as given (docs/stages/music.md, `apply_review`).
-  choices: { by: string; key: string; reason: string | null; kept?: true; reverted?: true }[];
-  applied: string | null;
-  // Who put which answer in the transcription, in order, by step as in `choices`: "extract" for Extract's own issues and
-  // those its checks raised, "apply_review" for an Apply review (docs/stages/music.md, "An issue's card"). None for an issue raised after its
-  // transcription was written (a review's new issue, code's on an Apply review's transcription).
-  applications?: { by: string; key: string }[];
-  resolved: boolean;
-  lilypond: string[] | null;
-};
-
-export type StoredWarning = { message: string; boxes: { page: number; box: Box }[] };
-
 // What is stored per system (item p<n>/s<k>, type `extraction`): the answer as the model gave it (its issues' boxes
 // on its images, as it sent them), and what code made of it: the issues with their ids and boxes on the pages, and the
 // warnings.
@@ -98,7 +66,7 @@ export function storedExtraction(
   system: ScoreSystem,
   checked: CheckedSystem,
   images: Map<string, ImageSource>,
-  placeBox: (place: StretchPlace) => { page: number; box: Box } | null,
+  placeBox: PlaceBox,
   first: number,
 ): StoredExtraction {
   let id = first;
@@ -119,15 +87,13 @@ export function storedExtraction(
     resolved: false,
     lilypond: issue.class === "format" ? issue.lilypond : null,
   });
-  const places = (list: StretchPlace[]) => list.flatMap((p) => placeBox(p) ?? []);
-  const fromCode = (issue: CodeIssue): StoredIssue => codeIssue(issue, id++, places);
-  const warning = (w: Warning): StoredWarning => ({ message: w.message, boxes: places(w.places) });
+  const fromCode = (issue: CodeIssue): StoredIssue => codeIssue(issue, id++, placeBox, "extract");
   return {
     system: system.number,
     page: system.page,
     answer: checked.answer,
     issues: [...checked.answer.issues.map(fromModel), ...checked.codeIssues.map(fromCode)],
-    warnings: checked.warnings.map(warning),
+    warnings: checked.warnings.map((w) => storedWarning(w, placeBox)),
   };
 }
 
@@ -137,31 +103,13 @@ export type StoredScoreChecks = { issues: StoredIssue[]; warnings: StoredWarning
 
 export function storedScoreChecks(
   checked: { codeIssues: CodeIssue[]; warnings: Warning[] },
-  placeBox: (place: StretchPlace) => { page: number; box: Box } | null,
+  placeBox: PlaceBox,
   first: number,
 ): StoredScoreChecks {
   let id = first;
-  const places = (list: StretchPlace[]) => list.flatMap((p) => placeBox(p) ?? []);
   return {
-    issues: checked.codeIssues.map((issue) => codeIssue(issue, id++, places)),
-    warnings: checked.warnings.map((w) => ({ message: w.message, boxes: places(w.places) })),
-  };
-}
-
-function codeIssue(issue: CodeIssue, id: number, places: (list: StretchPlace[]) => { page: number; box: Box }[]): StoredIssue {
-  return {
-    id,
-    source: "code",
-    class: "reading",
-    boxes: places(issue.places),
-    location: null,
-    question: issue.question,
-    answers: issue.answers,
-    choices: [],
-    applied: issue.applied,
-    applications: issue.applied === null ? [] : [{ by: "extract", key: issue.applied }],
-    resolved: false,
-    lilypond: null,
+    issues: checked.codeIssues.map((issue) => codeIssue(issue, id++, placeBox, "extract")),
+    warnings: checked.warnings.map((w) => storedWarning(w, placeBox)),
   };
 }
 

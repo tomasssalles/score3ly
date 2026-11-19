@@ -8,38 +8,12 @@
 import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
 import type { Score } from "@score3ly/notation";
 import { issueForModel, reviewFromModel, stretchMeasures, systemForModel, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
-import { area, boxProblem, intersection, onPage, type Box, type LayoutSystem } from "@score3ly/core";
-import { stretchBox, type ImageSource, type StoredIssue, type StoredWarning } from "./extract.ts";
-import { systemCropBox } from "./crops.ts";
+import { boxProblem, onPage, type Box } from "@score3ly/core";
+import type { ImageSource } from "./extract.ts";
+import { latest, placesOf, systemsOf, type PlacedSystem, type StoredIssue, type StoredWarning } from "./issues.ts";
 import { count } from "./format.ts";
 
 export const REVIEW_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
-
-// A system of the score, where it is: its number, its page and its layout.
-export type PlacedSystem = { number: number; page: number; layout: LayoutSystem };
-
-const overlap = (a: Box, b: Box) => area(intersection(a, b));
-
-// The systems and stretches boxes on the pages cover (docs/notation.md, "Issues": code works out the stretches under
-// the boxes): a box covers a system it overlaps (its tight box, else its crop with margins), and the stretches of it
-// it overlaps horizontally.
-export function placesOf(boxes: { page: number; box: Box }[], systems: PlacedSystem[]): { system: number; stretches: number[] }[] {
-  const places = new Map<number, Set<number>>();
-  for (const b of boxes) {
-    for (const s of systems) {
-      if (s.page !== b.page || (overlap(b.box, s.layout.box) === 0 && overlap(b.box, systemCropBox(s.layout)) === 0)) continue;
-      const stretches = places.get(s.number) ?? new Set<number>();
-      for (let k = 1; k <= s.layout.barLines.length + 1; k++) {
-        const x = stretchBox(s.layout, k);
-        if (Math.min(b.box.right, x.right) > Math.max(b.box.left, x.left)) stretches.add(k);
-      }
-      places.set(s.number, stretches);
-    }
-  }
-  return [...places.entries()].sort((a, b) => a[0] - b[0]).map(([system, set]) => ({ system, stretches: [...set].sort((a, b) => a - b) }));
-}
-
-export const systemsOf = (boxes: { page: number; box: Box }[], systems: PlacedSystem[]) => placesOf(boxes, systems).map((p) => p.system);
 
 // The score as the model reads it (docs/stages/music.md, `review`, "The score as text"): per piece its staves and voices
 // with their descriptions, once; per system its staves, groups and stretches as `extract` wrote them, without the
@@ -114,7 +88,6 @@ export function logEntries(stored: StoredReview): unknown[] {
 }
 
 const nextKey = (answers: { key: string }[]) => String.fromCharCode("a".charCodeAt(0) + answers.length);
-const latest = (issue: StoredIssue) => issue.choices[issue.choices.length - 1] ?? null;
 const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 // The context a call's answer is checked in: its system, the issues as they are now (earlier calls' entries applied),
@@ -220,51 +193,6 @@ function newIssue(n: ReviewNewIssueEntry["newIssue"], ctx: ReviewContext, id: nu
     resolved: false,
     lilypond: n.class === "format" ? n.lilypond : null,
   };
-}
-
-// The issues after a call's entries (a new map; the issues in it are new objects where they changed). `by`: the step
-// whose entries they are (a human review's are a review's entries too).
-export function applyEntries(issues: Map<number, StoredIssue>, stored: StoredReview, by: "review" | "human_review" = "review"): Map<number, StoredIssue> {
-  const out = new Map(issues);
-  for (const e of stored.entries) {
-    if ("choice" in e) {
-      const issue = out.get(e.choice.issue);
-      if (!issue) continue;
-      out.set(issue.id, {
-        ...issue,
-        answers: e.choice.newAnswer ? [...issue.answers, e.choice.newAnswer] : issue.answers,
-        choices: [...issue.choices, { by, key: e.choice.key, reason: e.choice.reason }],
-      });
-    } else {
-      out.set(e.newIssue.id, e.newIssue);
-    }
-  }
-  return out;
-}
-
-// The issues a review's calls chose on or raised: its changes (its agreements aren't).
-export function changedBy(calls: StoredReview[]): Set<number> {
-  return new Set(calls.flatMap((c) => c.entries.map((e) => ("choice" in e ? e.choice.issue : e.newIssue.id))));
-}
-
-// The review's agreements (docs/stages/music.md, `review`, "Agreement counts"): every unresolved issue the review
-// made no choice on (`chose`: those it did), whose latest choice is a model's, gets a choice repeating it, marked `kept`.
-export function withKept(issues: Map<number, StoredIssue>, chose: Set<number>): Map<number, StoredIssue> {
-  const out = new Map(issues);
-  for (const issue of issues.values()) {
-    const last = latest(issue);
-    if (issue.resolved || !last || last.by === "human_review" || chose.has(issue.id)) continue;
-    out.set(issue.id, { ...issue, choices: [...issue.choices, { by: "review", key: last.key, reason: null, kept: true }] });
-  }
-  return out;
-}
-
-// The issues as a review leaves them: the reviewed ones, the calls' entries in score order, and once it is done
-// (`done`), the agreements.
-export function reviewedIssues(issues: StoredIssue[], calls: StoredReview[], done = true): Map<number, StoredIssue> {
-  let map = new Map(issues.map((i) => [i.id, i]));
-  for (const call of [...calls].sort((a, b) => a.system - b.system)) map = applyEntries(map, call);
-  return done ? withKept(map, changedBy(calls)) : map;
 }
 
 // The proposed changes of a review: its new issues and its choices.

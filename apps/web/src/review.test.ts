@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { StoredIssue } from "./extract.ts";
-import { applyEntries, changedBy, checkReview, logEntries, placesOf, proposedChanges, reviewedIssues, reviewNote, withKept, type PlacedSystem, type ReviewContext, type StoredReview } from "./review.ts";
+import { checkReview, logEntries, proposedChanges, reviewNote, type ReviewContext, type StoredReview } from "./review.ts";
+import { applyEntries, changedBy, type PlacedSystem, placesOf, reviewedIssues, type StoredIssue, withKept } from "./issues.ts";
 
 // Three systems: 1 and 2 on page 1 (each with one bar line at 0.5), 3 on page 2.
 const systems: PlacedSystem[] = [
@@ -146,7 +146,7 @@ test("the entries apply in order; agreements are added where the latest choice i
       { newIssue: { ...issue(10, 2), source: "review", choices: [{ by: "review", key: "b", reason: null }] } },
     ],
   };
-  const after = applyEntries(issues(), call);
+  const after = applyEntries(issues(), call.entries);
   assert.deepEqual(after.get(2)!.answers.map((a) => a.key), ["a", "b", "c"]);
   assert.deepEqual(after.get(2)!.choices.at(-1), { by: "review", key: "c", reason: "Like m. 3." });
   assert.ok(after.has(10));

@@ -54,8 +54,8 @@ import {
 } from "@score3ly/prompts";
 import { combineObservations, pageItems, pageResultsForScore, type PageAnalysis } from "./analyze.ts";
 import { applyLogEntries, issueToApply, systemView, type StoredApplyCall } from "./applyReview.ts";
-import type { StoredIssue, StoredWarning } from "./extract.ts";
-import { logEntries, reviewIssues, reviewScore, reviewWarnings, type PlacedSystem, type StoredReview } from "./review.ts";
+import { logEntries, reviewIssues, reviewScore, reviewWarnings, type StoredReview } from "./review.ts";
+import type { PlacedSystem, StoredIssue, StoredWarning } from "./issues.ts";
 
 const hash = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 16);
 const json = (value: unknown) => hash(JSON.stringify(value));

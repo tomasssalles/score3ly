@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { pdfUrl, type Project } from "./api";
 import { CloseIcon } from "./ui/icons";
 import type { Artifact } from "./pipeline";

@@ -6,7 +6,7 @@
 import type { SizeLimit } from "@score3ly/imaging";
 import { fetchJsonContent, type ApiOutput, type ModelConfig } from "./api";
 import { MARGINS } from "./crops";
-import type { ImageSource, StoredExtraction, StoredIssue, StoredScoreChecks, StoredWarning } from "./extract";
+import type { ImageSource, StoredExtraction, StoredScoreChecks } from "./extract";
 import { requestImage, type RequestContent } from "./llm";
 import type { MusicInputs, MusicSystem } from "./musicInputs";
 import { markedCrop } from "./pageImages";
@@ -14,6 +14,7 @@ import { cropRecipe, imageVersions, markedCropRecipe } from "./recipes";
 import { imageLimit, requestLimits } from "./requestLimits";
 import type { MusicSources } from "./stageInputs";
 import { CannotStart } from "./stageRunner";
+import type { StoredIssue, StoredWarning } from "./issues";
 
 type Transcribed = NonNullable<MusicSources["transcription"]>;
 

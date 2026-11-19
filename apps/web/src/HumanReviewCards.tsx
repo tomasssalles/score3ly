@@ -5,15 +5,14 @@ import { onCrop, onPage, type Box } from "@score3ly/core";
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { AnswerTags } from "./ExtractionView";
-import type { StoredIssue } from "./extract";
 import { boxThrough, resizeBox, type BoxHandle } from "./editor/boxEdit";
 import { handleAt } from "./editor/handles";
 import { BoxHandles } from "./editor/pageEditor";
 import { NO_TEXT } from "./humanReview";
 import { Info } from "./ui/Info";
-import type { PlacedSystem } from "./review";
 import { answerTags } from "./transcription";
 import type { IssueWho } from "./attribution";
+import type { PlacedSystem, StoredIssue } from "./issues";
 
 // An issue's answers, one to pick (docs/stages/music.md, `human_review`): a radio mark on each, its suffixes as the
 // user's choices leave them; tapping the chosen answer again takes it back. The last row is an answer of the user's

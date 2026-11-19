@@ -11,9 +11,10 @@
 // used.
 
 import { keyOf } from "@score3ly/core";
-import type { StoredExtraction, StoredIssue, StoredScoreChecks } from "./extract.ts";
-import { reviewedIssues, type StoredReview } from "./review.ts";
-import { humanReviewedIssues, type StoredHumanReview } from "./humanReview.ts";
+import type { StoredExtraction, StoredScoreChecks } from "./extract.ts";
+import type { StoredReview } from "./review.ts";
+import type { StoredHumanReview } from "./humanReview.ts";
+import { humanReviewedIssues, reviewedIssues, type StoredIssue } from "./issues.ts";
 
 // A stage as an issue's card names it, and its step; `person`: a human review.
 export type Who = { label: string; person: boolean; step: string };
