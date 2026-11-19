@@ -4,14 +4,14 @@
 
 import type { SystemContext } from "@score3ly/notation";
 import { extractImageLabels } from "@score3ly/prompts";
-import type { ApiOutput, ApiStage } from "./api";
-import type { StoredObservations, StoredPieces } from "./analyze";
-import { fetchJsonContent } from "./api";
-import { pieceBounds, stretchBox, type ScoreSystem } from "./extract";
-import { numberSystems, type PageLayout } from "./layout";
-import { straightRecipe, type PageRecipe, type StraightRecipe } from "./recipes";
-import { CannotStart } from "./stageRunner";
-import { musicSources, type MusicPage, type MusicSources } from "./stageInputs";
+import type { ApiOutput, ApiStage } from "./api.ts";
+import type { StoredObservations, StoredPieces } from "./analyze.ts";
+import { fetchJsonContent } from "./api.ts";
+import { pieceBounds, stretchBox, type ScoreSystem } from "./extract.ts";
+import { numberSystems, type PageLayout } from "./layout.ts";
+import { straightRecipe, type PageRecipe, type StraightRecipe } from "./recipes.ts";
+import { CannotStart } from "./stageRunner.ts";
+import { musicSources, type MusicPage, type MusicSources } from "./stageInputs.ts";
 
 export type MusicSystem = ScoreSystem & { pageIndex: number };
 
