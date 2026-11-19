@@ -4,6 +4,7 @@
 
 import {
   BAR_LINE_PLACES,
+  endsBeforeStart,
   firstPlace,
   PAGE_LISTS,
   SCORE_LISTS,
@@ -308,16 +309,14 @@ export function rowEmpty(row: ObsRow): boolean {
   return !row.text.trim();
 }
 
-const order = (p: Place) => firstPlace({ place: p });
-
 // Why an item can't be saved, if it can't: a span that ends before it starts, a system's staves given twice or not
-// at all, or staves that no longer agree on its page (stavesProblem, as `analyze` checks them).
+// at all, or staves that no longer agree on its page (`endsBeforeStart` and `stavesProblem`, as `analyze` checks them).
 export function obsProblem(row: ObsRow, others: ObsRow[], systems: ScoreSystems): string | null {
   if (row.list === "systems") {
     if (row.system === null) return "Every system's staves are given already.";
     if (reportedSystems(others, -1).has(row.system)) return `The staves of system ${row.system} are given already.`;
   }
-  if (row.start && row.end && order(row.end) < order(row.start)) return "It ends before it starts.";
+  if (endsBeforeStart(row.start, row.end)) return "It ends before it starts.";
   return pagesProblem([...others, row], systems);
 }
 

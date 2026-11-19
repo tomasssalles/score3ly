@@ -26,6 +26,12 @@ export function firstPlace(item: object): number {
   return i.end ? i.end.system * 1e7 : 0;
 }
 
+// A span (an ottava, an ending) that ends before it starts: refused by `analyze`'s checks and by the form alike. One
+// open at either end, or starting and ending at one place, doesn't.
+export function endsBeforeStart(start: Place | null, end: Place | null): boolean {
+  return start !== null && end !== null && placeOrder(end) < placeOrder(start);
+}
+
 export const samePlace = (a: Place | null, b: Place | null) =>
   a === b || (a !== null && b !== null && a.system === b.system && a.at === b.at && a.number === b.number);
 

@@ -240,3 +240,35 @@ test("additions are on one of the pages, their places on that page", () => {
   assert.match(problem(checkScoreAnswer(added({ page: 2, ...change(2) }), full)), /system 2 isn't on page 2/);
   assert.match(problem(checkScoreAnswer(added({ page: 4, ...change(2) }), full)), /page 4, which isn't one of the pages/);
 });
+
+// Code review, D10: what the forms refuse, analyze refused not.
+test("a span that ends before it starts can't be used, on a page or in the whole score", () => {
+  const ending = (start: object | null, end: object | null) => page({ endings: [{ numbers: "1.", start, end, confidence: "high" }] });
+  assert.equal(problem(checkPageAnswer(ending(at(6, "barLine", 3), at(6, "barLine", 2)), context)), "ending 1. ends before it starts");
+  assert.equal(problem(checkPageAnswer(ending(at(6, "stretch", 1), at(5, "end")), context)), "ending 1. ends before it starts");
+  // At one place, or open at either end: fine.
+  assert.ok(!("problem" in checkPageAnswer(ending(at(6, "barLine", 3), at(6, "barLine", 3)), context)));
+  assert.ok(!("problem" in checkPageAnswer(ending(at(6, "barLine", 3), null), context)));
+  const ottava = { text: "8va", staff: { number: 1, of: 2 }, start: at(6, "stretch", 2), end: at(6, "stretch", 1), confidence: "medium" };
+  assert.equal(problem(checkPageAnswer(page({ ottavas: [ottava] }), context)), 'the ottava "8va" ends before it starts');
+  const added = score({ additions: { ...emptyLists(), ottavas: [{ page: 2, ...ottava }] } });
+  assert.equal(problem(checkScoreAnswer(added, full)), 'the ottava "8va" ends before it starts');
+});
+
+test("two pieces can't start at one system, on a page or in the whole score", () => {
+  const pieces = (systems: number[]) =>
+    ({ ...page(), metadata: systems.map((system, i) => ({ category: "piece", text: `No. ${i + 1}`, system, confidence: "high" })) });
+  assert.equal(problem(checkPageAnswer(pieces([5, 6, 5]), context)), 'two pieces start at system 5: "No. 1" and "No. 3"');
+  assert.ok(!("problem" in checkPageAnswer(pieces([5, 6]), context)));
+  const twice = { ...emptyMetadata(), pieces: [1, 1].map((system, i) => ({ title: `No. ${i + 1}`, system, confidence: "high", page: 1 })) };
+  assert.equal(problem(checkScoreAnswer(score({ metadata: twice }), full)), 'two pieces start at system 1: "No. 1" and "No. 2"');
+});
+
+// Code review, D20 (dec. 30): a piece's page is its system's, whatever page the model read it on.
+test("a piece's page is its system's page", () => {
+  const read = (page: number) => ({ ...emptyMetadata(), pieces: [{ title: "No. 2", system: 5, confidence: "high", page }] });
+  const checked = checkScoreAnswer(score({ metadata: read(1) }), full) as ScoreAnswer;
+  assert.deepEqual(checked.metadata.pieces, [{ title: "No. 2", system: 5, confidence: "high", page: 2 }]);
+  // The page the model gave isn't used, so a page that isn't one of the pages doesn't make the answer unusable.
+  assert.ok(!("problem" in checkScoreAnswer(score({ metadata: read(9) }), full)));
+});

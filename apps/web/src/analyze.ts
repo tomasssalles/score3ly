@@ -17,7 +17,7 @@ import {
 } from "@score3ly/prompts";
 import { count } from "./format.ts";
 
-export const ANALYZE_VERSION = 4; // 4: answers checked against their schema first, a malformed one refused (code review, batch 18)
+export const ANALYZE_VERSION = 5; // 4: answers checked against their schema first, a malformed one refused (code review, batch 18); 5: spans ending before they start and two pieces at one system refused, a piece's page its system's (code review, batch 30)
 
 // What is stored per page (item p<n>, type `analysis`): the page's own answer, and which systems are on it.
 export type PageAnalysis = { page: number; systems: number[]; metadata: PageMetadata; observations: PageObservations };

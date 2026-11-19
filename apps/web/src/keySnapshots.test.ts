@@ -86,20 +86,21 @@ async function keys(): Promise<string[]> {
 // The 15 keys of the LLM steps changed once, on purpose, with their step versions (the code review, batch 18: answers
 // checked against their schema); `build_mei`'s, the last, once, when the MEI builder's version joined it (batch 27);
 // `review`'s and `apply_review`'s (the 4th and 5th of each config) once more with their step versions (batch 29: which
-// systems a box is on); the other two are as they were.
+// systems a box is on); `analyze`'s (the 2nd of each config) once more with its step version (batch 30: its checks);
+// the other two are as they were.
 const EXPECTED: string[] = [
   "f829e1ca4719fad055972a27ea3b4ef58410c2ebe2023bf17294c5763d7f0a24",
-  "bed93123a297b9309a595a370d8fa6f055e4f9e5ddc3573b7e9b8b7a8bf17815",
+  "27006f7dfd58c69ce4e7eb4e4aabedc509887671f9dde824a3a0c8b88c8b9c9b",
   "9d3a8aa0519ca096738069a918d23f473ec937651a41139e180a740ad9b9791d",
   "f146b7882f35d3a47854d641db72fefd1992314aad065d4b63c4c8d0de506b0a",
   "25fcc73ca49ae44aa08544ef33230c6aa5c61708e106baa4e85ccdc6578645bf",
   "99ca14d965ecb2dfa70515d0b17bc5af2eeef2a82cf54764824587898d11cf2c",
-  "5a090354cfe70e5b1e4749a0e57ee85ff09a63e5bbff792746db075f5241552b",
+  "4f72ebb4c7f1979570dd69e4791eac214b81d56e0b3a83952395162d5c334b35",
   "547b129c063903e19e09d2dd6a527c62e9eaaae56805f03a5e490e9f42b66172",
   "bd4473f052ee3cdc819fe794c3a9d9346cb71e0c576d36d0aef6c0061408f6fa",
   "976b03e10cf13f70092fe1e5073be75f71528bfbf9f9d0c9917c62c3f8e41cf1",
   "eca6214aef3d9266668f285d2823d96212149197b2eb40ce6eab49696afc8385",
-  "9d10b617b0431d1bba5029cb89554964fe9c7f294fc254ab51bf6d00ca8bec03",
+  "4b2fe3a3609283865710e1f713364a67493c92b413356a3ce516fbf334efe8b9",
   "4e2dd08cd2798a1894e37bf0bb741b2f1efe8a5d9b5c8cc6fa57e9fc98effd54",
   "e211856f13231a3ccf4e431ee3cac2cc9d5a3cf751d4159c5c3cb97609e4947b",
   "69ccfd6c2963767f6565823bf47bbe97ab33e7d19cf06021d9bffe56ce0d2c36",

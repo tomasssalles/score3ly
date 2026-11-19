@@ -1,5 +1,7 @@
 // `analyze`'s checks (docs/stages/analyze.md): an answer of the schema's shape, each item what its kind needs, every
-// place on its page, the staves in agreement. Returns the answer in its lists, or why it can't be used.
+// place on its page, no span ending before it starts, no two pieces at one system, the staves in agreement. Returns
+// the answer in its lists, or why it can't be used. `fix_metadata`'s and `fix_observations`' forms refuse by the
+// same rules (`startsWithAnother`, `endsBeforeStart`, `stavesProblem`).
 // ANALYZE_PROMPT_VERSION (analyze.ts) covers them.
 
 import { schemaProblem, type Problem } from "@score3ly/core";
@@ -25,7 +27,7 @@ import {
   type Staff,
   type SystemItem,
 } from "./analyzeForm.ts";
-import { BAR_LINE_PLACES, placeLabel, type Place } from "./places.ts";
+import { BAR_LINE_PLACES, endsBeforeStart, placeLabel, type Place } from "./places.ts";
 
 // What the checks need to know: the systems that can be named (by number) with their number of bar lines and their
 // page; for the whole score also the pages, and the pages' items by id.
@@ -85,6 +87,9 @@ function observationsProblem(
   for (const b of o.specialBarLines) {
     if (!BAR_LINE_PLACES.includes(b.place.at)) return `a ${b.kind} bar line is in ${placeLabel(b.place)}, not at a bar line`;
   }
+  const spans = [...o.ottavas.map((c) => ({ ...c, what: `the ottava "${c.text}"` })), ...o.endings.map((e) => ({ ...e, what: `ending ${e.numbers}` }))];
+  const reversed = spans.find((s) => endsBeforeStart(s.start, s.end));
+  if (reversed) return `${reversed.what} ends before it starts`;
   return null;
 }
 
@@ -130,17 +135,24 @@ function normalized<T>(value: T): T {
   return o as T;
 }
 
+// Two pieces can't start at one system (docs/stages/analyze.md, "Pieces are structure"): whether `piece` starts where
+// one of `others` does. `analyze`'s checks and `fix_metadata`'s form alike.
+export function startsWithAnother(piece: { system: number }, others: { system: number }[]): boolean {
+  return others.some((o) => o.system === piece.system);
+}
+
+// Every piece at a system that is here, no two at one; every other item on one of the pages (a piece's page is its
+// system's, set by code: see checkScoreAnswer).
 function metadataProblem(metadata: Metadata<{ page?: number }>, context: AnalyzeContext): string | null {
-  for (const piece of metadata.pieces) {
+  for (const [i, piece] of metadata.pieces.entries()) {
     if (!context.systems.has(piece.system)) return `the piece "${piece.title}" starts at system ${piece.system}, which isn't here`;
+    const before = metadata.pieces.slice(0, i);
+    if (startsWithAnother(piece, before)) {
+      return `two pieces start at system ${piece.system}: "${before.find((p) => p.system === piece.system)!.title}" and "${piece.title}"`;
+    }
   }
   if (context.pages) {
-    const items = [
-      ...metadata.titles,
-      ...metadata.people,
-      ...metadata.pieces,
-      ...TEXT_FIELDS.flatMap((field) => metadata[field]),
-    ];
+    const items = [...metadata.titles, ...metadata.people, ...TEXT_FIELDS.flatMap((field) => metadata[field])];
     const wrong = items.find((item) => !context.pages!.includes(item.page!));
     if (wrong) return `metadata names page ${wrong.page}, which isn't one of the pages`;
   }
@@ -229,5 +241,9 @@ export function checkScoreAnswer(json: unknown, context: AnalyzeContext): ScoreA
       .map((p) => placeProblem(p, "recurring material", null, context))
       .find((p) => p !== null) ??
     metadataProblem(answer.metadata, context);
-  return problem ? { problem } : answer;
+  if (problem) return { problem };
+  // A piece's page is its system's (docs/stages/analyze.md), not the page the model read it on (a contents page, a
+  // title page): the page `fix_metadata` gives it too.
+  const pieces = answer.metadata.pieces.map((p) => ({ ...p, page: context.systems.get(p.system)!.page }));
+  return { ...answer, metadata: { ...answer.metadata, pieces } };
 }

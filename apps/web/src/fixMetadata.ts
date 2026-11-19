@@ -2,7 +2,7 @@
 // sections, the stored format and the rows the form edits, the checks, and the card's note. The form is in
 // MetadataView.tsx, finishing in finishFixMetadata.ts.
 
-import { TEXT_FIELDS, TITLE_TYPES, type Confidence, type Role, type TextField } from "@score3ly/prompts";
+import { startsWithAnother, TEXT_FIELDS, TITLE_TYPES, type Confidence, type Role, type TextField } from "@score3ly/prompts";
 import type { ShownConfidence } from "./analyze";
 import type { ApiStage } from "./api";
 
@@ -101,11 +101,13 @@ export function takenSystems(rows: MetadataRow[], except: number): Set<number> {
   return new Set(rows.flatMap((r, i) => (i !== except && r.kind === "piece" && r.system !== null ? [r.system] : [])));
 }
 
-// Why a piece can't be saved, if it can't: it starts at a system no other piece starts at.
+// Why a piece can't be saved, if it can't: it starts at a system no other piece starts at (`startsWithAnother`, as
+// `analyze` checks it).
 export function pieceProblem(row: MetadataRow, others: MetadataRow[]): string | null {
   if (row.kind !== "piece") return null;
   if (row.system === null) return "Every system already starts a piece.";
-  if (others.some((o) => o.kind === "piece" && o.system === row.system)) return `Another piece starts at system ${row.system}.`;
+  const pieces = others.flatMap((o) => (o.kind === "piece" && o.system !== null ? [{ system: o.system }] : []));
+  if (startsWithAnother({ system: row.system }, pieces)) return `Another piece starts at system ${row.system}.`;
   return null;
 }
 
