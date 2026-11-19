@@ -52,7 +52,8 @@ import { humanReviewStart } from "./humanReview";
 import { onImagesDiffer, openPdfForImages } from "./pageImages";
 import { download } from "./downloads";
 import { StageDetails } from "./StageDetails";
-import { eventsBetween, snapshotOf, toastText, type Segment, type Snapshot, type ToastEvent } from "./toasts";
+import { snapshotOf } from "./toasts";
+import { useQuietTime, useToasts } from "./useToasts";
 import { useWide } from "./useWide";
 import { DEVICE_KEYS, readDevice, writeDevice } from "./deviceStorage";
 import { errorText } from "@score3ly/core";
@@ -67,12 +68,6 @@ const CONFIRM_TEXT =
   "Later pipeline stages may have to run again (if their inputs change). Manual fixes for later stages will be kept if their inputs stay the same, and dropped otherwise. This action cannot be undone.";
 
 type Confirmation = { title: string; text: string[]; confirmLabel: string; action: () => void };
-
-// Toasts (docs/project-view.md, "Progress"): the events of this moment make one toast; it shows this long; the user's own
-// changes make none for this long (what follows from them is what they asked for).
-const GATHER_MS = 500;
-const TOAST_MS = 4000;
-const QUIET_MS = 3000;
 
 // A stage running on another device: the pipeline is fetched this often, to show where it is.
 const POLL_MS = 5000;
@@ -111,11 +106,8 @@ export function ProjectView({
   // The stage this device is running, and how to stop it.
   const [local, setLocal] = useState<LocalRun | null>(null);
   const controller = useRef<AbortController | null>(null);
-  // Until when the user's own change makes no toasts.
-  const quietUntil = useRef(0);
-  const quiet = () => {
-    quietUntil.current = Date.now() + QUIET_MS;
-  };
+  // The user's own changes make no toasts for a while.
+  const { quiet, isQuiet } = useQuietTime();
   // The latest run mode, for a run that is already going when it changes.
   const modeRef = useRef(mode);
   modeRef.current = mode;
@@ -187,37 +179,7 @@ export function ProjectView({
 
   // Toasts only in narrow mode, while an artifact or a stage's details covers the pipeline.
   const covered = !wide && (pickedArtifact !== null || pickedStage !== null);
-  const coveredRef = useRef(covered);
-  coveredRef.current = covered;
-  const [toast, setToast] = useState<{ key: number; text: Segment[] } | null>(null);
-  const seen = useRef<Snapshot | null>(null);
-  const gathered = useRef<ToastEvent[]>([]);
-  const gathering = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const snapshot = stored ? snapshotOf(pipeline) : null;
-  const snapshotKey = JSON.stringify(snapshot);
-  useEffect(() => {
-    const before = seen.current;
-    seen.current = snapshot;
-    if (!before || !snapshot) return;
-    const events = eventsBetween(before, snapshot);
-    if (events.length === 0 || Date.now() < quietUntil.current) return;
-    gathered.current.push(...events);
-    if (gathering.current) clearTimeout(gathering.current);
-    gathering.current = setTimeout(() => {
-      const text = toastText(gathered.current);
-      gathered.current = [];
-      gathering.current = null;
-      if (text && coveredRef.current && Date.now() >= quietUntil.current) setToast({ key: Date.now(), text });
-    }, GATHER_MS);
-  }, [snapshotKey]);
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), TOAST_MS);
-    return () => clearTimeout(timer);
-  }, [toast]);
-  useEffect(() => () => {
-    if (gathering.current) clearTimeout(gathering.current);
-  }, []);
+  const toast = useToasts(stored ? snapshotOf(pipeline) : null, covered, isQuiet);
   useEffect(() => {
     if (pickedArtifactId !== null || pickedStageId !== null) {
       setLastPicked({ artifactId: pickedArtifactId, stageId: pickedStageId });
