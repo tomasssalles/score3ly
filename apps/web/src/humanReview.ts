@@ -8,7 +8,8 @@
 import type { ApiStage } from "./api.ts";
 import { PRODUCERS } from "./stageInputs.ts";
 import type { Box } from "@score3ly/core";
-import { systemsOf, type PlacedSystem, type StoredIssue } from "./issues.ts";
+import { nextAnswerKey } from "@score3ly/notation";
+import { sameAnswer, systemsOf, type PlacedSystem, type StoredIssue } from "./issues.ts";
 import type { ReviewEntry } from "./review.ts";
 import { count } from "./format.ts";
 
@@ -39,21 +40,27 @@ export function userChoice(stored: StoredHumanReview, issue: number): { key: str
 }
 
 const others = (stored: StoredHumanReview, issue: number) => stored.entries.filter((e) => !("choice" in e && e.choice.issue === issue));
-const sameText = (a: string, b: string) => a.trim() === b.trim();
 
 // Chooses one of an issue's answers: the user's choice on it, replacing any earlier one.
 export function chooseAnswer(stored: StoredHumanReview, issue: StoredIssue, key: string): StoredHumanReview {
   return { entries: [...others(stored, issue.id), { choice: { issue: issue.id, key, newAnswer: null, reason: null } }] };
 }
 
+// The key of the issue's answer a written text is (`sameAnswer`: spaces around it aside, case counts), or null.
+export function writtenAnswerKey(issue: StoredIssue, text: string): string | null {
+  return issue.answers.find((a) => sameAnswer(a.text, text))?.key ?? null;
+}
+
 // Chooses an answer the user wrote ("none of these, but ..."): a new answer with the next letter, or the existing one
-// with exactly the same text (spaces around it aside; case counts). Empty text changes nothing.
+// with the same text (`writtenAnswerKey`). Empty text changes nothing, and so does a new answer to an issue that has
+// as many answers as there are letters.
 export function writeAnswer(stored: StoredHumanReview, issue: StoredIssue, text: string): StoredHumanReview {
   const written = text.trim();
   if (written === "") return stored;
-  const existing = issue.answers.find((a) => sameText(a.text, written));
-  if (existing) return chooseAnswer(stored, issue, existing.key);
-  const key = String.fromCharCode("a".charCodeAt(0) + issue.answers.length);
+  const existing = writtenAnswerKey(issue, written);
+  if (existing !== null) return chooseAnswer(stored, issue, existing);
+  const key = nextAnswerKey(issue.answers);
+  if (key === null) return stored;
   return { entries: [...others(stored, issue.id), { choice: { issue: issue.id, key, newAnswer: { key, text: written }, reason: null } }] };
 }
 

@@ -4,6 +4,7 @@
 // that runs on), and finds what is a question about the page (issues raised by code) or a problem of the extraction
 // (warnings).
 
+import { answerKeysProblem } from "./issueRules.ts";
 import { boxProblem, type Box } from "@score3ly/core";
 import { add, equal, less, show, ZERO, type Fraction } from "./fraction.ts";
 import { eventsDuration, durationValue, measureLength, parseKey, parseTime, type TimeSignature } from "./durations.ts";
@@ -284,8 +285,8 @@ function checkStructure(answer: LensSystem, context: SystemContext, before: Scor
     }
   }
 
-  // Issues: boxes on the images sent, answers with unique letters, `applied` one of them, a format issue with its
-  // list of tokens.
+  // Issues: boxes on the images sent, answers keyed "a", "b", "c", … in order (issueRules.ts), `applied` one of
+  // them, a format issue with its list of tokens.
   for (const [n, issue] of answer.issues.entries()) {
     const what = `issue ${n + 1}`;
     if (issue.boxes.length === 0) fail(`${what} has no boxes`);
@@ -297,8 +298,8 @@ function checkStructure(answer: LensSystem, context: SystemContext, before: Scor
     }
     if (issue.answers.length === 0) fail(`${what} has no answers`);
     const keys = issue.answers.map((a) => a.key);
-    if (keys.some((k) => !/^[a-z]$/.test(k))) fail(`${what}: answers' keys are single letters, a, b, c, …`);
-    if (new Set(keys).size !== keys.length) fail(`${what}: two answers have the same key`);
+    const keysProblem = answerKeysProblem(keys);
+    if (keysProblem) fail(`${what}: ${keysProblem}`);
     if (!keys.includes(issue.applied)) fail(`${what}: "applied" is "${issue.applied}", which isn't one of its answers' keys`);
     // A format issue's list may be empty: what is printed may need no new token, only what the format's rules forbid.
     if (issue.class === "format" && !Array.isArray(issue.lilypond)) fail(`${what} is a format issue and needs its list of LilyPond tokens (empty when no new token would express it)`);

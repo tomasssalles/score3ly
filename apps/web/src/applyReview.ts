@@ -11,9 +11,9 @@
 
 import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
 import { canonicalJson } from "@score3ly/core";
-import { checkSystems, type CheckedSystem, type LensStretch, type LensSystem, type StretchPlace, type SystemContext } from "@score3ly/notation";
+import { checkSystems, nextAnswerKey, type CheckedSystem, type LensStretch, type LensSystem, type StretchPlace, type SystemContext } from "@score3ly/notation";
 import { applyReviewFromModel, issueForModel, stretchForModel, systemFieldsForModel, systemForModel, voiceForModel, type ApplyReviewAnswer, type ApplyStretchUnit, type ApplySystemUnit, type ApplyVoiceUnit } from "@score3ly/prompts";
-import { latest, needsApplying, placesOf, systemsOf, type PlacedSystem, type StoredIssue, type StoredWarning } from "./issues.ts";
+import { latest, needsApplying, placesOf, sameAnswer, systemsOf, type PlacedSystem, type StoredIssue, type StoredWarning } from "./issues.ts";
 import { malformedRefused, modelName } from "./review.ts";
 import { count } from "./format.ts";
 
@@ -182,8 +182,9 @@ function checkUnits(json: unknown, ctx: ApplyContext): Pick<StoredApplyCall, "vo
       if (latest(issue)?.key === c.key) return { problem: `the revert of issue ${c.issue} chooses its chosen answer ("${c.key}"), which is to be applied` };
       choices.push({ issue: c.issue, key: c.key, reason });
     } else {
-      if (issue.answers.some((a) => a.text.trim() === written)) return { problem: `the new answer of issue ${c.issue} is one of its answers: choose it by its key` };
-      const key = String.fromCharCode("a".charCodeAt(0) + issue.answers.length);
+      if (issue.answers.some((a) => sameAnswer(a.text, written))) return { problem: `the new answer of issue ${c.issue} is one of its answers: choose it by its key` };
+      const key = nextAnswerKey(issue.answers);
+      if (key === null) return { problem: `issue ${c.issue} has as many answers as there are letters: no new one can be added` };
       choices.push({ issue: c.issue, key, newAnswer: { key, text: written }, reason });
     }
   }

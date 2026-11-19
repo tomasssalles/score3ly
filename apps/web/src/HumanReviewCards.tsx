@@ -8,7 +8,8 @@ import { AnswerTags } from "./ExtractionView";
 import { boxThrough, resizeBox, type BoxHandle } from "./editor/boxEdit";
 import { handleAt } from "./editor/handles";
 import { BoxHandles } from "./editor/pageEditor";
-import { NO_TEXT } from "./humanReview";
+import { NO_TEXT, writtenAnswerKey } from "./humanReview";
+import { nextAnswerKey } from "@score3ly/notation";
 import { Info } from "./ui/Info";
 import { answerTags } from "./transcription";
 import type { IssueWho } from "./attribution";
@@ -36,7 +37,7 @@ export function AnswerPicker({
   onWrite: (text: string) => void;
   onClear: () => void;
 }) {
-  const otherKey = String.fromCharCode("a".charCodeAt(0) + original.answers.length);
+  const otherKey = nextAnswerKey(original.answers);
   const [text, setText] = useState(mine?.newAnswer?.text ?? "");
   const [pending, setPending] = useState(false); // the row chosen, its text not saved yet
   const field = useRef<HTMLTextAreaElement>(null);
@@ -57,7 +58,7 @@ export function AnswerPicker({
     if (value.trim()) {
       if (value.trim() !== mine?.newAnswer?.text) onWrite(value);
       // The text of one of the answers chooses that one (writeAnswer).
-      if (original.answers.some((a) => a.text.trim() === value.trim())) setPending(false);
+      if (writtenAnswerKey(original, value) !== null) setPending(false);
     } else if (mine?.newAnswer) onClear();
   }
   function type(value: string) {
@@ -100,41 +101,44 @@ export function AnswerPicker({
           </span>
         </button>
       ))}
-      <div className="answer-option answer-other" role="radio" aria-checked={otherChosen} tabIndex={-1} onClick={(e) => e.target === field.current || pickOther()}>
-        <span className="answer-mark" aria-hidden="true" />
-        <span className="answer-other-key">{otherKey})</span>
-        <span className="answer-other-text">
-          <textarea
-            ref={field}
-            rows={1}
-            className="answer-other-field"
-            aria-label="Another answer"
-            value={text}
-            placeholder="Other"
-            onChange={(e) => type(e.target.value)}
-            onFocus={() => {
-              if (!otherChosen && text.trim()) onWrite(text);
-              else if (!otherChosen) setPending(true);
-            }}
-            onBlur={() => {
-              commit(text);
-              if (!text.trim()) setPending(false);
-            }}
-            onKeyDown={(e) => {
-              // One line of text: Enter ends it, as in any field.
-              if (e.key === "Enter") {
-                e.preventDefault();
+      {/* No row once every letter is an answer's (nextAnswerKey). */}
+      {otherKey !== null && (
+        <div className="answer-option answer-other" role="radio" aria-checked={otherChosen} tabIndex={-1} onClick={(e) => e.target === field.current || pickOther()}>
+          <span className="answer-mark" aria-hidden="true" />
+          <span className="answer-other-key">{otherKey})</span>
+          <span className="answer-other-text">
+            <textarea
+              ref={field}
+              rows={1}
+              className="answer-other-field"
+              aria-label="Another answer"
+              value={text}
+              placeholder="Other"
+              onChange={(e) => type(e.target.value)}
+              onFocus={() => {
+                if (!otherChosen && text.trim()) onWrite(text);
+                else if (!otherChosen) setPending(true);
+              }}
+              onBlur={() => {
                 commit(text);
-              }
-            }}
-          />
-          {mine?.newAnswer && (
-            <span className="answer-other-tags">
-              <AnswerTags tags={answerTags(issue, mine.newAnswer.key, who)} />
-            </span>
-          )}
-        </span>
-      </div>
+                if (!text.trim()) setPending(false);
+              }}
+              onKeyDown={(e) => {
+                // One line of text: Enter ends it, as in any field.
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commit(text);
+                }
+              }}
+            />
+            {mine?.newAnswer && (
+              <span className="answer-other-tags">
+                <AnswerTags tags={answerTags(issue, mine.newAnswer.key, who)} />
+              </span>
+            )}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

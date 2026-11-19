@@ -302,6 +302,23 @@ test("issues: boxes on the images sent, answers by letter, tokens only on format
   assert.match(unusable(system(1, { issues: [{ ...issue, lilypond: ["\\harmonic"] }] }), context(1)), /isn't a format issue/);
 });
 
+test("an issue's answers are keyed \"a\", \"b\", \"c\", … in order (D7)", () => {
+  const issue = {
+    boxes: [{ image: "stretch 1", box: { left: 0.1, right: 0.3, top: 0.2, bottom: 0.4 } }],
+    location: null,
+    question: "Staccato or smudge?",
+    answers: [
+      { key: "a", text: "A staccato" },
+      { key: "c", text: "A smudge" },
+    ],
+    applied: "a",
+    class: "reading" as const,
+    lilypond: null,
+  };
+  assert.match(unusable(system(1, { issues: [issue] }), context(1)), /^issue 1: the answers' keys must be "a", "b", "c", … in order$/);
+  assert.match(unusable(system(1, { issues: [{ ...issue, answers: [issue.answers[1], issue.answers[0]], applied: "c" }] }), context(1)), /in order/);
+});
+
 test("a change in the order of the staves is a warning", () => {
   const first = ok(system(1), context(1));
   const swapped = system(1, {}, false);

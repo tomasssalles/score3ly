@@ -6,11 +6,11 @@
 // agreements ("kept") added for the issues it left as they were.
 
 import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
-import type { Score } from "@score3ly/notation";
+import { answerKeysProblem, nextAnswerKey, type Score } from "@score3ly/notation";
 import { issueForModel, reviewFromModel, stretchMeasures, systemForModel, type ReviewAnswer, type ReviewNewIssueEntry } from "@score3ly/prompts";
 import { boxProblem, onPage, type Box } from "@score3ly/core";
 import type { ImageSource } from "./extract.ts";
-import { latest, placesOf, systemsOf, type PlacedSystem, type StoredIssue, type StoredWarning } from "./issues.ts";
+import { latest, placesOf, sameAnswer, systemsOf, type PlacedSystem, type StoredIssue, type StoredWarning } from "./issues.ts";
 import { count } from "./format.ts";
 
 export const REVIEW_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
@@ -87,8 +87,6 @@ export function logEntries(stored: StoredReview): unknown[] {
   );
 }
 
-const nextKey = (answers: { key: string }[]) => String.fromCharCode("a".charCodeAt(0) + answers.length);
-const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 // The context a call's answer is checked in: its system, the issues as they are now (earlier calls' entries applied),
 // the systems for the boxes, and where each image of the request was cut from (on which system).
@@ -141,8 +139,10 @@ function checkEntries(json: unknown, ctx: ReviewContext, first: number): { entri
       } else {
         const text = c.newAnswer!.trim();
         if (text === "") return { problem: `the new answer of issue ${c.issue} is empty` };
-        if (issue.answers.some((a) => sameText(a.text, text))) return { problem: `the new answer of issue ${c.issue} repeats one of its answers` };
-        const added = { key: nextKey(issue.answers), text };
+        if (issue.answers.some((a) => sameAnswer(a.text, text))) return { problem: `the new answer of issue ${c.issue} repeats one of its answers` };
+        const key = nextAnswerKey(issue.answers);
+        if (key === null) return { problem: `issue ${c.issue} has as many answers as there are letters: no new one can be added` };
+        const added = { key, text };
         entries.push({ choice: { issue: c.issue, key: added.key, newAnswer: added, reason: c.reason } });
       }
     } else if ("newIssue" in entry && entry.newIssue) {
@@ -174,7 +174,8 @@ function newIssue(n: ReviewNewIssueEntry["newIssue"], ctx: ReviewContext, id: nu
   if (list.length > 2 || (list.length === 2 && list[1] - list[0] !== 1)) return { problem: `${what} covers more than two consecutive systems` };
   if (n.answers.length < 2) return { problem: `${what} needs at least two answers: what the transcription has and what is right` };
   const keys = n.answers.map((a) => a.key);
-  if (keys.some((k, i) => k !== String.fromCharCode(97 + i))) return { problem: `${what}: the answers' keys must be "a", "b", "c", … in order` };
+  const keysProblem = answerKeysProblem(keys);
+  if (keysProblem) return { problem: `${what}: ${keysProblem}` };
   if (!keys.includes(n.applied) || !keys.includes(n.chosen)) return { problem: `${what}: "applied" and "chosen" must be keys of its answers` };
   if (n.applied === n.chosen) return { problem: `${what}: "applied" and "chosen" are the same answer` };
   // A format issue's list may be empty: what is printed may need no new token, only what the format's rules forbid.

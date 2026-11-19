@@ -109,7 +109,9 @@ test("a new answer gets the next letter, and must be new", () => {
   const result = checkReview({ entries: [choice(2, null, "A dot of a dotted note")] }, context(), 1);
   assert.ok(!("problem" in result));
   assert.deepEqual(result.entries[0], { choice: { issue: 2, key: "c", newAnswer: { key: "c", text: "A dot of a dotted note" }, reason: null } });
-  assert.match(problem({ entries: [choice(2, null, "a smudge")] }), /repeats one of its answers/);
+  assert.match(problem({ entries: [choice(2, null, " A smudge ")] }), /repeats one of its answers/);
+  // Case counts (the project owner, decision 25 of the code review): another answer.
+  assert.ok(!("problem" in checkReview({ entries: [choice(2, null, "a smudge")] }, context(), 1)));
 });
 
 test("choices: only on existing, unresolved issues of the call's system, once, changing the chosen answer", () => {

@@ -49,6 +49,10 @@ export function addChoice(issue: StoredIssue, choice: Choice, newAnswer?: { key:
   return { ...issue, answers: newAnswer ? [...issue.answers, newAnswer] : issue.answers, choices: [...issue.choices, choice] };
 }
 
+// Whether a written answer is the same as an answer's text: the same text, spaces around it aside; case counts
+// ("schumann" isn't "Schumann"; the project owner's decision 25 of the code review).
+export const sameAnswer = (a: string, b: string) => a.trim() === b.trim();
+
 // An issue needs applying when it has a choice and its latest choice differs from `applied`, null included
 // (docs/notation.md, "Issues").
 export function needsApplying(issue: StoredIssue): boolean {
