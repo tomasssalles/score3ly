@@ -22,6 +22,7 @@ import { ArtifactContent, ArtifactView } from "./ArtifactView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { CheckIcon, ChevronRightIcon, PauseIcon, WarningIcon } from "./ui/icons";
 import {
+  asksFirst,
   canRun,
   currentStage,
   firstNotDone,
@@ -35,6 +36,7 @@ import {
   type LocalRun,
   type Pipeline,
   type Progress,
+  type RerunChange,
   type RunMode,
   type Stage,
 } from "./pipeline";
@@ -227,31 +229,10 @@ export function ProjectView({
     writeDevice(DEVICE_KEYS.pipelinePanelCollapsed, value ? "1" : "0");
   }
 
-  // Asks first if the change replaces stages that have already run (docs/overview.md §5.5).
-  function change(apply: () => void, ask: boolean, confirmLabel: string, before = "") {
-    if (!ask) return apply();
+  // Asks first if the change replaces stages that have already run (docs/overview.md §5.5; `asksFirst`).
+  function change(stageId: string, kind: RerunChange, apply: () => void, confirmLabel: string, before = "") {
+    if (!asksFirst(pipeline.stages, kind, stageId)) return apply();
     setConfirmation({ title: "Are you sure?", text: [`${before}${CONFIRM_TEXT}`], confirmLabel, action: apply });
-  }
-
-  // Whether a change at this stage replaces stages that have already run: the stage itself, or one after it.
-  function replacesWork(stageId: string): boolean {
-    const i = pipeline.stages.findIndex((stage) => stage.id === stageId);
-    return pipeline.stages.slice(i).some((stage) => stage.status !== "planned" && stage.status !== "ready");
-  }
-
-  // Whether a change right after this stage replaces stages that have already run.
-  function replacesLater(stageId: string): boolean {
-    const i = pipeline.stages.findIndex((stage) => stage.id === stageId);
-    return i >= 0 && i + 1 < pipeline.stages.length && replacesWork(pipeline.stages[i + 1].id);
-  }
-
-  // Whether adding a fix after this stage replaces stages that have already run: the fix goes after the manual
-  // stages that already follow it, which stay (docs/overview.md §6).
-  function fixReplaces(stageId: string): boolean {
-    let j = pipeline.stages.findIndex((stage) => stage.id === stageId) + 1;
-    if (j <= 0) return false;
-    while (j < pipeline.stages.length && pipeline.stages[j].kind === "manual") j++;
-    return j < pipeline.stages.length && replacesWork(pipeline.stages[j].id);
   }
 
   // A new WIP manual stage: its editor opens.
@@ -504,10 +485,10 @@ export function ProjectView({
       }
       else setError(`"${stage?.title}" has nothing to set.`);
     },
-    addFix: (id, step) => change(() => void addFix(id, step), fixReplaces(id), "Add stage"),
-    addReview: (id) => change(() => void addReview(id), replacesLater(id), "Add Review"),
-    addHumanReview: (id) => change(() => void addHumanReview(id), replacesLater(id), "Add Human review"),
-    edit: (id) => change(() => void edit(id), replacesLater(id), "Edit stage"),
+    addFix: (id, step) => change(id, "addFix", () => void addFix(id, step), "Add stage"),
+    addReview: (id) => change(id, "addReview", () => void addReview(id), "Add Review"),
+    addHumanReview: (id) => change(id, "addHumanReview", () => void addHumanReview(id), "Add Human review"),
+    edit: (id) => change(id, "edit", () => void edit(id), "Edit stage"),
     // `engrave`'s files (§6, `engrave`, "Downloads"), with the report on the pipeline up to the stage.
     download: async (stageId, kind) => {
       const engraving = findStage(pipeline, stageId)?.artifacts.find((a) => a.engraving)?.engraving;
@@ -520,7 +501,7 @@ export function ProjectView({
       }
     },
     // Always asks: the stage's own work is lost.
-    drop: (id) => change(() => void drop(id), true, "Drop stage"),
+    drop: (id) => change(id, "drop", () => void drop(id), "Drop stage"),
     dismissDropped: (id) => void dismiss(id),
     setMode: async (value) => {
       quiet();
@@ -551,7 +532,7 @@ export function ProjectView({
         const before =
           (changed ? "This stage will have to run again with the new config. " : "") +
           (applyModelConfigToLater ? "The remaining stages planned in this pipeline will use its model config too. " : "");
-        change(() => saveConfig(stage, values, applyModelConfigToLater), replacesWork(stage.id), "Change config", before);
+        change(stage.id, "config", () => saveConfig(stage, values, applyModelConfigToLater), "Change config", before);
       }}
       onClose={() => setConfiguring(null)}
     />

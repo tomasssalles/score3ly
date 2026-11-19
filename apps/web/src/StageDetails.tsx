@@ -1,22 +1,6 @@
 import { dollars } from "./money";
-import type { Stage, StageKind, StageStatus } from "./pipeline";
+import { KIND_LABELS, STATUS_LABELS, type Stage } from "./pipeline";
 import { duration } from "./format";
-
-export const KIND_LABELS: Record<StageKind, string> = {
-  ingest: "Ingest",
-  computed: "Computed",
-  llm: "LLM",
-  manual: "Manual",
-};
-
-const STATUS_LABELS: Record<StageStatus, string> = {
-  done: "Done",
-  running: "Running",
-  failed: "Failed",
-  wip: "In progress",
-  ready: "Ready to run",
-  planned: "Planned",
-};
 
 // A stage's details, shown in the artifact view ("Show details" in the stage's menu): what the card leaves out.
 export function StageDetails({ stage }: { stage: Stage }) {

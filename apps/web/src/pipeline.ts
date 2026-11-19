@@ -21,6 +21,23 @@ export type StageStatus =
   | "ready" // its turn: it can run (in Manual mode, with its Run button)
   | "planned"; // not its turn yet: shown dimmed
 
+// How a stage's kind and status are named: the kind's icon's title on a card, both in a stage's details.
+export const KIND_LABELS: Record<StageKind, string> = {
+  ingest: "Ingest",
+  computed: "Computed",
+  llm: "LLM",
+  manual: "Manual",
+};
+
+export const STATUS_LABELS: Record<StageStatus, string> = {
+  done: "Done",
+  running: "Running",
+  failed: "Failed",
+  wip: "In progress",
+  ready: "Ready to run",
+  planned: "Planned",
+};
+
 export type ArtifactKind = "pdf" | "images" | "json" | "music" | "mei";
 
 // One tile in a stage's card: what the user sees of the stage's outputs (docs/overview.md §5.2). A group of similar

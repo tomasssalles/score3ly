@@ -29,10 +29,9 @@ import {
   SkewIcon,
   StopIcon,
 } from "./ui/icons";
-import { hasArtifacts, type Artifact, type Dropped, type RunMode, type Stage, type StageKind } from "./pipeline";
+import { hasArtifacts, KIND_LABELS, type Artifact, type Dropped, type RunMode, type Stage, type StageKind } from "./pipeline";
 import { differsCause } from "./ImagesDiffer";
 import { ProgressBar } from "./ui/ProgressBar";
-import { KIND_LABELS } from "./StageDetails";
 import { duration } from "./format";
 
 export type StageActions = {
