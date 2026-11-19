@@ -1,4 +1,4 @@
-// The prompt-version guard (docs/llm.md; code review D15).
+// The prompt-version guard (docs/overview.md, §7.2; code review D15).
 // A prompt's version is in its step's stage key, but its texts are partly generated (music.ts from symbolic.ts' lists,
 // the schemas from lensForm.ts' parts): a change there changes what is sent without anyone raising the version, and a
 // re-run then reuses the done stages made with the old prompt. So each LLM stage's texts and schemas are hashed here,
