@@ -357,7 +357,7 @@ A re-run follows **the pipeline as it was, not the standard recipe** of recipe s
 - **They stay connected to their project in D1,** although the pipeline no longer shows them, so that deleting the project (§4) finds and deletes them too. Until then, a project's storage only grows.
 
 #### Confirmation before a re-run
-A dialog asks for confirmation before anything is replaced (decided, built in `ProjectView.tsx`). It shows when a change replaces stages that have already run (done, failed, WIP or running): a new config for a stage that has run or is followed by one that has; a manual stage added, or a finished one edited, where a stage after it has run. Dropping a stage always asks. What it says (simple and almost generic), its title, text and buttons: `docs/project-view.md`, "Confirmation before a re-run".
+A dialog asks for confirmation before anything is replaced (decided, built: the rules in `apps/web/src/pipeline.ts`, `asksFirst`, tested; the dialog in `ProjectView.tsx`). It shows when a change replaces stages that have already run (done, failed, WIP or running): a new config for a stage that has run or is followed by one that has; a manual stage added, or a finished one edited, where a stage after it has run. Dropping a stage always asks. What it says (simple and almost generic), its title, text and buttons: `docs/project-view.md`, "Confirmation before a re-run".
 
 ### 5.6 How the app shows a project
 In `docs/project-view.md`: the two layouts, the artifact view, progress and toasts, the header, the pipeline panel and its stage cards, and the pages of the menu. In short:
