@@ -12,6 +12,12 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 - **One way to do a thing.** The same kind of interaction looks and works the same everywhere: one dropdown menu, one dialog, one way to pick from a list, one way to confirm.
 - **Runnable from anywhere.** Every feature works on a phone with touch, on a laptop with a mouse and a keyboard, in a browser, as an installed app and on the desktop. A feature that only works with a mouse, or only on a wide screen, isn't finished.
 
+## Where the styles live
+
+- **One style sheet per component of the UI kit and per screen,** in `apps/web/src/styles/` (decided 2026-11-17, the code review's F22): the kit's in `styles/ui/` (`dialog.css`, `menu.css`, `picker.css`, `buttons.css`, …, named after the kit's components), the page editors' in `editor.css`, the screens' beside them (`stages.css`, `transcription.css`, `stats.css`, …). A new component or screen gets its own file; a rule goes where the component it styles is.
+- **`styles.css` brings them together, and only it,** as a list of `@import`s (a test checks that it lists every file once). **The order of that list matters:** where two rules of the same specificity set the same property of an element, the later one wins. The files are in the order their rules had when they were one file, so the split changed nothing on screen; a file moved in the list, or a rule moved to another file, is checked on the screens it touches.
+- **Tokens:** the colours are the themes' (`themes.css`, below); the rest of the look is named once in `styles/base.css`: the fonts (`--sans`, `--mono`, `--serif`), the corners (`--radius-…`), the shadows (`--float-…`) and the disabled opacity (`--disabled`). A value with a role uses its token.
+
 ## Colour
 
 **Every colour is a token of the theme** (`apps/web/src/themes.css`, and nowhere else; a test enforces it). Code and CSS name a token by its role, never a colour. A new role is a new token in every theme. Each theme is designed for high contrast: running text far above 7:1, secondary text around 6:1, coloured text at least 4.5:1 on its background.
@@ -64,14 +70,14 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 
 - **Inter** for the interface. **JetBrains Mono** for anything that is code or a machine's value: the wordmark, LilyPond and MEI, file names, ids, issue numbers, page counters ("Page 1"), badges, times. Both are bundled; nothing is fetched from Google Fonts.
 - **A serif in italic,** muted, only for the edition's name (*concerto*, *cadenza*), like a work's subtitle under its title.
-- **Sizes:** 14 px for running text and buttons, 13 px for secondary text (facts, hints, warnings on cards), 12 px for the smallest labels (tile captions, small controls, badges at 11 px). Headings are few and only a step larger. Weight, not size, makes a name stand out (500–600).
+- **Sizes** (decided 2026-11-17, the code review's dec. 36: the guide follows the app): 15 px for running text (the body, at a line height of 1.55), a card's name and a menu's items, 14 px for buttons and most text in dialogs, forms and lists, 13 px for secondary text (facts, hints, warnings on cards), 12 px for the smallest labels (tile captions, small controls such as the pickers, badges at 11 px). Text fields are 16 px everywhere, which keeps a phone from zooming in when one is entered. Headings are few and only a step larger. Weight, not size, makes a name stand out (500–600).
 - **Lines are short:** text blocks have a maximum width (about 60 characters for prose, up to 900 px for pages of content), centred in wide space.
 
 ## Shape, space and depth
 
-- **Rounded rectangles, gently:** 8 px for controls (buttons, fields, pickers, icon buttons), 10–12 px for cards and dialogs, a pill for toasts, small radii (2–4 px) for badges and labels on the page.
+- **Rounded rectangles, gently** (decided 2026-11-17, the code review's dec. 37: the guide follows the app), each a token (`--radius-…`, below): 8 px for controls (buttons, fields, pickers, icon buttons; `--radius-control`), 6 px for the smaller controls of 32 px and less (a picker's chevron, a dialog's ×, the "i"; `--radius-small`), 7 px for an item in a menu or list, inside its corners (`--radius-item`), 10 px for cards, panels, menus and lists (`--radius-card`), 12 px for dialogs and the home's cards (`--radius-dialog`); a pill for toasts and chips, small radii (2–4 px) for badges, bars and labels on the page.
 - **Borders before fills:** areas are told apart by a hairline (`--line`), not by different backgrounds. Fills are for things to touch (`--raised`) and for the main action.
-- **Shadows only for what floats:** menus, dialogs (with a dimmed backdrop), toasts, pages of music. Nothing that sits in the layout casts a shadow.
+- **Shadows only for what floats:** menus, dialogs (with a dimmed backdrop), toasts, pages of music, three depths as tokens (`--float-menu`, `--float-dialog`, `--float-low`). Nothing that sits in the layout casts a shadow.
 - **Buttons floating over content** (the close button of an artifact on a phone, a counter in a corner) are white on translucent grey, so they read over any picture.
 - **A 16 px gutter** at the edges of the app and between its main parts; tighter spacing inside cards. Nothing scrolls sideways at phone width, except content that is wide by nature (code, a zoomed page).
 
@@ -124,7 +130,7 @@ How score3ly looks, speaks and behaves, as rules to follow when something new is
 - **Danger:** filled red, for an action that destroys ("Delete project").
 - **Icon buttons:** 36 px square, muted icon, no border; for tools, toggles and the "⋮". A tooltip names them. An icon button that is on (a toggle, the current tool) has a coral outline and a coral icon.
 - **Corners:** every button has all four corners rounded, unless it is joined with others into one control (a segmented group, such as the editors' tools or the chart's bars | running total): only there do the inner corners turn square, and only the group's outer corners are round. A button that merely stands next to others (the split and filter buttons, the per-page filter) is on its own and keeps its round corners. In the CSS, joining is opt-in: only `.editor-mode`s inside an `.editor-modes` group lose corners, never by position among unrelated siblings (`:first-child`, `:last-child`), which broke this twice.
-- **Disabled** is faded (about 45% opacity) and keeps its place; it is used when an action applies but can't be done yet ("Rename" until the name changed). An action that doesn't apply at all is hidden instead.
+- **Disabled** is faded (45% opacity, `--disabled`) and keeps its place; it is used when an action applies but can't be done yet ("Rename" until the name changed). An action that doesn't apply at all is hidden instead.
 - **A button names its action** with a verb ("Delete project", "Change config", "Apply"), never "OK" or "Yes".
 
 **The UI kit** (`apps/web/src/ui/`): the components and hooks every screen shares, each written once: the dialog, the menu, the picker, the tabs, the filter sections, the check list, the "i", `FittedText`, the progress bar and ring, the icons, the project option and the wordmark, and the small hooks (`hooks.ts`: a click outside, a media query, near the view, an object URL). Before building a UI part, look there for the one that exists; a second copy of something becomes a kit component. What the device remembers is in `deviceStorage.ts`, every key listed once. **The page-editor kit** (`apps/web/src/editor/`) is its sibling for the pages: the zoomed and panned page, its toolbar's parts and keys, the shell every page editor keeps around its page, the box editing and handles, the layout and lines drawn over a page, and the views of pages and their filmstrips (`PageViews.tsx`; the `Filmstrip` itself is in `ui/`).
