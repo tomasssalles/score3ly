@@ -3,6 +3,19 @@
 :root {
   --mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: Georgia, "Times New Roman", serif; /* only the edition's name, in italic */
+  /* Corners (docs/style.md, "Shape, space and depth"). */
+  --radius-control: 8px; /* buttons, fields, pickers, icon buttons */
+  --radius-small: 6px; /* the smaller controls: a picker's chevron, a dialog's ×, the "i" */
+  --radius-item: 7px; /* an item in a menu or a list, inside its corners */
+  --radius-card: 10px; /* cards, panels, menus and lists */
+  --radius-dialog: 12px; /* dialogs, the home's cards */
+  /* What floats casts a shadow; nothing else does. */
+  --float-low: 0 4px 16px var(--shadow-soft); /* pages of music, a toast */
+  --float-menu: 0 16px 40px var(--shadow); /* menus and lists */
+  --float-dialog: 0 24px 60px var(--shadow-strong);
+  /* Disabled is faded and keeps its place. */
+  --disabled: 0.45;
 }
 
 html,
@@ -63,7 +76,7 @@ body {
 .header-edition {
   display: none;
   margin: 5px 0 0 -4px;
-  font: italic 400 23px Georgia, "Times New Roman", serif;
+  font: italic 400 23px var(--serif);
   color: var(--muted);
   white-space: nowrap;
 }
@@ -90,16 +103,17 @@ body {
   }
 }
 
+/* Disabled as icon buttons are (below), and muted even under the pointer. */
 .back-forward .icon-button:disabled {
-  opacity: 0.35;
-  cursor: default;
-  background: none;
   color: var(--muted);
 }
 
 .app-header .actions {
   grid-area: actions;
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .app-header .picker {
@@ -151,7 +165,7 @@ body {
   color: var(--on-accent);
   background: var(--accent);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   padding: 9px 14px;
   cursor: pointer;
   white-space: nowrap;
@@ -173,7 +187,7 @@ body {
   box-sizing: border-box;
   padding: 0 4px 0 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: var(--raised);
   cursor: pointer;
 }
@@ -223,7 +237,7 @@ body {
   height: 32px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   background: none;
   color: var(--muted);
   cursor: pointer;
@@ -260,10 +274,10 @@ body {
   background: var(--raised);
   border: 1px solid var(--accent);
   border-top-color: var(--line);
-  border-radius: 0 0 10px 10px;
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
   max-height: min(60vh, 360px);
   overflow-y: auto;
-  box-shadow: 0 16px 40px var(--shadow);
+  box-shadow: var(--float-menu);
 }
 
 .picker-list li {
@@ -271,7 +285,7 @@ body {
   grid-template-columns: 1fr auto;
   gap: 2px 12px;
   padding: 9px 10px;
-  border-radius: 7px;
+  border-radius: var(--radius-item);
   cursor: pointer;
 }
 
@@ -341,10 +355,10 @@ body {
   box-sizing: border-box;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-dialog);
   background: var(--raised);
   color: var(--fg);
-  box-shadow: 0 24px 60px var(--shadow-strong);
+  box-shadow: var(--float-dialog);
 }
 
 .app-dialog::backdrop {
@@ -372,7 +386,7 @@ body {
   margin-right: -6px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   background: none;
   color: var(--muted);
   cursor: pointer;
@@ -425,7 +439,7 @@ body {
   gap: 2px 12px;
   padding: 10px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-item);
   background: none;
   color: var(--fg);
   font: 15px var(--sans);
@@ -440,7 +454,7 @@ body {
 .dialog-list .dialog-new {
   margin-top: 6px;
   border-top: 1px solid var(--line);
-  border-radius: 0 0 7px 7px;
+  border-radius: 0 0 var(--radius-item) var(--radius-item);
 }
 
 .dialog-new .option-name {
@@ -531,7 +545,7 @@ body {
   height: 36px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--muted);
   cursor: pointer;
@@ -715,7 +729,7 @@ body {
   gap: 2px;
   padding: 3px 4px 3px 9px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--raised);
   color: var(--fg);
   font: 500 12px var(--sans);
@@ -778,7 +792,7 @@ body {
   font-size: 13.5px;
   line-height: 1.35;
   text-align: center;
-  box-shadow: 0 4px 16px var(--shadow-soft);
+  box-shadow: var(--float-low);
   transform: translateX(-50%);
   animation: toast-in 0.2s ease-out;
   pointer-events: none;
@@ -866,7 +880,7 @@ body {
   gap: 8px;
   padding: 10px 12px 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: var(--raised);
   scroll-margin: 120px 0 16px;
 }
@@ -1003,7 +1017,7 @@ body {
   font: 600 14px var(--sans);
   color: var(--on-accent);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   padding: 7px 14px 7px 10px;
   cursor: pointer;
   white-space: nowrap;
@@ -1106,7 +1120,7 @@ body {
 }
 
 .button-secondary:disabled {
-  opacity: 0.45;
+  opacity: var(--disabled);
   cursor: default;
 }
 
@@ -1137,7 +1151,7 @@ body {
   height: 36px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--float);
   color: var(--on-float);
   cursor: pointer;
@@ -1166,7 +1180,7 @@ body {
   display: block;
   width: 100%;
   border-radius: 2px;
-  box-shadow: 0 4px 16px var(--shadow-soft);
+  box-shadow: var(--float-low);
 }
 
 /* Texts, groups of items (a filmstrip) and a stage's details */
@@ -1174,7 +1188,7 @@ body {
   display: block;
   width: 100%;
   border-radius: 2px;
-  box-shadow: 0 4px 16px var(--shadow-soft);
+  box-shadow: var(--float-low);
 }
 
 .page-image {
@@ -1342,7 +1356,6 @@ body {
   color: var(--muted);
 }
 
-
 .film-item pre {
   margin-top: 8px;
   padding: 10px 12px;
@@ -1422,26 +1435,6 @@ body {
   font: 13px var(--mono);
 }
 
-.details-calls {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.details-calls li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--line);
-  font-size: 14px;
-}
-
-.details-calls .more {
-  color: var(--muted);
-  border: 0;
-}
-
 .dialog-text {
   margin: 12px 0 0;
   font-size: 14px;
@@ -1454,12 +1447,6 @@ body {
 }
 
 /* Menus: a button that opens a short list (the header's menu, the project actions) */
-.app-header .actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .dropdown {
   position: relative;
 }
@@ -1478,8 +1465,8 @@ body {
   padding: 6px;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 16px 40px var(--shadow);
+  border-radius: var(--radius-card);
+  box-shadow: var(--float-menu);
 }
 
 /* Opened upwards, where there is more room above the button than below it (DropdownMenu). */
@@ -1500,7 +1487,7 @@ body {
   box-sizing: border-box;
   padding: 9px 10px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-item);
   background: none;
   color: var(--fg);
   font: 15px var(--sans);
@@ -1525,7 +1512,7 @@ body {
 
 .dropdown-list [role="menuitem"]:disabled {
   color: var(--muted);
-  opacity: 0.45;
+  opacity: var(--disabled);
   cursor: default;
 }
 
@@ -1624,16 +1611,12 @@ body {
   font: 600 16px var(--sans);
 }
 
-/* A section's heading with its "+" on the same line (Model configs). */
+/* A section's head: its tools in one line (Model configs). */
 .settings-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
-}
-
-.settings-section-head h3 {
-  margin: 0;
 }
 
 /* The new model config form: longer than a screen on a phone, so it scrolls; its lists open inside it. */
@@ -1720,7 +1703,7 @@ dialog.app-dialog.config-form {
 .model-config {
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: var(--raised);
 }
 
@@ -1853,7 +1836,7 @@ dialog.app-dialog.config-form {
   box-sizing: border-box;
   padding: 0 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--fg);
   font: 16px var(--sans); /* 16px keeps phones from zooming in */
@@ -1896,7 +1879,7 @@ dialog.app-dialog.config-form {
   justify-content: space-between;
   gap: 8px;
   padding: 0 10px 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   font: 16px var(--sans);
 }
@@ -1948,7 +1931,7 @@ dialog.app-dialog.config-form {
 }
 
 .button-primary:disabled {
-  opacity: 0.45;
+  opacity: var(--disabled);
   cursor: default;
 }
 
@@ -1957,7 +1940,7 @@ dialog.app-dialog.config-form {
   color: var(--fg);
   background: none;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   padding: 9px 14px;
   cursor: pointer;
 }
@@ -1978,7 +1961,7 @@ dialog.app-dialog.config-form {
 .page-view .about-edition {
   margin: -22px 0 20px;
   text-align: center;
-  font: italic 400 22px Georgia, "Times New Roman", serif;
+  font: italic 400 22px var(--serif);
   color: var(--muted);
 }
 
@@ -2163,7 +2146,6 @@ dialog.app-dialog.config-form {
   text-decoration: underline;
 }
 
-
 /* The modes (tools): one button each, side by side; the chosen one's border is on top of its neighbours'. */
 .editor-modes {
   gap: 0;
@@ -2177,7 +2159,7 @@ dialog.app-dialog.config-form {
   height: 36px;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--muted);
   cursor: pointer;
@@ -2205,7 +2187,8 @@ dialog.app-dialog.config-form {
   border-bottom-right-radius: 0;
 }
 
-.editor-mode[aria-checked="true"] {
+.editor-mode[aria-checked="true"],
+.editor-mode[aria-pressed="true"] {
   z-index: 1;
   background: var(--raised);
   color: var(--accent);
@@ -2284,7 +2267,10 @@ dialog.app-dialog.config-form {
   stroke-width: 0.3em;
 }
 
-.skew-rubber {
+/* Dashed, in screen pixels: a rubber band while drawing, and fix_layout's bar lines (to tell them from the boxes' edges). */
+.skew-rubber,
+.layout-bar,
+.editor-rubber {
   stroke-dasharray: calc(6 * var(--px)) calc(4 * var(--px));
 }
 
@@ -2296,9 +2282,6 @@ dialog.app-dialog.config-form {
 .editor-anchor {
   fill: var(--mark);
 }
-
-
-
 
 /* fix_layout's editor: boxes and bar lines in their system's colour, widths in screen pixels (--px). The selected
    system stands out; the others are dimmed but visible, since the overlap is what is being checked. */
@@ -2316,11 +2299,7 @@ dialog.app-dialog.config-form {
   stroke-width: calc(3 * var(--px));
 }
 
-/* Bar lines dashed, to tell them from the boxes' edges; a selected one shows its handle rather than thickening. */
-.layout-bar {
-  stroke-dasharray: calc(6 * var(--px)) calc(4 * var(--px));
-}
-
+/* A selected bar line shows its handle rather than thickening. */
 .layout-label {
   stroke: none;
 }
@@ -2335,7 +2314,6 @@ dialog.app-dialog.config-form {
 .editor-rubber {
   stroke: var(--accent);
   stroke-width: calc(2 * var(--px));
-  stroke-dasharray: calc(6 * var(--px)) calc(4 * var(--px));
 }
 
 /* analyze's metadata and observations: a list of fields, each with links into the pages; while the pages are open,
@@ -2427,6 +2405,7 @@ dialog.app-dialog.config-form {
   font-size: 14px;
 }
 
+/* The strip holds one field of the list. */
 .analysis-strip-text {
   flex: 1;
   min-width: 0;
@@ -2434,6 +2413,9 @@ dialog.app-dialog.config-form {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 /* On a phone the pages cover the whole app, the artifact view's own close button too: the strip's closes them, back
@@ -2575,7 +2557,7 @@ dialog.app-dialog.config-form {
   align-self: flex-start;
   padding: 4px 10px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--fg);
   font-size: 13px;
@@ -2609,7 +2591,7 @@ dialog.app-dialog.config-form {
   min-height: 36px;
   padding: 0 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--raised);
   color: var(--fg);
   font: 16px var(--sans); /* 16px keeps phones from zooming in */
@@ -2633,7 +2615,7 @@ textarea.field-input {
   height: 36px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--accent);
   color: var(--on-accent);
   cursor: pointer;
@@ -2648,13 +2630,6 @@ textarea.field-input {
   margin: 0;
   color: var(--danger);
   font-size: 13px;
-}
-
-/* The strip holds one field of the list. */
-.analysis-strip-text {
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .analysis-strip-text > .analysis-row {
@@ -2680,13 +2655,6 @@ textarea.field-input {
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-.editor-mode[aria-pressed="true"] {
-  z-index: 1;
-  background: var(--raised);
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 .note-boxes {
@@ -2847,7 +2815,7 @@ textarea.field-input {
   margin-left: 2px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   background: none;
   color: var(--muted);
   vertical-align: middle;
@@ -2878,7 +2846,7 @@ textarea.field-input {
   display: flex;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: var(--raised);
 }
 
@@ -2916,7 +2884,7 @@ textarea.field-input {
 .engraved-page {
   border-radius: 2px;
   background: var(--paper);
-  box-shadow: 0 4px 16px var(--shadow-soft);
+  box-shadow: var(--float-low);
 }
 
 .engraved-page > svg {
@@ -3003,7 +2971,7 @@ textarea.field-input {
   box-sizing: border-box;
   padding: 0 10px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--fg);
   font: 16px var(--sans); /* 16px keeps phones from zooming in */
@@ -3412,14 +3380,18 @@ textarea.field-input {
 }
 
 /* A dot on a toggle whose panel holds a choice: a split picked, groups hidden by filters. */
-.toggle-dot {
-  position: absolute;
-  top: 3px;
-  right: 3px;
+.toggle-dot,
+.inline-dot {
   width: 7px;
   height: 7px;
   border-radius: 999px;
   background: var(--accent);
+}
+
+.toggle-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
 }
 
 .costs-panel {
@@ -3428,7 +3400,7 @@ textarea.field-input {
   margin-top: 10px;
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: var(--raised);
 }
 
@@ -3812,12 +3784,9 @@ textarea.field-input {
   color: var(--muted);
 }
 
+/* The dot of a collapsed filter section (it looks like the toggles' dot). */
 .inline-dot {
-  width: 7px;
-  height: 7px;
   margin-left: 2px;
-  border-radius: 999px;
-  background: var(--accent);
 }
 
 .filter-section {
@@ -4146,7 +4115,7 @@ textarea:focus::placeholder {
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-dialog);
   background: var(--raised);
   color: var(--fg);
   text-decoration: none;
