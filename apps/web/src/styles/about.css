@@ -1,0 +1,66 @@
+/* About (AboutPage.tsx). */
+
+/* About */
+.page-view .about-wordmark {
+  margin: 8px 0 28px;
+  text-align: center;
+  font-size: 40px;
+  color: var(--wordmark);
+}
+
+/* The edition, under the wordmark like a work's subtitle (docs/desktop.md, "Editions"). */
+.page-view .about-edition {
+  margin: -22px 0 20px;
+  text-align: center;
+  font: italic 400 22px var(--serif);
+  color: var(--muted);
+}
+
+.page-view .about-edition-text {
+  margin-bottom: 28px;
+  color: var(--muted);
+}
+
+.page-view .about-summary {
+  margin-bottom: 12px;
+  color: var(--fg);
+}
+
+.about-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.about-facts dt {
+  color: var(--muted);
+}
+
+.about-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.about-facts .mono {
+  font: 14px/1.55 var(--mono);
+}
+
+.about-facts a {
+  color: var(--accent);
+}
+
+@media (max-width: 480px) {
+  .about-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .about-facts dd + dt {
+    margin-top: 14px;
+  }
+}
+
+/* A fact on the About page that needs attention, e.g. stale prices. */
+.about-facts .stale {
+  color: var(--danger);
+}

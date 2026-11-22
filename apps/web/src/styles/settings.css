@@ -1,0 +1,274 @@
+/* Settings (SettingsPage.tsx) and the model configs' dialogs. */
+
+/* Settings: a label and its control per row. */
+.settings-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 12px 24px;
+  margin: 12px 0 0;
+}
+
+.settings-list dt {
+  font-size: 14px;
+}
+
+.settings-list dd {
+  justify-self: end; /* every control flush right */
+  margin: 0;
+}
+
+/* The controls are at the right edge: their menus open leftwards. */
+.settings-list .mode-picker .dropdown-list {
+  left: auto;
+  right: 0;
+}
+
+/* The default model config's picker: names are longer than the run mode's, shortened in the middle (FittedText). */
+.config-picker-name {
+  max-width: min(220px, 35vw);
+  text-align: left;
+}
+
+.settings-list .config-picker .dropdown-list {
+  width: max-content;
+  min-width: 140px;
+  max-width: min(320px, 80vw);
+}
+
+.page-view .settings-error {
+  color: var(--danger);
+}
+
+.settings-section {
+  margin-top: 32px;
+}
+
+.settings-section h3 {
+  margin: 0 0 12px;
+  font: 600 16px var(--sans);
+}
+
+/* A section's head: its tools in one line (Model configs). */
+.settings-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* The new model config form: longer than a screen on a phone, so it scrolls; its lists open inside it. */
+dialog.app-dialog.config-form {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.config-form .dropdown-list {
+  max-height: 40vh;
+}
+
+/* A value the form fills in by itself (a config's default name, "Use default"): muted, and not editable. */
+.field input.default-value {
+  color: var(--muted);
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1;
+  cursor: default;
+}
+
+/* A field's label with a control on its right ("Use default"). */
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field-head .field-check {
+  margin: 0;
+  font-size: 13px;
+}
+
+.pricing-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+}
+
+.pricing-choice .field-check {
+  margin-top: 0;
+}
+
+.field .field-check input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+.pricing-reference {
+  margin: 0 0 4px 26px;
+}
+
+.config-default {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.config-default input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.settings-text {
+  margin: 0 0 12px;
+  max-width: 60ch;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.model-configs {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.model-config {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--raised);
+}
+
+/* A config card's name and badges, with its "⋮" at the right. */
+.model-config-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -6px -8px 2px 0;
+}
+
+.model-config-head .model-config-name {
+  padding-top: 6px;
+}
+
+.page-view .model-config-name {
+  margin: 0 0 8px;
+  color: var(--fg);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.badge.muted {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+/* A model config the app no longer supports (docs/llm.md). */
+.badge.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.model-config-facts {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr); /* the same in every card */
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.model-config-facts dt {
+  color: var(--muted);
+}
+
+.model-config-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.model-config-facts .mono {
+  font: 12.5px var(--mono);
+}
+
+.model-config-hint {
+  color: var(--muted);
+}
+
+.settings-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* An amount: "$" and the input, the problem below. */
+.settings-amount {
+  display: grid;
+  grid-template-columns: auto calc(6.5ch + 18px); /* "999.00", with the padding and the border */
+  align-items: center;
+  justify-items: end;
+  gap: 4px 6px;
+}
+
+.settings-amount .field-input {
+  text-align: right;
+}
+
+.settings-currency {
+  color: var(--muted);
+}
+
+/* The VAT rate: the field, then "%". */
+.settings-percent {
+  grid-template-columns: calc(6.5ch + 18px) auto;
+}
+
+/* Under the model configs' tools: what their prices are. */
+.model-configs-note {
+  margin: 0 0 12px;
+}
+
+/* The model configs' tools: the order and the filter on the left, "+" on the right. */
+.config-tools {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.config-tools-gap {
+  flex: 1;
+}
+
+.settings .filter-panel {
+  margin-bottom: 12px;
+}
+
+.settings-amount .settings-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+}
+
+.page-view .placeholder-note {
+  font: 12px var(--mono);
+}
+
+/* A model config's test: its answer, green when it worked, red when it didn't (docs/llm.md, "The settings page"). */
+.test-result:empty {
+  display: none;
+}
+
+.test-result.ok {
+  color: var(--green);
+}
+
+.test-result.failed {
+  color: var(--danger);
+}

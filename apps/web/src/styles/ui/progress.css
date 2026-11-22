@@ -1,0 +1,81 @@
+/* Progress (ui/ProgressBar.tsx, ui/ProgressRing.tsx) and the spinner. */
+
+/* A stage running on another device: its progress isn't known here. Grey, so it doesn't read as progress. */
+.spinner {
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--muted);
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 4s;
+  }
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--progress);
+}
+
+/* Progress not known here (a stage running on another device): a grey strip slides through from left to right and
+   comes in again on the left. Grey, like the spinner, so it doesn't read as progress. */
+.progress-bar-slider {
+  width: 30%;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--muted);
+  animation: slide 1.6s linear infinite;
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(334%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar-slider {
+    animation-duration: 5s;
+  }
+}
+
+.progress-ring {
+  flex: none;
+}
+
+.progress-ring circle {
+  fill: none;
+  stroke-width: 3;
+}
+
+.progress-ring .track {
+  stroke: var(--line);
+}
+
+.progress-ring .bar {
+  stroke: var(--progress);
+  stroke-linecap: round;
+}

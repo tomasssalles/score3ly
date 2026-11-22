@@ -1,0 +1,329 @@
+/* analyze's views and forms (MetadataView.tsx, ObservationsView.tsx, fieldList.tsx). */
+
+/* analyze's metadata and observations: a list of fields, each with links into the pages; while the pages are open,
+   a thin strip with the field that was clicked. */
+.text-view.analysis section {
+  max-width: 760px;
+  margin: 0 auto 20px;
+}
+
+.text-view.analysis h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.text-view.analysis ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analysis-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.field-label {
+  flex: 0 0 150px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.field-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.page-link {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--fg);
+  font: 12px var(--mono);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.page-link:hover {
+  border-color: var(--accent);
+}
+
+.page-link.static {
+  cursor: default;
+}
+
+.confidence {
+  min-width: 24px;
+  color: var(--muted);
+  font: 600 13px var(--mono);
+}
+
+.confidence.confirmed {
+  color: var(--green);
+}
+
+.analysis-focus {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.analysis-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+/* The strip holds one field of the list. */
+.analysis-strip-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* On a phone the pages cover the whole app, the artifact view's own close button too: the strip's closes them, back
+   to the list, and only from there does the list's close the artifact. */
+.artifact-view.overlay .analysis-focus {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  background: var(--surface);
+}
+
+/* fix_metadata's form: the list above, with a "+" for the whole form, a "⋮" on every field, and a field in edit mode
+   as a drop-down and inputs, stacked on a phone. */
+.metadata-tools {
+  max-width: 760px;
+  margin: 0 auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Beside the artifact view's floating close button on a phone, not under it. */
+.artifact-view.overlay .metadata-tools {
+  padding-right: 48px;
+}
+
+.metadata-add .dropdown-list {
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+}
+
+.field-actions .dropdown-button {
+  width: 28px;
+  height: 28px;
+}
+
+.analysis-row .field-actions {
+  align-self: center;
+}
+
+/* A metadata field: label, text, page, eye, confidence, "⋮" in one line; on a phone the label above the rest. */
+.analysis-row.metadata-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
+}
+
+@media (max-width: 599px) {
+  .analysis-row.metadata-row {
+    grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  }
+
+  .analysis-row.metadata-row .field-label {
+    grid-column: 1 / -1;
+  }
+}
+
+/* An observation: no page column (the sections are pages). */
+.analysis-row.metadata-row.obs-row {
+  grid-template-columns: 150px minmax(0, 1fr) auto auto auto;
+}
+
+@media (max-width: 599px) {
+  .analysis-row.metadata-row.obs-row {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+  }
+}
+
+/* A metadata field's page, and the eye that opens the pages there. */
+.field-page {
+  min-width: 40px;
+  color: var(--muted);
+  font: 12px var(--mono);
+  white-space: nowrap;
+}
+
+.analysis-row .field-open {
+  align-self: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  color: var(--fg);
+}
+
+.analysis-row .field-open:hover {
+  border-color: var(--accent);
+}
+
+.field-open .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* A field in edit mode: its kind, page or system, and ✓ in one row (pickers like the run mode's), its text below. */
+.analysis-row.editing {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.field-edit-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-edit-label {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* A line of pickers in an item's edit mode: a place (system, position), a staff, staves, a page. */
+.field-edit-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-edit-line .field-edit-label:first-child {
+  min-width: 36px;
+  margin-left: 0;
+}
+
+.field-edit-kind {
+  font-size: 14px;
+}
+
+.field-edit-places {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-add-place {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--fg);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.position-picker .dropdown-list {
+  width: 140px;
+}
+
+.field-edit-space {
+  flex: 1;
+}
+
+.field-picker .dropdown-list {
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+
+.field-kind-picker .dropdown-list {
+  width: 220px;
+}
+
+.number-picker .dropdown-list {
+  width: 110px;
+}
+
+.field-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--raised);
+  color: var(--fg);
+  font: 16px var(--sans); /* 16px keeps phones from zooming in */
+}
+
+textarea.field-input {
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+.field-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.field-done {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+}
+
+.field-done .icon {
+  stroke-width: 2.4;
+}
+
+.field-problem {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.analysis-strip-text > .analysis-row {
+  flex: 1;
+  border-bottom: 0;
+  padding: 0;
+}
+
+/* "staff 2/3" in an observation. */
+.analysis-row .staff {
+  color: var(--muted);
+  font-size: 13px;
+}

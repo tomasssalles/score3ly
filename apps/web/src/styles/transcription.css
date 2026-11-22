@@ -1,0 +1,191 @@
+/* The Transcription (ExtractionView.tsx): crops, renderings, issues and warnings. */
+
+/* An Apply review's Transcription: the answers it couldn't apply as given, in the colour of errors, at the top. */
+.reverted-block {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.reverted-block p {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.reverted-block ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.reverted-block .link-button {
+  color: inherit;
+  font-weight: 600;
+}
+
+/* The Transcription (`extract`): its toggles above the filmstrip; each system's crop with the boxes of issues and
+   warnings over it, its music below (rendered, or the raw source), then the issues' and warnings' text. */
+.transcription {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.note-boxes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.note-box {
+  fill: transparent;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+}
+
+.note-box.warning {
+  stroke-dasharray: 8 5;
+}
+
+/* Like the layout's system labels: inside the box's top left corner, in its colour. */
+.note-label {
+  position: absolute;
+  min-width: 18px;
+  padding: 1px 5px;
+  border: none;
+  border-radius: 0 0 3px 0;
+  color: var(--on-layout);
+  font: 600 12px var(--mono);
+  cursor: pointer;
+}
+
+/* Verovio draws black on transparent: the rendering sits on white, like the paper above it. */
+.system-rendering {
+  margin-top: 8px;
+}
+
+/* A system's rendering, centred where it is narrower than its place (the Transcription's crops are as wide as the view):
+   the music is centred everywhere, the original and the transcription alike. */
+.rendering {
+  margin-left: auto;
+  margin-right: auto;
+  padding: 4px;
+  border-radius: 2px;
+  background: var(--paper);
+}
+
+/* A measure the stage changed (an Apply review's Transcription): a violet tint behind it. */
+.rendering .changed-measure {
+  fill: var(--changed);
+  fill-opacity: 0.14;
+  stroke: none;
+}
+
+/* As wide as the crop above it, the margins inside the rendering as in the crop (fittedOptions). */
+.rendering.fitted {
+  padding: 0;
+}
+
+.rendering > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.rendering-placeholder {
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 2px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* The raw source (LilyPond-based), as the lens has it. */
+.system-music {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.system-staves,
+.stretch-head {
+  margin: 0;
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
+.film-item .stretch-music pre {
+  margin: 0;
+  max-width: none;
+  padding: 1px 0 1px 12px;
+  border: none;
+  background: none;
+}
+
+.voice-name {
+  color: var(--muted);
+}
+
+.system-notes {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.issue-card {
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--raised);
+  font-size: 13px;
+  scroll-margin: 16px;
+}
+
+.issue-card.warning {
+  border-left-style: dashed;
+}
+
+.issue-card p,
+.issue-card ul {
+  margin: 2px 0;
+}
+
+.issue-card ul {
+  padding-left: 18px;
+}
+
+/* Answers: no bold, their suffixes small and muted, the stage they name in bold (it would read as ordinary words). */
+.answer-tag {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.answer-tag strong {
+  font-weight: 600;
+}
+
+.issue-head,
+.issue-tokens {
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
+/* The lines under an issue's answers: its LilyPond equivalent, who chose what. */
+.issue-facts {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.issue-reason {
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.crop-placeholder {
+  aspect-ratio: 5;
+}

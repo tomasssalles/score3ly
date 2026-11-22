@@ -1,0 +1,112 @@
+/* Check lists (ui/CheckList.tsx). */
+
+/* A check list (CheckList.tsx): the box for all or none and the menu, then the items, each with its box, name, facts
+   and amounts. */
+.check-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.check-tools .check-row {
+  border-bottom: 0;
+}
+
+.check-tools .dropdown-list {
+  left: auto;
+  right: 0;
+  width: 330px;
+}
+
+.check-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 6px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font: 13px var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.check-row.check-all {
+  font-weight: 500;
+}
+
+.check-row:hover {
+  background: var(--hover);
+}
+
+.check-row[aria-checked="false"] {
+  color: var(--muted);
+}
+
+/* A box, ticked with the check mark, or with a dash when only some are selected. */
+/* Not on the row's baseline, which the texts share: an empty box's baseline is its bottom edge, a box with a check or
+   a dash in it takes its content's, so the box and the row's height moved when the selection changed. Centred on the
+   name's first line instead, whatever the box holds. */
+.check-box {
+  align-self: flex-start;
+  margin-top: calc((1lh - 15px) / 2);
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  box-sizing: border-box;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+.check-row:not([aria-checked="false"]) .check-box {
+  border-color: var(--accent);
+}
+
+.check-box .icon {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.6;
+}
+
+.check-mixed {
+  width: 7px;
+  height: 2px;
+  background: var(--accent);
+}
+
+.check-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.check-facts {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.check-amount {
+  flex: none;
+  min-width: 64px;
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
+.check-amount + .check-amount {
+  min-width: 92px;
+}

@@ -1,0 +1,293 @@
+/* The MEI view and its engraving (MeiWorkspace.tsx), and Fix MEI (FixMeiView.tsx). */
+
+.engraved-page {
+  border-radius: 2px;
+  background: var(--paper);
+  box-shadow: var(--float-low);
+}
+
+.engraved-page > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.mei-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+}
+
+/* The file and the score: the score below it, or on its right where there is room. */
+.mei-split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+}
+
+.mei-split.alone {
+  grid-template-rows: 1fr;
+}
+
+@container (min-width: 900px) {
+  .mei-split {
+    grid-template-rows: none;
+    grid-template-columns: 1fr 1fr;
+  }
+  .mei-split.alone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mei-score {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  background: var(--viewer);
+  border-top: 1px solid var(--line);
+}
+
+@container (min-width: 900px) {
+  .mei-score {
+    border-top: none;
+    border-left: 1px solid var(--line);
+  }
+}
+
+.mei-pages {
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  gap: 12px;
+}
+
+.mei-pages .engraved-page g[id] {
+  cursor: pointer;
+}
+
+.mei-pages .engraved-page g.mei-selected {
+  fill: var(--highlight);
+  color: var(--highlight);
+}
+
+.mei-score-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.mei-end {
+  margin-left: auto;
+  gap: 8px;
+}
+
+.mei-query,
+.mei-number-input {
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--fg);
+  font: 16px var(--sans); /* 16px keeps phones from zooming in */
+}
+
+.mei-query {
+  width: 12em;
+}
+
+@container (max-width: 480px) {
+  .mei-query {
+    width: 7em;
+  }
+}
+
+.mei-number-input {
+  width: 4.5em;
+}
+
+.mei-query:focus,
+.mei-number-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.mei-count {
+  min-width: 4.5em;
+  font: 12px var(--mono);
+  color: var(--muted);
+  text-align: center;
+}
+
+.mei-search {
+  gap: 6px;
+}
+
+.mei-goto {
+  gap: 6px;
+}
+
+.mei-measure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.mei-go {
+  color: var(--fg);
+  font: 14px var(--sans);
+}
+
+.mei-go:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The piece's name, shortened in the middle (FittedText). */
+.mei-piece .picker-value {
+  max-width: 14em;
+  text-align: left;
+}
+
+/* The toolbar where the view covers the app (narrow screens, docs/project-view.md), with its close button at the top
+   right: the search first, with room for the close button on its right; the piece; the measure, Go, and the two
+   buttons at the right edge; Fix MEI's tools last. The room is kept on the first row only: the overlay's padding
+   (above) would leave every wrapped row short of the edge. Elsewhere the toolbar is one row, wrapping if it must. */
+.artifact-view.overlay .mei-view .editor-toolbar {
+  display: grid;
+  grid-template-columns: auto auto 1fr 48px; /* the last: the close button's room */
+  grid-template-areas:
+    "search search search close"
+    "piece piece piece piece"
+    "measure go end end"
+    "tools tools tools tools";
+  gap: 8px 6px;
+  padding-right: 12px;
+}
+
+.artifact-view.overlay .mei-view .editor-toolbar:not(:has(.mei-piece)) {
+  grid-template-areas:
+    "search search search close"
+    "measure go end end"
+    "tools tools tools tools";
+}
+
+/* Wider, the piece goes on the measure's row. */
+@container (min-width: 600px) {
+  .artifact-view.overlay .mei-view .editor-toolbar {
+    grid-template-columns: auto auto auto 1fr 48px;
+    grid-template-areas:
+      "search search search search close"
+      "piece measure go end end"
+      "tools tools tools tools tools";
+  }
+  .artifact-view.overlay .mei-view .editor-toolbar:not(:has(.mei-piece)) {
+    grid-template-columns: auto auto 1fr 48px;
+    grid-template-areas:
+      "search search search close"
+      "measure go end end"
+      "tools tools tools tools";
+  }
+}
+
+.artifact-view.overlay .mei-view .mei-goto {
+  display: contents;
+}
+
+.artifact-view.overlay .mei-view .mei-search {
+  grid-area: search;
+}
+
+.artifact-view.overlay .mei-view .mei-piece {
+  grid-area: piece;
+  justify-self: start;
+}
+
+.artifact-view.overlay .mei-view .mei-measure {
+  grid-area: measure;
+}
+
+.artifact-view.overlay .mei-view .mei-goto > .editor-modes {
+  grid-area: go;
+}
+
+.artifact-view.overlay .mei-view .mei-end {
+  grid-area: end;
+  justify-self: end;
+  margin-left: 0;
+}
+
+.artifact-view.overlay .mei-view .fix-mei-tools {
+  grid-area: tools;
+}
+
+.mei-problem {
+  color: var(--danger);
+}
+
+/* The file, in CodeMirror (MeiCode.tsx, which has its own theme). */
+.mei-code {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* `fix_mei`: Apply and whether the text is applied; the problems that kept it from being applied. */
+.fix-mei-tools {
+  gap: 10px;
+}
+
+.fix-mei-apply {
+  height: 36px;
+  padding: 0 14px;
+}
+
+.fix-mei-apply:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.fix-mei-state {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.fix-mei-state.changed {
+  color: var(--warning);
+}
+
+.fix-mei-problems {
+  max-height: 30vh;
+  overflow: auto;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--danger);
+}
+
+.fix-mei-problems p {
+  margin: 0;
+}
+
+.fix-mei-problems ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.fix-mei-problems button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 12px/1.5 var(--mono);
+  text-align: left;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}

@@ -1,0 +1,40 @@
+/* The icons (ui/icons.tsx): line icons in the text's colour, their filled and faint parts. */
+
+.icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* A filled part of a line icon, e.g. a note's head. */
+.icon .filled-shape {
+  fill: currentColor;
+}
+
+/* A pen stroke in an icon: a filled outline whose width varies, so it looks written by hand. */
+.icon .brush {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* A word in an icon, e.g. "PDF" on a sheet. */
+.icon .icon-text {
+  fill: currentColor;
+  stroke: none;
+  font: 800 5.6px var(--sans);
+}
+
+/* A lighter part of a line icon, e.g. the staff under the boxes. */
+.icon .faint-stroke {
+  stroke-width: 1.2;
+  opacity: 0.75;
+}
+
+.icon.filled {
+  fill: currentColor;
+  stroke: none;
+}

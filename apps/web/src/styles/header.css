@@ -1,0 +1,119 @@
+/* The header (Header.tsx) and the wordmark. */
+
+/* The wordmark is always on the left.
+   Narrow: wordmark and button on the first row, the project picker on its own row below.
+   Wide (1024px+): one row with the picker in the middle. */
+.app-header {
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  padding: 0 16px 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "brand actions"
+    "picker picker";
+  align-items: center;
+  column-gap: 16px;
+}
+
+.app-header .brand {
+  grid-area: brand;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-header .wordmark {
+  display: flex;
+  align-items: center;
+}
+
+/* The edition next to the wordmark, like a work's subtitle: wide mode only. */
+.header-edition {
+  display: none;
+  margin: 5px 0 0 -4px;
+  font: italic 400 23px var(--serif);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  .header-edition {
+    display: inline;
+  }
+}
+
+/* Back and forward, left of the wordmark (only without a browser bar). */
+.back-forward {
+  display: flex;
+  margin-left: -8px;
+}
+
+/* On a phone, the arrows take the room of the button's second word; the home's text names the button the same way. */
+@media (max-width: 479px) {
+  .no-browser-bar .new-project-word {
+    display: none;
+  }
+  .app-header.with-history .brand {
+    gap: 6px;
+  }
+}
+
+/* Disabled as icon buttons are (below), and muted even under the pointer. */
+.back-forward .icon-button:disabled {
+  color: var(--muted);
+}
+
+.app-header .actions {
+  grid-area: actions;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header .picker {
+  grid-area: picker;
+  justify-self: center;
+}
+
+@media (min-width: 1024px) {
+  .app-header {
+    height: 64px;
+    padding: 0 24px;
+    grid-template-columns: 1fr minmax(0, 360px) 1fr;
+    grid-template-areas: "brand picker actions";
+  }
+  .app-header .brand {
+    height: auto;
+  }
+  .app-header .wordmark {
+    font-size: 24px;
+  }
+  .app-header .picker {
+    max-width: 360px;
+    --picker-height: 40px;
+  }
+}
+
+.wordmark {
+  margin: 0;
+  font: 600 22px/1 var(--mono);
+  letter-spacing: -0.01em;
+  color: var(--wordmark);
+  white-space: nowrap;
+}
+
+/* The home button (docs/project-view.md, "The home"). */
+.wordmark a {
+  color: inherit;
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.wordmark .bracket {
+  color: var(--accent);
+  font-weight: 500;
+}

@@ -1,0 +1,26 @@
+/* Pages from the menu (MenuPage.tsx): the whole width scrolls, the page is a column in the middle. */
+
+/* Pages from the menu: the whole width scrolls, the page is a column in the middle. */
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.page-view {
+  width: 100%;
+  max-width: 680px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.page-view h2 {
+  margin: 0 0 12px;
+  font: 600 22px var(--sans);
+}
+
+.page-view p {
+  margin: 0 0 10px;
+  color: var(--muted);
+}

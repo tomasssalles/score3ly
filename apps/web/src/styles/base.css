@@ -1,0 +1,101 @@
+/* The page: tokens that aren't colours, the body, focus, the main area, banners, and a few small helpers. */
+
+:root {
+  --mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: Georgia, "Times New Roman", serif; /* only the edition's name, in italic */
+  /* Corners (docs/style.md, "Shape, space and depth"). */
+  --radius-control: 8px; /* buttons, fields, pickers, icon buttons */
+  --radius-small: 6px; /* the smaller controls: a picker's chevron, a dialog's ×, the "i" */
+  --radius-item: 7px; /* an item in a menu or a list, inside its corners */
+  --radius-card: 10px; /* cards, panels, menus and lists */
+  --radius-dialog: 12px; /* dialogs, the home's cards */
+  /* What floats casts a shadow; nothing else does. */
+  --float-low: 0 4px 16px var(--shadow-soft); /* pages of music, a toast */
+  --float-menu: 0 16px 40px var(--shadow); /* menus and lists */
+  --float-dialog: 0 24px 60px var(--shadow-strong);
+  /* Disabled is faded and keeps its place. */
+  --disabled: 0.45;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* The header on top, the rest of the app below it, filling the window. */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--fg);
+  font: 15px/1.55 var(--sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Below the header */
+.app-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Every text that may hold an error: errors come from providers and the Worker, with long words and JSON in them, so they
+   wrap anywhere rather than push their box wider (docs/style.md, "Feedback and notifications"). */
+.error-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.error-banner {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--danger);
+}
+
+/* Something on its way that has no other place to show (an import). */
+.status-banner {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.empty-state {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* A note after a name in a list or a picker, e.g. "(deleted 12 Sep 2026)". */
+.menu-note {
+  color: var(--muted);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* A placeholder vanishes as soon as the field is entered (docs/style.md, "Fields"): it says what goes there, it is never
+   a value to keep. */
+input:focus::placeholder,
+textarea:focus::placeholder {
+  color: transparent;
+}

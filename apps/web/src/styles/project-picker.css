@@ -1,0 +1,144 @@
+/* The project picker in the header (ProjectPicker.tsx). */
+
+/* Project picker */
+.picker {
+  --picker-height: 44px;
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+}
+
+.picker-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--picker-height);
+  box-sizing: border-box;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--raised);
+  cursor: pointer;
+}
+
+.picker.open .picker-field {
+  border-color: var(--accent);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  cursor: text;
+}
+
+.picker-name,
+.picker-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 500 16px var(--sans);
+  text-align: left;
+}
+
+.picker-name {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.picker-name:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.picker-input {
+  outline: none;
+}
+
+.picker-input::placeholder {
+  color: var(--muted);
+}
+
+.chevron {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.chevron:hover {
+  color: var(--fg);
+}
+
+.chevron svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s;
+}
+
+.picker.open .chevron svg {
+  transform: rotate(180deg);
+}
+
+.picker-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--picker-height);
+  z-index: 10;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--raised);
+  border: 1px solid var(--accent);
+  border-top-color: var(--line);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  max-height: min(60vh, 360px);
+  overflow-y: auto;
+  box-shadow: var(--float-menu);
+}
+
+.picker-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 9px 10px;
+  border-radius: var(--radius-item);
+  cursor: pointer;
+}
+
+.picker-list li[aria-selected="true"] {
+  background: var(--hover);
+}
+
+.picker-list li.empty {
+  display: block;
+  color: var(--muted);
+  cursor: default;
+}
+
+/* An inline block, so the name's breaking anywhere doesn't break it: it moves to the next line whole. */
+.picker-list li.current .option-name::after {
+  content: "current";
+  display: inline-block;
+  margin-left: 8px;
+  font: 500 11px var(--mono);
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron svg {
+    transition: none;
+  }
+}

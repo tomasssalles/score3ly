@@ -1,0 +1,150 @@
+/* The home (Home.tsx). */
+
+/* The home (docs/project-view.md, "The home"): the most recently opened projects, or a welcome, in the middle of the
+   space below the header, both ways. */
+.home {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: 1000px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.home h2 {
+  margin: 0 0 16px;
+  font: 600 22px var(--sans);
+}
+
+.home-notice {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.home-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+/* On a phone, more room above the heading and below the last card. */
+@media (max-width: 1023px) {
+  .home {
+    padding: 56px 16px;
+  }
+}
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-dialog);
+  background: var(--raised);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.home-card:hover {
+  background: var(--hover);
+}
+
+.home-card-name {
+  font-weight: 600;
+}
+
+.home-card-file {
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
+.home-card-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.home-card-state .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.2;
+}
+
+.home-card-state.done .icon {
+  color: var(--progress);
+}
+
+.home-card-state.failed {
+  color: var(--danger);
+}
+
+.home-card-state.waiting .icon {
+  color: var(--muted);
+}
+
+/* The app's spinner (grey: the home never knows how far a run is), smaller. */
+.spinner.home-card-spinner {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+.home-card-opened {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* The welcome, with no projects yet: its first line centred, the rest aligned on the left. */
+.home-welcome {
+  max-width: 600px;
+}
+
+.home-welcome p {
+  margin: 0 0 12px;
+}
+
+.home-welcome p:first-of-type {
+  text-align: center;
+}
+
+.home-welcome ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.home-welcome li {
+  margin: 0 0 4px;
+}
+
+/* The menu's icon in the text, as it looks in the header. */
+.home-menu-icon {
+  display: inline-grid;
+  place-items: center;
+  vertical-align: -5px;
+  width: 24px;
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raised);
+}
+
+.home-menu-icon .icon {
+  width: 16px;
+  height: 16px;
+}

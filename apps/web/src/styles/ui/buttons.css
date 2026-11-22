@@ -1,0 +1,123 @@
+/* Buttons (docs/style.md, "Buttons"): primary, secondary, run, stop, danger, icon buttons, link buttons. */
+
+.button-primary {
+  font: 500 14px var(--sans);
+  color: var(--on-accent);
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--radius-control);
+  padding: 9px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.icon-button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  color: var(--fg);
+  background: var(--hover);
+}
+
+.button-run,
+.button-stop,
+.button-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 14px var(--sans);
+  color: var(--on-accent);
+  border: 0;
+  border-radius: var(--radius-control);
+  padding: 7px 14px 7px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.button-run {
+  background: var(--green);
+}
+
+.button-stop,
+.button-danger {
+  background: var(--danger);
+}
+
+.button-danger {
+  padding: 9px 14px;
+  font-weight: 500;
+}
+
+.button-run .icon,
+.button-stop .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.button-run.small,
+.button-stop.small {
+  padding: 4px 10px 4px 7px;
+  font-size: 13px;
+}
+
+.button-run:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.button-secondary:disabled {
+  opacity: var(--disabled);
+  cursor: default;
+}
+
+.button-primary:disabled {
+  opacity: var(--disabled);
+  cursor: default;
+}
+
+.button-secondary {
+  font: 500 14px var(--sans);
+  color: var(--fg);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.button-secondary:hover {
+  background: var(--hover);
+}
+
+.icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: none;
+}
+
+.link-button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.button-secondary.button-small {
+  padding: 4px 10px;
+  font-size: 13px;
+}

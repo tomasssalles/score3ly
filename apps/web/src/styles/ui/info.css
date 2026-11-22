@@ -1,0 +1,41 @@
+/* The "i" (ui/Info.tsx): inline after a text, or a block's icon button, and its text. */
+
+/* The "i" after a choice with a reason: small, in the line, in the line's colour (the view has colour enough; the
+   reason's line below shows that it is open). */
+.reason-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--muted);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.reason-toggle .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.reason-toggle:hover {
+  background: var(--hover);
+}
+
+.stat-info {
+  margin-left: -4px;
+}
+
+/* An "i"'s text, on a line of its own below. */
+.info-text {
+  flex-basis: 100%;
+  margin: 2px 0 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}

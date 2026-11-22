@@ -1,0 +1,114 @@
+/* The statistics' chart (TimeChart.tsx). */
+
+/* The chart (TimeChart.tsx): the readout of the picked bucket, the y axis, and the plot that scrolls sideways. */
+.time-chart {
+  margin-top: 14px;
+}
+
+.chart-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  min-height: 40px;
+  font-size: 13px;
+}
+
+.chart-readout-hint {
+  color: var(--muted);
+}
+
+.chart-readout-title {
+  color: var(--muted);
+}
+
+.chart-readout-total {
+  font: 600 14px var(--mono);
+}
+
+.chart-readout-series {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  width: 100%;
+  font-size: 12px;
+}
+
+.chart-readout-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.chart-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.chart-body {
+  display: flex;
+}
+
+.chart-axis {
+  flex: none;
+}
+
+.chart-axis text,
+.chart-label {
+  fill: var(--muted);
+  font: 11px var(--mono);
+}
+
+.chart-scroller {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.chart-plot {
+  display: block;
+  cursor: pointer;
+  touch-action: pan-x;
+}
+
+.chart-plot:focus {
+  outline: none;
+}
+
+.chart-plot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.chart-grid {
+  stroke: var(--line);
+  stroke-dasharray: 2 3;
+}
+
+.chart-baseline,
+.chart-tick {
+  stroke: var(--line);
+}
+
+.chart-selected {
+  fill: var(--hover);
+}
+
+.chart-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.chart-point {
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.chart-area {
+  opacity: 0.14;
+  stroke: none;
+}

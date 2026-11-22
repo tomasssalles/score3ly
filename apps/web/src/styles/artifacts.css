@@ -1,0 +1,249 @@
+/* The artifact view (ArtifactView.tsx): its pane, the PDF, page images and what is drawn on them, texts, a stage's details. */
+
+/* Artifact view: the right pane in wide mode, a full-screen layer over the app in narrow mode. */
+.artifact-view {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+
+.artifact-view.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+
+/* Floats over the artifact's top right corner, so the artifact gets the whole screen. */
+.artifact-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--float);
+  color: var(--on-float);
+  cursor: pointer;
+}
+
+.artifact-close:hover {
+  background: var(--float-hover);
+}
+
+.pdf-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--viewer);
+}
+
+.pdf-pages {
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  gap: 12px;
+}
+
+.pdf-page {
+  display: block;
+  width: 100%;
+  border-radius: 2px;
+  box-shadow: var(--float-low);
+}
+
+/* Texts, groups of items (a filmstrip) and a stage's details */
+.page-image img {
+  display: block;
+  width: 100%;
+  border-radius: 2px;
+  box-shadow: var(--float-low);
+}
+
+.page-image {
+  position: relative;
+}
+
+/* An image that differs from the one stored results were computed from (docs/images.md §8.3): a banner over its top. */
+.images-differ {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  z-index: 2;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--warning);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--warning);
+  font-size: 13px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.images-differ.below {
+  position: static;
+  margin-top: 6px;
+}
+
+.stage-warning {
+  margin: 6px 0 0;
+  color: var(--warning);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* The lines that should be horizontal (skew_analysis), in red over the page. */
+.lines-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lines-overlay svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Only the skew lines, directly in the overlay's drawing: a layout's bar lines take their box's colour. */
+.lines-overlay svg > line {
+  stroke: var(--mark);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.line-label {
+  position: absolute;
+  transform: translate(0, -115%);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--mark);
+  color: var(--on-mark);
+  font: 600 11px var(--mono);
+  white-space: nowrap;
+}
+
+/* Thicker than in the model's view, which must not hide the music: here the boxes should stand out. */
+.layout-system rect,
+.layout-system line {
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.system-label {
+  position: absolute;
+  padding: 1px 5px;
+  border-radius: 0 0 3px 0;
+  color: var(--on-layout);
+  font: 600 12px var(--mono);
+}
+
+.layout-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+
+.layout-flag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--danger);
+  color: var(--on-danger);
+  font-size: 12px;
+}
+
+.line-label.failed {
+  left: 8px;
+  top: 8px;
+  transform: none;
+}
+
+.page-placeholder {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 0.72;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 2px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.text-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.text-view pre,
+.film-item pre {
+  max-width: 900px;
+  margin: 0 auto;
+  font: 13px/1.5 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.details-view {
+  width: 100%;
+  max-width: 680px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+
+.details-view h2 {
+  margin: 0 0 12px;
+  font: 600 20px var(--sans);
+}
+
+.details-view h3 {
+  margin: 24px 0 6px;
+  font: 600 15px var(--sans);
+}
+
+.details-facts {
+  margin: 0;
+}
+
+.details-facts div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.details-facts dt {
+  color: var(--muted);
+}
+
+.details-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.details-view .mono {
+  font: 13px var(--mono);
+}
+
+.pdf-status {
+  margin: 0 0 12px;
+  text-align: center;
+  color: var(--muted);
+}

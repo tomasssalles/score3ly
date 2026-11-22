@@ -1,0 +1,13 @@
+/* FittedText (ui/FittedText.tsx): names that wrap, shortened in the middle. */
+
+/* Names wrap, and FittedText shortens them in the middle when they need more lines than they may have. */
+.fitted {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A text without spaces breaks wherever the line ends, not earlier at a hyphen. */
+.fitted.unspaced {
+  word-break: break-all;
+}

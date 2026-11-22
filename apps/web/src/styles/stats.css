@@ -1,0 +1,364 @@
+/* Statistics (StatsPage.tsx and its tabs). */
+
+/* Statistics (StatsPage.tsx): the spending cap's last 24 hours, the average per page, the range and its total, then
+   the chart part, apart. Each block's head: its title and "i" on the left, its value on the right. */
+.page-view.stats {
+  max-width: 900px;
+}
+
+.stats-section {
+  margin-top: 24px;
+}
+
+.stats-section h3 {
+  margin: 0 0 12px;
+  font: 600 16px var(--sans);
+}
+
+/* On a phone, the value and its controls go to a line of their own, on the right. The title, the controls and the
+   value's first line share a baseline; the note under the value hangs below them. */
+.stat-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.stat-line h3 {
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* An icon has no line of text to share the head's baseline: an invisible one, beside the icon and centred with it,
+   gives the button one, so the icon sits on the title's line. */
+.stat-line .stat-info::after,
+.stat-line .editor-mode::after {
+  content: "\200b";
+}
+
+/* Centred on that invisible line, the icon would sit a little above the title's letters (measured: 4 px). */
+.stat-line .stat-info svg,
+.stat-line .editor-mode svg {
+  position: relative;
+  top: 4px;
+}
+
+.stat-right {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin-left: auto;
+}
+
+/* A picker in a head shrinks to the line, its name wrapping rather than overflowing (names are never cut). */
+.stat-right .mode-picker {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.stat-right .mode-button {
+  max-width: 100%;
+  text-align: left;
+}
+
+.stat-value {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+}
+
+.stat-amount {
+  font: 600 22px var(--mono);
+}
+
+.stat-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* A row of a block (the Usage tab's projects): smaller. */
+.stat-row {
+  min-height: 44px;
+  padding: 2px 0;
+}
+
+.stat-row-title {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.stat-row .stat-amount {
+  font-size: 18px;
+}
+
+/* The run times' project filter, for the whole tab: on the right, the number selected under it. */
+.run-times-filter {
+  margin-top: 24px;
+}
+
+.run-times-filter-line {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+
+.run-times-selected {
+  margin: 4px 0 0;
+  text-align: right;
+}
+
+/* Under a row, a smaller one per group (the run times split by model config). */
+.stat-subrow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0 6px 16px;
+  color: var(--muted);
+}
+
+.stat-subrow .stat-row-title {
+  font-size: 13px;
+  white-space: normal;
+}
+
+.stat-subrow-value {
+  margin-left: auto;
+  font: 500 14px var(--mono);
+  white-space: nowrap;
+}
+
+.stat-about {
+  max-width: 60ch;
+  margin-top: 6px;
+}
+
+.stat-about p {
+  margin: 0 0 6px;
+  color: inherit;
+  font-size: inherit;
+}
+
+.cap-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-view .cap-reached {
+  margin: 6px 0 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.cap-bar {
+  width: 160px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.cap-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+}
+
+.cap-bar.near > span {
+  background: var(--warning);
+}
+
+.cap-bar.reached > span {
+  background: var(--danger);
+}
+
+/* The detailed overview, apart from the numbers above it. */
+.stats-section.overview {
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.costs-chart {
+  margin-top: 16px;
+}
+
+.costs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.costs-toolbar-gap {
+  flex: 1;
+}
+
+.costs-toolbar .mode-picker .dropdown-list,
+.costs-panel .mode-picker .dropdown-list {
+  width: 180px;
+}
+
+.costs-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--raised);
+}
+
+.costs-panel-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.costs-panel-label {
+  min-width: 96px;
+  font-weight: 500;
+}
+
+.costs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.costs-chips .settings-hint {
+  margin: 0;
+}
+
+/* A chip: an on/off choice among few, e.g. configs with the same name together; coral when on, like other toggles. */
+.chip {
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: 12px var(--sans);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.page-view .costs-filtered {
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
+.costs-table {
+  width: 100%;
+  margin-top: 18px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.costs-table td {
+  padding: 7px 6px;
+  border-top: 1px solid var(--line);
+  vertical-align: baseline;
+}
+
+/* The cells' first lines share a baseline, and the swatch, empty, stands on it. */
+.costs-swatch-cell {
+  width: 12px;
+}
+
+.costs-group {
+  overflow-wrap: anywhere;
+}
+
+.costs-amount,
+.costs-share {
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
+.costs-share {
+  width: 44px;
+  color: var(--muted);
+}
+
+/* The calls of unknown cost: below the table, apart from it, still inside the detailed overview. */
+.costs-unknown {
+  margin-top: 20px;
+  padding: 8px 6px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+/* The test requests: right under the calls of unknown cost, without a line of their own. */
+.costs-unknown.costs-tests {
+  margin-top: 0;
+  border-top: none;
+}
+
+.costs-unknown-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.costs-unknown-line .stat-info {
+  margin-left: 0;
+}
+
+/* In line with the table's amounts, which the column of shares follows (44 px and its padding). */
+.costs-unknown-line .costs-amount {
+  margin: 0 56px 0 auto;
+  color: var(--fg);
+}
+
+.page-view .costs-empty {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+/* A filter panel scrolls as one, never a list inside it. */
+.costs-panel.filter-panel,
+.costs-panel.per-page-panel {
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+}
+
+.page-view .stats-intro {
+  margin: 16px 0 0;
+  max-width: 60ch;
+}
+
+.page-view.stats .placeholder-note {
+  margin-top: 16px;
+}
+
+/* The project picker of the Usage tab: long names, many projects. */
+.project-select .dropdown-list {
+  width: min(320px, calc(100vw - 32px));
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+}
+
+/* The failed calls' picker sits at the right of the page: its menu opens leftwards, so it stays in the window. */
+.failed-calls-select .dropdown-list {
+  left: auto;
+  right: 0;
+}
+
+/* The unit after a block's value: "57 hours". */
+.stat-unit {
+  font-size: 15px;
+  font-weight: 500;
+}

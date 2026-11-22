@@ -51,7 +51,7 @@ export function Header({
 }
 
 // The new-project button's label, also where the home's text names the button: "+ New project", but "+ New" where the
-// back and forward arrows take the room on a phone (styles.css), in both places alike.
+// back and forward arrows take the room on a phone (styles/header.css), in both places alike.
 export function NewProjectLabel() {
   return (
     <>

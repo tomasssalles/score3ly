@@ -1,0 +1,268 @@
+/* The page editors (editor/): the toolbar, the tools, the zoomed page and what is drawn on it. */
+
+/* The editors of manual stages (fix_skew, fix_layout): a toolbar and the page, panned and zoomed by hand. */
+.page-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* What to draw, in one short line under the toolbar. */
+.editor-hint {
+  margin: 0;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* Room for the floating close button. */
+.artifact-view.overlay .editor-toolbar {
+  padding-right: 60px;
+}
+
+/* The page editors' toolbar on a phone: it doesn't fit on one row, and the room for the close button would be kept on
+   every row, leaving the rows after the first short of the edge. So the page arrows take the first row, beside the
+   close button's room, and the tools wrap below them up to the edge. (The MEI view's toolbar: see .mei-view.) */
+@media (max-width: 640px) {
+  .artifact-view.overlay .page-editor-toolbar {
+    padding-right: 12px;
+    column-gap: 4px; /* Fix layout's tools fit on one row at 390 px */
+  }
+  .artifact-view.overlay .page-editor-toolbar > :first-child {
+    flex-basis: calc(100% - 48px);
+  }
+  /* Undo and redo go up to the first row, beside the page arrows (decided 2026-11-12, the project owner): their
+     history is per page, and the tools' row then has room for every tool, "Fit width" included. The arrows grow to
+     fill what the undo buttons (2 × 36 px) and the close button's room leave. */
+  .artifact-view.overlay .page-editor-toolbar:has(> .editor-undo) > * {
+    order: 2;
+  }
+  .artifact-view.overlay .page-editor-toolbar:has(> .editor-undo) > :first-child {
+    order: 0;
+    flex: 1 0 calc(100% - 76px - 72px - 12px);
+  }
+  .artifact-view.overlay .page-editor-toolbar > .editor-undo {
+    order: 1;
+    /* Well clear of the close button (decided 2026-11-12, the project owner): closing by accident loses the undo
+       history. The close button's room (48 px), and 32 px more. */
+    margin-right: 76px;
+  }
+}
+
+.editor-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.editor-page {
+  min-width: 72px;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* Over the page, only when something went wrong (a page not saved). */
+.editor-error {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: var(--on-danger);
+  font-size: 13px;
+}
+
+/* An edit not saved (saving.ts): its Retry in the note's own colour, underlined, on the red over the page. */
+.unsaved-note .link-button {
+  font-weight: 600;
+}
+
+.editor-error.unsaved-note .link-button {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* The modes (tools): one button each, side by side; the chosen one's border is on top of its neighbours'. */
+.editor-modes {
+  gap: 0;
+}
+
+.editor-mode {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* Joined into one control only inside a group (.editor-modes): there the inner corners are square and the borders
+   overlap. A button on its own keeps all four corners round, wherever it stands (docs/style.md, "Buttons"). */
+/* A tool that can't be picked now (e.g. while the marks are hidden): greyed like a disabled icon button. */
+.editor-mode:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.editor-modes > .editor-mode + .editor-mode {
+  margin-left: -1px;
+}
+
+.editor-modes > .editor-mode:not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.editor-modes > .editor-mode:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.editor-mode[aria-checked="true"],
+.editor-mode[aria-pressed="true"] {
+  z-index: 1;
+  background: var(--raised);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.editor-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+
+.editor-viewport.hand {
+  cursor: grab;
+}
+
+.editor-viewport.draw,
+.editor-viewport.box,
+.editor-viewport.bar {
+  cursor: crosshair;
+}
+
+.editor-viewport .page-placeholder {
+  aspect-ratio: auto;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.editor-content {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+.editor-content img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.editor-content svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Widths in screen pixels (--px, set by the editor): as thick as skew_analysis's lines at any zoom. */
+.skew-line line,
+.skew-rubber {
+  stroke: var(--mark);
+  stroke-width: calc(2 * var(--px));
+}
+
+.skew-line.selected line {
+  stroke: var(--accent);
+  stroke-width: calc(4 * var(--px));
+}
+
+.skew-line text {
+  fill: var(--mark);
+  font-family: var(--mono);
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--on-mark);
+  stroke-width: 0.3em;
+}
+
+/* Dashed, in screen pixels: a rubber band while drawing, and fix_layout's bar lines (to tell them from the boxes' edges). */
+.skew-rubber,
+.layout-bar,
+.editor-rubber {
+  stroke-dasharray: calc(6 * var(--px)) calc(4 * var(--px));
+}
+
+.editor-handle {
+  fill: color-mix(in srgb, var(--accent) 35%, transparent);
+  stroke: var(--accent);
+}
+
+.editor-anchor {
+  fill: var(--mark);
+}
+
+/* fix_layout's editor: boxes and bar lines in their system's colour, widths in screen pixels (--px). The selected
+   system stands out; the others are dimmed but visible, since the overlap is what is being checked. */
+.layout-box rect:not(.layout-label),
+.layout-bar {
+  stroke-width: calc(2 * var(--px));
+}
+
+.layout-box.dimmed {
+  opacity: 0.45;
+}
+
+.layout-box.selected rect:not(.layout-label),
+.layout-box.selected .layout-bar {
+  stroke-width: calc(3 * var(--px));
+}
+
+/* A selected bar line shows its handle rather than thickening. */
+.layout-label {
+  stroke: none;
+}
+
+.layout-label-text {
+  stroke: none;
+  fill: var(--on-layout);
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.editor-rubber {
+  stroke: var(--accent);
+  stroke-width: calc(2 * var(--px));
+}

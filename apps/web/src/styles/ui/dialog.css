@@ -1,0 +1,131 @@
+/* Dialogs (ui/Dialog.tsx) and the dialogs built on it (a PDF that already has projects, deleting a project). */
+
+/* Dialogs (a PDF that already has projects, renaming a project) */
+.app-dialog {
+  width: min(480px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-dialog);
+  background: var(--raised);
+  color: var(--fg);
+  box-shadow: var(--float-dialog);
+}
+
+.app-dialog::backdrop {
+  background: var(--backdrop);
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dialog-head h2 {
+  margin: 0;
+  font: 600 18px var(--sans);
+}
+
+.dialog-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.dialog-close:hover {
+  color: var(--fg);
+}
+
+.dialog-close svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.dialog-file {
+  margin: 4px 0 12px;
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+
+/* The project to delete, by its full name. */
+.delete-name {
+  margin: 12px 0 0;
+  font: 600 15px var(--sans);
+  color: var(--fg);
+}
+
+.delete-field .dialog-text {
+  margin: 0;
+}
+
+.dialog-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  max-height: min(60vh, 400px);
+  overflow-y: auto;
+}
+
+.dialog-list button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 10px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: none;
+  color: var(--fg);
+  font: 15px var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dialog-list button:hover {
+  background: var(--hover);
+}
+
+.dialog-list .dialog-new {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--radius-item) var(--radius-item);
+}
+
+.dialog-new .option-name {
+  color: var(--accent);
+}
+
+/* The name the new project would get: like an existing project's name, but muted. */
+.dialog-new .new-name {
+  grid-column: 1 / -1;
+  color: var(--muted);
+}
+
+.dialog-text {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}

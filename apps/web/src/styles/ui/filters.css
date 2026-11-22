@@ -1,0 +1,47 @@
+/* Filters: the dot on a toggle that holds a choice, and the sections of a filter (ui/FilterSection.tsx). */
+
+/* A dot on a toggle whose panel holds a choice: a split picked, groups hidden by filters. */
+.toggle-dot,
+.inline-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.toggle-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+}
+
+/* A section of a filter that can be collapsed: its chevron and name, a coral dot while collapsed with anything
+   hidden. */
+.section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 110px;
+  padding: 2px 4px 2px 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 500 13px var(--sans);
+  cursor: pointer;
+}
+
+.section-toggle .icon {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+/* The dot of a collapsed filter section (it looks like the toggles' dot). */
+.inline-dot {
+  margin-left: 2px;
+}
+
+.filter-section {
+  display: grid;
+  gap: 6px;
+}

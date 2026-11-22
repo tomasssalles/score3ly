@@ -8,7 +8,7 @@ import { cssRules, rulesFor } from "./cssRules.ts";
 // selection changed (found 2026-11-09, the project filter of Run times). Measured in Chromium: the box placed at the top
 // of the row, centred on the name's first line, stays put. This keeps it off the baseline.
 test("a check list's box is placed at the top of its row, not on the baseline, so a change of selection moves nothing", () => {
-  const rules = rulesFor(cssRules(join(import.meta.dirname, "styles.css")), ".check-box");
+  const rules = rulesFor(cssRules(join(import.meta.dirname, "styles/ui/check-list.css")), ".check-box");
   assert.ok(rules.length > 0, "the check box's rule wasn't found");
   assert.ok(rules.some((r) => /align-self:\s*flex-start/.test(r.body)));
 });

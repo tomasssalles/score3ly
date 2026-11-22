@@ -1,0 +1,35 @@
+/* Pickers (ui/Picker.tsx): a small field that opens a list. */
+
+/* The run mode: a small field that opens a list, like the project picker */
+.mode-picker {
+  flex: none;
+}
+
+.mode-button {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--raised);
+  color: var(--fg);
+  font: 500 12px var(--sans);
+  cursor: pointer;
+}
+
+.mode-button .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
+.mode-button[aria-expanded="true"] {
+  border-color: var(--accent);
+}
+
+.mode-picker .dropdown-list {
+  left: 0;
+  right: auto;
+  width: 140px;
+}
