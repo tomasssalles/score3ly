@@ -38,6 +38,21 @@ function isStringArray(value: unknown): value is string[] {
 // A running stage's requests (outputs, heartbeat, finish) come from its current run, which sends the id `start` gave it
 // (docs/database.md, "An interrupted run"): a run that is over (interrupted, then started again elsewhere) can't write.
 // Null when the request may go on.
+// What a stage read, in one statement however many outputs (D1 takes at most 100 bound parameters and so many
+// statements per request; the code review, A3): the ids as one JSON parameter.
+function stageInputsOf(db: D1Database, stageId: string, outputIds: string[]): D1PreparedStatement {
+  return db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) SELECT ?, value FROM json_each(?)").bind(stageId, JSON.stringify(outputIds));
+}
+
+// What a stage's outputs were made from, each by its item and type, in one statement.
+function outputInputsOf(db: D1Database, stageId: string, links: { item: unknown; type: unknown; input: string }[]): D1PreparedStatement {
+  return db
+    .prepare(
+      "INSERT OR IGNORE INTO output_inputs (output_id, input_id) SELECT o.id, json_extract(j.value, '$.input') FROM json_each(?) j JOIN outputs o ON o.stage_id = ? AND o.item = json_extract(j.value, '$.item') AND o.type = json_extract(j.value, '$.type')",
+    )
+    .bind(JSON.stringify(links), stageId);
+}
+
 function refusedRun(c: Context, stage: StageRow, runId: unknown): Response | null {
   if (typeof runId !== "string") return badRequest(c, "expected the run's 'runId'");
   return runId === stage.run_id ? null : refuse(c, 409, RUN_OVER);
@@ -187,9 +202,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
           ]),
       // A call of an earlier run of the stage still marked running (a closed tab) is over (docs/llm.md, "Stopped calls").
       closeRunningCalls(db, sid, iso, INTERRUPTED_CALL),
-      ...inputIds.map((outputId: string) =>
-        db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(sid, outputId),
-      ),
+      stageInputsOf(db, sid, inputIds),
       touchProject(db, pid, iso),
     ]);
     return c.json<StartAnswer>({ reused: false, stageId: sid, runId, keptOutputs });
@@ -253,15 +266,11 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
             now,
             ...timingValues(o.timing as Timing | undefined),
           ),
-        ...((o.inputIds as string[] | undefined) ?? []).map((inputId) =>
-          db
-            .prepare(
-              "INSERT OR IGNORE INTO output_inputs (output_id, input_id) SELECT id, ? FROM outputs WHERE stage_id = ? AND item = ? AND type = ?",
-            )
-            .bind(inputId, sid, o.item, o.type),
-        ),
       );
     });
+    // What each output was made from, in one statement however many there are (D1's limits, the code review's A3).
+    const links = outputs.flatMap((o: Record<string, unknown>) => ((o.inputIds as string[] | undefined) ?? []).map((input) => ({ item: o.item, type: o.type, input })));
+    if (links.length > 0) statements.push(outputInputsOf(db, sid, links));
     statements.push(
       wip
         ? touchProject(db, pid, now)
@@ -444,9 +453,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
           "INSERT INTO stages (id, created_in, step, step_version, status, config_json, page_count, in_recipe, created_at, started_at) VALUES (?, ?, ?, ?, 'wip', '{}', ?, 0, ?, ?)",
         )
         .bind(id, pid, step, stepVersion, pageCount, iso, iso),
-      ...inputIds.map((outputId: string) =>
-        db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(id, outputId),
-      ),
+      stageInputsOf(db, id, inputIds),
       // A stage of the same step added again where one was dropped: its card goes (docs/overview.md §5.5).
       db
         .prepare(
@@ -531,10 +538,8 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       [sid],
     );
     const ids = [...new Set(body.inputIds as string[])];
-    const now = await contentOf(
-      `SELECT item, type, COALESCE(content_sha256, recipe_key) AS k FROM outputs WHERE id IN (${ids.map(() => "?").join(", ") || "NULL"})`,
-      ids,
-    );
+    // The ids as one JSON parameter: a 100-system score has more than D1's 100 bound parameters (the code review, A3).
+    const now = await contentOf("SELECT item, type, COALESCE(content_sha256, recipe_key) AS k FROM outputs WHERE id IN (SELECT value FROM json_each(?))", [JSON.stringify(ids)]);
     const kept = read === now;
     const iso = new Date().toISOString();
     await db.batch(
@@ -607,9 +612,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
           "INSERT INTO stages (id, created_in, step, step_version, status, config_json, page_count, in_recipe, created_at, started_at) VALUES (?, ?, 'human_review', ?, 'wip', '{}', ?, 0, ?, ?)",
         )
         .bind(ids[0], pid, stepVersion, pageCount, iso, iso),
-      ...inputIds.map((outputId: string) =>
-        db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(ids[0], outputId),
-      ),
+      stageInputsOf(db, ids[0], inputIds),
       db
         .prepare(
           "INSERT INTO stages (id, created_in, step, status, config_json, model_config_id, in_recipe, created_at) VALUES (?, ?, 'apply_review', 'planned', ?, ?, 0, ?)",

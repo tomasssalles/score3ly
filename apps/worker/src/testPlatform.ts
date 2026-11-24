@@ -21,6 +21,17 @@ export type TestPlatform = { host: TestHost; env: Env; dispose: () => Promise<vo
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 
+// Each request the app answers is one Worker invocation, whose statements NodeD1's limits mode counts apart: the app's
+// `fetch` (which `app.request` calls) runs inside `NodeD1.request`.
+let counting = false;
+async function countPerRequest() {
+  if (counting) return;
+  counting = true;
+  const { default: app } = await import("./index.ts");
+  const fetch = app.fetch;
+  app.fetch = (request, ...rest) => NodeD1.request(() => fetch(request, ...rest));
+}
+
 export function testHost(): TestHost {
   return process.env.TEST_HOST === "node" ? "node" : "wrangler";
 }
@@ -28,8 +39,9 @@ export function testHost(): TestHost {
 export async function testPlatform(host: TestHost = testHost()): Promise<TestPlatform> {
   if (host === "node") {
     const dir = mkdtempSync(join(tmpdir(), "score3ly-test-"));
-    const db = new NodeD1(join(dir, "db.sqlite"));
+    const db = new NodeD1(join(dir, "db.sqlite"), { limits: true });
     migrate(db, MIGRATIONS);
+    await countPerRequest();
     const env = nodeEnv({ db, files: new NodeR2(join(dir, "files")) });
     return {
       host,
