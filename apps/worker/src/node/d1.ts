@@ -1,5 +1,6 @@
 // D1 on Node's built-in SQLite (docs/desktop.md): the part of the D1 API the Worker uses (`prepare`,
-// `bind`, `first`, `all`, `run`, `batch`, `exec`), over one SQLite file. The Worker's code doesn't change.
+// `bind`, `first`, `all`, `run`, `batch`, `exec`), over one SQLite file. The Worker's code doesn't change. The desktop
+// version's database, and the Node host of the Worker's tests (testPlatform.ts).
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -54,12 +55,6 @@ export class NodeD1Statement {
 
   async run<T = Record<string, unknown>>(): Promise<Result<T>> {
     return this.allSync<T>();
-  }
-
-  async raw<T = unknown[]>(): Promise<T[]> {
-    const statement = this.db.prepare(this.sql);
-    statement.setReturnArrays(true);
-    return statement.all(...this.params) as T[];
   }
 
   // A statement that returns rows (a SELECT, or one with RETURNING) gives them; any other gives its changes.

@@ -15,7 +15,7 @@ const sha256 = (text: string) => createHash("sha256").update(text).digest("hex")
 test("put, head, get and delete an object, with its content type", async () => {
   const r2 = fresh();
   const text = JSON.stringify({ a: 1 });
-  await r2.put("content/x", new TextEncoder().encode(text).buffer, { sha256: sha256(text), httpMetadata: { contentType: "application/json" } });
+  await r2.put("content/x", new TextEncoder().encode(text), { sha256: sha256(text), httpMetadata: { contentType: "application/json" } });
   const head = await r2.head("content/x");
   assert.equal(head?.size, text.length);
   assert.equal(head?.httpMetadata.contentType, "application/json");
@@ -29,7 +29,7 @@ test("put, head, get and delete an object, with its content type", async () => {
 
 test("content that doesn't match its SHA-256 is refused", async () => {
   const r2 = fresh();
-  await assert.rejects(r2.put("pdfs/a.pdf", new TextEncoder().encode("abc").buffer, { sha256: sha256("abd") }));
+  await assert.rejects(r2.put("pdfs/a.pdf", new TextEncoder().encode("abc"), { sha256: sha256("abd") }));
   assert.equal(await r2.head("pdfs/a.pdf"), null);
 });
 

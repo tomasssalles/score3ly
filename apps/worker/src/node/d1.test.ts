@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { migrate, NodeD1 } from "./d1.ts";
 
-const MIGRATIONS = join(import.meta.dirname, "../../worker/migrations");
+const MIGRATIONS = join(import.meta.dirname, "../../migrations");
 
 function fresh(): NodeD1 {
   return new NodeD1(join(mkdtempSync(join(tmpdir(), "score3ly-d1-")), "db.sqlite"));
@@ -14,7 +14,8 @@ function fresh(): NodeD1 {
 test("the Worker's migrations apply, once", () => {
   const db = fresh();
   const applied = migrate(db, MIGRATIONS);
-  assert.deepEqual(applied, ["0001_initial.sql", "0002_imported.sql", "0003_vat.sql", "0004_call_place.sql", "0005_runs.sql"]);
+  assert.deepEqual(applied, readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort());
+  assert.ok(applied.length >= 5);
   assert.deepEqual(migrate(db, MIGRATIONS), []);
 });
 

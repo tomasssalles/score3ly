@@ -9,8 +9,9 @@ import type { AddressInfo } from "node:net";
 import { extname, join, normalize, relative } from "node:path";
 import { parseArgs } from "node:util";
 import worker from "../../worker/src/index.ts";
-import { migrate, NodeD1 } from "./d1.ts";
-import { NodeR2 } from "./r2.ts";
+import { migrate, NodeD1 } from "../../worker/src/node/d1.ts";
+import { nodeEnv } from "../../worker/src/node/env.ts";
+import { NodeR2 } from "../../worker/src/node/r2.ts";
 import { SecretsFile } from "./secrets.ts";
 import { type Host as CoreHost, type Info, isWindowTheme, type WindowTheme } from "@score3ly/core";
 
@@ -94,8 +95,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         return new Response(request.method === "HEAD" ? null : readFileSync(file), { headers: { "Content-Type": type, "Cache-Control": cache } });
       }
     }
-    // The secrets are the environment's other values, as a Worker's are.
-    const env = { ...secrets.read(), ...(options.devProviders ? { DEV_PROVIDERS: "true" } : {}), DB: db, PDFS: files } as unknown as Env;
+    // The secrets are the environment's other values, as a Worker's are, read again at each request.
+    const env = nodeEnv({ db, files, secrets: secrets.read(), devProviders: options.devProviders });
     return worker.fetch(request, env, ctx as unknown as ExecutionContext);
   };
 
