@@ -28,7 +28,7 @@ before(async () => {
 
 beforeEach(async () => {
   await env.DB.exec(
-    "DELETE FROM manual_saves; DELETE FROM dropped_stages; DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM llm_calls; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM projects; DELETE FROM image_fingerprints;",
+    "DELETE FROM manual_saves; DELETE FROM dropped_stages; DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM llm_calls; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM import_ids; DELETE FROM projects; DELETE FROM image_fingerprints;",
   );
 });
 
@@ -113,6 +113,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       next_issue_number: 1,
       deleted_at: null,
       imported_at: null,
+      importing: null,
     },
   ]);
 
@@ -1884,6 +1885,46 @@ test("activity: the quarters of an hour in which a call ran or anything was reco
 });
 
 // Optimistic locking (docs/database.md, "Optimistic locking").
+
+// An import in progress (docs/database.md, "Exporting and importing a project"; the owner, 2026-11-24): hidden from the
+// lists, every statistics tab and the spending cap, and never served from the cache, until its last rows are in.
+test("an unfinished import is hidden: lists, a PDF's lookup, every statistics tab, the spending cap, the caches", async () => {
+  const at = new Date(Date.now() - 60_000).toISOString();
+  const pdf = "e".repeat(64);
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_id, pricing_kind, created_at) VALUES ('paid-hidden', 'Paid while importing', 'fake', 'fake', 'list', ?)").bind(at),
+    env.DB.prepare("INSERT INTO projects (id, name, pdf_sha256, pdf_filename, created_at, last_modified_at, last_opened_at, importing) VALUES ('half', 'Half', ?, 'half.pdf', ?, ?, ?, ?)").bind(pdf, at, at, at, "f".repeat(64)),
+    env.DB.prepare("INSERT INTO stages (id, created_in, step, status, config_json, stage_key, created_at, started_at, finished_at) VALUES ('half-r', 'half', 'rasterize', 'done', '{\"pages\":\"1-3\"}', ?, ?, ?, ?)").bind(KEY, at, at, at),
+    env.DB.prepare("INSERT INTO stages (id, created_in, step, status, created_at, started_at, finished_at) VALUES ('half-e', 'half', 'engrave', 'done', ?, ?, ?)").bind(at, at, at),
+    env.DB.prepare("INSERT INTO pipeline_entries (project_id, position, stage_id) VALUES ('half', 1, 'half-r'), ('half', 2, 'half-e')"),
+    env.DB.prepare("INSERT INTO outputs (id, stage_id, item, type, recipe_key, created_at, duration_ms) VALUES ('half-o', 'half-r', 'p1', 'page_image', ?, ?, 5)").bind(KEY, at),
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, response_sha256, cost_usd, started_at, finished_at) VALUES ('half-c', 'half-r', 'paid-hidden', 'rk', 'ok', ?, 0.5, ?, ?)").bind(KEY, at, at),
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, error_kind, http_status, cost_usd, started_at, finished_at) VALUES ('half-f', 'half-r', 'paid-hidden', 'rk2', 'error', 'server', NULL, NULL, ?, ?)").bind(at, at),
+  ]);
+  const get = async <T,>(path: string) => (await (await app.request(path, {}, env)).json()) as T;
+  assert.deepEqual(await get<unknown[]>("/api/projects"), []);
+  const lookup = await get<{ projects: unknown[]; newProjectName: string }>(`/api/pdfs/${pdf}?filename=Half.pdf`);
+  assert.deepEqual(lookup.projects, []);
+  assert.equal(lookup.newProjectName, "Half (1)"); // its name is taken while it imports
+  const costs = await get<{ points: unknown[]; unknown: unknown[]; stages: unknown[]; projects: unknown[]; configs: unknown[]; spentLastDayUsd: number }>("/api/costs");
+  assert.deepEqual([costs.points, costs.unknown, costs.stages, costs.projects, costs.configs, costs.spentLastDayUsd], [[], [], [], [], [], 0]);
+  const stats = await get<{ projects: unknown[]; pagesProcessed: number }>("/api/project-stats");
+  assert.deepEqual([stats.projects, stats.pagesProcessed], [[], 0]);
+  const failures = await get<{ points: unknown[]; configs: unknown[] }>("/api/failures");
+  assert.deepEqual([failures.points, failures.configs], [[], []]);
+  assert.deepEqual((await get<{ projects: unknown[] }>("/api/run-times")).projects, []);
+  const activity = await get<{ quarters: unknown[]; projects: unknown[] }>("/api/activity");
+  assert.deepEqual([activity.quarters, activity.projects], [[], []]);
+  // The stage cache: a stage of another project with the same key runs, rather than being served the import's.
+  const project = await createdProject("other.pdf");
+  const { response } = await startRasterize(project.id, KEY);
+  assert.equal(((await response.json()) as { reused: boolean }).reused, false);
+  // Once the import is finished, it all shows.
+  await env.DB.prepare("UPDATE projects SET importing = NULL WHERE id = 'half'").run();
+  assert.equal((await get<unknown[]>("/api/projects")).length, 2);
+  assert.equal((await get<{ spentLastDayUsd: number }>("/api/costs")).spentLastDayUsd, 0.5);
+  assert.equal((await get<{ projects: unknown[] }>("/api/run-times")).projects.length, 1);
+});
 
 async function versionOf(projectId: string): Promise<string> {
   return (await app.request(`/api/projects/${projectId}/pipeline`, {}, env)).headers.get("X-Project-Version")!;

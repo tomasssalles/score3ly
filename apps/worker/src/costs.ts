@@ -12,6 +12,7 @@
 // selected, each once. The browser merges the projects of a PDF and averages, so a change of selection needs no
 // request either.
 
+import { notImportingProject, notImportingStage } from "./importing.ts";
 import type { CostData, CostOutcome } from "@score3ly/core";
 import type { Hono } from "hono";
 import { CALL_QUARTER, COST_WITH_VAT, OUTCOME, unknownCost } from "./callRecords.ts";
@@ -28,7 +29,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
     const ofUnknownCost = unknownCost();
     // The calls the view counts: those with a cost, and those of unknown cost.
     // Not the configs' test requests (no stage): they are summed apart, below.
-    const counted = `SELECT c.id FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND (c.cost_usd > 0 OR ${ofUnknownCost})`;
+    const counted = `SELECT c.id FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND (c.cost_usd > 0 OR ${ofUnknownCost}) AND ${notImportingStage("c.stage_id")}`;
     const [points, unknown, tests, stages, projects, configs, projectCosts, rasterized] = await db.batch([
       db
         .prepare(
@@ -37,7 +38,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
              SUM(${COST_WITH_VAT}) AS usd,
              ${OUTCOME} AS outcome
            FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
-           WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND c.cost_usd > 0
+           WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND c.cost_usd > 0 AND ${notImportingStage("c.stage_id")}
            GROUP BY c.stage_id, c.model_config_id, t, outcome
            ORDER BY t`,
         ),
@@ -47,7 +48,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
              ${CALL_QUARTER} AS t,
              COUNT(*) AS n
            FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id
-           WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND ${ofUnknownCost}
+           WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND ${ofUnknownCost} AND ${notImportingStage("c.stage_id")}
            GROUP BY c.stage_id, c.model_config_id, t
            ORDER BY t`,
         ),
@@ -70,13 +71,13 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
       db.prepare(
         `SELECT p.id, p.name, p.pdf_sha256, p.pdf_filename, p.created_at, p.deleted_at,
            (SELECT s.status FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = p.id ORDER BY e.position DESC LIMIT 1) = 'done' AS finished
-         FROM projects p ORDER BY p.created_at`,
+         FROM projects p WHERE p.importing IS NULL ORDER BY p.created_at`,
       ),
       db
         .prepare(`SELECT id, name, provider, model_id, model_string, family, effort, created_at, deleted_at FROM model_configs WHERE id IN (SELECT model_config_id FROM llm_calls WHERE id IN (${counted}))`),
-      db.prepare(`SELECT s.created_in AS project, SUM(${COST_WITH_VAT}) AS usd FROM llm_calls c JOIN stages s ON s.id = c.stage_id GROUP BY s.created_in`),
+      db.prepare(`SELECT s.created_in AS project, SUM(${COST_WITH_VAT}) AS usd FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE ${notImportingProject("s.created_in")} GROUP BY s.created_in`),
       // The pages a `rasterize` stage ran on are written out in its config ("1-12, 15").
-      db.prepare("SELECT created_in AS project, config_json FROM stages WHERE step = 'rasterize' AND started_at IS NOT NULL AND config_json IS NOT NULL"),
+      db.prepare(`SELECT created_in AS project, config_json FROM stages WHERE step = 'rasterize' AND started_at IS NOT NULL AND config_json IS NOT NULL AND ${notImportingProject("created_in")}`),
     ]);
     const costOf = new Map((projectCosts.results as { project: string; usd: number | null }[]).map((r) => [r.project, r.usd ?? 0]));
     const pagesOf = new Map<string, Set<number>>();

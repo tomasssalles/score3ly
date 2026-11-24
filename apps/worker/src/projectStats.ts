@@ -15,9 +15,9 @@ export function projectStatsRoutes(app: Hono<{ Bindings: Env }>) {
       db.prepare(
         `SELECT p.id, p.created_at, p.deleted_at,
            (SELECT s.status FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = p.id ORDER BY e.position DESC LIMIT 1) = 'done' AS finished
-         FROM projects p ORDER BY p.created_at`,
+         FROM projects p WHERE p.importing IS NULL ORDER BY p.created_at`,
       ),
-      db.prepare("SELECT p.pdf_sha256, s.config_json FROM stages s JOIN projects p ON p.id = s.created_in WHERE s.step = 'rasterize' AND s.status = 'done' AND s.config_json IS NOT NULL"),
+      db.prepare("SELECT p.pdf_sha256, s.config_json FROM stages s JOIN projects p ON p.id = s.created_in WHERE s.step = 'rasterize' AND s.status = 'done' AND s.config_json IS NOT NULL AND p.importing IS NULL"),
     ]);
     const pages = new Set<string>(); // `${pdf}/${page}`
     for (const row of rasterized.results as { pdf_sha256: string; config_json: string }[]) {

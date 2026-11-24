@@ -2,6 +2,7 @@
 // outputs, heartbeat, finish, stop) or changes one's config, and a person's changes (a fix, an edit, a further or human
 // review, a drop). The browser does the work; the Worker only records it, by the pipeline's rules (pipelineRules.ts).
 
+import { notImportingProject } from "./importing.ts";
 import { logFields } from "./requestLog.ts";
 import { BAD_REQUEST, badRequest, NO_PROJECT, notRunning, PICK_ANOTHER, refuse, RELOAD, RUN_OVER, STAGE_RUNNING, WAITS_FOR_TURN } from "./refusals.ts";
 import { isDroppable, isSha256Hex, quarterOf, type AddedStage, type OutputsAnswer, type Pipeline, type Resolved, type StartAnswer } from "@score3ly/core";
@@ -162,7 +163,7 @@ export function pipelineRoutes(app: Hono<{ Bindings: Env }>) {
       if (unsupported) return refuse(c, 409, `The stage can't start: ${unsupportedConfigMessage(config.name, unsupported)} ${PICK_ANOTHER}`, "unsupported_model_config");
     }
     const reusable = await db
-      .prepare("SELECT id FROM stages WHERE stage_key = ? AND status = 'done' AND deleted_at IS NULL AND id != ? LIMIT 1")
+      .prepare(`SELECT id FROM stages WHERE stage_key = ? AND status = 'done' AND deleted_at IS NULL AND id != ? AND ${notImportingProject("created_in")} LIMIT 1`)
       .bind(stageKey, sid)
       .first<{ id: string }>();
     if (reusable) {

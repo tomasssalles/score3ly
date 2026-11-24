@@ -2,6 +2,7 @@
 // uses too: the Worker serves an identical earlier answer from the call records (the item-level cache, §5.2), and
 // otherwise checks the spending cap, calls the provider, and records the call with its tokens and cost.
 
+import { notImportingStage } from "./importing.ts";
 import type { Hono } from "hono";
 import { type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, fromBase64, isSha256Hex, keyOf, modelKeyOf, sha256Hex, sseData, type ModelConfig } from "@score3ly/core";
 import { deferLog, logFields } from "./requestLog.ts";
@@ -362,7 +363,7 @@ export function llmCallRoutes(app: Hono<{ Bindings: Env }>) {
     // next, so that the answer paid for again in its place is served after it.
     const { results: earlier } = await db
       .prepare(
-        "SELECT id, response_sha256, input_tokens, output_tokens, cached_tokens, cache_write_tokens FROM llm_calls WHERE request_key = ? AND status = 'ok' AND deleted_at IS NULL AND response_sha256 IS NOT NULL ORDER BY started_at",
+        `SELECT id, response_sha256, input_tokens, output_tokens, cached_tokens, cache_write_tokens FROM llm_calls WHERE request_key = ? AND status = 'ok' AND deleted_at IS NULL AND response_sha256 IS NOT NULL AND ${notImportingStage("stage_id")} ORDER BY started_at`,
       )
       .bind(requestKey)
       .all<{ id: string; response_sha256: string; input_tokens: number; output_tokens: number; cached_tokens: number; cache_write_tokens: number | null }>();

@@ -6,6 +6,7 @@
 // work. The browser counts the quarters (they fit every time zone). Deleted projects count too: their rows are kept
 // (docs/database.md).
 
+import { notImportingProject } from "./importing.ts";
 import type { ActivityData } from "@score3ly/core";
 import type { Hono } from "hono";
 import { QUARTER_MS, quarterOf } from "@score3ly/core";
@@ -15,13 +16,13 @@ export function activityRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/activity", async (c) => {
     const db = c.env.DB;
     const [calls, stages, outputs, projects, saves] = await db.batch([
-      db.prepare("SELECT s.created_in AS project, c.started_at AS start, c.finished_at AS end FROM llm_calls c JOIN stages s ON s.id = c.stage_id"),
+      db.prepare(`SELECT s.created_in AS project, c.started_at AS start, c.finished_at AS end FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE ${notImportingProject("s.created_in")}`),
       db.prepare(
-        "SELECT created_in AS project, started_at, finished_at, heartbeat_at FROM stages WHERE started_at IS NOT NULL",
+        `SELECT created_in AS project, started_at, finished_at, heartbeat_at FROM stages WHERE started_at IS NOT NULL AND ${notImportingProject("created_in")}`,
       ),
-      db.prepare("SELECT s.created_in AS project, o.created_at AS at FROM outputs o JOIN stages s ON s.id = o.stage_id"),
-      db.prepare("SELECT id, name, created_at, deleted_at FROM projects ORDER BY created_at"),
-      db.prepare("SELECT m.stage_id, m.quarter, s.created_in AS project FROM manual_saves m JOIN stages s ON s.id = m.stage_id"),
+      db.prepare(`SELECT s.created_in AS project, o.created_at AS at FROM outputs o JOIN stages s ON s.id = o.stage_id WHERE ${notImportingProject("s.created_in")}`),
+      db.prepare("SELECT id, name, created_at, deleted_at FROM projects WHERE importing IS NULL ORDER BY created_at"),
+      db.prepare(`SELECT m.stage_id, m.quarter, s.created_in AS project FROM manual_saves m JOIN stages s ON s.id = m.stage_id WHERE ${notImportingProject("s.created_in")}`),
     ]);
     const quarters = new Set<string>(); // `${project}\u0000${quarter start in ms}`
     const mark = (project: string, iso: string | null) => {

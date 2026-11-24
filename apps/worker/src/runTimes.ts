@@ -21,7 +21,7 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const last = (column: string) =>
       `(SELECT s.${column} FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = p.id ORDER BY e.position DESC LIMIT 1)`;
-    const finished = `SELECT p.id FROM projects p WHERE ${last("status")} = 'done'`;
+    const finished = `SELECT p.id FROM projects p WHERE p.importing IS NULL AND ${last("status")} = 'done'`;
     const manual = ["ingest", ...MANUAL].map((s) => `'${s}'`).join(", ");
     const [projects, stages, items, configs, entries, saves] = await db.batch([
       db.prepare(

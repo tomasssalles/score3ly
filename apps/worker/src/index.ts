@@ -98,7 +98,7 @@ app.delete("/api/projects/:id", lock("none"), async (c) => {
 app.get("/api/projects", async (c) => {
   const db = c.env.DB;
   const [projects, positions] = await db.batch([
-    db.prepare("SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY last_opened_at DESC, created_at DESC"),
+    db.prepare("SELECT * FROM projects WHERE deleted_at IS NULL AND importing IS NULL ORDER BY last_opened_at DESC, created_at DESC"),
     db.prepare(
       `SELECT e.project_id, s.step, s.status, s.heartbeat_at, s.error, e.carried
        FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id
@@ -139,7 +139,7 @@ app.get("/api/pdfs/:sha256", async (c) => {
     return badRequest(c, "expected a SHA-256 in lowercase hex and a 'filename'");
   }
   const { results } = await c.env.DB.prepare(
-    "SELECT * FROM projects WHERE pdf_sha256 = ? AND deleted_at IS NULL ORDER BY last_opened_at DESC, created_at DESC",
+    "SELECT * FROM projects WHERE pdf_sha256 = ? AND deleted_at IS NULL AND importing IS NULL ORDER BY last_opened_at DESC, created_at DESC",
   )
     .bind(sha256)
     .all<ProjectRow>();
