@@ -1,22 +1,15 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 
 // The fingerprint endpoints against Wrangler's local D1, kept in memory.
-const workerDir = join(import.meta.dirname, "..");
 let platform: Awaited<ReturnType<typeof testPlatform>>;
 let env: Env;
 
 before(async () => {
   platform = await testPlatform();
   env = platform.env;
-  for (const file of readdirSync(join(workerDir, "migrations")).sort()) {
-    const sql = readFileSync(join(workerDir, "migrations", file), "utf8");
-    await env.DB.exec(sql.replace(/--.*$/gm, "").replace(/\s+/g, " ").replace(/; /g, ";\n"));
-  }
 });
 
 after(async () => {

@@ -24,10 +24,6 @@ let env: Env;
 before(async () => {
   platform = await testPlatform();
   env = platform.env;
-  const migrationsDir = join(workerDir, "migrations");
-  for (const file of readdirSync(migrationsDir).sort()) {
-    await env.DB.exec(withoutComments(readFileSync(join(migrationsDir, file), "utf8")));
-  }
 });
 
 beforeEach(async () => {
@@ -39,11 +35,6 @@ beforeEach(async () => {
 after(async () => {
   await platform.dispose();
 });
-
-// D1's exec() wants each statement on one line, without comments.
-function withoutComments(sql: string): string {
-  return sql.replace(/--.*$/gm, "").replace(/\s+/g, " ").replace(/; /g, ";\n");
-}
 
 // Stands in for a PDF: the API never looks inside the file.
 function pdfBytes(text: string): Uint8Array<ArrayBuffer> {

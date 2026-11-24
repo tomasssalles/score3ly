@@ -8,7 +8,7 @@
 
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { sha256Hex } from "@score3ly/core";
 import { testPlatform } from "./testPlatform.ts";
@@ -20,11 +20,6 @@ let env: Env;
 before(async () => {
   platform = await testPlatform();
   env = platform.env;
-  const migrationsDir = join(import.meta.dirname, "../migrations");
-  for (const file of readdirSync(migrationsDir).sort()) {
-    const sql = readFileSync(join(migrationsDir, file), "utf8").replace(/--.*$/gm, "").replace(/\s+/g, " ").replace(/; /g, ";\n");
-    await env.DB.exec(sql);
-  }
   Object.assign(env as unknown as Record<string, string>, { SNAP_KEY: "snapshot-key" });
 });
 

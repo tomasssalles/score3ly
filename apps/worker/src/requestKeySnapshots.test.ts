@@ -18,11 +18,6 @@ before(async () => {
   platform = await testPlatform();
   env = platform.env;
   (env as unknown as Record<string, string>).DEV_PROVIDERS = "true";
-  const migrationsDir = join(import.meta.dirname, "../migrations");
-  for (const file of readdirSync(migrationsDir).sort()) {
-    const sql = readFileSync(join(migrationsDir, file), "utf8").replace(/--.*$/gm, "").replace(/\s+/g, " ").replace(/; /g, ";\n");
-    await env.DB.exec(sql);
-  }
 });
 
 after(async () => {

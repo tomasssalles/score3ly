@@ -1,7 +1,5 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { canonicalJson, sha256Hex } from "@score3ly/core";
 import { testPlatform } from "../src/testPlatform.ts";
 import { fillCallPlaces } from "./callPlaces.ts";
@@ -14,11 +12,6 @@ let env: Env;
 before(async () => {
   platform = await testPlatform();
   env = platform.env;
-  const migrationsDir = join(import.meta.dirname, "..", "migrations");
-  for (const file of readdirSync(migrationsDir).sort()) {
-    const sql = readFileSync(join(migrationsDir, file), "utf8").replace(/--.*$/gm, "").replace(/\s+/g, " ").replace(/; /g, ";\n");
-    await env.DB.exec(sql);
-  }
   const at = "2026-11-01T10:00:00.000Z";
   await env.DB.batch([
     env.DB.prepare("INSERT INTO projects (id, name, pdf_sha256, pdf_filename, created_at, last_modified_at, last_opened_at) VALUES ('p', 'P', 'x', 'p.pdf', ?, ?, ?)").bind(at, at, at),
