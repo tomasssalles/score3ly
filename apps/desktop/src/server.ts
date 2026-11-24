@@ -57,7 +57,13 @@ const TYPES: Record<string, string> = {
 
 // A file of the web app for a path, if there is one ("/" is index.html).
 function webFile(webDir: string, pathname: string): string | null {
-  const path = normalize(join(webDir, decodeURIComponent(pathname === "/" ? "/index.html" : pathname)));
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname === "/" ? "/index.html" : pathname);
+  } catch {
+    return null; // a malformed path (found by the code review's test, E17: it was an uncaught error, a 500)
+  }
+  const path = normalize(join(webDir, decoded));
   if (relative(webDir, path).startsWith("..")) return null;
   return existsSync(path) && statSync(path).isFile() ? path : null;
 }
