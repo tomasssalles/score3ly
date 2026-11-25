@@ -4,6 +4,9 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"

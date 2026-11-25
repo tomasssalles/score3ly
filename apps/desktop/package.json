@@ -15,14 +15,16 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5",
-    "@score3ly/core": "*"
+    "@score3ly/core": "*",
+    "hono": "^4.13.12"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
     "electron": "44.9.3",
     "electron-builder": "26.17.0",
     "esbuild": "^0.28.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "wrangler": "^4.153.0"
   },
   "description": "score3ly cadenza: the desktop app, everything stored on this computer",
   "author": "Tomás Silveira Salles",

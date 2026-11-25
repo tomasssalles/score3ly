@@ -7,7 +7,7 @@ icon like any other app.
 
 ## What you need
 
-- **Node.js**, version 22.13 or newer (the current LTS version is fine): [nodejs.org](https://nodejs.org/).
+- **Node.js**, version 22.18 or newer (the current LTS version is fine): [nodejs.org](https://nodejs.org/).
 - An internet connection while building.
 
 ## Build and install

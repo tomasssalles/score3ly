@@ -10,7 +10,7 @@ changes its labels from time to time, so a button may be called slightly differe
 
 ## What you need
 
-- **Node.js**, version 22.13 or newer (the current LTS version is fine): [nodejs.org](https://nodejs.org/).
+- **Node.js**, version 22.18 or newer (the current LTS version is fine): [nodejs.org](https://nodejs.org/).
 - **The code:** on [GitHub](https://github.com/tomasssalles/score3ly), *Code* → *Download ZIP*, and unpack it (or
   `git clone https://github.com/tomasssalles/score3ly.git`). Open a terminal in that folder and run `npm install`.
 - **An API key** of the LLM provider you want to use.
