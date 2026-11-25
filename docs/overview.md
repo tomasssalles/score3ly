@@ -378,7 +378,7 @@ In `docs/database.md`: the tables of D1 and what each row holds, the Worker's re
 - **The browser does the work, the Worker records it:** a stage's start, its outputs as each is done, a heartbeat once a minute, its end, each with the run's id, so that a run that is over can't write.
 - **Deleting marks rows instead of deleting them,** for the costs, and every cache lookup ignores marked rows.
 - **Two kinds of settings:** the user's, in D1, and the device's, in the browser.
-- **A project can be exported** as one file, `<name>.s3l` (a zip of its current pipeline's rows, its content and the PDF), and **imported** through "+ New project", looked up like a run: what this instance already has is reused, a deleted call brought back to life, only what is found nowhere added and counted.
+- **A project can be exported** as one file, `<name>.s3l` (a zip of its current pipeline's rows, its content and the PDF), and **imported** through "+ New project", in several small requests (hidden until the last is in; an unfinished one removed when the same file is imported again), looked up like a run: what this instance already has is reused, a deleted call brought back to life, only what is found nowhere added and counted.
 
 ## 6. Pipeline stages
 
@@ -560,6 +560,7 @@ In `docs/images.md`, whose sections keep their numbers: §8.1 getting page image
 **Principle:** deterministic parts are tested directly. Non-deterministic parts (LLM calls, human input) are **recorded and replayed**.
 
 - **Unit tests:** image operations, the lens parser and checks, measure building, the MEI builder (validated against MEI 5 and MEI Basic, `docs/notation.md`, "MEI"). Among the checks: a two-note tremolo with a wrong count fails the duration check (§15).
+- **The Worker's tests run on both hosts** (the code review's batch 11, 2026-11-25; `apps/worker/src/testPlatform.ts`): Wrangler's local D1 and R2, and the desktop version's Node adapters (`apps/worker/src/node/`: SQLite and a folder), each with a migrated database; the route tests (`index`, `llmEndpoints`, `fingerprints`) run on each (`*.node.test.ts`). On the Node host, **D1's limits are enforced** (NodeD1's limits mode: 100 bound parameters per statement, 100 kB of SQL, 2 MB per value, 50 statements per request, a batch's statements counted each), which local SQLite otherwise never refuses: a request over them fails its test, not the deployed instance. The desktop server has a test of its own (`startServer` on a free port).
 - **Golden-image tests:** deterministic image pipelines produce known raw-pixel hashes, or fingerprints within tolerance (§8.3).
 - **Fixture projects:** real scores with recorded LLM call records (request + response) and recorded human operations (angles, boxes, answers to issues), stored in `fixtures/`.
 - **Replay tests:** run a fixture end to end with the replay `LlmProvider`.
