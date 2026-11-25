@@ -1,6 +1,6 @@
 // The costs view (docs/statistics.md, "The costs view"): what was paid for, by time range, cut into the viewer's calendar
 // days, weeks or months, split into groups and filtered by the same groupings. Pure functions over the Worker's data
-// (apps/worker/src/costs.ts); the page is StatsPage.tsx, the chart TimeChart.tsx, the calendar calendar.ts.
+// (apps/worker/src/costs.ts); the tab is CostsTab.tsx, the chart TimeChart.tsx, the calendar calendar.ts.
 
 import { type CostOutcome, PROVIDER_NAMES, stepsOfKind } from "@score3ly/core";
 import type { CostData } from "./api";

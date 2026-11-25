@@ -21,7 +21,7 @@ export type Stage = {
   stepVersion: number | null; // set when the stage starts
   status: StageStatus;
   config: Record<string, unknown> | null; // the step's config: null while planned with the defaults
-  pageCount: number | null; // the pages its inputs cover, set when it starts
+  pageCount: number | null; // the selected pages (docs/database.md), set when it starts
   error: string | null;
   note: string | null;
   startedAt: string | null;

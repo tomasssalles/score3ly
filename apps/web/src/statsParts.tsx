@@ -1,4 +1,4 @@
-// What the tabs of the Statistics page share (StatsPage.tsx, UsageTab.tsx, RunTimesTab.tsx, EffortTab.tsx): a block's
+// What the tabs of the Statistics page share (CostsTab.tsx, UsageTab.tsx, RunTimesTab.tsx, EffortTab.tsx): a block's
 // head and value, the toggle between a chart's bars and its running total, the list of projects to select, and how a
 // tab loads its data.
 
