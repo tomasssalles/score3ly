@@ -104,6 +104,11 @@ export async function exportProject(project: Project, progress: (fraction: numbe
 export async function importArchive(archive: ProjectArchive, progress: (fraction: number) => void = () => {}): Promise<Imported> {
   const sha = archive.rows.project.pdf_sha256;
   if ((await sha256Hex(archive.pdf)) !== sha) throw new Error("The file is damaged: its PDF doesn't match its hash.");
+  // A zip's entries aren't checked as they are read (fflate checks no CRC): an object damaged in the file would be
+  // stored under another hash than the rows name (the code review's E7).
+  for (const [key, bytes] of archive.content) {
+    if ((await sha256Hex(bytes)) !== key) throw new Error("The file is damaged: some of its content doesn't match its hash.");
+  }
   await storePdf(sha, archive.pdf);
   const key = await sha256Hex(new TextEncoder().encode(JSON.stringify(archive.rows)));
   const { id } = await beginImport(importHead(archive.rows, key));

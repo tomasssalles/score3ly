@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ProjectExport } from "@score3ly/core";
-import { exportName, type ProjectArchive, unzipArchive, zipArchive } from "./projectFile.ts";
+import { sha256Hex, type ProjectExport } from "@score3ly/core";
+import { exportName, importArchive, type ProjectArchive, unzipArchive, zipArchive } from "./projectFile.ts";
 
 const bytes = (text: string) => new TextEncoder().encode(text) as Uint8Array<ArrayBuffer>;
 
@@ -45,4 +45,27 @@ test("a project's file: its entries, in order, the PDF stored and the rest defla
   ]);
   assert.equal(new TextDecoder().decode(files["manifest.json"]), JSON.stringify(archive().manifest, null, 2) + "\n");
   assert.equal(new TextDecoder().decode(files["project.json"]), JSON.stringify(archive().rows, null, 2) + "\n");
+});
+
+// The code review's E7: a zip's entries aren't checked by fflate (no CRC check), so an object damaged in the file was
+// stored under its new hash while the rows named the old one, and the project failed later. Refused before anything
+// is sent.
+test("a project's file: an object that doesn't match its hash is refused before anything is stored", async () => {
+  const sent: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    sent.push(String(input));
+    throw new Error("nothing should be sent");
+  }) as typeof fetch;
+  try {
+    const damaged = archive();
+    damaged.rows.project.pdf_sha256 = await sha256Hex(damaged.pdf);
+    const sha = await sha256Hex(bytes('{"x":1}'));
+    damaged.rows.content = [sha];
+    damaged.content = new Map([[sha, bytes('{"x":2}')]]);
+    await assert.rejects(importArchive(damaged), /^Error: The file is damaged: some of its content doesn't match its hash\.$/);
+    assert.deepEqual(sent, []);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
