@@ -47,12 +47,16 @@ test("lookUpPdf asks about the hash and passes the file name along, encoded", as
   const lookup = { projects: [project], newProjectName: "a b&c (1)" };
   answerWith(200, lookup);
 
-  assert.deepEqual(await lookUpPdf(SHA256, "a b&c.pdf"), lookup);
+  assert.deepEqual(await lookUpPdf(SHA256, { filename: "a b&c.pdf" }), lookup);
 
   const url = new URL(requests[0].url, "http://app");
   assert.equal(url.pathname, `/api/pdfs/${SHA256}`);
   assert.equal(url.searchParams.get("filename"), "a b&c.pdf");
   assert.deepEqual([...url.searchParams.keys()], ["filename"]);
+
+  // An imported project's name, as it is.
+  await lookUpPdf(SHA256, { name: "Sonata" });
+  assert.deepEqual([...new URL(requests[1].url, "http://app").searchParams], [["name", "Sonata"]]);
 });
 
 test("createProject uploads a PDF that isn't stored yet", async () => {
@@ -111,7 +115,7 @@ test("a refused request fails with an ApiError that carries the HTTP status", as
 
   const calls: [string, () => Promise<unknown>][] = [
     ["listProjects", () => listProjects()],
-    ["lookUpPdf", () => lookUpPdf(SHA256, "sonata.pdf")],
+    ["lookUpPdf", () => lookUpPdf(SHA256, { filename: "sonata.pdf" })],
     ["createProject", () => createProject(new File([""], "sonata.pdf"), SHA256, false)],
     ["markOpened", () => markOpened(project)],
     ["renameProject", () => renameProject(project, "New")],

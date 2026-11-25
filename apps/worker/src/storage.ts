@@ -3,7 +3,9 @@
 // under `pdfs/<sha256>.pdf`, everything else (stage outputs' content, LLM calls' requests and responses) under
 // `content/<sha256>`. The keys are made here only. Objects no row refers to any more are collected (`collectOrphans`).
 
-import { canonicalJson, sha256Hex } from "@score3ly/core";
+import type { Hono } from "hono";
+import { canonicalJson, isSha256Hex, MISSING_CONTENT_BATCH, sha256Hex } from "@score3ly/core";
+import { badRequest, refuse } from "./refusals.ts";
 
 export const PDF_PREFIX = "pdfs/";
 export const CONTENT_PREFIX = "content/";
@@ -99,4 +101,67 @@ export async function collectOrphans(env: Env, before: Date): Promise<Collected>
     } while (cursor);
   }
   return collected;
+}
+
+// Objects never change, so a browser may keep them for good.
+const FOREVER = "private, max-age=31536000, immutable";
+
+export function storageRoutes(app: Hono<{ Bindings: Env }>) {
+  // The PDF itself.
+  app.get("/api/pdfs/:sha256/file", async (c) => {
+    const sha256 = c.req.param("sha256");
+    if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
+    const object = await c.env.STORE.get(pdfKey(sha256));
+    if (!object) return refuse(c, 404, "The server doesn't have this PDF.");
+    return new Response(object.body, {
+      headers: { "Content-Type": "application/pdf", "Content-Length": String(object.size), "Cache-Control": FOREVER },
+    });
+  });
+
+  // Stores a PDF under its hash (R2 checks the bytes), before a project is made on it (a create, an import).
+  app.put("/api/pdfs/:sha256", async (c) => {
+    const sha256 = c.req.param("sha256");
+    if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
+    if ((await storePdf(c.env.STORE, sha256, await c.req.arrayBuffer())) === "mismatch") {
+      return refuse(c, 400, "The PDF arrived damaged. Try again. Details: it doesn't match its SHA-256.");
+    }
+    return c.body(null, 204);
+  });
+
+  // Stored outputs' content (docs/overview.md §2): any file, under the SHA-256 of its bytes, which the store checks.
+  // Storing the same content again is harmless.
+  app.put("/api/content/:sha256", async (c) => {
+    const sha256 = c.req.param("sha256");
+    if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
+    const body = await c.req.arrayBuffer();
+    const stored = await storeContent(c.env.STORE, sha256, body, c.req.header("Content-Type") ?? "application/octet-stream");
+    if (stored === "mismatch") return refuse(c, 400, "The content arrived damaged. Try again. Details: it doesn't match its SHA-256.");
+    return c.body(null, 204);
+  });
+
+  app.get("/api/content/:sha256", async (c) => {
+    const sha256 = c.req.param("sha256");
+    if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
+    const object = await getContent(c.env.STORE, sha256);
+    if (!object) return refuse(c, 404, "The server doesn't have this stored content.");
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
+        "Content-Length": String(object.size),
+        "Cache-Control": FOREVER,
+      },
+    });
+  });
+
+  // Which of these content objects aren't stored yet, so that an import uploads only those. Each is one look into R2,
+  // about 0.3 ms of a Worker's CPU: at most MISSING_CONTENT_BATCH (20) per request (the owner, 2026-11-24, E1).
+  app.post("/api/content/missing", async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { sha256s?: unknown } | null;
+    if (!Array.isArray(body?.sha256s) || !body.sha256s.every(isSha256Hex) || body.sha256s.length > MISSING_CONTENT_BATCH) {
+      return badRequest(c, `expected 'sha256s', at most ${MISSING_CONTENT_BATCH} SHA-256s in lowercase hex`);
+    }
+    const missing: string[] = [];
+    for (const sha of body.sha256s as string[]) if (!(await c.env.STORE.head(contentKey(sha)))) missing.push(sha);
+    return c.json({ missing });
+  });
 }

@@ -104,13 +104,13 @@ export async function listProjects(): Promise<ListedProject[]> {
 
 export type { PdfLookup } from "@score3ly/core";
 
-// What the Worker knows about a PDF, before uploading it.
-export async function lookUpPdf(sha256: string, filename: string): Promise<PdfLookup> {
-  const query = new URLSearchParams({ filename });
+// What the Worker knows about a PDF, before uploading it: its projects, and the name a new project on it would get,
+// from the PDF's file name (a new project) or from a name (an imported project's).
+export async function lookUpPdf(sha256: string, of: { filename: string } | { name: string }): Promise<PdfLookup> {
+  const query = new URLSearchParams(of);
   return (await checked(await fetch(`/api/pdfs/${sha256}?${query}`))).json();
 }
 
-// Creates a project on a PDF. The file is uploaded unless the Worker already has it.
 export async function createProject(pdf: File, sha256: string, alreadyStored: boolean): Promise<Project> {
   const form = new FormData();
   if (alreadyStored) {

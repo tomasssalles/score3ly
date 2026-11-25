@@ -7,12 +7,14 @@
 // is used (no row), a deleted one is brought back to life (its cost stays where it was paid), and only a call found
 // nowhere becomes a new row, which counts like any call. Original times are kept.
 
-import { CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, IMPORT_CHUNK_ROWS, IMPORT_TABLES, type ImportChunk, type Imported, type ImportHead, isSha256Hex, MISSING_CONTENT_BATCH, type ProjectExport, sameConfigValues } from "@score3ly/core";
+import { CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, IMPORT_CHUNK_ROWS, IMPORT_TABLES, type ImportChunk, type Imported, type ImportHead, isSha256Hex, type ProjectExport, sameConfigValues } from "@score3ly/core";
 import type { Hono } from "hono";
 import { anyRunning, withModelConfig } from "./pipelineRules.ts";
 import { PLACEHOLDER_ITEM, placeProblem } from "./places.ts";
 import { badRequest, NO_PROJECT, problemText, refuse } from "./refusals.ts";
-import { pdfKey, contentKey, storePdf } from "./storage.ts";
+import { pdfKey } from "./storage.ts";
+import { insertProject } from "./projects.ts";
+import { nameBase } from "./names.ts";
 import { removeUnfinishedImports } from "./deletion.ts";
 import { notImportingProject, notImportingStage } from "./importing.ts";
 import { lock } from "./versions.ts";
@@ -310,31 +312,22 @@ export async function beginImport(env: Env, data: ImportHead, now = new Date()):
     });
   const pipeline = data.pipeline.map((e) => ({ project_id: projectId, position: e.position, stage_id: stageMap.get(e.stage_id as string)!, carried: e.carried ? 1 : 0 }));
 
-  // The project, under its exported name (numbered if taken), marked `importing`, with its stages and pipeline; another
-  // project may take the name meanwhile: then look again.
-  const base = String(data.project.name).trim() || "Untitled";
+  // The project, under its exported name (numbered if taken, `insertProject`), marked `importing`, with its stages and
+  // pipeline.
   const p = data.project;
-  for (let attempt = 0; ; attempt++) {
-    const { results } = await db.prepare("SELECT name FROM projects WHERE deleted_at IS NULL").all<{ name: string }>();
-    const name = firstFreeName(base, results.map((r) => r.name));
-    try {
-      await db.batch([
-        db
-          .prepare(
-            "INSERT INTO projects (id, name, pdf_sha256, pdf_filename, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at, imported_at, importing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          )
-          .bind(projectId, name, pdfSha, p.pdf_filename, p.run_mode === "manual" ? "manual" : "auto", Number(p.next_issue_number) || 1, p.created_at ?? iso, p.last_modified_at ?? iso, iso, iso, data.key),
-        ...(newConfigs.length > 0 ? [insertRows(db, "model_configs", CONFIG_COLUMNS, newConfigs)] : []),
-        ...(copied.length > 0 ? [insertRows(db, "stages", [...STAGE_COLUMNS, "created_in", "imported_at"], copied)] : []),
-        ...(pipeline.length > 0 ? [insertRows(db, "pipeline_entries", ["project_id", "position", "stage_id", "carried"], pipeline)] : []),
-        ...recordIds(db, projectId, "config", configIds),
-        ...recordIds(db, projectId, "stage", stageIds),
-      ]);
-      return { id: projectId, name };
-    } catch (err) {
-      if (!String(err).includes("UNIQUE constraint failed: projects.name") || attempt >= 4) throw err;
-    }
-  }
+  const name = await insertProject(db, nameBase(String(data.project.name)), (name) => [
+    db
+      .prepare(
+        "INSERT INTO projects (id, name, pdf_sha256, pdf_filename, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at, imported_at, importing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      )
+      .bind(projectId, name, pdfSha, p.pdf_filename, p.run_mode === "manual" ? "manual" : "auto", Number(p.next_issue_number) || 1, p.created_at ?? iso, p.last_modified_at ?? iso, iso, iso, data.key),
+    ...(newConfigs.length > 0 ? [insertRows(db, "model_configs", CONFIG_COLUMNS, newConfigs)] : []),
+    ...(copied.length > 0 ? [insertRows(db, "stages", [...STAGE_COLUMNS, "created_in", "imported_at"], copied)] : []),
+    ...(pipeline.length > 0 ? [insertRows(db, "pipeline_entries", ["project_id", "position", "stage_id", "carried"], pipeline)] : []),
+    ...recordIds(db, projectId, "config", configIds),
+    ...recordIds(db, projectId, "stage", stageIds),
+  ]);
+  return { id: projectId, name };
 }
 
 // The project of an import in progress, or null.
@@ -491,28 +484,6 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
     if (data === "running") return refuse(c, 409, "The project can't be exported while one of its stages is running. Stop it, or let it finish, then try again.", "running");
     if ("problem" in data) return refuse(c, 409, `The project can't be exported yet: some of its LLM calls were recorded before calls had a place. Details: ${data.problem}`, "unplaced_calls");
     return c.json<ProjectExport>(data);
-  });
-
-  // Which of these content objects aren't stored yet, so that an import uploads only those. Each is one look into R2,
-  // about 0.3 ms of a Worker's CPU: at most MISSING_CONTENT_BATCH (20) per request (the owner, 2026-11-24, E1).
-  app.post("/api/content/missing", async (c) => {
-    const body = (await c.req.json().catch(() => null)) as { sha256s?: unknown } | null;
-    if (!Array.isArray(body?.sha256s) || !body.sha256s.every(isSha256Hex) || body.sha256s.length > MISSING_CONTENT_BATCH) {
-      return badRequest(c, `expected 'sha256s', at most ${MISSING_CONTENT_BATCH} SHA-256s in lowercase hex`);
-    }
-    const missing: string[] = [];
-    for (const sha of body.sha256s as string[]) if (!(await c.env.STORE.head(contentKey(sha)))) missing.push(sha);
-    return c.json({ missing });
-  });
-
-  // Stores a PDF under its hash (R2 checks the bytes), for an import.
-  app.put("/api/pdfs/:sha256", async (c) => {
-    const sha256 = c.req.param("sha256");
-    if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
-    if ((await storePdf(c.env.STORE, sha256, await c.req.arrayBuffer())) === "mismatch") {
-      return refuse(c, 400, "The PDF arrived damaged. Try again. Details: it doesn't match its SHA-256.");
-    }
-    return c.body(null, 204);
   });
 
   // An import's head (the PDF uploaded first): an unfinished import of the same file removed, then the project made,

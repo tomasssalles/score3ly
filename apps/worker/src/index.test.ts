@@ -8,6 +8,7 @@ import app from "./index.ts";
 import { collectOrphans } from "./storage.ts";
 import { lockOf } from "./versions.ts";
 import { defaultName } from "./names.ts";
+import { insertProject } from "./projects.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 
 // A call still running counts as dead in the statistics once it is older than the Worker's longest call timeout plus a
@@ -432,6 +433,38 @@ test("looking up a PDF lists its projects and the name a new one would get", asy
     [first.id, second.id],
   );
   assert.equal(body.newProjectName, "sonata (2)");
+});
+
+// One name loop for a create and an import (the code review's E14): `insertProject` numbers from the names taken, and
+// looks again when another project takes the name between its look and its insert.
+test("a create and an import number names the same way, and a name taken meanwhile is numbered again", async () => {
+  const { project } = await projectWithACall("Sonata.pdf");
+  const data = await exportOf(project.id);
+  data.project.name = "sonata";
+  const imported = await importOf(data);
+  assert.equal(imported.status, 201);
+  assert.equal(((await imported.json()) as { name: string }).name, "sonata (1)");
+  assert.equal((await createdProject("SONATA.pdf", "another")).name, "SONATA (2)");
+  // The lookup gives an imported project's name from its 'name' (no ".pdf" added by the browser).
+  const lookup = await app.request(`/api/pdfs/${project.pdfSha256}?name=${encodeURIComponent(" Sonata ")}`, {}, env);
+  assert.equal(((await lookup.json()) as { newProjectName: string }).newProjectName, "Sonata (3)");
+  assert.equal((await app.request(`/api/pdfs/${project.pdfSha256}?name=a&filename=a.pdf`, {}, env)).status, 400);
+
+  // Another project takes "Etude" between the look and the insert: the batch fails and the next look gives "Etude (1)".
+  let looks = 0;
+  const racing = {
+    prepare: (query: string) => env.DB.prepare(query),
+    batch: async (statements: D1PreparedStatement[]) => {
+      if (looks++ === 0) await env.DB.prepare("INSERT INTO projects (id, name, pdf_sha256, pdf_filename, run_mode, created_at, last_modified_at, last_opened_at) VALUES ('other', 'Etude', ?, 'x.pdf', 'auto', 'now', 'now', 'now')").bind(project.pdfSha256).run();
+      return env.DB.batch(statements);
+    },
+  } as unknown as D1Database;
+  const name = await insertProject(racing, "Etude", (name) => [
+    env.DB.prepare("INSERT INTO projects (id, name, pdf_sha256, pdf_filename, run_mode, created_at, last_modified_at, last_opened_at) VALUES ('mine', ?, ?, 'x.pdf', 'auto', 'now', 'now', 'now')").bind(name, project.pdfSha256),
+  ]);
+  assert.equal(name, "Etude (1)");
+  assert.equal(looks, 2);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM projects WHERE name LIKE 'Etude%'"), 2);
 });
 
 test("looking up an unknown PDF finds no projects", async () => {

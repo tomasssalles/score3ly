@@ -97,7 +97,7 @@ export function App() {
     let lookup: PdfLookup;
     try {
       sha256 = await sha256Hex(await pdf.arrayBuffer());
-      lookup = await lookUpPdf(sha256, pdf.name);
+      lookup = await lookUpPdf(sha256, { filename: pdf.name });
     } catch (err) {
       setError(failure("Checking the PDF failed", err));
       return;
@@ -115,7 +115,7 @@ export function App() {
     try {
       archive = await unzipArchive(new Uint8Array(await file.arrayBuffer()));
       // The name a new project would get: the exported one, numbered if taken.
-      lookup = await lookUpPdf(archive.rows.project.pdf_sha256, `${archive.rows.project.name}.pdf`);
+      lookup = await lookUpPdf(archive.rows.project.pdf_sha256, { name: archive.rows.project.name });
     } catch (err) {
       setError(failure("Importing the project failed", err));
       return;
