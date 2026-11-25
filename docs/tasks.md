@@ -53,6 +53,7 @@ The tasks below, in the file's order.
 - [A "done" mark for projects](#a-done-mark-for-projects)
 - [Check export and import on a large project](#check-export-and-import-on-a-large-project)
 - [A leave guard for an import](#a-leave-guard-for-an-import)
+- [Fewer provenance rows for the stages that read the whole score](#fewer-provenance-rows-for-the-stages-that-read-the-whole-score)
 - [Measure the Worker's CPU time per LLM request](#measure-the-workers-cpu-time-per-llm-request)
 - [Safe storage of the secrets in cadenza](#safe-storage-of-the-secrets-in-cadenza)
 - [Spot-check the collected prices](#spot-check-the-collected-prices)
@@ -301,6 +302,34 @@ An import sends all the rows of a project's pipeline to the Worker in one reques
 `#optional`
 
 Importing a long project takes a while (the project owner, 2026-11-24, importing Liszt's Consolations with the fake model's 132 systems into the deployed instance). Its progress is shown (a bar in the banner "Importing …", built 2026-11-25, the code review's batch 14: the uploads and the chunks of rows); leaving the page while it goes on isn't guarded yet, as leaving a running project is (`apps/web/src/usePipelineRun.ts`: the question before leaving, `beforeunload`). An import left halfway is removed by a retry of the same file, or by "Free up storage" a day later.
+
+### Fewer provenance rows for the stages that read the whole score
+`#next-release` `#decision`
+
+**What happened** (the project owner, 2026-11-25): the day after importing Liszt's Consolations (22 pages, 132 systems with the fake model) into the deployed instance (the task "Check export and import on a large project"), Cloudflare's email said the account had gone over the free plan's **100,000 rows written to D1 per day**. The import's requests had all succeeded. As far as we know, D1's free plan refuses queries once the day's limit is reached, until 00:00 UTC; the import probably crossed it near its end. Check Cloudflare's current docs.
+
+**Why so many rows:** `output_inputs` (the outputs each output was made from, §5.2) grows with the square of the number of systems. Each `review` output and each `apply_review` output reads the whole score, so it gets one row per system's extraction and more. Counted on the replay fixture (one page, six systems): 347 rows of `output_inputs` for 41 outputs. `review`'s outputs had 11 inputs each and `apply_review`'s about 15 (n + 5 to 9). Scaled to 132 systems, as an estimate:
+
+| Outputs | Count | Inputs each | `output_inputs` rows |
+|---|---|---|---|
+| `review` | 132 | ~137 | ~18,000 |
+| `apply_review` | ~350 | ~140 | ~50,000 |
+| everything else | | | a few thousand |
+
+D1 counts the writes to indexes as rows written too. `output_inputs` has a composite primary key, which SQLite keeps as a separate index, so each of its rows counts about twice: some 140,000 rows written for one import. The stages, outputs, calls, fingerprints and `stage_inputs` are small next to that.
+
+**Not only imports:** running such a score on the deployed instance writes the same rows (`POST outputs`), and deleting a project, a Stop or a Retry deletes them again (`pipeline.ts`, `deletion.ts`), which counts too. So one long score, imported or run, uses about a day of the free plan's D1 writes. A sonata of 150 to 200 systems goes well over.
+
+**Where the rows are read:**
+- `deletion.ts` keeps an output that a live stage's output was made from;
+- `pipeline.ts` copies them when a stage's outputs are carried over;
+- `projectFile.ts` exports and imports them.
+
+**Ideas, to decide:**
+- record what a stage that reads the whole score read once per stage, in `stage_inputs`, which already exists, and per output only what is its own (e.g. its system's extraction and crops);
+- or keep per output only the inputs that differ between its outputs, and the shared ones on the stage.
+
+Either changes stored provenance, the export and the import, and the deletion's rule, which must then also look at `stage_inputs`. Then measure the rows written by an import and by a run of the same score again (the dashboard's D1 metrics).
 
 ### Measure the Worker's CPU time per LLM request
 `#next` `#research` `#next-release` `#owner`
