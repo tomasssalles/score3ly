@@ -5,11 +5,11 @@
 // - its failed calls: how many of the calls failed, and why, in a time range of their own, for all model configs or
 //   one, picked independently of the range.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { fetchActivity, fetchFailures, fetchProjectStats, type ActivityData, type FailureData, type ProjectStats } from "./api";
 import { axisLabel, bucketsOf, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./calendar";
 import { count, deletedNote, endedNote, plural } from "./format";
-import { ChartModes, StatHead, type ChartMode } from "./statsParts";
+import { ChartModes, StatHead, useLoaded, type ChartMode } from "./statsParts";
 import { OptionPicker } from "./ui/Picker";
 import { TimeChart } from "./TimeChart";
 import { activeHoursText, activeQuarters, createdIn, createdNote, failuresIn, failuresNote, hoursNumber, hoursView } from "./usage";
@@ -17,27 +17,20 @@ import { activeHoursText, activeQuarters, createdIn, createdNote, failuresIn, fa
 const ALL = "";
 
 export function UsageTab() {
-  const [data, setData] = useState<ActivityData | null>(null);
-  const [projects, setProjects] = useState<ProjectStats | null>(null);
-  const [failures, setFailures] = useState<FailureData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchActivity().then(setData, () => setError("The activity couldn't be loaded."));
-    fetchProjectStats().then(setProjects, () => setError("The projects couldn't be loaded."));
-    fetchFailures().then(setFailures, () => setError("The failed calls couldn't be loaded."));
-  }, []);
+  const activity = useLoaded(fetchActivity, "The activity couldn't be loaded.");
+  const projects = useLoaded(fetchProjectStats, "The projects couldn't be loaded.");
+  const failures = useLoaded(fetchFailures, "The failed calls couldn't be loaded.");
+  const error = failures.error ?? projects.error ?? activity.error;
 
   return (
     <>
       {error && <p className="settings-error error-text">{error}</p>}
-      {data && <ActiveHours data={data} />}
-      {projects && <Projects data={projects} />}
-      {failures && <Failures data={failures} />}
+      {activity.data && <ActiveHours data={activity.data} />}
+      {projects.data && <Projects data={projects.data} />}
+      {failures.data && <Failures data={failures.data} />}
     </>
   );
 }
-
 
 function ActiveHours({ data }: { data: ActivityData }) {
   const [now] = useState(() => Date.now());

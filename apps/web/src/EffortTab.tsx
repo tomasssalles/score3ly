@@ -2,20 +2,14 @@
 // finished projects the user selects: the manual work per page, per manual step with how many projects used it, and the
 // extra reviews per project. The computations are in effort.ts.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { fetchRunTimes, type RunTimeData } from "./api";
 import { effortView } from "./effort";
-import { FinishedProjectsFilter } from "./statsParts";
+import { FinishedProjectsFilter, StatHead, statValue as value, useLoaded, useSelected } from "./statsParts";
 import { percent, statDuration } from "./format";
-import { StatHead } from "./statsParts";
 
 export function EffortTab() {
-  const [data, setData] = useState<RunTimeData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchRunTimes().then(setData, () => setError("The projects couldn't be loaded."));
-  }, []);
+  const { data, error } = useLoaded(fetchRunTimes, "The projects couldn't be loaded.");
 
   return (
     <>
@@ -26,16 +20,9 @@ export function EffortTab() {
   );
 }
 
-const value = (text: string, note?: string) => (
-  <span className="stat-value">
-    <span className="stat-amount">{text}</span>
-    {note && <span className="stat-note">{note}</span>}
-  </span>
-);
-
 function Effort({ data }: { data: RunTimeData }) {
   const [out, setOut] = useState<Set<string>>(new Set()); // the projects taken out
-  const selected = useMemo(() => new Set(data.projects.filter((p) => !out.has(p.id)).map((p) => p.id)), [data, out]);
+  const selected = useSelected(data.projects, out);
   const view = useMemo(() => effortView(data, selected), [data, selected]);
   const time = (ms: number | null) => (ms === null ? "–" : statDuration(ms));
 

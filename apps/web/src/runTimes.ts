@@ -25,13 +25,14 @@ import { activeMs, manualWork } from "./effort.ts";
 import { endedNote } from "./format.ts";
 import { activeQuarters } from "./usage.ts";
 
-// Every step but `ingest`, in the pipeline's order. The manual ones aren't part of the estimate for a new score.
-export const STEPS = STEP_IDS.filter((step) => step !== "ingest");
+// The steps with a row, every one but `ingest`, in the pipeline's order. The manual ones aren't part of the estimate for
+// a new score.
+const ROW_STEPS = STEP_IDS.filter((step) => step !== "ingest");
 const MANUAL = new Set<string>(stepsOfKind("manual"));
 const LLM = new Set<string>(stepsOfKind("llm"));
 
 // Whether an item really ran: no answer from the record (LLM steps), its image made (`rasterize`).
-function ranAnew(step: string, calls: number, callsCached: number, images: number, imagesCached: number): boolean {
+function ranAnew(step: string, callsCached: number, images: number, imagesCached: number): boolean {
   if (LLM.has(step)) return callsCached === 0;
   if (step === "rasterize") return imagesCached < images;
   return true;
@@ -55,9 +56,9 @@ export function perProject(data: RunTimeData, selected: Set<string>, activity: A
 function perPage(data: RunTimeData, stages: RunTimeData["stages"]): number | null {
   const byId = new Map(stages.map((s) => [s.id, s]));
   const durations: Record<ItemKind, number[]> = { whole: [], page: [], system: [] };
-  for (const [stage, item, ms, calls, callsCached, images, imagesCached] of data.items) {
+  for (const [stage, item, ms, , callsCached, images, imagesCached] of data.items) {
     const s = byId.get(stage);
-    if (s && ranAnew(s.step, calls, callsCached, images, imagesCached)) durations[itemKind(item)].push(ms);
+    if (s && ranAnew(s.step, callsCached, images, imagesCached)) durations[itemKind(item)].push(ms);
   }
   const done = stages.filter((s) => s.done && s.pageCount > 0);
   const pages = done.reduce((n, s) => n + s.pageCount, 0);
@@ -106,7 +107,7 @@ export function stepTimes(data: RunTimeData, selected: Set<string>, split: "none
     if (split === "model") return m ? { id: `model:${m.modelKey}`, label: m.modelLabel } : { id: configId, label: configId };
     return { id: configId, label: m ? (m.name ?? m.model) : configId, note: endedNote(m?.deletedAt ?? null) };
   };
-  return STEPS.map((step) => {
+  return ROW_STEPS.map((step) => {
     const stages = data.stages.filter((s) => s.step === step && selected.has(s.projectId));
     const groups = new Map<string, { id: string; label: string; note?: string }>();
     if (split !== "none" && LLM.has(step)) {

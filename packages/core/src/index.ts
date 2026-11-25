@@ -23,6 +23,7 @@ export { groupBy } from "./collections.ts";
 export type { ApiErrorBody, ErrorCode } from "./api/errors.ts";
 export { errorText } from "./api/errors.ts";
 export type { CallErrorKind, CostOutcome, Outcome } from "./api/outcomes.ts";
+export { CALL_ERROR_KINDS, OUTCOMES } from "./api/outcomes.ts";
 export type { ActivityData, CostData, FailureData, ProjectStats, RunTimeData } from "./api/stats.ts";
 export { EXPORT_FORMAT, formatProblem, IMPORT_CHUNK_BYTES, IMPORT_CHUNK_ROWS, IMPORT_TABLES, importChunks, importHead, MISSING_CONTENT_BATCH } from "./api/projectExport.ts";
 export type { ExportRow, Imported, ImportChunk, ImportHead, ImportTable, ProjectExport } from "./api/projectExport.ts";

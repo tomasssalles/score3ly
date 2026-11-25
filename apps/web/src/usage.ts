@@ -73,7 +73,7 @@ export function failuresIn(
   const counts = (config: string) => pick === null || config === pick || modelOf.get(config) === pick;
   let calls = 0;
   let cached = 0;
-  const reasons = new Map<string, number>();
+  const reasons = new Map<Outcome, number>();
   for (const [config, t, reason, n] of data.points) {
     if (t < range.start || t >= range.end || !counts(config)) continue;
     if (reason === "cached") {
@@ -83,7 +83,8 @@ export function failuresIn(
     calls += n;
     if (reason !== "ok") reasons.set(reason, (reasons.get(reason) ?? 0) + n);
   }
-  const list = [...reasons].map(([key, n]) => ({ key, label: OUTCOME_LABELS[key as Outcome] ?? key, calls: n }));
+  // A reason a newer Worker sends that this app doesn't know is shown as it is.
+  const list = [...reasons].map(([key, n]) => ({ key, label: OUTCOME_LABELS[key] ?? key, calls: n }));
   list.sort((a, b) => b.calls - a.calls || a.label.localeCompare(b.label));
   return { calls, failed: list.reduce((sum, r) => sum + r.calls, 0), reasons: list, cached };
 }

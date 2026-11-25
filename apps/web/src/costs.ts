@@ -54,7 +54,7 @@ export type Group = { key: string; label: string; note?: string; rank?: number }
 
 export const stepTitle = (step: string) => stepInfo(step).title;
 // The LLM steps in the pipeline's order.
-const STEPS: readonly string[] = stepsOfKind("llm");
+const LLM_STEPS: readonly string[] = stepsOfKind("llm");
 
 // The providers in the costs' order, named as everywhere (`PROVIDER_NAMES`). The fake provider that ships with the app
 // costs nothing, so it never shows here; the one for development does.
@@ -83,7 +83,7 @@ export function grouper(data: CostData, dimension: Dimension, grouping: string, 
       const s = stages.get(stageId)!;
       if (grouping === "origin") return s.inRecipe ? { key: "recipe", label: "Recipe stages", rank: 0 } : { key: "added", label: "Added stages", rank: 1 };
       if (grouping === "fate") return s.kept ? { key: "kept", label: "Kept", rank: 0 } : { key: "discarded", label: "Replaced or stopped", rank: 1 };
-      return { key: s.step, label: stepTitle(s.step), rank: rankIn(STEPS, s.step) };
+      return { key: s.step, label: stepTitle(s.step), rank: rankIn(LLM_STEPS, s.step) };
     };
   }
   if (dimension === "project") {

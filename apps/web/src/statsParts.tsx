@@ -1,7 +1,8 @@
 // What the tabs of the Statistics page share (StatsPage.tsx, UsageTab.tsx, RunTimesTab.tsx, EffortTab.tsx): a block's
-// head, the toggle between a chart's bars and its running total, and the list of projects to select.
+// head and value, the toggle between a chart's bars and its running total, the list of projects to select, and how a
+// tab loads its data.
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckList, type CheckItem } from "./ui/CheckList";
 import { createdBefore } from "./costs";
 import { count, deletedNote, shortDate } from "./format";
@@ -10,6 +11,32 @@ import { BarsIcon, FilterIcon, MoreIcon, RunningTotalIcon } from "./ui/icons";
 import { InfoButton } from "./ui/Info";
 
 export type ChartMode = "bars" | "line";
+
+// A tab's data, fetched once when it opens: the answer, or the message to show if it couldn't be loaded.
+export function useLoaded<T>(fetcher: () => Promise<T>, message: string): { data: T | null; error: string | null } {
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    fetcher().then(setData, () => setError(message));
+    // Fetched once, when the tab opens.
+  }, []);
+  return { data, error };
+}
+
+// A block's value on the right of its head: the number, and a note under it.
+export function statValue(text: string, note?: string): ReactNode {
+  return (
+    <span className="stat-value">
+      <span className="stat-amount">{text}</span>
+      {note && <span className="stat-note">{note}</span>}
+    </span>
+  );
+}
+
+// The ids of the projects selected in a filter: all of them but those taken out.
+export function useSelected(projects: { id: string }[], out: Set<string>): Set<string> {
+  return useMemo(() => new Set(projects.filter((p) => !out.has(p.id)).map((p) => p.id)), [projects, out]);
+}
 
 // Bars per period, or the running total as a line.
 export function ChartModes({ mode, onChange }: { mode: ChartMode; onChange: (mode: ChartMode) => void }) {

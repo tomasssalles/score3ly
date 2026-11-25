@@ -2,44 +2,31 @@
 // selects (all at first; no time range): how long a project took, each step's work time per page (split by model
 // config if wanted), and an estimate per page for a new score. The computations are in runTimes.ts.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { fetchActivity, fetchRunTimes, type ActivityData, type RunTimeData } from "./api";
-import { FinishedProjectsFilter } from "./statsParts";
+import { FinishedProjectsFilter, StatHead, statValue as value, useLoaded, useSelected } from "./statsParts";
 import { statDuration } from "./format";
 import { estimatePerPage, perProject, stepTimes } from "./runTimes";
-import { StatHead } from "./statsParts";
 import { OptionPicker } from "./ui/Picker";
 import { activeHoursText } from "./usage";
 
 export function RunTimesTab() {
-  const [data, setData] = useState<RunTimeData | null>(null);
-  const [activity, setActivity] = useState<ActivityData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchRunTimes().then(setData, () => setError("The run times couldn't be loaded."));
-    fetchActivity().then(setActivity, () => setError("The activity couldn't be loaded."));
-  }, []);
+  const runTimes = useLoaded(fetchRunTimes, "The run times couldn't be loaded.");
+  const activity = useLoaded(fetchActivity, "The activity couldn't be loaded.");
+  const error = activity.error ?? runTimes.error;
 
   return (
     <>
       {error && <p className="settings-error error-text">{error}</p>}
-      {data && activity && <RunTimes data={data} activity={activity} />}
+      {runTimes.data && activity.data && <RunTimes data={runTimes.data} activity={activity.data} />}
     </>
   );
 }
 
-const value = (text: string, note?: string) => (
-  <span className="stat-value">
-    <span className="stat-amount">{text}</span>
-    {note && <span className="stat-note">{note}</span>}
-  </span>
-);
-
 function RunTimes({ data, activity }: { data: RunTimeData; activity: ActivityData }) {
   const [out, setOut] = useState<Set<string>>(new Set()); // the projects taken out
   const [split, setSplit] = useState<"none" | "config" | "model">("none");
-  const selected = useMemo(() => new Set(data.projects.filter((p) => !out.has(p.id)).map((p) => p.id)), [data, out]);
+  const selected = useSelected(data.projects, out);
   const project = useMemo(() => perProject(data, selected, activity), [data, selected, activity]);
   const rows = useMemo(() => stepTimes(data, selected, split), [data, selected, split]);
   const estimate = estimatePerPage(rows, data.recipe);

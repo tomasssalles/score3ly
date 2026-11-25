@@ -2,7 +2,7 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { EXPORT_FORMAT, firstFreeName, importChunks, importHead, type ProjectExport, sha256Hex } from "@score3ly/core";
+import { CALL_ERROR_KINDS, EXPORT_FORMAT, firstFreeName, OUTCOMES, importChunks, importHead, type ProjectExport, sha256Hex } from "@score3ly/core";
 import { testHost, testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { collectOrphans } from "./storage.ts";
@@ -12,6 +12,7 @@ import { insertProject } from "./projects.ts";
 import { beginImport } from "./projectFile.ts";
 import { freeUpStorage } from "./deletion.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
+import { OUTCOME } from "./callRecords.ts";
 
 // A call still running counts as dead in the statistics once it is older than the Worker's longest call timeout plus a
 // margin (decided 2026-11-17): younger, it may still answer.
@@ -1816,6 +1817,26 @@ test("project stats: every project, deleted or finished, and the distinct pages 
     [[done.id, false, true], [again.id, false, false], [gone.id, true, false]],
   );
   assert.equal(stats.pagesProcessed, 5); // 1, 2, 3, 4 and 7 of one PDF
+});
+
+// The code review's F17: the outcome the statistics' SQL gives a call row (`OUTCOME`) is always one of core's `OUTCOMES`,
+// which the web labels (outcomes.test.ts), and every one of them can come out of it.
+test("the outcomes: a call row of every status and error kind, and a served one, gives one of the listed outcomes", async () => {
+  const project = await createdProject("outcomes.pdf");
+  const layout = (await pipelineOf(project.id))[3];
+  const rows: [string, string | null][] = [
+    ...["running", "ok", "unparseable", "refused", "cut_off"].map((status) => [status, null] as [string, string | null]),
+    ["error", null],
+    ...CALL_ERROR_KINDS.map((kind) => ["error", kind] as [string, string | null]),
+  ];
+  await env.DB.batch([
+    ...rows.map(([status, kind], i) =>
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, error_kind, started_at) VALUES (?, ?, 'fake-model', 'k', 'p1', 1, ?, ?, '2026-10-01T00:00:00.000Z')").bind(`outcome-${i}`, layout.id, status, kind),
+    ),
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, served_from, started_at) VALUES ('outcome-served', ?, 'fake-model', 'k', 'p1', 1, 'ok', 'outcome-1', '2026-10-01T00:00:00.000Z')").bind(layout.id),
+  ]);
+  const { results } = await env.DB.prepare(`SELECT DISTINCT ${OUTCOME} AS outcome FROM llm_calls c WHERE c.id LIKE 'outcome-%'`).all<{ outcome: string }>();
+  assert.deepEqual(results.map((r) => r.outcome).sort(), [...OUTCOMES].sort());
 });
 
 test("failures: every call per config, quarter of an hour and reason; the shipped fake and fresh running calls left out", async () => {
