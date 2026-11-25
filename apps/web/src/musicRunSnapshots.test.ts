@@ -141,10 +141,10 @@ const at = (step: string, turn = 1) => stages.map((s, i) => [s, i] as const).fil
 // Batch 34 (the paid release, prompts): each request's diff read; review and both Apply reviews read a reading
 // issue's `lilypond` as [] (C31); the system prompts' new sentences and the stage keys of the new prompt versions.
 const EXPECTED: Record<string, { hash: string; counts: Record<string, number> }> = {
-  extract: { hash: "fe8fa6ee00b9ebd4", counts: { start: 1, llm: 6, "issue-numbers": 6, outputs: 7, finish: 1 } },
-  review: { hash: "d05d0f087f489f53", counts: { start: 1, llm: 6, "issue-numbers": 1, outputs: 6, finish: 1 } },
-  "apply_review 1": { hash: "6e0c392169f80097", counts: { start: 1, llm: 2, outputs: 9, finish: 1 } },
-  "apply_review 2": { hash: "bb7238b7109b204e", counts: { start: 1, outputs: 7, finish: 1 } },
+  extract: { hash: "4a242b94c73880d7", counts: { start: 1, llm: 6, "issue-numbers": 6, outputs: 7, finish: 1 } },
+  review: { hash: "c45e42ec02ad711e", counts: { start: 1, llm: 6, "issue-numbers": 1, outputs: 6, finish: 1 } },
+  "apply_review 1": { hash: "5be3b41a38ad0e95", counts: { start: 1, llm: 2, outputs: 9, finish: 1 } },
+  "apply_review 2": { hash: "a69ce985ec87c16e", counts: { start: 1, outputs: 7, finish: 1 } },
   build_mei: { hash: "f9c01eee702a35a4", counts: { start: 1, outputs: 1, finish: 1 } },
 };
 

@@ -9,7 +9,7 @@ import { lensRecap, MUSIC } from "./music.ts";
 import { described, int, list, object, str } from "./schema.ts";
 
 // Raise whenever the texts or the schema change. The format itself has its own version (LENS_VERSION).
-export const EXTRACT_PROMPT_VERSION = 7;
+export const EXTRACT_PROMPT_VERSION = 8;
 
 export const EXTRACT_MAX_OUTPUT_TOKENS = 32_000;
 
@@ -39,7 +39,7 @@ Transcribe the music, never its appearance. The test: would a player read it dif
 ## Your answer
 **A text with no value is the empty string ""**, never null (a description, a label, a time, a printed number, a location), and a number with no value is -1.
 
-- **startRepeat:** whether the system begins with a start-repeat bar line (not the line that joins the staves at the left edge).
+- **startRepeat:** whether the system begins with a start-repeat bar line (not the line that joins the staves at the left edge). A start repeat at a system break is given where it is printed, usually here, at the start of the system; never also as the previous system's last **rightBarLine**.
 - **staves:** the system's staves, top to bottom, each with:
   - **staff:** its number in the piece: the number of a staff from the request's list that continues here, or a new number for a staff that is new (a staff that comes back after systems without it takes its old number);
   - **description:** for a new staff, a short description ("piano right hand", "violin I", "orchestra reduction"); "" for a staff from the list;
@@ -63,8 +63,8 @@ Transcribe the music, never its appearance. The test: would a player read it dif
 ${MUSIC}
 
 ## Issues
-Report every doubt as an issue, not silently: a question about what the page says at one place, with the answers you considered, each with its evidence ("dot near the A♭: staccato or smudge?"), and **applied**: the key of the answer your music reflects. Answers have keys: "a", "b", "c", …
-- **boxes:** where it is: one or more boxes, each on one of the images you were sent, named by its label ("system", "stretch 3", "previous system", "next system"), as fractions of that image (left, right, top, bottom from 0 to 1).
+Report every doubt as an issue, not silently: a question about what the page says at one place, with the answers you considered, each with its evidence ("dot near the A♭: staccato or smudge?"), and **applied**: the key of the answer your music reflects. Answers have keys "a", "b", "c", … in that order.
+- **boxes:** where it is: one or more boxes, each on one of the images you were sent, named by its label ("system", "stretch 3", "previous system", "next system"), as fractions of that image (left, right, top, bottom from 0 to 1). One issue's boxes may be on the previous system or on the next one, not on both.
 - **People read them too:** the question, the location and the answers are shown to the user in the app, not only to the stages after you. Write them as plain sentences that a musician understands without the request: each starts with a capital letter. **Never refer to the transcription** ("as transcribed", "the current reading", "what you wrote"): a later stage may apply another answer, and the text would then be wrong. Say only what the page might show: "A D", not "A D, as transcribed".
 - **location:** what in the box is meant, when the box alone doesn't say: simple and local to the box ("the middle note of the chord"), never depending on your reading of the score ("the left hand on beat 3"). Else "".
 - **class:** "reading" when what the page says is hard to tell; "format" when the page is clear but the format can't express it (a mark that isn't in the list, lyrics, an ossia, a beam across a bar line). For a format issue, the answers are the workarounds (dropping the mark is one), and **lilypond** lists the LilyPond tokens that would express what is printed (e.g. ["\\\\harmonic"]), or is empty when no new token would (the tokens exist, but the format's rules don't allow what is printed, e.g. a beam across a bar line); for a reading issue it is always empty. Format issues cost nothing and are wanted.

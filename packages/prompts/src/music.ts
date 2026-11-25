@@ -39,7 +39,8 @@ Each voice of each stretch is one string: LilyPond with these differences. Write
 - **Chords:** \`<c' \\flat e' g'>4\`, the duration after \`>\`. Inside the brackets, after a note, only that note's own marks: its fingering and its curves (\`<c'\\=1( e'\\=2(>4\`).
 
 ### Marks, after the note, rest or chord they belong to
-- **Curves:** every tie, slur and phrasing slur is a curve, \`\\=N(\` where it starts and \`\\=N)\` where it ends. A new curve takes any number not open at that moment in its voice; an open curve keeps its number until it ends, also across bar lines and systems (close the curves the request lists as open with their numbers). Never \`~\`, \`(\` or \`\\(\`. Curves are on notes and chords, never on rests.
+Curves, articulations, ornaments, fingering and ${cmds(OTHER_MARKS)} are on notes and chords, never on rests.
+- **Curves:** every tie, slur and phrasing slur is a curve, \`\\=N(\` where it starts and \`\\=N)\` where it ends. A new curve takes any number not open at that moment in its voice; an open curve keeps its number until it ends, also across bar lines and systems (close the curves the request lists as open with their numbers). Never \`~\`, \`(\` or \`\\(\`.
 - **Articulations:** ${Object.entries(ARTICULATIONS).map(([sign, name]) => `\`-${sign}\` (${name})`).join(" ")} \`\\fermata\`
 - **Ornaments:** ${cmds(ORNAMENTS)}; a trill line ${cmds(TRILL_SPAN, " … ")}
 - **Other:** ${cmds(OTHER_MARKS)} (a tie to nothing, "let ring")

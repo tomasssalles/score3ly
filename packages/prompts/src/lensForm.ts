@@ -110,7 +110,7 @@ export const LENS_SCHEMA_PARTS = {
   ),
   location: described(str, 'What in the box is meant, when the box alone doesn\'t say, simple and local to the box ("the middle note of the chord"); else "".'),
   question: described(str, "What the page says at this place, as a plain sentence a musician understands. Never refers to the transcription."),
-  answerKey: described(str, '"a", "b", "c", …'),
+  answerKey: described(str, '"a", "b", "c", … in that order.'),
   answerText: described(str, "The answer, about what the page might show; never refers to the transcription."),
   issueClass: described(enumOf(ISSUE_CLASSES), '"reading": what the page says is hard to tell; "format": the page is clear, but the format can\'t express it.'),
   lilypond: described(

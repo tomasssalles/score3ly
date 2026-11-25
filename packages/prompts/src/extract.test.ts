@@ -91,3 +91,12 @@ test("the answer becomes the lens: sentinels null, the class split, the ending a
     ],
   );
 });
+
+test("the prompt says which marks can't be on a rest, as the parser refuses them (code review D18a)", () => {
+  assert.match(MUSIC, /Curves, articulations, ornaments, fingering and `\\arpeggio` `\\glissando` `\\laissezVibrer` are on notes and chords, never on rests\./);
+  for (const music of ["r4\\=1(", "r4-.", "r4\\trill", "r4-3", "r4\\arpeggio", "r4\\glissando", "r4\\laissezVibrer"]) {
+    const parsed = parseVoice(music);
+    assert.match("problem" in parsed ? parsed.problem : "", /can't be on a rest/, music);
+  }
+  for (const music of ["r4\\fermata", "r4\\p", "r4\\sustainOn", "r4^\"rit.\""]) assert.ok(!("problem" in parseVoice(music)), music);
+});

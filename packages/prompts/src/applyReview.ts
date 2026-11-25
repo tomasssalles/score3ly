@@ -14,7 +14,7 @@ import { described, int, list, nullable, object, str } from "./schema.ts";
 import { each, LENS_SCHEMA_PARTS as P, orNull, stretchFromModel, systemFromModel, voiceFromModel } from "./lensForm.ts";
 
 // Raise whenever the texts or the schema change.
-export const APPLY_REVIEW_PROMPT_VERSION = 7;
+export const APPLY_REVIEW_PROMPT_VERSION = 8;
 
 export const APPLY_REVIEW_MAX_OUTPUT_TOKENS = 32_000;
 
