@@ -9,16 +9,15 @@
 //
 // And for the average cost per page, every project, deleted ones included: what it cost in all (its replaced and
 // stopped stages too, free calls at $0), whether its pipeline ran to its end, and the pages its `rasterize` stages
-// selected, each once. The browser merges the projects of a PDF and averages, so a change of selection needs no
+// selected, each once (only those that are done: a failed one doesn't count, the owner's dec. 42). The browser merges the projects of a PDF and averages, so a change of selection needs no
 // request either.
 
 import { notImportingProject, notImportingStage } from "./importing.ts";
 import type { CostData, CostOutcome } from "@score3ly/core";
 import type { Hono } from "hono";
 import { CALL_QUARTER, COST_WITH_VAT, OUTCOME, SENT, unknownCost } from "./callRecords.ts";
-import { parsePages } from "@score3ly/core";
-import { modelGroupOf, resolvedModel } from "./llm/models.ts";
-import type { ModelConfigRow } from "./modelConfigs.ts";
+import { resolvedModel } from "./llm/models.ts";
+import { CONFIG_COLUMNS, configSummary, type ConfigColumns, FINISHED, rasterizedPages } from "./statsSql.ts";
 import { readSettings } from "./settings.ts";
 import { spentInLastDay } from "./spending.ts";
 
@@ -71,23 +70,20 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
       // Finished: the last stage of the pipeline (always engrave) is done.
       db.prepare(
         `SELECT p.id, p.name, p.pdf_sha256, p.pdf_filename, p.created_at, p.deleted_at,
-           (SELECT s.status FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = p.id ORDER BY e.position DESC LIMIT 1) = 'done' AS finished
+           ${FINISHED} AS finished
          FROM projects p WHERE p.importing IS NULL ORDER BY p.created_at`,
       ),
       db
-        .prepare(`SELECT id, name, provider, model_id, model_string, family, effort, created_at, deleted_at FROM model_configs WHERE id IN (SELECT model_config_id FROM llm_calls WHERE id IN (${counted}))`),
+        .prepare(`SELECT ${CONFIG_COLUMNS}, effort FROM model_configs WHERE id IN (SELECT model_config_id FROM llm_calls WHERE id IN (${counted}))`),
       db.prepare(`SELECT s.created_in AS project, SUM(${COST_WITH_VAT}) AS usd FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE ${SENT} AND ${notImportingProject("s.created_in")} GROUP BY s.created_in`),
-      // The pages a `rasterize` stage ran on are written out in its config ("1-12, 15").
-      db.prepare(`SELECT created_in AS project, config_json FROM stages WHERE step = 'rasterize' AND started_at IS NOT NULL AND config_json IS NOT NULL AND ${notImportingProject("created_in")}`),
+      // The pages of the rasterize stages that are done (a failed one doesn't count: the owner's dec. 42).
+      db.prepare(`SELECT created_in AS project, config_json FROM stages WHERE step = 'rasterize' AND status = 'done' AND config_json IS NOT NULL AND ${notImportingProject("created_in")}`),
     ]);
     const costOf = new Map((projectCosts.results as { project: string; usd: number | null }[]).map((r) => [r.project, r.usd ?? 0]));
     const pagesOf = new Map<string, Set<number>>();
     for (const row of rasterized.results as { project: string; config_json: string }[]) {
-      const selection = (JSON.parse(row.config_json) as { pages?: unknown }).pages;
-      const parsed = typeof selection === "string" ? parsePages(selection) : null;
-      if (!parsed || "error" in parsed) continue;
       const pages = pagesOf.get(row.project) ?? new Set<number>();
-      for (const page of parsed.pages) pages.add(page);
+      for (const page of rasterizedPages(row.config_json)) pages.add(page);
       pagesOf.set(row.project, pages);
     }
     const [{ spendingCapUsd }, spent] = await Promise.all([readSettings(db), spentInLastDay(db)]);
@@ -95,7 +91,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
     type Unknown = { stage: string; config: string; t: number; n: number };
     type Stage = { id: string; step: string; project: string; in_recipe: number; kept: number };
     type ProjectRow = { id: string; name: string; pdf_sha256: string; pdf_filename: string; created_at: string; deleted_at: string | null; finished: number | null };
-    type ConfigRow = Pick<ModelConfigRow, "id" | "name" | "provider" | "model_id" | "model_string" | "family" | "effort" | "created_at" | "deleted_at">;
+    type ConfigRow = ConfigColumns & { effort: CostData["configs"][number]["effort"] };
     return c.json<CostData>({
       capUsd: spendingCapUsd,
       spentLastDayUsd: spent,
@@ -118,16 +114,10 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
         costUsd: costOf.get(p.id) ?? 0,
         pages: [...(pagesOf.get(p.id) ?? [])].sort((a, b) => a - b),
       })),
-      configs: (configs.results as ConfigRow[]).map((m) => ({
-        id: m.id,
-        name: m.name,
-        provider: m.provider,
-        ...(({ model, family, modelName }) => ({ model, family, modelName }))(resolvedModel(m)),
-        ...modelGroupOf(m),
-        effort: m.effort,
-        createdAt: m.created_at,
-        deletedAt: m.deleted_at,
-      })),
+      configs: (configs.results as ConfigRow[]).map((m) => {
+        const { family, modelName } = resolvedModel(m);
+        return { ...configSummary(m), provider: m.provider, family, modelName, effort: m.effort };
+      }),
     });
   });
 }

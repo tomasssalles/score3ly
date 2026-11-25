@@ -1667,6 +1667,10 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
     env.DB.prepare("INSERT OR IGNORE INTO model_configs (id, name, provider, model_string, family, pricing_kind, created_at) VALUES ('free', 'Gemini (free)', 'ai-studio', 'gemini', 'gemini', 'free', '2026-10-01')"),
     // A replaced stage: no longer in any pipeline.
     env.DB.prepare("INSERT INTO stages (id, created_in, step, status, in_recipe, created_at) VALUES ('old-layout', ?, 'layout', 'done', 1, '2026-10-01')").bind(project.id),
+    // The pages per project come from rasterize stages that are done (the owner's dec. 42): the one started above,
+    // done; a failed one on page 5 doesn't count.
+    env.DB.prepare("UPDATE stages SET status = 'done' WHERE step = 'rasterize' AND created_in = ?").bind(project.id),
+    env.DB.prepare("INSERT INTO stages (id, created_in, step, status, config_json, in_recipe, created_at, started_at) VALUES ('failed-rasterize', ?, 'rasterize', 'failed', '{\"pages\":\"5\",\"dpi\":300}', 1, '2026-10-01', '2026-10-01')").bind(project.id),
   ]);
   const now = Date.now();
   const at = (minutesAgo: number) => new Date(Math.floor(now / 900_000) * 900_000 - minutesAgo * 60_000 + 60_000).toISOString();
@@ -1862,7 +1866,7 @@ test("run times: finished projects only, their stages that started with items of
     env.DB.prepare(
       "UPDATE stages SET status = 'done', started_at = '2026-10-20T09:00:00.000Z', finished_at = '2026-10-20T10:00:00.000Z' WHERE id IN (SELECT stage_id FROM pipeline_entries WHERE project_id = ?)",
     ).bind(done.id),
-    // A manual stage, timed from its creation to its finish; a planned one that never started, left out.
+    // A manual stage, timed by its active quarters; a planned one that never started, left out.
     env.DB.prepare(
       "INSERT INTO stages (id, created_in, step, status, page_count, in_recipe, created_at, started_at, finished_at) VALUES ('fix', ?, 'fix_layout', 'done', 2, 0, '2026-10-20T09:10:00.000Z', '2026-10-20T09:10:00.000Z', '2026-10-20T09:40:00.000Z')",
     ).bind(done.id),
@@ -1894,21 +1898,12 @@ test("run times: finished projects only, their stages that started with items of
   assert.ok(!data.stages.some((s) => s.projectId === open.id || s.step === "ingest"));
   assert.ok(!data.stages.some((s) => s.id === "never"));
   assert.ok(data.projects[0].pipeline.includes(extract.id) && !data.projects[0].pipeline.includes("fix"));
-  const fix = data.stages.find((s) => s.id === "fix") as unknown as {
-    manual: boolean;
-    createdAt: string;
-    finishedAt: string;
-    inRecipe: boolean;
-    kept: boolean;
-    activeQuarters: number;
-    replacesStageId: string | null;
-  };
-  assert.deepEqual([fix.activeQuarters, fix.replacesStageId], [3, null]);
-  assert.deepEqual([fix.manual, fix.createdAt, fix.finishedAt], [true, "2026-10-20T09:10:00.000Z", "2026-10-20T09:40:00.000Z"]);
-  // Not in the recipe, and in no pipeline (inserted here without an entry): like a replaced stage.
-  assert.deepEqual([fix.inRecipe, fix.kept], [false, false]);
-  const kept = data.stages.find((s) => s.id === extract.id) as unknown as { inRecipe: boolean; kept: boolean };
-  assert.deepEqual([kept.inRecipe, kept.kept], [true, true]);
+  const fix = data.stages.find((s) => s.id === "fix") as unknown as { manual: boolean; inRecipe: boolean; activeQuarters: number; replacesStageId: string | null };
+  assert.deepEqual([fix.manual, fix.activeQuarters, fix.replacesStageId, fix.inRecipe], [true, 3, null, false]);
+  const recipe = data.stages.find((s) => s.id === extract.id) as unknown as { inRecipe: boolean };
+  assert.equal(recipe.inRecipe, true);
+  // Sent no more (the code review's F19): nothing read them.
+  assert.ok(data.stages.every((s) => !("kept" in s) && !("createdAt" in s) && !("finishedAt" in s)));
   const stage = data.stages.find((s) => s.id === extract.id)!;
   assert.deepEqual([stage.done, stage.pageCount, stage.items], [true, 2, { whole: 1, page: 0, system: 3 }]);
   assert.deepEqual(data.items.filter((i) => i[0] === extract.id).map((i) => i.slice(1)).sort(), [

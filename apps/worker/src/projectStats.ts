@@ -6,7 +6,7 @@
 
 import type { ProjectStats } from "@score3ly/core";
 import type { Hono } from "hono";
-import { parsePages } from "@score3ly/core";
+import { FINISHED, rasterizedPages } from "./statsSql.ts";
 
 export function projectStatsRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/project-stats", async (c) => {
@@ -14,17 +14,14 @@ export function projectStatsRoutes(app: Hono<{ Bindings: Env }>) {
     const [projects, rasterized] = await db.batch([
       db.prepare(
         `SELECT p.id, p.created_at, p.deleted_at,
-           (SELECT s.status FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = p.id ORDER BY e.position DESC LIMIT 1) = 'done' AS finished
+           ${FINISHED} AS finished
          FROM projects p WHERE p.importing IS NULL ORDER BY p.created_at`,
       ),
       db.prepare("SELECT p.pdf_sha256, s.config_json FROM stages s JOIN projects p ON p.id = s.created_in WHERE s.step = 'rasterize' AND s.status = 'done' AND s.config_json IS NOT NULL AND p.importing IS NULL"),
     ]);
     const pages = new Set<string>(); // `${pdf}/${page}`
     for (const row of rasterized.results as { pdf_sha256: string; config_json: string }[]) {
-      const selection = (JSON.parse(row.config_json) as { pages?: unknown }).pages;
-      const parsed = typeof selection === "string" ? parsePages(selection) : null;
-      if (!parsed || "error" in parsed) continue;
-      for (const page of parsed.pages) pages.add(`${row.pdf_sha256}/${page}`);
+      for (const page of rasterizedPages(row.config_json)) pages.add(`${row.pdf_sha256}/${page}`);
     }
     type ProjectRow = { id: string; created_at: string; deleted_at: string | null; finished: number | null };
     return c.json<ProjectStats>({

@@ -24,7 +24,7 @@ export type EffortView = {
   perPageMs: number | null; // all manual work per page, averaged over the selected projects with pages; null without
   rows: { step: string; label: string; perPageMs: number | null; usedIn: number }[]; // each manual step's share of it
   projects: number; // selected
-  extraReviews: number | null; // per project, on average; null while no project has any review
+  extraReviews: number | null; // per project, on average; null with no project selected
 };
 
 // A project's manual work (the rule Run times' manual rows follow too, the owner's dec. 38): the manual stages of its
@@ -68,7 +68,6 @@ export function effortView(data: RunTimeData, selected: Set<string>): EffortView
     perPageMs: mean((list) => list),
     rows,
     projects: chosen.length,
-    // Reviews don't exist until the step is built: a dash, not "0", while no project has any.
-    extraReviews: data.stages.some((s) => s.step === "review") && chosen.length ? extra / chosen.length : null,
+    extraReviews: chosen.length ? extra / chosen.length : null,
   };
 }

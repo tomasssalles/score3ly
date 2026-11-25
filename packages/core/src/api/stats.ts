@@ -78,14 +78,11 @@ export type RunTimeData = {
     projectId: string;
     configId: string | null;
     done: boolean;
-    manual: boolean; // timed from its creation to its finish
+    manual: boolean; // timed by its active quarters, not by its items
     inRecipe: boolean; // the recipe's, or added by the user
-    kept: boolean; // in a pipeline: not replaced or stopped
     replacesStageId: string | null; // a manual stage: the one it replaced by being edited
     activeQuarters: number | null; // a manual stage: its active quarters of an hour (saves, and single gaps between them)
-    createdAt: string;
-    finishedAt: string | null;
-    pageCount: number;
+    pageCount: number; // the selected pages (docs/statistics.md, "Run times"); 0 where none was stored
     items: { whole: number; page: number; system: number };
   }[];
   items: [stageId: string, item: string, durationMs: number, calls: number, callsCached: number, images: number, imagesCached: number][];

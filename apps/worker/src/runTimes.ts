@@ -2,36 +2,33 @@
 // stage, always engrave, done), deleted ones included, with their creation, their last finish, their pages and their
 // final pipeline (for Effort, which counts only its stages); the stages created in them that started (manual ones too,
 // with their active quarters, activeTime.ts, and the stage each replaced by being edited), with their step, model
-// config, page count, whether they are the recipe's and still in a pipeline (not replaced or stopped), and how many
-// items of each kind they have (for the items per page: a page, a system, the whole score); and every item of an automatic stage that was timed , with
+// config, page count, whether they are the recipe's, and how many items of each kind they have (for the items per
+// page: a page, a system, the whole score); and every item of an automatic stage that was timed, with
 // what it found in the caches. Unfinished projects are left out: their times would look shorter than they will
 // be. The browser filters by project and averages, so a change of selection needs no request.
 
 import type { RunTimeData } from "@score3ly/core";
 import type { Hono } from "hono";
-import { groupBy, parsePages, RECIPE, stepsOfKind } from "@score3ly/core";
+import { groupBy, RECIPE, stepsOfKind } from "@score3ly/core";
 import { manualQuarters } from "./activeTime.ts";
-import { modelGroupOf, resolvedModel } from "./llm/models.ts";
-import type { ModelConfigRow } from "./modelConfigs.ts";
+import { CONFIG_COLUMNS, configSummary, type ConfigColumns, FINISHED, lastStage, rasterizedPages } from "./statsSql.ts";
 
 const MANUAL: readonly string[] = stepsOfKind("manual");
 
 export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/run-times", async (c) => {
     const db = c.env.DB;
-    const last = (column: string) =>
-      `(SELECT s.${column} FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = p.id ORDER BY e.position DESC LIMIT 1)`;
-    const finished = `SELECT p.id FROM projects p WHERE p.importing IS NULL AND ${last("status")} = 'done'`;
-    const manual = ["ingest", ...MANUAL].map((s) => `'${s}'`).join(", ");
+    const finished = `SELECT p.id FROM projects p WHERE p.importing IS NULL AND ${FINISHED}`;
+    // The steps whose items aren't timed: ingest (it doesn't run) and the manual ones (their active time counts).
+    const untimed = ["ingest", ...MANUAL].map((s) => `'${s}'`).join(", ");
     const [projects, stages, items, configs, entries, saves] = await db.batch([
       db.prepare(
-        `SELECT p.id, p.name, p.created_at, p.deleted_at, ${last("finished_at")} AS finished_at,
+        `SELECT p.id, p.name, p.created_at, p.deleted_at, ${lastStage("finished_at")} AS finished_at,
            (SELECT s.config_json FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = p.id AND s.step = 'rasterize') AS rasterize_config
          FROM projects p WHERE p.id IN (${finished}) ORDER BY p.created_at`,
       ),
       db.prepare(
-        `SELECT s.id, s.step, s.created_in AS project, s.model_config_id AS config, s.status, s.page_count, s.created_at, s.finished_at, s.in_recipe, s.replaces_stage_id,
-           EXISTS (SELECT 1 FROM pipeline_entries e WHERE e.stage_id = s.id) AS kept,
+        `SELECT s.id, s.step, s.created_in AS project, s.model_config_id AS config, s.status, s.page_count, s.in_recipe, s.replaces_stage_id,
            (SELECT COUNT(*) FROM outputs o WHERE o.stage_id = s.id AND o.item = '') AS whole,
            (SELECT COUNT(*) FROM outputs o WHERE o.stage_id = s.id AND o.item <> '' AND o.item NOT LIKE '%/%') AS pages,
            (SELECT COUNT(*) FROM outputs o WHERE o.stage_id = s.id AND o.item LIKE '%/%') AS systems
@@ -40,9 +37,9 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
       db.prepare(
         `SELECT o.stage_id, o.item, o.duration_ms, o.calls, o.calls_cached, o.images, o.images_cached
          FROM outputs o JOIN stages s ON s.id = o.stage_id
-         WHERE o.duration_ms IS NOT NULL AND s.created_in IN (${finished}) AND s.step NOT IN (${manual})`,
+         WHERE o.duration_ms IS NOT NULL AND s.created_in IN (${finished}) AND s.step NOT IN (${untimed})`,
       ),
-      db.prepare("SELECT id, name, provider, model_id, model_string, family, created_at, deleted_at FROM model_configs ORDER BY created_at"),
+      db.prepare(`SELECT ${CONFIG_COLUMNS} FROM model_configs ORDER BY created_at`),
       db.prepare(`SELECT project_id, stage_id FROM pipeline_entries WHERE project_id IN (${finished}) ORDER BY project_id, position`),
       db.prepare(`SELECT m.stage_id, m.quarter FROM manual_saves m JOIN stages s ON s.id = m.stage_id WHERE s.created_in IN (${finished})`),
     ]);
@@ -56,17 +53,13 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
       config: string | null;
       status: string;
       page_count: number | null;
-      created_at: string;
-      finished_at: string | null;
       in_recipe: number;
       replaces_stage_id: string | null;
-      kept: number;
       whole: number;
       pages: number;
       systems: number;
     };
     type ItemRow = { stage_id: string; item: string; duration_ms: number; calls: number; calls_cached: number; images: number; images_cached: number };
-    type ConfigRow = Pick<ModelConfigRow, "id" | "name" | "provider" | "model_id" | "model_string" | "family" | "created_at" | "deleted_at">;
     const usedConfigs = new Set((stages.results as StageRow[]).map((s) => s.config));
     return c.json<RunTimeData>({
       // The recipe's steps but Ingest: the estimate for a new score needs data for each.
@@ -77,7 +70,7 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
         createdAt: p.created_at,
         deletedAt: p.deleted_at,
         finishedAt: p.finished_at,
-        pages: pagesOf(p.rasterize_config),
+        pages: rasterizedPages(p.rasterize_config),
         pipeline: pipelines.get(p.id) ?? [],
       })),
       stages: (stages.results as StageRow[]).map((s) => ({
@@ -88,27 +81,14 @@ export function runTimeRoutes(app: Hono<{ Bindings: Env }>) {
         done: s.status === "done",
         manual: MANUAL.includes(s.step),
         inRecipe: s.in_recipe === 1,
-        kept: s.kept === 1,
         replacesStageId: s.replaces_stage_id,
         activeQuarters: MANUAL.includes(s.step) ? (active.get(s.id)?.length ?? 0) : null,
-        createdAt: s.created_at,
-        finishedAt: s.finished_at,
         pageCount: s.page_count ?? 0,
         items: { whole: s.whole, page: s.pages, system: s.systems },
       })),
       // [stage, item, duration in ms, answers asked, of them from the record, images looked up, of them found]
       items: (items.results as ItemRow[]).map((i) => [i.stage_id, i.item, i.duration_ms, i.calls, i.calls_cached, i.images, i.images_cached]),
-      configs: (configs.results as ConfigRow[])
-        .filter((m) => usedConfigs.has(m.id))
-        .map((m) => ({ id: m.id, name: m.name, model: resolvedModel(m).model, ...modelGroupOf(m), createdAt: m.created_at, deletedAt: m.deleted_at })),
+      configs: (configs.results as ConfigColumns[]).filter((m) => usedConfigs.has(m.id)).map(configSummary),
     });
   });
-}
-
-// The pages a `rasterize` config selects ("1-12, 15"), or none if it can't be read.
-function pagesOf(configJson: string | null): number[] {
-  if (!configJson) return [];
-  const selection = (JSON.parse(configJson) as { pages?: unknown }).pages;
-  const parsed = typeof selection === "string" ? parsePages(selection) : null;
-  return parsed && !("error" in parsed) ? parsed.pages : [];
 }

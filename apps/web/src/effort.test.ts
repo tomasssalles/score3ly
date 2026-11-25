@@ -12,11 +12,8 @@ const stage = (id: string, step: string, projectId: string, more: Partial<Stage>
   done: true,
   manual: false,
   inRecipe: true,
-  kept: true,
   replacesStageId: null,
   activeQuarters: null,
-  createdAt: "2026-10-20T10:00:00.000Z",
-  finishedAt: "2026-10-20T11:00:00.000Z",
   pageCount: 2,
   items: { whole: 0, page: 2, system: 0 },
   ...more,
@@ -38,9 +35,9 @@ const data: RunTimeData = {
   projects: [project("a", 2, ["a1", "a3"]), project("b", 1, ["b1", "b3"])],
   stages: [
     stage("a1", "layout", "a"),
-    manual("a2", "fix_layout", "a", 2, { kept: false }), // edited: a3 builds on it, so it counts
+    manual("a2", "fix_layout", "a", 2), // edited: a3 builds on it, so it counts
     manual("a3", "fix_layout", "a", 1, { replacesStageId: "a2" }),
-    manual("a4", "fix_mei", "a", 8, { kept: false }), // discarded: doesn't count
+    manual("a4", "fix_mei", "a", 8), // discarded (in no pipeline): doesn't count
     stage("b1", "layout", "b"),
     manual("b3", "fix_mei", "b", 4),
   ],
@@ -56,15 +53,16 @@ test("effort: the manual work of the final pipelines, per page of each project, 
   assert.deepEqual(rows.fix_mei, [(0 + (4 * quarter) / 1) / 2, 1]); // b: b3 over its 1 page; a's a4 was discarded
   assert.deepEqual(rows.fix_skew, [0, 0]);
   assert.equal(view.perPageMs, rows.fix_layout[0]! + rows.fix_mei[0]!); // the rows add up to the head
-  assert.equal(view.extraReviews, null); // no reviews anywhere yet
+  assert.equal(view.extraReviews, 0); // no extra review in the final pipelines
   assert.deepEqual(effortView(data, new Set()).perPageMs, null);
+  assert.equal(effortView(data, new Set()).extraReviews, null); // nothing selected
 });
 
 test("effort: extra reviews in the final pipelines, counted, as an average per project", () => {
   const withReviews: RunTimeData = {
     ...data,
     projects: [project("a", 2, ["a1", "r1", "r2", "r3"]), project("b", 2, ["b1", "b3"])],
-    stages: [...data.stages, stage("r1", "review", "a"), stage("r2", "review", "a", { inRecipe: false }), stage("r3", "review", "a", { inRecipe: false }), stage("r4", "review", "b", { inRecipe: false, kept: false })],
+    stages: [...data.stages, stage("r1", "review", "a"), stage("r2", "review", "a", { inRecipe: false }), stage("r3", "review", "a", { inRecipe: false }), stage("r4", "review", "b", { inRecipe: false })],
   };
-  assert.equal(effortView(withReviews, new Set(["a", "b"])).extraReviews, 1); // two in a, none kept in b
+  assert.equal(effortView(withReviews, new Set(["a", "b"])).extraReviews, 1); // two in a; b's isn't in its pipeline
 });

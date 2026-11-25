@@ -13,11 +13,8 @@ const stage = (id: string, step: string, projectId: string, configId: string | n
   done,
   manual: false,
   inRecipe: true,
-  kept: true,
   replacesStageId: null as string | null,
   activeQuarters: null as number | null,
-  createdAt: "2026-10-20T10:00:00.000Z",
-  finishedAt: "2026-10-20T11:00:00.000Z" as string | null,
   pageCount,
   items: { whole: 0, page: 0, system: 0, ...items },
 });
@@ -36,7 +33,7 @@ const data: RunTimeData = {
     stage("xa", "apply_review", "a", "opus", 2, { system: 1 }), // one system with issues in two pages
     // A manual stage: 4 active quarters, over 2 pages; one not in its project's pipeline, left out.
     { ...stage("fa", "fix_layout", "a", null, 2, {}), manual: true, activeQuarters: 4 },
-    { ...stage("fb", "fix_layout", "b", null, 1, {}, false), manual: true, finishedAt: null, activeQuarters: 2 },
+    { ...stage("fb", "fix_layout", "b", null, 1, {}, false), manual: true, activeQuarters: 2 },
   ],
   items: [
     ["ra", "p1", 2000, 0, 0, 1, 0], // made
