@@ -7,6 +7,7 @@
 // warnings about what a call changed, and the folds. One entry each, so that a change shows which case it touched.
 // Changed once on purpose, by B4's fix (batch 29): the boxes inside system 2's box near its edges (\`topOf2\`,
 // \`bottomOf2\`, so issues 2, 3 and 7) are no longer on systems 1 and 3 too, with what follows from that.
+// Changed by the paid release (batch 34): the review's issues text gives a reading issue's `lilypond` as [] (C31).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -230,7 +231,7 @@ const EXPECTED: Record<string, unknown> = {
   "Near page2. stored under": 4,
   "Near bottomOf4. stored under": 4,
   "Near off. stored under": null,
-  "review issues text": "28a8b8a6e3bfffb2",
+  "review issues text": "16a174e5cd2c90c2",
   "review of system 1: request lists": {"issues":[1,5,6,7,10],"resolved":[],"warnings":["Near inside.","Near gap12.","Near across12.","Near across123."]},
   "review of system 1: may choose on": [1,6,7,10],
   "review of system 2: request lists": {"issues":[2,3,5,6,7,10],"resolved":[],"warnings":["Near topOf2.","Near bottomOf2.","Near gap12.","Near across12.","Near across123."]},

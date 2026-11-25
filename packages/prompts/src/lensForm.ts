@@ -222,10 +222,10 @@ export function systemForModel(answer: LensSystem, at: { system: number; page: n
 }
 
 // An issue as a model reads it, in the fields and order the caller gives: its location "" for none; its list of
-// tokens only where it has one (a reading issue's null is left out, though a model writes [] for it).
+// tokens [] for none (a reading issue's), as a model writes it (code review C31).
 export function issueForModel(issue: Obj): Obj {
   const copy = { ...issue };
   if ("location" in copy) copy.location = copy.location ?? "";
-  if (!copy.lilypond) delete copy.lilypond;
+  if ("lilypond" in copy) copy.lilypond = copy.lilypond ?? [];
   return copy;
 }

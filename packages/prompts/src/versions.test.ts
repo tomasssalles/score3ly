@@ -80,7 +80,7 @@ const PINNED: Record<string, { version: number; sha256: string }> = {
   layout: { version: 4, sha256: "8f0cb80515f87811a6e120ed0c33276d0ae1430271cd1cdd2417ac9aafb225e1" },
   analyze: { version: 7, sha256: "78b59fa3e653b52cd4d8b201a44c00e0c335f98ae3015b6204a0b0cba9a28dc3" },
   extract: { version: 7, sha256: "e5b5c2e493f0253e33740bc1af222e5407b48e1d744f2c695a2c8e93eb81388e" },
-  review: { version: 7, sha256: "db714732c0d765d32dbd66ea86df54296e3a80fbf03c67d8f49c98e4f02312d3" },
+  review: { version: 8, sha256: "2a4f7e3f226adf37043f7c8844e32bf29f68f8e5ff33c821c41e1dd3030481bc" },
   apply_review: { version: 7, sha256: "8b08407b7531ee07333ddfdc27c7e2108530174cb05fe6d251254fdb875e3d74" },
 };
 

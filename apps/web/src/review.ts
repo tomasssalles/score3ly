@@ -37,8 +37,8 @@ export function reviewScore(score: Score): unknown {
 const MODEL_NAMES: Record<string, string> = { extract: "Extract", review: "a review", apply_review: "Apply review", human_review: "a person" };
 export const modelName = (by: string) => MODEL_NAMES[by] ?? by;
 
-// The issues as the model reads them: their places as systems and stretches, the choices by who made them, a text with
-// no value "" (only `applied` is null, where it isn't known).
+// The issues as the model reads them: their places as systems and stretches, the choices by who made them (an Apply
+// review's revert marked `reverted`, dec. 32), a text with no value "" (only `applied` is null, where it isn't known).
 export function reviewIssues(issues: StoredIssue[], systems: PlacedSystem[]): unknown {
   return issues.map((i) =>
     issueForModel({
@@ -49,7 +49,7 @@ export function reviewIssues(issues: StoredIssue[], systems: PlacedSystem[]): un
       location: i.location,
       question: i.question,
       answers: i.answers,
-      choices: i.choices.map((c) => ({ by: modelName(c.by), key: c.key, reason: c.reason ?? "", ...(c.kept ? { kept: true } : {}) })),
+      choices: i.choices.map((c) => ({ by: modelName(c.by), key: c.key, reason: c.reason ?? "", ...(c.kept ? { kept: true } : {}), ...(c.reverted ? { reverted: true } : {}) })),
       applied: i.applied,
       resolved: i.resolved,
       lilypond: i.lilypond,

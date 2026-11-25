@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkReview, logEntries, proposedChanges, reviewNote, type ReviewContext, type StoredReview } from "./review.ts";
+import { checkReview, logEntries, proposedChanges, reviewIssues, reviewNote, type ReviewContext, type StoredReview } from "./review.ts";
 import { applyEntries, changedBy, type PlacedSystem, placesOf, reviewedIssues, type StoredIssue, withKept } from "./issues.ts";
 
 // Three systems: 1 and 2 on page 1 (each with one bar line at 0.5), 3 on page 2.
@@ -181,4 +181,14 @@ test("a malformed answer is refused, not a TypeError (code review C1)", () => {
   for (const entry of [null, 3, "choice"]) assert.equal(problem({ entries: [entry] }), "an entry is neither a choice nor a new issue");
   assert.match(problem({ entries: [newIssue({ boxes: null })] }), /^the answer doesn't have the expected form/);
   assert.match(problem({ entries: [newIssue({ answers: [null, null] })] }), /^the answer doesn't have the expected form/);
+});
+
+test("the issues a review reads: a reading issue's tokens [], an Apply review's revert marked (C31, D18d)", () => {
+  const reverted = issue(1, 1, { choices: [{ by: "review", key: "b", reason: null }, { by: "apply_review", key: "a", reason: "No such note.", reverted: true }] });
+  const [read] = reviewIssues([reverted], systems) as { lilypond: unknown; choices: unknown[] }[];
+  assert.deepEqual(read.lilypond, []);
+  assert.deepEqual(read.choices, [
+    { by: "a review", key: "b", reason: "" },
+    { by: "Apply review", key: "a", reason: "No such note.", reverted: true },
+  ]);
 });

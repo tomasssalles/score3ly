@@ -3,7 +3,9 @@
 // prompts' fixed texts, the requests' texts built from realistic inputs (notation's rich score, issues of every kind,
 // the observations and metadata of real pages, several pieces), and the answers as code turns them into what is
 // stored. The same inputs must give the same bytes, or every call is paid again. Only a change that means to change
-// requests (the paid release) may update them.
+// requests (the paid release) may update them. Changed by the paid release (batch 34), each diff read: the prompts'
+// new sentences, a reading issue's `lilypond: []` (C31) and a revert's `reverted` (D18d) in the issues review and
+// apply_review read, `bothRepeats` (D18c).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -433,7 +435,7 @@ test("what the LLM stages send and store is what it was", () => {
     'analyze score answer': 'fcedd5b4da6eaf42',
     'analyze score text': '0dbb2583ade30086',
     'apply_review answer, code form': '55846af76199c8d9',
-    'apply_review issues': '5dd8a7bcbd9abebc',
+    'apply_review issues': 'a2d7a22254883075',
     'apply_review log': '9f2221a3f2d6d25c',
     'apply_review request': '335205ceeec66eb6',
     'extract answers, code form': '015b68503089e0eb',
@@ -441,8 +443,8 @@ test("what the LLM stages send and store is what it was", () => {
     'extract request text': 'd9d826fc31450236',
     'layout texts': 'b58bb9eed16bc762',
     'review answer, code form': '061d8587b2833bf2',
-    'review issues': 'd2f1620f5baa1a9b',
-    'review log': '1b875e12e87ef5f0',
+    'review issues': 'e2eb4d51a2c79bd9',
+    'review log': '6cb904fa82435092',
     'review request': '9a55c9275415bc98',
     'review score': 'b338fb22bdcf66a8',
     'schema analyze page': '44c16332a18e02fd',
@@ -456,6 +458,6 @@ test("what the LLM stages send and store is what it was", () => {
     'system apply_review': '102fdf8168015b69',
     'system extract': 'f01beb5cde230350',
     'system layout': 'f2637a5e0a846d25',
-    'system review': 'ccbec01abb393e11',
+    'system review': '5ad917a2a9012a3d',
   });
 });

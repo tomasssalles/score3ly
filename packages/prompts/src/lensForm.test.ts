@@ -132,9 +132,9 @@ test("a system as review and apply_review read it: its place, each stretch's mea
   assert.equal(((applied.stretches as Record<string, unknown>[])[1].voices as Record<string, unknown>[])[0].description, "");
 });
 
-test("an issue as a model reads it: no location is \"\", a reading issue's tokens left out, the order kept", () => {
+test("an issue as a model reads it: no location is \"\", a reading issue's tokens [] as a model writes them, the order kept", () => {
   const issue = { id: 3, class: "reading", location: null, question: "Q?", lilypond: null };
-  assert.deepEqual(Object.entries(issueForModel(issue)), [["id", 3], ["class", "reading"], ["location", ""], ["question", "Q?"]]);
+  assert.deepEqual(Object.entries(issueForModel(issue)), [["id", 3], ["class", "reading"], ["location", ""], ["question", "Q?"], ["lilypond", []]]);
   assert.deepEqual(issueForModel({ ...issue, class: "format", location: "the top note", lilypond: ["\\harmonic"] }), {
     id: 3,
     class: "format",

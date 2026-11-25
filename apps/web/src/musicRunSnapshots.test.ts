@@ -138,10 +138,12 @@ const at = (step: string, turn = 1) => stages.map((s, i) => [s, i] as const).fil
 // everything else the same, checked with those two fields left out. Changed once more by the paid release (batch
 // 33): the straightened pages' recipes, and the music stages' images' recipes, name no deskew version (B8, dec. 6), so
 // the images' keys in the requests and the stage keys; checked by putting the version back, which gives the old hashes.
+// Batch 34 (the paid release, prompts): each request's diff read; review and both Apply reviews read a reading
+// issue's `lilypond` as [] (C31); the system prompts' new sentences and the stage keys of the new prompt versions.
 const EXPECTED: Record<string, { hash: string; counts: Record<string, number> }> = {
   extract: { hash: "fe8fa6ee00b9ebd4", counts: { start: 1, llm: 6, "issue-numbers": 6, outputs: 7, finish: 1 } },
-  review: { hash: "41b79b079ff906a1", counts: { start: 1, llm: 6, "issue-numbers": 1, outputs: 6, finish: 1 } },
-  "apply_review 1": { hash: "7c8f90627f710182", counts: { start: 1, llm: 2, outputs: 9, finish: 1 } },
+  review: { hash: "d05d0f087f489f53", counts: { start: 1, llm: 6, "issue-numbers": 1, outputs: 6, finish: 1 } },
+  "apply_review 1": { hash: "6e0c392169f80097", counts: { start: 1, llm: 2, outputs: 9, finish: 1 } },
   "apply_review 2": { hash: "bb7238b7109b204e", counts: { start: 1, outputs: 7, finish: 1 } },
   build_mei: { hash: "f9c01eee702a35a4", counts: { start: 1, outputs: 1, finish: 1 } },
 };
