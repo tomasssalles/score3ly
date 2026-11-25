@@ -33,7 +33,7 @@ async function oldCall(id: string, stage: string | null, messages: { role: strin
   if (messages) {
     const body = canonicalJson({ system: "S", messages });
     sha = await sha256Hex(new TextEncoder().encode(body));
-    await env.PDFS.put(`content/${sha}`, body);
+    await env.STORE.put(`content/${sha}`, body);
   }
   await env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, status, started_at) VALUES (?, ?, 'm', ?, ?, ?, ?)")
     .bind(id, stage, `key-${id}`, sha, status, `2026-11-01T10:00:0${id.length % 10}.000Z`)
@@ -66,7 +66,7 @@ test("the places of older calls: from the outputs, the requests' rounds and firs
   // A call nothing tells the place of.
   await oldCall("e-lonely", "extract", [{ role: "user", content: [image("k-s9"), text("Transcribe.")] }], "error");
 
-  const { filled, unplaced } = await fillCallPlaces(env.DB, env.PDFS);
+  const { filled, unplaced } = await fillCallPlaces(env.DB, env.STORE);
   const places = Object.fromEntries(
     (await env.DB.prepare("SELECT id, item, round FROM llm_calls").all<{ id: string; item: string; round: number }>()).results.map((c) => [c.id, [c.item, c.round]]),
   );
@@ -85,7 +85,7 @@ test("the places of older calls: from the outputs, the requests' rounds and firs
   assert.deepEqual(unplaced.map((u) => u.id).sort(), ["e-lonely", "l-deleted"]);
 
   // Run again: nothing more to do, and what was filled stays.
-  const again = await fillCallPlaces(env.DB, env.PDFS);
+  const again = await fillCallPlaces(env.DB, env.STORE);
   assert.equal(again.filled, 0);
   assert.equal(again.unplaced.length, 2);
 });

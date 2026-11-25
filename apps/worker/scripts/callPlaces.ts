@@ -13,6 +13,7 @@
 
 import { canonicalJson } from "@score3ly/core";
 import { PLACEHOLDER_ITEM } from "../src/places.ts";
+import { getContent } from "../src/storage.ts";
 
 type CallRow = { id: string; stage_id: string | null; request_sha256: string | null; item: string; round: number; status: string; started_at: string; step: string | null };
 type StoredRequest = { messages?: { role: string; content: Record<string, unknown>[] }[] };
@@ -38,7 +39,7 @@ export async function fillCallPlaces(db: D1Database, bucket: R2Bucket, log: (lin
   let fetched = 0;
   for (const c of calls) {
     if (!c.request_sha256 || c.stage_id === null) continue;
-    const object = await bucket.get(`content/${c.request_sha256}`);
+    const object = await getContent(bucket, c.request_sha256);
     if (++fetched % 50 === 0) log(`${fetched} requests read…`);
     if (!object) continue;
     const request = (await object.json()) as StoredRequest;

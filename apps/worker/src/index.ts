@@ -16,7 +16,7 @@ import { lock, versionRoutes } from "./versions.ts";
 import { projectFileRoutes } from "./projectFile.ts";
 import { requestLog } from "./requestLog.ts";
 import { badRequest, failed, NO_PROJECT, refuse } from "./refusals.ts";
-import { putChecked } from "./storage.ts";
+import { getContent, pdfKey, storeContent, storePdf } from "./storage.ts";
 
 export type { ListedProject, Project, RunMode } from "@score3ly/core";
 import type { Deleted, Info, ListedProject, PdfLookup, PipelinePosition, Project, RunMode } from "@score3ly/core";
@@ -126,10 +126,6 @@ async function takenNames(db: D1Database): Promise<string[]> {
   return results.map((row) => row.name);
 }
 
-function pdfKey(sha256: string): string {
-  return `pdfs/${sha256}.pdf`;
-}
-
 // What is known about a PDF before uploading it: its projects, most recently opened first, and the name a
 // new project on it would get (a hint: another project may take that name first).
 app.get("/api/pdfs/:sha256", async (c) => {
@@ -156,7 +152,7 @@ app.get("/api/pdfs/:sha256/file", async (c) => {
   if (!isSha256Hex(sha256)) {
     return badRequest(c, "expected a SHA-256 in lowercase hex");
   }
-  const object = await c.env.PDFS.get(pdfKey(sha256));
+  const object = await c.env.STORE.get(pdfKey(sha256));
   if (!object) {
     return refuse(c, 404, "The server doesn't have this PDF.");
   }
@@ -171,17 +167,12 @@ app.get("/api/pdfs/:sha256/file", async (c) => {
 
 // Stored outputs' content (docs/overview.md §2): any file, in R2 under the SHA-256 of its bytes, which R2 checks. Storing
 // the same content again is harmless. Objects never change, so they can be cached for good.
-function contentKey(sha256: string): string {
-  return `content/${sha256}`;
-}
 
 app.put("/api/content/:sha256", async (c) => {
   const sha256 = c.req.param("sha256");
   if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
   const body = await c.req.arrayBuffer();
-  const stored = await putChecked(c.env.PDFS, contentKey(sha256), body, sha256, {
-    httpMetadata: { contentType: c.req.header("Content-Type") ?? "application/octet-stream" },
-  });
+  const stored = await storeContent(c.env.STORE, sha256, body, c.req.header("Content-Type") ?? "application/octet-stream");
   if (stored === "mismatch") return refuse(c, 400, "The content arrived damaged. Try again. Details: it doesn't match its SHA-256.");
   return c.body(null, 204);
 });
@@ -189,7 +180,7 @@ app.put("/api/content/:sha256", async (c) => {
 app.get("/api/content/:sha256", async (c) => {
   const sha256 = c.req.param("sha256");
   if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
-  const object = await c.env.PDFS.get(contentKey(sha256));
+  const object = await getContent(c.env.STORE, sha256);
   if (!object) return refuse(c, 404, "The server doesn't have this stored content.");
   return new Response(object.body, {
     headers: {
@@ -216,12 +207,12 @@ app.post("/api/projects", async (c) => {
   let filename: string;
   if (pdf instanceof File) {
     // R2 checks the bytes against the hash and refuses the upload if they differ.
-    if ((await putChecked(c.env.PDFS, pdfKey(sha256), await pdf.arrayBuffer(), sha256)) === "mismatch") {
+    if ((await storePdf(c.env.STORE, sha256, await pdf.arrayBuffer())) === "mismatch") {
       return refuse(c, 400, "The PDF arrived damaged. Try again. Details: it doesn't match its SHA-256.");
     }
     filename = pdf.name;
   } else {
-    if (!(await c.env.PDFS.head(pdfKey(sha256)))) {
+    if (!(await c.env.STORE.head(pdfKey(sha256)))) {
       return refuse(c, 409, "The server doesn't have this PDF yet. Try again. Details: send the file itself, not only its 'filename'.");
     }
     filename = filenameField as string;

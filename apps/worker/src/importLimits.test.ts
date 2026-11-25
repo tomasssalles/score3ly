@@ -152,7 +152,7 @@ async function retryInOrder() {
   const first = (await (await post("/api/projects/import", importHead(rows, key))).json()) as { id: string };
   assert.equal((await post(`/api/projects/${first.id}/import/rows`, importChunks(rows)[0])).status, 204);
   // A day later, its content is old enough to be collected once nothing refers to it.
-  const filesDir = join((env.PDFS as unknown as { root: string }).root);
+  const filesDir = join((env.STORE as unknown as { root: string }).root);
   const dayAgo = new Date(Date.now() - 24 * 3600_000);
   for (const sha of rows.content) utimesSync(join(filesDir, "content", sha), dayAgo, dayAgo);
   const missing = async () => {
@@ -172,6 +172,6 @@ async function retryInOrder() {
   for (const sha of nowMissing) assert.equal((await app.request(`/api/content/${sha}`, { method: "PUT", body: files[`content/${sha}`] as Uint8Array<ArrayBuffer> }, env)).status, 204);
   for (const chunk of importChunks(rows)) assert.equal((await post(`/api/projects/${second.id}/import/rows`, chunk)).status, 204);
   assert.equal((await post(`/api/projects/${second.id}/import/finish`, {})).status, 201);
-  for (const sha of callContent) assert.ok(await env.PDFS.head(`content/${sha}`), sha);
+  for (const sha of callContent) assert.ok(await env.STORE.head(`content/${sha}`), sha);
   assert.deepEqual(await missing(), []);
 }

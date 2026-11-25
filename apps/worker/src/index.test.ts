@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { importChunks, importHead, type ProjectExport, sha256Hex } from "@score3ly/core";
 import { testHost, testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
-import { collectOrphans } from "./deletion.ts";
+import { collectOrphans } from "./storage.ts";
 import { lockOf } from "./versions.ts";
 import { defaultName } from "./names.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
@@ -152,7 +152,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
     [["", "pdf", sha256]],
   );
 
-  const stored = await env.PDFS.get(`pdfs/${sha256}.pdf`);
+  const stored = await env.STORE.get(`pdfs/${sha256}.pdf`);
   assert.ok(stored);
   assert.deepEqual(new Uint8Array(await stored.arrayBuffer()), pdf);
 });
@@ -184,7 +184,7 @@ test("a hash that doesn't match the PDF creates nothing, and says so", async () 
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: "The PDF arrived damaged. Try again. Details: it doesn't match its SHA-256." });
   assert.deepEqual(await projectRows(), []);
-  assert.equal(await env.PDFS.get(`pdfs/${wrongSha256}.pdf`), null);
+  assert.equal(await env.STORE.get(`pdfs/${wrongSha256}.pdf`), null);
 });
 
 test("a request without a PDF or with a malformed hash is rejected", async () => {
@@ -1587,17 +1587,17 @@ test("deleting a project: gone from every list, its name free, what only it used
   assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM image_fingerprints WHERE pdf_sha256 = ?").bind(pdf).first<{ n: number }>())?.n, 1);
 
   // Objects nothing refers to are collected once they are old enough: the content only `a` had, not the PDF.
-  assert.equal(await collectOrphans(env, new Date(0)), 0);
-  assert.ok((await collectOrphans(env, new Date(Date.now() + 60_000))) >= 1);
-  assert.equal(await env.PDFS.head(`content/${only}`), null);
-  assert.ok(await env.PDFS.head(`pdfs/${pdf}.pdf`));
+  assert.equal((await collectOrphans(env, new Date(0))).objects, 0);
+  assert.ok((await collectOrphans(env, new Date(Date.now() + 60_000))).objects >= 1);
+  assert.equal(await env.STORE.head(`content/${only}`), null);
+  assert.ok(await env.STORE.head(`pdfs/${pdf}.pdf`));
 
   // Deleting the last project on the PDF: its fingerprints go, and the PDF once collected.
   assert.deepEqual(await json(await deleteProject(b.id)), { pdfUnused: true });
   assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM image_fingerprints WHERE pdf_sha256 = ?").bind(pdf).first<{ n: number }>())?.n, 0);
   assert.ok(await marked(rasterize.id)); // no pipeline that isn't deleted has it now
   await collectOrphans(env, new Date(Date.now() + 60_000));
-  assert.equal(await env.PDFS.head(`pdfs/${pdf}.pdf`), null);
+  assert.equal(await env.STORE.head(`pdfs/${pdf}.pdf`), null);
   // A new project with the same name is fine.
   assert.equal((await createdProject("shared.pdf")).name, "shared");
 });
@@ -2332,7 +2332,7 @@ test("an error thrown inside a route is a JSON refusal with the code \"internal\
 // Only bytes that don't match their hash are the request's fault (400); a store that fails otherwise (a full disk on the
 // desktop, R2 unavailable) is the server's (500), and says what failed (the code review's E8).
 test("storing content or a PDF that fails for another reason than its hash is a 500, not a mismatch", async () => {
-  const full = { ...env, PDFS: { ...env.PDFS, put: () => Promise.reject(new Error("ENOSPC: no space left on device")), head: env.PDFS.head.bind(env.PDFS), get: env.PDFS.get.bind(env.PDFS) } } as unknown as Env;
+  const full = { ...env, STORE: { ...env.STORE, put: () => Promise.reject(new Error("ENOSPC: no space left on device")), head: env.STORE.head.bind(env.STORE), get: env.STORE.get.bind(env.STORE) } } as unknown as Env;
   const bytes = pdfBytes("content on a full disk");
   const sha256 = await sha256Hex(bytes);
   const content = await app.request(`/api/content/${sha256}`, { method: "PUT", body: bytes }, full);

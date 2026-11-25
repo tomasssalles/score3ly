@@ -4,7 +4,7 @@
 
 import { notImportingStage } from "./importing.ts";
 import type { Hono } from "hono";
-import { type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, canonicalJson, fromBase64, isSha256Hex, keyOf, modelKeyOf, sha256Hex, sseData, type ModelConfig } from "@score3ly/core";
+import { type CallAnswer, type CallEvent, type CallPlace, type CallRequest, type ErrorCode, IMAGE_MEDIA_TYPES, type ImagesNeeded, type StreamEvent, fromBase64, isSha256Hex, keyOf, modelKeyOf, sha256Hex, sseData, type ModelConfig } from "@score3ly/core";
 import { deferLog, logFields } from "./requestLog.ts";
 import { stageEntry } from "./pipelineRules.ts";
 import { badRequest, notRunning, PICK_ONE, problemText, refuse } from "./refusals.ts";
@@ -20,6 +20,7 @@ import { readSettings } from "./settings.ts";
 import { badSecretMessage, deletedWhileRunningMessage, devProviders, missingSecretMessage, type ModelConfigRow, secretValues, toModelConfig, unsupportedOf } from "./modelConfigs.ts";
 import { placeOf } from "./places.ts";
 import { throttledProgress } from "./throttle.ts";
+import { getContent, putJson } from "./storage.ts";
 
 // A request as the browser sends it (`CallRequest` in `@score3ly/core`).
 
@@ -91,12 +92,6 @@ function providerMessages(request: CallRequest): { role: "user" | "assistant"; c
   }));
 }
 
-async function putJson(bucket: R2Bucket, value: unknown): Promise<string> {
-  const bytes = new TextEncoder().encode(canonicalJson(value));
-  const sha256 = await sha256Hex(bytes);
-  await bucket.put(`content/${sha256}`, bytes, { sha256, httpMetadata: { contentType: "application/json" } });
-  return sha256;
-}
 
 // A call refused before anything is sent: the spending cap is reached (priced calls only), a secret is missing or the
 // app has no adapter.
@@ -186,7 +181,7 @@ async function runCall(
   const db = env.DB;
   const callId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
-  const requestSha = await putJson(env.PDFS, await recordedRequest(request));
+  const requestSha = await putJson(env.STORE, await recordedRequest(request));
   await db
     .prepare(
       "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, item, round, status, started_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?)",
@@ -198,7 +193,7 @@ async function runCall(
   const progress = onEvent ? throttledProgress((p) => onEvent(progressEvent(p, startedMs)), PROGRESS_INTERVAL_MS) : null;
 
   // The replay model answers from the project's recordings, by the call's place (llm/replay.ts).
-  const answering = isReplay(config) ? replayProvider(db, env.PDFS, stageId, place, config.id) : adapter;
+  const answering = isReplay(config) ? replayProvider(db, env.STORE, stageId, place, config.id) : adapter;
   const timeout = withTimeout(signal, timeoutMs);
   let response: LlmResponse;
   try {
@@ -260,7 +255,7 @@ async function runCall(
   // The rate in force now, when the cost is recorded (docs/llm.md, "VAT"); 0 where it can't be read.
   const vatPercent = (await bookkeeping(callId, "read the VAT rate", async () => (await readSettings(db)).vatPercent)) ?? 0;
   const responseSha = await bookkeeping(callId, "store the answer", () =>
-    putJson(env.PDFS, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, ...(response.servedBy ? { servedBy: response.servedBy } : {}), raw: response.raw }),
+    putJson(env.STORE, { text: response.text, json: response.json, stop: response.stop, stopDetail: response.stopDetail, model: response.model, ...(response.servedBy ? { servedBy: response.servedBy } : {}), raw: response.raw }),
   );
   const error =
     status === "ok" ? null
@@ -368,7 +363,7 @@ export function llmCallRoutes(app: Hono<{ Bindings: Env }>) {
       .bind(requestKey)
       .all<{ id: string; response_sha256: string; input_tokens: number; output_tokens: number; cached_tokens: number; cache_write_tokens: number | null }>();
     for (const recorded of earlier) {
-      const object = await c.env.PDFS.get(`content/${recorded.response_sha256}`);
+      const object = await getContent(c.env.STORE, recorded.response_sha256);
       if (!object) continue;
       logFields(c.req.raw, { answer: "cached" });
       const response = (await object.json()) as { text: string; json?: unknown };

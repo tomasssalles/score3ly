@@ -104,7 +104,9 @@ npm install
 npm run deploy
 ```
 
-Your projects, settings and keys stay as they are.
+Your projects, settings and keys stay as they are. A deployment also applies any change to the Worker's configuration that came
+with the update (for example, the storage's binding was renamed from `PDFS` to `STORE` on 2026-11-25): nothing has to
+be changed in the dashboard.
 
 ## Deploying from GitHub
 

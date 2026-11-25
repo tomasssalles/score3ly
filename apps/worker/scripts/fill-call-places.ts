@@ -46,7 +46,7 @@ function remoteConfig(): string {
     if (!text.includes(marker)) throw new Error(`The config has no binding ${binding}.`);
     return text.replace(marker, `${marker} "remote": true,`);
   };
-  return remoteBinding(remoteBinding(config, "DB"), "PDFS");
+  return remoteBinding(remoteBinding(config, "DB"), "STORE");
 }
 
 let configPath = localDevConfigPath;
@@ -72,7 +72,7 @@ try {
     } catch {
       throw new Error("The database has no place columns yet: apply migration 0004 first (npm run deploy, or npm run migrate:local).");
     }
-    const { unplaced } = await fillCallPlaces(env.DB, env.PDFS, (line) => console.log(line));
+    const { unplaced } = await fillCallPlaces(env.DB, env.STORE, (line) => console.log(line));
     if (unplaced.length > 0) {
       console.log("\nCalls left without a place (they keep the placeholders \"?\" and 0):");
       for (const u of unplaced) console.log(`- ${u.id} (${u.step ?? "no stage"}, ${u.status}, ${u.startedAt}): ${u.reason}`);

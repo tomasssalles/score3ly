@@ -7,6 +7,7 @@
 // It needs the database and the call's place, which a provider's adapter doesn't have, so the route makes one per call.
 
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse, withJson } from "./types.ts";
+import { getContent } from "../storage.ts";
 
 export const REPLAY_MODEL = "fake-replay";
 
@@ -23,7 +24,7 @@ export function replayProvider(db: D1Database, bucket: R2Bucket, stageId: string
       const recorded = await recordedCall(db, stageId, place, configId);
       // As an HTTP refusal (400): nothing was paid for.
       if ("missing" in recorded) throw new LlmError("bad_request", `Replay: no recorded answer for ${recorded.missing}.`, 400);
-      const object = await bucket.get(`content/${recorded.responseSha256}`);
+      const object = await getContent(bucket, recorded.responseSha256);
       if (!object) throw new LlmError("bad_request", `Replay: the recorded answer of call ${recorded.id} isn't stored.`, 400);
       const stored = (await object.json()) as { text: string };
       const response: LlmResponse = {

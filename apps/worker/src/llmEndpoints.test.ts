@@ -941,7 +941,7 @@ test("the pickers' options: providers with their families, efforts, secrets and 
 });
 
 test("the secrets' names: the Worker's text values, sorted, never a value; not its bindings", async () => {
-  assert.deepEqual(secretNames({ ZED: "z", ANTHROPIC_KEY: "secret", DB: env.DB, PDFS: env.PDFS } as unknown as Env), ["ANTHROPIC_KEY", "ZED"]);
+  assert.deepEqual(secretNames({ ZED: "z", ANTHROPIC_KEY: "secret", DB: env.DB, STORE: env.STORE } as unknown as Env), ["ANTHROPIC_KEY", "ZED"]);
   const answer = await json<{ names: string[] }>(await app.request("/api/secrets", {}, { ...env, GEMINI_KEY: "secret" } as Env));
   assert.deepEqual(answer, { names: ["GEMINI_KEY"] });
 });
@@ -1314,10 +1314,10 @@ test("the rows a call writes are counted by Costs and Usage as what happened", a
 test("an answer whose storing fails is still recorded as paid, with its tokens and cost, and reaches the browser", async () => {
   await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
   const stage = await runningStage((await modelConfig()).id);
-  const bucket = env.PDFS;
+  const bucket = env.STORE;
   let puts = 0;
   // The request is stored first, then the answer: the answer's put fails, twice (it is tried again once).
-  env.PDFS = new Proxy(bucket, {
+  env.STORE = new Proxy(bucket, {
     get(target, property) {
       if (property === "put") {
         return (...args: Parameters<R2Bucket["put"]>) => (++puts === 1 ? target.put(...args) : Promise.reject(new Error("R2 is down")));
@@ -1330,7 +1330,7 @@ test("an answer whose storing fails is still recorded as paid, with its tokens a
   try {
     answer = await json(await call(stage));
   } finally {
-    env.PDFS = bucket;
+    env.STORE = bucket;
   }
   assert.equal(answer.status, "ok");
   assert.ok((answer.costUsd as number) > 0);
@@ -1356,7 +1356,7 @@ test("a recorded answer whose stored content is missing is skipped: the next rec
   try {
     const first = await json(await call(stage));
     const row = (await calls()).at(-1)!;
-    await env.PDFS.delete(`content/${row.response_sha256}`);
+    await env.STORE.delete(`content/${row.response_sha256}`);
     const second = await json(await call(stage));
     assert.equal(second.cached, false); // nothing to serve: paid again, once
     const third = await json(await call(stage));

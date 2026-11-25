@@ -13,5 +13,5 @@ export type NodeEnvParts = {
 };
 
 export function nodeEnv({ db, files, secrets = {}, devProviders = false }: NodeEnvParts): Env {
-  return { ...secrets, ...(devProviders ? { DEV_PROVIDERS: "true" } : {}), DB: db, PDFS: files } as unknown as Env;
+  return { ...secrets, ...(devProviders ? { DEV_PROVIDERS: "true" } : {}), DB: db, STORE: files } as unknown as Env;
 }

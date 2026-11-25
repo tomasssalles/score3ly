@@ -6,10 +6,7 @@
 
 import type { Deleted } from "@score3ly/core";
 import { anyRunning } from "./pipelineRules.ts";
-
-// R2 objects younger than this are never collected: their rows may be on their way (content is uploaded before the
-// row that refers to it is written, e.g. by a stage running on another device).
-const ORPHAN_MIN_AGE_MS = 60 * 60 * 1000;
+import { collectOrphans, ORPHAN_MIN_AGE_MS } from "./storage.ts";
 
 // The outputs of marked stages that nothing that isn't marked still uses: no stage that isn't marked read them, no
 // output of one was made from them or corrects them.
@@ -56,39 +53,6 @@ export async function deleteProject(env: Env, projectId: string, now = new Date(
   await collectOrphans(env, new Date(now.getTime() - ORPHAN_MIN_AGE_MS));
   const used = await db.prepare("SELECT 1 FROM projects WHERE pdf_sha256 = ? AND deleted_at IS NULL LIMIT 1").bind(pdf).first();
   return { pdfUnused: !used };
-}
-
-// Deletes every object in R2, uploaded before `before`, that no row refers to: a stored output's content, the request
-// or response of a call that isn't marked (or that an output names), or the PDF of a project that isn't deleted.
-// Returns how many were deleted.
-export async function collectOrphans(env: Env, before: Date): Promise<number> {
-  const db = env.DB;
-  const [contents, calls, pdfs] = await db.batch<Record<string, string | null>>([
-    db.prepare("SELECT DISTINCT content_sha256 AS k FROM outputs WHERE content_sha256 IS NOT NULL"),
-    db.prepare(
-      "SELECT request_sha256 AS r, response_sha256 AS s FROM llm_calls WHERE deleted_at IS NULL OR id IN (SELECT call_id FROM outputs WHERE call_id IS NOT NULL)",
-    ),
-    db.prepare("SELECT DISTINCT pdf_sha256 AS k FROM projects WHERE deleted_at IS NULL"),
-  ]);
-  const used = new Set<string>();
-  for (const row of contents.results) used.add(`content/${row.k}`);
-  for (const row of calls.results) {
-    if (row.r) used.add(`content/${row.r}`);
-    if (row.s) used.add(`content/${row.s}`);
-  }
-  for (const row of pdfs.results) used.add(`pdfs/${row.k}.pdf`);
-  let deleted = 0;
-  for (const prefix of ["content/", "pdfs/"]) {
-    let cursor: string | undefined;
-    do {
-      const page = await env.PDFS.list({ prefix, cursor, limit: 1000 });
-      const orphans = page.objects.filter((o) => !used.has(o.key) && o.uploaded < before).map((o) => o.key);
-      if (orphans.length > 0) await env.PDFS.delete(orphans);
-      deleted += orphans.length;
-      cursor = page.truncated ? page.cursor : undefined;
-    } while (cursor);
-  }
-  return deleted;
 }
 
 // Removes an unfinished import (docs/database.md, "Exporting and importing a project"; the owner, 2026-11-24): not marked

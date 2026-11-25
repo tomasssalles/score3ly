@@ -17,9 +17,11 @@
   // Workers Logs: every request with its CPU time, in the dashboard (the Worker's Logs tab), to measure it per request
   // (docs/tasks.md, "Measure the Worker's CPU time per LLM request").
   "observability": { "enabled": true },
-  // Original PDFs, stored as pdfs/<sha256>.pdf, and the stage outputs. Created by `npm run setup:cloudflare`; the
-  // deploy config adds the bucket's jurisdiction where it has one.
-  "r2_buckets": [{ "binding": "PDFS", "bucket_name": "score3ly-pdfs" }],
+  // Every stored object (src/storage.ts): the original PDFs, as pdfs/<sha256>.pdf, and the stage outputs' content and
+  // the LLM calls' requests and responses, as content/<sha256>. Created by `npm run setup:cloudflare`; the deploy config
+  // adds the bucket's jurisdiction where it has one. The binding was called PDFS until 2026-11-25; a deploy renames it,
+  // the bucket stays the same.
+  "r2_buckets": [{ "binding": "STORE", "bucket_name": "score3ly-pdfs" }],
   // The database_id is a placeholder, which the local database is named after; the deploy config has the remote
   // database's id, from cloudflare.env.
   "d1_databases": [

@@ -9,7 +9,7 @@ const PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
 
 test("the template has the placeholder id and a bucket without a jurisdiction", () => {
   assert.match(template, new RegExp(`"database_id": "${PLACEHOLDER}"`));
-  assert.match(template, /\{ "binding": "PDFS", "bucket_name": "score3ly-pdfs" \}/);
+  assert.match(template, /\{ "binding": "STORE", "bucket_name": "score3ly-pdfs" \}/);
 });
 
 test("withAccount writes the id and the bucket's jurisdiction, and changes nothing else", () => {

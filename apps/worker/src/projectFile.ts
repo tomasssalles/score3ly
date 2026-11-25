@@ -12,7 +12,7 @@ import type { Hono } from "hono";
 import { anyRunning, withModelConfig } from "./pipelineRules.ts";
 import { PLACEHOLDER_ITEM, placeProblem } from "./places.ts";
 import { badRequest, NO_PROJECT, problemText, refuse } from "./refusals.ts";
-import { putChecked } from "./storage.ts";
+import { pdfKey, contentKey, storePdf } from "./storage.ts";
 import { removeUnfinishedImports } from "./deletion.ts";
 import { notImportingProject, notImportingStage } from "./importing.ts";
 import { lock } from "./versions.ts";
@@ -254,7 +254,7 @@ export async function beginImport(env: Env, data: ImportHead, now = new Date()):
   const iso = now.toISOString();
   await removeUnfinishedImports(env, data.key, now);
   const pdfSha = data.project.pdf_sha256;
-  if (!(await env.PDFS.head(`pdfs/${pdfSha}.pdf`))) return { missing: "the PDF" };
+  if (!(await env.STORE.head(pdfKey(pdfSha)))) return { missing: "the PDF" };
   const projectId = crypto.randomUUID();
 
   const configIds: NewId[] = [];
@@ -501,7 +501,7 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
       return badRequest(c, `expected 'sha256s', at most ${MISSING_CONTENT_BATCH} SHA-256s in lowercase hex`);
     }
     const missing: string[] = [];
-    for (const sha of body.sha256s as string[]) if (!(await c.env.PDFS.head(`content/${sha}`))) missing.push(sha);
+    for (const sha of body.sha256s as string[]) if (!(await c.env.STORE.head(contentKey(sha)))) missing.push(sha);
     return c.json({ missing });
   });
 
@@ -509,7 +509,7 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
   app.put("/api/pdfs/:sha256", async (c) => {
     const sha256 = c.req.param("sha256");
     if (!isSha256Hex(sha256)) return badRequest(c, "expected a SHA-256 in lowercase hex");
-    if ((await putChecked(c.env.PDFS, `pdfs/${sha256}.pdf`, await c.req.arrayBuffer(), sha256)) === "mismatch") {
+    if ((await storePdf(c.env.STORE, sha256, await c.req.arrayBuffer())) === "mismatch") {
       return refuse(c, 400, "The PDF arrived damaged. Try again. Details: it doesn't match its SHA-256.");
     }
     return c.body(null, 204);
