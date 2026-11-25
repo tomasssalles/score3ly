@@ -24,10 +24,12 @@
 import { readFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { PROVIDERS as ALL_PROVIDERS, type Provider } from "@score3ly/core";
 import { type AdapterSettings, createAdapter, type LlmImage } from "../src/llm/index.ts";
 
-const PROVIDERS = ["anthropic", "bedrock", "ai-studio", "vertex", "openrouter"] as const;
-type TriedProvider = (typeof PROVIDERS)[number];
+// The app's providers but the fake ones, which need no trying.
+type TriedProvider = Exclude<Provider, "fake" | "fake-dev">;
+const PROVIDERS = ALL_PROVIDERS.filter((p): p is TriedProvider => p !== "fake" && p !== "fake-dev");
 
 const args = parseArgs({ options: { json: { type: "boolean", default: false } }, allowPositionals: true });
 const json = args.values.json;

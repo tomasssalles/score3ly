@@ -78,8 +78,14 @@ if (database.ok) {
   process.exit(1);
 }
 if (!databaseId) {
+  // Where the list can't be read (an error, or output that isn't the JSON expected), the id is asked for below.
   const list = wrangler(["d1", "list", "--json"]);
-  const found = list.ok ? (JSON.parse(list.out) as { name: string; uuid: string }[]).find((d) => d.name === DATABASE) : undefined;
+  let found: { name: string; uuid: string } | undefined;
+  try {
+    found = list.ok ? (JSON.parse(list.out) as { name: string; uuid: string }[]).find((d) => d.name === DATABASE) : undefined;
+  } catch {
+    found = undefined;
+  }
   databaseId = found?.uuid ?? null;
 }
 if (!databaseId) {

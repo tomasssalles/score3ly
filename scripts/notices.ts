@@ -3,8 +3,8 @@
 // (docs/overview.md §3, "License"). Run `npm run notices` after changing dependencies; a test fails while the file is out of
 // date (scripts/notices.test.ts).
 //
-// Packages: the production dependencies of apps/web, apps/worker, apps/desktop and packages/*, and theirs, as installed. Optional
-// dependencies are left out (platform-specific binaries, which differ between machines, and Node-only extras the builds
+// Packages: the production dependencies of apps/web, apps/worker, apps/desktop and packages/*, and theirs (with the peers
+// they need), as installed. Optional dependencies and peers are left out (platform-specific binaries, which differ between machines, and Node-only extras the builds
 // don't include). apps/eval is a local tool, not distributed. Material that isn't an npm package is listed in OTHER.
 
 import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -34,6 +34,11 @@ const OTHER = [
 type Package = { name: string; version: string; license: string; url: string | null; dir: string; files: { name: string; text: string }[]; ownFiles: boolean };
 
 const LICENSE_FILE = /^(licen[cs]e|copying|notice)([-._].*)?$/i;
+
+// A text file with Unix line ends and no trailing white space.
+function readText(file: string): string {
+  return readFileSync(file, "utf8").replace(/\r\n/g, "\n").trimEnd();
+}
 
 function readJson(file: string): Record<string, unknown> {
   return JSON.parse(readFileSync(file, "utf8"));
@@ -80,7 +85,7 @@ function urlOf(json: Record<string, unknown>): string | null {
 // repository (LICENSE), the OFL's from @fontsource-variable/inter's LICENSE (without Inter's copyright lines). The LGPL is a set
 // of permissions added to the GPL, so both go together. MIT's text needs the copyright holder: the package's author.
 function standardTexts(p: { name: string; license: string; author: string | null }): { name: string; text: string }[] {
-  const read = (id: string) => readFileSync(join(import.meta.dirname, "licenses", `${id}.txt`), "utf8").replace(/\r\n/g, "\n").trimEnd();
+  const read = (id: string) => readText(join(import.meta.dirname, "licenses", `${id}.txt`));
   switch (p.license) {
     case "MIT":
       return [{ name: "MIT License (standard text)", text: `Copyright (c) ${p.author ?? `the authors of ${p.name}`}\n\n${read("MIT")}` }];
@@ -117,7 +122,7 @@ export function packages(): Package[] {
       const files = readdirSync(dir)
         .filter((f) => LICENSE_FILE.test(f))
         .sort()
-        .map((f) => ({ name: f, text: readFileSync(join(dir, f), "utf8").replace(/\r\n/g, "\n").trimEnd() }));
+        .map((f) => ({ name: f, text: readText(join(dir, f)) }));
       found.set(key, {
         name: String(json.name),
         version: String(json.version),
@@ -128,7 +133,11 @@ export function packages(): Package[] {
         ownFiles: files.length > 0,
       });
     }
-    for (const dep of Object.keys((json.dependencies as Record<string, string>) ?? {}).sort()) {
+    // Its dependencies, and the peers it can't do without (npm installs them; the optional ones are left out, like
+    // optional dependencies).
+    const optionalPeers = (json.peerDependenciesMeta as Record<string, { optional?: boolean }> | undefined) ?? {};
+    const peers = Object.keys((json.peerDependencies as Record<string, string>) ?? {}).filter((p) => !optionalPeers[p]?.optional);
+    for (const dep of [...new Set([...Object.keys((json.dependencies as Record<string, string>) ?? {}), ...peers])].sort()) {
       const at = resolve(dep, dir);
       if (!at) throw new Error(`${dep}, a dependency of ${json.name}, isn't installed: run npm install`);
       // Our own packages are linked into node_modules: they aren't third-party, but what they use is.
@@ -152,8 +161,7 @@ const fence = (text: string) => {
   return `${ticks}text\n${text}\n${ticks}`;
 };
 
-export function buildNotices(): string {
-  const list = packages();
+export function buildNotices(list: Package[] = packages()): string {
   const out: string[] = [
     "# Third-party notices",
     "",
@@ -188,12 +196,13 @@ export function buildNotices(): string {
   }
   for (const id of [...new Set(OTHER.map((o) => o.license))]) {
     out.push(`### ${id} (${OTHER.filter((o) => o.license === id).map((o) => o.name).join(", ")})`, "");
-    out.push(fence(readFileSync(join(import.meta.dirname, "licenses", `${id}.txt`), "utf8").replace(/\r\n/g, "\n").trimEnd()), "");
+    out.push(fence(readText(join(import.meta.dirname, "licenses", `${id}.txt`))), "");
   }
   return `${out.join("\n").trimEnd()}\n`;
 }
 
 if (process.argv[1] === import.meta.filename) {
-  writeFileSync(NOTICES_FILE, buildNotices());
-  console.log(`${relative(ROOT, NOTICES_FILE)}: ${packages().length} packages`);
+  const list = packages();
+  writeFileSync(NOTICES_FILE, buildNotices(list));
+  console.log(`${relative(ROOT, NOTICES_FILE)}: ${list.length} packages`);
 }

@@ -1,4 +1,4 @@
-// Screenshots of the app, to compare versions and themes at a glance without clicking through it (docs/overview.md §5.7,
+// Screenshots of the app, to compare versions and themes at a glance without clicking through it (docs/overview.md §12,
 // "Screenshots"): `npm run screenshots` (optionally `-- --out <folder>`, default `screenshots/`, which git ignores; it is
 // replaced, so another folder must be empty, new, or one the script wrote before; `--only <text>` for the shots whose
 // names contain it; `--desktop` for the desktop version's server).
@@ -333,7 +333,7 @@ function shots(seed: Seed): Shot[] {
       take: async (p) => {
         await projectActions(p, seed.done);
         await p.getByRole("menuitem", { name: "Delete project" }).click();
-        await p.locator(".delete-dialog input").type("Bendel");
+        await p.locator(".delete-dialog input").pressSequentially("Bendel");
         await p.waitForTimeout(300);
       },
     },
