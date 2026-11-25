@@ -39,6 +39,7 @@ export const DEFAULT_DPI = 300;
 // orientation and resampling, a vector page's drawing and fill). Part of the page images' recipe (docs/images.md §8.6):
 // bump it with any change of their pixels, or images are served from the cache, and checked against fingerprints,
 // under the keys of what the old code made. Here rather than in pdfPages.ts, so that importing it doesn't bring pdf.js.
+// 1: since the code review's batch 33, which also draws a page whose stencil mask has a pattern fill.
 export const PAGE_IMAGE_VERSION = 1;
 
 // Luminance (BT.601) per pixel, 0 (black) to 255 (white), in integer arithmetic so it is exact everywhere.

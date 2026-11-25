@@ -156,3 +156,53 @@ test("staves are found on music pages and not on covers", async () => {
 });
 
 const KINDERSCENEN_P3_HASH = "d27a2e83523a0935bca67297605324c2ba6326758b06d1b0ad3e3c6c7187b8fe";
+
+// A one-page PDF whose only content is a 1-bit stencil mask covering the page (8 × 8 pixels: ink where a bit is 0,
+// here the left half), painted in the fill that `fill` sets (content stream operators), with a shading pattern P0.
+function stencilPdf(fill: string): Uint8Array {
+  const mask = Buffer.from(Array(8).fill(0x0f));
+  const content = `${fill}\nq 72 0 0 72 0 0 cm /Im0 Do Q\n`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 72 72] /Contents 4 0 R /Resources << /XObject << /Im0 5 0 R >> /Pattern << /P0 6 0 R >> >> >>",
+    `<< /Length ${content.length} >>\nstream\n${content}endstream`,
+    `<< /Type /XObject /Subtype /Image /Width 8 /Height 8 /ImageMask true /BitsPerComponent 1 /Length ${mask.length} >>\nstream\n${mask.toString("latin1")}\nendstream`,
+    "<< /PatternType 2 /Shading << /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 72 0] /Function << /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [0 0 1] /N 1 >> >> >>",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((body, i) => {
+    offsets.push(Buffer.byteLength(pdf, "latin1"));
+    pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(pdf, "latin1");
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets) pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return new Uint8Array(Buffer.from(pdf, "latin1"));
+}
+
+async function stencilPage(fill: string) {
+  return pageImage(await openPdf(stencilPdf(fill), assets), 1, { createCanvas: canvas, dpi: 72 });
+}
+
+test("a stencil mask is painted in its fill colour, whatever colour space set it", async () => {
+  // pdf.js gives every plain colour as #rrggbb (gray, RGB, CMYK alike).
+  for (const [fill, ink] of [["", [0, 0, 0]], ["0.5 g", [128, 128, 128]], ["1 0 0 rg", [255, 0, 0]]] as const) {
+    const { image, source } = await stencilPage(fill);
+    assert.equal(source, "embedded", fill);
+    assert.deepEqual([...image.data.subarray(0, 3)], ink, fill);
+    assert.deepEqual([...image.data.subarray(28, 31)], [255, 255, 255], fill);
+  }
+});
+
+// The code review's level 1 (pdfPages' parseColor): a fill that isn't a plain colour left the colour set before it, so
+// a mask painted with a pattern came out in that colour (here black) as if it were a scan. Such a page is drawn instead.
+test("a stencil mask painted with a pattern isn't taken as a scan: the page is drawn", async () => {
+  const { image, source } = await stencilPage("/Pattern cs /P0 scn");
+  assert.equal(source, "rendered");
+  // The shading shows where the ink is: red at the left edge, not black.
+  const [r, g, b] = image.data.subarray(0, 3);
+  assert.ok(r > 128 && g < 64 && b < 128, `left edge ${[r, g, b]}`);
+});

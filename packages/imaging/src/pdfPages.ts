@@ -102,6 +102,10 @@ const COVERAGE = 0.85; // a scan covers at least this much of the page
 // fill color, and the page showing through elsewhere.
 type Placed = { objId: string; matrix: Matrix; mask: Rgb | null };
 
+// The fill a stencil mask is painted with: a plain colour, or something else (a pattern, transparent), which only
+// drawing the page shows as the PDF does.
+type Fill = Rgb | "other";
+
 // The page's scan, if the page is one: a single image (or stencil mask) covering (nearly) the whole page. Other
 // content, such as an invisible text layer from OCR, is ignored. Null for any other page.
 async function embeddedScan(page: pdfjs.PDFPageProxy): Promise<PageImage | null> {
@@ -109,8 +113,8 @@ async function embeddedScan(page: pdfjs.PDFPageProxy): Promise<PageImage | null>
   const ops = await page.getOperatorList();
   const images: Placed[] = [];
   let ctm: Matrix = [1, 0, 0, 1, 0, 0];
-  let fill: Rgb = [0, 0, 0];
-  const stack: { ctm: Matrix; fill: Rgb }[] = [];
+  let fill: Fill = [0, 0, 0];
+  const stack: { ctm: Matrix; fill: Fill }[] = [];
   for (let i = 0; i < ops.fnArray.length; i++) {
     const fn = ops.fnArray[i];
     const args = ops.argsArray[i];
@@ -122,7 +126,11 @@ async function embeddedScan(page: pdfjs.PDFPageProxy): Promise<PageImage | null>
         ({ ctm, fill } = stack.pop() ?? { ctm, fill });
         break;
       case pdfjs.OPS.setFillRGBColor:
-        fill = parseColor(args[0]) ?? fill;
+        fill = parseColor(args[0]) ?? "other";
+        break;
+      case pdfjs.OPS.setFillColorN: // pdf.js leaves this only for a pattern; a plain colour it gives as setFillRGBColor
+      case pdfjs.OPS.setFillTransparent:
+        fill = "other";
         break;
       case pdfjs.OPS.transform:
         ctm = multiply(ctm, args as Matrix);
@@ -139,7 +147,7 @@ async function embeddedScan(page: pdfjs.PDFPageProxy): Promise<PageImage | null>
         break;
       case pdfjs.OPS.paintImageMaskXObject: {
         const mask = args[0] as { data?: unknown; count?: number };
-        if (typeof mask?.data !== "string" || (mask.count ?? 1) !== 1) return null;
+        if (typeof mask?.data !== "string" || (mask.count ?? 1) !== 1 || fill === "other") return null;
         images.push({ objId: mask.data, matrix: ctm, mask: fill });
         break;
       }
@@ -240,6 +248,7 @@ function maskToRgba({ width, height, data }: ImageObject, color: Rgb): RgbaImage
   return { width, height, data: out };
 }
 
+// A plain fill colour as pdf.js gives it: "#rrggbb", whatever colour space set it (gray, RGB, CMYK). Null otherwise.
 function parseColor(value: unknown): Rgb | null {
   if (typeof value !== "string" || !/^#[0-9a-f]{6}$/i.test(value)) return null;
   return [1, 3, 5].map((i) => parseInt(value.slice(i, i + 2), 16)) as Rgb;
