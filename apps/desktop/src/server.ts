@@ -4,9 +4,11 @@
 // (main.ts); it also runs alone, as a plain local server for development (`node dist/server.js`).
 
 import { serve, type ServerType } from "@hono/node-server";
-import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { Hono } from "hono";
+import { mkdirSync } from "node:fs";
 import type { AddressInfo } from "node:net";
-import { extname, join, normalize, relative } from "node:path";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 import worker from "../../worker/src/index.ts";
 import { migrate, NodeD1 } from "../../worker/src/node/d1.ts";
@@ -33,39 +35,19 @@ export type ServerOptions = {
 
 export type RunningServer = { url: string; secretsPath: string; close: () => Promise<void> };
 
-const TYPES: Record<string, string> = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".mjs": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".json": "application/json",
-  ".webmanifest": "application/manifest+json",
-  ".map": "application/json",
-  ".wasm": "application/wasm",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
-  ".ico": "image/x-icon",
-  ".woff2": "font/woff2",
-  ".woff": "font/woff",
-  ".ttf": "font/ttf",
-  ".otf": "font/otf",
-  ".txt": "text/plain; charset=utf-8",
-  ".xml": "application/xml",
-  ".pdf": "application/pdf",
-  ".bcmap": "application/octet-stream",
-};
-
-// A file of the web app for a path, if there is one ("/" is index.html).
-function webFile(webDir: string, pathname: string): string | null {
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(pathname === "/" ? "/index.html" : pathname);
-  } catch {
-    return null; // a malformed path (found by the code review's test, E17: it was an uncaught error, a 500)
-  }
-  const path = normalize(join(webDir, decoded));
-  if (relative(webDir, path).startsWith("..")) return null;
-  return existsSync(path) && statSync(path).isFile() ? path : null;
+// The built web app, by `serve-static` (its content types, and its refusal of paths with "..", "%" or "\\", which
+// fall through to the Worker, as a missing file does). Vite's hashed assets never change; the rest (index.html, the
+// manifest) is looked at again each time.
+function webApp(webDir: string): Hono {
+  const web = new Hono();
+  web.use(
+    "*",
+    serveStatic({
+      root: webDir,
+      onFound: (_path, c) => c.header("Cache-Control", c.req.path.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache"),
+    }),
+  );
+  return web;
 }
 
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
@@ -74,6 +56,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   migrate(db, options.migrationsDir);
   const files = new NodeR2(join(options.dataDir, "files"));
   const secrets = new SecretsFile(join(options.dataDir, "secrets.env"));
+  const web = webApp(options.webDir);
   const ctx = { waitUntil: (promise: Promise<unknown>) => void promise.catch((err) => console.error(err)), passThroughOnException() {}, props: {} };
 
   const fetch = async (request: Request): Promise<Response> => {
@@ -93,13 +76,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       return Response.json({ theme });
     }
     if (!url.pathname.startsWith("/api/") && (request.method === "GET" || request.method === "HEAD")) {
-      const file = webFile(options.webDir, url.pathname);
-      if (file) {
-        const type = TYPES[extname(file).toLowerCase()] ?? "application/octet-stream";
-        // Vite's hashed assets never change; the rest (index.html, the manifest) is looked at again each time.
-        const cache = url.pathname.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache";
-        return new Response(request.method === "HEAD" ? null : readFileSync(file), { headers: { "Content-Type": type, "Cache-Control": cache } });
-      }
+      const found = await web.fetch(request);
+      if (found.status !== 404) return found;
     }
     // The secrets are the environment's other values, as a Worker's are, read again at each request.
     const env = nodeEnv({ db, files, secrets: secrets.read(), devProviders: options.devProviders });

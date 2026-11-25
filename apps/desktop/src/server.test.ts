@@ -43,6 +43,8 @@ test("startServer on port 0: the host, a project created, the web app served, a 
   const webDir = join(root, "web");
   mkdirSync(webDir);
   writeFileSync(join(webDir, "index.html"), "<!doctype html><title>app</title>");
+  mkdirSync(join(webDir, "assets"));
+  writeFileSync(join(webDir, "assets", "index-abc123.js"), "export {};");
   writeFileSync(join(root, "secret.txt"), "not for the web");
   const server = await startServer({ dataDir, webDir, migrationsDir, host: "desktop", port: 0 });
   try {
@@ -64,7 +66,13 @@ test("startServer on port 0: the host, a project created, the web app served, a 
 
     const index = await get("/");
     assert.equal(index.headers.get("Content-Type"), "text/html; charset=utf-8");
+    assert.equal(index.headers.get("Cache-Control"), "no-cache");
     assert.match(await index.text(), /<title>app<\/title>/);
+    const asset = await get("/assets/index-abc123.js");
+    assert.equal(asset.headers.get("Content-Type"), "text/javascript; charset=utf-8");
+    assert.equal(asset.headers.get("Cache-Control"), "public, max-age=31536000, immutable");
+    assert.equal(await asset.text(), "export {};");
+    assert.equal((await fetch(new URL("/assets/index-abc123.js", server.url), { method: "HEAD" })).status, 200);
     for (const path of ["/..%2fsecret.txt", "/%2e%2e/secret.txt", "/assets/..%2f..%2fsecret.txt", "/%E0%A4%A"]) {
       const response = await get(path);
       assert.doesNotMatch(await response.text(), /not for the web/, path);
