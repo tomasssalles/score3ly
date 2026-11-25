@@ -166,7 +166,7 @@ export const OBS_KINDS: ObsKind[] = [
   kind("Bar lines", "specialBarLines", "Final bar line", "final"),
   kind("Bar lines", "specialBarLines", "Start repeat", "startRepeat"),
   kind("Bar lines", "specialBarLines", "End repeat", "endRepeat"),
-  kind("Bar lines", "specialBarLines", "End and start repeat", "startEndRepeat"),
+  kind("Bar lines", "specialBarLines", "End and start repeat", "bothRepeats"),
   kind("Bar lines", "specialBarLines", "Dashed bar line", "dashed"),
   kind("Other", "directions", "Direction"),
   kind("Other", "notes", "Page note"),

@@ -90,20 +90,20 @@ async function keys(): Promise<string[]> {
 // the other two are as they were. Batch 33 (the paid release): `layout`'s (the 1st of each config) with its rounds
 // (B9); `analyze`'s and `extract`'s (the 2nd and 3rd) with their images' recipe, which names no deskew version any
 // more (B8, dec. 6); `skew_analysis`'s with findSkew's version and `rasterize`'s with the page image code's (B7). Batch 34: `layout`'s once more with its step
-// version (B3: its bar lines normalized).
+// version (B3: its bar lines normalized), `analyze`'s with its step version (D18b: other pieces dropped).
 const EXPECTED: string[] = [
   "0da6ab668e7b8ca70c0d386a9139befa32f990cb198feb21a0f98aaf0b7f6c18",
-  "7227807e8327acfc24aacbed9f7247b8411e0927b2e6256dbdfdad195809510a",
+  "018f697ec948581787f9d4431c9c941b86e5bbb77804da37d9f1d96652435fc0",
   "5a4217701e08af0a9436f88b68239845dee63bdd74dc7c46f6e83e5b315c8564",
   "f146b7882f35d3a47854d641db72fefd1992314aad065d4b63c4c8d0de506b0a",
   "25fcc73ca49ae44aa08544ef33230c6aa5c61708e106baa4e85ccdc6578645bf",
   "7590342bf23a1063f1bff37d62c784f8c98178ba39c8693d00661ebfef7540dc",
-  "5224df6e1a3e79bb1a30c8102d7a7564fcaf0faedc254974e496469a7405ba27",
+  "31485e3faba1ca6b43234f69bcc6c48c23dd9e676453d0b1e9d6e0e1133c661f",
   "cc46b77c2cc87e087fa0b359d20e050c3c2e035228f19dc853b41af2f2d935e2",
   "bd4473f052ee3cdc819fe794c3a9d9346cb71e0c576d36d0aef6c0061408f6fa",
   "976b03e10cf13f70092fe1e5073be75f71528bfbf9f9d0c9917c62c3f8e41cf1",
   "1006ac843abcbc9d16112ad88b7d3f7ea57149988066c1134acbaff80052041d",
-  "4c7082951123f03701b392cd6e79075d33cc8b3740dfa2bb5c17792e3e93563e",
+  "16a5ce0a894ef7af85c9889b0d02f248d7f88f8dd3b8dfa17cd76d6d2d46ab86",
   "32e4486a8493db7aed49577b388367af56acde50f73803fd9a5e22c6bd3b5869",
   "e211856f13231a3ccf4e431ee3cac2cc9d5a3cf751d4159c5c3cb97609e4947b",
   "69ccfd6c2963767f6565823bf47bbe97ab33e7d19cf06021d9bffe56ce0d2c36",

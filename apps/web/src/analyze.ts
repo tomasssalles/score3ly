@@ -27,7 +27,7 @@ import { count } from "./format.ts";
 
 // The step's version: its code, with the checks and the conversions in @score3ly/prompts (ANALYZE_PROMPT_VERSION is
 // what is sent: the texts and the schemas).
-export const ANALYZE_VERSION = 5; // 4: answers checked against their schema first, a malformed one refused (code review, batch 18); 5: spans ending before they start and two pieces at one system refused, a piece's page its system's (code review, batch 30)
+export const ANALYZE_VERSION = 6; // 4: answers checked against their schema first, a malformed one refused (code review, batch 18); 5: spans ending before they start and two pieces at one system refused, a piece's page its system's (code review, batch 30); 6: pieces that start on other pages dropped from a page's answer (code review D18b, batch 34)
 
 // What is stored per page (item p<n>, type `analysis`): the page's own answer, and which systems are on it.
 export type PageAnalysis = { page: number; systems: number[]; metadata: PageMetadata; observations: PageObservations };

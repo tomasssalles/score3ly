@@ -2,7 +2,8 @@
 // `extract` is told of the observations, and what the MEI's header takes from the metadata, taken before the code
 // review's batch 30 moved analyze's rules into the prompts and the forms onto them (review/plan.md, "What guards
 // requests"). Built from two real pages (Kinderscenen, first edition), besides `requestSnapshots.test.ts`, which
-// holds analyze's requests. The same inputs must give the same bytes.
+// holds analyze's requests. The same inputs must give the same bytes. Changed by the paid release (batch 34): the input's
+// `startEndRepeat` renamed `bothRepeats` (D18c), which is the only change in what is stored, read and told.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -88,7 +89,7 @@ const pages: PageAnalysis[] = [
       ],
       changes: [{ kind: "key", text: "D major", place: at(4, "start"), staff: null, confidence: "high" }],
       ottavas: [{ text: "8va", staff: { number: 2, of: 3 }, start: null, end: at(3, "barLine", 1), confidence: "medium" }],
-      specialBarLines: [{ kind: "startEndRepeat", place: at(4, "barLine", 2), confidence: "medium" }],
+      specialBarLines: [{ kind: "bothRepeats", place: at(4, "barLine", 2), confidence: "medium" }],
       endings: [],
       directions: [{ text: "D.C. al Fine", place: at(4, "end"), confidence: "high" }],
       notes: [],
@@ -217,7 +218,7 @@ function snapshots(): Record<string, string> {
 test("what analyze and its forms store, read and tell is what it was", () => {
   assert.deepEqual(snapshots(), {
     "analyze metadata": "eed8565d834f1ece",
-    "analyze observations": "e6f5984bda111b09",
+    "analyze observations": "1275f3977880da43",
     "analyze pieces": "aa5507f9e57ee8a2",
     "metadata read": "ac86eb23d1766161",
     "metadata rows": "fba7455cd0e73645",
@@ -228,16 +229,16 @@ test("what analyze and its forms store, read and tell is what it was", () => {
     "metadata problems": "e8e67f77c7df82f4",
     "metadata confidences": "dff2fba0b305bebe",
     "metadata pieces": "f6bd10506e9a4dae",
-    "observations read": "eaddbcc09b847e4c",
-    "observations rows": "aec795266396bacc",
+    "observations read": "fd5fc7cdffdabe89",
+    "observations rows": "aa4f8c2ffaf9215c",
     "observations sections": "4862f4d9c8957cca",
-    "observations stored": "8e916f4f439fc937",
-    "observations stored, read back": "8e916f4f439fc937",
+    "observations stored": "5b5aaa7343dddedf",
+    "observations stored, read back": "5b5aaa7343dddedf",
     "observations counts": "780870d9e4e08c7d",
     "observations problems": "68c2ccca9c96bd77",
     "observations confidences": "83ac7d8f0fd13554",
-    "hints from analyze": "57305aa2b756f753",
-    "hints from the form": "ba1f22ad1893f892",
+    "hints from analyze": "d69c738fc15413ef",
+    "hints from the form": "d9b0674885aaf6cb",
     "place labels": "759281a69f198495",
     "place kinds": "4323a3ab0f9ddb03",
     "mei metadata, analyze": "8505dc8daa08b257",

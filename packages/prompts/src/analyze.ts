@@ -5,7 +5,7 @@
 
 // Raise whenever the texts or the schemas change: what is sent. The checks (analyzeChecks.ts) and the conversions
 // (analyzeForm.ts) are code: a change to them raises the step's version, ANALYZE_VERSION (apps/web/src/analyze.ts).
-export const ANALYZE_PROMPT_VERSION = 7;
+export const ANALYZE_PROMPT_VERSION = 8;
 
 export const ANALYZE_PAGE_MAX_OUTPUT_TOKENS = 16_000;
 export const ANALYZE_SCORE_MAX_OUTPUT_TOKENS = 32_000;
@@ -24,7 +24,7 @@ A staff is named by its position in its system: staff k of n, numbered from the 
 Metadata: what is printed about the work and the edition, as one list of items, each with its category, its text as printed (keep the page's language and spelling), a system, and your confidence. Report each thing as you come to it, in any order. The categories:
 - titles: mainTitle, subtitle, alternativeTitle (another title of the same work), translatedTitle (the title in another language, e.g. "Kinderscenen / Scènes d'enfants");
 - people, by role: composer, arranger, editor, lyricist, librettist, translator, otherPerson; the text is the name. Where the printed role says more than the category does, or for otherPerson, add it after the name in parentheses, as printed ("H. Germer (Fingersatz)", "J. Schmidt (Stecher)");
-- piece: a piece or movement, its title or number as printed. The only category with a system: the one where the piece starts. Every other category has system null;
+- piece: a piece or movement, its title or number as printed. The only category with a system: the one where the piece starts. At most one piece starts at a system. Every other category has system null;
 - catalogueNumber (e.g. "Op. 15", "BWV 846", "No. 3"), dedication, instrumentation as printed (e.g. "für Klavier zu vier Händen");
 - compositionDate: when or where the work was written, as printed (e.g. "komponiert 1838", "Wien, im März 1825"); rarely printed;
 - the edition: publisher, editionPlace, editionDate (of its publication or printing, not of the composition), plateNumber (e.g. "E. 1234 B."), and notice (copyright, printer, anything else).
@@ -36,7 +36,7 @@ Observations of a page, for the later transcription. They are a bird's-eye view 
 - items: everything else, as one list, each item as you come to it, in any order. Every item has a kind, a text, a staff, a start, an end and your confidence; a field the kind doesn't use is null (the text empty). The kinds:
   - clef, key, time, tempo, otherChange: every clef, key signature and time signature at the start of the page's first system, and every change of them, or of tempo. Text: what it is ("bass clef", "G major", "3/4", "Allegro"); start: its place. A clef belongs to one staff: give it; for the others, give the staff only when the change is on one staff only, else null;
   - ottava (8va, 8vb, 15ma, …): text: the sign as printed; staff: its staff; start and end: where it starts and ends;
-  - doubleBarLine, finalBarLine, startRepeat, endRepeat, startEndRepeat (start and end repeat together), dashedBarLine: special bar lines only, not the ordinary single ones. Start: its place, at the start, at a bar line or at the end of a system, never in a stretch;
+  - doubleBarLine, finalBarLine, startRepeat, endRepeat, bothRepeats (an end and a start repeat together), dashedBarLine: special bar lines only, not the ordinary single ones. Start: its place, at the start, at a bar line or at the end of a system, never in a stretch;
   - ending (the brackets "1." and "2." of a repeat, or "1.-3."): text: its numbers as printed; start and end: where it starts and ends;
   - direction, such as "D.C. al Fine", "Fine", "D.S.", a segno, a coda sign: text: as printed; start: its place;
   - note: anything else that will help to transcribe the music: voices per staff, the texture, large-scale dynamics, a melody that repeats on the page, cross-staff writing, ossias, lyrics. Text only, brief, one note per thing.
@@ -44,7 +44,7 @@ An item at one place gives it as its start, and its end is null. Ottavas and end
 
 export const ANALYZE_PAGE_SYSTEM = `${SHARED}
 
-You see one page: first the page as it is, then the same page with its layout drawn on it. Use the first to read what the drawing might hide (repeat dots beside a bar line, text under a label), and the second for the labels. The page is one of several, and you don't see the others: report what this page shows, nothing else.`;
+You see one page: first the page as it is, then the same page with its layout drawn on it. Use the first to read what the drawing might hide (repeat dots beside a bar line, text under a label), and the second for the labels. The page is one of several, and you don't see the others: report what this page shows, nothing else. Report only the pieces that start on this page, at one of its systems: a title or contents page that names pieces starting elsewhere has none.`;
 
 export function analyzePageText(page: number, systems: number[]): string {
   const which =

@@ -13,7 +13,7 @@ export const TITLE_TYPES = ["main", "subtitle", "alternative", "translated"] as 
 // MEI's header has an element for each but "translator" and "other" (docs/stages/analyze.md, "The metadata").
 export const ROLES = ["composer", "arranger", "editor", "lyricist", "librettist", "translator", "other"] as const;
 export type Role = (typeof ROLES)[number];
-export const SPECIAL_BAR_LINES = ["double", "final", "startRepeat", "endRepeat", "startEndRepeat", "dashed"] as const;
+export const SPECIAL_BAR_LINES = ["double", "final", "startRepeat", "endRepeat", "bothRepeats", "dashed"] as const;
 export const CHANGE_KINDS = ["clef", "key", "time", "tempo", "other"] as const;
 
 // The metadata fields that are plain text, besides titles, people and pieces.
@@ -142,7 +142,7 @@ const BAR_LINE_ITEM_KINDS = {
   finalBarLine: "final",
   startRepeat: "startRepeat",
   endRepeat: "endRepeat",
-  startEndRepeat: "startEndRepeat",
+  bothRepeats: "bothRepeats",
   dashedBarLine: "dashed",
 } as const;
 export type ObservationKind = keyof typeof CHANGE_ITEM_KINDS | "ottava" | keyof typeof BAR_LINE_ITEM_KINDS | "ending" | "direction" | "note";

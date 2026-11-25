@@ -272,3 +272,19 @@ test("a piece's page is its system's page", () => {
   // The page the model gave isn't used, so a page that isn't one of the pages doesn't make the answer unusable.
   assert.ok(!("problem" in checkScoreAnswer(score({ metadata: read(9) }), full)));
 });
+
+// Code review D18b (dec. 29): a page's answer names only the pieces that start on the page; others are dropped
+// silently (a contents page lists pieces that start elsewhere), not refused.
+test("a piece on another page is dropped from a page's answer", () => {
+  const meta = (systems: number[]) =>
+    ({ ...page(), metadata: systems.map((system, i) => ({ category: "piece", text: `No. ${i + 1}`, system, confidence: "high" })) });
+  const checked = checkPageAnswer(meta([9, 5, 1]), context);
+  assert.ok(!("problem" in checked), problem(checked));
+  assert.deepEqual((checked as PageAnswer).metadata.pieces, [{ title: "No. 2", system: 5, confidence: "high" }]);
+  // A title page without systems: every piece dropped.
+  const title = { ...meta([1, 2]), observations: flatLists(emptyLists()) };
+  assert.deepEqual((checkPageAnswer(title, { systems: new Map() }) as PageAnswer).metadata.pieces, []);
+  // The whole score's answer still refuses a piece at a system that doesn't exist.
+  const piece = { title: "x", system: 7, confidence: "high", page: 1 };
+  assert.match(problem(checkScoreAnswer(score({ metadata: { ...emptyMetadata(), pieces: [piece] } }), full)), /starts at system 7/);
+});

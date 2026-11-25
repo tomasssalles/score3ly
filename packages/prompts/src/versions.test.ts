@@ -78,7 +78,7 @@ const PROMPTS: Record<string, Prompt> = {
 // version and pin both here (the failure prints the new hash).
 const PINNED: Record<string, { version: number; sha256: string }> = {
   layout: { version: 4, sha256: "8f0cb80515f87811a6e120ed0c33276d0ae1430271cd1cdd2417ac9aafb225e1" },
-  analyze: { version: 7, sha256: "78b59fa3e653b52cd4d8b201a44c00e0c335f98ae3015b6204a0b0cba9a28dc3" },
+  analyze: { version: 8, sha256: "1dfd77a49270180a76f8ad3de8e1a5edb9a57945de4d3702cb9fd83c064f01da" },
   extract: { version: 8, sha256: "f218615bce9ef85e15b6387fdf1f0dab65aa39e3e12775f31ba42712ae30cacf" },
   review: { version: 8, sha256: "d46c215fc5aff00335f59d6c5dc456397858fd0eae34205b22938a7c6ce44788" },
   apply_review: { version: 8, sha256: "2660bd0d8e3c6614aa6ef6c7a556bef9ff69eef5a9aea48b5ed87d3e5bde3ffd" },

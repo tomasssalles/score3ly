@@ -160,14 +160,17 @@ function metadataProblem(metadata: Metadata<{ page?: number }>, context: Analyze
 }
 
 // A page's answer, checked: the expected shape, each item what its kind needs, every place on the page (the
-// context's systems are the page's), and its staves.
+// context's systems are the page's), and its staves. Pieces that start on other systems are dropped.
 // Returns the reason it can't be used, or the answer in its lists.
 export function checkPageAnswer(json: unknown, context: AnalyzeContext): PageAnswer | Problem {
   const shape = schemaProblem(ANALYZE_PAGE_SCHEMA, json);
   if (shape) return { problem: `the answer doesn't have the expected form: ${shape}` };
   const flat = normalized(json as FlatPageAnswer);
-  const metadata = nestedMetadata(flat.metadata);
-  if ("problem" in metadata) return metadata;
+  const nested = nestedMetadata(flat.metadata);
+  if ("problem" in nested) return nested;
+  // Only the pieces that start on this page (code review D18b, dec. 29): a title or contents page names pieces that
+  // start elsewhere, which are dropped, not refused.
+  const metadata = { ...nested, pieces: nested.pieces.filter((p) => context.systems.has(p.system)) };
   const observations = nestedObservations(flat.observations);
   if ("problem" in observations) return observations;
   const answer: PageAnswer = { metadata, observations };
