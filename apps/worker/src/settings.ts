@@ -2,9 +2,8 @@
 // defaults, checked, and the routes that read and change them.
 
 import type { Hono } from "hono";
-import type { Settings } from "@score3ly/core";
+import { isCapUsd, isVatPercent, type Settings } from "@score3ly/core";
 import { problemText, NO_MODEL_CONFIG, refuse } from "./refusals.ts";
-import { isVatPercent } from "./spending.ts";
 import { devProviders, type ModelConfigRow, unsupportedOf } from "./modelConfigs.ts";
 
 // The settings the Worker knows (`Settings`, core), with their defaults. Settings that depend on the device stay in the
@@ -22,7 +21,7 @@ function settingProblem(key: string, value: unknown): string | null {
   if (key === "defaultModelConfigId") return typeof value === "string" ? null : "expected a model config id";
   if (key === "spendingCapUsd") {
     // There is always a cap: it can be changed, never removed.
-    return typeof value === "number" && Number.isFinite(value) && value > 0 ? null : "expected an amount in US dollars above 0";
+    return isCapUsd(value) ? null : "expected an amount in US dollars above 0";
   }
   if (key === "newProjectRunMode") return value === "auto" || value === "manual" ? null : "expected 'auto' or 'manual'";
   if (key === "vatPercent") return isVatPercent(value) ? null : "expected a percentage from 0 to 100, with at most two decimals";

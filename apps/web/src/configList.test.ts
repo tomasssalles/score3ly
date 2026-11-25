@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ModelConfig } from "./api.ts";
-import { facetValues, NO_FILTER, shownConfigs, sortedConfigs } from "./configList.ts";
+import { facetValues, modelLabel, NO_FILTER, shownConfigs, sortedConfigs } from "./configList.ts";
 
 const config = (id: string, fields: Partial<ModelConfig>) => ({ id, name: id, provider: "anthropic", model: "claude-opus-5-5", modelName: "Claude Opus 5.5", createdAt: "2026-11-01T00:00:00Z", ...fields }) as ModelConfig;
 const NAMES = { anthropic: "Anthropic", bedrock: "Bedrock", fake: "Fake" } as Record<string, string>;
@@ -32,4 +32,14 @@ test("a config is shown unless its provider or its model is taken out", () => {
   assert.deepEqual(ids(shownConfigs(configs, { provider: ["fake"], model: [] }, providerName)), ["Opus 10", "opus 2"]);
   assert.deepEqual(ids(shownConfigs(configs, { provider: [], model: ["name:Claude Opus 5.5"] }, providerName)), ["Éclair", "Bach"]);
   assert.deepEqual(ids(shownConfigs(configs, { provider: ["anthropic"], model: ["string:fake-slow"] }, providerName)), ["opus 2", "Éclair"]);
+});
+
+// The code review's C32: a config of a listed model that the app's list no longer has at all has no model name and no
+// model string; its card and the filter showed an empty model. Its id is shown instead.
+test("a model the list lost is shown by its id, on the card and in the filter", () => {
+  const gone = config("Gone", { modelId: "claude-gone-9", modelName: null, model: "" });
+  assert.equal(modelLabel(gone), "claude-gone-9");
+  assert.deepEqual(facetValues([gone], "model", providerName).map((v) => v.label), ["claude-gone-9"]);
+  assert.equal(modelLabel(configs[0]), "Claude Opus 5.5");
+  assert.equal(modelLabel(configs[2]), "fake-model");
 });

@@ -30,10 +30,16 @@ export const CONFIG_FACETS: { id: ConfigFacet; label: string }[] = [
   { id: "model", label: "Model" },
 ];
 
+// A config's model as its card shows it: a listed model by its name, one added by hand by its string, and a listed
+// model the app's list no longer has at all by its id.
+export function modelLabel(config: ModelConfig): string {
+  return config.modelName ?? (config.model || config.modelId || "");
+}
+
 // A config's value of a facet: its key, and its label as the card shows it (a model added by hand by its string).
 export function facetOf(config: ModelConfig, facet: ConfigFacet, providerName: (provider: ModelConfig["provider"]) => string): { key: string; label: string } {
   if (facet === "provider") return { key: config.provider, label: providerName(config.provider) };
-  return config.modelName ? { key: `name:${config.modelName}`, label: config.modelName } : { key: `string:${config.model}`, label: config.model };
+  return config.modelName ? { key: `name:${config.modelName}`, label: config.modelName } : { key: `string:${modelLabel(config)}`, label: modelLabel(config) };
 }
 
 // Each facet's values among the configs, once each, in the order of their labels.

@@ -17,11 +17,6 @@ export function withVat(usd: number | null, percent: number): number | null {
   return usd === null ? null : usd * (1 + percent / 100);
 }
 
-// A rate as the setting takes it: a percentage from 0 to 100, with at most two decimals.
-export function isVatPercent(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100 && Math.round(value * 100) / 100 === value;
-}
-
 // A call's cost where the provider reports it: what the answer says, raised by the fee on credits (OpenRouter's is
 // charged when credits are bought, on top of them, so a dollar of credits costs 1 + fee); unknown (null) where the
 // answer doesn't say.

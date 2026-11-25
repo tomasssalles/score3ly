@@ -215,6 +215,13 @@ export function routingsOf(options: ModelOptions, form: FormState): { routing: R
     .map((p) => ({ routing: p.routing!, ...(p.geography ? { geography: p.geography } : {}) }));
 }
 
+// A region as the form and the cards name it: OpenRouter's are "Global" ("") and its EU host; others by their own names.
+export function regionLabel(provider: Provider, region: string): string {
+  if (provider !== "openrouter") return region;
+  return region === "" ? "Global" : region === "eu" ? "EU" : region;
+}
+
+// A routing as the form and the cards name it, the form with the geography of a geographic one.
 export function routingLabel(routing: Routing, geography?: string): string {
   return routing === "global" ? "Global" : routing === "geographic" ? `Geographic${geography ? ` (${geography})` : ""}` : "In-region";
 }

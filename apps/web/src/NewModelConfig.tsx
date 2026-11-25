@@ -19,6 +19,7 @@ import {
   modelsOf,
   priceAt,
   providerOf,
+  regionLabel,
   referencesOf,
   regionsOf,
   routingLabel,
@@ -475,12 +476,6 @@ function PickerField({ label, children }: { label: string; children: React.React
       {children}
     </div>
   );
-}
-
-// A region as the picker names it: OpenRouter's are "Global" ("") and its EU host; others by their own names.
-function regionLabel(provider: string, region: string): string {
-  if (provider !== "openrouter") return region;
-  return region === "" ? "Global" : region === "eu" ? "EU" : region;
 }
 
 function PricingChoice({ checked, onCheck, label, info }: { checked: boolean; onCheck: () => void; label: string; info?: string }) {

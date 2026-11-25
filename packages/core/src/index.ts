@@ -12,7 +12,7 @@ export { IMAGE_MEDIA_TYPES, MAX_CACHE_MARKS } from "./api/llmCall.ts";
 export type { CallAnswer, CallBody, CallContent, CallEvent, CallPlace, CallRequest, CallStatus, CallUsage, ImageMediaType, ImagesNeeded, StreamEvent } from "./api/llmCall.ts";
 export { CONFIG_VALUES, PROVIDER_NAMES, PROVIDERS, ROUTINGS, SECRET_LABELS, sameConfigValues, sameValuesMessage, valuesOf, valuesOfNew } from "./api/modelConfigs.ts";
 export type { Account, ConfigValues, Effort, Family, ModelConfig, ModelOptions, NewModelConfig, Place, Price, PriceRange, Prices, Pricing, Provider, Routing, SecretNames, TestResult } from "./api/modelConfigs.ts";
-export type { Settings } from "./api/settings.ts";
+export { isCapUsd, isVatPercent, type Settings } from "./api/settings.ts";
 export { fromBase64, toBase64, toBase64Url } from "./base64.ts";
 export { firstFreeName, MAX_NAME_LENGTH, nameTooLong } from "./names.ts";
 export { itemKind, pageItem, pageOfItem, systemItem, systemOfItem, type ItemKind } from "./items.ts";
