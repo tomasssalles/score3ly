@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { keyOf, type LayoutSystem, type ModelConfig } from "@score3ly/core";
-import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION, type SizeLimit } from "@score3ly/imaging";
+import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, PAGE_IMAGE_VERSION, ROTATE_VERSION, SCALE_VERSION, type SizeLimit } from "@score3ly/imaging";
 import { MARGINS, stretchCropBoxes, systemCropBox } from "./crops.ts";
 import { boxesOnCrop } from "./transcription.ts";
 import { imageLimit, imageLimitFor, requestLimits } from "./requestLimits.ts";
@@ -42,8 +42,8 @@ const GEMINI = { provider: "vertex", family: "gemini" } as ModelConfig;
 
 // Page 3 of a scan (its own pixels: the dpi only for vector pages) and page 12 of a vector PDF at 200 dpi.
 const PAGES: PageRecipe[] = [
-  { step: "rasterize", version: 1, pdf: PDF, page: 3, dpi: 300, pdfjs: PDFJS },
-  { step: "rasterize", version: 1, pdf: PDF, page: 12, dpi: 200, pdfjs: PDFJS },
+  { step: "rasterize", version: 1, pdf: PDF, page: 3, dpi: 300, pdfjs: PDFJS, pageImage: PAGE_IMAGE_VERSION },
+  { step: "rasterize", version: 1, pdf: PDF, page: 12, dpi: 200, pdfjs: PDFJS, pageImage: PAGE_IMAGE_VERSION },
 ];
 const ANGLES = [-0.4137, null];
 
@@ -64,13 +64,13 @@ const ISSUES = [
 ];
 
 // The literals as the code built them before recipes.ts (runLayout, runAnalyze, musicInputs, ArtifactView,
-// ExtractionView, LayoutEditor; runExtract; runReview and runApplyReview; engraving.ts).
+// ExtractionView, LayoutEditor; runExtract; runReview and runApplyReview; engraving.ts), as batch 33 changed them.
 function literals(): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [p, page] of PAGES.entries()) {
     out[`page ${p}`] = page;
     for (const angle of ANGLES) {
-      const straight: StraightRecipe = { page, angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
+      const straight: StraightRecipe = { page, angle, rotate: ROTATE_VERSION };
       const name = `page ${p} at ${angle}`;
       out[`${name}: straight`] = straight;
       for (const [c, config] of [CLAUDE, GEMINI].entries()) {
@@ -114,7 +114,6 @@ function literals(): Record<string, unknown> {
       limit: imageLimit(config),
       scoreLimit: imageLimitFor(config, 30),
       scale: SCALE_VERSION,
-      deskew: DESKEW_VERSION,
       rotate: ROTATE_VERSION,
       draw: DRAW_VERSION,
     };
@@ -123,7 +122,6 @@ function literals(): Record<string, unknown> {
       manyImages: requestLimits(config).manyImages,
       scale: SCALE_VERSION,
       crop: CROP_VERSION,
-      deskew: DESKEW_VERSION,
       rotate: ROTATE_VERSION,
       margins: MARGINS,
     };
@@ -132,7 +130,6 @@ function literals(): Record<string, unknown> {
       manyImages: requestLimits(config).manyImages,
       scale: SCALE_VERSION,
       crop: CROP_VERSION,
-      deskew: DESKEW_VERSION,
       rotate: ROTATE_VERSION,
       draw: DRAW_VERSION,
       margins: MARGINS,
@@ -179,12 +176,12 @@ function constructed(): Record<string, unknown> {
   }
   for (const [c, config] of [CLAUDE, GEMINI].entries()) {
     out[`layout ${c}`] = { limit: imageLimit(config), ...imageVersions("scale", "deskew", "rotate", "draw") };
-    out[`analyze ${c}`] = { limit: imageLimit(config), scoreLimit: imageLimitFor(config, 30), ...imageVersions("scale", "deskew", "rotate", "draw") };
-    out[`extract ${c}`] = { limit: imageLimit(config), manyImages: requestLimits(config).manyImages, ...imageVersions("scale", "crop", "deskew", "rotate"), margins: MARGINS };
+    out[`analyze ${c}`] = { limit: imageLimit(config), scoreLimit: imageLimitFor(config, 30), ...imageVersions("scale", "rotate", "draw") };
+    out[`extract ${c}`] = { limit: imageLimit(config), manyImages: requestLimits(config).manyImages, ...imageVersions("scale", "crop", "rotate"), margins: MARGINS };
     out[`review ${c}`] = {
       limit: imageLimit(config),
       manyImages: requestLimits(config).manyImages,
-      ...imageVersions("scale", "crop", "deskew", "rotate", "draw"),
+      ...imageVersions("scale", "crop", "rotate", "draw"),
       margins: MARGINS,
     };
   }
@@ -212,17 +209,20 @@ async function snapshot(all: Record<string, unknown>): Promise<Record<string, st
   };
 }
 
+// Changed once on purpose by the paid release's batch 33: the page recipe holds the page image code's version (B7),
+// the straightened page's has no deskew version (B8, dec. 6), and the image recipes of analyze, extract, review and
+// apply_review name no deskew (layout's still does); so every image's key but the PDF's, and those stages' recipes.
 const EXPECTED: Record<string, string> = {
   count: "344",
-  all: "3059d92b62a49048",
-  page: "7f91305dd692dadf",
-  straight: "429d775f9df8fabc",
-  modelPage: "5ee351a6d52adc0e",
-  crop: "212b33ec70ade9ca",
-  marked: "e639404512986403",
-  layoutPage: "26451386be63b006",
-  extract: "78e86f13a885776a",
-  review: "f226cf6f5f627e5a",
+  all: "3d9eefc9149c77aa",
+  page: "52b15936c73e16fe",
+  straight: "3a31d31207f2e3b6",
+  modelPage: "ec520c48ebdcd42e",
+  crop: "b29f494ee3b834c3",
+  marked: "2d28bcd20487232a",
+  layoutPage: "4dc76d3c648810a6",
+  extract: "f7b04ad8c5e48ab6",
+  review: "381264cae6a37887",
   pdf: "9d2f2676e202e5e5", // batch 31: the page options in the PDF's recipe (D13)
 };
 

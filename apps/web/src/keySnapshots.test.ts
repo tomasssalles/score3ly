@@ -43,14 +43,14 @@ async function keys(): Promise<string[]> {
         config,
         promptVersion: 5,
         model,
-        imageRecipe: { limit: LIMIT, scoreLimit: { maxLongEdge: 1200, maxPixels: 1_000_000 }, scale: 1, deskew: 1, rotate: 1, draw: 2 },
+        imageRecipe: { limit: LIMIT, scoreLimit: { maxLongEdge: 1200, maxPixels: 1_000_000 }, scale: 1, rotate: 1, draw: 2 },
         pages,
       }),
       await extractStageKey({
         config,
         promptVersion: 7,
         model,
-        imageRecipe: { limit: LIMIT, manyImages: MANY, scale: 1, crop: 1, deskew: 1, rotate: 1, margins: { top: 0.4, bottom: 0.4, side: 0.02 } },
+        imageRecipe: { limit: LIMIT, manyImages: MANY, scale: 1, crop: 1, rotate: 1, margins: { top: 0.4, bottom: 0.4, side: 0.02 } },
         pages,
         ...music,
       }),
@@ -87,25 +87,27 @@ async function keys(): Promise<string[]> {
 // checked against their schema); `build_mei`'s, the last, once, when the MEI builder's version joined it (batch 27);
 // `review`'s and `apply_review`'s (the 4th and 5th of each config) once more with their step versions (batch 29: which
 // systems a box is on); `analyze`'s (the 2nd of each config) once more with its step version (batch 30: its checks);
-// the other two are as they were.
+// the other two are as they were. Batch 33 (the paid release): `layout`'s (the 1st of each config) with its rounds
+// (B9); `analyze`'s and `extract`'s (the 2nd and 3rd) with their images' recipe, which names no deskew version any
+// more (B8, dec. 6); `skew_analysis`'s with findSkew's version and `rasterize`'s with the page image code's (B7).
 const EXPECTED: string[] = [
-  "f829e1ca4719fad055972a27ea3b4ef58410c2ebe2023bf17294c5763d7f0a24",
-  "27006f7dfd58c69ce4e7eb4e4aabedc509887671f9dde824a3a0c8b88c8b9c9b",
-  "9d3a8aa0519ca096738069a918d23f473ec937651a41139e180a740ad9b9791d",
+  "80a6978285035d2bd4d8146d46c7526ca53486269b23f13e53353a0015c14b81",
+  "7227807e8327acfc24aacbed9f7247b8411e0927b2e6256dbdfdad195809510a",
+  "5a4217701e08af0a9436f88b68239845dee63bdd74dc7c46f6e83e5b315c8564",
   "f146b7882f35d3a47854d641db72fefd1992314aad065d4b63c4c8d0de506b0a",
   "25fcc73ca49ae44aa08544ef33230c6aa5c61708e106baa4e85ccdc6578645bf",
-  "99ca14d965ecb2dfa70515d0b17bc5af2eeef2a82cf54764824587898d11cf2c",
-  "4f72ebb4c7f1979570dd69e4791eac214b81d56e0b3a83952395162d5c334b35",
-  "547b129c063903e19e09d2dd6a527c62e9eaaae56805f03a5e490e9f42b66172",
+  "c9970e5d757a0706ade3bf9cd34612ba726c0634280f37833798baffa8adb165",
+  "5224df6e1a3e79bb1a30c8102d7a7564fcaf0faedc254974e496469a7405ba27",
+  "cc46b77c2cc87e087fa0b359d20e050c3c2e035228f19dc853b41af2f2d935e2",
   "bd4473f052ee3cdc819fe794c3a9d9346cb71e0c576d36d0aef6c0061408f6fa",
   "976b03e10cf13f70092fe1e5073be75f71528bfbf9f9d0c9917c62c3f8e41cf1",
-  "eca6214aef3d9266668f285d2823d96212149197b2eb40ce6eab49696afc8385",
-  "4b2fe3a3609283865710e1f713364a67493c92b413356a3ce516fbf334efe8b9",
-  "4e2dd08cd2798a1894e37bf0bb741b2f1efe8a5d9b5c8cc6fa57e9fc98effd54",
+  "14d0c8089a4d036da8a5a8543fa5cf6228e824aa5a8b12feb15e43774442142a",
+  "4c7082951123f03701b392cd6e79075d33cc8b3740dfa2bb5c17792e3e93563e",
+  "32e4486a8493db7aed49577b388367af56acde50f73803fd9a5e22c6bd3b5869",
   "e211856f13231a3ccf4e431ee3cac2cc9d5a3cf751d4159c5c3cb97609e4947b",
   "69ccfd6c2963767f6565823bf47bbe97ab33e7d19cf06021d9bffe56ce0d2c36",
-  "3498bb6e52ae06bbf4f93232e8807bc816383b5c9f79b7a4e65de36b79cb069f",
-  "05d5511ac2f93276223a36f6c32f6f62dbb2e2af692b682be3da0b62b469d374",
+  "482e4c1d9d6d806e6c963275e1c7f175840b6b00ab52d7475d68aae4e8c17d88",
+  "f3700411c60f4376ac10e66f4b0c3ae260f8166b7a85ec3da2628f5fc96e05ba",
   "b34802bb86e3908820ef00a362718bfe4e4057911b0f40ec6e55a0c853029202",
 ];
 

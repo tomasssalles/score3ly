@@ -56,7 +56,7 @@ export function markedImageRecipe(config: ModelConfig) {
   return {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
-    ...imageVersions("scale", "crop", "deskew", "rotate", "draw"),
+    ...imageVersions("scale", "crop", "rotate", "draw"),
     margins: MARGINS,
   };
 }

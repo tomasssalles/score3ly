@@ -4,34 +4,55 @@
 // would split all of them. pageImages.ts makes the images; this module only says what they are.
 
 import type { Box, LayoutSystem } from "@score3ly/core";
-import { CROP_VERSION, DESKEW_VERSION, DRAW_VERSION, ROTATE_VERSION, SCALE_VERSION, type SizeLimit } from "@score3ly/imaging";
+import {
+  CROP_VERSION,
+  DESKEW_VERSION,
+  DRAW_VERSION,
+  FIND_SKEW_VERSION,
+  PAGE_IMAGE_VERSION,
+  ROTATE_VERSION,
+  SCALE_VERSION,
+  type SizeLimit,
+} from "@score3ly/imaging";
 import { pageOptions, type EngraveConfig } from "./engravePage.ts";
 import { RASTERIZE_VERSION } from "./rasterize.ts";
 import { RENDERING_VERSION, VEROVIO_VERSION } from "./rendering.ts";
 import { boxesOnCrop } from "./transcription.ts";
 import type { StoredIssue } from "./issues.ts";
 
-// The versions of our image code (packages/imaging), by operation: an LLM stage's image recipe (in its stage key) names
-// those its images go through.
-export const IMAGE_VERSIONS = { scale: SCALE_VERSION, crop: CROP_VERSION, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION, draw: DRAW_VERSION };
+// The versions of our image code (packages/imaging), by operation: the page images (in their recipe, so in every
+// image's), finding the skew (in `skew_analysis`'s key), the deskew decision (in `layout`'s, where the angle is
+// decided), and the operations an LLM stage's image recipe (in its stage key) names when its images go through them.
+export const IMAGE_VERSIONS = {
+  pageImage: PAGE_IMAGE_VERSION,
+  findSkew: FIND_SKEW_VERSION,
+  scale: SCALE_VERSION,
+  crop: CROP_VERSION,
+  deskew: DESKEW_VERSION,
+  rotate: ROTATE_VERSION,
+  draw: DRAW_VERSION,
+};
 
 export function imageVersions<K extends keyof typeof IMAGE_VERSIONS>(...operations: K[]): Pick<typeof IMAGE_VERSIONS, K> {
   return Object.fromEntries(operations.map((o) => [o, IMAGE_VERSIONS[o]])) as Pick<typeof IMAGE_VERSIONS, K>;
 }
 
-// A page image (`rasterize`). pdf.js's version is part of it: another version may draw vector pages differently.
-export type PageRecipe = { step: "rasterize"; version: number; pdf: string; page: number; dpi: number; pdfjs: string };
+// A page image (`rasterize`). pdf.js's version is part of it (another version may draw vector pages differently), and
+// so is our page image code's (`pageImage`, imaging's pdfPages.ts). Stored by `rasterize`, and read back by every
+// stage after it: a page recipe stored before `pageImage` was in it has none (and keeps its key).
+export type PageRecipe = { step: "rasterize"; version: number; pdf: string; page: number; dpi: number; pdfjs: string; pageImage?: number };
 
 export function pageRecipe(pdfSha256: string, page: number, dpi: number, pdfjsVersion: string): PageRecipe {
-  return { step: "rasterize", version: RASTERIZE_VERSION, pdf: pdfSha256, page, dpi, pdfjs: pdfjsVersion };
+  return { step: "rasterize", version: RASTERIZE_VERSION, pdf: pdfSha256, page, dpi, pdfjs: pdfjsVersion, pageImage: PAGE_IMAGE_VERSION };
 }
 
 // A page image straightened by the angle its lines give (§8.4), or not at all (null: the image is the page image).
-// `deskew` is the version of the decision, `rotate` of the rotation code.
-export type StraightRecipe = { page: PageRecipe; angle: number | null; deskew: number; rotate: number };
+// `rotate` is the rotation code's version. The decision's version isn't in it (dec. 6 of the code review): the angle
+// is the decision, made by `layout`, whose stage key holds that version (`IMAGE_VERSIONS.deskew`).
+export type StraightRecipe = { page: PageRecipe; angle: number | null; rotate: number };
 
 export function straightRecipe(page: PageRecipe, angle: number | null): StraightRecipe {
-  return { page, angle, deskew: DESKEW_VERSION, rotate: ROTATE_VERSION };
+  return { page, angle, rotate: ROTATE_VERSION };
 }
 
 // The recipe of the image a straightened page is: with no angle, the page image's (pageImages.ts makes no image of its

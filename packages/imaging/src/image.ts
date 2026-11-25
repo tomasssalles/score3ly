@@ -35,6 +35,12 @@ export function grayToRgba(gray: ArrayLike<number>, width: number, height: numbe
 // The resolution vector pages are drawn at unless a stage says otherwise (rasterize's default, pdfPages.ts).
 export const DEFAULT_DPI = 300;
 
+// The version of the code that makes page images from a PDF (pdfPages.ts: a scan's own pixels, its 1-bit unpacking,
+// orientation and resampling, a vector page's drawing and fill). Part of the page images' recipe (docs/images.md §8.6):
+// bump it with any change of their pixels, or images are served from the cache, and checked against fingerprints,
+// under the keys of what the old code made. Here rather than in pdfPages.ts, so that importing it doesn't bring pdf.js.
+export const PAGE_IMAGE_VERSION = 1;
+
 // Luminance (BT.601) per pixel, 0 (black) to 255 (white), in integer arithmetic so it is exact everywhere.
 export function luminance(image: RgbaImage): Uint8Array {
   const { data } = image;

@@ -59,7 +59,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
   const { config, stageConfig, start } = await llmStart(stage);
   const pageLimit = imageLimit(config);
   const scoreLimit = imageLimitFor(config, pages.length);
-  const imageRecipe = { limit: pageLimit, scoreLimit, ...imageVersions("scale", "deskew", "rotate", "draw") };
+  const imageRecipe = { limit: pageLimit, scoreLimit, ...imageVersions("scale", "rotate", "draw") };
   const stageKey = await analyzeStageKey({
     config: stageConfig,
     promptVersion: ANALYZE_PROMPT_VERSION,

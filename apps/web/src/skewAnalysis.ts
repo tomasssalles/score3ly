@@ -3,6 +3,7 @@
 // (deskewAngle), computed by the stage that makes straightened pages. This module has what doesn't need the browser.
 
 import { keyOf } from "@score3ly/core";
+import { FIND_SKEW_VERSION } from "@score3ly/imaging";
 
 export const SKEW_ANALYSIS_VERSION = 1;
 
@@ -26,9 +27,10 @@ export function skewConfigError(config: SkewConfig): string | null {
   return null;
 }
 
-// The stage key (§5.2): the step, its version, the config, and the inputs' content: the page images' recipe keys.
+// The stage key (§5.2): the step, its version, findSkew's, the config, and the inputs' content: the page images'
+// recipe keys.
 export function skewStageKey(config: SkewConfig, pageImageKeys: string[]): Promise<string> {
-  return keyOf({ step: "skew_analysis", version: SKEW_ANALYSIS_VERSION, config, inputs: pageImageKeys });
+  return keyOf({ step: "skew_analysis", version: SKEW_ANALYSIS_VERSION, findSkew: FIND_SKEW_VERSION, config, inputs: pageImageKeys });
 }
 
 // The card's short result, e.g. "lines on 10 of 12 pages", and how many pages had their angle at the limit of the

@@ -135,12 +135,14 @@ const at = (step: string, turn = 1) => stages.map((s, i) => [s, i] as const).fil
 
 // Per stage: the hash of everything sent, and how many requests of each kind. Changed once on purpose (the code
 // review's batch 29): the starts' stage keys (`LENS_VERSION` 5) and step versions (`review` and `apply_review` 3);
-// everything else the same, checked with those two fields left out.
+// everything else the same, checked with those two fields left out. Changed once more by the paid release (batch
+// 33): the straightened pages' recipes, and the music stages' images' recipes, name no deskew version (B8, dec. 6), so
+// the images' keys in the requests and the stage keys; checked by putting the version back, which gives the old hashes.
 const EXPECTED: Record<string, { hash: string; counts: Record<string, number> }> = {
-  extract: { hash: "7efc2f8c77a3e8c2", counts: { start: 1, llm: 6, "issue-numbers": 6, outputs: 7, finish: 1 } },
-  review: { hash: "47ee8444d7b342ac", counts: { start: 1, llm: 6, "issue-numbers": 1, outputs: 6, finish: 1 } },
-  "apply_review 1": { hash: "2dbd3b73a16ae01f", counts: { start: 1, llm: 2, outputs: 9, finish: 1 } },
-  "apply_review 2": { hash: "ad99aa3ed9c17ad9", counts: { start: 1, outputs: 7, finish: 1 } },
+  extract: { hash: "fe8fa6ee00b9ebd4", counts: { start: 1, llm: 6, "issue-numbers": 6, outputs: 7, finish: 1 } },
+  review: { hash: "41b79b079ff906a1", counts: { start: 1, llm: 6, "issue-numbers": 1, outputs: 6, finish: 1 } },
+  "apply_review 1": { hash: "7c8f90627f710182", counts: { start: 1, llm: 2, outputs: 9, finish: 1 } },
+  "apply_review 2": { hash: "bb7238b7109b204e", counts: { start: 1, outputs: 7, finish: 1 } },
   build_mei: { hash: "f9c01eee702a35a4", counts: { start: 1, outputs: 1, finish: 1 } },
 };
 

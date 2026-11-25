@@ -9,12 +9,12 @@
 // (`keepFingerprints`).
 
 import { compareFingerprints, pngSize as pngHeaderSize, type Fingerprint } from "@score3ly/imaging";
-import { fetchFingerprint, fetchPdf, storeFingerprints } from "./api";
-import { cachedImage, cacheImage, cachedJson, cacheJson } from "./imageCache";
-import { noteImage } from "./itemTiming";
+import { fetchFingerprint, fetchPdf, storeFingerprints } from "./api.ts";
+import { cachedImage, cacheImage, cachedJson, cacheJson } from "./imageCache.ts";
+import { noteImage } from "./itemTiming.ts";
 import { errorText, keyOf } from "@score3ly/core";
 import type { DeriveOptions, MadeImage, PageImageCalls } from "./pageImageWorker";
-import { oneAtATime, workerClient } from "./workerClient";
+import { oneAtATime, workerClient } from "./workerClient.ts";
 import type { CropRecipe, DrawnPageRecipe, LayoutPageRecipe, MarkedCropRecipe, ModelPageRecipe, PageRecipe, StraightRecipe } from "./recipes";
 import type { Skew } from "@score3ly/imaging";
 

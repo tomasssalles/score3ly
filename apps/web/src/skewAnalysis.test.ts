@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { keyOf } from "@score3ly/core";
+import { FIND_SKEW_VERSION } from "@score3ly/imaging";
 import { angleLabel, skewConfigError, skewConfigOf, skewNote, skewStageKey } from "./skewAnalysis.ts";
 
 test("the maximum angle defaults to 5° and is checked", () => {
@@ -19,6 +21,15 @@ test("the stage key changes with the maximum angle and with the page images", as
   assert.equal(key, await skewStageKey({ maxAngle: 5 }, [...pages]));
   assert.notEqual(key, await skewStageKey({ maxAngle: 10 }, pages));
   assert.notEqual(key, await skewStageKey({ maxAngle: 5 }, pages.slice(1)));
+});
+
+// B7, A14 (code review): a change of findSkew changes the stage's key, so a stage run by the old code isn't reused.
+test("the stage key holds findSkew's version", async () => {
+  const pages = ["a".repeat(64)];
+  assert.equal(
+    await skewStageKey({ maxAngle: 5 }, pages),
+    await keyOf({ step: "skew_analysis", version: 1, findSkew: FIND_SKEW_VERSION, config: { maxAngle: 5 }, inputs: pages }),
+  );
 });
 
 test("labels and the card's note", () => {

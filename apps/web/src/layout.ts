@@ -1,5 +1,6 @@
 // The `layout` step (docs/stages/layout.md): what doesn't need the browser or the model. Its runner is runLayout.ts.
 
+import { LAYOUT_ROUNDS } from "@score3ly/prompts";
 import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
 import { systemItem, type LayoutSystem } from "@score3ly/core";
 import { count } from "./format.ts";
@@ -16,8 +17,9 @@ export type PageLayout = {
   rounds: number; // answers it took
 };
 
-// The stage key (§5.2, llmStageKey.ts): the step, its version, the prompt's version, the model, the image limit, and per page the
-// page image's recipe key and the stored lines it is straightened by.
+// The stage key (§5.2, llmStageKey.ts): the step, its version, the prompt's version, the model, the images' recipe (the
+// deskew decision's version among them: the stage decides the angles), per page the page image's recipe key and the
+// stored lines it is straightened by, and the number of rounds.
 export function layoutStageKey(input: {
   config: LlmStageConfig;
   promptVersion: number;
@@ -25,7 +27,7 @@ export function layoutStageKey(input: {
   imageRecipe: unknown;
   pages: { pageImageKey: string; linesSha256: string | null }[];
 }): Promise<string> {
-  return llmStageKey("layout", LAYOUT_VERSION, input);
+  return llmStageKey("layout", LAYOUT_VERSION, { ...input, rounds: LAYOUT_ROUNDS });
 }
 
 // The card's short result, e.g. "54 systems on 12 pages · 2 flagged".

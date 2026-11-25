@@ -42,7 +42,7 @@ export async function runExtract(run: StageRun): Promise<void> {
   const imageRecipe = {
     limit: imageLimit(config),
     manyImages: requestLimits(config).manyImages,
-    ...imageVersions("scale", "crop", "deskew", "rotate"),
+    ...imageVersions("scale", "crop", "rotate"),
     margins: MARGINS,
   };
   const stageKey = await extractStageKey({

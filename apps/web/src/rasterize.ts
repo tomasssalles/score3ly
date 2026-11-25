@@ -4,7 +4,7 @@
 
 import { keyOf } from "@score3ly/core";
 import { formatPages, parsePages, selectPages } from "@score3ly/core";
-import { DEFAULT_DPI } from "@score3ly/imaging";
+import { DEFAULT_DPI, PAGE_IMAGE_VERSION } from "@score3ly/imaging";
 
 export const RASTERIZE_VERSION = 1;
 
@@ -49,12 +49,13 @@ export function resolveConfig(
   return { config: { pages: formatPages(selected.pages), dpi: config.dpi }, pages: selected.pages };
 }
 
-// The stage key (§5.2): the step, its version and libraries, the resolved config, and the input's content: the PDF.
+// The stage key (§5.2): the step, its version and libraries (pdf.js, and our page image code, whose version is in
+// the page recipes the stage stores), the resolved config, and the input's content: the PDF.
 export function stageKey(config: RasterizeConfig, pdfSha256: string, pdfjsVersion: string): Promise<string> {
   return keyOf({
     step: "rasterize",
     version: RASTERIZE_VERSION,
-    libraries: { pdfjs: pdfjsVersion },
+    libraries: { pdfjs: pdfjsVersion, pageImage: PAGE_IMAGE_VERSION },
     config,
     inputs: [pdfSha256],
   });

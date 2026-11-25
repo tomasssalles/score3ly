@@ -80,7 +80,8 @@ test("what the music stages read from a score of three pages and two pieces", as
   assert.deepEqual(inputs.labelsOf(inputs.byNumber.get(3)!), ["system", "stretch 1", "previous system"]);
   assert.deepEqual(inputs.contextOf(inputs.byNumber.get(4)!).firstOfPiece, true);
   assert.equal(inputs.placeBox({ system: 9, stretch: 1 }), null);
-  // Everything, as a snapshot taken before the code review's batch 28 moved these out of the fetching.
+  // Everything, as a snapshot taken before the code review's batch 28 moved these out of the fetching; changed by batch
+  // 33 only by the straightened pages' recipes, which name no deskew version (B8, dec. 6).
   const all = {
     systems,
     pages: inputs.pages.map((p) => [p.page, p.output.id, p.image.id]),
@@ -94,7 +95,7 @@ test("what the music stages read from a score of three pages and two pieces", as
     })),
     straight: inputs.pages.map((_, i) => inputs.straight(i)),
   };
-  assert.equal(createHash("sha256").update(canonicalJson(all)).digest("hex"), "d0811161027d6290a36e1089b885c3b8ddaccee37d8d38146c44e0844764f591");
+  assert.equal(createHash("sha256").update(canonicalJson(all)).digest("hex"), "e58429f5559bf652f909fa4378f89197b13920573a0c0b9296a5b4d5170d398c");
 });
 
 test("the music stages can't start without what they read", async () => {

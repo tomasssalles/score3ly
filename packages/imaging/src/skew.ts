@@ -36,6 +36,10 @@ export const MAX_LINES = 5;
 // page's vertical center line (the page is skewed, so elsewhere they differ a little).
 export type Staff = { top: number; bottom: number };
 
+// The version of findSkew (and the staves it finds, staves.ts). Part of `skew_analysis`'s stage key: a change of what
+// it measures runs the stage again.
+export const FIND_SKEW_VERSION = 1;
+
 // The skew of a page of music, from its horizontal lines (staff lines above all).
 //
 // 1. A line filter keeps thin, dark, horizontal-ish structures: a pixel counts as much as it is darker than both
@@ -159,8 +163,9 @@ function measure(work: Gray, maxAngle: number, margin: number): Skew {
   };
 }
 
-// The version of the deskew decision (deskewAngle). Part of the recipe of straightened pages (docs/images.md §8.6):
-// changing the rule changes them, and nothing before them.
+// The version of the deskew decision (deskewAngle). Part of `layout`'s stage key, where the angle is decided, not of
+// the straightened pages' recipe (docs/images.md §8.6): that holds the angle itself, so a new rule that gives the
+// same angle changes no image and no request.
 export const DESKEW_VERSION = 1;
 
 // Whether and by how much to straighten a page, from its lines (docs/stages/pages.md, "Finding the skew"): best effort, low risk. No lines,
