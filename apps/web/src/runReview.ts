@@ -17,7 +17,7 @@ import { loadTranscription, logContent, markedImage, markedImageRecipe, transcri
 import { stretchCropBoxes, systemCropBox } from "./crops";
 import { checkReview, logEntries, proposedChanges, REVIEW_VERSION, reviewIssues, reviewNote, reviewScore, reviewStageKey, reviewWarnings, type ReviewEntry, type StoredReview } from "./review";
 import { CannotStart, recordedContent, runPlan, type StageRun } from "./stageRunner";
-import { reviewInputIds } from "./stageInputs";
+import { reviewInputIds, pageCountBefore } from "./stageInputs";
 import { reviewedIssues, systemsOf } from "./issues";
 
 
@@ -70,7 +70,7 @@ export async function runReview(run: StageRun): Promise<void> {
     stepVersion: REVIEW_VERSION,
     ...start,
     stageKey,
-    pageCount: pages.length,
+    pageCount: pageCountBefore(pipeline.stages, stage.id),
     inputIds,
     note: () => reviewNote(proposedChanges([...calls.values()])),
     items: systems.map((s) => ({

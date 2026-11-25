@@ -9,7 +9,7 @@ import { keepFingerprints, measureSkew, pageImage } from "./pageImages";
 import type { PageRecipe } from "./recipes";
 import { SKEW_ANALYSIS_VERSION, skewConfigError, skewConfigOf, skewNote, skewStageKey } from "./skewAnalysis";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
-import { latestProducer } from "./stageInputs";
+import { latestProducer, pageCountBefore } from "./stageInputs";
 
 export async function runSkewAnalysis(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
@@ -34,7 +34,7 @@ export async function runSkewAnalysis(run: StageRun): Promise<void> {
       config,
       pages.map((p) => p.output.recipeKey!),
     ),
-    pageCount: pages.length,
+    pageCount: pageCountBefore(pipeline.stages, stage.id),
     inputIds: pages.map((p) => p.output.id),
     // Pages recorded by a failed run aren't measured again: their results are read back.
     note: async (outputs) => {

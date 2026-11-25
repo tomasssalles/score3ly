@@ -119,3 +119,15 @@ export function applyReviewInputIds(sources: MusicSources): string[] {
     pieces.output.id,
   ];
 }
+
+// A stage's page count (`ApiStage.pageCount`, stored with its start): the selected pages, for every stage after
+// `rasterize` (the owner's dec. 40, the code review's F7): the page images of the latest `rasterize` before it, or null
+// without one. Run times divides by it (docs/statistics.md), and the run report reads it.
+export function pageCountOf(earlier: readonly ApiStage[]): number | null {
+  const rasterize = latestProducer(earlier, "page_image");
+  return rasterize ? rasterize.outputs.filter((o) => o.type === "page_image").length : null;
+}
+
+// The same for a stage of the pipeline: from the stages before it.
+export const pageCountBefore = (stages: readonly ApiStage[], stageId: string): number | null =>
+  pageCountOf(stages.slice(0, Math.max(0, stages.findIndex((s) => s.id === stageId))));

@@ -8,7 +8,7 @@ import { engraveConfigOf, pdfPageCount } from "./engravePage";
 import { engravedPdf } from "./engraving";
 import { pdfRecipe } from "./recipes";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
-import { latestProducer } from "./stageInputs";
+import { pageCountOf } from "./stageInputs";
 import { count } from "./format.ts";
 
 export async function runEngrave(run: StageRun): Promise<void> {
@@ -16,7 +16,6 @@ export async function runEngrave(run: StageRun): Promise<void> {
   const earlier = pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id));
   const mei = latestMei(earlier);
   if ("missing" in mei) throw new CannotStart(mei.missing);
-  const rasterize = latestProducer(earlier, "page_image");
   const config = engraveConfigOf(stage.config);
   const recipe = pdfRecipe(mei.sha256, config);
   const recipeKey = await keyOf(recipe);
@@ -26,7 +25,7 @@ export async function runEngrave(run: StageRun): Promise<void> {
     stepVersion: ENGRAVE_VERSION,
     config,
     stageKey: await engraveStageKey(recipe),
-    pageCount: rasterize?.outputs.filter((o) => o.type === "page_image").length ?? null,
+    pageCount: pageCountOf(earlier),
     inputIds: [mei.id],
     // Counted from the PDF, made again (or found on the device) when an earlier run recorded it.
     note: async () => {

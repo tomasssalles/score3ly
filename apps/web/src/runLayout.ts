@@ -24,7 +24,7 @@ import { imageLimit } from "./requestLimits";
 import { drawnPage, modelPage, pageImage, pngSize } from "./pageImages";
 import { drawnPageRecipe, imageVersions, modelPageRecipe, straightRecipe, type PageRecipe } from "./recipes";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
-import { latestProducer } from "./stageInputs";
+import { latestProducer, pageCountBefore } from "./stageInputs";
 
 export async function runLayout(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
@@ -55,7 +55,7 @@ export async function runLayout(run: StageRun): Promise<void> {
     stepVersion: LAYOUT_VERSION,
     ...start,
     stageKey,
-    pageCount: pages.length,
+    pageCount: pageCountBefore(pipeline.stages, stage.id),
     inputIds: pages.flatMap((p) => [p.output.id, ...(p.lines ? [p.lines.id] : [])]),
     note: async (outputs) => {
       const layouts = await contentsOf(outputs, "layout", made);

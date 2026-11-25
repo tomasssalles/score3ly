@@ -5,6 +5,7 @@
 // can't be used stops the run there: the answers so far are kept, and a retry starts again at that system. Once every
 // system is in, the checks of the whole score run on all of them, and what they find is one more output.
 
+import { pageCountBefore } from "./stageInputs.ts";
 import { checkScore, checkSystem, checkSystems, LENS_VERSION, pieceStart, type ScoreState } from "@score3ly/notation";
 import { EXTRACT_MAX_OUTPUT_TOKENS, EXTRACT_PROMPT_VERSION, EXTRACT_SCHEMA, EXTRACT_SYSTEM, extractText, lensFromExtract } from "@score3ly/prompts";
 import { numberIssues, putJson } from "./api";
@@ -90,7 +91,7 @@ export async function runExtract(run: StageRun): Promise<void> {
     stepVersion: EXTRACT_VERSION,
     ...start,
     stageKey,
-    pageCount: pages.filter((_, i) => layouts[i].systems.length > 0).length,
+    pageCount: pageCountBefore(pipeline.stages, stage.id),
     inputIds: [...new Set(systems.flatMap(inputsOf))],
     note: () => {
       const all = [...stored.values(), ...(scoreChecks ? [scoreChecks] : [])];

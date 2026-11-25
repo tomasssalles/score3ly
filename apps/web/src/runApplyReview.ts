@@ -30,7 +30,7 @@ import {
 import { modelKeyOf, normalized } from "@score3ly/core";
 import { fetchJsonContent, numberIssues, putJson } from "./api";
 import { appliedCount, applyCalls, applyLogEntries, applyNote, applyPatch, APPLY_REVIEW_VERSION, applyReviewStageKey, callWarnings, changedStretches, checkAll, checkPatch, issueToApply, revertedCount, systemView, type StoredApplyCall } from "./applyReview";
-import { applyReviewInputIds, reviewEntries } from "./stageInputs";
+import { applyReviewInputIds, reviewEntries, pageCountBefore } from "./stageInputs";
 import type { StoredHumanReview } from "./humanReview";
 import { scoreInput, type ImageSource, type StoredExtraction, type StoredScoreChecks } from "./extract";
 import { ask, llmStart, type PlannedRequest, type RequestContent } from "./llm";
@@ -149,7 +149,7 @@ export async function runApplyReview(run: StageRun): Promise<void> {
     stepVersion: APPLY_REVIEW_VERSION,
     ...start,
     stageKey,
-    pageCount: pages.length,
+    pageCount: pageCountBefore(pipeline.stages, stage.id),
     inputIds,
     note: () => applyNote(appliedCount([...calls.values()]), revertedCount([...calls.values()])),
     items: [

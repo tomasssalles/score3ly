@@ -5,22 +5,20 @@ import { LENS_VERSION, MEI_BUILDER_VERSION } from "@score3ly/notation";
 import { fetchJsonContent, putContent } from "./api";
 import { BUILD_MEI_VERSION, buildMeiStageKey, engraveNote, engraveSources, loadScore, meiText, sourceIds } from "./engrave";
 import { CannotStart, runPlan, type StageRun } from "./stageRunner";
-import { latestProducer } from "./stageInputs";
+import { pageCountOf } from "./stageInputs";
 
 export async function runBuildMei(run: StageRun): Promise<void> {
   const { stage, pipeline } = run;
   const earlier = pipeline.stages.slice(0, pipeline.stages.findIndex((s) => s.id === stage.id));
   const sources = engraveSources(earlier);
   if ("missing" in sources) throw new CannotStart(sources.missing);
-  const rasterize = latestProducer(earlier, "page_image");
   const inputIds = sourceIds(sources);
   const { score, metadata } = await loadScore(sources, fetchJsonContent);
   await runPlan(run, {
     stepVersion: BUILD_MEI_VERSION,
     config: {},
     stageKey: await buildMeiStageKey(sources, { lensVersion: LENS_VERSION, meiBuilderVersion: MEI_BUILDER_VERSION }),
-    // All selected pages: the header comes from the metadata, read from every page (§5.8).
-    pageCount: rasterize?.outputs.filter((o) => o.type === "page_image").length ?? null,
+    pageCount: pageCountOf(earlier),
     inputIds,
     note: engraveNote(score),
     items: [

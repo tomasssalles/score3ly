@@ -15,7 +15,7 @@ import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./s
 import { DEFAULT_ENGRAVE_CONFIG, engraveConfigOf, PAGE_SIZES } from "./engravePage.ts";
 import { fixMeiStart } from "./fixMei.ts";
 import { humanReviewStart } from "./humanReview.ts";
-import { latestOutput, latestProducer, latestStage, musicSources, reviewInputIds } from "./stageInputs.ts";
+import { latestOutput, latestProducer, latestStage, musicSources, pageCountOf, reviewInputIds } from "./stageInputs.ts";
 
 // One field of a step's config form.
 export type ConfigField = {
@@ -505,16 +505,17 @@ export const STEPS = Object.fromEntries(
   (Object.keys(DECLARED) as StepId[]).map((step) => [step, { ...DECLARED[step], kind: STEP_KINDS[step] }]),
 ) as Record<StepId, StepInfo>;
 
-// What a manual step needs to be added after a stage (docs/database.md): its version, page count and inputs. `earlier`:
-// the stages up to and including that one.
+// What a manual step needs to be added after a stage (docs/database.md): its version, page count (the selected pages,
+// `pageCountOf`; the others take the stage's, which is the same) and inputs. `earlier`: the stages up to and including
+// that one.
 export const FIX_STARTS: Record<string, (after: ApiStage, earlier: ApiStage[]) => { stepVersion: number; pageCount: number | null; inputIds: string[] }> = {
-  fix_skew: (after) => {
+  fix_skew: (after, earlier) => {
     const inputs = after.outputs.filter((o) => o.type === "skew");
-    return { stepVersion: FIX_SKEW_VERSION, pageCount: inputs.length, inputIds: inputs.map((o) => o.id) };
+    return { stepVersion: FIX_SKEW_VERSION, pageCount: pageCountOf(earlier), inputIds: inputs.map((o) => o.id) };
   },
-  fix_layout: (after) => {
+  fix_layout: (after, earlier) => {
     const inputs = after.outputs.filter((o) => o.type === "layout");
-    return { stepVersion: FIX_LAYOUT_VERSION, pageCount: inputs.length, inputIds: inputs.map((o) => o.id) };
+    return { stepVersion: FIX_LAYOUT_VERSION, pageCount: pageCountOf(earlier), inputIds: inputs.map((o) => o.id) };
   },
   fix_metadata: (after) => {
     const inputs = after.outputs.filter((o) => o.item === "" && (o.type === "metadata" || o.type === "pieces"));

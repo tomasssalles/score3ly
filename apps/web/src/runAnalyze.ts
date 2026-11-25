@@ -37,7 +37,7 @@ import { imageLimit, imageLimitFor } from "./requestLimits";
 import { layoutPage, modelPage } from "./pageImages";
 import { imageVersions, layoutPageRecipe, modelPageRecipe, straightRecipe, type PageRecipe } from "./recipes";
 import { CannotStart, contentsOf, runPlan, type StageRun } from "./stageRunner";
-import { musicSources } from "./stageInputs";
+import { musicSources, pageCountBefore } from "./stageInputs";
 
 
 export async function runAnalyze(run: StageRun): Promise<void> {
@@ -129,7 +129,7 @@ export async function runAnalyze(run: StageRun): Promise<void> {
     stepVersion: ANALYZE_VERSION,
     ...start,
     stageKey,
-    pageCount: pages.length,
+    pageCount: pageCountBefore(pipeline.stages, stage.id),
     inputIds: pages.flatMap((_, i) => pageInputs(i)),
     // The pieces as stored (piecesOf: system 1 added, duplicates merged), whichever run made them.
     note: async (outputs) => analyzeNote(pages.length, (await contentsOf(outputs, "pieces", madePieces))[0]?.length ?? 0),

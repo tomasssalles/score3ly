@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { pageOfItem, type StepId } from "@score3ly/core";
 import type { ApiOutput, ApiStage } from "./api.ts";
-import { applyReviewInputIds, latestOutput, latestStage, musicSources, PRODUCERS, reviewInputIds } from "./stageInputs.ts";
+import { applyReviewInputIds, latestOutput, latestStage, musicSources, pageCountBefore, pageCountOf, PRODUCERS, reviewInputIds } from "./stageInputs.ts";
 import { fakeFixture } from "./testing/fixture.ts";
-import { carriedInputs, STEPS } from "./steps.ts";
+import { carriedInputs, FIX_STARTS, STEPS } from "./steps.ts";
 import { engraveSources, latestMei } from "./engrave.ts";
 
 const fixture = fakeFixture();
@@ -155,4 +155,26 @@ test("the artifacts and sources found on the fixture's pipeline are unchanged", 
     }
   }
   assert.equal(createHash("sha256").update(JSON.stringify(more)).digest("hex"), "91422e4b03e7b61314f36447a5721675a209dbe6449cdd06106bb6ae55386861");
+});
+
+// The owner's dec. 40 (the code review's F7): a stage's page count is the selected pages for every stage after
+// rasterize, from the page images of the latest rasterize before it; before, extract counted the pages with systems,
+// review and apply_review the layouts, build_mei and engrave the page images.
+test("a stage's page count: the selected pages, from the latest rasterize before it", () => {
+  const output = (item: string, type: string) => ({ id: `${type}-${item}`, item, type }) as ApiOutput;
+  const stage = (id: string, step: string, outputs: ApiOutput[]) => ({ id, step, outputs }) as unknown as ApiStage;
+  const pipeline = [
+    stage("i", "ingest", [output("", "pdf")]),
+    stage("r", "rasterize", [output("p1", "page_image"), output("p2", "page_image"), output("p3", "page_image")]),
+    stage("l", "layout", [output("p1", "layout"), output("p2", "layout"), output("p3", "layout")]),
+    stage("f", "fix_layout", []),
+    stage("e", "extract", [output("p2/s1", "extraction")]), // a cover page and a page without music: still 3 pages
+  ];
+  assert.equal(pageCountOf(pipeline.slice(0, 1)), null); // no rasterize before
+  assert.equal(pageCountOf(pipeline), 3);
+  assert.equal(pageCountBefore(pipeline, "e"), 3);
+  assert.equal(pageCountBefore(pipeline, "r"), null);
+  assert.equal(FIX_STARTS.fix_layout(pipeline[2], pipeline.slice(0, 3)).pageCount, 3);
+  // The fixture's stages, each after rasterize, have the selected pages (its one page).
+  for (const s of stages.slice(2)) assert.equal(pageCountBefore(stages, s.id), 1, s.step);
 });
