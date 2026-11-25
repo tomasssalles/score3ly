@@ -7,7 +7,7 @@
 // is used (no row), a deleted one is brought back to life (its cost stays where it was paid), and only a call found
 // nowhere becomes a new row, which counts like any call. Original times are kept.
 
-import { CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, IMPORT_CHUNK_ROWS, IMPORT_TABLES, type ImportChunk, type Imported, type ImportHead, isSha256Hex, type ProjectExport, sameConfigValues } from "@score3ly/core";
+import { canonicalJson, CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, IMPORT_CHUNK_ROWS, IMPORT_TABLES, type ImportChunk, type Imported, type ImportHead, isSha256Hex, type ProjectExport, sameConfigValues } from "@score3ly/core";
 import type { Hono } from "hono";
 import { anyRunning, withModelConfig } from "./pipelineRules.ts";
 import { PLACEHOLDER_ITEM, placeProblem } from "./places.ts";
@@ -18,6 +18,7 @@ import { nameBase } from "./names.ts";
 import { removeUnfinishedImports } from "./deletion.ts";
 import { notImportingProject, notImportingStage } from "./importing.ts";
 import { lock } from "./versions.ts";
+import { secretsOf, storedConfigProblem } from "./modelConfigs.ts";
 
 // The export format (`EXPORT_FORMAT`) and what an export holds (`ProjectExport`) are in core (api/projectExport.ts).
 
@@ -274,7 +275,8 @@ export async function beginImport(env: Env, data: ImportHead, now = new Date()):
     const name = deleted ? String(config.name) : firstFreeName(String(config.name).trim(), takenConfigNames);
     if (!deleted) takenConfigNames.push(name);
     configIds.push({ old_id: String(config.id), new_id: id, made: 1 });
-    newConfigs.push({ ...config, id, name, deleted_at: deleted });
+    // Its secrets as a create stores them (`storedConfigProblem` checked that they can be read).
+    newConfigs.push({ ...config, id, name, deleted_at: deleted, secrets_json: canonicalJson(secretsOf({ secrets_json: String(config.secrets_json) })) });
   }
   const configMap = new Map(configIds.map((c) => [c.old_id, c.new_id]));
 
@@ -492,6 +494,11 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
     const data = await c.req.json().catch(() => null);
     const problem = headProblem(data);
     if (problem) return refuse(c, 400, problemText(problem));
+    // A config this version can't store or read (the code review's E7): refused before anything is made or removed.
+    for (const config of (data as ImportHead).model_configs) {
+      const wrong = storedConfigProblem(config);
+      if (wrong) return refuse(c, 409, `The file can't be imported: its model config "${String(config.name)}" can't be stored here. Details: ${wrong}.`);
+    }
     const result = await beginImport(c.env, data as ImportHead);
     if ("missing" in result) return refuse(c, 409, `The project can't be imported yet: some of what it needs isn't on the server. Try again. Details: upload ${result.missing} first.`, "missing");
     return c.json<Imported>(result);

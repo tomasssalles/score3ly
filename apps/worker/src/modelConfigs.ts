@@ -278,6 +278,35 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
   return null;
 }
 
+// Why a config's row from elsewhere (an imported file's `model_configs`) can't be stored here, or null: a value this
+// version doesn't know, or secrets that can't be read (the code review's E7, C14). Only what the app would fail to read
+// or store: a config the app no longer supports is stored, and shown so (`unsupportedOf`). The columns' combinations are
+// the database's CHECKs (migration 0001).
+export function storedConfigProblem(row: Record<string, unknown>): string | null {
+  const known = (column: string, values: readonly string[], nullable: boolean) => {
+    const value = row[column] ?? null;
+    return (value === null && nullable) || values.includes(value as string) ? null : `'${column}' must be one of ${values.join(", ")}${nullable ? ", or null" : ""}`;
+  };
+  const text = (column: string, nullable: boolean) => ((row[column] ?? null) === null ? (nullable ? null : `'${column}' must be text`) : typeof row[column] === "string" ? null : `'${column}' must be text`);
+  if (typeof row.name !== "string" || row.name.trim() === "") return "'name' must be text";
+  const problem =
+    known("provider", PROVIDERS, false) ??
+    text("model_id", true) ??
+    text("model_string", true) ??
+    ((row.model_id ?? null) === null === ((row.model_string ?? null) === null) ? "a config has either 'model_id' or 'model_string'" : null) ??
+    known("family", Object.keys(FAMILY_NAMES), true) ??
+    known("effort", [...new Set(Object.values(EFFORTS).flat())], true) ??
+    text("region", true) ??
+    known("routing", ROUTINGS, true) ??
+    text("project", true) ??
+    known("account", ACCOUNTS, true) ??
+    known("pricing_kind", ["list", "free", "unpriced", "provider"], false) ??
+    text("pricing_reference", true);
+  if (problem) return problem;
+  if (typeof row.secrets_json !== "string" || secretsOf({ secrets_json: row.secrets_json }) === null) return "'secrets_json' must name secrets: a JSON object of texts";
+  return null;
+}
+
 // Configs added by hand become listed ones when a new list of models has their string for their provider
 // (docs/llm.md, "Configs"): the model id replaces the string and family; "priced as" another model and "unpriced"
 // become the model's own price, "free" stays free (the user's free tier, not a guess). Where the list has no price at

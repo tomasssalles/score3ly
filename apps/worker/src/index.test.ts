@@ -2279,6 +2279,44 @@ test("import: a call found nowhere is a new row that counts, a config found nowh
   assert.match((await json<{ error: string }>(newer)).error, /newer version of score3ly/);
 });
 
+// The code review's E7 and C14: the import wrote the file's configs as they were. A config whose secrets can't be read
+// broke the configs' list afterwards; a provider unknown here failed with the database's own text.
+test("import: a model config the app can't store or read is refused before anything is made; its secrets stored canonical", async () => {
+  const { project } = await projectWithACall("configs.pdf");
+  const data = await exportOf(project.id);
+  const projects = await count("SELECT COUNT(*) AS n FROM projects");
+  const configs = await count("SELECT COUNT(*) AS n FROM model_configs");
+  const refused = async (change: (config: Record<string, unknown>) => void, detail: RegExp) => {
+    const other = structuredClone(data);
+    const config = other.model_configs.find((m) => m.id === "paid")!;
+    config.effort = "max"; // unknown here: it would be created
+    change(config);
+    const response = await importOf(other);
+    assert.equal(response.status, 409);
+    const body = await json<{ error: string }>(response);
+    assert.match(body.error, /^The file can't be imported: its model config "Opus" can't be stored here\. Details: /);
+    assert.match(body.error, detail);
+    assert.equal(await count("SELECT COUNT(*) AS n FROM projects"), projects);
+    assert.equal(await count("SELECT COUNT(*) AS n FROM model_configs"), configs);
+  };
+  await refused((c) => (c.secrets_json = "not json"), /'secrets_json'/);
+  await refused((c) => (c.secrets_json = '{"apiKey":7}'), /'secrets_json'/);
+  await refused((c) => (c.provider = "mistral"), /'provider' must be one of anthropic, /);
+  await refused((c) => (c.effort = "huge"), /'effort'/);
+  await refused((c) => (c.pricing_kind = "cheap"), /'pricing_kind'/);
+  await refused((c) => (c.model_string = "x"), /'model_id' or 'model_string'/);
+  assert.equal((await app.request("/api/model-configs", {}, env)).status, 200);
+
+  // Secrets whose fields are in another order: stored canonical, as a create stores them.
+  const other = structuredClone(data);
+  const config = other.model_configs.find((m) => m.id === "paid")!;
+  config.effort = "max";
+  config.secrets_json = '{ "b": "B", "a": "A" }';
+  assert.equal((await importOf(other)).status, 201);
+  const stored = await env.DB.prepare(`SELECT secrets_json FROM model_configs WHERE secrets_json LIKE '%"B"%'`).first<{ secrets_json: string }>();
+  assert.equal(stored?.secrets_json, '{"a":"A","b":"B"}');
+});
+
 test("a call's place: exported and imported; a call without one (before migration 0004) can't be exported, and a file without places imports with the placeholders", async () => {
   const { project } = await projectWithACall("place.pdf");
   const data = await exportOf(project.id);
