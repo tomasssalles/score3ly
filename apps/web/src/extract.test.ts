@@ -115,14 +115,37 @@ function observations(): StoredObservations {
 const systemsOf = (page: number) => (page === 1 ? [1, 2] : [3, 4]);
 
 test("spans open at a page's edge are linked to their other part, as certain as the weakest", () => {
-  const spans = linkSpans(observations(), systemsOf);
+  const spans = linkSpans(observations(), systemsOf, []);
   assert.equal(spans.length, 1);
   assert.deepEqual([spans[0].from, spans[0].to, spans[0].state], [2, 4, "low"]);
 });
 
+// Code review D19: nothing carries over a piece's boundary, so a span doesn't either.
+test("a span stops at a piece's start: not linked across it, and cut there", () => {
+  // A piece starts at system 3, page 2's first: the ottava open at page 1's end ends with system 2, and page 2's
+  // starts with system 3.
+  const spans = linkSpans(observations(), systemsOf, [1, 3]);
+  assert.deepEqual(
+    spans.map((s) => [s.from, s.to, s.start, s.end, s.state]),
+    [
+      [2, 2, { system: 2, at: "stretch", number: 3 }, { system: 2, at: "end", number: 0 }, "high"],
+      [3, 4, { system: 3, at: "start", number: 0 }, { system: 4, at: "barLine", number: 1 }, "low"],
+    ],
+  );
+  // A piece starting inside a page cuts a span across it where the piece starts: the ottava, linked over the page
+  // break, ends with system 3.
+  const inside = linkSpans(observations(), systemsOf, [1, 4]);
+  assert.deepEqual(
+    inside.map((s) => [s.from, s.to, s.start, s.end]),
+    [[2, 3, { system: 2, at: "stretch", number: 3 }, { system: 3, at: "end", number: 0 }]],
+  );
+  // With one piece, as before.
+  assert.deepEqual(linkSpans(observations(), systemsOf, [1]), linkSpans(observations(), systemsOf, []));
+});
+
 test("a system's hints: its staves, what is on it, the spans in effect, its page's notes", () => {
   const o = observations();
-  const spans = linkSpans(o, systemsOf);
+  const spans = linkSpans(o, systemsOf, []);
   const two = systemHints(o, spans, 2, 1);
   assert.deepEqual(two.staves, { count: 2, instruments: ["piano right hand", "piano left hand"], state: "high" });
   assert.deepEqual(two.onThisSystem, [{ what: "special bar line", text: "endRepeat", place: "the bar line at the right of stretch 2", staff: null, state: "confirmed" }]);

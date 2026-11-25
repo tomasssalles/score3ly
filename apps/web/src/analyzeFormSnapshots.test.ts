@@ -3,7 +3,8 @@
 // review's batch 30 moved analyze's rules into the prompts and the forms onto them (review/plan.md, "What guards
 // requests"). Built from two real pages (Kinderscenen, first edition), besides `requestSnapshots.test.ts`, which
 // holds analyze's requests. The same inputs must give the same bytes. Changed by the paid release (batch 34): the input's
-// `startEndRepeat` renamed `bothRepeats` (D18c), which is the only change in what is stored, read and told.
+// `startEndRepeat` renamed `bothRepeats` (D18c), the only change in what is stored and read; the hints linked within
+// the pieces (D19: analyze's pieces, 1 and 4, cut nothing; the form's, at every system, cut its spans at each).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -175,8 +176,8 @@ function snapshots(): Record<string, string> {
   const reversed = { ...obsRows[ottava], start: at(2, "barLine", 3), end: at(2, "stretch", 1) };
 
   // What extract is told, from analyze's observations and from the form's.
-  const hints = (o: typeof observations) => {
-    const spans = linkSpans(o, systemsOf);
+  const hints = (o: typeof observations, pieces: number[]) => {
+    const spans = linkSpans(o, systemsOf, pieces);
     return { spans, hints: input.map((s) => systemHints(o, spans, s.number, s.page)) };
   };
 
@@ -205,8 +206,8 @@ function snapshots(): Record<string, string> {
     "observations counts": json([fixObservations.changedItems(obs, obsStored), fixObservations.confirmedItems(obsStored)]),
     "observations problems": json([...obsProblems, ...removeProblems, fixObservations.obsProblem(reversed, obsRows.filter((_, i) => i !== ottava), scoreSystems)]),
     "observations confidences": json(obsEdited.map(shownConfidence)),
-    "hints from analyze": json(hints(observations)),
-    "hints from the form": json(hints(obsStored)),
+    "hints from analyze": json(hints(observations, piecesOf(metadata))),
+    "hints from the form": json(hints(obsStored, piecesOf(stored))),
     "place labels": json(places.map((p) => [placeLabel(p), positionLabel(p), firstPlace({ place: p })])),
     "place kinds": json(PLACE_KINDS),
     "mei metadata, analyze": json(meiMetadata(metadata)),
@@ -238,7 +239,7 @@ test("what analyze and its forms store, read and tell is what it was", () => {
     "observations problems": "68c2ccca9c96bd77",
     "observations confidences": "83ac7d8f0fd13554",
     "hints from analyze": "d69c738fc15413ef",
-    "hints from the form": "d9b0674885aaf6cb",
+    "hints from the form": "4671c7abd2357cd2",
     "place labels": "759281a69f198495",
     "place kinds": "4323a3ab0f9ddb03",
     "mei metadata, analyze": "8505dc8daa08b257",

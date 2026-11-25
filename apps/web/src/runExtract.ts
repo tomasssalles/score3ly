@@ -56,7 +56,7 @@ export async function runExtract(run: StageRun): Promise<void> {
     piecesSha256: pcs.output.contentSha256!,
   });
 
-  const spans = linkSpans(observations, (page) => systems.filter((s) => s.page === page).map((s) => s.number));
+  const spans = linkSpans(observations, (page) => systems.filter((s) => s.page === page).map((s) => s.number), pieces);
 
   // Systems a failed run already recorded: loaded now, for the counts and for the state the next system starts from.
   const recorded = await recordedContent<StoredExtraction>(stage, "extraction");

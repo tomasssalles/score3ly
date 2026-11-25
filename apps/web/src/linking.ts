@@ -34,8 +34,19 @@ function spanningItems(page: StoredPage): Spanning[] {
   ];
 }
 
-// The spans of the score, linked across pages. `systemsOf` gives a page's systems (their numbers in the score).
-export function linkSpans(observations: StoredObservations, systemsOf: (page: number) => number[]): Span[] {
+// The spans of the score, linked across pages. `systemsOf` gives a page's systems (their numbers in the score),
+// `pieces` the systems where the pieces start. Nothing carries over a piece's boundary (code review D19): a span isn't
+// linked across a piece starting at a page break, and one that would cross a piece's start is cut there, at the end of
+// the system before it (or the start of the piece's first system, for a span open at its start).
+export function linkSpans(observations: StoredObservations, systemsOf: (page: number) => number[], pieces: number[]): Span[] {
+  // The boundaries between pieces: every piece's start but the first.
+  const starts = [...new Set(pieces)].sort((a, b) => a - b);
+  const boundaries = starts.slice(1);
+  const pieceOf = (system: number) => {
+    const first = starts.filter((s) => s <= system).pop() ?? -Infinity;
+    const next = starts.find((s) => s > system);
+    return { first, last: next === undefined ? Infinity : next - 1 };
+  };
   const pages = [...observations.pages].sort((a, b) => a.page - b.page);
   const items = pages.map(spanningItems);
   const used = new Set<Spanning>();
@@ -52,6 +63,10 @@ export function linkSpans(observations: StoredObservations, systemsOf: (page: nu
         const last = parts[parts.length - 1];
         const candidates = items[q + 1].filter((c) => !used.has(c) && c.start === null && c.kind === last.kind && c.staff === last.staff && c.text === last.text);
         if (candidates.length !== 1) break;
+        // Not across a piece starting at the page break.
+        const before = systemsOf(last.page);
+        const after = systemsOf(candidates[0].page);
+        if (before.length > 0 && after.length > 0 && boundaries.some((b) => before[before.length - 1] < b && b <= after[0])) break;
         used.add(candidates[0]);
         parts.push(candidates[0]);
         q++;
@@ -60,16 +75,21 @@ export function linkSpans(observations: StoredObservations, systemsOf: (page: nu
       const last = parts[parts.length - 1];
       const firstSystems = systemsOf(first.page);
       const lastSystems = systemsOf(last.page);
-      spans.push({
-        kind: item.kind,
-        text: item.text,
-        staff: item.staff,
-        start: first.start,
-        end: last.end,
-        from: first.start?.system ?? firstSystems[0] ?? 0,
-        to: last.end?.system ?? lastSystems[lastSystems.length - 1] ?? 0,
-        state: weakest(parts.map((x) => x.state)),
-      });
+      let start = first.start;
+      let end = last.end;
+      let from = first.start?.system ?? firstSystems[0] ?? 0;
+      let to = last.end?.system ?? lastSystems[lastSystems.length - 1] ?? 0;
+      // Within the piece where it starts (or ends, for one open at its start).
+      const piece = pieceOf(first.start?.system ?? last.end?.system ?? from);
+      if (from < piece.first || (start === null && boundaries.includes(from))) {
+        from = Math.max(from, piece.first);
+        start = { system: from, at: "start", number: 0 };
+      }
+      if (to > piece.last || (end === null && boundaries.includes(to + 1))) {
+        to = Math.min(to, piece.last);
+        end = { system: to, at: "end", number: 0 };
+      }
+      spans.push({ kind: item.kind, text: item.text, staff: item.staff, start, end, from, to, state: weakest(parts.map((x) => x.state)) });
     }
   }
   return spans;
