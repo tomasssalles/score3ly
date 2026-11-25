@@ -3,46 +3,30 @@
 // whenever it changes, so new keys work without a restart.
 
 import { chmodSync, existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { parseEnv } from "node:util";
 
 export const SECRETS_EXAMPLE = `# score3ly's secrets: one NAME=value per line. A model config (Settings) names the secrets it uses, e.g.
 #
 # ANTHROPIC_API_KEY=sk-ant-...
 # GEMINI_API_KEY=...
 #
-# A value in double quotes may span lines and use \\n, e.g. a Google service account's JSON key:
+# A value in single quotes may span lines and is taken as it is, e.g. a Google service account's JSON key:
 #
-# VERTEX_SERVICE_ACCOUNT="{
-#   \\"type\\": \\"service_account\\",
+# VERTEX_SERVICE_ACCOUNT='{
+#   "type": "service_account",
 #   ...
-# }"
+# }'
 #
 # Lines starting with # are comments. Changes take effect at once, without restarting the app.
 `;
 
-// `NAME=value` lines, as dotenv and Wrangler's .dev.vars have them: comments, blank lines, an optional "export ",
-// values in single quotes (as they are), in double quotes (escapes, and possibly several lines) or bare (trimmed,
-// up to a " #" comment).
+// `NAME=value` lines, read by Node's `util.parseEnv` (dotenv's format, decided 2026-11-17: review E20): comments, blank
+// lines, an optional "export ", values bare (trimmed, up to a " #" comment), in single quotes (as they are) or in double
+// quotes ("\n" a new line), the quoted ones possibly over several lines. Wrangler reads .dev.vars by the same rule
+// (dotenv), with two differences no key should meet: it replaces "$NAME" in a value with another variable's value, and
+// keeps a \" inside double quotes, where this ends the value.
 export function parseSecrets(text: string): Record<string, string> {
-  const secrets: Record<string, string> = {};
-  const lines = text.replace(/\r\n?/g, "\n").split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const match = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(lines[i]);
-    if (!match) continue;
-    const [, name] = match;
-    let value = match[2];
-    if (value.startsWith('"')) {
-      let raw = value.slice(1);
-      while (!/(^|[^\\])(\\\\)*"\s*(#.*)?$/.test(raw) && i + 1 < lines.length) raw += "\n" + lines[++i];
-      raw = raw.replace(/"\s*(#.*)?$/, "");
-      value = raw.replace(/\\([nrt"\\])/g, (_, c: string) => ({ n: "\n", r: "\r", t: "\t", '"': '"', "\\": "\\" })[c]!);
-    } else if (value.startsWith("'")) {
-      value = value.slice(1).replace(/'\s*(#.*)?$/, "");
-    } else {
-      value = value.replace(/\s+#.*$/, "").trim();
-    }
-    secrets[name] = value;
-  }
-  return secrets;
+  return { ...parseEnv(text) } as Record<string, string>;
 }
 
 // The file's secrets, read again only when it changed.

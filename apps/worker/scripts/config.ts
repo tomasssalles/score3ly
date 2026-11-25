@@ -14,7 +14,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseArgs } from "node:util";
+import { parseArgs, parseEnv } from "node:util";
 
 export const workerDir = join(import.meta.dirname, "..");
 export const templatePath = join(workerDir, "wrangler.jsonc.template");
@@ -47,15 +47,10 @@ function templateBody(): string {
   return template.slice(template.indexOf("{"));
 }
 
-// cloudflare.env as written by the setup: CLOUDFLARE_JURISDICTION and CLOUDFLARE_D1_ID, `NAME=value` lines.
+// cloudflare.env as written by the setup (or the Deploy workflow): CLOUDFLARE_JURISDICTION and CLOUDFLARE_D1_ID,
+// `NAME=value` lines read by the rule of every such file (`util.parseEnv`, dotenv's; the desktop's secrets.env too).
 export function parseAccount(text: string): Account | { error: string } {
-  const values = new Map<string, string>();
-  for (const line of text.split(/\r?\n/)) {
-    const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);
-    if (m) values.set(m[1], m[2].replace(/^"(.*)"$/, "$1"));
-  }
-  const jurisdiction = values.get("CLOUDFLARE_JURISDICTION");
-  const databaseId = values.get("CLOUDFLARE_D1_ID");
+  const { CLOUDFLARE_JURISDICTION: jurisdiction, CLOUDFLARE_D1_ID: databaseId } = parseEnv(text);
   if (!jurisdiction || !(JURISDICTIONS as readonly string[]).includes(jurisdiction))
     return { error: `CLOUDFLARE_JURISDICTION must be one of ${JURISDICTIONS.join(", ")}` };
   if (!databaseId || !ID.test(databaseId)) return { error: "CLOUDFLARE_D1_ID must be the D1 database's id" };
