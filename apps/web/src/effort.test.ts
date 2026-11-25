@@ -53,7 +53,7 @@ test("effort: the manual work of the final pipelines, per page of each project, 
   assert.deepEqual(rows.fix_mei, [(0 + (4 * quarter) / 1) / 2, 1]); // b: b3 over its 1 page; a's a4 was discarded
   assert.deepEqual(rows.fix_skew, [0, 0]);
   assert.equal(view.perPageMs, rows.fix_layout[0]! + rows.fix_mei[0]!); // the rows add up to the head
-  assert.equal(view.extraReviews, 0); // no extra review in the final pipelines
+  assert.equal(view.extraReviews, null); // no reviews anywhere
   assert.deepEqual(effortView(data, new Set()).perPageMs, null);
   assert.equal(effortView(data, new Set()).extraReviews, null); // nothing selected
 });
