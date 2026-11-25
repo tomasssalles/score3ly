@@ -12,7 +12,7 @@ export type ExportRow = Record<string, unknown>;
 // What an export holds, besides the PDF and the content, which the browser fetches.
 export type ProjectExport = {
   format: number;
-  // name, pdf_sha256, pdf_filename, run_mode, next_issue_number and the times
+  // name, pdf_sha256, pdf_filename, page_count, run_mode, next_issue_number and the times
   project: ExportRow & { name: string; pdf_sha256: string; pdf_filename: string };
   pipeline: ExportRow[]; // position, stage_id, carried
   stages: ExportRow[];

@@ -109,7 +109,7 @@ const PIPELINE_STAGES = "SELECT stage_id FROM pipeline_entries WHERE project_id 
 // such project; "running" while a stage of it runs; `{ problem }` when a call has no place yet (`placeProblem`).
 export async function exportProject(db: D1Database, projectId: string, now = Date.now()): Promise<ProjectExport | null | "running" | { problem: string }> {
   const project = await db
-    .prepare("SELECT name, pdf_sha256, pdf_filename, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at FROM projects WHERE id = ? AND deleted_at IS NULL")
+    .prepare("SELECT name, pdf_sha256, pdf_filename, page_count, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at FROM projects WHERE id = ? AND deleted_at IS NULL")
     .bind(projectId)
     .first<ProjectExport["project"]>();
   if (!project) return null;
@@ -318,9 +318,9 @@ export async function beginImport(env: Env, data: ImportHead, now = new Date()):
   const name = await insertProject(db, nameBase(String(data.project.name)), (name) => [
     db
       .prepare(
-        "INSERT INTO projects (id, name, pdf_sha256, pdf_filename, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at, imported_at, importing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO projects (id, name, pdf_sha256, pdf_filename, page_count, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at, imported_at, importing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       )
-      .bind(projectId, name, pdfSha, p.pdf_filename, p.run_mode === "manual" ? "manual" : "auto", Number(p.next_issue_number) || 1, p.created_at ?? iso, p.last_modified_at ?? iso, iso, iso, data.key),
+      .bind(projectId, name, pdfSha, p.pdf_filename, Number.isInteger(p.page_count) && (p.page_count as number) > 0 ? p.page_count : null, p.run_mode === "manual" ? "manual" : "auto", Number(p.next_issue_number) || 1, p.created_at ?? iso, p.last_modified_at ?? iso, iso, iso, data.key),
     ...(newConfigs.length > 0 ? [insertRows(db, "model_configs", CONFIG_COLUMNS, newConfigs)] : []),
     ...(copied.length > 0 ? [insertRows(db, "stages", [...STAGE_COLUMNS, "created_in", "imported_at"], copied)] : []),
     ...(pipeline.length > 0 ? [insertRows(db, "pipeline_entries", ["project_id", "position", "stage_id", "carried"], pipeline)] : []),

@@ -51,10 +51,12 @@ test("startServer on port 0: the host, a project created, the web app served, a 
 
     const pdf = new TextEncoder().encode("%PDF-1.4 a score");
     const sha256 = createHash("sha256").update(pdf).digest("hex");
-    const form = new FormData();
-    form.append("pdf", new File([pdf], "Sonata.pdf"));
-    form.append("sha256", sha256);
-    const created = await fetch(new URL("api/projects", server.url), { method: "POST", body: form });
+    assert.equal((await fetch(new URL(`api/pdfs/${sha256}`, server.url), { method: "PUT", body: pdf })).status, 204);
+    const created = await fetch(new URL("api/projects", server.url), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sha256, filename: "Sonata.pdf", pageCount: 1 }),
+    });
     assert.equal(created.status, 201);
     assert.equal(((await created.json()) as { name: string }).name, "Sonata");
     assert.equal(((await (await get("api/projects")).json()) as unknown[]).length, 1);

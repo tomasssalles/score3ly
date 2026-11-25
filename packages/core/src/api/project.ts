@@ -10,6 +10,7 @@ export type Project = {
   lastModifiedAt: string; // any change to the project's own data, a rename included
   lastOpenedAt: string;
   runMode: RunMode;
+  pageCount: number | null; // the PDF's pages, counted by the browser when it was picked; null where it couldn't count them
 };
 
 export type RunMode = "auto" | "manual";

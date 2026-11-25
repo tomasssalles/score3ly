@@ -10,7 +10,7 @@ import { readSettings } from "./settings.ts";
 import { defaultForNewStages, newPipeline, notDone, wasInterrupted } from "./pipelineRules.ts";
 import { lock } from "./versions.ts";
 import { badRequest, NO_PROJECT, refuse } from "./refusals.ts";
-import { pdfKey, storePdf } from "./storage.ts";
+import { pdfKey } from "./storage.ts";
 
 type ProjectRow = {
   id: string;
@@ -21,6 +21,7 @@ type ProjectRow = {
   last_modified_at: string;
   last_opened_at: string;
   run_mode: RunMode;
+  page_count: number | null;
 };
 
 function toProject(row: ProjectRow): Project {
@@ -33,6 +34,7 @@ function toProject(row: ProjectRow): Project {
     lastModifiedAt: row.last_modified_at,
     lastOpenedAt: row.last_opened_at,
     runMode: row.run_mode,
+    pageCount: row.page_count,
   };
 }
 
@@ -129,55 +131,35 @@ export function projectRoutes(app: Hono<{ Bindings: Env }>) {
   });
 
   // Creates a project, with its pipeline: Ingest, done from the start, its output the PDF (docs/overview.md §5.1), and the
-  // recipe's other stages, planned.
-  // The form has the PDF's 'sha256' and either the 'pdf' itself, which is stored in R2, or
-  // only its 'filename' if R2 already has it.
+  // recipe's other stages, planned. Body: the PDF's 'sha256', its 'filename' and its 'pageCount' (null if the browser
+  // couldn't count them). The PDF is uploaded first (`PUT /api/pdfs/<sha256>`), unless the Worker has it: if it doesn't
+  // (any more: the last project on it deleted since the lookup), the create is refused with the code "missing", and the
+  // browser uploads it and tries again (the code review's E12).
   app.post("/api/projects", async (c) => {
-    const form = await c.req.formData();
-    const pdf = form.get("pdf");
-    const sha256 = form.get("sha256");
-    const filenameField = form.get("filename");
-    if (!isSha256Hex(sha256) || !(pdf instanceof File || typeof filenameField === "string")) {
-      return badRequest(c, "expected a 'pdf' file or its 'filename', and its 'sha256' in lowercase hex");
+    const body = (await c.req.json().catch(() => null)) as { sha256?: unknown; filename?: unknown; pageCount?: unknown } | null;
+    const { sha256, filename, pageCount } = body ?? {};
+    if (!isSha256Hex(sha256) || typeof filename !== "string" || !(pageCount === null || (Number.isInteger(pageCount) && (pageCount as number) > 0))) {
+      return badRequest(c, "expected the PDF's 'sha256' in lowercase hex, its 'filename' and its 'pageCount' (a number of 1 or more, or null)");
     }
-
-    let filename: string;
-    if (pdf instanceof File) {
-      // R2 checks the bytes against the hash and refuses the upload if they differ.
-      if ((await storePdf(c.env.STORE, sha256, await pdf.arrayBuffer())) === "mismatch") {
-        return refuse(c, 400, "The PDF arrived damaged. Try again. Details: it doesn't match its SHA-256.");
-      }
-      filename = pdf.name;
-    } else {
-      if (!(await c.env.STORE.head(pdfKey(sha256)))) {
-        return refuse(c, 409, "The server doesn't have this PDF yet. Try again. Details: send the file itself, not only its 'filename'.");
-      }
-      filename = filenameField as string;
+    if (!(await c.env.STORE.head(pdfKey(sha256)))) {
+      return refuse(c, 409, "The server doesn't have this PDF yet. Try again. Details: upload it first (PUT /api/pdfs/<sha256>).", "missing");
     }
-
     const now = new Date().toISOString();
     const db = c.env.DB;
     const { newProjectRunMode } = await readSettings(db);
     const defaultModelConfigId = await defaultForNewStages(db);
     const id = crypto.randomUUID();
-    const project = (name: string): Project => ({
-      id,
-      name,
-      pdfSha256: sha256,
-      pdfFilename: filename,
-      createdAt: now,
-      lastModifiedAt: now,
-      lastOpenedAt: now,
-      runMode: newProjectRunMode,
-    });
     // The project never exists without its pipeline.
     const name = await insertProject(db, defaultName(filename), (name) => [
       db
-        .prepare("INSERT INTO projects (id, name, pdf_sha256, pdf_filename, run_mode, created_at, last_modified_at, last_opened_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(id, name, sha256, filename, newProjectRunMode, now, now, now),
+        .prepare("INSERT INTO projects (id, name, pdf_sha256, pdf_filename, page_count, run_mode, created_at, last_modified_at, last_opened_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(id, name, sha256, filename, pageCount, newProjectRunMode, now, now, now),
       ...newPipeline(db, id, sha256, defaultModelConfigId, now),
     ]);
-    return c.json<Project>(project(name), 201);
+    return c.json<Project>(
+      { id, name, pdfSha256: sha256, pdfFilename: filename, createdAt: now, lastModifiedAt: now, lastOpenedAt: now, runMode: newProjectRunMode, pageCount: pageCount as number | null },
+      201,
+    );
   });
 
   // Renames a project, or sets its run mode, or both. A name that is already taken is refused, not numbered.

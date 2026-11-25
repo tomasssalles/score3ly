@@ -18,6 +18,7 @@ import { errorText, LEAVING_A_RUN, sha256Hex } from "@score3ly/core";
 import { useAppNavigation } from "./navigation";
 import { makeAndOpen } from "./newProjectFlow";
 import { discardUnsaved, hasUnsaved } from "./saving";
+import { openPdfForImages } from "./pageImages";
 
 export function App() {
   // Most recently opened first. null until loaded.
@@ -152,7 +153,9 @@ export function App() {
     setError(null);
     makeAndOpen({
       whenLeaving,
-      make: () => createProject(pdf, sha256, alreadyStored),
+      // The PDF's pages, counted where it is opened for its page images anyway (docs/database.md, "Page counts"); a PDF
+      // pdf.js can't open gets a project all the same, as before, and fails at Rasterize.
+      make: async () => createProject(pdf, sha256, alreadyStored, await openPdfForImages(sha256, () => pdf.arrayBuffer()).then(({ pageCount }) => pageCount, () => null)),
       refresh,
       open: (created) => go(hashForProject(created.id)),
       failed: (err) => setError(failure("Creating the project failed", err)),

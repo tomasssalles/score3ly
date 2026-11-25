@@ -1,7 +1,7 @@
 import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { amount, sha256Hex } from "@score3ly/core";
-import { testPlatform } from "./testPlatform.ts";
+import { amount } from "@score3ly/core";
+import { createProject, testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
 import { listedPrice, type ModelList, type Provider } from "./llm/models.ts";
@@ -82,11 +82,8 @@ async function modelConfig(fields: Record<string, unknown> = {}): Promise<Record
 
 // A project whose rasterize stage is running with the given model config, ready to make calls.
 async function runningStage(modelConfigId: string | null): Promise<{ projectId: string; stageId: string }> {
-  const form = new FormData();
   const pdf = new TextEncoder().encode(`pdf ${Math.random()}`);
-  form.append("pdf", new File([pdf], "score.pdf"));
-  form.append("sha256", await sha256Hex(pdf));
-  const project = await json<{ id: string }>(await app.request("/api/projects", { method: "POST", body: form }, env));
+  const project = await json<{ id: string }>(await createProject(env, pdf));
   const { stages } = await json<{ stages: { id: string }[] }>(await app.request(`/api/projects/${project.id}/pipeline`, {}, env));
   const stageId = stages[1].id;
   const started = await send(`/api/projects/${project.id}/stages/${stageId}/start`, {
@@ -664,11 +661,8 @@ test("unpriced calls are made and recorded with their tokens but no cost, and th
 test("a stage whose model config was deleted can't start, says why, and its card can show it", async () => {
   const config = await modelConfig({ name: "Opus EU" });
   await send("/api/settings/defaultModelConfigId", { value: config.id }, "PUT");
-  const form = new FormData();
   const pdf = new TextEncoder().encode(`pdf ${Math.random()}`);
-  form.append("pdf", new File([pdf], "deleted.pdf"));
-  form.append("sha256", await sha256Hex(pdf));
-  const project = await json<{ id: string }>(await app.request("/api/projects", { method: "POST", body: form }, env));
+  const project = await json<{ id: string }>(await createProject(env, pdf, "deleted.pdf"));
   await send("/api/settings/defaultModelConfigId", { value: (await modelConfig({ name: "Another", model: "fake-another" })).id }, "PUT");
   assert.equal((await send(`/api/model-configs/${config.id}`, undefined, "DELETE")).status, 204);
   const { stages } = await json<{ stages: { id: string; modelConfig: unknown }[] }>(await app.request(`/api/projects/${project.id}/pipeline`, {}, env));

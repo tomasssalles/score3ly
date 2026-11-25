@@ -32,17 +32,18 @@ const images = workerClient<PageImageCalls>(() => new Worker(new URL("./pageImag
 });
 
 // Opens the project's PDF in the worker (once per page load), and says how many pages it has.
-export function openPdfForImages(sha256: string): Promise<{ pageCount: number; pdfjsVersion: string }> {
+// `bytes` gives the file where the page has it (a PDF just picked), instead of fetching it from the Worker.
+export function openPdfForImages(sha256: string, bytes?: () => Promise<ArrayBuffer>): Promise<{ pageCount: number; pdfjsVersion: string }> {
   let result = opened.get(sha256);
   if (result) {
     opened.delete(sha256);
     opened.set(sha256, result);
   } else {
     result = (async () => {
-      const pdf = await fetchPdf(sha256).catch((err) => {
+      const pdf = await (bytes ? bytes() : fetchPdf(sha256).then((pdf) => pdf.buffer)).catch((err) => {
         throw new Error(`Loading the PDF failed: ${errorText(err)}`);
       });
-      return images.ask("open", { sha256, pdf: pdf.buffer }, [pdf.buffer]);
+      return images.ask("open", { sha256, pdf }, [pdf]);
     })();
     const made = result;
     opened.set(sha256, made);

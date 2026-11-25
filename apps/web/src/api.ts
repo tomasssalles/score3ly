@@ -111,15 +111,20 @@ export async function lookUpPdf(sha256: string, of: { filename: string } | { nam
   return (await checked(await fetch(`/api/pdfs/${sha256}?${query}`))).json();
 }
 
-export async function createProject(pdf: File, sha256: string, alreadyStored: boolean): Promise<Project> {
-  const form = new FormData();
-  if (alreadyStored) {
-    form.append("filename", pdf.name);
-  } else {
-    form.append("pdf", pdf);
+// Creates a project on a PDF (docs/database.md): the PDF uploaded first, unless the Worker already has it, then the
+// project made. If the Worker doesn't have it any more (its last project deleted since the lookup, the code review's
+// E12), the PDF is uploaded and the create tried again. `pageCount`: the PDF's pages, null if they couldn't be counted.
+export async function createProject(pdf: File, sha256: string, alreadyStored: boolean, pageCount: number | null = null): Promise<Project> {
+  const upload = async () => storePdf(sha256, new Uint8Array(await pdf.arrayBuffer()));
+  const create = () => postJson<Project>("/api/projects", { sha256, filename: pdf.name, pageCount });
+  if (!alreadyStored) await upload();
+  try {
+    return await create();
+  } catch (err) {
+    if (!(err instanceof ApiError && err.code === "missing")) throw err;
+    await upload();
+    return create();
   }
-  form.append("sha256", sha256);
-  return (await checked(await fetch("/api/projects", { method: "POST", body: form }))).json();
 }
 
 export async function markOpened(project: Project): Promise<void> {

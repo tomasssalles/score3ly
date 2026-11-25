@@ -8,7 +8,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { testPlatform } from "./testPlatform.ts";
+import { createProject, testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 
 let platform: Awaited<ReturnType<typeof testPlatform>>;
@@ -88,11 +88,8 @@ test("the fixture's requests have the request keys and recorded hashes they had"
   const dir = join(import.meta.dirname, "../../../fixtures/replay/fake/requests");
   const got: Record<string, [string, string]> = {};
   for (const effort of ["high", "low"]) {
-    const form = new FormData();
     const pdf = new TextEncoder().encode(`a pdf for the snapshots, ${effort}`);
-    form.append("pdf", new File([pdf], "score.pdf"));
-    form.append("sha256", [...new Uint8Array(await crypto.subtle.digest("SHA-256", pdf))].map((b) => b.toString(16).padStart(2, "0")).join(""));
-    const project = (await (await app.request("/api/projects", { method: "POST", body: form }, env)).json()) as { id: string };
+    const project = (await (await createProject(env, pdf)).json()) as { id: string };
     const config = (await (
       await send("/api/model-configs", { provider: "fake-dev", modelString: "fake-model", family: "fake", effort, pricing: { kind: "free" } })
     ).json()) as { id: string };

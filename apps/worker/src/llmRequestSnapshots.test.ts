@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { sha256Hex } from "@score3ly/core";
-import { testPlatform } from "./testPlatform.ts";
+import { createProject, testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 
 let platform: Awaited<ReturnType<typeof testPlatform>>;
@@ -153,11 +153,8 @@ test("realistic requests have the keys, records and provider requests they had",
       const created = await send("/api/model-configs", { ...fields, name: label });
       assert.equal(created.status, 201, await created.clone().text());
       const config = (await created.json()) as { id: string };
-      const form = new FormData();
       const pdf = new TextEncoder().encode(`a pdf for ${label}`);
-      form.append("pdf", new File([pdf], "score.pdf"));
-      form.append("sha256", await sha256Hex(pdf));
-      const project = (await (await app.request("/api/projects", { method: "POST", body: form }, env)).json()) as { id: string };
+      const project = (await (await createProject(env, pdf)).json()) as { id: string };
       const { stages } = (await (await app.request(`/api/projects/${project.id}/pipeline`, {}, env)).json()) as { stages: { id: string }[] };
       const started = await send(`/api/projects/${project.id}/stages/${stages[1].id}/start`, {
         stepVersion: 1,

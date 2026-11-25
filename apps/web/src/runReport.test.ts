@@ -34,6 +34,7 @@ const project: Project = {
   lastModifiedAt: "",
   lastOpenedAt: "",
   runMode: "auto",
+  pageCount: 2,
 };
 
 const opus: ModelConfig = {

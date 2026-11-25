@@ -59,22 +59,22 @@ function rename(id: string, name: unknown) {
   );
 }
 
-function postProject(fields: {
+// A create as the browser makes it (docs/database.md): the PDF uploaded first (unless `filenameOnly`), then the project
+// made as JSON. An upload's refusal is returned as it is.
+async function postProject(fields: {
   pdf?: Uint8Array<ArrayBuffer>;
   filename?: string;
   sha256?: string;
   filenameOnly?: boolean;
+  pageCount?: unknown;
 }) {
-  const form = new FormData();
-  if (fields.filenameOnly) {
-    form.append("filename", fields.filename ?? "score.pdf");
-  } else if (fields.pdf) {
-    form.append("pdf", new File([fields.pdf], fields.filename ?? "score.pdf"));
+  if (fields.pdf && !fields.filenameOnly && fields.sha256 !== undefined) {
+    const put = await app.request(`/api/pdfs/${fields.sha256}`, { method: "PUT", body: fields.pdf }, env);
+    if (!put.ok) return put;
   }
-  if (fields.sha256 !== undefined) {
-    form.append("sha256", fields.sha256);
-  }
-  return app.request("/api/projects", { method: "POST", body: form }, env);
+  const filename = fields.pdf || fields.filenameOnly ? (fields.filename ?? "score.pdf") : undefined;
+  const body = { sha256: fields.sha256, filename, pageCount: "pageCount" in fields ? fields.pageCount : 1 };
+  return app.request("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, env);
 }
 
 async function projectRows() {
@@ -115,6 +115,7 @@ test("creating a project stores the PDF in R2 and a row in D1", async () => {
       deleted_at: null,
       imported_at: null,
       importing: null,
+      page_count: 1,
     },
   ]);
 
@@ -195,7 +196,7 @@ test("a request without a PDF or with a malformed hash is rejected", async () =>
   assert.equal((await postProject({ sha256 })).status, 400);
   assert.equal((await postProject({ pdf })).status, 400);
   assert.equal((await postProject({ pdf, sha256: sha256.toUpperCase() })).status, 400);
-  assert.equal((await postProject({ pdf, sha256: "../" + sha256 })).status, 400);
+  assert.equal((await postProject({ sha256: "../" + sha256, filenameOnly: true })).status, 400);
   assert.deepEqual(await projectRows(), []);
 });
 
@@ -495,8 +496,27 @@ test("a project without the file is refused if the PDF isn't stored", async () =
 
   const response = await postProject({ sha256, filename: "Sonata.pdf", filenameOnly: true });
 
+  // With the code the browser reacts to: it uploads the PDF and tries again (E12).
   assert.equal(response.status, 409);
+  assert.equal((await json<{ code: string }>(response)).code, "missing");
   assert.deepEqual(await projectRows(), []);
+});
+
+// The PDF's page count, counted by the browser at pick time (the code review's dec. 20): kept with the project,
+// exported and imported with it; null where the browser couldn't count.
+test("a project keeps its PDF's page count, which an export and an import carry", async () => {
+  const pdf = pdfBytes("counted pdf");
+  const sha256 = await sha256Hex(pdf);
+  const created = await json<ProjectJson & { pageCount: number }>(await postProject({ pdf, filename: "Counted.pdf", sha256, pageCount: 7 }));
+  assert.equal(created.pageCount, 7);
+  assert.equal((await json<{ id: string; pageCount: number }[]>(await app.request("/api/projects", {}, env))).find((p) => p.id === created.id)?.pageCount, 7);
+  const data = await exportOf(created.id);
+  assert.equal(data.project.page_count, 7);
+  await deleteProject(created.id);
+  const imported = await json<{ id: string }>(await importOf(data));
+  assert.equal(await count("SELECT page_count AS n FROM projects WHERE id = ?", imported.id), 7);
+  assert.equal((await json<ProjectJson & { pageCount: null }>(await postProject({ pdf, filename: "Unknown.pdf", sha256, pageCount: null }))).pageCount, null);
+  for (const pageCount of [0, -1, 1.5, "3", undefined]) assert.equal((await postProject({ pdf, filename: "Bad.pdf", sha256, pageCount })).status, 400, String(pageCount));
 });
 
 test("a stored PDF can be downloaded by its hash", async () => {
@@ -2371,16 +2391,10 @@ test("storing content or a PDF that fails for another reason than its hash is a 
   const content = await app.request(`/api/content/${sha256}`, { method: "PUT", body: bytes }, full);
   assert.equal(content.status, 500);
   assert.match((await json<{ error: string }>(content)).error, /ENOSPC/);
-  const form = new FormData();
-  form.append("pdf", new File([bytes], "full.pdf"));
-  form.append("sha256", sha256);
-  const created = await app.request("/api/projects", { method: "POST", body: form }, full);
-  assert.equal(created.status, 500);
-  assert.deepEqual(await projectRows(), []);
   const imported = await app.request(`/api/pdfs/${sha256}`, { method: "PUT", body: bytes }, full);
   assert.equal(imported.status, 500);
 
-  // A mismatch is still the request's fault, at all three.
+  // A mismatch is still the request's fault, at both.
   const wrong = await sha256Hex(pdfBytes("other bytes"));
   assert.equal((await app.request(`/api/content/${wrong}`, { method: "PUT", body: bytes }, env)).status, 400);
   assert.equal((await app.request(`/api/pdfs/${wrong}`, { method: "PUT", body: bytes }, env)).status, 400);

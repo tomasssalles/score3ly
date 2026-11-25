@@ -264,8 +264,9 @@ export function ProjectView({
         const llm = stage.kind === "llm";
         const position = pipeline.stages.indexOf(stage);
         void Promise.all([
-          // The PDF's page count, to check a page selection before saving. Unknown if the PDF can't be opened here.
-          llm ? null : openPdfForImages(project.pdfSha256).then(({ pageCount }) => pageCount, () => null),
+          // The PDF's page count, to check a page selection before saving: the project's (counted when it was created), or
+          // else counted here. Unknown if the PDF can't be opened here.
+          llm ? null : (project.pageCount ?? openPdfForImages(project.pdfSha256).then(({ pageCount }) => pageCount, () => null)),
           // The model configs to pick from (an LLM stage's), its own included if it was deleted (docs/llm.md).
           llm ? modelConfigsFor(stored?.stages[position]?.config ?? null) : [],
         ]).then(

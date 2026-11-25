@@ -60,3 +60,15 @@ export async function testPlatform(host: TestHost = testHost()): Promise<TestPla
   }
   return { host, env: proxy.env, dispose: () => proxy.dispose() };
 }
+
+// Creates a project as the browser does (docs/database.md): the PDF uploaded under its hash, then the project made.
+// The create's answer.
+export async function createProject(env: Env, pdf: Uint8Array, filename = "score.pdf"): Promise<Response> {
+  const { default: app } = await import("./index.ts");
+  const { sha256Hex } = await import("@score3ly/core");
+  const bytes = new Uint8Array(pdf);
+  const sha256 = await sha256Hex(bytes);
+  const put = await app.request(`/api/pdfs/${sha256}`, { method: "PUT", body: bytes }, env);
+  if (!put.ok) return put;
+  return app.request("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sha256, filename, pageCount: 1 }) }, env);
+}

@@ -31,6 +31,7 @@ const project: Project = {
   lastModifiedAt: "2026-10-07T10:00:00.000Z",
   lastOpenedAt: "2026-10-07T10:00:00.000Z",
   runMode: "auto",
+  pageCount: 3,
 };
 
 test("listProjects gets the projects", async () => {
@@ -59,32 +60,53 @@ test("lookUpPdf asks about the hash and passes the file name along, encoded", as
   assert.deepEqual([...new URL(requests[1].url, "http://app").searchParams], [["name", "Sonata"]]);
 });
 
-test("createProject uploads a PDF that isn't stored yet", async () => {
+test("createProject uploads a PDF that isn't stored yet, then makes the project", async () => {
   answerWith(201, project);
   const pdf = new File(["pdf bytes"], "sonata.pdf");
 
-  assert.deepEqual(await createProject(pdf, SHA256, false), project);
+  assert.deepEqual(await createProject(pdf, SHA256, false, 12), project);
 
-  assert.equal(requests[0].url, "/api/projects");
-  assert.equal(requests[0].init.method, "POST");
-  const form = requests[0].init.body as FormData;
-  assert.deepEqual([...form.keys()].sort(), ["pdf", "sha256"]);
-  assert.equal(form.get("sha256"), SHA256);
-  const sent = form.get("pdf") as File;
-  assert.equal(sent.name, "sonata.pdf");
-  assert.equal(await sent.text(), "pdf bytes");
+  assert.deepEqual(
+    requests.map((r) => `${r.init.method} ${r.url}`),
+    [`PUT /api/pdfs/${SHA256}`, "POST /api/projects"],
+  );
+  assert.equal(new TextDecoder().decode(requests[0].init.body as Uint8Array), "pdf bytes");
+  assert.deepEqual(JSON.parse(requests[1].init.body as string), { sha256: SHA256, filename: "sonata.pdf", pageCount: 12 });
 });
 
-test("createProject sends only the file name of a PDF that is already stored", async () => {
+test("createProject doesn't upload a PDF that is already stored", async () => {
   answerWith(201, project);
   const pdf = new File(["pdf bytes"], "sonata.pdf");
 
   await createProject(pdf, SHA256, true);
 
-  const form = requests[0].init.body as FormData;
-  assert.deepEqual([...form.keys()].sort(), ["filename", "sha256"]);
-  assert.equal(form.get("filename"), "sonata.pdf");
-  assert.equal(form.get("sha256"), SHA256);
+  assert.deepEqual(
+    requests.map((r) => `${r.init.method} ${r.url}`),
+    ["POST /api/projects"],
+  );
+  assert.deepEqual(JSON.parse(requests[0].init.body as string), { sha256: SHA256, filename: "sonata.pdf", pageCount: null });
+});
+
+// Found by the code review (E12): the lookup said the PDF was stored, its last project was deleted (and the PDF
+// collected) before the create, which then failed with the Worker's 409.
+test("createProject uploads the PDF and tries again when the Worker no longer has it", async () => {
+  requests = [];
+  let creates = 0;
+  globalThis.fetch = async (input, init) => {
+    requests.push({ url: String(input), init: init ?? {} });
+    if (String(input) === "/api/projects" && creates++ === 0) {
+      return new Response(JSON.stringify({ error: "The server doesn't have this PDF yet.", code: "missing" }), { status: 409 });
+    }
+    return String(input) === "/api/projects" ? new Response(JSON.stringify(project), { status: 201 }) : new Response(null, { status: 204 });
+  };
+  const pdf = new File(["pdf bytes"], "sonata.pdf");
+
+  assert.deepEqual(await createProject(pdf, SHA256, true), project);
+
+  assert.deepEqual(
+    requests.map((r) => `${r.init.method} ${r.url}`),
+    ["POST /api/projects", `PUT /api/pdfs/${SHA256}`, "POST /api/projects"],
+  );
 });
 
 test("markOpened posts to the project and expects no content back", async () => {
