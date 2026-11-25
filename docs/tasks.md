@@ -149,7 +149,6 @@ The tasks below, in the file's order.
 - [Gemini's `extract`: an early empty answer, and the new schemas](#geminis-extract-an-early-empty-answer-and-the-new-schemas)
 - [Replay fixtures of real projects](#replay-fixtures-of-real-projects)
 - [Scenario tests with the fake model](#scenario-tests-with-the-fake-model)
-- [Run the one-time script that fills the calls' places](#run-the-one-time-script-that-fills-the-calls-places)
 - [The model configs' list on the settings page](#the-model-configs-list-on-the-settings-page)
 - [Check what stopped calls cost at the providers](#check-what-stopped-calls-cost-at-the-providers)
 
@@ -888,18 +887,13 @@ The calls' times are data for "Timeouts for LLM calls", and the run is the measu
 `#next` `#next-release` `#owner`
 
 The replay tests are built (2026-11-15, §12, "Replay tests run in a real browser, not in Node"), with one fixture made with the fake model (`fixtures/replay/fake.s3l`). Left:
-- **The project owner's projects** (2026-11-14): once the human review's new screen is built, a first complete project of one page, then a second of five pages, both with the manual stages that were really needed, run after "Run the one-time script that fills the calls' places" if their calls were made before migration 0004; exported, copied to `fixtures/replay/<name>.s3l`, and their snapshots made with `npm run replay -- --update`.
+- **The project owner's projects** (2026-11-14): once the human review's new screen is built, a first complete project of one page, then a second of five pages, both with the manual stages that were really needed, made after the code review's batch 32 (a stage's calls served from the record have rows of their own since, so its export holds every round; a project run before it exports without the calls served to it from the cache, and its replay fails there: start it anew), exported, copied to `fixtures/replay/<name>.s3l`, and their snapshots made with `npm run replay -- --update`.
 - **The fake fixture's human review needs nothing applied** (its answer is the one already applied), so the `apply_review` after it makes no calls and its replay isn't really exercised; a real project's will be.
 
 ### Scenario tests with the fake model
 `#optional`
 
 What the replay can't cover (§12): replacing, adding and dropping stages in ways the fixture never had: an extra review, a manual stage dropped at its turn, a config changed in the middle. With the fake model, in the same Playwright setup as the replay (`scripts/appServers.ts`), scripting stories of `docs/manual-tests.md` and checking the pipeline's state after each step; some stories could move from the hand to these.
-
-### Run the one-time script that fills the calls' places
-`#next` `#owner`
-
-Built 2026-11-14 (§12, "Each call records its place"): once migration 0004 is deployed (`npm run deploy`, or the workflow "Deploy"), the calls made before it have the placeholders `"?"` and 0, and a project with such a call can't be exported. On a computer logged in with Wrangler (`npx wrangler login`) and with `apps/worker/cloudflare.env`: `npm run fill-call-places -w apps/worker -- --remote`. It reads and writes the deployed D1 and R2 directly (Wrangler's remote bindings, not tried yet: if they fail, say so, and the script reads and writes through `wrangler d1 execute` and `wrangler r2 object get` instead). It lists the calls whose place it can't tell (no output names them, nor any call that asked the same; a deleted project's `layout` calls), which keep the placeholders: decide then what to do with those that matter (the first project's, for the fixture). A local database: `-- --local` (wrangler dev's), or start it anew.
 
 ### The model configs' list on the settings page
 `#decision` `#style`
