@@ -7,9 +7,10 @@
 // It needs the database and the call's place, which a provider's adapter doesn't have, so the route makes one per call.
 
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse, withJson } from "./types.ts";
+import { REPLAY_MODEL } from "@score3ly/core";
 import { getContent } from "../storage.ts";
 
-export const REPLAY_MODEL = "fake-replay";
+export { REPLAY_MODEL };
 
 export function isReplay(config: { provider: string; model: string }): boolean {
   return config.provider === "fake" && config.model === REPLAY_MODEL;

@@ -26,10 +26,10 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { unzipSync } from "fflate";
 import type { Page } from "playwright";
+import { REPLAY_MODEL } from "@score3ly/core";
 import { scriptArgs } from "./cli.ts";
-import { launchBrowser, newProject, openProject, pipelineOf, ROOT, type Servers, startServers, stopAll } from "./appServers.ts";
+import { FIXTURES, launchBrowser, newProject, openProject, pipelineOf, ROOT, type Servers, startServers, stopAll, turns, until } from "./appServers.ts";
 
-const FIXTURES = join(ROOT, "fixtures/replay");
 const args = scriptArgs(
   // `--update` accepts what changed as the new snapshots; `--only <name>` replays one fixture.
   { options: { update: { type: "boolean", default: false }, only: { type: "string" } } },
@@ -45,7 +45,7 @@ type Export = { pipeline: Row[]; stages: Row[]; outputs: Row[]; llm_calls: Row[]
 type Snapshot = Map<string, string>;
 
 async function content(servers: Servers, sha256: string): Promise<Uint8Array> {
-  const response = await fetch(`${servers.app}api/content/${sha256}`);
+  const response = await fetch(`${servers.apiBase}/content/${sha256}`);
   if (!response.ok) throw new Error(`content ${sha256}: ${response.status}`);
   return new Uint8Array(await response.arrayBuffer());
 }
@@ -72,18 +72,11 @@ function placeName(step: string, turn: number, item: string): string {
 
 async function snapshotOf(servers: Servers, data: Export, replayConfigId: string): Promise<Snapshot> {
   const files: Snapshot = new Map();
-  const stages = new Map(data.stages.map((s) => [s.id as string, s]));
-  const turns = new Map<string, number>();
-  const seen = new Map<string, number>();
-  for (const entry of [...data.pipeline].sort((a, b) => (a.position as number) - (b.position as number))) {
-    const step = stages.get(entry.stage_id as string)!.step as string;
-    seen.set(step, (seen.get(step) ?? 0) + 1);
-    turns.set(entry.stage_id as string, seen.get(step)!);
-  }
-  const where = (stageId: string) => ({ step: stages.get(stageId)!.step as string, turn: turns.get(stageId)! });
+  const { stepOf, turnOf } = pipelineTurns(data);
+  const where = (stageId: string) => ({ step: stepOf(stageId), turn: turnOf.get(stageId)! });
 
   for (const call of data.llm_calls) {
-    if (call.model_config_id !== replayConfigId || !call.stage_id || !turns.has(call.stage_id as string)) continue;
+    if (call.model_config_id !== replayConfigId || !call.stage_id || !turnOf.has(call.stage_id as string)) continue;
     const { step, turn } = where(call.stage_id as string);
     const request = JSON.parse(new TextDecoder().decode(await content(servers, call.request_sha256 as string))) as { messages: { content: Row[] }[] };
     // Images by their recipe keys only: the bytes of an image made again may differ (docs/images.md §8.3).
@@ -91,7 +84,7 @@ async function snapshotOf(servers: Servers, data: Export, replayConfigId: string
     files.set(`requests/${placeName(step, turn, call.item as string)}-round${call.round}.json`, `${JSON.stringify(request, null, 2)}\n`);
   }
   for (const output of data.outputs) {
-    if (!turns.has(output.stage_id as string)) continue;
+    if (!turnOf.has(output.stage_id as string)) continue;
     const { step, turn } = where(output.stage_id as string);
     const name = `outputs/${placeName(step, turn, output.item as string)}-${output.type}`;
     if (output.content_sha256) {
@@ -103,6 +96,15 @@ async function snapshotOf(servers: Servers, data: Export, replayConfigId: string
     }
   }
   return files;
+}
+
+// The exported pipeline's stages in order, each with its step and its turn among the stages of that step.
+function pipelineTurns(data: Export): { order: string[]; stepOf: (stageId: string) => string; turnOf: Map<string, number> } {
+  const stages = new Map(data.stages.map((s) => [s.id as string, s]));
+  const stepOf = (stageId: string) => stages.get(stageId)!.step as string;
+  const order = [...data.pipeline].sort((a, b) => (a.position as number) - (b.position as number)).map((e) => e.stage_id as string);
+  const numbers = turns(order, stepOf);
+  return { order, stepOf, turnOf: new Map(order.map((id, i) => [id, numbers[i]])) };
 }
 
 function storedSnapshot(dir: string): Snapshot {
@@ -131,17 +133,15 @@ function issueIds(value: unknown, into: Set<number>, key = ""): void {
 function numberingStarts(file: string): Map<string, number> {
   const zip = unzipSync(readFileSync(file));
   const data = JSON.parse(new TextDecoder().decode(zip["project.json"])) as Export;
-  const stages = new Map(data.stages.map((s) => [s.id as string, s]));
+  const { order, stepOf, turnOf } = pipelineTurns(data);
   const seen = new Set<number>();
-  const turns = new Map<string, number>();
   const starts = new Map<string, number>();
-  for (const entry of [...data.pipeline].sort((a, b) => (a.position as number) - (b.position as number))) {
-    const step = stages.get(entry.stage_id as string)!.step as string;
-    const turn = (turns.get(step) ?? 0) + 1;
-    turns.set(step, turn);
+  for (const stageId of order) {
+    const step = stepOf(stageId);
+    const turn = turnOf.get(stageId)!;
     const ids = new Set<number>();
     for (const o of data.outputs) {
-      if (o.stage_id !== entry.stage_id || !o.content_sha256) continue;
+      if (o.stage_id !== stageId || !o.content_sha256) continue;
       const bytes = zip[`content/${o.content_sha256}`];
       if (!bytes) continue;
       try {
@@ -157,31 +157,30 @@ function numberingStarts(file: string): Map<string, number> {
   return starts;
 }
 
-type PipelineStage = { id: string; step: string; status: string; error: string | null; carried: boolean };
-
 // Runs the stages one by one, in Manual mode, until the last is done or one fails; before each, the issue counter as
 // its recorded stage had it. A carried manual stage is kept or dropped by the page as soon as its turn comes.
 async function runStageByStage(page: Page, servers: Servers, id: string, starts: Map<string, number>) {
   await servers.api(`/projects/${id}`, { runMode: "manual" }, "PATCH");
-  const pipeline = () => servers.api<{ stages: PipelineStage[] }>(`/projects/${id}/pipeline`).then((p) => p.stages);
   for (let steps = 0; steps < 100; steps++) {
-    const stages = await pipeline();
+    const stages = await pipelineOf(servers, id);
     if (stages.some((s) => s.status === "failed")) return;
     const index = stages.findIndex((s) => s.status !== "done");
     if (index < 0) return;
     const next = stages[index];
-    const turn = stages.slice(0, index + 1).filter((s) => s.step === next.step).length;
+    const turn = turns(stages, (s) => s.step)[index];
     const start = starts.get(`${next.step}#${turn}`);
     if (start !== undefined) servers.sql(`UPDATE projects SET next_issue_number = ${start} WHERE id = '${id}'`);
     await openProject(page, servers, id);
     if (!next.carried) await page.getByRole("button", { name: /^(Run|Retry)$/ }).first().click({ timeout: 30_000 });
     // Until this stage is done or failed, or (a carried one) kept or dropped.
-    for (let i = 0; ; i++) {
-      const now = (await pipeline()).find((s) => s.id === next.id);
-      if (!now || now.status === "done" || now.status === "failed") break;
-      if (i >= 600) throw new Error(`${next.step} didn't finish: ${now.status}`);
-      await page.waitForTimeout(1000);
-    }
+    const now = async () => (await pipelineOf(servers, id)).find((s) => s.id === next.id);
+    await until(
+      async () => {
+        const stage = await now();
+        return !stage || stage.status === "done" || stage.status === "failed";
+      },
+      { every: 1000, timeout: 600_000, what: async () => `${next.step} didn't finish: ${(await now())?.status}` },
+    );
   }
   throw new Error("the pipeline didn't come to an end");
 }
@@ -196,7 +195,7 @@ async function replay(name: string): Promise<string[]> {
     const page = await context.newPage();
     const id = await newProject(page, servers, join(FIXTURES, `${name}.s3l`));
 
-    const replayConfig = await servers.api<{ id: string }>("/model-configs", { name: "Replay", provider: "fake", modelString: "fake-replay", family: "fake", pricing: { kind: "free" } });
+    const replayConfig = await servers.api<{ id: string }>("/model-configs", { name: "Replay", provider: "fake", modelString: REPLAY_MODEL, family: "fake", pricing: { kind: "free" } });
     const layout = (await pipelineOf(servers, id)).find((s) => s.step === "layout");
     if (!layout) throw new Error("the fixture has no layout stage");
     await servers.api(`/projects/${id}/stages/${layout.id}/config`, { config: { ...layout.config, modelConfigId: replayConfig.id }, applyModelConfigToLater: true }, "PUT");

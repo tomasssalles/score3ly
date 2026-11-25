@@ -7,6 +7,10 @@ import { canonicalJson } from "../keys.ts";
 export type Provider = "anthropic" | "bedrock" | "ai-studio" | "vertex" | "openrouter" | "fake" | "fake-dev";
 export const PROVIDERS: Provider[] = ["anthropic", "bedrock", "ai-studio", "vertex", "openrouter", "fake", "fake-dev"];
 
+// The fake provider's replay model (docs/overview.md §12, "Replay tests"; the Worker's llm/replay.ts), which the replay
+// script gives the stages it runs again.
+export const REPLAY_MODEL = "fake-replay";
+
 // As people call them: in the UI and in the default config names.
 export const PROVIDER_NAMES: Record<Provider, string> = {
   anthropic: "Anthropic",

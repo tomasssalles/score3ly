@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:net";
 import { test } from "node:test";
-import { portFree, start, stopAll } from "./appServers.ts";
+import { portFree, start, stopAll, turns, until } from "./appServers.ts";
 
 function freePort(): Promise<number> {
   return new Promise((resolve) => {
@@ -24,4 +24,16 @@ test("stopAll returns once what it stopped has let go of its ports", async () =>
   await stopAll();
   assert.equal(await portFree(port), true, "the port is free once stopAll has returned");
   await stopAll(); // nothing left to stop
+});
+
+test("turns numbers each entry among those of its step", () => {
+  const steps = ["layout", "review", "apply_review", "review", "apply_review", "human_review", "apply_review"];
+  assert.deepEqual(turns(steps, (s) => s), [1, 1, 1, 2, 2, 1, 3]);
+});
+
+test("until returns the first answer, or fails saying what it waited for", async () => {
+  const seen: number[] = [];
+  assert.equal(await until((attempt) => (seen.push(attempt), attempt === 2 && "ready"), { every: 1, timeout: 1000, what: () => "never" }), "ready");
+  assert.deepEqual(seen, [0, 1, 2]);
+  await assert.rejects(until(() => false, { every: 5, timeout: 20, what: () => "the thing didn't come" }), /the thing didn't come/);
 });

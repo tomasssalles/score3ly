@@ -22,14 +22,14 @@ import type { Browser, BrowserContext, Locator, Page } from "playwright";
 import { DEVICE_KEYS } from "../apps/web/src/deviceStorage.ts";
 import { THEMES } from "../apps/web/src/themes.ts";
 import { markFolder, mayReplace, scriptArgs } from "./cli.ts";
-import { type ApiStage, launchBrowser, newProject as newProjectIn, pipelineOf as pipelineIn, ROOT, runToEnd as runToEndIn, type Servers, startServers, stopAll } from "./appServers.ts";
+import { type ApiStage, launchBrowser, newProject as newProjectIn, pipelineOf as pipelineIn, ROOT, runToEnd as runToEndIn, type Servers, stageActions, startServers, stopAll, TEST_PDF } from "./appServers.ts";
 
 const WORKER_PORT = 8887;
 const WEB_PORT = 5273;
 let APP = "";
 let servers: Servers;
 const api = <T = unknown>(path: string, body?: unknown, method?: string) => servers.api<T>(path, body, method);
-const PDF = join(ROOT, "testset/bendel_la_cascade_p4.orig.pdf"); // one page, scanned
+const PDF = TEST_PDF; // one page, scanned
 const VECTOR_PDF = join(ROOT, "testset/debussy_clair_de_lune_mutopia.orig.pdf"); // four vector pages
 const DEFAULT_OUT = join(ROOT, "screenshots");
 const MARKER = ".score3ly-screenshots"; // in a folder the script wrote, which a later run may replace
@@ -119,8 +119,7 @@ async function seed(browser: Browser): Promise<Seed> {
   const wip = await newProject(page, PDF);
   await runToEnd(page, wip);
   await page.goto(`${APP}#/projects/${wip}`);
-  const layoutCard = page.locator(".stage-card", { has: page.locator(".stage-title", { hasText: /^Layout$/ }) });
-  await layoutCard.getByRole("button", { name: /actions/ }).click();
+  await stageActions(page, "Layout").click();
   await page.getByRole("menuitem", { name: "Fix layout manually" }).click();
   const confirm = page.locator(".app-dialog .button-primary");
   if (await confirm.isVisible({ timeout: 2000 }).catch(() => false)) await confirm.click();
@@ -132,7 +131,7 @@ async function seed(browser: Browser): Promise<Seed> {
   const human = await newProject(page, PDF);
   await runToEnd(page, human);
   await page.goto(`${APP}#/projects/${human}`);
-  await page.locator(".stage-card", { has: page.locator(".stage-title", { hasText: /^Apply review$/ }) }).getByRole("button", { name: /actions/ }).click();
+  await stageActions(page, "Apply review").click();
   await page.getByRole("menuitem", { name: "Add Human review" }).click();
   if (await confirm.isVisible({ timeout: 2000 }).catch(() => false)) await confirm.click();
   await page.locator(".transcription.editing .film-item img").first().waitFor({ timeout: 60_000 });
@@ -299,7 +298,7 @@ function shots(seed: Seed): Shot[] {
       layouts: ["wide", "narrow"],
       take: async (p) => {
         await open(p, project(seed.done));
-        await p.locator(".stage-card", { has: p.locator(".stage-title", { hasText: /^Layout$/ }) }).getByRole("button", { name: /actions/ }).click();
+        await stageActions(p, "Layout").click();
         await p.waitForTimeout(300);
       },
     },
@@ -308,7 +307,7 @@ function shots(seed: Seed): Shot[] {
       layouts: ["wide", "narrow"],
       take: async (p) => {
         await open(p, project(seed.done));
-        await p.locator(".stage-card", { has: p.locator(".stage-title", { hasText: /^Apply review$/ }) }).getByRole("button", { name: /actions/ }).click();
+        await stageActions(p, "Apply review").click();
         await p.waitForTimeout(300);
       },
     },
@@ -343,7 +342,7 @@ function shots(seed: Seed): Shot[] {
       layouts: ["wide", "narrow"],
       take: async (p) => {
         await open(p, project(seed.done));
-        await p.locator(".stage-card", { has: p.locator(".stage-title", { hasText: /^Rasterize$/ }) }).getByRole("button", { name: /actions/ }).click();
+        await stageActions(p, "Rasterize").click();
         await p.getByRole("menuitem", { name: "Change config" }).click();
         await p.waitForTimeout(300);
       },
@@ -353,7 +352,7 @@ function shots(seed: Seed): Shot[] {
       layouts: ["wide", "narrow"],
       take: async (p) => {
         await open(p, project(seed.done));
-        await p.locator(".stage-card", { has: p.locator(".stage-title", { hasText: /^Rasterize$/ }) }).getByRole("button", { name: /actions/ }).click();
+        await stageActions(p, "Rasterize").click();
         await p.getByRole("menuitem", { name: "Change config" }).click();
         const dpi = p.locator(".app-dialog input").last();
         await dpi.fill("250");

@@ -10,15 +10,13 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Page } from "playwright";
-import { launchBrowser, newProject, openProject, pipelineOf, ROOT, runToEnd, type Servers, startServers, stopAll } from "./appServers.ts";
+import { FIXTURES, launchBrowser, newProject, openProject, pipelineOf, runToEnd, type Servers, stageActions, startServers, stopAll, TEST_PDF, until } from "./appServers.ts";
 
-const PDF = join(ROOT, "testset/bendel_la_cascade_p4.orig.pdf");
-export const FIXTURES = join(ROOT, "fixtures/replay");
 const NAME = "fake";
 
 async function addManualStage(page: Page, servers: Servers, id: string, after: string, item: string) {
   await openProject(page, servers, id);
-  await page.locator(".stage-card", { has: page.locator(".stage-title", { hasText: new RegExp(`^${after}$`) }) }).getByRole("button", { name: /actions/ }).click();
+  await stageActions(page, after).click();
   await page.getByRole("menuitem", { name: item }).click();
   const confirm = page.locator(".app-dialog .button-primary");
   if (await confirm.isVisible({ timeout: 2000 }).catch(() => false)) await confirm.click();
@@ -27,22 +25,18 @@ async function addManualStage(page: Page, servers: Servers, id: string, after: s
 async function finishManualStage(page: Page, servers: Servers, id: string, step: string) {
   await openProject(page, servers, id);
   await page.getByRole("button", { name: "Finish" }).click({ timeout: 30_000 });
-  for (let i = 0; i < 60; i++) {
-    if ((await pipelineOf(servers, id)).find((s) => s.step === step)?.status === "done") return;
-    await page.waitForTimeout(500);
-  }
-  throw new Error(`${step} didn't finish`);
+  await until(async () => (await pipelineOf(servers, id)).find((s) => s.step === step)?.status === "done", { every: 500, timeout: 30_000, what: () => `${step} didn't finish` });
 }
 
 // Waits, on the page as it is, for a run that finishing a manual stage started (Auto mode) to end: reloading the page
 // while it runs (as `runToEnd` does) would interrupt it (leaving a project releases its running stage).
-async function settle(page: Page, servers: Servers, id: string) {
-  for (let i = 0; i < 600; i++) {
-    const stages = await pipelineOf(servers, id);
-    if (!stages.some((s) => s.status === "running") && i > 2) return;
-    await page.waitForTimeout(1000);
-  }
-  throw new Error("the run after a manual stage didn't end");
+// Not before the third look, so that the run has had time to start.
+async function settle(servers: Servers, id: string) {
+  await until(async (attempt) => attempt > 2 && !(await pipelineOf(servers, id)).some((s) => s.status === "running"), {
+    every: 1000,
+    timeout: 600_000,
+    what: () => "the run after a manual stage didn't end",
+  });
 }
 
 async function main() {
@@ -61,7 +55,7 @@ async function main() {
     const page = await context.newPage();
 
     console.log("Running the project with the fake model…");
-    const id = await newProject(page, servers, PDF);
+    const id = await newProject(page, servers, TEST_PDF);
     await servers.api(`/projects/${id}`, { name: "Fake model" }, "PATCH");
     await runToEnd(page, servers, id);
 
@@ -69,7 +63,7 @@ async function main() {
     await addManualStage(page, servers, id, "Layout", "Fix layout manually");
     await page.locator(".editor-viewport").waitFor({ timeout: 60_000 });
     await finishManualStage(page, servers, id, "fix_layout");
-    await settle(page, servers, id);
+    await settle(servers, id);
     await runToEnd(page, servers, id);
 
     console.log("A human review…");
@@ -81,7 +75,7 @@ async function main() {
     await answers.locator(".answer-option").nth(1).click();
     await page.waitForTimeout(1500); // saved
     await finishManualStage(page, servers, id, "human_review");
-    await settle(page, servers, id);
+    await settle(servers, id);
     await runToEnd(page, servers, id);
 
     const stages = await pipelineOf(servers, id);

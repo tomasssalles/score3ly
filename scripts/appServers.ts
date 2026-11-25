@@ -2,16 +2,39 @@
 // run on, docs/overview.md §12): their own Worker and Vite on ports of their own, with a database and storage in a
 // folder of their own, so nothing of the usual local data is touched; the Worker's API; and a few steps through the
 // app (a new project, a run to the end, an import).
+//
+// POSIX only (Linux, macOS): stopping what was started signals its process group (`process.kill(-pid)`), which Windows
+// doesn't have.
 
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, type Browser, type Locator, type Page } from "playwright";
 import { DATABASE, localDevConfigPath, wrangler as runWrangler, writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
 
 export const ROOT = join(import.meta.dirname, "..");
+// The replay tests' fixtures (`<name>.s3l`, with their snapshots in `<name>/`).
+export const FIXTURES = join(ROOT, "fixtures/replay");
+// The PDF the scripts run projects on: one scanned page of the test set.
+export const TEST_PDF = join(ROOT, "testset/bendel_la_cascade_p4.orig.pdf");
+
+// Asks `check` every `every` ms until it answers something other than undefined or false, and returns that; throws
+// once `timeout` ms have passed, saying `what` (called then, so it can tell how things stand). `check` is given how many
+// times it was asked before.
+export async function until<T>(
+  check: (attempt: number) => Promise<T | undefined | false> | T | undefined | false,
+  options: { every: number; timeout: number; what: () => string | Promise<string> },
+): Promise<T> {
+  const deadline = Date.now() + options.timeout;
+  for (let attempt = 0; ; attempt++) {
+    const answer = await check(attempt);
+    if (answer !== undefined && answer !== false) return answer;
+    if (Date.now() >= deadline) throw new Error(await options.what());
+    await new Promise((r) => setTimeout(r, options.every));
+  }
+}
 
 const children: ChildProcess[] = [];
 
@@ -77,16 +100,8 @@ export function portFree(port: number): Promise<boolean> {
   });
 }
 
-async function waitFor(url: string, what: string) {
-  for (let i = 0; i < 120; i++) {
-    try {
-      if ((await fetch(url)).ok) return;
-    } catch {
-      // Not yet.
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`${what} didn't start (${url})`);
+function waitFor(url: string, what: string): Promise<true> {
+  return until(() => fetch(url).then((r) => r.ok, () => false), { every: 500, timeout: 60_000, what: () => `${what} didn't start (${url})` });
 }
 
 // Wrangler on the local config, throwing where it fails.
@@ -98,6 +113,7 @@ function wrangler(args: string[]) {
 
 export type Servers = {
   app: string; // the web app's URL, ending in "/"
+  apiBase: string; // the Worker's API, without a "/" at the end
   api: <T = unknown>(path: string, body?: unknown, method?: string) => Promise<T>;
   // Runs SQL on the servers' database: Wrangler's local D1, or the desktop server's SQLite file.
   sql: (command: string) => void;
@@ -153,17 +169,33 @@ export async function startServers(options: { workerPort: number; webPort: numbe
     }
   }
 
-  return { app, api, sql };
+  return { app, apiBase, api, sql };
 }
 
 export function launchBrowser(): Promise<Browser> {
   return chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 }
 
-export type ApiStage = { id: string; step: string; status: string; error: string | null; config: Record<string, unknown> | null };
+export type ApiStage = { id: string; step: string; status: string; error: string | null; config: Record<string, unknown> | null; carried: boolean };
 
 export function pipelineOf(servers: Servers, id: string): Promise<ApiStage[]> {
   return servers.api<{ stages: ApiStage[] }>(`/projects/${id}/pipeline`).then((p) => p.stages);
+}
+
+// Each entry's turn among the entries of its step, from 1, in the order given (a pipeline's): the second
+// `apply_review` is 2. Where the replay finds a recorded stage again.
+export function turns<T>(entries: T[], stepOf: (entry: T) => string): number[] {
+  const seen = new Map<string, number>();
+  return entries.map((entry) => {
+    const step = stepOf(entry);
+    seen.set(step, (seen.get(step) ?? 0) + 1);
+    return seen.get(step)!;
+  });
+}
+
+// The "⋮" of the stage card titled `title` ("Layout", "Apply review").
+export function stageActions(page: Page, title: string): Locator {
+  return page.locator(".stage-card", { has: page.locator(".stage-title", { hasText: new RegExp(`^${title}$`) }) }).getByRole("button", { name: /actions/ });
 }
 
 // A new project on `pdf`, or one imported from a project file (`.s3l`), from the header's button ("+ New project" or
@@ -189,16 +221,21 @@ export async function openProject(page: Page, servers: Servers, id: string) {
 // already (in Auto mode, finishing a manual stage starts the rest by itself); never again in between, when a stage has
 // ended and the next not yet started, which would start a second run.
 export async function runToEnd(page: Page, servers: Servers, id: string, timeoutSeconds = 600) {
+  const ended = (stages: ApiStage[]) => stages.at(-1)!.status === "done" || stages.some((s) => s.status === "failed");
+  const described = async () => (await pipelineOf(servers, id)).map((s) => `${s.step} ${s.status}`).join(", ");
   await openProject(page, servers, id);
   const run = page.getByRole("button", { name: /^(Run|Retry)$/ }).first();
   await run.waitFor({ timeout: 30_000 }).catch(() => {});
   const atStart = await pipelineOf(servers, id);
-  if (!atStart.some((s) => s.status === "running") && (await run.isEnabled().catch(() => false))) await run.click();
-  for (let i = 0; i < timeoutSeconds; i++) {
-    const stages = await pipelineOf(servers, id);
-    if (stages.at(-1)!.status === "done" || stages.some((s) => s.status === "failed")) return;
-    await page.waitForTimeout(1000);
+  if (!atStart.some((s) => s.status === "running")) {
+    if (await run.isEnabled().catch(() => false)) await run.click();
+    else if (ended(atStart)) return;
+    // Nothing would ever start it: said now, not after the timeout.
+    else throw new Error(`project ${id} has no Run button to press and nothing running: ${await described()}`);
   }
-  const stages = await pipelineOf(servers, id);
-  throw new Error(`project ${id} didn't finish: ${stages.map((s) => `${s.step} ${s.status}`).join(", ")}`);
+  await until(async () => ended(await pipelineOf(servers, id)), {
+    every: 1000,
+    timeout: timeoutSeconds * 1000,
+    what: async () => `project ${id} didn't finish: ${await described()}`,
+  });
 }
