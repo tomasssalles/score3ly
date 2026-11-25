@@ -7,9 +7,9 @@
 // Made and read here, in the browser: zipping is too much work for a Worker's CPU limit. Images aren't in it (they are
 // made again from their recipes).
 
-import { formatProblem, type Imported, type ProjectExport, sha256Hex } from "@score3ly/core";
+import { formatProblem, type Imported, importChunks, importHead, type ProjectExport, sha256Hex } from "@score3ly/core";
 import type { Project } from "./api.ts";
-import { fetchContent, fetchExport, fetchPdf, importRows, missingContent, putContent, storePdf } from "./api.ts";
+import { beginImport, fetchContent, fetchExport, fetchPdf, finishImport, importRows, missingContent, putContent, storePdf } from "./api.ts";
 import { fileBase, zipFiles } from "./files.ts";
 
 export const EXTENSION = ".s3l";
@@ -97,18 +97,28 @@ export async function exportProject(project: Project, progress: (fraction: numbe
   return new Blob([bytes], { type: "application/zip" });
 }
 
-// Stores what an archive needs (the PDF, the content the Worker doesn't have), then imports its rows. Returns the new
-// project's id and name.
+// Stores what an archive needs and imports its rows (docs/database.md, "Exporting and importing a project"): the PDF;
+// the head, which makes the project, hidden until the end, after removing an unfinished import of the same file (a
+// retry: the file is known by the hash of its rows); the content the Worker doesn't have, asked after the head, which
+// may have collected some; the rows in chunks; the end. Returns the new project's id and name.
 export async function importArchive(archive: ProjectArchive, progress: (fraction: number) => void = () => {}): Promise<Imported> {
   const sha = archive.rows.project.pdf_sha256;
   if ((await sha256Hex(archive.pdf)) !== sha) throw new Error("The file is damaged: its PDF doesn't match its hash.");
   await storePdf(sha, archive.pdf);
+  const key = await sha256Hex(new TextEncoder().encode(JSON.stringify(archive.rows)));
+  const { id } = await beginImport(importHead(archive.rows, key));
   const missing = await missingContent([...archive.content.keys()]);
+  const chunks = importChunks(archive.rows);
+  const steps = missing.length + chunks.length + 1;
   for (const [i, key] of missing.entries()) {
     await putContent(archive.content.get(key)!, archive.manifest.contentTypes?.[key] ?? "application/octet-stream");
-    progress((i + 1) / (missing.length + 1));
+    progress((i + 1) / steps);
   }
-  const imported = await importRows(archive.rows);
+  for (const [i, chunk] of chunks.entries()) {
+    await importRows(id, chunk);
+    progress((missing.length + i + 1) / steps);
+  }
+  const imported = await finishImport(id);
   progress(1);
   return imported;
 }

@@ -1,7 +1,8 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { sha256Hex, sseData } from "@score3ly/core";
-import { ApiError, callLlm, dropStage, fetchPipeline, putJson, failure, createModelConfig, createProject, importRows, listProjects, lookUpPdf, markOpened, numberIssues, renameProject, reserveIssueNumbers, STALE_EVENT, testModelConfig, type Project, type ProjectExport } from "./api.ts";
+import { ApiError, callLlm, dropStage, fetchPipeline, putJson, failure, createModelConfig, createProject, beginImport, importRows, listProjects, lookUpPdf, markOpened, numberIssues, renameProject, reserveIssueNumbers, STALE_EVENT, testModelConfig, type Project } from "./api.ts";
+import type { ImportHead } from "@score3ly/core";
 
 // The tests replace the browser's fetch with a fake that records each request and answers with a fixed response.
 const realFetch = globalThis.fetch;
@@ -129,7 +130,8 @@ test("a refusal's ApiError carries the Worker's text and code, for every kind of
     ["renameProject", () => renameProject(project, "Taken")],
     ["callLlm", () => callLlm(project, "s1", { messages: [] }, { item: "p1", round: 1 })],
     ["createModelConfig", () => createModelConfig({} as never)],
-    ["importRows", () => importRows({} as ProjectExport)],
+    ["beginImport", () => beginImport({} as ImportHead)],
+    ["importRows", () => importRows("p", { table: "outputs", rows: [] })],
   ];
   for (const [name, call] of calls) {
     answerWith(409, refusal);

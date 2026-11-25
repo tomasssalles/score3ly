@@ -1,5 +1,5 @@
 import type { Timing } from "./itemTiming";
-import { type ActivityData, type Host, type Info, type WindowTheme, type StoredFingerprint, type Imported, type ProjectExport, type ApiErrorBody, type CostData, type FailureData, type ModelConfig, type ProjectStats, type RunTimeData, type ModelOptions, type NewModelConfig, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult, type CallAnswer, type ErrorCode, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, errorText, readSse, sha256Hex, type StreamEvent, canonicalJson } from "@score3ly/core";
+import { type ActivityData, type Host, type Info, type WindowTheme, type StoredFingerprint, type Imported, type ImportChunk, type ImportHead, MISSING_CONTENT_BATCH, type ProjectExport, type ApiErrorBody, type CostData, type FailureData, type ModelConfig, type ProjectStats, type RunTimeData, type ModelOptions, type NewModelConfig, type PriceRange, type Prices, type SecretNames, type Settings, type TestResult, type CallAnswer, type ErrorCode, type CallBody, type CallEvent, type CallPlace, type CallRequest, type ImagesNeeded, errorText, readSse, sha256Hex, type StreamEvent, canonicalJson } from "@score3ly/core";
 
 // A project as the Worker's API sends it (`@score3ly/core`).
 export type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
@@ -514,18 +514,31 @@ export async function storePdf(sha256: string, bytes: Uint8Array<ArrayBuffer>): 
   await checked(await fetch(`/api/pdfs/${sha256}`, { method: "PUT", body: bytes }));
 }
 
-// Which of these content objects the Worker doesn't have yet (asked at most 200 at a time, as the Worker wants).
+// Which of these content objects the Worker doesn't have yet (asked MISSING_CONTENT_BATCH at a time, as the Worker wants).
 export async function missingContent(sha256s: string[]): Promise<string[]> {
   const missing: string[] = [];
-  for (let i = 0; i < sha256s.length; i += 200) {
-    const response = await fetch("/api/content/missing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sha256s: sha256s.slice(i, i + 200) }) });
-    missing.push(...((await (await checked(response)).json()) as { missing: string[] }).missing);
+  for (let i = 0; i < sha256s.length; i += MISSING_CONTENT_BATCH) {
+    missing.push(...(await postJson<{ missing: string[] }>("/api/content/missing", { sha256s: sha256s.slice(i, i + MISSING_CONTENT_BATCH) })).missing);
   }
   return missing;
 }
 
-// Imports the rows (the PDF and the content uploaded first). Refusals come with the Worker's own message.
-export async function importRows(rows: ProjectExport): Promise<Imported> {
-  const response = await fetch("/api/projects/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rows) });
+// An import in several requests (docs/database.md, "Exporting and importing a project"): its head, which makes the
+// project, hidden until the end (and first removes an unfinished import of the same file); its rows, a chunk at a
+// time; its end. Refusals come with the Worker's own message.
+export async function beginImport(head: ImportHead): Promise<Imported> {
+  return postJson("/api/projects/import", head);
+}
+
+export async function importRows(projectId: string, chunk: ImportChunk): Promise<void> {
+  await checked(await fetch(`/api/projects/${projectId}/import/rows`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(chunk) }));
+}
+
+export async function finishImport(projectId: string): Promise<Imported> {
+  return postJson(`/api/projects/${projectId}/import/finish`, {});
+}
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return (await checked(response)).json();
 }
