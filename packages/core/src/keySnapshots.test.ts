@@ -57,26 +57,27 @@ test("canonical JSON and keys of valid JSON of every kind are as they were", asy
 
 // The replay fixture's requests (fixtures/replay/fake/requests: built by the app's prompts, schemas and stages), keyed.
 // Changed once on purpose by the paid release (batch 33): the requests name their images by new recipe keys, and
-// nothing else in them changed.
+// nothing else in them changed. Changed once more by batch 34 (the prompts): the 16 requests of analyze, extract, review
+// and apply_review (their texts, schemas and issues, each diff read); layout's two unchanged.
 const REQUESTS: [string, string][] = [
-  ["analyze-1-all-round1.json", "cbd730f2f25c7d04f198773e9e449c40c0513f41143c4818b27fffa8d97e09d7"],
-  ["analyze-1-p1-round1.json", "8157a37e44b0301076a07373386fafdaf25f914471af9cf1ad5e93557fd42738"],
-  ["apply_review-1-p1-s1-round1.json", "182f66990045c35a19e5277256f171d1ada93defaadc0f0f4ab1b1bf6e8834c8"],
-  ["apply_review-1-p1-s2-round1.json", "471ccb7dc4b499e57602b4263dc74bfa131f179519903e93a8c7995f01dd20f2"],
-  ["extract-1-p1-s1-round1.json", "751db1cdec496f47769bb02d888f0a8b1dbbe454e57947ecae51d3d4e61f66fc"],
-  ["extract-1-p1-s2-round1.json", "85a343d02016a1bef6f72dd2f5b616382f55d5255ef21f55f1a13dd5379ca5ab"],
-  ["extract-1-p1-s3-round1.json", "cec8cd8b5fae187d4336d318d1831f034b1be7a23d97b232bc822e727245fee5"],
-  ["extract-1-p1-s4-round1.json", "1b7965ce455e732f76ae2a350f1be88fa8947016c9c0af3bf5d4f178d554538c"],
-  ["extract-1-p1-s5-round1.json", "409c280fa9ebccaa7fd647966f75c40b35391ecc81f1e3e1ad3d88876bab4c6b"],
-  ["extract-1-p1-s6-round1.json", "7c5a5537e1b1de0e38d09ceb5cefa77ab10370ed94a1df516ac9713cb886c135"],
+  ["analyze-1-all-round1.json", "cd83d8ee9d5f95453b16a6675e5034e2fb4946451eae8665798ff37e0af4b5ea"],
+  ["analyze-1-p1-round1.json", "05d5cf693a14843cf7f9ea115c9fecc5713e18440ad1e26fc7c2403f58367d96"],
+  ["apply_review-1-p1-s1-round1.json", "35d430cc3fe11994cdd4c05e3da71427749c3a07c270ce05e240cecb4d9b637e"],
+  ["apply_review-1-p1-s2-round1.json", "747c850bfc25c940b7a1d5444cb0efbf9eee0540ae694b48375f67aa0b66e76b"],
+  ["extract-1-p1-s1-round1.json", "eef83fa77e45c0796ebcafa0d74fb28ad0d34c87303bee92c4d5284d57f4438e"],
+  ["extract-1-p1-s2-round1.json", "8e025df3f609047b8608a9944b6800630a6bfab3ee2a76ac0e07acc299a84382"],
+  ["extract-1-p1-s3-round1.json", "d3633a02131a5028d2ece02cae52433c3dbedca48b06a509bec5246baa9283c9"],
+  ["extract-1-p1-s4-round1.json", "a281a9cd39208d2207c6df2972dc162e58d141705a5daefb684a6f93fd0a83df"],
+  ["extract-1-p1-s5-round1.json", "b9264c491e906496730b7d836342a79ecb9dcace6619266ac7ed5470b93a7791"],
+  ["extract-1-p1-s6-round1.json", "3803be8b741c8038eddb712555cf52955882370c8fc72a75accf9b2563fc4e10"],
   ["layout-1-p1-round1.json", "39f1834db0a3e49842dd0dce7a6b1665a0e3aa0bc3498ad5b54f7a6627b2731d"],
   ["layout-1-p1-round2.json", "3c872093f2ef26d315eae75079754acf97037d0144835f1d95dedf51c2d05c2a"],
-  ["review-1-p1-s1-round1.json", "c99f1666892a04c17c872f4cb84bce19ebe7f3933860d9c79d5c2bf4d8d94e32"],
-  ["review-1-p1-s2-round1.json", "8e0d1b98335d079f5a5adf986a2f8d9f440f010d2f9937ae9c38f11fcb91cde4"],
-  ["review-1-p1-s3-round1.json", "20fce28dd109aacecfed0dbc8f658b30405944344dc3d952032e6c2cf444b83c"],
-  ["review-1-p1-s4-round1.json", "a63931f5232fc2336703aa5721759c274e55814ac89c72bb54fbacd7301b13fa"],
-  ["review-1-p1-s5-round1.json", "c37b434128a9b54d27f0a429385948fb7f2af1ba167b52b8987609c4f9b57b10"],
-  ["review-1-p1-s6-round1.json", "5b5176eec80603a2053da121d0cad9ed6d0e03a920f21ed7e5d13454178faf66"],
+  ["review-1-p1-s1-round1.json", "58d844f69f16bf94add697c15d4dc327c97efbcc0d13740b4a44a52493ddaa9b"],
+  ["review-1-p1-s2-round1.json", "ee7d5749a90bcb5c517e5e311ea0a672af34183a5d4f4274886ca61b557af25d"],
+  ["review-1-p1-s3-round1.json", "443c3cacedbf80ac672003f42b1916dbc1cf7e5456c7971d96598563e0d33c46"],
+  ["review-1-p1-s4-round1.json", "a69a5a3994935980a377716cc423570b12d7bcb43b8c4297f5f839562026609f"],
+  ["review-1-p1-s5-round1.json", "ced4444f8487cb551bf3e8485928bf5ed27e358a16d8959ea53a3c85a8b936da"],
+  ["review-1-p1-s6-round1.json", "bf45ebc2fa6dd29282fc990037de4fc0ad83f4240312d0cf92fa7433f0fe9e94"],
 ];
 
 test("the replay fixture's requests have the keys they had", async () => {
