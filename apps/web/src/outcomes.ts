@@ -22,4 +22,5 @@ export const OUTCOME_LABELS: Record<Outcome, string> = {
   bad_request: "Bad request",
   unknown: "Unknown error",
   interrupted: "Interrupted",
+  cached: "From the cache",
 };

@@ -4,7 +4,7 @@
 import { notImportingStage } from "./importing.ts";
 import { amount, DAY_MS, roundUsd } from "@score3ly/core";
 import { ACCOUNT_FEES, type Account } from "./llm/models.ts";
-import { COST_WITH_VAT } from "./callRecords.ts";
+import { COST_WITH_VAT, SENT } from "./callRecords.ts";
 import { freeOnOpenRouter } from "./llm/prices.ts";
 import { readSettings } from "./settings.ts";
 
@@ -35,7 +35,7 @@ export function feeOf(row: { account: Account | null }): number {
 export async function spentInLastDay(db: D1Database, now = Date.now()): Promise<number> {
   const row = await db
     .prepare(
-      `SELECT COALESCE(SUM(${COST_WITH_VAT}), 0) AS spent FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.pricing_kind <> 'free' AND c.started_at >= ? AND ${notImportingStage("c.stage_id")}`,
+      `SELECT COALESCE(SUM(${COST_WITH_VAT}), 0) AS spent FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE m.pricing_kind <> 'free' AND c.started_at >= ? AND ${SENT} AND ${notImportingStage("c.stage_id")}`,
     )
     .bind(new Date(now - DAY_MS).toISOString())
     .first<{ spent: number }>();

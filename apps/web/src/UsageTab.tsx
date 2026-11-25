@@ -8,11 +8,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchActivity, fetchFailures, fetchProjectStats, type ActivityData, type FailureData, type ProjectStats } from "./api";
 import { axisLabel, bucketsOf, bucketTitle, defaultGranularity, GRANULARITIES, granularitiesFor, RANGES, rangeOf, type Granularity, type RangeId } from "./calendar";
-import { count, deletedNote, endedNote, percent, plural } from "./format";
+import { count, deletedNote, endedNote, plural } from "./format";
 import { ChartModes, StatHead, type ChartMode } from "./statsParts";
 import { OptionPicker } from "./ui/Picker";
 import { TimeChart } from "./TimeChart";
-import { activeHoursText, activeQuarters, createdIn, createdNote, failuresIn, hoursNumber, hoursView } from "./usage";
+import { activeHoursText, activeQuarters, createdIn, createdNote, failuresIn, failuresNote, hoursNumber, hoursView } from "./usage";
 
 const ALL = "";
 
@@ -200,7 +200,7 @@ function Failures({ data }: { data: FailureData }) {
             <OptionPicker label="Model or model config" value={configId} options={[{ id: ALL, label: "All model configs" }, ...models, ...configs]} onChange={setConfigId} className="project-select failed-calls-select" headings={{ 1: "Config groups by model", 2: "Individual configs" }} />
             <span className="stat-value">
               <span className="stat-amount">{view.failed}</span>
-              <span className="stat-note">{view.calls ? `of ${count(view.calls, "call")} (${percent(view.failed, view.calls)})` : "no calls"}</span>
+              <span className="stat-note">{failuresNote(view)}</span>
             </span>
           </>
         }

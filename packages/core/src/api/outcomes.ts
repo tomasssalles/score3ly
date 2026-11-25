@@ -17,8 +17,9 @@ export type CallErrorKind =
 
 // A call's outcome (`OUTCOME`, apps/worker/src/callRecords.ts), in Usage and Costs alike: "ok", how an answer was
 // unusable, why the call failed, an error without a kind ("unexpected_stop"), or a call that will never answer
-// ("interrupted").
-export type Outcome = "ok" | "cut_off" | "refused" | "unparseable" | CallErrorKind | "unexpected_stop" | "interrupted";
+// ("interrupted"); in Usage, also "cached": an answer served from the record, a row of its own that wasn't a call made
+// (the code review's E4, the owner's dec. 16).
+export type Outcome = "ok" | "cut_off" | "refused" | "unparseable" | CallErrorKind | "unexpected_stop" | "interrupted" | "cached";
 
 // A paid call's outcome in Costs (apps/worker/src/costs.ts): the outcomes a call with a cost can have: an answer, used or
 // not, another model answering ("unexpected_model"), or an error with a cost ("unexpected_stop").

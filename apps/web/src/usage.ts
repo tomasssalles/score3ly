@@ -7,7 +7,7 @@
 import type { Outcome } from "@score3ly/core";
 import type { ActivityData, FailureData, ProjectStats } from "./api";
 import type { Bucket } from "./calendar";
-import { plural } from "./format.ts";
+import { count, percent, plural } from "./format.ts";
 import { OUTCOME_LABELS } from "./outcomes.ts";
 
 // The quarters of an hour (their start, in ms) with any activity of the project, or of any project. Every time zone's
@@ -62,22 +62,35 @@ export function createdNote(counts: { done: number; unfinished: number; deleted:
 }
 
 // The calls in a time range, of one config, of one model's configs (`model:` and its key, whatever the provider) or all
-// (null), how many failed, and the reasons, the most frequent first.
+// (null), how many failed, and the reasons, the most frequent first; and apart, the answers served from the record
+// ("cached"), which aren't calls made and count in neither (the owner's dec. 16).
 export function failuresIn(
   data: FailureData,
   range: { start: number; end: number },
   pick: string | null,
-): { calls: number; failed: number; reasons: { key: string; label: string; calls: number }[] } {
+): { calls: number; failed: number; reasons: { key: string; label: string; calls: number }[]; cached: number } {
   const modelOf = new Map(data.configs.map((m) => [m.id, `model:${m.modelKey}`]));
   const counts = (config: string) => pick === null || config === pick || modelOf.get(config) === pick;
   let calls = 0;
+  let cached = 0;
   const reasons = new Map<string, number>();
   for (const [config, t, reason, n] of data.points) {
     if (t < range.start || t >= range.end || !counts(config)) continue;
+    if (reason === "cached") {
+      cached += n;
+      continue;
+    }
     calls += n;
     if (reason !== "ok") reasons.set(reason, (reasons.get(reason) ?? 0) + n);
   }
   const list = [...reasons].map(([key, n]) => ({ key, label: OUTCOME_LABELS[key as Outcome] ?? key, calls: n }));
   list.sort((a, b) => b.calls - a.calls || a.label.localeCompare(b.label));
-  return { calls, failed: list.reduce((sum, r) => sum + r.calls, 0), reasons: list };
+  return { calls, failed: list.reduce((sum, r) => sum + r.calls, 0), reasons: list, cached };
+}
+
+// The note under the count of failed calls: of how many calls, and the answers served from the record beside them where
+// there were any ("of 495 calls (4%); 120 answers from the cache").
+export function failuresNote(view: { calls: number; failed: number; cached: number }): string {
+  const calls = view.calls ? `of ${count(view.calls, "call")} (${percent(view.failed, view.calls)})` : "no calls";
+  return view.cached ? `${calls}; ${count(view.cached, "answer")} from the cache` : calls;
 }

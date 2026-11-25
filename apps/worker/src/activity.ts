@@ -1,6 +1,6 @@
 // When the app was in use (docs/statistics.md, "Activity"): the quarters of an hour in which something
 // happened, per project, from what is recorded anyway. Something happened when an LLM call was running (from its start
-// to its end), or a stage started, ended or sent its last heartbeat, or an output was saved, or a project was created,
+// to its end; an answer served from the record isn't a call that ran, `SENT`), or a stage started, ended or sent its last heartbeat, or an output was saved, or a project was created,
 // or a manual stage was saved (and between two of its saves a quarter apart: activeTime.ts). A stage's start and end
 // are events, not a span: a retried stage keeps its first start, and a manual stage left open for days isn't days of
 // work. The browser counts the quarters (they fit every time zone). Deleted projects count too: their rows are kept
@@ -11,12 +11,13 @@ import type { ActivityData } from "@score3ly/core";
 import type { Hono } from "hono";
 import { QUARTER_MS, quarterOf } from "@score3ly/core";
 import { manualQuarters } from "./activeTime.ts";
+import { SENT } from "./callRecords.ts";
 
 export function activityRoutes(app: Hono<{ Bindings: Env }>) {
   app.get("/api/activity", async (c) => {
     const db = c.env.DB;
     const [calls, stages, outputs, projects, saves] = await db.batch([
-      db.prepare(`SELECT s.created_in AS project, c.started_at AS start, c.finished_at AS end FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE ${notImportingProject("s.created_in")}`),
+      db.prepare(`SELECT s.created_in AS project, c.started_at AS start, c.finished_at AS end FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE ${SENT} AND ${notImportingProject("s.created_in")}`),
       db.prepare(
         `SELECT created_in AS project, started_at, finished_at, heartbeat_at FROM stages WHERE started_at IS NOT NULL AND ${notImportingProject("created_in")}`,
       ),

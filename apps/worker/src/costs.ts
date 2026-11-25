@@ -15,7 +15,7 @@
 import { notImportingProject, notImportingStage } from "./importing.ts";
 import type { CostData, CostOutcome } from "@score3ly/core";
 import type { Hono } from "hono";
-import { CALL_QUARTER, COST_WITH_VAT, OUTCOME, unknownCost } from "./callRecords.ts";
+import { CALL_QUARTER, COST_WITH_VAT, OUTCOME, SENT, unknownCost } from "./callRecords.ts";
 import { parsePages } from "@score3ly/core";
 import { modelGroupOf, resolvedModel } from "./llm/models.ts";
 import type { ModelConfigRow } from "./modelConfigs.ts";
@@ -28,7 +28,8 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
     const db = c.env.DB;
     const ofUnknownCost = unknownCost();
     // The calls the view counts: those with a cost, and those of unknown cost.
-    // Not the configs' test requests (no stage): they are summed apart, below.
+    // Not the configs' test requests (no stage): they are summed apart, below. Not rows served from the record: they cost
+    // nothing (0, and never of unknown cost: `unknownCost`).
     const counted = `SELECT c.id FROM llm_calls c JOIN model_configs m ON m.id = c.model_config_id WHERE c.stage_id IS NOT NULL AND m.pricing_kind <> 'free' AND (c.cost_usd > 0 OR ${ofUnknownCost}) AND ${notImportingStage("c.stage_id")}`;
     const [points, unknown, tests, stages, projects, configs, projectCosts, rasterized] = await db.batch([
       db
@@ -75,7 +76,7 @@ export function costRoutes(app: Hono<{ Bindings: Env }>) {
       ),
       db
         .prepare(`SELECT id, name, provider, model_id, model_string, family, effort, created_at, deleted_at FROM model_configs WHERE id IN (SELECT model_config_id FROM llm_calls WHERE id IN (${counted}))`),
-      db.prepare(`SELECT s.created_in AS project, SUM(${COST_WITH_VAT}) AS usd FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE ${notImportingProject("s.created_in")} GROUP BY s.created_in`),
+      db.prepare(`SELECT s.created_in AS project, SUM(${COST_WITH_VAT}) AS usd FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE ${SENT} AND ${notImportingProject("s.created_in")} GROUP BY s.created_in`),
       // The pages a `rasterize` stage ran on are written out in its config ("1-12, 15").
       db.prepare(`SELECT created_in AS project, config_json FROM stages WHERE step = 'rasterize' AND started_at IS NOT NULL AND config_json IS NOT NULL AND ${notImportingProject("created_in")}`),
     ]);

@@ -1453,6 +1453,28 @@ test("a Vertex AI key file that doesn't parse is a 409 bad_secret in the config'
 
 // What a call's row means to the statistics (callRecords.ts): the rows `runCall` really writes, one config per way a
 // call ends, as Costs (paid calls by outcome, calls of unknown cost) and Usage (calls by reason) count them.
+// The owner's dec. 16 (F18): rows served from the record are labelled "cached" in Usage and left out of every count of
+// calls made or paid: Costs (paid and of unknown cost), the spending cap, a stage's cost, the configs offered in Usage.
+test("rows served from the record: \"cached\" in Usage, in no count of calls made or paid", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const config = await modelConfig();
+  const paid = await json(await call(await runningStage(config.id)));
+  const before = await json<Record<string, unknown>>(await app.request("/api/costs", {}, env));
+  const servedTo = await runningStage((await modelConfig({ name: "Served only", pricing: { kind: "unpriced" } })).id);
+  assert.equal((await json(await call(servedTo))).cached, true);
+
+  const costs = await json<{ points: unknown[]; unknown: unknown[]; spentLastDayUsd: number; projects: { id: string; costUsd: number }[]; stages: unknown[]; configs: unknown[] }>(await app.request("/api/costs", {}, env));
+  for (const key of ["points", "unknown", "stages", "configs", "spentLastDayUsd"]) assert.deepEqual((costs as Record<string, unknown>)[key], before[key], key);
+  assert.equal(costs.projects.find((p) => p.id === servedTo.projectId)!.costUsd, 0);
+  assert.equal(await spentInLastDay(env.DB), paid.costUsd);
+  const { stages } = await json<{ stages: { costUsd: number | null }[] }>(await app.request(`/api/projects/${servedTo.projectId}/pipeline`, {}, env));
+  assert.equal(stages[1].costUsd, null); // as when a hit wrote no row
+
+  const failures = await json<{ points: [string, number, string, number][]; configs: { id: string }[] }>(await app.request("/api/failures", {}, env));
+  assert.deepEqual(failures.points.map(([c, , reason, n]) => [c === config.id ? "paid" : "served", reason, n]).sort(), [["paid", "ok", 1], ["served", "cached", 1]]);
+  assert.deepEqual(failures.configs.map((m) => m.id), [config.id]);
+});
+
 test("the rows a call writes are counted by Costs and Usage as what happened", async () => {
   await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
   const ids = new Map<string, string>();

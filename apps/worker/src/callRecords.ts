@@ -15,6 +15,12 @@ export function zombieBefore(now = Date.now()): string {
   return new Date(now - ZOMBIE_MS).toISOString();
 }
 
+// A call that was sent (the code review's E4, the owner's dec. 15 and 16): not a row served from the record
+// (`served_from`), which a stage gets for an answer it was given from another call's record, at no cost. The statistics
+// leave those out wherever calls are counted as made or paid (Costs, the spending cap, activity, a stage's cost); Usage
+// counts them apart, as "cached" (`OUTCOME`).
+export const SENT = "c.served_from IS NULL";
+
 // A call that has ended, or never will: not running, or running since before the cut-off (`zombieBefore`, as of
 // `now`). The cut-off is written into the SQL, so that a query using it twice binds nothing for it.
 export function endedOrDead(now = Date.now()): string {
@@ -28,15 +34,17 @@ export function endedOrDead(now = Date.now()): string {
 // credentials failed before anything was sent). A 524 is Cloudflare's, not the provider's: it cut off a call the
 // provider may have finished and billed. A call still running counts once it is dead (`endedOrDead`).
 export function unknownCost(now = Date.now()): string {
-  return `((c.input_tokens IS NOT NULL AND c.cost_usd IS NULL) OR (c.input_tokens IS NULL AND (c.http_status IS NULL OR c.http_status < 400 OR c.http_status = 524) AND (c.error_kind IS NOT 'auth' OR c.http_status IS NOT NULL)
-  AND ${endedOrDead(now)}))`;
+  return `(${SENT} AND ((c.input_tokens IS NOT NULL AND c.cost_usd IS NULL) OR (c.input_tokens IS NULL AND (c.http_status IS NULL OR c.http_status < 400 OR c.http_status = 524) AND (c.error_kind IS NOT 'auth' OR c.http_status IS NOT NULL)
+  AND ${endedOrDead(now)})))`;
 }
 
-// How a call ended, as the statistics tell calls apart (`Outcome`, core), for a call row named `c`: "ok", how an answer
+// How a call ended, as the statistics tell calls apart (`Outcome`, core), for a call row named `c`: "cached" for a row
+// served from the record (`SENT`: not a call that was made), "ok", how an answer
 // was unusable, why the call failed (its `error_kind`, "unexpected_model" for another model answering), an error
 // without a kind ("unexpected_stop"), or a call still running ("interrupted": counted only once it is dead). Usage
 // counts every call by it; Costs the paid ones, whose outcomes are a few of these (`CostOutcome`).
 export const OUTCOME = `CASE
+  WHEN c.served_from IS NOT NULL THEN 'cached'
   WHEN c.status = 'running' THEN 'interrupted'
   WHEN c.status IN ('ok', 'cut_off', 'refused', 'unparseable') THEN c.status
   WHEN c.error_kind IS NULL THEN 'unexpected_stop'

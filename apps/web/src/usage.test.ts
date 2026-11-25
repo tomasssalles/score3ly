@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ActivityData, FailureData, ProjectStats } from "./api";
 import { bucketsOf } from "./calendar.ts";
-import { activeHoursText, activeQuarters, createdIn, createdNote, failuresIn, hoursView } from "./usage.ts";
+import { activeHoursText, activeQuarters, createdIn, createdNote, failuresIn, failuresNote, hoursView } from "./usage.ts";
 
 const local = (s: string) => new Date(s).getTime(); // "2026-10-27T10:00" is local time
 
@@ -61,6 +61,8 @@ test("failed calls: counted in the range, for all configs or one, the reasons th
       ["gemini", local("2026-10-21T10:00"), "ok", 4],
       ["gemini", local("2026-10-22T10:00"), "rate_limit", 3],
       ["opus-eu", local("2026-10-22T10:00"), "server", 1],
+      // Answers served from the record (the owner's dec. 16): apart, in no count.
+      ["opus", local("2026-10-22T11:00"), "cached", 5],
     ],
     configs: [
       { id: "opus", name: "Opus", model: "claude-opus-5-5", modelKey: "claude-opus-5-5", modelLabel: "Claude Opus 5.5", createdAt: "", deletedAt: null },
@@ -70,10 +72,13 @@ test("failed calls: counted in the range, for all configs or one, the reasons th
   };
   const range = { start: local("2026-10-20T00:00"), end: local("2026-10-23T00:00") };
   const all = failuresIn(failures, range, null);
-  assert.deepEqual([all.calls, all.failed], [21, 7]);
+  assert.deepEqual([all.calls, all.failed, all.cached], [21, 7, 5]);
+  assert.equal(failuresNote(all), "of 21 calls (33%); 5 answers from the cache");
+  assert.equal(failuresNote({ calls: 0, failed: 0, cached: 1 }), "no calls; 1 answer from the cache");
+  assert.equal(failuresNote({ calls: 495, failed: 20, cached: 0 }), "of 495 calls (4%)");
   assert.deepEqual(all.reasons.map((r) => [r.label, r.calls]), [["Rate limited", 3], ["Overloaded", 2], ["Cut off", 1], ["Server error", 1]]);
   const opus = failuresIn(failures, range, "opus");
-  assert.deepEqual([opus.calls, opus.failed], [13, 3]);
+  assert.deepEqual([opus.calls, opus.failed, opus.cached], [13, 3, 5]);
   // A model: every config of it, whatever the provider.
   const model = failuresIn(failures, range, "model:claude-opus-5-5");
   assert.deepEqual([model.calls, model.failed], [14, 4]);

@@ -3,7 +3,7 @@
 // that change a pipeline (pipeline.ts) apply these.
 
 import type { Context, Hono } from "hono";
-import { COST_WITH_VAT } from "./callRecords.ts";
+import { COST_WITH_VAT, SENT } from "./callRecords.ts";
 import { NO_STAGE, refuse } from "./refusals.ts";
 import { logFields } from "./requestLog.ts";
 import { groupBy, isFurtherReview as furtherReview, RECIPE, stepsOfKind, type Pipeline, type StageModelConfig, type StageStatus } from "@score3ly/core";
@@ -245,7 +245,7 @@ export async function readPipeline(db: D1Database, projectId: string, dev: boole
   const [stages, outputs, dropped, configs] = await db.batch([
     db
       .prepare(
-        `SELECT s.*, e.carried, (SELECT SUM(${COST_WITH_VAT}) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? ORDER BY e.position`,
+        `SELECT s.*, e.carried, (SELECT SUM(${COST_WITH_VAT}) FROM llm_calls c WHERE c.stage_id = s.id AND ${SENT}) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? ORDER BY e.position`,
       )
       .bind(projectId),
     db
