@@ -90,3 +90,49 @@ export async function collectOrphans(env: Env, before: Date): Promise<number> {
   }
   return deleted;
 }
+
+// Removes an unfinished import (docs/database.md, "Exporting and importing a project"; the owner, 2026-11-24): not marked
+// like a deleted project, removed for good, as if it had never been started, so that its calls' costs aren't kept
+// under a project nobody saw, and a retry imports them again under the real one. What it created goes: the project, its
+// pipeline, the stages it copied (all created in it), their outputs, inputs, saves and calls, the model configs it
+// created that nothing else uses by now. What it only pointed to stays as the usual deletion leaves it: the live stages
+// and outputs it reused, the configs it matched; a call it brought back to life is deleted again, with its old
+// deletion time, unless a live output names it by now. The content in R2 goes by the usual orphan collection, with its
+// hour. (A stage or call of an import in progress is never served from the cache, so nothing else refers to them.)
+export async function removeUnfinishedImports(env: Env, key: string, now = new Date()): Promise<number> {
+  const db = env.DB;
+  const { results } = await db.prepare("SELECT id, pdf_sha256 FROM projects WHERE importing = ? AND deleted_at IS NULL").bind(key).all<{ id: string; pdf_sha256: string }>();
+  for (const { id, pdf_sha256: pdf } of results) {
+    const stages = "SELECT id FROM stages WHERE created_in = ?";
+    const outputs = `SELECT id FROM outputs WHERE stage_id IN (${stages})`;
+    await db.batch([
+      db.prepare(`DELETE FROM output_inputs WHERE output_id IN (${outputs}) OR input_id IN (${outputs})`).bind(id, id),
+      db.prepare(`DELETE FROM stage_inputs WHERE stage_id IN (${stages})`).bind(id),
+      db.prepare(`DELETE FROM manual_saves WHERE stage_id IN (${stages})`).bind(id),
+      db.prepare(`DELETE FROM outputs WHERE stage_id IN (${stages})`).bind(id),
+      db.prepare(`DELETE FROM llm_calls WHERE stage_id IN (${stages})`).bind(id),
+      db
+        .prepare(
+          `UPDATE llm_calls SET deleted_at = i.was_deleted_at, imported_at = i.was_imported_at FROM import_ids i
+           WHERE i.project_id = ? AND i.kind = 'call' AND i.was_deleted_at IS NOT NULL AND i.new_id = llm_calls.id AND llm_calls.id NOT IN (${LIVE_CALLS})`,
+        )
+        .bind(id),
+      db.prepare("DELETE FROM dropped_stages WHERE project_id = ?").bind(id),
+      db.prepare("DELETE FROM pipeline_entries WHERE project_id = ?").bind(id),
+      db.prepare("DELETE FROM stages WHERE created_in = ?").bind(id),
+      db
+        .prepare(
+          `DELETE FROM model_configs WHERE id IN (SELECT new_id FROM import_ids WHERE project_id = ? AND kind = 'config' AND made = 1)
+             AND NOT EXISTS (SELECT 1 FROM stages s WHERE s.model_config_id = model_configs.id)
+             AND NOT EXISTS (SELECT 1 FROM llm_calls c WHERE c.model_config_id = model_configs.id)
+             AND NOT EXISTS (SELECT 1 FROM settings WHERE key = 'defaultModelConfigId' AND json_extract(value_json, '$') = model_configs.id)`,
+        )
+        .bind(id),
+      db.prepare("DELETE FROM import_ids WHERE project_id = ?").bind(id),
+      db.prepare("DELETE FROM projects WHERE id = ?").bind(id),
+      db.prepare("DELETE FROM image_fingerprints WHERE pdf_sha256 = ? AND NOT EXISTS (SELECT 1 FROM projects WHERE pdf_sha256 = ? AND deleted_at IS NULL)").bind(pdf, pdf),
+    ]);
+  }
+  if (results.length > 0) await collectOrphans(env, new Date(now.getTime() - ORPHAN_MIN_AGE_MS));
+  return results.length;
+}

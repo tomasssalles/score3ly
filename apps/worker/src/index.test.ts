@@ -2,7 +2,7 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sha256Hex } from "@score3ly/core";
+import { importChunks, importHead, type ProjectExport, sha256Hex } from "@score3ly/core";
 import { testHost, testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { collectOrphans } from "./deletion.ts";
@@ -1967,6 +1967,8 @@ test("every route that changes something about a project declares its lock class
     "DELETE /api/projects/:pid/dropped/:id": "checked",
     "POST /api/projects/:pid/stages/:sid/llm-calls/:callId/unusable": "none",
     "POST /api/projects/:pid/stages/:sid/llm": "none",
+    "POST /api/projects/:id/import/rows": "none",
+    "POST /api/projects/:id/import/finish": "none",
   };
   // Every route under a project but a GET (which changes nothing), with the class its lock middleware declares.
   const declared: Record<string, unknown> = {};
@@ -2083,7 +2085,20 @@ test("deleting a project: a call another project's live output names stays alive
 type ExportJson = Record<string, unknown> & { project: Record<string, unknown>; stages: Record<string, unknown>[]; llm_calls: Record<string, unknown>[]; model_configs: Record<string, unknown>[]; content: string[]; pipeline: Record<string, unknown>[] };
 
 const exportOf = async (id: string) => json<ExportJson>(await app.request(`/api/projects/${id}/export`, {}, env));
-const importOf = (data: unknown) => app.request("/api/projects/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }, env);
+// An import as the browser makes it (docs/database.md, "Exporting and importing a project"): the head, then the rows
+// in chunks, then the end; the content uploaded beforehand by the test. The first refusal, or the end's answer.
+const postJson = (path: string, body: unknown) => app.request(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, env);
+async function importOf(data: ExportJson, options: { chunks?: number } = {}): Promise<Response> {
+  const head = await postJson("/api/projects/import", importHead(data as ProjectExport, await sha256Hex(new TextEncoder().encode(JSON.stringify(data)))));
+  if (!head.ok) return head;
+  const { id } = (await head.clone().json()) as { id: string };
+  for (const chunk of importChunks(data as ProjectExport).slice(0, options.chunks)) {
+    const sent = await postJson(`/api/projects/${id}/import/rows`, chunk);
+    if (!sent.ok) return sent;
+  }
+  if (options.chunks !== undefined) return head;
+  return postJson(`/api/projects/${id}/import/finish`, {});
+}
 const count = async (sql: string, ...values: unknown[]) => (await env.DB.prepare(sql).bind(...values).first<{ n: number }>())!.n;
 
 // A project whose skew stage has a call (with a request and a response in R2) and an output naming it.
@@ -2233,7 +2248,58 @@ test("import: a stage's config names the model config it was mapped to, as its c
   assert.equal(JSON.parse(row!.config_json).modelConfigId, row?.model_config_id);
 });
 
-test("historical exports (fixtures/exports) are imported, each with its whole pipeline", { skip: testHost() === "node" && "until the import is chunked (batch 11, step 6)" }, async () => {
+// The owner's decisions on an unfinished import (2026-11-24): hidden until its last rows are in; at a retry of the same
+// file, removed for good before anything else (not marked like a deleted project): what it created goes, what it only
+// revived or matched is left as the usual deletion leaves it; then the retry imports as if the first attempt hadn't been.
+test("an import that stopped midway is hidden, and removed for good by a retry of the same file, which imports it all once", async () => {
+  const { project } = await projectWithACall("retry.pdf");
+  const data = await exportOf(project.id);
+  // As if from another instance: its stages unknown here, a second call found nowhere, its config with another effort.
+  for (const s of data.stages) if (s.stage_key) s.stage_key = "d".repeat(64);
+  data.llm_calls.push({ ...data.llm_calls[0], id: "call-new", request_key: "new-here", cost_usd: 0.25 });
+  data.model_configs.find((m) => m.id === "paid")!.effort = "low";
+  // The original deleted: its call is marked, and the import brings it back to life.
+  assert.equal((await deleteProject(project.id)).status, 200);
+  const deletedAt = (await env.DB.prepare("SELECT deleted_at FROM llm_calls WHERE id = 'call-retry.pdf'").first<{ deleted_at: string }>())!.deleted_at;
+  assert.ok(deletedAt);
+  const calls = await count("SELECT COUNT(*) AS n FROM llm_calls");
+  const configs = await count("SELECT COUNT(*) AS n FROM model_configs");
+
+  // The first attempt stops after its head and the calls.
+  const first = await json<{ id: string; name: string }>(await importOf(data, { chunks: 1 }));
+  assert.equal(first.name, "retry");
+  assert.deepEqual(await json(await app.request("/api/projects", {}, env)), []);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls WHERE deleted_at IS NULL"), 2); // the new one, the revived one
+  assert.equal(await count("SELECT COUNT(*) AS n FROM model_configs"), configs + 1);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM stages WHERE created_in = ?", first.id) > 0, true);
+
+  // The retry's head removes it first: nothing of it left, the revived call deleted again as it was, then a new start.
+  const key = await sha256Hex(new TextEncoder().encode(JSON.stringify(data)));
+  const head = await postJson("/api/projects/import", importHead(data as ProjectExport, key));
+  assert.equal(head.status, 200);
+  const second = await json<{ id: string; name: string }>(head);
+  assert.notEqual(second.id, first.id);
+  assert.equal(second.name, "retry"); // its name was freed
+  for (const table of ["projects WHERE id", "stages WHERE created_in", "pipeline_entries WHERE project_id", "import_ids WHERE project_id"]) {
+    assert.equal(await count(`SELECT COUNT(*) AS n FROM ${table} = ?`, first.id), 0, table);
+  }
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls"), calls); // the first attempt's new call is gone
+  assert.equal((await env.DB.prepare("SELECT deleted_at FROM llm_calls WHERE id = 'call-retry.pdf'").first<{ deleted_at: string }>())!.deleted_at, deletedAt);
+  assert.equal((await postJson(`/api/projects/${first.id}/import/rows`, importChunks(data as ProjectExport)[0])).status, 409); // the old one can't go on
+  for (const chunk of importChunks(data as ProjectExport)) assert.equal((await postJson(`/api/projects/${second.id}/import/rows`, chunk)).status, 204);
+  assert.equal((await postJson(`/api/projects/${second.id}/import/finish`, {})).status, 201);
+
+  // Each call once: the new one under the imported project, the revived one where it was paid.
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls"), calls + 1);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE c.request_key = 'new-here' AND s.created_in = ?", second.id), 1);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM model_configs"), configs + 1);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM import_ids"), 0);
+  const costs = await json<{ projects: { id: string; costUsd: number }[] }>(await app.request("/api/costs", {}, env));
+  assert.deepEqual(costs.projects.map((p) => [p.id, p.costUsd]).sort(), [[project.id, 0.5], [second.id, 0.25]].sort());
+  assert.deepEqual((await json<{ id: string }[]>(await app.request("/api/projects", {}, env))).map((p) => p.id), [second.id]);
+});
+
+test("historical exports (fixtures/exports) are imported, each with its whole pipeline", async () => {
   const { unzipSync } = await import("fflate");
   const dir = join(workerDir, "../../fixtures/exports");
   const files = readdirSync(dir).filter((f) => f.endsWith(".s3l"));

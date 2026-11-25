@@ -7,12 +7,15 @@
 // is used (no row), a deleted one is brought back to life (its cost stays where it was paid), and only a call found
 // nowhere becomes a new row, which counts like any call. Original times are kept.
 
-import { CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, type Imported, isSha256Hex, type ProjectExport, sameConfigValues } from "@score3ly/core";
+import { CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, IMPORT_CHUNK_ROWS, IMPORT_TABLES, type ImportChunk, type Imported, type ImportHead, isSha256Hex, MISSING_CONTENT_BATCH, type ProjectExport, sameConfigValues } from "@score3ly/core";
 import type { Hono } from "hono";
 import { anyRunning, withModelConfig } from "./pipelineRules.ts";
 import { PLACEHOLDER_ITEM, placeProblem } from "./places.ts";
 import { badRequest, NO_PROJECT, problemText, refuse } from "./refusals.ts";
 import { putChecked } from "./storage.ts";
+import { removeUnfinishedImports } from "./deletion.ts";
+import { notImportingProject, notImportingStage } from "./importing.ts";
+import { lock } from "./versions.ts";
 
 // The export format (`EXPORT_FORMAT`) and what an export holds (`ProjectExport`) are in core (api/projectExport.ts).
 
@@ -180,142 +183,122 @@ async function rowsByIds(db: D1Database, sqlBeforeList: string, ids: string[]): 
   return rows;
 }
 
-// Why an export can't be imported, or null. Checks the shape the import relies on, not every value: the database's
-// own constraints check the rest, and refuse the whole import.
-export function exportProblem(data: unknown): string | null {
+// Why an import's head can't be imported, or null. Checks the shape the import relies on, not every value: the
+// database's own constraints check the rest, and refuse the request.
+export function headProblem(data: unknown): string | null {
   if (typeof data !== "object" || data === null) return "The file holds no project.";
-  const d = data as Partial<ProjectExport>;
+  const d = data as Partial<ImportHead>;
   // (The browser reads the format from the file's manifest first, and says so in its own words, `formatProblem`.)
   if (d.format !== EXPORT_FORMAT) {
     return typeof d.format === "number" && d.format > EXPORT_FORMAT
       ? `The file was exported by a newer version of score3ly (export format ${d.format}); update the app to import it.`
       : `The file's export format (${String(d.format)}) isn't one this version of score3ly reads.`;
   }
-  const arrays = ["pipeline", "stages", "outputs", "output_inputs", "stage_inputs", "llm_calls", "model_configs", "manual_saves", "image_fingerprints", "content"] as const;
-  for (const key of arrays) if (!Array.isArray(d[key])) return `The file is incomplete: no ${key}.`;
+  if (!isSha256Hex(d.key)) return "The import names no file: no 'key'.";
+  for (const key of ["pipeline", "stages", "model_configs"] as const) if (!Array.isArray(d[key]) || !d[key].every(isRow)) return `The file is incomplete: no ${key}.`;
   const p = d.project as Row | undefined;
   if (!p || typeof p.name !== "string" || !isSha256Hex(p.pdf_sha256) || typeof p.pdf_filename !== "string") return "The file is incomplete: no project.";
-  if (!(d.content as unknown[]).every(isSha256Hex)) return "The file's content list is damaged.";
   const stageIds = new Set((d.stages as Row[]).map((s) => s.id));
   if (!(d.pipeline as Row[]).every((e) => stageIds.has(e.stage_id) && Number.isInteger(e.position))) return "The file's pipeline names stages it doesn't hold.";
   return null;
 }
 
-// Imports an export (already checked with `exportProblem`; the PDF and the content already in R2). Returns the new
-// project's id and name, or what is missing.
-export async function importProject(db: D1Database, bucket: R2Bucket, data: ProjectExport, now = new Date()): Promise<Imported | { missing: string }> {
-  const iso = now.toISOString();
-  const pdfSha = data.project.pdf_sha256 as string;
-  // The content isn't checked object by object here (a request may only make so many calls to R2): the browser
-  // uploads what `POST /api/content/missing` names, just before.
-  if (!(await bucket.head(`pdfs/${pdfSha}.pdf`))) return { missing: "the PDF" };
+const isRow = (value: unknown): value is Row => typeof value === "object" && value !== null && !Array.isArray(value);
 
-  // Model configs: one with the same values among those not deleted is used; else one is created (deleted if it was
-  // deleted where it came from), numbered if its name is taken.
-  const configMap = new Map<string, string>();
+// An id map of an import in progress (`import_ids`): an exported row's id → the row here, and whether the import made it.
+type Mapped = { id: string; made: boolean };
+type IdMap = Map<string, Mapped>;
+type IdKind = "config" | "stage" | "output" | "call";
+type NewId = { old_id: string; new_id: string; made: number; was_deleted_at?: string | null; was_imported_at?: string | null };
+
+// The map of a kind, for these exported ids only, or all of them.
+async function idsOf(db: D1Database, projectId: string, kind: IdKind, oldIds?: unknown[]): Promise<IdMap> {
+  const statement =
+    oldIds === undefined
+      ? db.prepare("SELECT old_id, new_id, made FROM import_ids WHERE project_id = ? AND kind = ?").bind(projectId, kind)
+      : db.prepare("SELECT old_id, new_id, made FROM import_ids WHERE project_id = ? AND kind = ? AND old_id IN (SELECT value FROM json_each(?))").bind(projectId, kind, JSON.stringify([...new Set(oldIds)]));
+  const { results } = await statement.all<{ old_id: string; new_id: string; made: number }>();
+  return new Map(results.map((r) => [r.old_id, { id: r.new_id, made: r.made === 1 }]));
+}
+
+function recordIds(db: D1Database, projectId: string, kind: IdKind, ids: NewId[]): D1PreparedStatement[] {
+  if (ids.length === 0) return [];
+  return [
+    insertRows(
+      db,
+      "import_ids",
+      ["project_id", "kind", "old_id", "new_id", "made", "was_deleted_at", "was_imported_at"],
+      ids.map((i) => ({ project_id: projectId, kind, ...i })),
+    ),
+  ];
+}
+
+// Rows into a table in one statement, however many (D1 takes at most 100 bound parameters and so many statements per
+// request): the rows as one JSON value, each column read from it.
+function insertRows(db: D1Database, table: string, columns: readonly string[], rows: Row[], verb = "INSERT"): D1PreparedStatement {
+  return db
+    .prepare(`${verb} INTO ${table} (${columns.join(", ")}) SELECT ${columns.map((c) => `json_extract(value, '$.${c}')`).join(", ")} FROM json_each(?)`)
+    .bind(JSON.stringify(rows.map((row) => pick(row, columns))));
+}
+
+// The head of an import (`ImportHead`, core): first removes an unfinished import of the same file (`importing` holds
+// its key), which also frees its name; then maps the model configs and stages, and makes the project, marked
+// `importing`, with its copied stages and pipeline. The PDF must be stored already. Returns the new project's id and
+// name, or what is missing.
+//
+// Model configs: one with the same values among those not deleted is used; else one is created (deleted if it was
+// deleted where it came from), numbered if its name is taken. Stages: a done stage with the key of a live done stage
+// here is that stage; the others are copied. Original times are kept.
+export async function beginImport(env: Env, data: ImportHead, now = new Date()): Promise<Imported | { missing: string }> {
+  const db = env.DB;
+  const iso = now.toISOString();
+  await removeUnfinishedImports(env, data.key, now);
+  const pdfSha = data.project.pdf_sha256;
+  if (!(await env.PDFS.head(`pdfs/${pdfSha}.pdf`))) return { missing: "the PDF" };
+  const projectId = crypto.randomUUID();
+
+  const configIds: NewId[] = [];
+  const newConfigs: Row[] = [];
   const { results: liveConfigs } = await db.prepare(`SELECT ${CONFIG_COLUMNS.join(", ")} FROM model_configs WHERE deleted_at IS NULL`).all<Row>();
   const takenConfigNames = liveConfigs.map((c) => c.name as string);
-  const statements: D1PreparedStatement[] = [];
   for (const config of data.model_configs) {
     const match = liveConfigs.find((c) => sameConfigValues(c, config));
     if (match) {
-      configMap.set(config.id as string, match.id as string);
+      configIds.push({ old_id: String(config.id), new_id: match.id as string, made: 0 });
       continue;
     }
     const id = crypto.randomUUID();
     const deleted = config.deleted_at ?? null;
     const name = deleted ? String(config.name) : firstFreeName(String(config.name).trim(), takenConfigNames);
     if (!deleted) takenConfigNames.push(name);
-    configMap.set(config.id as string, id);
-    statements.push(insert(db, "model_configs", { ...pick(config, CONFIG_COLUMNS), id, name, deleted_at: deleted }));
+    configIds.push({ old_id: String(config.id), new_id: id, made: 1 });
+    newConfigs.push({ ...config, id, name, deleted_at: deleted });
   }
+  const configMap = new Map(configIds.map((c) => [c.old_id, c.new_id]));
 
-  // Stages: a done stage with the key of a live done stage here is that stage; the others are copied.
-  const projectId = crypto.randomUUID();
-  const stageMap = new Map<string, string>();
-  const reused = new Set<string>(); // exported stage ids served by a stage here
-  const outputMap = new Map<string, string>();
-  const keyed = data.stages.filter((s) => s.status === "done" && typeof s.stage_key === "string");
-  const matches = keyed.length === 0 ? [] : await db.batch<{ id: string }>(keyed.map((s) => db.prepare("SELECT id FROM stages WHERE stage_key = ? AND status = 'done' AND deleted_at IS NULL LIMIT 1").bind(s.stage_key)));
-  keyed.forEach((s, i) => {
-    const here = matches[i].results[0]?.id;
-    if (here) {
-      stageMap.set(s.id as string, here);
-      reused.add(s.id as string);
-    }
+  // One look for every done stage's key.
+  const keys = [...new Set(data.stages.filter((s) => s.status === "done" && typeof s.stage_key === "string").map((s) => s.stage_key as string))];
+  const { results: matches } =
+    keys.length === 0
+      ? { results: [] }
+      : await db
+          .prepare(
+            `SELECT j.value AS stage_key, (SELECT s.id FROM stages s WHERE s.stage_key = j.value AND s.status = 'done' AND s.deleted_at IS NULL AND ${notImportingProject("s.created_in")} LIMIT 1) AS id FROM json_each(?) j`,
+          )
+          .bind(JSON.stringify(keys))
+          .all<{ stage_key: string; id: string | null }>();
+  const here = new Map(matches.filter((m) => m.id).map((m) => [m.stage_key, m.id as string]));
+  const stageIds: NewId[] = data.stages.map((s) => {
+    const found = s.status === "done" && typeof s.stage_key === "string" ? here.get(s.stage_key) : undefined;
+    return found ? { old_id: String(s.id), new_id: found, made: 0 } : { old_id: String(s.id), new_id: crypto.randomUUID(), made: 1 };
   });
-  if (reused.size > 0) {
-    // Their outputs, by what they are about, stand for the exported ones (the same key: the same outputs).
-    const here = await rowsByIds(db, "SELECT id, stage_id, item, type FROM outputs WHERE stage_id IN", [...new Set([...reused].map((id) => stageMap.get(id)!))]);
-    for (const o of data.outputs) {
-      if (!reused.has(o.stage_id as string)) continue;
-      const same = here.find((h) => h.stage_id === stageMap.get(o.stage_id as string) && h.item === o.item && h.type === o.type);
-      if (same) outputMap.set(o.id as string, same.id as string);
-    }
-  }
-  for (const s of data.stages) if (!stageMap.has(s.id as string)) stageMap.set(s.id as string, crypto.randomUUID());
-  for (const o of data.outputs) if (!reused.has(o.stage_id as string)) outputMap.set(o.id as string, crypto.randomUUID());
-
-  // Calls of the copied stages: a live call with the same request key is used; else a deleted one is brought back to
-  // life; else a new row. Calls that didn't succeed are never served from the cache: always new rows, as in a run.
-  // (A reused stage's calls are only looked up, for the copied outputs that may name them; they are never copied.)
-  const callMap = new Map<string, string>();
-  const callStatements: D1PreparedStatement[] = []; // after the stages they belong to (a foreign key)
-  const calls = data.llm_calls.filter((c) => !reused.has(c.stage_id as string) && c.stage_id !== null);
-  const okCalls = data.llm_calls.filter((c) => c.status === "ok" && c.response_sha256);
-  const found =
-    okCalls.length === 0
-      ? []
-      : await db.batch<{ id: string; deleted_at: string | null }>(
-          okCalls.map((c) =>
-            db
-              .prepare("SELECT id, deleted_at FROM llm_calls WHERE request_key = ? AND status = 'ok' ORDER BY deleted_at IS NOT NULL, started_at LIMIT 1")
-              .bind(c.request_key),
-          ),
-        );
-  okCalls.forEach((c, i) => {
-    const here = found[i].results[0];
-    if (!here) return;
-    if (here.deleted_at && reused.has(c.stage_id as string)) return;
-    callMap.set(c.id as string, here.id);
-    // A deleted call comes back to life: its request and response stored again, its cost where it was paid.
-    if (here.deleted_at) {
-      callStatements.push(
-        // A file that knows the call's place gives it to a row that may not have it yet (made before migration 0004).
-        c.item !== undefined && c.round !== undefined
-          ? db.prepare("UPDATE llm_calls SET deleted_at = NULL, imported_at = ?, request_sha256 = ?, response_sha256 = ?, item = ?, round = ? WHERE id = ?").bind(iso, c.request_sha256 ?? null, c.response_sha256, c.item, c.round, here.id)
-          : db.prepare("UPDATE llm_calls SET deleted_at = NULL, imported_at = ?, request_sha256 = ?, response_sha256 = ? WHERE id = ?").bind(iso, c.request_sha256 ?? null, c.response_sha256, here.id),
-      );
-    }
-  });
-  for (const c of calls) {
-    if (callMap.has(c.id as string)) continue;
-    const id = crypto.randomUUID();
-    callMap.set(c.id as string, id);
-    callStatements.push(
-      insert(db, "llm_calls", {
-        ...pick(c, CALL_COLUMNS),
-        id,
-        stage_id: stageMap.get(c.stage_id as string)!,
-        model_config_id: configMap.get(c.model_config_id as string) ?? c.model_config_id,
-        // Files exported before VAT was recorded (docs/llm.md, "VAT") have no rate: their calls had none.
-        vat_percent: c.vat_percent ?? 0,
-        // Files exported before calls had a place (docs/overview.md §12) have none: the placeholders, as for this
-        // instance's own older calls.
-        item: c.item ?? PLACEHOLDER_ITEM,
-        round: c.round ?? 0,
-        imported_at: iso,
-      }),
-    );
-  }
-
-  // The copied stages, their outputs, inputs and saves.
-  for (const s of data.stages) {
-    if (reused.has(s.id as string)) continue;
-    const modelConfigId = s.model_config_id ? (configMap.get(s.model_config_id as string) ?? null) : null;
-    statements.push(
-      insert(db, "stages", {
-        ...pick(s, STAGE_COLUMNS),
+  const stageMap = new Map(stageIds.map((s) => [s.old_id, s.new_id]));
+  const copied = data.stages
+    .filter((_, i) => stageIds[i].made === 1)
+    .map((s) => {
+      const modelConfigId = s.model_config_id ? (configMap.get(s.model_config_id as string) ?? null) : null;
+      return {
+        ...s,
         id: stageMap.get(s.id as string)!,
         created_in: projectId,
         model_config_id: modelConfigId,
@@ -323,60 +306,29 @@ export async function importProject(db: D1Database, bucket: R2Bucket, data: Proj
         config_json: modelConfigId ? withModelConfig(s.config_json as string | null, modelConfigId) : s.config_json,
         replaces_stage_id: s.replaces_stage_id ? (stageMap.get(s.replaces_stage_id as string) ?? null) : null,
         imported_at: iso,
-      }),
-    );
-  }
-  statements.push(...callStatements);
-  // Parents before the outputs that correct them (a foreign key).
-  const copied = data.outputs.filter((o) => !reused.has(o.stage_id as string));
-  const ordered = [...copied.filter((o) => !o.parent_output_id), ...copied.filter((o) => o.parent_output_id)];
-  for (const o of ordered) {
-    statements.push(
-      insert(db, "outputs", {
-        ...pick(o, OUTPUT_COLUMNS),
-        id: outputMap.get(o.id as string)!,
-        stage_id: stageMap.get(o.stage_id as string)!,
-        call_id: o.call_id ? (callMap.get(o.call_id as string) ?? null) : null,
-        parent_output_id: o.parent_output_id ? (outputMap.get(o.parent_output_id as string) ?? null) : null,
-      }),
-    );
-  }
-  const outputStage = new Map(data.outputs.map((o) => [o.id, o.stage_id as string]));
-  for (const oi of data.output_inputs) {
-    if (reused.has(outputStage.get(oi.output_id) ?? "")) continue;
-    const output = outputMap.get(oi.output_id as string);
-    const input = outputMap.get(oi.input_id as string);
-    if (output && input) statements.push(db.prepare("INSERT OR IGNORE INTO output_inputs (output_id, input_id) VALUES (?, ?)").bind(output, input));
-  }
-  for (const si of data.stage_inputs) {
-    if (reused.has(si.stage_id as string)) continue;
-    const output = outputMap.get(si.output_id as string);
-    if (output) statements.push(db.prepare("INSERT OR IGNORE INTO stage_inputs (stage_id, output_id) VALUES (?, ?)").bind(stageMap.get(si.stage_id as string)!, output));
-  }
-  for (const save of data.manual_saves) {
-    if (reused.has(save.stage_id as string)) continue;
-    statements.push(db.prepare("INSERT INTO manual_saves (stage_id, quarter, saves) VALUES (?, ?, ?)").bind(stageMap.get(save.stage_id as string)!, save.quarter, save.saves));
-  }
-  for (const f of data.image_fingerprints) statements.push(insert(db, "image_fingerprints", pick(f, FINGERPRINT_COLUMNS), "INSERT OR IGNORE"));
+      };
+    });
+  const pipeline = data.pipeline.map((e) => ({ project_id: projectId, position: e.position, stage_id: stageMap.get(e.stage_id as string)!, carried: e.carried ? 1 : 0 }));
 
-  // The project, under its exported name (numbered if taken), and its pipeline. One transaction; another project may
-  // take the name meanwhile: then look again.
+  // The project, under its exported name (numbered if taken), marked `importing`, with its stages and pipeline; another
+  // project may take the name meanwhile: then look again.
   const base = String(data.project.name).trim() || "Untitled";
+  const p = data.project;
   for (let attempt = 0; ; attempt++) {
     const { results } = await db.prepare("SELECT name FROM projects WHERE deleted_at IS NULL").all<{ name: string }>();
     const name = firstFreeName(base, results.map((r) => r.name));
-    const p = data.project;
     try {
       await db.batch([
         db
           .prepare(
-            "INSERT INTO projects (id, name, pdf_sha256, pdf_filename, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at, imported_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO projects (id, name, pdf_sha256, pdf_filename, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at, imported_at, importing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           )
-          .bind(projectId, name, pdfSha, p.pdf_filename, p.run_mode === "manual" ? "manual" : "auto", Number(p.next_issue_number) || 1, p.created_at ?? iso, p.last_modified_at ?? iso, iso, iso),
-        ...statements,
-        ...data.pipeline.map((e) =>
-          db.prepare("INSERT INTO pipeline_entries (project_id, position, stage_id, carried) VALUES (?, ?, ?, ?)").bind(projectId, e.position, stageMap.get(e.stage_id as string)!, e.carried ? 1 : 0),
-        ),
+          .bind(projectId, name, pdfSha, p.pdf_filename, p.run_mode === "manual" ? "manual" : "auto", Number(p.next_issue_number) || 1, p.created_at ?? iso, p.last_modified_at ?? iso, iso, iso, data.key),
+        ...(newConfigs.length > 0 ? [insertRows(db, "model_configs", CONFIG_COLUMNS, newConfigs)] : []),
+        ...(copied.length > 0 ? [insertRows(db, "stages", [...STAGE_COLUMNS, "created_in", "imported_at"], copied)] : []),
+        ...(pipeline.length > 0 ? [insertRows(db, "pipeline_entries", ["project_id", "position", "stage_id", "carried"], pipeline)] : []),
+        ...recordIds(db, projectId, "config", configIds),
+        ...recordIds(db, projectId, "stage", stageIds),
       ]);
       return { id: projectId, name };
     } catch (err) {
@@ -385,13 +337,150 @@ export async function importProject(db: D1Database, bucket: R2Bucket, data: Proj
   }
 }
 
-function pick(row: Row, columns: readonly string[]): Row {
-  return Object.fromEntries(columns.map((c) => [c, row[c] ?? null]));
+// The project of an import in progress, or null.
+async function importing(db: D1Database, projectId: string): Promise<{ name: string } | null> {
+  return db.prepare("SELECT name FROM projects WHERE id = ? AND importing IS NOT NULL AND deleted_at IS NULL").bind(projectId).first<{ name: string }>();
 }
 
-function insert(db: D1Database, table: string, row: Row, verb = "INSERT"): D1PreparedStatement {
-  const columns = Object.keys(row);
-  return db.prepare(`${verb} INTO ${table} (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`).bind(...columns.map((c) => row[c] ?? null));
+// A chunk of an import's rows (`ImportChunk`, core), after its head: mapped to the rows here, and written in a few
+// statements. Rows of stages the head found here (reused) aren't copied: their outputs are only looked up, by what they
+// are about, for what refers to them.
+export async function importChunk(db: D1Database, projectId: string, chunk: ImportChunk, now = new Date()): Promise<void> {
+  const iso = now.toISOString();
+  const { table, rows } = chunk;
+  const stages = table === "image_fingerprints" ? new Map() : await idsOf(db, projectId, "stage");
+  const copiedStage = (id: unknown) => stages.get(id as string)?.made === true;
+  const reusedStage = (id: unknown) => stages.get(id as string)?.made === false;
+  const statements: D1PreparedStatement[] = [];
+
+  if (table === "llm_calls") {
+    // A live call with the same request key is used; else a deleted one is brought back to life (its cost stays where
+    // it was paid); else a new row, which counts like any call. Calls that didn't succeed are never served from the
+    // cache: always new rows, as in a run. (A reused stage's calls are only looked up, for the copied outputs that may
+    // name them; they are never copied.)
+    const configs = await idsOf(db, projectId, "config");
+    const ok = rows.filter((c) => c.status === "ok" && c.response_sha256);
+    const { results: found } =
+      ok.length === 0
+        ? { results: [] }
+        : await db
+            .prepare(
+              `SELECT j.key AS i, c.id, c.deleted_at, c.imported_at FROM json_each(?) j JOIN llm_calls c ON c.id = (SELECT id FROM llm_calls WHERE request_key = j.value AND status = 'ok' AND ${notImportingStage("stage_id")} ORDER BY deleted_at IS NOT NULL, started_at LIMIT 1)`,
+            )
+            .bind(JSON.stringify(ok.map((c) => c.request_key)))
+            .all<{ i: number; id: string; deleted_at: string | null; imported_at: string | null }>();
+    const ids: NewId[] = [];
+    const revived: Row[] = [];
+    for (const f of found) {
+      const c = ok[f.i];
+      if (f.deleted_at && reusedStage(c.stage_id)) continue;
+      ids.push({ old_id: String(c.id), new_id: f.id, made: 0, was_deleted_at: f.deleted_at, was_imported_at: f.imported_at });
+      // A file that knows the call's place gives it to a row that may not have it yet (made before migration 0004).
+      if (f.deleted_at) revived.push({ id: f.id, request_sha256: c.request_sha256 ?? null, response_sha256: c.response_sha256, item: c.item !== undefined && c.round !== undefined ? c.item : null, round: c.item !== undefined && c.round !== undefined ? c.round : null });
+    }
+    const mapped = new Set(ids.map((i) => i.old_id));
+    const added: Row[] = [];
+    for (const c of rows) {
+      if (mapped.has(String(c.id)) || !copiedStage(c.stage_id)) continue;
+      const id = crypto.randomUUID();
+      ids.push({ old_id: String(c.id), new_id: id, made: 1 });
+      added.push({
+        ...c,
+        id,
+        stage_id: stages.get(c.stage_id as string)!.id,
+        model_config_id: configs.get(c.model_config_id as string)?.id ?? c.model_config_id,
+        // Files exported before VAT was recorded (docs/llm.md, "VAT") have no rate: their calls had none.
+        vat_percent: c.vat_percent ?? 0,
+        // Files exported before calls had a place (docs/overview.md §12) have none: the placeholders, as for this
+        // instance's own older calls.
+        item: c.item ?? PLACEHOLDER_ITEM,
+        round: c.round ?? 0,
+        imported_at: iso,
+      });
+    }
+    if (revived.length > 0) {
+      statements.push(
+        db
+          .prepare(
+            `UPDATE llm_calls SET deleted_at = NULL, imported_at = ?, request_sha256 = j.request_sha256, response_sha256 = j.response_sha256, item = COALESCE(j.item, llm_calls.item), round = COALESCE(j.round, llm_calls.round)
+             FROM (SELECT json_extract(value, '$.id') AS id, json_extract(value, '$.request_sha256') AS request_sha256, json_extract(value, '$.response_sha256') AS response_sha256, json_extract(value, '$.item') AS item, json_extract(value, '$.round') AS round FROM json_each(?)) AS j
+             WHERE llm_calls.id = j.id`,
+          )
+          .bind(iso, JSON.stringify(revived)),
+      );
+    }
+    if (added.length > 0) statements.push(insertRows(db, "llm_calls", [...CALL_COLUMNS, "imported_at"], added));
+    statements.push(...recordIds(db, projectId, "call", ids));
+  } else if (table === "outputs") {
+    const calls = await idsOf(db, projectId, "call", rows.filter((o) => o.call_id).map((o) => o.call_id));
+    const outputs = await idsOf(db, projectId, "output", rows.filter((o) => o.parent_output_id).map((o) => o.parent_output_id));
+    const ids: NewId[] = [];
+    // A reused stage's outputs, by what they are about, stand for the exported ones (the same key: the same outputs).
+    const reused = rows.filter((o) => reusedStage(o.stage_id));
+    if (reused.length > 0) {
+      const { results } = await db
+        .prepare(
+          "SELECT json_extract(j.value, '$.id') AS old_id, o.id AS new_id FROM json_each(?) j JOIN outputs o ON o.stage_id = json_extract(j.value, '$.stage') AND o.item = json_extract(j.value, '$.item') AND o.type = json_extract(j.value, '$.type')",
+        )
+        .bind(JSON.stringify(reused.map((o) => ({ id: o.id, stage: stages.get(o.stage_id as string)!.id, item: o.item, type: o.type }))))
+        .all<{ old_id: string; new_id: string }>();
+      for (const r of results) ids.push({ old_id: r.old_id, new_id: r.new_id, made: 0 });
+    }
+    const copied = rows.filter((o) => copiedStage(o.stage_id));
+    for (const o of copied) ids.push({ old_id: String(o.id), new_id: crypto.randomUUID(), made: 1 });
+    for (const i of ids) outputs.set(i.old_id, { id: i.new_id, made: i.made === 1 });
+    const added = copied.map((o) => ({
+      ...o,
+      id: outputs.get(o.id as string)!.id,
+      stage_id: stages.get(o.stage_id as string)!.id,
+      call_id: o.call_id ? (calls.get(o.call_id as string)?.id ?? null) : null,
+      parent_output_id: o.parent_output_id ? (outputs.get(o.parent_output_id as string)?.id ?? null) : null,
+    }));
+    if (added.length > 0) statements.push(insertRows(db, "outputs", OUTPUT_COLUMNS, added));
+    statements.push(...recordIds(db, projectId, "output", ids));
+  } else if (table === "output_inputs") {
+    const outputs = await idsOf(db, projectId, "output", rows.flatMap((oi) => [oi.output_id, oi.input_id]));
+    const links = rows
+      .filter((oi) => outputs.get(oi.output_id as string)?.made && outputs.has(oi.input_id as string))
+      .map((oi) => ({ output_id: outputs.get(oi.output_id as string)!.id, input_id: outputs.get(oi.input_id as string)!.id }));
+    if (links.length > 0) statements.push(insertRows(db, "output_inputs", ["output_id", "input_id"], links, "INSERT OR IGNORE"));
+  } else if (table === "stage_inputs") {
+    const outputs = await idsOf(db, projectId, "output", rows.map((si) => si.output_id));
+    const links = rows
+      .filter((si) => copiedStage(si.stage_id) && outputs.has(si.output_id as string))
+      .map((si) => ({ stage_id: stages.get(si.stage_id as string)!.id, output_id: outputs.get(si.output_id as string)!.id }));
+    if (links.length > 0) statements.push(insertRows(db, "stage_inputs", ["stage_id", "output_id"], links, "INSERT OR IGNORE"));
+  } else if (table === "manual_saves") {
+    const saves = rows.filter((save) => copiedStage(save.stage_id)).map((save) => ({ ...save, stage_id: stages.get(save.stage_id as string)!.id }));
+    if (saves.length > 0) statements.push(insertRows(db, "manual_saves", ["stage_id", "quarter", "saves"], saves));
+  } else {
+    statements.push(insertRows(db, "image_fingerprints", FINGERPRINT_COLUMNS, rows, "INSERT OR IGNORE"));
+  }
+  if (statements.length > 0) await db.batch(statements);
+}
+
+// The last request of an import: the project is unmarked, and shows; its id map goes.
+export async function finishImport(db: D1Database, projectId: string): Promise<Imported | null> {
+  const project = await importing(db, projectId);
+  if (!project) return null;
+  await db.batch([
+    db.prepare("UPDATE projects SET importing = NULL WHERE id = ?").bind(projectId),
+    db.prepare("DELETE FROM import_ids WHERE project_id = ?").bind(projectId),
+  ]);
+  return { id: projectId, name: project.name };
+}
+
+function chunkProblem(data: unknown): string | null {
+  const d = data as Partial<ImportChunk> | null;
+  if (!d || !(IMPORT_TABLES as readonly unknown[]).includes(d.table)) return `expected a 'table' of ${IMPORT_TABLES.join(", ")}`;
+  if (!Array.isArray(d.rows) || !d.rows.every(isRow) || d.rows.length > IMPORT_CHUNK_ROWS) return `expected 'rows', at most ${IMPORT_CHUNK_ROWS}`;
+  return null;
+}
+
+const IMPORT_GONE = "The import can't go on: the project it was making isn't there any more (the file was imported again meanwhile, maybe in another tab). Import the file again.";
+
+function pick(row: Row, columns: readonly string[]): Row {
+  return Object.fromEntries(columns.map((c) => [c, row[c] ?? null]));
 }
 
 export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
@@ -404,12 +493,12 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
     return c.json<ProjectExport>(data);
   });
 
-  // Which of these content objects aren't stored yet, so that an import uploads only those. Each is one call to R2, of which a
-  // request may make only so many: the browser asks for at most 200 at a time.
+  // Which of these content objects aren't stored yet, so that an import uploads only those. Each is one look into R2,
+  // about 0.3 ms of a Worker's CPU: at most MISSING_CONTENT_BATCH (20) per request (the owner, 2026-11-24, E1).
   app.post("/api/content/missing", async (c) => {
     const body = (await c.req.json().catch(() => null)) as { sha256s?: unknown } | null;
-    if (!Array.isArray(body?.sha256s) || !body.sha256s.every(isSha256Hex) || body.sha256s.length > 200) {
-      return badRequest(c, "expected 'sha256s', at most 200 SHA-256s in lowercase hex");
+    if (!Array.isArray(body?.sha256s) || !body.sha256s.every(isSha256Hex) || body.sha256s.length > MISSING_CONTENT_BATCH) {
+      return badRequest(c, `expected 'sha256s', at most ${MISSING_CONTENT_BATCH} SHA-256s in lowercase hex`);
     }
     const missing: string[] = [];
     for (const sha of body.sha256s as string[]) if (!(await c.env.PDFS.head(`content/${sha}`))) missing.push(sha);
@@ -426,13 +515,32 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
     return c.body(null, 204);
   });
 
-  // Imports a project from its export's rows (the PDF and the content uploaded first).
+  // An import's head (the PDF uploaded first): an unfinished import of the same file removed, then the project made,
+  // hidden until its import finishes. Its content and rows follow (`ImportHead`, core).
   app.post("/api/projects/import", async (c) => {
     const data = await c.req.json().catch(() => null);
-    const problem = exportProblem(data);
+    const problem = headProblem(data);
     if (problem) return refuse(c, 400, problemText(problem));
-    const result = await importProject(c.env.DB, c.env.PDFS, data as ProjectExport);
+    const result = await beginImport(c.env, data as ImportHead);
     if ("missing" in result) return refuse(c, 409, `The project can't be imported yet: some of what it needs isn't on the server. Try again. Details: upload ${result.missing} first.`, "missing");
+    return c.json<Imported>(result);
+  });
+
+  // A chunk of an import's rows, after its head and its content.
+  app.post("/api/projects/:id/import/rows", lock("none"), async (c) => {
+    const data = await c.req.json().catch(() => null);
+    const problem = chunkProblem(data);
+    if (problem) return badRequest(c, problem);
+    const projectId = c.req.param("id");
+    if (!(await importing(c.env.DB, projectId))) return refuse(c, 409, IMPORT_GONE, "missing");
+    await importChunk(c.env.DB, projectId, data as ImportChunk);
+    return c.body(null, 204);
+  });
+
+  // The end of an import: the project shows.
+  app.post("/api/projects/:id/import/finish", lock("none"), async (c) => {
+    const result = await finishImport(c.env.DB, c.req.param("id"));
+    if (!result) return refuse(c, 409, IMPORT_GONE, "missing");
     return c.json<Imported>(result, 201);
   });
 }
