@@ -10,7 +10,7 @@
 import { canonicalJson, CONFIG_VALUES, EXPORT_FORMAT, type ExportRow, firstFreeName, IMPORT_CHUNK_ROWS, IMPORT_TABLES, type ImportChunk, type Imported, type ImportHead, isSha256Hex, type ProjectExport, sameConfigValues } from "@score3ly/core";
 import type { Hono } from "hono";
 import { anyRunning, withModelConfig } from "./pipelineRules.ts";
-import { PLACEHOLDER_ITEM, placeProblem } from "./places.ts";
+import { placeOf, placeProblem } from "./places.ts";
 import { badRequest, NO_PROJECT, problemText, refuse } from "./refusals.ts";
 import { pdfKey } from "./storage.ts";
 import { insertProject } from "./projects.ts";
@@ -81,6 +81,7 @@ const CALL_COLUMNS = [
   "price_json",
   "item",
   "round",
+  "served_from", // the call it was served from (the code review's E4), one of the file's calls
   "started_at",
   "finished_at",
 ] as const;
@@ -105,9 +106,14 @@ const list = (columns: readonly string[], alias: string) => columns.map((c) => `
 const PIPELINE_STAGES = "SELECT stage_id FROM pipeline_entries WHERE project_id = ?";
 
 // The rows of a project's current pipeline (docs/database.md, "Exporting and importing a project"): its stages, whatever
-// their state, with their outputs, inputs, calls, the calls their outputs were served from, their manual saves, the
-// model configs of those stages and calls, and the PDF's fingerprints. Links to anything outside are cut. Null when no
-// such project; "running" while a stage of it runs; `{ problem }` when a call has no place yet (`placeProblem`).
+// their state, with their outputs, inputs, calls, manual saves, the model configs of those stages and calls, and the
+// PDF's fingerprints. Links to anything outside are cut. Null when no such project; "running" while a stage of it runs;
+// `{ problem }` when a call has no place (`placeProblem`).
+//
+// A stage's calls are its own rows (the code review's E4), those served from the record included. A row served from a
+// call the file doesn't hold (another project's, a replaced stage's) goes as that call, with its cost, so that an
+// import that finds it nowhere has the call that was paid for; the first row served from it, that is: the others
+// name that one.
 export async function exportProject(db: D1Database, projectId: string, now = Date.now()): Promise<ProjectExport | null | "running" | { problem: string }> {
   const project = await db
     .prepare("SELECT name, pdf_sha256, pdf_filename, page_count, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at FROM projects WHERE id = ? AND deleted_at IS NULL")
@@ -127,26 +133,17 @@ export async function exportProject(db: D1Database, projectId: string, now = Dat
     db
       .prepare(`SELECT si.stage_id, si.output_id FROM stage_inputs si JOIN outputs o ON o.id = si.output_id WHERE si.stage_id IN (${PIPELINE_STAGES}) AND o.stage_id IN (${PIPELINE_STAGES})`)
       .bind(projectId, projectId),
-    // The stages' own calls, and those their outputs were served from (another stage's, maybe another project's).
-    db
-      .prepare(
-        `SELECT ${list(CALL_COLUMNS, "c")} FROM llm_calls c WHERE c.stage_id IN (${PIPELINE_STAGES}) OR c.id IN (SELECT call_id FROM outputs WHERE call_id IS NOT NULL AND stage_id IN (${PIPELINE_STAGES}))`,
-      )
-      .bind(projectId, projectId),
+    db.prepare(`SELECT ${list(CALL_COLUMNS, "c")} FROM llm_calls c WHERE c.stage_id IN (${PIPELINE_STAGES}) ORDER BY c.started_at, c.id`).bind(projectId),
     db.prepare(`SELECT stage_id, quarter, saves FROM manual_saves WHERE stage_id IN (${PIPELINE_STAGES})`).bind(projectId),
     db.prepare(`SELECT ${list(FINGERPRINT_COLUMNS, "f")} FROM image_fingerprints f WHERE f.pdf_sha256 = ?`).bind(project.pdf_sha256),
   ]);
-  const stageIds = new Set(stages.results.map((s) => s.id as string));
-  const outputIds = new Set(outputs.results.map((o) => o.id as string));
-  // A call served to an output from another stage belongs, in the export, to the stage of the first output naming it:
-  // imported where nothing matches it, it is that stage's call, as a run here would have made it.
-  const servedTo = new Map<string, string>();
-  for (const o of outputs.results) if (o.call_id && !servedTo.has(o.call_id as string)) servedTo.set(o.call_id as string, o.stage_id as string);
   for (const c of calls.results) {
     const problem = placeProblem(c);
     if (problem) return { problem };
   }
-  const exportedCalls = calls.results.map((c) => (stageIds.has(c.stage_id as string) ? c : { ...c, stage_id: servedTo.get(c.id as string) ?? null }));
+  const stageIds = new Set(stages.results.map((s) => s.id as string));
+  const outputIds = new Set(outputs.results.map((o) => o.id as string));
+  const exportedCalls = await withSources(db, calls.results);
   const configIds = new Set<string>();
   for (const s of stages.results) if (s.model_config_id) configIds.add(s.model_config_id as string);
   for (const c of exportedCalls) configIds.add(c.model_config_id as string);
@@ -173,6 +170,26 @@ export async function exportProject(db: D1Database, projectId: string, now = Dat
     image_fingerprints: fingerprints.results,
     content: [...content].sort(),
   };
+}
+
+// The stages' calls (in the order they started) as the file holds them: a row served from a call the file doesn't hold
+// takes that call's columns (its model config, request, answer, tokens, cost and times), keeping its own id, stage and
+// place, and no `served_from`, once per call; the other rows served from that call name the one that took its place.
+// The calls that were sent come first, before those served from them.
+async function withSources(db: D1Database, calls: Row[]): Promise<Row[]> {
+  const ids = new Set(calls.map((c) => c.id as string));
+  const outside = [...new Set(calls.filter((c) => c.served_from && !ids.has(c.served_from as string)).map((c) => c.served_from as string))];
+  const sources = new Map((outside.length === 0 ? [] : await rowsByIds(db, `SELECT ${list(CALL_COLUMNS, "c")} FROM llm_calls c WHERE c.id IN`, outside)).map((c) => [c.id as string, c]));
+  const standIn = new Map<string, string>(); // a call outside → the row that takes its place
+  const rows = calls.map((c) => {
+    const source = c.served_from ? sources.get(c.served_from as string) : undefined;
+    if (!source) return c;
+    const taken = standIn.get(source.id as string);
+    if (taken) return { ...c, served_from: taken };
+    standIn.set(source.id as string, c.id as string);
+    return { ...source, id: c.id, stage_id: c.stage_id, item: c.item, round: c.round, served_from: null };
+  });
+  return [...rows.filter((c) => !c.served_from), ...rows.filter((c) => c.served_from)];
 }
 
 // Rows whose id is among `ids`, in chunks (D1 takes at most 100 parameters per statement).
@@ -222,6 +239,19 @@ async function idsOf(db: D1Database, projectId: string, kind: IdKind, oldIds?: u
       : db.prepare("SELECT old_id, new_id, made FROM import_ids WHERE project_id = ? AND kind = ? AND old_id IN (SELECT value FROM json_each(?))").bind(projectId, kind, JSON.stringify([...new Set(oldIds)]));
   const { results } = await statement.all<{ old_id: string; new_id: string; made: number }>();
   return new Map(results.map((r) => [r.old_id, { id: r.new_id, made: r.made === 1 }]));
+}
+
+// What the file's calls with these ids became here, as the call that was sent: the row an import made or matched, or
+// the call a row it made was served from.
+async function sourcesOf(db: D1Database, projectId: string, oldIds: unknown[]): Promise<Map<string, string>> {
+  if (oldIds.length === 0) return new Map();
+  const { results } = await db
+    .prepare(
+      "SELECT i.old_id, COALESCE(c.served_from, c.id) AS source FROM import_ids i JOIN llm_calls c ON c.id = i.new_id WHERE i.project_id = ? AND i.kind = 'call' AND i.old_id IN (SELECT value FROM json_each(?))",
+    )
+    .bind(projectId, JSON.stringify([...new Set(oldIds)]))
+    .all<{ old_id: string; source: string }>();
+  return new Map(results.map((r) => [r.old_id, r.source]));
 }
 
 function recordIds(db: D1Database, projectId: string, kind: IdKind, ids: NewId[]): D1PreparedStatement[] {
@@ -350,7 +380,7 @@ async function importing(db: D1Database, projectId: string): Promise<{ name: str
 // A chunk of an import's rows (`ImportChunk`, core), after its head: mapped to the rows here, and written in a few
 // statements. Rows of stages the head found here (reused) aren't copied: their outputs are only looked up, by what they
 // are about, for what refers to them.
-export async function importChunk(db: D1Database, projectId: string, chunk: ImportChunk, now = new Date()): Promise<void> {
+export async function importChunk(db: D1Database, projectId: string, chunk: ImportChunk, now = new Date()): Promise<{ problem: string } | null> {
   const iso = now.toISOString();
   const { table, rows } = chunk;
   const stages = table === "image_fingerprints" ? new Map() : await idsOf(db, projectId, "stage");
@@ -359,62 +389,87 @@ export async function importChunk(db: D1Database, projectId: string, chunk: Impo
   const statements: D1PreparedStatement[] = [];
 
   if (table === "llm_calls") {
-    // A live call with the same request key is used; else a deleted one is brought back to life (its cost stays where
-    // it was paid); else a new row, which counts like any call. Calls that didn't succeed are never served from the
-    // cache: always new rows, as in a run. (A reused stage's calls are only looked up, for the copied outputs that may
-    // name them; they are never copied.)
+    // Every call of a copied stage becomes a row of it (the code review's E4). A call that succeeded is looked up first:
+    // one the file says was served from another of its calls is served here from what that one became; else a call
+    // that was sent with the same request key, live, serves it; else a deleted one is brought back to life (its cost
+    // stays where it was paid) and serves it; else it is a new row, which counts like any call. Calls that didn't
+    // succeed are never served from the cache: always new rows, as in a run. A reused stage's calls are only looked up,
+    // for the rows the file says were served from them; they are never copied.
     const configs = await idsOf(db, projectId, "config");
-    const ok = rows.filter((c) => c.status === "ok" && c.response_sha256);
+    const placeless = rows.find((c) => typeof placeOf(c) === "string");
+    if (placeless) return { problem: `the LLM call ${String(placeless.id)} has no place (an item and a round from 1)` };
+    // What the file's calls named as the source of served ones became here: the call that was sent.
+    const sources = await sourcesOf(db, projectId, rows.map((c) => c.served_from).filter((id) => id));
+    const succeeded = (c: Row) => c.status === "ok" && typeof c.response_sha256 === "string";
+    const toLookUp = rows.filter((c) => succeeded(c) && !(c.served_from && sources.has(c.served_from as string)) && (copiedStage(c.stage_id) || reusedStage(c.stage_id)));
     const { results: found } =
-      ok.length === 0
+      toLookUp.length === 0
         ? { results: [] }
         : await db
             .prepare(
-              `SELECT j.key AS i, c.id, c.deleted_at, c.imported_at FROM json_each(?) j JOIN llm_calls c ON c.id = (SELECT id FROM llm_calls WHERE request_key = j.value AND status = 'ok' AND ${notImportingStage("stage_id")} ORDER BY deleted_at IS NOT NULL, started_at LIMIT 1)`,
+              `SELECT j.key AS i, c.id, c.deleted_at, c.imported_at FROM json_each(?) j JOIN llm_calls c ON c.id = (SELECT id FROM llm_calls WHERE request_key = j.value AND status = 'ok' AND served_from IS NULL AND ${notImportingStage("stage_id")} ORDER BY deleted_at IS NOT NULL, started_at LIMIT 1)`,
             )
-            .bind(JSON.stringify(ok.map((c) => c.request_key)))
+            .bind(JSON.stringify(toLookUp.map((c) => c.request_key)))
             .all<{ i: number; id: string; deleted_at: string | null; imported_at: string | null }>();
+    const match = new Map(found.map((f) => [toLookUp[f.i].id as string, f]));
     const ids: NewId[] = [];
-    const revived: Row[] = [];
-    for (const f of found) {
-      const c = ok[f.i];
-      if (f.deleted_at && reusedStage(c.stage_id)) continue;
-      ids.push({ old_id: String(c.id), new_id: f.id, made: 0, was_deleted_at: f.deleted_at, was_imported_at: f.imported_at });
-      // A file that knows the call's place gives it to a row that may not have it yet (made before migration 0004).
-      if (f.deleted_at) revived.push({ id: f.id, request_sha256: c.request_sha256 ?? null, response_sha256: c.response_sha256, item: c.item !== undefined && c.round !== undefined ? c.item : null, round: c.item !== undefined && c.round !== undefined ? c.round : null });
-    }
-    const mapped = new Set(ids.map((i) => i.old_id));
+    const revived = new Map<string, Row>();
     const added: Row[] = [];
+    const served: Row[] = [];
     for (const c of rows) {
-      if (mapped.has(String(c.id)) || !copiedStage(c.stage_id)) continue;
+      const oldId = String(c.id);
+      if (reusedStage(c.stage_id)) {
+        // Only mapped, to a live call: the rows served from it in copied stages are served from that call.
+        const f = match.get(oldId);
+        if (f && !f.deleted_at) {
+          ids.push({ old_id: oldId, new_id: f.id, made: 0 });
+          sources.set(oldId, f.id);
+        }
+        continue;
+      }
+      if (!copiedStage(c.stage_id)) continue;
       const id = crypto.randomUUID();
-      ids.push({ old_id: String(c.id), new_id: id, made: 1 });
-      added.push({
+      ids.push({ old_id: oldId, new_id: id, made: 1 });
+      const row = {
         ...c,
         id,
         stage_id: stages.get(c.stage_id as string)!.id,
         model_config_id: configs.get(c.model_config_id as string)?.id ?? c.model_config_id,
-        // Files exported before VAT was recorded (docs/llm.md, "VAT") have no rate: their calls had none.
-        vat_percent: c.vat_percent ?? 0,
-        // Files exported before calls had a place (docs/overview.md §12) have none: the placeholders, as for this
-        // instance's own older calls.
-        item: c.item ?? PLACEHOLDER_ITEM,
-        round: c.round ?? 0,
+        served_from: null,
         imported_at: iso,
-      });
+      };
+      const f = succeeded(c) ? match.get(oldId) : undefined;
+      const source = succeeded(c) && c.served_from ? sources.get(c.served_from as string) : undefined;
+      if (source || f) {
+        const from = source ?? f!.id;
+        if (f?.deleted_at && !revived.has(f.id)) {
+          // Brought back to life, where it was paid; recorded, so that removing an unfinished import marks it again.
+          revived.set(f.id, { id: f.id, request_sha256: c.request_sha256 ?? null, response_sha256: c.response_sha256, item: c.item, round: c.round });
+          ids.push({ old_id: `revived:${f.id}`, new_id: f.id, made: 0, was_deleted_at: f.deleted_at, was_imported_at: f.imported_at });
+        }
+        // A row served from it: nothing paid.
+        served.push({ ...row, served_from: from, input_tokens: null, output_tokens: null, cached_tokens: null, cache_write_tokens: null, cost_usd: 0, vat_percent: 0, price_json: null });
+        sources.set(oldId, from);
+      } else {
+        // Files exported before VAT was recorded (docs/llm.md, "VAT") have no rate: their calls had none.
+        added.push({ ...row, vat_percent: c.vat_percent ?? 0 });
+        if (succeeded(c)) sources.set(oldId, id);
+      }
     }
-    if (revived.length > 0) {
+    if (revived.size > 0) {
       statements.push(
         db
           .prepare(
-            `UPDATE llm_calls SET deleted_at = NULL, imported_at = ?, request_sha256 = j.request_sha256, response_sha256 = j.response_sha256, item = COALESCE(j.item, llm_calls.item), round = COALESCE(j.round, llm_calls.round)
+            `UPDATE llm_calls SET deleted_at = NULL, imported_at = ?, request_sha256 = j.request_sha256, response_sha256 = j.response_sha256, item = j.item, round = j.round
              FROM (SELECT json_extract(value, '$.id') AS id, json_extract(value, '$.request_sha256') AS request_sha256, json_extract(value, '$.response_sha256') AS response_sha256, json_extract(value, '$.item') AS item, json_extract(value, '$.round') AS round FROM json_each(?)) AS j
              WHERE llm_calls.id = j.id`,
           )
-          .bind(iso, JSON.stringify(revived)),
+          .bind(iso, JSON.stringify([...revived.values()])),
       );
     }
+    // The calls that were sent before those served from them.
     if (added.length > 0) statements.push(insertRows(db, "llm_calls", [...CALL_COLUMNS, "imported_at"], added));
+    if (served.length > 0) statements.push(insertRows(db, "llm_calls", [...CALL_COLUMNS, "imported_at"], served));
     statements.push(...recordIds(db, projectId, "call", ids));
   } else if (table === "outputs") {
     const calls = await idsOf(db, projectId, "call", rows.filter((o) => o.call_id).map((o) => o.call_id));
@@ -462,6 +517,7 @@ export async function importChunk(db: D1Database, projectId: string, chunk: Impo
     statements.push(insertRows(db, "image_fingerprints", FINGERPRINT_COLUMNS, rows, "INSERT OR IGNORE"));
   }
   if (statements.length > 0) await db.batch(statements);
+  return null;
 }
 
 // The last request of an import: the project is unmarked, and shows; its id map goes.
@@ -494,7 +550,7 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
     const data = await exportProject(c.env.DB, c.req.param("id"));
     if (data === null) return refuse(c, 404, NO_PROJECT);
     if (data === "running") return refuse(c, 409, "The project can't be exported while one of its stages is running. Stop it, or let it finish, then try again.", "running");
-    if ("problem" in data) return refuse(c, 409, `The project can't be exported yet: some of its LLM calls were recorded before calls had a place. Details: ${data.problem}`, "unplaced_calls");
+    if ("problem" in data) return refuse(c, 409, `The project can't be exported: one of its LLM calls was recorded before calls had a place, which couldn't be told afterwards. Details: ${data.problem}.`, "unplaced_calls");
     return c.json<ProjectExport>(data);
   });
 
@@ -521,7 +577,10 @@ export function projectFileRoutes(app: Hono<{ Bindings: Env }>) {
     if (problem) return badRequest(c, problem);
     const projectId = c.req.param("id");
     if (!(await importing(c.env.DB, projectId))) return refuse(c, 409, IMPORT_GONE, "missing");
-    await importChunk(c.env.DB, projectId, data as ImportChunk);
+    const refused = await importChunk(c.env.DB, projectId, data as ImportChunk);
+    // A file whose calls have no place (the code review's E6: places are required): refused. The project stays unfinished
+    // and hidden, removed by a retry or by "Free up storage".
+    if (refused) return refuse(c, 409, `The file can't be imported: ${refused.problem}. Details: it was made by hand, or is damaged.`);
     return c.body(null, 204);
   });
 

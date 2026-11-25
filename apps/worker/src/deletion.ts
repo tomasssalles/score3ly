@@ -18,8 +18,10 @@ const UNUSED_OUTPUTS = `
     AND NOT EXISTS (SELECT 1 FROM output_inputs oi JOIN outputs o2 ON o2.id = oi.output_id JOIN stages s3 ON s3.id = o2.stage_id WHERE oi.input_id = o.id AND s3.deleted_at IS NULL)
     AND NOT EXISTS (SELECT 1 FROM outputs o4 JOIN stages s4 ON s4.id = o4.stage_id WHERE o4.parent_output_id = o.id AND s4.deleted_at IS NULL)`;
 
-// The calls an output of a stage that isn't marked names.
-const LIVE_CALLS = "SELECT o.call_id FROM outputs o JOIN stages s ON s.id = o.stage_id WHERE o.call_id IS NOT NULL AND s.deleted_at IS NULL";
+// The calls a stage that isn't marked uses but doesn't own: those it was served from the record (its rows'
+// `served_from`, the code review's E4), and those an output of it names (a project run before served calls had rows).
+const LIVE_CALLS = `SELECT sc.served_from FROM llm_calls sc JOIN stages s ON s.id = sc.stage_id WHERE sc.served_from IS NOT NULL AND s.deleted_at IS NULL
+  UNION SELECT o.call_id FROM outputs o JOIN stages s ON s.id = o.stage_id WHERE o.call_id IS NOT NULL AND s.deleted_at IS NULL`;
 
 
 export async function deleteProject(env: Env, projectId: string, now = new Date()): Promise<Deleted | "not_found" | "running"> {
@@ -39,8 +41,8 @@ export async function deleteProject(env: Env, projectId: string, now = new Date(
         "UPDATE stages SET deleted_at = ? WHERE deleted_at IS NULL AND created_in IN (SELECT id FROM projects WHERE deleted_at IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM pipeline_entries e JOIN projects p ON p.id = e.project_id WHERE e.stage_id = stages.id AND p.deleted_at IS NULL)",
       )
       .bind(iso),
-    // A call is marked when its stage is and no output of a stage that isn't marked names it (served from the cache
-    // to another project, which still uses it): what a live project uses stays alive, and keeps serving the cache.
+    // A call is marked when its stage is and no stage that isn't marked uses it (served from the cache to another
+    // project, which still has a row served from it): what a live project uses stays alive, and keeps serving the cache.
     db.prepare(`UPDATE llm_calls SET deleted_at = ? WHERE deleted_at IS NULL AND stage_id IN (SELECT id FROM stages WHERE deleted_at IS NOT NULL) AND id NOT IN (${LIVE_CALLS})`).bind(iso),
     // The outputs nothing uses go, with what refers to them from marked stages.
     db.prepare(`DELETE FROM output_inputs WHERE output_id IN (${UNUSED_OUTPUTS}) OR input_id IN (${UNUSED_OUTPUTS})`),

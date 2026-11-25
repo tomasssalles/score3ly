@@ -3,8 +3,9 @@
 
 // The export format's own version (`format` in the file, its manifest's and its rows'), apart from the app's: raised
 // when an export can't be read the same way any more. Only this format is read (decided 2026-11-17: no reader for old
-// formats).
-export const EXPORT_FORMAT = 1;
+// formats). 2 (the code review's batch 32, E4): a stage's calls are its own rows, those served from the record included
+// (`served_from`), and every call has its place.
+export const EXPORT_FORMAT = 2;
 
 // A row of a table, as stored (its columns by name).
 export type ExportRow = Record<string, unknown>;
@@ -69,11 +70,11 @@ export function importHead(rows: ProjectExport, key: string): ImportHead {
 }
 
 // The rows after the head, in chunks, in the order they go in. Outputs come parents first, so that an output's
-// parent is always in an earlier chunk or the same one.
+// parent is always in an earlier chunk or the same one; calls that were sent before those served from them.
 export function importChunks(rows: ProjectExport): ImportChunk[] {
   const chunks: ImportChunk[] = [];
   for (const table of IMPORT_TABLES) {
-    const list = table === "outputs" ? parentsFirst(rows.outputs) : rows[table];
+    const list = table === "outputs" ? parentsFirst(rows.outputs) : table === "llm_calls" ? sentFirst(rows.llm_calls) : rows[table];
     let current: ExportRow[] = [];
     let bytes = 0;
     for (const row of list) {
@@ -89,6 +90,11 @@ export function importChunks(rows: ProjectExport): ImportChunk[] {
     if (current.length > 0) chunks.push({ table, rows: current });
   }
   return chunks;
+}
+
+// Calls that were sent (no `served_from`) before the rows served from them, stably.
+function sentFirst(calls: ExportRow[]): ExportRow[] {
+  return [...calls.filter((c) => !c.served_from), ...calls.filter((c) => c.served_from)];
 }
 
 // Outputs ordered by how many parents they have above them among these (a manual stage's output corrects another,

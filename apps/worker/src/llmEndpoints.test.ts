@@ -8,7 +8,7 @@ import { ACCOUNTS, EFFORTS, listedPrice, PROVIDERS, type Family, type ModelList,
 import { configProblem, convertAddedConfigs, insertConfig, modelOptions, secretNames, secretsOf, unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
 import { providerCost, spentInLastDay } from "./spending.ts";
 import { throttled, throttledProgress } from "./throttle.ts";
-import type { ModelOptions } from "@score3ly/core";
+import { importChunks, importHead, type ModelOptions, type ProjectExport } from "@score3ly/core";
 import { MODEL_LIST } from "./llm/modelList.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 import { REPLAY_MODEL } from "./llm/replay.ts";
@@ -26,7 +26,7 @@ before(async () => {
 
 beforeEach(async () => {
   await env.DB.exec(
-    "DELETE FROM dropped_stages; DELETE FROM llm_calls; DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM import_ids; DELETE FROM projects; DELETE FROM settings; DELETE FROM model_configs;",
+    "DELETE FROM dropped_stages; DELETE FROM output_inputs; DELETE FROM stage_inputs; DELETE FROM outputs; DELETE FROM llm_calls; DELETE FROM pipeline_entries; DELETE FROM stages; DELETE FROM import_ids; DELETE FROM projects; DELETE FROM settings; DELETE FROM model_configs;",
   );
 });
 
@@ -81,7 +81,7 @@ async function modelConfig(fields: Record<string, unknown> = {}): Promise<Record
 }
 
 // A project whose rasterize stage is running with the given model config, ready to make calls.
-async function runningStage(modelConfigId: string | null): Promise<{ projectId: string; stageId: string }> {
+async function runningStage(modelConfigId: string | null): Promise<{ projectId: string; stageId: string; runId: string }> {
   const pdf = new TextEncoder().encode(`pdf ${Math.random()}`);
   const project = await json<{ id: string }>(await createProject(env, pdf));
   const { stages } = await json<{ stages: { id: string }[] }>(await app.request(`/api/projects/${project.id}/pipeline`, {}, env));
@@ -95,7 +95,7 @@ async function runningStage(modelConfigId: string | null): Promise<{ projectId: 
     modelConfigId,
   });
   assert.equal(started.status, 200, await started.clone().text());
-  return { projectId: project.id, stageId };
+  return { projectId: project.id, stageId, runId: (await json<{ runId: string }>(started)).runId };
 }
 
 const PNG = btoa("not really a png");
@@ -130,6 +130,11 @@ const PLACE = { item: "p1", round: 1 };
 
 function call(stage: { projectId: string; stageId: string }, body: unknown = request(), place: Record<string, unknown> = PLACE) {
   return send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm`, { request: body, ...place });
+}
+
+// The call a row served from the record names (`served_from`), or null for a call that was sent.
+async function servedFrom(callId: unknown): Promise<string | null> {
+  return (await env.DB.prepare("SELECT served_from FROM llm_calls WHERE id = ?").bind(callId).first<{ served_from: string | null }>())!.served_from;
 }
 
 async function calls() {
@@ -421,7 +426,7 @@ test("throttled progress: a token count a skipped chunk had is kept until the ne
 test("Stop, and a new start of an interrupted stage, close the stage's calls still marked running", async () => {
   const config = await modelConfig();
   const running = async (stageId: string) =>
-    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at) VALUES (?, ?, ?, ?, 'running', ?)")
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, started_at) VALUES (?, ?, ?, ?, 'p1', 1, 'running', ?)")
       .bind(crypto.randomUUID(), stageId, config.id, crypto.randomUUID(), new Date().toISOString())
       .run();
   const callsOf = async (stageId: string) =>
@@ -513,15 +518,65 @@ test("a call is made, recorded with its tokens and cost, and an identical one is
   const other = await runningStage((await modelConfig({ name: "Same model, other config", pricing: { kind: "unpriced" } })).id);
   const second = await json(await call(other));
   assert.equal(second.cached, true);
-  assert.equal(second.callId, first.callId);
+  assert.equal(await servedFrom(second.callId), first.callId); // a row of its own, served from the first
   assert.equal(second.costUsd, 0);
   assert.deepEqual(second.json, first.json);
   rows = await calls();
-  assert.equal(rows.length, 1);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[1].stage_id, other.stageId);
 
   // Another effort is another request.
   const effort = await runningStage((await modelConfig({ effort: "low" })).id);
   assert.equal((await json(await call(effort))).cached, false);
+});
+
+// Which stage owns a call (the code review's E4, the owner's dec. 15): a request served from the record gets a row of the
+// stage it was served to. A stage that asked in rounds (layout's) names only its last call in its output; before, the
+// earlier rounds served to another project belonged to nothing of it, and deleting the project that paid them took
+// them away: the other project's next run paid them again.
+test("a call served from the record is a row of the stage it was served to; deleting the project that paid keeps it serving", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const config = await modelConfig();
+  const rounds = [1, 2, 3].map((round) => ({ body: request(`Round ${round}?`), place: { item: "p1", round } }));
+  // Runs the three rounds in a new project's running stage, names the last answer in an output, and finishes it.
+  async function layoutLike() {
+    const stage = await runningStage(config.id);
+    const answers: Record<string, unknown>[] = [];
+    for (const r of rounds) answers.push(await json(await call(stage, r.body, r.place)));
+    const answer = (await calls()).find((c) => c.id === answers[2].callId)!;
+    const output = await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/outputs`, { runId: stage.runId, outputs: [{ item: "p1", type: "layout", contentSha256: answer.response_sha256, callId: answers[2].callId }] });
+    assert.equal(output.status, 200, await output.clone().text());
+    assert.equal((await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/finish`, { runId: stage.runId, status: "done" })).status, 204);
+    return { stage, answers };
+  }
+  const a = await layoutLike();
+  assert.ok(a.answers.every((answer) => answer.cached === false));
+  const b = await layoutLike();
+  assert.ok(b.answers.every((answer) => answer.cached === true && (answer.costUsd as number) === 0));
+  const served = (await calls()).filter((c) => c.stage_id === b.stage.stageId);
+  assert.deepEqual(served.map((c) => [c.id, c.served_from, c.item, c.round, c.status, c.cost_usd, c.input_tokens]), b.answers.map((answer, i) => [answer.callId, a.answers[i].callId, "p1", i + 1, "ok", 0, null]));
+  const original = (id: unknown) => (calls().then((rows) => rows.find((c) => c.id === id)!));
+  for (const [i, row] of served.entries()) {
+    const paid = await original(a.answers[i].callId);
+    assert.equal(row.request_sha256, paid.request_sha256);
+    assert.equal(row.response_sha256, paid.response_sha256);
+  }
+
+  // A is deleted: every call B was served stays alive, with its content, and keeps serving the cache.
+  assert.equal((await send(`/api/projects/${a.stage.projectId}`, undefined, "DELETE")).status, 200);
+  for (const answer of a.answers) assert.equal((await original(answer.callId)).deleted_at, null);
+  for (const row of served) {
+    assert.ok(await env.STORE.head(`content/${row.request_sha256}`));
+    assert.ok(await env.STORE.head(`content/${row.response_sha256}`));
+  }
+  const again = await runningStage(config.id);
+  for (const r of rounds) assert.equal((await json(await call(again, r.body, r.place))).cached, true, `round ${r.place.round}`);
+  assert.equal((await calls()).filter((c) => c.served_from === null).length, 3); // nothing paid again
+
+  // B is deleted too: then A's calls are marked, and B's rows with them.
+  assert.equal((await send(`/api/projects/${again.projectId}/stages/${again.stageId}/finish`, { runId: again.runId, status: "done" })).status, 204);
+  for (const project of [b.stage.projectId, again.projectId]) assert.equal((await send(`/api/projects/${project}`, undefined, "DELETE")).status, 200);
+  assert.ok((await calls()).every((c) => c.deleted_at !== null));
 });
 
 test("the fake provider that ships with the app costs nothing, free tier or not", async () => {
@@ -580,6 +635,74 @@ test("an answer the stage can't use is marked so, and isn't served again", async
   assert.ok((row.cost_usd as number) > 0);
   const again = await json(await call(stage));
   assert.equal(again.cached, false);
+});
+
+// The code review's E4: a project whose layout was served from another project's calls. Before, its export held only
+// the call its output named (round 3), so a replay of the imported file failed at round 1.
+test("export, import and replay of a stage served from another project's calls: every round goes with it", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const config = await modelConfig();
+  const rounds = [1, 2, 3].map((round) => ({ body: request(`Round ${round}?`), place: { item: "p1", round } }));
+  async function layoutLike() {
+    const stage = await runningStage(config.id);
+    const answers: Record<string, unknown>[] = [];
+    for (const r of rounds) answers.push(await json(await call(stage, r.body, r.place)));
+    const last = (await calls()).find((c) => c.id === answers[2].callId)!;
+    await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/outputs`, { runId: stage.runId, outputs: [{ item: "p1", type: "layout", contentSha256: last.response_sha256, callId: answers[2].callId }] });
+    assert.equal((await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/finish`, { runId: stage.runId, status: "done" })).status, 204);
+    return { stage, answers };
+  }
+  const a = await layoutLike();
+  const b = await layoutLike();
+  const paid = await calls();
+
+  // B's export: its three rows, each as the call it was served from (A's, with its cost), under B's ids.
+  const file = await json<ProjectExport>(await app.request(`/api/projects/${b.stage.projectId}/export`, {}, env));
+  const ofStage = file.llm_calls.filter((c) => c.stage_id === b.stage.stageId);
+  assert.deepEqual(ofStage.map((c) => [c.id, c.served_from, c.item, c.round]), b.answers.map((answer, i) => [answer.callId, null, "p1", i + 1]));
+  for (const [i, c] of ofStage.entries()) {
+    const original = paid.find((p) => p.id === a.answers[i].callId)!;
+    assert.deepEqual([c.cost_usd, c.input_tokens, c.response_sha256, c.started_at], [original.cost_usd, original.input_tokens, original.response_sha256, original.started_at]);
+  }
+
+  // Both projects deleted, then the file imported: A's calls brought back to life where they were paid, each served to
+  // the imported stage by a row of its own, which its output names.
+  for (const project of [a.stage.projectId, b.stage.projectId]) assert.equal((await send(`/api/projects/${project}`, undefined, "DELETE")).status, 200);
+  const head = await send("/api/projects/import", importHead(file, "9".repeat(64)));
+  assert.equal(head.status, 200, await head.clone().text());
+  const { id } = await json<{ id: string }>(head);
+  for (const chunk of importChunks(file)) assert.equal((await send(`/api/projects/${id}/import/rows`, chunk)).status, 204);
+  assert.equal((await send(`/api/projects/${id}/import/finish`, {})).status, 201);
+  const pipeline = await json<{ stages: { id: string }[] }>(await app.request(`/api/projects/${id}/pipeline`, {}, env));
+  const imported = pipeline.stages[1];
+  const rows = (await calls()).filter((c) => c.stage_id === imported.id).sort((x, y) => (x.round as number) - (y.round as number));
+  assert.deepEqual(rows.map((c) => [c.served_from, c.cost_usd, c.round]), a.answers.map((answer, i) => [answer.callId, 0, i + 1]));
+  for (const answer of a.answers) assert.equal((await calls()).find((c) => c.id === answer.callId)!.deleted_at, null);
+  assert.equal((await env.DB.prepare("SELECT call_id FROM outputs WHERE stage_id = ?").bind(imported.id).first<{ call_id: string }>())!.call_id, rows[2].id);
+
+  // Replayed: the stage run again with the replay model gets every round's answer from the imported stage's rows.
+  const replay = await modelConfig({ provider: "fake", model: REPLAY_MODEL, family: "fake", freeTier: true, name: "Replay" });
+  assert.equal((await send(`/api/projects/${id}/stages/${imported.id}/config`, { config: { modelConfigId: replay.id } }, "PUT")).status, 200);
+  const again = (await json<{ stages: { id: string }[] }>(await app.request(`/api/projects/${id}/pipeline`, {}, env))).stages[1];
+  const started = await send(`/api/projects/${id}/stages/${again.id}/start`, { stepVersion: 1, config: {}, stageKey: "7".repeat(64), pageCount: 1, inputIds: [], modelConfigId: replay.id });
+  assert.equal(started.status, 200, await started.clone().text());
+  for (const [i, r] of rounds.entries()) {
+    const answer = await json(await call({ projectId: id, stageId: again.id }, request(`Changed round ${r.place.round}?`), r.place));
+    assert.equal(answer.status, "ok", JSON.stringify(answer));
+    assert.equal(answer.text, a.answers[i].text);
+  }
+});
+
+test("an answer served from the record that the stage can't use marks the call it was served from too", async () => {
+  await send("/api/settings/spendingCapUsd", { value: 1 }, "PUT");
+  const config = await modelConfig();
+  const first = await json(await call(await runningStage(config.id)));
+  const stage = await runningStage(config.id);
+  const served = await json(await call(stage));
+  assert.equal(served.cached, true);
+  assert.equal((await send(`/api/projects/${stage.projectId}/stages/${stage.stageId}/llm-calls/${served.callId}/unusable`, { reason: "Line 3: unknown note name" })).status, 204);
+  assert.deepEqual((await calls()).map((c) => [c.id, c.status]), [[first.callId, "unparseable"], [served.callId, "unparseable"]]);
+  assert.equal((await json(await call(stage))).cached, false); // asked anew
 });
 
 test("the spending cap stops new calls, but not answers already paid for; free-tier calls neither count nor stop", async () => {
@@ -812,7 +935,7 @@ test("cache marks aren't part of the request key, and are limited to 4", async (
   for (const part of marked.messages[0].content) (part as { cacheUpTo?: true }).cacheUpTo = true;
   const served = await json(await call(stage, marked));
   assert.equal(served.cached, true);
-  assert.equal(served.callId, first.callId);
+  assert.equal(await servedFrom(served.callId), first.callId);
 
   // Only true, and at most 4.
   const wrong = request();
@@ -840,7 +963,7 @@ test("requests are keyed by the images' recipe keys: a cached call is found befo
   // The same recipe key without its image: served.
   const served = await json(await call(stage, request("How many systems?", { recipeKey: RECIPE_KEY })));
   assert.equal(served.cached, true);
-  assert.equal(served.callId, first.callId);
+  assert.equal(await servedFrom(served.callId), first.callId);
 
   // Other pixels from the same recipe (another device): the same request, served.
   const otherPixels = await json(await call(stage, request("How many systems?", { recipeKey: RECIPE_KEY, base64: btoa("other pixels") })));
@@ -1446,7 +1569,7 @@ test("a recorded answer whose stored content is missing is skipped: the next rec
     assert.equal(second.cached, false); // nothing to serve: paid again, once
     const third = await json(await call(stage));
     assert.equal(third.cached, true);
-    assert.equal(third.callId, second.callId);
+    assert.equal(await servedFrom(third.callId), second.callId);
     assert.notEqual(third.callId, first.callId);
     assert.equal(sent, 2);
   } finally {

@@ -2,7 +2,7 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { firstFreeName, importChunks, importHead, type ProjectExport, sha256Hex } from "@score3ly/core";
+import { EXPORT_FORMAT, firstFreeName, importChunks, importHead, type ProjectExport, sha256Hex } from "@score3ly/core";
 import { testHost, testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { collectOrphans } from "./storage.ts";
@@ -1602,7 +1602,7 @@ test("deleting a project: gone from every list, its name free, what only it used
   await call(a.id, skew.id, "outputs", { outputs: [{ item: "p1", type: "skew", contentSha256: only }] });
   await call(a.id, skew.id, "finish", { status: "done" });
   await env.DB.prepare(
-    "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at) SELECT 'call-a', ?, id, 'k', 'ok', '2026-10-01' FROM model_configs LIMIT 1",
+    "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, started_at) SELECT 'call-a', ?, id, 'k', 'p1', 1, 'ok', '2026-10-01' FROM model_configs LIMIT 1",
   )
     .bind(skew.id)
     .run();
@@ -1679,10 +1679,10 @@ test("the costs: paid calls summed per stage, config and quarter of an hour, wit
   ];
   await env.DB.batch([
     ...calls.map(([stage, config, startedAt, cost], i) =>
-      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, input_tokens, cost_usd, started_at) VALUES (?, ?, ?, 'k', 'ok', 100, ?, ?)").bind(`cost-${i}`, stage, config, cost, startedAt),
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, input_tokens, cost_usd, started_at) VALUES (?, ?, ?, 'k', 'p1', 1, 'ok', 100, ?, ?)").bind(`cost-${i}`, stage, config, cost, startedAt),
     ),
     // Refused with an HTTP error: not billed, left out.
-    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, error_kind, http_status, started_at) VALUES ('refused', ?, 'paid', 'k', 'error', 'overloaded', 529, ?)").bind(layout.id, at(0)),
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, error_kind, http_status, started_at) VALUES ('refused', ?, 'paid', 'k', 'p1', 1, 'error', 'overloaded', 529, ?)").bind(layout.id, at(0)),
   ]);
 
   const response = await app.request("/api/costs", {}, env);
@@ -1729,7 +1729,7 @@ test("the costs: each point carries its calls' status, an error with a cost told
   ];
   await env.DB.batch(
     rows.map(([id, status, kind]) =>
-      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, error_kind, input_tokens, cost_usd, started_at) VALUES (?, ?, 'paid', 'k', ?, ?, 100, 0.1, ?)").bind(id, layout.id, status, kind, at),
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, error_kind, input_tokens, cost_usd, started_at) VALUES (?, ?, 'paid', 'k', 'p1', 1, ?, ?, 100, 0.1, ?)").bind(id, layout.id, status, kind, at),
     ),
   );
   const costs = (await (await app.request("/api/costs", {}, env)).json()) as { points: [string, string, number, number, string][] };
@@ -1764,7 +1764,7 @@ test("the costs: paid calls of unknown cost counted per stage, config and quarte
   ];
   await env.DB.batch(
     rows.map(([id, stage, config, status, tokens, http, startedAt]) =>
-      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, input_tokens, http_status, error_kind, cost_usd, started_at) VALUES (?, ?, ?, 'k', ?, ?, ?, ?, ?, ?)").bind(
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, input_tokens, http_status, error_kind, cost_usd, started_at) VALUES (?, ?, ?, 'k', 'p1', 1, ?, ?, ?, ?, ?, ?)").bind(
         id, stage, config, status, tokens, http, id === "bad-key" ? "auth" : null, id === "answered" ? 0 : null, startedAt,
       ),
     ),
@@ -1835,7 +1835,7 @@ test("failures: every call per config, quarter of an hour and reason; the shippe
   ];
   await env.DB.batch(
     rows.map(([id, config, status, kind, at]) =>
-      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, error_kind, started_at) VALUES (?, ?, ?, 'k', ?, ?, ?)").bind(id, layout.id, config, status, kind, at),
+      env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, error_kind, started_at) VALUES (?, ?, ?, 'k', 'p1', 1, ?, ?, ?)").bind(id, layout.id, config, status, kind, at),
     ),
   );
   const failures = (await (await app.request("/api/failures", {}, env)).json()) as {
@@ -1926,8 +1926,8 @@ test("activity: the quarters of an hour in which a call ran or anything was reco
     env.DB.prepare("UPDATE projects SET created_at = '2026-10-20T08:01:00.000Z' WHERE id = ?").bind(project.id),
     env.DB.prepare("UPDATE stages SET started_at = '2026-10-20T10:05:00.000Z', heartbeat_at = '2026-10-20T12:00:00.000Z' WHERE id = ?").bind(layout.id),
     // A call over three quarters, and one that never ended: only where it started.
-    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at, finished_at) VALUES ('a1', ?, 'paid', 'k', 'ok', '2026-10-20T10:05:00.000Z', '2026-10-20T10:40:00.000Z')").bind(layout.id),
-    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at) VALUES ('a2', ?, 'paid', 'k', 'running', '2026-10-21T09:50:00.000Z')").bind(layout.id),
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, started_at, finished_at) VALUES ('a1', ?, 'paid', 'k', 'p1', 1, 'ok', '2026-10-20T10:05:00.000Z', '2026-10-20T10:40:00.000Z')").bind(layout.id),
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, started_at) VALUES ('a2', ?, 'paid', 'k', 'p1', 1, 'running', '2026-10-21T09:50:00.000Z')").bind(layout.id),
   ]);
   const response = await app.request("/api/activity", {}, env);
   const { quarters, projects } = (await response.json()) as { quarters: [string, number][]; projects: { id: string }[] };
@@ -1953,8 +1953,8 @@ test("an unfinished import is hidden: lists, a PDF's lookup, every statistics ta
     env.DB.prepare("INSERT INTO stages (id, created_in, step, status, created_at, started_at, finished_at) VALUES ('half-e', 'half', 'engrave', 'done', ?, ?, ?)").bind(at, at, at),
     env.DB.prepare("INSERT INTO pipeline_entries (project_id, position, stage_id) VALUES ('half', 1, 'half-r'), ('half', 2, 'half-e')"),
     env.DB.prepare("INSERT INTO outputs (id, stage_id, item, type, recipe_key, created_at, duration_ms) VALUES ('half-o', 'half-r', 'p1', 'page_image', ?, ?, 5)").bind(KEY, at),
-    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, response_sha256, cost_usd, started_at, finished_at) VALUES ('half-c', 'half-r', 'paid-hidden', 'rk', 'ok', ?, 0.5, ?, ?)").bind(KEY, at, at),
-    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, error_kind, http_status, cost_usd, started_at, finished_at) VALUES ('half-f', 'half-r', 'paid-hidden', 'rk2', 'error', 'server', NULL, NULL, ?, ?)").bind(at, at),
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, response_sha256, cost_usd, started_at, finished_at) VALUES ('half-c', 'half-r', 'paid-hidden', 'rk', 'p1', 1, 'ok', ?, 0.5, ?, ?)").bind(KEY, at, at),
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, error_kind, http_status, cost_usd, started_at, finished_at) VALUES ('half-f', 'half-r', 'paid-hidden', 'rk2', 'p1', 1, 'error', 'server', NULL, NULL, ?, ?)").bind(at, at),
   ]);
   const get = async <T,>(path: string) => (await (await app.request(path, {}, env)).json()) as T;
   assert.deepEqual(await get<unknown[]>("/api/projects"), []);
@@ -2120,7 +2120,7 @@ test("deleting a project: a call another project's live output names stays alive
   const b = await createdProject("calls-b.pdf");
   const bSkew = (await pipelineOf(b.id))[2];
   await env.DB.prepare(
-    "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at) SELECT 'call-shared', ?, id, 'k-shared', 'ok', '2026-10-01' FROM model_configs LIMIT 1",
+    "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, item, round, status, started_at) SELECT 'call-shared', ?, id, 'k-shared', 'p1', 1, 'ok', '2026-10-01' FROM model_configs LIMIT 1",
   )
     .bind(aSkew.id)
     .run();
@@ -2181,7 +2181,7 @@ async function projectWithACall(filename: string) {
 test("export: the current pipeline's rows, the configs and content they use; refused while a stage runs", async () => {
   const { project, skew, content } = await projectWithACall("export.pdf");
   const data = await exportOf(project.id);
-  assert.equal(data.format, 1);
+  assert.equal(data.format, EXPORT_FORMAT);
   assert.equal(data.project.name, "export");
   assert.deepEqual(data.pipeline.map((e) => e.position), (await pipelineOf(project.id)).map((_, i) => i + 1));
   assert.deepEqual(data.llm_calls.map((c) => [c.id, c.stage_id]), [["call-export.pdf", skew.id]]);
@@ -2248,11 +2248,14 @@ test("import after deleting the original: stages copied, the deleted call brough
   assert.equal(imported.name, "back"); // free again
   const stages = await pipelineOf(imported.id);
   const skewOutput = stages[2].outputs[0];
-  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls"), calls); // no new row
   const revived = await env.DB.prepare("SELECT deleted_at, imported_at, stage_id FROM llm_calls WHERE id = 'call-back.pdf'").first<Record<string, string | null>>();
   assert.equal(revived?.deleted_at, null);
   assert.ok(revived?.imported_at);
-  assert.equal(await count("SELECT COUNT(*) AS n FROM outputs WHERE stage_id = ? AND call_id = 'call-back.pdf'", stages[2].id), 1);
+  // The imported stage has a row of its own, served from it, which its output names; nothing paid.
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls"), calls + 1);
+  const served = await env.DB.prepare("SELECT id, served_from, cost_usd, input_tokens, item, round FROM llm_calls WHERE stage_id = ?").bind(stages[2].id).first<Record<string, unknown>>();
+  assert.deepEqual([served?.served_from, served?.cost_usd, served?.input_tokens, served?.item, served?.round], ["call-back.pdf", 0, null, "p1", 1]);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM outputs WHERE stage_id = ? AND call_id = ?", stages[2].id, served?.id), 1);
   assert.equal(skewOutput.contentSha256, content[2]);
   // Its cost is still the deleted project's: the sum over all calls is what it was.
   assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE c.id = 'call-back.pdf' AND s.created_in = ?", project.id), 1);
@@ -2275,9 +2278,13 @@ test("import: a call found nowhere is a new row that counts, a config found nowh
   const created = await env.DB.prepare("SELECT name FROM model_configs WHERE provider = 'anthropic' AND effort = 'high'").first<{ name: string }>();
   assert.equal(created?.name, "Opus (1)");
 
-  const newer = await importOf({ ...data, format: 2 });
+  const newer = await importOf({ ...data, format: EXPORT_FORMAT + 1 });
   assert.equal(newer.status, 400);
   assert.match((await json<{ error: string }>(newer)).error, /newer version of score3ly/);
+  // An older one too (format 1: calls served from the record had no rows, and could have no place).
+  const older = await importOf({ ...data, format: 1 });
+  assert.equal(older.status, 400);
+  assert.match((await json<{ error: string }>(older)).error, /export format \(1\) isn't one this version of score3ly reads/);
 });
 
 // The code review's E7 and C14: the import wrote the file's configs as they were. A config whose secrets can't be read
@@ -2349,26 +2356,49 @@ test("import: a config name taken meanwhile is numbered again", async () => {
   assert.notEqual(made?.name, wanted);
 });
 
-test("a call's place: exported and imported; a call without one (before migration 0004) can't be exported, and a file without places imports with the placeholders", async () => {
-  const { project } = await projectWithACall("place.pdf");
+// Places are required (the code review's E6, the owner's dec. 17): a file without them is refused, and a call that
+// still has the placeholders of migration 0004 (one the one-time script, now removed, couldn't place) stays as it is
+// but keeps its project from being exported.
+test("a call's place: exported and imported; a file without places refused; a call left with the placeholders can't be exported", async () => {
+  const { project, skew } = await projectWithACall("place.pdf");
   const data = await exportOf(project.id);
   assert.deepEqual([data.llm_calls[0].item, data.llm_calls[0].round], ["p1", 1]);
 
-  // A file made before calls had a place: imported with the placeholders, as the migration left this instance's own.
-  const older = structuredClone(data);
-  for (const c of older.llm_calls) delete c.item, delete c.round;
-  older.llm_calls[0].request_key = "older-here";
-  for (const s of older.stages) if (s.stage_key) s.stage_key = "e".repeat(64);
-  const imported = await json<{ id: string }>(await importOf(older));
-  const row = await env.DB.prepare("SELECT item, round FROM llm_calls WHERE request_key = 'older-here'").first<Record<string, unknown>>();
-  assert.deepEqual({ ...row }, { item: "?", round: 0 });
+  // A file whose call has no place, or the placeholders: refused, nothing of its calls written.
+  for (const change of [(c: Record<string, unknown>) => void (delete c.item, delete c.round), (c: Record<string, unknown>) => void ((c.item = "?"), (c.round = 0)), (c: Record<string, unknown>) => void (c.round = 0)]) {
+    const placeless = structuredClone(data);
+    change(placeless.llm_calls[0]);
+    placeless.llm_calls[0].request_key = "placeless-here";
+    for (const s of placeless.stages) if (s.stage_key) s.stage_key = "e".repeat(64);
+    const refused = await importOf(placeless);
+    assert.equal(refused.status, 409);
+    assert.match((await json<{ error: string }>(refused)).error, /^The file can't be imported: the LLM call call-place\.pdf has no place/);
+    assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls WHERE request_key = 'placeless-here'"), 0);
+  }
 
-  // Such a project can't be exported until the one-time script fills the places.
-  const refused = await app.request(`/api/projects/${imported.id}/export`, {}, env);
+  // The database refuses a call without its place, written or changed.
+  await assert.rejects(env.DB.prepare("UPDATE llm_calls SET item = '?' WHERE id = 'call-place.pdf'").run(), /needs its place/);
+  await assert.rejects(
+    env.DB.prepare("INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, status, started_at) VALUES ('no-place', ?, 'paid', 'k', 'ok', '2026-10-01')").bind(skew.id).run(),
+    /needs its place/,
+  );
+
+  // A call recorded before migration 0004 and never placed (written here past the trigger, as such a database holds it):
+  // read like any, but its project isn't exported.
+  await env.DB.exec("DROP TRIGGER llm_calls_place_on_update");
+  try {
+    await env.DB.prepare("UPDATE llm_calls SET item = '?', round = 0 WHERE id = 'call-place.pdf'").run();
+  } finally {
+    await env.DB.exec(
+      "CREATE TRIGGER llm_calls_place_on_update BEFORE UPDATE OF item, round ON llm_calls WHEN NEW.item = '?' OR NEW.round < 1 BEGIN SELECT RAISE(ABORT, 'an LLM call needs its place: an item and a round from 1');END;",
+    );
+  }
+  const refused = await app.request(`/api/projects/${project.id}/export`, {}, env);
   assert.equal(refused.status, 409);
   const body = await json<{ error: string; code: string }>(refused);
   assert.equal(body.code, "unplaced_calls");
-  assert.match(body.error, /has no place .*fill-call-places/);
+  assert.match(body.error, /^The project can't be exported: one of its LLM calls was recorded before calls had a place/);
+  assert.equal((await pipelineOf(project.id))[2].status, "done");
 });
 
 test("import: a stage's config names the model config it was mapped to, as its column does", async () => {
@@ -2408,7 +2438,7 @@ test("an import that stopped midway is hidden, and removed for good by a retry o
   const first = await json<{ id: string; name: string }>(await importOf(data, { chunks: 1 }));
   assert.equal(first.name, "retry");
   assert.deepEqual(await json(await app.request("/api/projects", {}, env)), []);
-  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls WHERE deleted_at IS NULL"), 2); // the new one, the revived one
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls WHERE deleted_at IS NULL"), 3); // the new one, the revived one and a row served from it
   assert.equal(await count("SELECT COUNT(*) AS n FROM model_configs"), configs + 1);
   assert.equal(await count("SELECT COUNT(*) AS n FROM stages WHERE created_in = ?", first.id) > 0, true);
 
@@ -2428,8 +2458,9 @@ test("an import that stopped midway is hidden, and removed for good by a retry o
   for (const chunk of importChunks(data as ProjectExport)) assert.equal((await postJson(`/api/projects/${second.id}/import/rows`, chunk)).status, 204);
   assert.equal((await postJson(`/api/projects/${second.id}/import/finish`, {})).status, 201);
 
-  // Each call once: the new one under the imported project, the revived one where it was paid.
-  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls"), calls + 1);
+  // Each call once: the new one under the imported project, the revived one where it was paid, served to the import.
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls"), calls + 2);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE c.served_from = 'call-retry.pdf' AND s.created_in = ?", second.id), 1);
   assert.equal(await count("SELECT COUNT(*) AS n FROM llm_calls c JOIN stages s ON s.id = c.stage_id WHERE c.request_key = 'new-here' AND s.created_in = ?", second.id), 1);
   assert.equal(await count("SELECT COUNT(*) AS n FROM model_configs"), configs + 1);
   assert.equal(await count("SELECT COUNT(*) AS n FROM import_ids"), 0);
@@ -2470,14 +2501,21 @@ test("free up storage: unreferenced objects an hour old and imports abandoned a 
   assert.deepEqual(await json(await postJson("/api/storage/free", {})), { objects: 0, bytes: 0, imports: 0 });
 });
 
-test("historical exports (fixtures/exports) are imported, each with its whole pipeline", async () => {
+test("historical exports (fixtures/exports): those of this export format are imported, each with its whole pipeline; older ones refused", async () => {
   const { unzipSync } = await import("fflate");
   const dir = join(workerDir, "../../fixtures/exports");
   const files = readdirSync(dir).filter((f) => f.endsWith(".s3l"));
-  assert.ok(files.length > 0);
+  assert.ok(files.some((f) => f.startsWith(`format-${EXPORT_FORMAT}-`)), "a file of the current format");
   for (const file of files) {
     const zip = unzipSync(new Uint8Array(readFileSync(join(dir, file))));
     const rows = JSON.parse(new TextDecoder().decode(zip["project.json"])) as ExportJson;
+    if (rows.format !== EXPORT_FORMAT) {
+      // No reader for older formats (decided 2026-11-17): refused, saying so.
+      const refused = await importOf(rows);
+      assert.equal(refused.status, 400, file);
+      assert.match((await json<{ error: string }>(refused)).error, /isn't one this version of score3ly reads/, file);
+      continue;
+    }
     const pdf = rows.project.pdf_sha256 as string;
     assert.equal((await app.request(`/api/pdfs/${pdf}`, { method: "PUT", body: zip[`pdf/${pdf}.pdf`] as Uint8Array<ArrayBuffer> }, env)).status, 204, file);
     for (const sha of rows.content) assert.equal((await app.request(`/api/content/${sha}`, { method: "PUT", body: zip[`content/${sha}`] as Uint8Array<ArrayBuffer> }, env)).status, 204, file);

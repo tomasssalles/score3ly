@@ -305,6 +305,30 @@ async function bookkeeping<T>(callId: string, what: string, part: () => Promise<
   }
 }
 
+// A request served from the record (the code review's E4, the owner's dec. 15; docs/database.md, "Tables and rules"): a
+// row of the stage it was served to, naming the call whose answer it is (`served_from`), at the request's place, with
+// the same request and response, no tokens and a cost of 0 (nothing was paid). So every stage has a row for each call
+// it consumed: its export, its replay and a deletion elsewhere find them as its own. Returns the row's id, which the
+// stage's outputs name.
+async function recordServed(
+  db: D1Database,
+  original: { id: string; request_sha256: string | null; response_sha256: string; response_model: string | null },
+  stageId: string,
+  modelConfigId: string,
+  requestKey: string,
+  place: CallPlace,
+): Promise<string> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      "INSERT INTO llm_calls (id, stage_id, model_config_id, request_key, request_sha256, response_sha256, response_model, item, round, status, cost_usd, served_from, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ok', 0, ?, ?, ?)",
+    )
+    .bind(id, stageId, modelConfigId, requestKey, original.request_sha256, original.response_sha256, original.response_model, place.item, place.round, original.id, now, now)
+    .run();
+  return id;
+}
+
 export function llmCallRoutes(app: Hono<{ Bindings: Env }>) {
   // An answer that is valid JSON but that the stage can't use (e.g. LilyPond inside it that doesn't parse, or boxes
   // outside the page): it is marked unparseable, so it is never served from the cache again and a retry asks anew
@@ -313,10 +337,12 @@ export function llmCallRoutes(app: Hono<{ Bindings: Env }>) {
     const { pid, sid, callId } = c.req.param();
     const body = await c.req.json().catch(() => null);
     if (typeof body?.reason !== "string" || body.reason.trim() === "") return badRequest(c, "expected a 'reason'");
+    // A row served from the record (`served_from`) is the answer of the call it names: that call is marked too, so that
+    // the cache doesn't serve it again.
     const result = await c.env.DB.prepare(
-      "UPDATE llm_calls SET status = 'unparseable', error = ? WHERE id = ? AND status = 'ok' AND EXISTS (SELECT 1 FROM pipeline_entries e WHERE e.project_id = ? AND e.stage_id = ?)",
+      "UPDATE llm_calls SET status = 'unparseable', error = ? WHERE (id = ? OR id = (SELECT served_from FROM llm_calls WHERE id = ?)) AND status = 'ok' AND EXISTS (SELECT 1 FROM pipeline_entries e WHERE e.project_id = ? AND e.stage_id = ?)",
     )
-      .bind(body.reason.trim(), callId, pid, sid)
+      .bind(body.reason.trim(), callId, callId, pid, sid)
       .run();
     return result.meta.changes === 0 ? refuse(c, 404, `The answer can't be marked unusable: it isn't a usable call of this project. Details: no call ${callId} with status "ok" in the project's pipeline.`) : c.body(null, 204);
   });
@@ -355,20 +381,22 @@ export function llmCallRoutes(app: Hono<{ Bindings: Env }>) {
 
     // The cache first: an answer already paid for is served even when the spending cap is reached. The earliest
     // recorded answer whose content is stored: one whose content is missing (removed by hand, say) is skipped for the
-    // next, so that the answer paid for again in its place is served after it.
+    // next, so that the answer paid for again in its place is served after it. Only calls that were sent: a row served
+    // from one (below) is the same answer again.
     const { results: earlier } = await db
       .prepare(
-        `SELECT id, response_sha256, input_tokens, output_tokens, cached_tokens, cache_write_tokens FROM llm_calls WHERE request_key = ? AND status = 'ok' AND deleted_at IS NULL AND response_sha256 IS NOT NULL AND ${notImportingStage("stage_id")} ORDER BY started_at`,
+        `SELECT id, request_sha256, response_sha256, response_model, input_tokens, output_tokens, cached_tokens, cache_write_tokens FROM llm_calls WHERE request_key = ? AND status = 'ok' AND deleted_at IS NULL AND served_from IS NULL AND response_sha256 IS NOT NULL AND ${notImportingStage("stage_id")} ORDER BY started_at`,
       )
       .bind(requestKey)
-      .all<{ id: string; response_sha256: string; input_tokens: number; output_tokens: number; cached_tokens: number; cache_write_tokens: number | null }>();
+      .all<{ id: string; request_sha256: string | null; response_sha256: string; response_model: string | null; input_tokens: number; output_tokens: number; cached_tokens: number; cache_write_tokens: number | null }>();
     for (const recorded of earlier) {
       const object = await getContent(c.env.STORE, recorded.response_sha256);
       if (!object) continue;
       logFields(c.req.raw, { answer: "cached" });
       const response = (await object.json()) as { text: string; json?: unknown };
+      const callId = await recordServed(db, recorded, sid, row.id, requestKey, place);
       const answer: CallAnswer = {
-        callId: recorded.id,
+        callId,
         cached: true,
         status: "ok",
         text: response.text,

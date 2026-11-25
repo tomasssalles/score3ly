@@ -1,6 +1,8 @@
-// The replay fixture of the fake model (fixtures/replay/fake.s3l, docs/overview.md §12) as the Worker would send it to
-// the browser: its pipeline (stages and outputs, in the Worker's order), its stored content, its LLM calls and what
-// each stage recorded as its inputs. For tests in Node that need a real pipeline.
+// The replay fixture of the fake model (docs/overview.md §12) as the Worker would send it to the browser, in the version
+// the snapshot guards were taken on (fixtures/exports/format-1-fake.s3l: the fixture until the code review's batch 32
+// remade it, which gave its rows new ids; the guards hash ids, so they read this one, frozen): its pipeline (stages and
+// outputs, in the Worker's order), its stored content, its LLM calls and what each stage recorded as its inputs. For
+// tests in Node that need a real pipeline.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -17,7 +19,7 @@ export type Fixture = {
 };
 
 export function fakeFixture(): Fixture {
-  const files = unzipSync(readFileSync(join(import.meta.dirname, "../../../../fixtures/replay/fake.s3l")));
+  const files = unzipSync(readFileSync(join(import.meta.dirname, "../../../../fixtures/exports/format-1-fake.s3l")));
   const rows = JSON.parse(new TextDecoder().decode(files["project.json"])) as Record<string, Row[]>;
   const content = new Map<string, Uint8Array>();
   for (const [name, bytes] of Object.entries(files)) if (name.startsWith("content/")) content.set(name.slice("content/".length), bytes);

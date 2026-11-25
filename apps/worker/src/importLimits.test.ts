@@ -44,7 +44,7 @@ function largeExport(pages: number): { rows: ProjectExport; files: Record<string
   const outputRef = (id: unknown, k: number) => (pagedOutputs.has(id) ? copyId(id, k) : id);
   const out: ProjectExport = { ...rows, outputs: [], output_inputs: [], stage_inputs: [], llm_calls: [], image_fingerprints: [] };
   for (const c of rows.llm_calls) {
-    for (const k of pagedCalls.has(c.id) ? pageNumbers : [1]) out.llm_calls.push({ ...c, id: copyId(c.id, k), item: onPage(String(c.item), k), request_key: hexFor(c.request_key, k) });
+    for (const k of pagedCalls.has(c.id) ? pageNumbers : [1]) out.llm_calls.push({ ...c, id: copyId(c.id, k), item: onPage(String(c.item), k), request_key: hexFor(c.request_key, k), served_from: c.served_from && pagedCalls.has(c.served_from) ? copyId(c.served_from, k) : (c.served_from ?? null) });
   }
   for (const o of rows.outputs) {
     for (const k of pagedOutputs.has(o.id) ? pageNumbers : [1]) {

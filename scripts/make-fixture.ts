@@ -34,6 +34,17 @@ async function finishManualStage(page: Page, servers: Servers, id: string, step:
   throw new Error(`${step} didn't finish`);
 }
 
+// Waits, on the page as it is, for a run that finishing a manual stage started (Auto mode) to end: reloading the page
+// while it runs (as `runToEnd` does) would interrupt it (leaving a project releases its running stage).
+async function settle(page: Page, servers: Servers, id: string) {
+  for (let i = 0; i < 600; i++) {
+    const stages = await pipelineOf(servers, id);
+    if (!stages.some((s) => s.status === "running") && i > 2) return;
+    await page.waitForTimeout(1000);
+  }
+  throw new Error("the run after a manual stage didn't end");
+}
+
 async function main() {
   const stateDir = mkdtempSync(join(tmpdir(), "score3ly-fixture-"));
   process.on("exit", () => {
@@ -58,21 +69,24 @@ async function main() {
     await addManualStage(page, servers, id, "Layout", "Fix layout manually");
     await page.locator(".editor-viewport").waitFor({ timeout: 60_000 });
     await finishManualStage(page, servers, id, "fix_layout");
+    await settle(page, servers, id);
     await runToEnd(page, servers, id);
 
     console.log("A human review…");
     await addManualStage(page, servers, id, "Apply review", "Add Human review");
-    await page.locator(".human-review .editor-content img").waitFor({ timeout: 60_000 });
+    // The Transcription as a form (docs/stages/music.md, "`human_review`"): the first issue's card, its second answer.
+    const answers = page.locator(".transcription.editing .answer-list").first();
+    await answers.waitFor({ timeout: 60_000 });
     await page.waitForTimeout(1000);
-    await page.getByRole("button", { name: "Next annotation" }).click();
-    await page.locator(".answer-list .answer-option").nth(1).click();
+    await answers.locator(".answer-option").nth(1).click();
     await page.waitForTimeout(1500); // saved
     await finishManualStage(page, servers, id, "human_review");
+    await settle(page, servers, id);
     await runToEnd(page, servers, id);
 
     const stages = await pipelineOf(servers, id);
     const failed = stages.find((s) => s.status !== "done");
-    if (failed) throw new Error(`${failed.step} is ${failed.status}: ${failed.error ?? ""}`);
+    if (failed) throw new Error(`${failed.step} is ${failed.status}: ${failed.error ?? ""} (${stages.map((s) => `${s.step}:${s.status}`).join(", ")})`);
     console.log(`  ${stages.map((s) => s.step).join(", ")}`);
 
     console.log("Exporting it…");

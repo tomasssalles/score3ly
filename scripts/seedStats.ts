@@ -198,6 +198,10 @@ function call(stageId: string, cfg: Config, t: number, tokens: Tokens, deleted: 
     cache_write_tokens: usage?.cacheWrite ?? null,
     cost_usd: cost,
     price_json: price && usage ? JSON.stringify({ ...price, asOf: t < at("2026-10-06T00:00:00") ? "2026-05-28" : "2026-10-06" }) : null,
+    // Every call needs a place (migration 0009); the statistics don't read it, so not the call's real one (the code
+    // review's E13 asks for those).
+    item: "",
+    round: 1,
     started_at: iso(t),
     finished_at: iso(end),
     deleted_at: deleted,

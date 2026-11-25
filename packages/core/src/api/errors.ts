@@ -16,7 +16,7 @@ export type ErrorCode =
   | "missing_secret" // a secret the config names isn't set
   | "spending_cap" // the spending cap is reached
   | "bad_secret" // a secret the config names is set but can't be used (e.g. a key file that doesn't parse)
-  | "unplaced_calls" // the project has LLM calls without a place, which the one-time script fills
+  | "unplaced_calls" // the project has an LLM call recorded before calls had a place, which couldn't be told afterwards
   | "internal"; // the server failed (anything thrown inside a route)
 
 export type ApiErrorBody = { error: string; code?: ErrorCode };
