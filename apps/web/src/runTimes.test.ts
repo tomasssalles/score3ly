@@ -25,8 +25,8 @@ const stage = (id: string, step: string, projectId: string, configId: string | n
 const data: RunTimeData = {
   recipe: ["rasterize", "layout", "extract"],
   projects: [
-    { id: "a", name: "A", createdAt: "2026-10-20T10:00:00.000Z", deletedAt: null, finishedAt: "2026-10-21T10:00:00.000Z", pages: [1, 2], pipeline: [] },
-    { id: "b", name: "B", createdAt: "2026-10-22T10:00:00.000Z", deletedAt: null, finishedAt: "2026-10-22T16:00:00.000Z", pages: [1], pipeline: [] },
+    { id: "a", name: "A", createdAt: "2026-10-20T10:00:00.000Z", deletedAt: null, finishedAt: "2026-10-21T10:00:00.000Z", pages: [1, 2], pipeline: ["ra", "la", "fa", "ea", "xa"] },
+    { id: "b", name: "B", createdAt: "2026-10-22T10:00:00.000Z", deletedAt: null, finishedAt: "2026-10-22T16:00:00.000Z", pages: [1], pipeline: ["eb"] },
   ],
   stages: [
     stage("ra", "rasterize", "a", null, 2, { page: 2 }),
@@ -34,7 +34,7 @@ const data: RunTimeData = {
     stage("ea", "extract", "a", "opus", 2, { system: 6, whole: 1 }), // 3 systems per page
     stage("eb", "extract", "b", "sonnet", 1, { system: 2, whole: 1 }),
     stage("xa", "apply_review", "a", "opus", 2, { system: 1 }), // one system with issues in two pages
-    // A manual stage: 4 active quarters, over 2 pages; one still being worked on, left out.
+    // A manual stage: 4 active quarters, over 2 pages; one not in its project's pipeline, left out.
     { ...stage("fa", "fix_layout", "a", null, 2, {}), manual: true, activeQuarters: 4 },
     { ...stage("fb", "fix_layout", "b", null, 1, {}, false), manual: true, finishedAt: null, activeQuarters: 2 },
   ],
@@ -106,4 +106,23 @@ test("work time per page split by model: the configs of one model together", () 
     extract.configs.map((c) => [c.label, c.note, Math.round(c.ms!)]),
     [["Claude Opus 5.5", undefined, Math.round(((20000 * 6) / 2 + 20 / 2 + (5000 * 2 + 20)) / 2)]],
   );
+});
+
+// The code review's F5 (the owner's dec. 38): a manual stage edited once is two stages, the second replacing the first;
+// both were counted with their pages, so the time per page halved with every edit. Effort's rule: the final pipeline's
+// manual stages with the stages they replaced, their active time over the project's pages, once; a dropped one not.
+test("work time per page: an edited manual stage counted once, over the project's pages; a dropped one left out", () => {
+  const edited: RunTimeData = {
+    ...data,
+    projects: [{ ...data.projects[0], pipeline: ["ra", "f2"] }],
+    stages: [
+      stage("ra", "rasterize", "a", null, 2, { page: 2 }),
+      { ...stage("f1", "fix_layout", "a", null, 2, {}), manual: true, activeQuarters: 4 },
+      { ...stage("f2", "fix_layout", "a", null, 2, {}), manual: true, activeQuarters: 2, replacesStageId: "f1" },
+      { ...stage("f0", "fix_layout", "a", null, 2, {}), manual: true, activeQuarters: 8 }, // dropped by a re-run
+    ],
+  };
+  const rows = new Map(stepTimes(edited, new Set(["a"]), "none").map((r) => [r.step, r.ms]));
+  assert.equal(rows.get("fix_layout"), (6 * 15 * 60_000) / 2); // 6 quarters over the project's 2 pages
+  assert.equal(rows.get("fix_skew"), null); // not used: no time, as before
 });

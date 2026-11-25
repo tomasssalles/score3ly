@@ -3,8 +3,10 @@
 // the automatic steps an estimate for a new score. Pure functions over the Worker's data (apps/worker/src/runTimes.ts);
 // the tab is RunTimesTab.tsx.
 //
-// A manual step's time per page is its finished stages' active time (a quarter of an hour for each quarter in which it
-// was saved, and for a single quarter between two of those: apps/worker/src/activeTime.ts), over their pages.
+// A manual step's time per page follows Effort's rule (effort.ts, the owner's dec. 38): the active time (a quarter of an
+// hour for each quarter in which it was saved, and for a single quarter between two of those:
+// apps/worker/src/activeTime.ts) of the final pipeline's stages of the step, with the stages they replaced by being
+// edited, each once, over the project's pages; then the mean over the projects that used the step.
 //
 // A step's work time per page comes from the items that really ran : an LLM step's items whose answers
 // were all asked anew, `rasterize`'s items whose image was made, every item of the other steps. Items are of three
@@ -16,9 +18,10 @@
 // out, not counted as nothing. Projects on the same PDF needn't be merged, as the costs per page merge them: the cache
 // is already left out item by item.
 
-import { groupBy, itemKind, type ItemKind, QUARTER_MS, STEP_IDS, stepsOfKind } from "@score3ly/core";
+import { groupBy, itemKind, type ItemKind, STEP_IDS, stepsOfKind } from "@score3ly/core";
 import type { ActivityData, RunTimeData } from "./api";
 import { stepTitle } from "./costs.ts";
+import { activeMs, manualWork } from "./effort.ts";
 import { endedNote } from "./format.ts";
 import { activeQuarters } from "./usage.ts";
 
@@ -47,10 +50,9 @@ export function perProject(data: RunTimeData, selected: Set<string>, activity: A
   };
 }
 
-// A step's work time per page over some of its stages, or null without enough data: no finished stage with pages, or a
-// kind of item it has with no item that really ran.
+// An automatic step's work time per page over some of its stages, or null without enough data: no finished stage with
+// pages, or a kind of item it has with no item that really ran.
 function perPage(data: RunTimeData, stages: RunTimeData["stages"]): number | null {
-  if (stages.some((s) => s.manual)) return manualPerPage(stages);
   const byId = new Map(stages.map((s) => [s.id, s]));
   const durations: Record<ItemKind, number[]> = { whole: [], page: [], system: [] };
   for (const [stage, item, ms, calls, callsCached, images, imagesCached] of data.items) {
@@ -71,12 +73,18 @@ function perPage(data: RunTimeData, stages: RunTimeData["stages"]): number | nul
   return total;
 }
 
-// A manual step's time per page: its finished stages' active time, over their pages.
-function manualPerPage(stages: RunTimeData["stages"]): number | null {
-  const done = stages.filter((s) => s.done && s.pageCount > 0);
-  const pages = done.reduce((n, s) => n + s.pageCount, 0);
-  if (pages === 0) return null;
-  return (done.reduce((n, s) => n + (s.activeQuarters ?? 0), 0) * QUARTER_MS) / pages;
+// A manual step's time per page, per project and then the mean over the projects that used it: Effort's rule (the
+// owner's dec. 38, the code review's F5), the active time of the final pipeline's stages of the step, with the stages
+// they replaced by being edited, each once, over the project's pages.
+function manualPerPage(data: RunTimeData, selected: Set<string>, step: string): number | null {
+  const stages = new Map(data.stages.map((s) => [s.id, s]));
+  const values: number[] = [];
+  for (const p of data.projects) {
+    if (!selected.has(p.id) || p.pages.length === 0) continue;
+    const work = manualWork(p, stages).filter((s) => s.step === step);
+    if (work.length) values.push(activeMs(work) / p.pages.length);
+  }
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
 
 // A step's time per page over some stages: per project, then the mean over the projects that have one.
@@ -108,7 +116,7 @@ export function stepTimes(data: RunTimeData, selected: Set<string>, split: "none
       step,
       label: stepTitle(step),
       manual: MANUAL.has(step),
-      ms: perPageOverProjects(data, stages),
+      ms: MANUAL.has(step) ? manualPerPage(data, selected, step) : perPageOverProjects(data, stages),
       configs: [...groups.values()].map((g) => ({
         ...g,
         ms: perPageOverProjects(data, stages.filter((s) => s.configId !== null && groupOf(s.configId).id === g.id)),

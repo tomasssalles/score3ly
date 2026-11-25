@@ -27,6 +27,22 @@ export type EffortView = {
   extraReviews: number | null; // per project, on average; null while no project has any review
 };
 
+// A project's manual work (the rule Run times' manual rows follow too, the owner's dec. 38): the manual stages of its
+// final pipeline, each with the stages it replaced by being edited (`replacesStageId`, followed back), each once.
+export function manualWork(project: RunTimeData["projects"][number], stages: Map<string, Stage>): Stage[] {
+  const work: Stage[] = [];
+  for (const s of finalPipeline(project, stages).filter((s) => MANUAL.includes(s.step))) {
+    for (let at: Stage | undefined = s; at; at = at.replacesStageId ? stages.get(at.replacesStageId) : undefined) work.push(at);
+  }
+  return work;
+}
+
+// The active time of manual stages, in ms.
+export const activeMs = (list: Stage[]) => list.reduce((n, s) => n + (s.activeQuarters ?? 0) * QUARTER_MS, 0);
+
+const finalPipeline = (project: RunTimeData["projects"][number], stages: Map<string, Stage>) =>
+  project.pipeline.map((id) => stages.get(id)).filter((s): s is Stage => s !== undefined);
+
 export function effortView(data: RunTimeData, selected: Set<string>): EffortView {
   const stages = new Map(data.stages.map((s) => [s.id, s]));
   const chosen = data.projects.filter((p) => selected.has(p.id));
@@ -34,15 +50,10 @@ export function effortView(data: RunTimeData, selected: Set<string>): EffortView
   const manual = new Map<string, Stage[]>();
   let extra = 0;
   for (const p of chosen) {
-    const final = p.pipeline.map((id) => stages.get(id)).filter((s): s is Stage => s !== undefined);
-    const work: Stage[] = [];
-    for (const s of final.filter((s) => MANUAL.includes(s.step))) {
-      for (let at: Stage | undefined = s; at; at = at.replacesStageId ? stages.get(at.replacesStageId) : undefined) work.push(at);
-    }
-    manual.set(p.id, work);
-    extra += final.filter((s) => s.step === "review" && !s.inRecipe).length;
+    manual.set(p.id, manualWork(p, stages));
+    extra += finalPipeline(p, stages).filter((s) => s.step === "review" && !s.inRecipe).length;
   }
-  const ms = (list: Stage[]) => list.reduce((n, s) => n + (s.activeQuarters ?? 0) * QUARTER_MS, 0);
+  const ms = activeMs;
   const withPages = chosen.filter((p) => p.pages.length > 0);
   // The mean over the projects with pages of their own work per page.
   const mean = (work: (list: Stage[]) => Stage[]) =>
