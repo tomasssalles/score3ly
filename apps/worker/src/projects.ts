@@ -5,7 +5,7 @@ import type { Hono } from "hono";
 import type { Deleted, ListedProject, PdfLookup, PipelinePosition, Project, RunMode } from "@score3ly/core";
 import { firstFreeName, isSha256Hex, MAX_NAME_LENGTH, nameTooLong } from "@score3ly/core";
 import { deleteProject } from "./deletion.ts";
-import { defaultName, nameBase } from "./names.ts";
+import { defaultName, isNameConflict, nameBase } from "./names.ts";
 import { readSettings } from "./settings.ts";
 import { defaultForNewStages, newPipeline, notDone, wasInterrupted } from "./pipelineRules.ts";
 import { lock } from "./versions.ts";
@@ -40,9 +40,6 @@ function toProject(row: ProjectRow): Project {
 
 const PROJECT_NAME_TAKEN = "A project with that name already exists. Names must be unique (case-insensitive).";
 
-function isNameConflict(err: unknown): boolean {
-  return String(err).includes("UNIQUE constraint failed: projects.name");
-}
 
 async function getProject(db: D1Database, id: string): Promise<Project | null> {
   const row = await db.prepare("SELECT * FROM projects WHERE id = ? AND deleted_at IS NULL").bind(id).first<ProjectRow>();
@@ -59,13 +56,14 @@ async function takenNames(db: D1Database): Promise<string[]> {
 
 // Makes a new project under the first free name from `base` (`firstFreeName`): `statements(name)` are the project's
 // row and whatever comes with it, written in one batch (one transaction). Another project may take the name between
-// the look and the insert: then it looks again (at most five times). Returns the name given. Used by a create and by an
-// import's head, so that both number names the same way (the code review's E14).
-export async function insertProject(db: D1Database, base: string, statements: (name: string) => D1PreparedStatement[]): Promise<string> {
+// the look and the insert, or another model config the name of one an import makes: then it looks again (at most five
+// times), calling `statements` again. Returns the name given. Used by a create and by an import's head, so that both
+// number names the same way (the code review's E14).
+export async function insertProject(db: D1Database, base: string, statements: (name: string) => D1PreparedStatement[] | Promise<D1PreparedStatement[]>): Promise<string> {
   for (let attempt = 0; ; attempt++) {
     const name = firstFreeName(base, await takenNames(db));
     try {
-      await db.batch(statements(name));
+      await db.batch(await statements(name));
       return name;
     } catch (err) {
       if (!isNameConflict(err) || attempt >= 4) throw err;

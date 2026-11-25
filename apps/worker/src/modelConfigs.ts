@@ -45,6 +45,7 @@ import { MODEL_LIST } from "./llm/modelList.ts";
 import { feeOf } from "./spending.ts";
 import { readSettings } from "./settings.ts";
 import { sendCall } from "./llmCalls.ts";
+import { isNameConflict } from "./names.ts";
 
 // A model config as the browser gets it is `ModelConfig` (core); as stored, a row:
 export type ModelConfigRow = {
@@ -497,23 +498,32 @@ export function modelConfigRoutes(app: Hono<{ Bindings: Env }>) {
     if (same) {
       return refuse(c, 409, sameValuesMessage(same.name), "same_values");
     }
-    const name = await configName(db, body, original?.id ?? null);
-    if (name === null) return refuse(c, 409, NAME_TAKEN, "name_taken");
-    const row = { ...draft, name };
-    // The original is deleted first, so that the clone can take its name (the names' unique index counts live configs).
-    const statements: D1PreparedStatement[] = [];
-    if (original) statements.push(db.prepare("UPDATE model_configs SET deleted_at = ? WHERE id = ?").bind(row.created_at, original.id));
-    statements.push(insertConfig(db, row));
-    if (original) {
-      const { defaultModelConfigId } = await readSettings(db);
-      if (defaultModelConfigId === original.id) {
-        statements.push(
-          db.prepare("INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES ('defaultModelConfigId', ?, ?)").bind(JSON.stringify(row.id), row.created_at),
-        );
+    // Another config may take the name between the look and the insert (the names' unique index refuses the batch):
+    // a default name is numbered again (at most five looks), a given one is taken.
+    for (let attempt = 0; ; attempt++) {
+      const name = await configName(db, body, original?.id ?? null);
+      if (name === null) return refuse(c, 409, NAME_TAKEN, "name_taken");
+      const row = { ...draft, name };
+      // The original is deleted first, so that the clone can take its name (the names' unique index counts live configs).
+      const statements: D1PreparedStatement[] = [];
+      if (original) statements.push(db.prepare("UPDATE model_configs SET deleted_at = ? WHERE id = ?").bind(row.created_at, original.id));
+      statements.push(insertConfig(db, row));
+      if (original) {
+        const { defaultModelConfigId } = await readSettings(db);
+        if (defaultModelConfigId === original.id) {
+          statements.push(
+            db.prepare("INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES ('defaultModelConfigId', ?, ?)").bind(JSON.stringify(row.id), row.created_at),
+          );
+        }
       }
+      try {
+        await db.batch(statements);
+      } catch (err) {
+        if (!isNameConflict(err) || attempt >= 4) throw err;
+        continue;
+      }
+      return c.json<ModelConfig>(toModelConfig(row, devProviders(c.env)), 201);
     }
-    await db.batch(statements);
-    return c.json<ModelConfig>(toModelConfig(row, devProviders(c.env)), 201);
   });
 
   // Renames a config: the only change a config's row takes besides its deletion (docs/llm.md, "Managing model configs").

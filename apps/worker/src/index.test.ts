@@ -2,13 +2,14 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { importChunks, importHead, type ProjectExport, sha256Hex } from "@score3ly/core";
+import { firstFreeName, importChunks, importHead, type ProjectExport, sha256Hex } from "@score3ly/core";
 import { testHost, testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { collectOrphans } from "./storage.ts";
 import { lockOf } from "./versions.ts";
 import { defaultName } from "./names.ts";
 import { insertProject } from "./projects.ts";
+import { beginImport } from "./projectFile.ts";
 import { freeUpStorage } from "./deletion.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 
@@ -2315,6 +2316,37 @@ test("import: a model config the app can't store or read is refused before anyth
   assert.equal((await importOf(other)).status, 201);
   const stored = await env.DB.prepare(`SELECT secrets_json FROM model_configs WHERE secrets_json LIKE '%"B"%'`).first<{ secrets_json: string }>();
   assert.equal(stored?.secrets_json, '{"a":"A","b":"B"}');
+});
+
+// The code review's E7 (left by batch 14): a config of the same name made between the import's look and its insert
+// failed the head's batch on the configs' unique names, a 500. The head looks again, as for a project's name.
+test("import: a config name taken meanwhile is numbered again", async () => {
+  const { project } = await projectWithACall("racing.pdf");
+  const other = structuredClone(await exportOf(project.id));
+  other.model_configs.find((m) => m.id === "paid")!.effort = "medium"; // unknown here: created, numbered
+  const live = (await env.DB.prepare("SELECT name FROM model_configs WHERE deleted_at IS NULL").all<{ name: string }>()).results.map((r) => r.name);
+  const wanted = firstFreeName("Opus", live);
+  let armed = false;
+  let raced = 0;
+  const racing = {
+    prepare: (query: string) => {
+      if (query.startsWith("INSERT INTO projects") && raced === 0) armed = true;
+      return env.DB.prepare(query);
+    },
+    batch: async (statements: D1PreparedStatement[]) => {
+      if (armed && raced++ === 0) {
+        await env.DB.prepare("INSERT INTO model_configs (id, name, provider, model_string, family, secrets_json, pricing_kind, created_at) VALUES ('racer', ?, 'fake', 'racer', 'fake', '{}', 'free', 'now')").bind(wanted).run();
+      }
+      return env.DB.batch(statements);
+    },
+  } as unknown as D1Database;
+  const head = importHead(other as ProjectExport, "c".repeat(64));
+  const result = await beginImport({ ...env, DB: racing }, head);
+  assert.ok("id" in result);
+  assert.equal(raced, 2);
+  const made = await env.DB.prepare("SELECT name FROM model_configs WHERE effort = 'medium' AND provider = 'anthropic'").first<{ name: string }>();
+  assert.equal(made?.name, firstFreeName("Opus", [...live, wanted]));
+  assert.notEqual(made?.name, wanted);
 });
 
 test("a call's place: exported and imported; a call without one (before migration 0004) can't be exported, and a file without places imports with the placeholders", async () => {

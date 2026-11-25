@@ -1,4 +1,4 @@
-// Project names (docs/overview.md §4). The limit and the numbering are @score3ly/core's (names.ts), shared with model
+// Project names (docs/overview.md §4), and a name taken meanwhile (projects' and model configs'). The limit and the numbering are @score3ly/core's (names.ts), shared with model
 // configs and the web app.
 
 import { MAX_NAME_LENGTH } from "@score3ly/core";
@@ -13,4 +13,10 @@ export function nameBase(name: string): string {
 export function defaultName(filename: string): string {
   const trimmed = filename.trim();
   return nameBase(trimmed.toLowerCase().endsWith(".pdf") ? trimmed.slice(0, -4) : trimmed).slice(0, MAX_NAME_LENGTH).trim();
+}
+
+// A batch that failed on a name another project or model config took meanwhile (their unique indexes, ignoring case
+// among the live ones).
+export function isNameConflict(err: unknown): boolean {
+  return /UNIQUE constraint failed: (projects|model_configs)\.name/.test(String(err));
 }

@@ -260,26 +260,6 @@ export async function beginImport(env: Env, data: ImportHead, now = new Date()):
   if (!(await env.STORE.head(pdfKey(pdfSha)))) return { missing: "the PDF" };
   const projectId = crypto.randomUUID();
 
-  const configIds: NewId[] = [];
-  const newConfigs: Row[] = [];
-  const { results: liveConfigs } = await db.prepare(`SELECT ${CONFIG_COLUMNS.join(", ")} FROM model_configs WHERE deleted_at IS NULL`).all<Row>();
-  const takenConfigNames = liveConfigs.map((c) => c.name as string);
-  for (const config of data.model_configs) {
-    const match = liveConfigs.find((c) => sameConfigValues(c, config));
-    if (match) {
-      configIds.push({ old_id: String(config.id), new_id: match.id as string, made: 0 });
-      continue;
-    }
-    const id = crypto.randomUUID();
-    const deleted = config.deleted_at ?? null;
-    const name = deleted ? String(config.name) : firstFreeName(String(config.name).trim(), takenConfigNames);
-    if (!deleted) takenConfigNames.push(name);
-    configIds.push({ old_id: String(config.id), new_id: id, made: 1 });
-    // Its secrets as a create stores them (`storedConfigProblem` checked that they can be read).
-    newConfigs.push({ ...config, id, name, deleted_at: deleted, secrets_json: canonicalJson(secretsOf({ secrets_json: String(config.secrets_json) })) });
-  }
-  const configMap = new Map(configIds.map((c) => [c.old_id, c.new_id]));
-
   // One look for every done stage's key.
   const keys = [...new Set(data.stages.filter((s) => s.status === "done" && typeof s.stage_key === "string").map((s) => s.stage_key as string))];
   const { results: matches } =
@@ -297,39 +277,69 @@ export async function beginImport(env: Env, data: ImportHead, now = new Date()):
     return found ? { old_id: String(s.id), new_id: found, made: 0 } : { old_id: String(s.id), new_id: crypto.randomUUID(), made: 1 };
   });
   const stageMap = new Map(stageIds.map((s) => [s.old_id, s.new_id]));
-  const copied = data.stages
-    .filter((_, i) => stageIds[i].made === 1)
-    .map((s) => {
-      const modelConfigId = s.model_config_id ? (configMap.get(s.model_config_id as string) ?? null) : null;
-      return {
-        ...s,
-        id: stageMap.get(s.id as string)!,
-        created_in: projectId,
-        model_config_id: modelConfigId,
-        // The config names its model config too (what the browser runs the stage with): the same one as the column.
-        config_json: modelConfigId ? withModelConfig(s.config_json as string | null, modelConfigId) : s.config_json,
-        replaces_stage_id: s.replaces_stage_id ? (stageMap.get(s.replaces_stage_id as string) ?? null) : null,
-        imported_at: iso,
-      };
-    });
+  // The stages copied, given how the configs are mapped.
+  const copiedWith = (configMap: Map<string, string>) =>
+    data.stages
+      .filter((_, i) => stageIds[i].made === 1)
+      .map((s) => {
+        const modelConfigId = s.model_config_id ? (configMap.get(s.model_config_id as string) ?? null) : null;
+        return {
+          ...s,
+          id: stageMap.get(s.id as string)!,
+          created_in: projectId,
+          model_config_id: modelConfigId,
+          // The config names its model config too (what the browser runs the stage with): the same one as the column.
+          config_json: modelConfigId ? withModelConfig(s.config_json as string | null, modelConfigId) : s.config_json,
+          replaces_stage_id: s.replaces_stage_id ? (stageMap.get(s.replaces_stage_id as string) ?? null) : null,
+          imported_at: iso,
+        };
+      });
   const pipeline = data.pipeline.map((e) => ({ project_id: projectId, position: e.position, stage_id: stageMap.get(e.stage_id as string)!, carried: e.carried ? 1 : 0 }));
 
-  // The project, under its exported name (numbered if taken, `insertProject`), marked `importing`, with its stages and
-  // pipeline.
+  // The project, under its exported name (numbered if taken, `insertProject`), marked `importing`, with its configs,
+  // stages and pipeline. A config's name taken meanwhile fails the batch like a project's: the configs are mapped again.
   const p = data.project;
-  const name = await insertProject(db, nameBase(String(data.project.name)), (name) => [
-    db
-      .prepare(
-        "INSERT INTO projects (id, name, pdf_sha256, pdf_filename, page_count, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at, imported_at, importing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      )
-      .bind(projectId, name, pdfSha, p.pdf_filename, Number.isInteger(p.page_count) && (p.page_count as number) > 0 ? p.page_count : null, p.run_mode === "manual" ? "manual" : "auto", Number(p.next_issue_number) || 1, p.created_at ?? iso, p.last_modified_at ?? iso, iso, iso, data.key),
-    ...(newConfigs.length > 0 ? [insertRows(db, "model_configs", CONFIG_COLUMNS, newConfigs)] : []),
-    ...(copied.length > 0 ? [insertRows(db, "stages", [...STAGE_COLUMNS, "created_in", "imported_at"], copied)] : []),
-    ...(pipeline.length > 0 ? [insertRows(db, "pipeline_entries", ["project_id", "position", "stage_id", "carried"], pipeline)] : []),
-    ...recordIds(db, projectId, "config", configIds),
-    ...recordIds(db, projectId, "stage", stageIds),
-  ]);
+  const name = await insertProject(db, nameBase(String(data.project.name)), async (name) => {
+    const { configIds, newConfigs } = await mappedConfigs(db, data.model_configs);
+    const copied = copiedWith(new Map(configIds.map((c) => [c.old_id, c.new_id])));
+    return [
+      db
+        .prepare(
+          "INSERT INTO projects (id, name, pdf_sha256, pdf_filename, page_count, run_mode, next_issue_number, created_at, last_modified_at, last_opened_at, imported_at, importing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(projectId, name, pdfSha, p.pdf_filename, Number.isInteger(p.page_count) && (p.page_count as number) > 0 ? p.page_count : null, p.run_mode === "manual" ? "manual" : "auto", Number(p.next_issue_number) || 1, p.created_at ?? iso, p.last_modified_at ?? iso, iso, iso, data.key),
+      ...(newConfigs.length > 0 ? [insertRows(db, "model_configs", CONFIG_COLUMNS, newConfigs)] : []),
+      ...(copied.length > 0 ? [insertRows(db, "stages", [...STAGE_COLUMNS, "created_in", "imported_at"], copied)] : []),
+      ...(pipeline.length > 0 ? [insertRows(db, "pipeline_entries", ["project_id", "position", "stage_id", "carried"], pipeline)] : []),
+      ...recordIds(db, projectId, "config", configIds),
+      ...recordIds(db, projectId, "stage", stageIds),
+    ];
+  });
   return { id: projectId, name };
+}
+
+// The file's model configs mapped to those here: one with the same values among those not deleted is used; else one
+// is created (deleted if it was deleted where it came from), numbered if its name is taken, its secrets as a create
+// stores them (`storedConfigProblem` checked that they can be read).
+async function mappedConfigs(db: D1Database, configs: Row[]): Promise<{ configIds: NewId[]; newConfigs: Row[] }> {
+  const configIds: NewId[] = [];
+  const newConfigs: Row[] = [];
+  const { results: liveConfigs } = await db.prepare(`SELECT ${CONFIG_COLUMNS.join(", ")} FROM model_configs WHERE deleted_at IS NULL`).all<Row>();
+  const takenConfigNames = liveConfigs.map((c) => c.name as string);
+  for (const config of configs) {
+    const match = liveConfigs.find((c) => sameConfigValues(c, config));
+    if (match) {
+      configIds.push({ old_id: String(config.id), new_id: match.id as string, made: 0 });
+      continue;
+    }
+    const id = crypto.randomUUID();
+    const deleted = config.deleted_at ?? null;
+    const name = deleted ? String(config.name) : firstFreeName(String(config.name).trim(), takenConfigNames);
+    if (!deleted) takenConfigNames.push(name);
+    configIds.push({ old_id: String(config.id), new_id: id, made: 1 });
+    newConfigs.push({ ...config, id, name, deleted_at: deleted, secrets_json: canonicalJson(secretsOf({ secrets_json: String(config.secrets_json) })) });
+  }
+  return { configIds, newConfigs };
 }
 
 // The project of an import in progress, or null.

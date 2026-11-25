@@ -225,6 +225,38 @@ test("model configs are named: the name given, else the model, its provider and 
   assert.equal((await modelConfig({ name: "Opus 5.5", model: "fake-opus" })).name, "Opus 5.5");
 });
 
+// A name taken between the create's look and its insert (the code review's 12, level 1's check; E7's race): the unique
+// index refused the insert, a 500. A default name is numbered again; a given one is refused as taken.
+test("a config name taken meanwhile: a default name numbered again, a given one refused as taken", async () => {
+  const racingEnv = (name: string) => {
+    let armed = false;
+    let raced = false;
+    const DB = {
+      prepare: (query: string) => {
+        if (query.startsWith("INSERT INTO model_configs") && !raced) armed = true;
+        return env.DB.prepare(query);
+      },
+      batch: async (statements: D1PreparedStatement[]) => {
+        if (armed && !raced) {
+          raced = true;
+          await env.DB.prepare("INSERT INTO model_configs (id, name, provider, model_string, family, secrets_json, pricing_kind, created_at) VALUES (?, ?, 'fake', ?, 'fake', '{}', 'free', 'now')")
+            .bind(crypto.randomUUID(), name, crypto.randomUUID())
+            .run();
+        }
+        return env.DB.batch(statements);
+      },
+    } as unknown as D1Database;
+    return { ...env, DB };
+  };
+  const post = (body: unknown, e: Env) => app.request("/api/model-configs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, e);
+  const numbered = await post(configBody(), racingEnv("fake-model (Fake (dev)) · high"));
+  assert.equal(numbered.status, 201, await numbered.clone().text());
+  assert.equal((await json(numbered)).name, "fake-model (Fake (dev)) · high (1)");
+  const given = await post(configBody({ name: "Mine", model: "fake-mine" }), racingEnv("Mine"));
+  assert.equal(given.status, 409);
+  assert.equal((await json(given)).code, "name_taken");
+});
+
 test("settings: checked, with defaults", async () => {
   assert.deepEqual(await json(await app.request("/api/settings", {}, env)), { defaultModelConfigId: null, spendingCapUsd: 1, newProjectRunMode: "auto", vatPercent: 0 });
   // VAT: a percentage from 0 to 100, at most two decimals.
