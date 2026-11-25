@@ -14,13 +14,9 @@
 // to run where there is a cloudflare.env already, so that file is never overwritten. If it fails before writing it, run
 // it again: what it created already is kept. Then deploy with `npm run deploy` (docs/database.md, "Deploying").
 
-import { execFileSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { accountPath, formatAccount, type Jurisdiction, JURISDICTIONS, workerDir, writeDeployConfig } from "./config.ts";
-
-const BUCKET = "score3ly-pdfs";
-const DATABASE = "score3ly";
+import { accountPath, BUCKET, DATABASE, formatAccount, type Jurisdiction, JURISDICTIONS, wrangler as wranglerIn, writeDeployConfig } from "./config.ts";
 
 if (existsSync(accountPath)) {
   console.error(`${accountPath} exists already: this account is set up. It is never overwritten; delete it by hand only if
@@ -50,16 +46,9 @@ const jurisdiction = jurisdictionArg();
 const jurisdictionFlag = jurisdiction === "none" ? [] : ["--jurisdiction", jurisdiction];
 const where = jurisdiction === "none" ? "" : ` (jurisdiction ${jurisdiction})`;
 
-// Wrangler's output, or its error output where it fails. It runs without a config (there is no wrangler.jsonc), so it
-// creates what it is asked to and offers to add nothing to a config.
-function wrangler(args: string[]): { ok: boolean; out: string } {
-  try {
-    return { ok: true, out: execFileSync("npx", ["wrangler", ...args], { cwd: workerDir, encoding: "utf8", stdio: ["inherit", "pipe", "pipe"] }) };
-  } catch (err) {
-    const e = err as { stdout?: string; stderr?: string };
-    return { ok: false, out: `${e.stdout ?? ""}${e.stderr ?? ""}` };
-  }
-}
+// Wrangler without a config (there is no wrangler.jsonc), so it creates what it is asked to and offers to add nothing
+// to a config; on the terminal, as before, should it ask anything.
+const wrangler = (args: string[]) => wranglerIn(args, { interactive: true });
 
 const who = wrangler(["whoami"]);
 if (!who.ok || /not authenticated|You are not logged in/i.test(who.out)) {

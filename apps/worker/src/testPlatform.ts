@@ -2,6 +2,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getPlatformProxy } from "wrangler";
+import { localDevConfigPath, NO_ENV_FILES } from "../scripts/config.ts";
 import { migrate, NodeD1 } from "./node/d1.ts";
 import { nodeEnv } from "./node/env.ts";
 import { NodeR2 } from "./node/r2.ts";
@@ -52,7 +53,7 @@ export async function testPlatform(host: TestHost = testHost()): Promise<TestPla
       },
     };
   }
-  const proxy = await getPlatformProxy<Env>({ configPath: join(import.meta.dirname, "..", "wrangler.local-dev.jsonc"), persist: false, envFiles: ["no-such-file"] });
+  const proxy = await getPlatformProxy<Env>({ configPath: localDevConfigPath, persist: false, envFiles: NO_ENV_FILES });
   // D1's exec() wants each statement on one line, without comments.
   for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort()) {
     const sql = readFileSync(join(MIGRATIONS, file), "utf8").replace(/--.*$/gm, "").replace(/\s+/g, " ").replace(/; /g, ";\n");

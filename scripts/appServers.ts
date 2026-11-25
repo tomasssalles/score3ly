@@ -9,7 +9,7 @@ import { createServer } from "node:net";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { chromium, type Browser, type Page } from "playwright";
-import { writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
+import { DATABASE, localDevConfigPath, wrangler as runWrangler, writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
 
 export const ROOT = join(import.meta.dirname, "..");
 
@@ -89,10 +89,11 @@ async function waitFor(url: string, what: string) {
   throw new Error(`${what} didn't start (${url})`);
 }
 
+// Wrangler on the local config, throwing where it fails.
 function wrangler(args: string[]) {
-  const result = spawnSync("npx", ["wrangler", ...args], { cwd: join(ROOT, "apps/worker"), encoding: "utf8" });
-  if (result.status !== 0) throw new Error(`wrangler ${args.join(" ")}: ${result.stderr || result.stdout}`);
-  return result.stdout;
+  const result = runWrangler(args, { config: localDevConfigPath });
+  if (!result.ok) throw new Error(`wrangler ${args.join(" ")}: ${result.out}`);
+  return result.out;
 }
 
 export type Servers = {
@@ -117,8 +118,8 @@ export async function startServers(options: { workerPort: number; webPort: numbe
     start("node", ["dist/server.js", "--data", stateDir, "--port", String(workerPort)], join(ROOT, "apps/desktop"));
   } else {
     writeLocalDevConfig(); // Wrangler's config for local work (apps/worker/scripts/config.ts)
-    wrangler(["d1", "migrations", "apply", "score3ly", "--local", "-c", "wrangler.local-dev.jsonc", "--persist-to", stateDir]);
-    start("npx", ["wrangler", "dev", "-c", "wrangler.local-dev.jsonc", "--port", String(workerPort), "--persist-to", stateDir], join(ROOT, "apps/worker"));
+    wrangler(["d1", "migrations", "apply", DATABASE, "--local", "--persist-to", stateDir]);
+    start("npx", ["wrangler", "dev", "-c", localDevConfigPath, "--port", String(workerPort), "--persist-to", stateDir], join(ROOT, "apps/worker"));
   }
   start("npx", ["vite", "--host", "127.0.0.1", "--port", String(webPort), "--strictPort"], join(ROOT, "apps/web"), {
     SCORE3LY_API_URL: `http://127.0.0.1:${workerPort}`,
@@ -148,7 +149,7 @@ export async function startServers(options: { workerPort: number; webPort: numbe
         db.close();
       }
     } else {
-      wrangler(["d1", "execute", "score3ly", "--local", "-c", "wrangler.local-dev.jsonc", "--persist-to", stateDir, "--command", command]);
+      wrangler(["d1", "execute", DATABASE, "--local", "--persist-to", stateDir, "--command", command]);
     }
   }
 

@@ -26,13 +26,12 @@
 // Rows only, no R2 content: the outputs' content keys are made up. Opening a seeded project shows its pipeline, not
 // its artifacts.
 
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pageItem, roundUsd, systemItem } from "@score3ly/core";
-import { writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
+import { DATABASE, localDevConfigPath, wrangler as runWrangler, writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
 import { mayReplace, markFolder, scriptArgs } from "./cli.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -575,20 +574,16 @@ const stateDir = resolve(WORKER, STATE);
 rmSync(stateDir, { recursive: true, force: true });
 mkdirSync(stateDir, { recursive: true });
 markFolder(stateDir, MARKER);
-// Wrangler reports its errors on stdout, which is only shown when it fails.
+// Wrangler on the local config; what it said where it fails.
 function wrangler(args: string[]) {
-  try {
-    execFileSync("npx", ["wrangler", ...args, "-c", "wrangler.local-dev.jsonc"], { cwd: WORKER, stdio: ["ignore", "pipe", "inherit"] });
-  } catch (e) {
-    process.stdout.write((e as { stdout?: Buffer }).stdout ?? "");
-    throw e;
-  }
+  const result = runWrangler(args, { config: localDevConfigPath });
+  if (!result.ok) throw new Error(`wrangler ${args.join(" ")}: ${result.out}`);
 }
 writeLocalDevConfig(); // Wrangler's config for local work (apps/worker/scripts/config.ts)
-wrangler(["d1", "migrations", "apply", "score3ly", "--local", "--persist-to", STATE]);
+wrangler(["d1", "migrations", "apply", DATABASE, "--local", "--persist-to", STATE]);
 const file = join(mkdtempSync(join(tmpdir(), "score3ly-seed-")), "seed.sql");
 writeFileSync(file, [...statements, ...callStatements, ...laterStatements].join("\n"));
-wrangler(["d1", "execute", "score3ly", "--local", "--persist-to", STATE, "--file", file]);
+wrangler(["d1", "execute", DATABASE, "--local", "--persist-to", STATE, "--file", file]);
 rmSync(dirname(file), { recursive: true, force: true });
 
 const total = paid.reduce((sum, c) => sum + c.cost, 0);

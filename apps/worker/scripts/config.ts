@@ -11,6 +11,7 @@
 //   node scripts/config.ts             (`npm run config -w apps/worker`) both, the second only where there is a
 //                                      cloudflare.env
 
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
@@ -25,7 +26,15 @@ export const JURISDICTIONS = ["eu", "fedramp", "none"] as const;
 export type Jurisdiction = (typeof JURISDICTIONS)[number];
 export type Account = { jurisdiction: Jurisdiction; databaseId: string };
 
-const BUCKET = "score3ly-pdfs";
+// The names on Cloudflare (and of Wrangler's local state): the R2 bucket for the PDFs and the stage outputs, and the D1
+// database. package.json's scripts write them out too, since they can't import them.
+export const BUCKET = "score3ly-pdfs";
+export const DATABASE = "score3ly";
+
+// What `getPlatformProxy` is given as its `envFiles`, so that it reads none: by default it reads .dev.vars (or .env),
+// and the tests must not depend on the secrets of whoever runs them. A file that doesn't exist is how to say "none".
+export const NO_ENV_FILES = ["no-such-file"];
+
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const GENERATED = `// Generated from wrangler.jsonc.template by scripts/config.ts, and generated again before every use: don't edit it,
@@ -72,6 +81,26 @@ export function withAccount(config: string, account: Account): string | { error:
   const bare = binding.replace(/,\s*"jurisdiction":\s*"[^"]*"/, "");
   const next = account.jurisdiction === "none" ? bare : bare.replace(/\s*\}$/, `, "jurisdiction": "${account.jurisdiction}" }`);
   return withId.replace(binding, next);
+}
+
+// Runs Wrangler in apps/worker with the config given (the generated one's path), or none (the setup, which creates what
+// it is asked to and offers to add nothing to a config). Its output, or its output and error output where it fails
+// (Wrangler reports its errors on stdout). `interactive` lets it read the terminal, for a prompt; otherwise it sees no
+// terminal and asks nothing (`d1 migrations apply` would ask before applying).
+export function wrangler(args: string[], options: { config?: string; interactive?: boolean } = {}): { ok: boolean; out: string } {
+  const config = options.config ? ["-c", options.config] : [];
+  try {
+    const out = execFileSync("npx", ["wrangler", ...args, ...config], {
+      cwd: workerDir,
+      encoding: "utf8",
+      stdio: [options.interactive ? "inherit" : "ignore", "pipe", "pipe"],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    return { ok: true, out };
+  } catch (err) {
+    const e = err as { stdout?: string; stderr?: string; message: string };
+    return { ok: false, out: `${e.stdout ?? ""}${e.stderr ?? ""}` || e.message };
+  }
 }
 
 export function writeLocalDevConfig(): void {
