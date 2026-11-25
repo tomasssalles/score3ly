@@ -19,6 +19,7 @@ import { useAppNavigation } from "./navigation";
 import { makeAndOpen } from "./newProjectFlow";
 import { discardUnsaved, hasUnsaved } from "./saving";
 import { openPdfForImages } from "./pageImages";
+import { ProgressBar } from "./ui/ProgressBar";
 
 export function App() {
   // Most recently opened first. null until loaded.
@@ -28,8 +29,8 @@ export function App() {
   const [knownPdf, setKnownPdf] = useState<{ pdf: File; sha256: string; lookup: PdfLookup } | null>(null);
   // A picked project file (docs/database.md, "Exporting and importing a project") whose PDF already has projects.
   const [knownArchive, setKnownArchive] = useState<{ file: File; archive: ProjectArchive; lookup: PdfLookup } | null>(null);
-  // An import on its way: its project's name.
-  const [importing, setImporting] = useState<string | null>(null);
+  // An import on its way: the new project's name, and how far it is (null until the uploads begin; the code review's E23).
+  const [importing, setImporting] = useState<{ name: string; progress: number | null } | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -133,9 +134,9 @@ export function App() {
     makeAndOpen({
       whenLeaving,
       make: async () => {
-        setImporting(name);
+        setImporting({ name, progress: null });
         try {
-          return await importArchive(archive);
+          return await importArchive(archive, (progress) => setImporting({ name, progress }));
         } finally {
           setImporting(null);
         }
@@ -210,7 +211,12 @@ export function App() {
           }}
         />
         {error && <p className="error-banner error-text">{error}</p>}
-        {importing !== null && <p className="status-banner" role="status">Importing "{importing}"…</p>}
+        {importing !== null && (
+          <div className="status-banner import-banner" role="status">
+            <span className="import-banner-text">Importing "{importing.name}"…</span>
+            <ProgressBar value={importing.progress} label={`Importing "${importing.name}"`} />
+          </div>
+        )}
         {renaming && current && (
           <RenameDialog
             title="Rename project"

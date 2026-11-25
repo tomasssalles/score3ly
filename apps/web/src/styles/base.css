@@ -72,6 +72,23 @@ body {
   color: var(--muted);
 }
 
+/* An import: its name, then how far it is. */
+.import-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.import-banner-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.import-banner .progress-bar {
+  flex: 0 1 240px;
+  min-width: 80px;
+}
+
 .empty-state {
   padding: 48px 16px;
   text-align: center;
