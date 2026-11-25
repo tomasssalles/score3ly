@@ -9,7 +9,7 @@ import { DEVICE_KEYS, useRemembered } from "./deviceStorage";
 import type { LayoutSystem } from "@score3ly/core";
 import { useEffect, useRef, useState } from "react";
 import { fetchJsonContent, putJson, recordOutputs, type Project } from "./api";
-import { addBarLine, fixedLayout, moveBarLine, sortSystems, systemAt, withinBox } from "./fixLayout";
+import { addBarLine, fixedLayout, moveBarLine, settledBarLine, sortSystems, systemAt, withinBox } from "./fixLayout";
 import { boxThrough, resizeBox, type BoxHandle } from "./editor/boxEdit";
 import { canRedo, canUndo, redo, undo, type UndoStack } from "./history";
 import { BarLineIcon, BoxIcon, HandIcon, TrashIcon } from "./ui/icons";
@@ -280,10 +280,12 @@ function PageEditor({
       const current = liveRef.current;
       setLive(null);
       if (!current || !selected) return;
-      const system = grabbed.kind === "box" ? withinBox(current[selected.system]) : current[selected.system];
+      // Let go: lines the box no longer covers dropped, a line let go at another's place merged with it (B3).
+      const live = current[selected.system];
+      const settled = grabbed.kind === "box" ? { system: withinBox(live), index: null } : settledBarLine(live, live.barLines[grabbed.index]);
       commit(
-        current.map((s, j) => (j === selected.system ? system : s)),
-        { system, bar: grabbed.kind === "bar" ? grabbed.index : null },
+        current.map((s, j) => (j === selected.system ? settled.system : s)),
+        { system: settled.system, bar: settled.index },
       );
     },
     tap: (q, scale) => {
@@ -313,6 +315,8 @@ function PageEditor({
       const i = selected && under.includes(selected.system) ? selected.system : (under[0] ?? null);
       if (i === null) return;
       const added = addBarLine(systems[i], p.x);
+      // A tap on a line selects it; a box too narrow for one takes none.
+      if (added.system === systems[i]) return setSelected({ system: i, bar: added.index });
       commit(replace(i, added.system), { system: added.system, bar: added.index });
     },
     hover: (q) => setHover(mode === "box" ? q : null),
@@ -336,7 +340,8 @@ function PageEditor({
         const px = (event.shiftKey ? 10 : 1) * (event.key === "ArrowLeft" ? -1 : 1);
         const system = systems[selected.system];
         const moved = moveBarLine(system, bar, system.barLines[bar] + px / W);
-        commit(replace(selected.system, moved.system), { system: moved.system, bar: moved.index });
+        const settled = settledBarLine(moved.system, moved.system.barLines[moved.index]);
+        commit(replace(selected.system, settled.system), { system: settled.system, bar: settled.index });
         return true;
       },
     });

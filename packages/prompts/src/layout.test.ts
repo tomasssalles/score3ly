@@ -16,8 +16,20 @@ test("boxes outside the page, the wrong way round, or bar lines outside their bo
   assert.match((checkLayoutAnswer(answer([system(), system({ top: 0.5, bottom: 0.4 })])) as { problem: string }).problem, /system 2/);
   assert.match((checkLayoutAnswer(answer([system({ barLines: [0.99] })])) as { problem: string }).problem, /outside its box/);
   assert.ok("problem" in checkLayoutAnswer({ systems: [] }));
-  // A bar line just past the box's edge is fine.
+  // A bar line just past the box's edge is fine (and dropped: see below).
   assert.ok(!("problem" in checkLayoutAnswer(answer([system({ barLines: [0.96] })]))));
+});
+
+test("bar lines at the box's end, past it, or at one place are normalized (code review B3)", () => {
+  const lines = (barLines: number[]) => {
+    const checked = checkLayoutAnswer(answer([system({ barLines })]));
+    assert.ok(!("problem" in checked));
+    return checked.systems[0].barLines;
+  };
+  assert.deepEqual(lines([0.95, 0.5]), [0.5], "a line at the box's end");
+  assert.deepEqual(lines([0.5, 0.96, 0.04]), [0.5], "lines just past its ends");
+  assert.deepEqual(lines([0.5, 0.5, 0.7]), [0.5, 0.7], "two at one place");
+  assert.deepEqual(lines([0.052, 0.948, 0.5]), [0.5], "lines too close to its sides");
 });
 
 test("only the last check asks for a note on what is still wrong", () => {

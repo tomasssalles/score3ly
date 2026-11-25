@@ -148,7 +148,7 @@ test("what the stages compute from boxes is what it was", () => {
   assert.deepEqual(snapshots(), {
     "boxes on crops": "db89ac8275790fe7",
     "boxes on stretch crops": "dbdde3901adcb9f7",
-    "layout answers": "400c0a2e5c166ed5",
+    "layout answers": "619f2d76455dea57",
     "on the page": "a9eb8ebecbb2bdc0",
     "places together": "29f3bbfe21922f65",
     "review's new issues": "01083fe22688a598",
@@ -156,7 +156,7 @@ test("what the stages compute from boxes is what it was", () => {
     "stretch boxes": "86282c6b726732f5",
     "stretch crops": "a0d6a9ded21383b3",
     "system crops": "5c223c245e64c47d",
-    editors: "79d2195f76a19ce2",
+    editors: "137dd9cb4def261d",
     homes: "001be09e74238698",
     mei: "adb303b3a0df85e8",
     places: "4ee24c86683ee919",

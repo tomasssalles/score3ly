@@ -2,7 +2,7 @@
 // draw-and-check loop: code draws the answer on the page, the model looks and corrects, at most LAYOUT_ROUNDS
 // answers in all. Boxes and positions are fractions of the image sent (left, right, top, bottom from 0 to 1).
 
-import { boxProblem, type JsonSchema, type LayoutSystem } from "@score3ly/core";
+import { boxProblem, normalizeBarLines, type JsonSchema, type LayoutSystem } from "@score3ly/core";
 import { bool, described, list, num, object, str } from "./schema.ts";
 
 // Raise whenever the texts, the schema or the checks change.
@@ -62,8 +62,10 @@ export type LayoutAnswer = { severelySkewed: boolean; systems: LayoutSystem[]; s
 // How far outside its box a bar line may be, as a fraction of the page's width.
 const BAR_LINE_TOLERANCE = 0.02;
 
-// The model's answer, checked: everything within the page, boxes the right way round, bar lines in their box. Bar
-// lines are sorted. Returns the reason the answer can't be used, or the answer.
+// The model's answer, checked: everything within the page, boxes the right way round, bar lines in their box (a little
+// past it is taken). The bar lines are then normalized (code review B3): sorted, those past the box or within
+// MIN_BAR_LINE_GAP of its sides dropped, those closer than it to each other merged. Code: a change raises
+// LAYOUT_VERSION (apps/web/src/layout.ts), the step's version. Returns the reason the answer can't be used, or the answer.
 export function checkLayoutAnswer(json: unknown): LayoutAnswer | { problem: string } {
   const a = json as Record<string, unknown> | null;
   if (typeof a !== "object" || !a || typeof a.severelySkewed !== "boolean" || typeof a.satisfied !== "boolean" || typeof a.note !== "string" || !Array.isArray(a.systems)) {
@@ -84,7 +86,7 @@ export function checkLayoutAnswer(json: unknown): LayoutAnswer | { problem: stri
     const barLines = [...(s.barLines as number[])].sort((x, y) => x - y);
     const outside = barLines.find((x) => x < left - BAR_LINE_TOLERANCE || x > right + BAR_LINE_TOLERANCE);
     if (outside !== undefined) return { problem: `system ${n}: a bar line at ${outside} is outside its box` };
-    systems.push({ box: { left, right, top, bottom }, barLines });
+    systems.push(normalizeBarLines({ box: { left, right, top, bottom }, barLines }));
   }
   return { severelySkewed: a.severelySkewed, systems, satisfied: a.satisfied, note: a.note };
 }

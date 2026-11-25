@@ -5,7 +5,7 @@ import { llmStageKey, type LlmStageConfig } from "./llmStageKey.ts";
 import { systemItem, type LayoutSystem } from "@score3ly/core";
 import { count } from "./format.ts";
 
-export const LAYOUT_VERSION = 2; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18)
+export const LAYOUT_VERSION = 3; // 2: answers checked against their schema first, a malformed one refused (code review, batch 18); 3: bar lines normalized, none at or past the box's sides or at one place (code review B3, batch 34)
 
 // What is stored per page: the layout on the straightened page (fractions of it), and how it came about.
 export type PageLayout = {
