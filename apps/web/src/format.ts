@@ -35,6 +35,15 @@ export function formatSize(bytes: number): string {
   return mb >= 1000 ? `${(bytes / (1000 * MB)).toFixed(1)} GB` : `${mb} MB`;
 }
 
+// What "Free up storage" removed, as the settings say it: "Removed 12 files (3 MB) and 1 unfinished import."
+export function freedText({ objects, bytes, imports }: { objects: number; bytes: number; imports: number }): string {
+  const parts = [
+    ...(objects > 0 ? [`${count(objects, "file")} (${bytes < MB ? "less than 1 MB" : formatSize(bytes)})`] : []),
+    ...(imports > 0 ? [count(imports, "unfinished import")] : []),
+  ];
+  return parts.length === 0 ? "Nothing to remove." : `Removed ${parts.join(" and ")}.`;
+}
+
 // ---- Dates ----
 
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

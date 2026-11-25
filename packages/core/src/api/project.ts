@@ -37,3 +37,7 @@ export type PdfLookup = {
 // A deleted project (`DELETE /api/projects/<id>`): whether no live project uses its PDF any more, so that the device
 // can delete the PDF's images too.
 export type Deleted = { pdfUnused: boolean };
+
+// What "Free up storage" removed (`POST /api/storage/free`): stored objects nothing referred to, their size in bytes,
+// and abandoned imports.
+export type Freed = { objects: number; bytes: number; imports: number };

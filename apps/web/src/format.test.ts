@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ago, count, deletedNote, duration, endedNote, fixNote, formatSize, fullDate, percent, shortDate, statDuration, when } from "./format.ts";
+import { ago, count, deletedNote, duration, endedNote, fixNote, formatSize, freedText, fullDate, percent, shortDate, statDuration, when } from "./format.ts";
 
 const now = Date.parse("2026-10-07T12:00:00.000Z");
 const before = (ms: number) => new Date(now - ms).toISOString();
@@ -87,4 +87,11 @@ test("a page fix's note counts the pages that changed (fix_skew, fix_layout)", (
   assert.equal(fixNote("lines", 1, 1), "lines changed");
   assert.equal(fixNote("layout", 2, 10), "layout changed on 2 of 10 pages");
   assert.equal(fixNote("layout", 0, 1), "no changes");
+});
+
+test("freedText says what was removed, or that there was nothing", () => {
+  assert.equal(freedText({ objects: 0, bytes: 0, imports: 0 }), "Nothing to remove.");
+  assert.equal(freedText({ objects: 1, bytes: 300, imports: 0 }), "Removed 1 file (less than 1 MB).");
+  assert.equal(freedText({ objects: 12, bytes: 3 * 1024 * 1024, imports: 1 }), "Removed 12 files (3 MB) and 1 unfinished import.");
+  assert.equal(freedText({ objects: 0, bytes: 0, imports: 2 }), "Removed 2 unfinished imports.");
 });

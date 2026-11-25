@@ -16,6 +16,7 @@ import { requestLog } from "./requestLog.ts";
 import { failed } from "./refusals.ts";
 import { storageRoutes } from "./storage.ts";
 import { projectRoutes } from "./projects.ts";
+import { freeUpRoutes } from "./deletion.ts";
 
 export type { ListedProject, Project, RunMode } from "@score3ly/core";
 import type { Info } from "@score3ly/core";
@@ -47,6 +48,7 @@ app.get("/api/info", (c) => c.json<Info>({ host: "cloudflare" }));
 
 projectRoutes(app);
 storageRoutes(app);
+freeUpRoutes(app);
 
 // Every route about a stage reads its entry first (pipelineRules.ts).
 stageEntries(app);

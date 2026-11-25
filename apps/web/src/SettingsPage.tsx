@@ -12,6 +12,7 @@ import { failure, fetchModelConfigs,
   fetchSecretNames,
   fetchSettings,
   deleteModelConfig,
+  freeUpStorage,
   openSecretsFile,
   renameModelConfig,
   putSetting,
@@ -23,7 +24,7 @@ import { NewModelConfig } from "./NewModelConfig";
 import { DropdownMenu } from "./ui/DropdownMenu";
 import { FittedText } from "./ui/FittedText";
 import { CACHE_LIMITS_MB, cacheLimitMb, setCacheLimitMb } from "./cacheLru";
-import { count, formatSize } from "./format";
+import { count, formatSize, freedText } from "./format";
 import { useHost } from "./host";
 import { ACCOUNT_NAMES, pricingText } from "./pricing";
 import { cacheUsage, pruneNow } from "./imageCache";
@@ -147,6 +148,7 @@ export function SettingsPage({ tab, onTab }: { tab: TabOf<"settings">; onTab: (t
         </dl>
       )}
       {tab === "general" && <Secrets />}
+      {tab === "general" && <Storage />}
       {tab === "general" && (
         <section className="settings-section">
           {/* The desktop app is the only device: its settings are all this computer's. */}
@@ -291,6 +293,45 @@ function Secrets() {
           settings, "Variables and Secrets") or with <code>wrangler secret put</code>.
         </p>
       )}
+    </section>
+  );
+}
+
+// "Free up storage" (docs/database.md, "Deleting a project"; the code review's dec. 18): what nothing uses any more on
+// the server is removed when a project is deleted, and here at once; then a line says what was removed.
+function Storage() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  async function free() {
+    setBusy(true);
+    setResult(null);
+    setError(null);
+    try {
+      setResult(freedText(await freeUpStorage()));
+    } catch (err) {
+      setError(failure("Freeing up storage failed", err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="settings-section">
+      <h3>Storage</h3>
+      <p className="settings-text">
+        Stored files that nothing uses any more, left behind by edits and by imports that didn't finish, are removed
+        whenever a project is deleted. This removes them now. Files stored within the last hour are kept: what uses them
+        may still be on its way.
+      </p>
+      <button type="button" className="button-secondary" disabled={busy} onClick={() => void free()}>
+        {busy ? "Freeing up storage…" : "Free up storage"}
+      </button>
+      {result && (
+        <p className="settings-hint storage-result" role="status">
+          {result}
+        </p>
+      )}
+      {error && <p className="settings-error error-text">{error}</p>}
     </section>
   );
 }

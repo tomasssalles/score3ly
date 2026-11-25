@@ -3,7 +3,7 @@ import { type ActivityData, type Host, type Info, type WindowTheme, type StoredF
 
 // A project as the Worker's API sends it (`@score3ly/core`).
 export type { ListedProject, PipelinePosition, Project, RunMode } from "@score3ly/core";
-import type { AddedStage, Deleted, ListedProject, OutputsAnswer, PdfLookup, Project, Resolved, RunMode, StartAnswer } from "@score3ly/core";
+import type { AddedStage, Deleted, Freed, ListedProject, OutputsAnswer, PdfLookup, Project, Resolved, RunMode, StartAnswer } from "@score3ly/core";
 
 // The stages as stored (docs/database.md), as the Worker's API sends them (`@score3ly/core`).
 export type { Dropped as ApiDropped, Output as ApiOutput, Pipeline as ApiPipeline, Stage as ApiStage } from "@score3ly/core";
@@ -143,6 +143,12 @@ export async function renameProject(project: Project, name: string): Promise<Pro
 
 // Deletes a project (docs/database.md, "Deleting a project"). Refused (409) while one of its stages runs. Says whether no project left uses
 // its PDF, so that this device can delete the PDF's images too.
+// "Free up storage" (the settings): removes what nothing uses any more on the server (docs/database.md, "Deleting a
+// project"), and says what.
+export async function freeUpStorage(): Promise<Freed> {
+  return postJson<Freed>("/api/storage/free", {});
+}
+
 export async function deleteProject(project: Project): Promise<Deleted> {
   return (await checked(await fetch(`/api/projects/${project.id}`, { method: "DELETE" }))).json();
 }

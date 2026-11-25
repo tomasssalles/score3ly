@@ -9,6 +9,7 @@ import { collectOrphans } from "./storage.ts";
 import { lockOf } from "./versions.ts";
 import { defaultName } from "./names.ts";
 import { insertProject } from "./projects.ts";
+import { freeUpStorage } from "./deletion.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 
 // A call still running counts as dead in the statistics once it is older than the Worker's longest call timeout plus a
@@ -2365,6 +2366,38 @@ test("an import that stopped midway is hidden, and removed for good by a retry o
   const costs = await json<{ projects: { id: string; costUsd: number }[] }>(await app.request("/api/costs", {}, env));
   assert.deepEqual(costs.projects.map((p) => [p.id, p.costUsd]).sort(), [[project.id, 0.5], [second.id, 0.25]].sort());
   assert.deepEqual((await json<{ id: string }[]>(await app.request("/api/projects", {}, env))).map((p) => p.id), [second.id]);
+});
+
+// "Free up storage" (the code review's dec. 18): what no row refers to, an hour old or more, and the imports abandoned a
+// day ago or more (batch 11's proposal), removed at once, not only after a deletion.
+test("free up storage: unreferenced objects an hour old and imports abandoned a day ago are removed, nothing else", async () => {
+  const { project, content } = await projectWithACall("kept.pdf");
+  const orphan = await putContent("an orphan to free");
+  const data = await exportOf(project.id);
+  await deleteProject(project.id);
+  // An import that stopped after its first chunk, a day ago.
+  for (const sha of content) await putContent(["request", "response", "skew"].map((w) => `${w} of kept.pdf`)[content.indexOf(sha)]);
+  assert.equal((await app.request(`/api/pdfs/${data.project.pdf_sha256}`, { method: "PUT", body: pdfBytes("kept.pdf") }, env)).status, 204);
+  assert.equal((await importOf(data, { chunks: 1 })).status, 200);
+  const live = await createdProject("live.pdf");
+  const inAnHour = new Date(Date.now() + 2 * 3600_000);
+
+  // Within the day, the import stays; the orphan, uploaded "two hours ago", goes.
+  const first = await freeUpStorage(env, inAnHour);
+  assert.equal(first.imports, 0);
+  assert.ok(first.objects >= 1 && first.bytes >= "an orphan to free".length);
+  assert.equal(await env.STORE.head(`content/${orphan}`), null);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM projects WHERE importing IS NOT NULL"), 1);
+  assert.ok(await env.STORE.head(`content/${content[0]}`)); // its calls name it
+
+  // A day later the import is abandoned: removed, and what only it named collected; the live project's PDF stays.
+  const later = await freeUpStorage(env, new Date(Date.now() + 25 * 3600_000));
+  assert.equal(later.imports, 1);
+  assert.equal(await count("SELECT COUNT(*) AS n FROM projects WHERE importing IS NOT NULL"), 0);
+  assert.equal(await env.STORE.head(`content/${content[0]}`), null);
+  assert.ok(await env.STORE.head(`pdfs/${live.pdfSha256}.pdf`));
+  // The route answers what it removed (nothing old enough now).
+  assert.deepEqual(await json(await postJson("/api/storage/free", {})), { objects: 0, bytes: 0, imports: 0 });
 });
 
 test("historical exports (fixtures/exports) are imported, each with its whole pipeline", async () => {

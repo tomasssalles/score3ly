@@ -4,7 +4,8 @@
 // and content), the full requests and responses of its calls, its PDF and the PDF's fingerprints. Content in R2 is
 // deleted by collecting what no row refers to any more, which also collects the orphans other changes leave behind.
 
-import type { Deleted } from "@score3ly/core";
+import type { Hono } from "hono";
+import type { Deleted, Freed } from "@score3ly/core";
 import { anyRunning } from "./pipelineRules.ts";
 import { collectOrphans, ORPHAN_MIN_AGE_MS } from "./storage.ts";
 
@@ -63,9 +64,42 @@ export async function deleteProject(env: Env, projectId: string, now = new Date(
 // and outputs it reused, the configs it matched; a call it brought back to life is deleted again, with its old
 // deletion time, unless a live output names it by now. The content in R2 goes by the usual orphan collection, with its
 // hour. (A stage or call of an import in progress is never served from the cache, so nothing else refers to them.)
+//
+// The unfinished imports of a file (`importing` holds its key), removed by a retry of the same file before it begins;
+// the content they alone named is then collected.
 export async function removeUnfinishedImports(env: Env, key: string, now = new Date()): Promise<number> {
+  const { results } = await env.DB.prepare("SELECT id, pdf_sha256 FROM projects WHERE importing = ? AND deleted_at IS NULL").bind(key).all<ImportRow>();
+  await removeImports(env, results);
+  if (results.length > 0) await collectOrphans(env, new Date(now.getTime() - ORPHAN_MIN_AGE_MS));
+  return results.length;
+}
+
+// An unfinished import is taken to be abandoned a day after it began (`imported_at`): one still going after that long
+// has surely stopped (an import takes minutes).
+export const ABANDONED_IMPORT_MS = 24 * 60 * 60 * 1000;
+
+// "Free up storage" (the settings; the code review's dec. 18, with batch 11's proposal): the imports abandoned a day
+// ago or more removed as above, then every object no row refers to collected (with its hour), not only after a
+// deletion. Returns what was removed.
+export async function freeUpStorage(env: Env, now = new Date()): Promise<Freed> {
+  const before = new Date(now.getTime() - ABANDONED_IMPORT_MS).toISOString();
+  // At most three at a time: each is one batch of 14 statements, within D1's statements per request.
+  const { results } = await env.DB.prepare("SELECT id, pdf_sha256 FROM projects WHERE importing IS NOT NULL AND imported_at < ? AND deleted_at IS NULL ORDER BY imported_at LIMIT 3")
+    .bind(before)
+    .all<ImportRow>();
+  await removeImports(env, results);
+  const collected = await collectOrphans(env, new Date(now.getTime() - ORPHAN_MIN_AGE_MS));
+  return { ...collected, imports: results.length };
+}
+
+export function freeUpRoutes(app: Hono<{ Bindings: Env }>) {
+  app.post("/api/storage/free", async (c) => c.json<Freed>(await freeUpStorage(c.env)));
+}
+
+type ImportRow = { id: string; pdf_sha256: string };
+
+async function removeImports(env: Env, results: ImportRow[]): Promise<void> {
   const db = env.DB;
-  const { results } = await db.prepare("SELECT id, pdf_sha256 FROM projects WHERE importing = ? AND deleted_at IS NULL").bind(key).all<{ id: string; pdf_sha256: string }>();
   for (const { id, pdf_sha256: pdf } of results) {
     const stages = "SELECT id FROM stages WHERE created_in = ?";
     const outputs = `SELECT id FROM outputs WHERE stage_id IN (${stages})`;
@@ -97,6 +131,4 @@ export async function removeUnfinishedImports(env: Env, key: string, now = new D
       db.prepare("DELETE FROM image_fingerprints WHERE pdf_sha256 = ? AND NOT EXISTS (SELECT 1 FROM projects WHERE pdf_sha256 = ? AND deleted_at IS NULL)").bind(pdf, pdf),
     ]);
   }
-  if (results.length > 0) await collectOrphans(env, new Date(now.getTime() - ORPHAN_MIN_AGE_MS));
-  return results.length;
 }

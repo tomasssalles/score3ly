@@ -272,3 +272,9 @@ dialog.app-dialog.config-form {
 .test-result.failed {
   color: var(--danger);
 }
+
+/* What "Free up storage" removed, under its button. */
+.storage-result {
+  margin-top: 8px;
+  font-size: 13px;
+}
