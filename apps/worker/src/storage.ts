@@ -61,13 +61,14 @@ export const ORPHAN_MIN_AGE_MS = 60 * 60 * 1000;
 // What a collection removed: how many objects, and their size in bytes.
 export type Collected = { objects: number; bytes: number };
 
-// Which rows refer to content: a stored output's, and the request or response of a call that isn't marked deleted (or
-// that an output names). As a condition on the hash in `column`, for the import's content check (`content/missing`),
-// which must agree with `collectOrphans` on what is kept.
-export const CONTENT_NAMED = (column: string) => `(
+// Whether a row refers to the content whose hash is in `column`: a stored output's, or the request or response of a call
+// that isn't marked deleted (or that an output names). The same rule as `collectOrphans`'s, as a condition, for the
+// import's content check (`content/missing`); each part can use its index (migration 0008).
+const callKeeps = "(c.deleted_at IS NULL OR EXISTS (SELECT 1 FROM outputs n WHERE n.call_id = c.id))";
+export const contentNamed = (column: string) => `(
   EXISTS (SELECT 1 FROM outputs o WHERE o.content_sha256 = ${column})
-  OR EXISTS (SELECT 1 FROM llm_calls c WHERE (c.request_sha256 = ${column} OR c.response_sha256 = ${column})
-    AND (c.deleted_at IS NULL OR c.id IN (SELECT call_id FROM outputs WHERE call_id IS NOT NULL))))`;
+  OR EXISTS (SELECT 1 FROM llm_calls c WHERE c.request_sha256 = ${column} AND ${callKeeps})
+  OR EXISTS (SELECT 1 FROM llm_calls c WHERE c.response_sha256 = ${column} AND ${callKeeps}))`;
 
 // Deletes every object, uploaded before `before`, that no row refers to: a stored output's content, the request or
 // response of a call that isn't marked (or that an output names), or the PDF of a project that isn't deleted. Lists the
@@ -153,15 +154,21 @@ export function storageRoutes(app: Hono<{ Bindings: Env }>) {
     });
   });
 
-  // Which of these content objects aren't stored yet, so that an import uploads only those. Each is one look into R2,
-  // about 0.3 ms of a Worker's CPU: at most MISSING_CONTENT_BATCH (20) per request (the owner, 2026-11-24, E1).
+  // Which of these content objects an import must upload: those not stored, and those no row names (the code review's
+  // E9: an orphan, which a deletion elsewhere may collect before the import's rows name it; uploaded again, it is young,
+  // and so safe from collection for an hour). Each stored one is one look into R2, about 0.3 ms of a Worker's CPU, made
+  // at once: at most MISSING_CONTENT_BATCH (20) per request (the owner, 2026-11-24, E1).
   app.post("/api/content/missing", async (c) => {
     const body = (await c.req.json().catch(() => null)) as { sha256s?: unknown } | null;
     if (!Array.isArray(body?.sha256s) || !body.sha256s.every(isSha256Hex) || body.sha256s.length > MISSING_CONTENT_BATCH) {
       return badRequest(c, `expected 'sha256s', at most ${MISSING_CONTENT_BATCH} SHA-256s in lowercase hex`);
     }
-    const missing: string[] = [];
-    for (const sha of body.sha256s as string[]) if (!(await c.env.STORE.head(contentKey(sha)))) missing.push(sha);
-    return c.json({ missing });
+    const asked = body.sha256s as string[];
+    const { results } = await c.env.DB.prepare(`SELECT DISTINCT j.value AS sha FROM json_each(?) j WHERE ${contentNamed("j.value")}`)
+      .bind(JSON.stringify(asked))
+      .all<{ sha: string }>();
+    const named = new Set(results.map((r) => r.sha));
+    const stored = await Promise.all(asked.map(async (sha) => named.has(sha) && (await c.env.STORE.head(contentKey(sha))) !== null));
+    return c.json({ missing: asked.filter((_, i) => !stored[i]) });
   });
 }

@@ -2210,6 +2210,21 @@ test("import while the original lives: its done stages are the original's (nothi
   assert.equal(await count("SELECT COUNT(*) AS n FROM model_configs"), configs);
 });
 
+// The code review's E9: an object no row names is an orphan, which a deletion elsewhere may collect at any time (its
+// hour is long past for an old one). Reported present, an import would skip its upload and name content that is gone.
+// So it counts as missing: uploaded again, which also makes it young, safe until the import's rows name it.
+test("content/missing: an object no row names counts as missing; one a row names, as stored", async () => {
+  const { content } = await projectWithACall("named.pdf");
+  const orphan = await putContent("nothing names this");
+  const never = await sha256Hex(pdfBytes("never stored"));
+  const asked = [...content, orphan, never];
+  const missing = await json<{ missing: string[] }>(await postJson("/api/content/missing", { sha256s: asked }));
+  assert.deepEqual([...missing.missing].sort(), [orphan, never].sort());
+  // A named object that isn't stored (removed by hand) is missing too.
+  await env.STORE.delete(`content/${content[0]}`);
+  assert.deepEqual((await json<{ missing: string[] }>(await postJson("/api/content/missing", { sha256s: content }))).missing, [content[0]]);
+});
+
 test("import after deleting the original: stages copied, the deleted call brought back to life where it was paid, not counted twice", async () => {
   const { project, content } = await projectWithACall("back.pdf");
   const data = await exportOf(project.id);

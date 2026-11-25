@@ -163,10 +163,12 @@ async function retryInOrder() {
     }
     return found;
   };
-  assert.deepEqual(await missing(), []); // asked before the retry's head: all there
+  // Asked before the retry's head: what the first attempt's calls name is there; the rest, which no row names (the
+  // code review's E9), counts as missing although it is stored.
+  const callContent = rows.llm_calls.flatMap((c) => [c.request_sha256, c.response_sha256]).filter((sha): sha is string => typeof sha === "string");
+  assert.deepEqual(new Set(await missing()), new Set(rows.content.filter((sha) => !callContent.includes(sha))));
   const second = (await (await post("/api/projects/import", importHead(rows, key))).json()) as { id: string };
   // The first attempt's calls were all that named their requests and responses: collected with it, and missing now.
-  const callContent = rows.llm_calls.flatMap((c) => [c.request_sha256, c.response_sha256]).filter((sha): sha is string => typeof sha === "string");
   const nowMissing = await missing();
   for (const sha of new Set(callContent)) assert.ok(nowMissing.includes(sha), sha);
   for (const sha of nowMissing) assert.equal((await app.request(`/api/content/${sha}`, { method: "PUT", body: files[`content/${sha}`] as Uint8Array<ArrayBuffer> }, env)).status, 204);
