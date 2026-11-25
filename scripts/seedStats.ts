@@ -6,23 +6,27 @@
 //   npm run dev:worker -- --persist-to .wrangler/seed-stats
 //
 // A simulation, not hand-written rows: each stage makes its calls one after the other, with tokens and durations
-// from the step and the model config's effort, costs computed as the Worker computes them (llm/prices.ts), and the
-// spending cap enforced on the rolling 24 hours, so a long score stops at the cap and resumes the next day. Seeded,
-// so every run gives the same data. What it holds:
-// - model configs on every provider: Opus on Anthropic's API, Sonnet, Haiku on Vertex AI, Gemini marked free tier,
-//   Fable (deleted after a trial), Opus on Bedrock in the EU edited once (two rows, one superseding the other), and
-//   the fake model of the initial migration;
+// from the step and the model config's effort, and the spending cap enforced on the rolling 24 hours, so a long score
+// stops at the cap and resumes the next day. The call rows are the Worker's (apps/worker/scripts/seedRows.ts): the
+// price from the list of models, the cost as the Worker computes it, the VAT rate in force, each call's place (its
+// item and round), and a row of its own for each answer served from the record. Seeded, so every run gives the same
+// data, but dated relative to the day it runs: the simulation's last day is moved, by whole days, into the last 24
+// hours, so that the views of the last 24 hours, this month and so on have something in them. What it holds:
+// - model configs: Opus, Sonnet and Haiku on Anthropic's API, Gemini on AI Studio marked free tier, Fable (deleted
+//   after a trial), Opus on Bedrock in the EU edited once (two rows, one superseding the other), and the fake model
+//   of the initial migration;
 // - 19 projects from June to today, with a quiet summer gap; two on the same PDF; three deleted, one of whose names
 //   is used again; a whole volume rasterized and left;
 // - stages kept in a pipeline, replaced by a re-run (another config, a fix before them), stopped, failed, and
 //   manual stages between them, one of them edited once (two rows, the second replacing the first), and a Fix MEI
 //   worked on over several evenings; calls that failed (with their kind and HTTP status), were cut off or couldn't be
 //   parsed, and their retries;
-// - an output for every item of an automatic stage, with its timing : how long it took, from its
-//   calls and some work around them, and what it found in the caches (a re-run's pages that didn't change answered
-//   from the record, the page images of a PDF already rasterized found on the device); none for deleted projects,
+// - an output for every item of an automatic stage, with its timing: how long it took, from its calls and some work
+//   around them, and what it found in the caches (a re-run's pages that didn't change answered from the record, with
+//   a call row each; the page images of a PDF already rasterized found on the device); none for deleted projects,
 //   whose outputs deletion removes;
-// - every manual stage's saves, counted per quarter of an hour , in sessions with short pauses.
+// - every manual stage's saves, counted per quarter of an hour, in sessions with short pauses;
+// - a VAT rate set in September, which the calls after it record.
 // Rows only, no R2 content: the outputs' content keys are made up. Opening a seeded project shows its pipeline, not
 // its artifacts.
 
@@ -30,8 +34,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pageItem, roundUsd, systemItem } from "@score3ly/core";
+import { pageItem, systemItem } from "@score3ly/core";
 import { DATABASE, localDevConfigPath, wrangler as runWrangler, writeLocalDevConfig } from "../apps/worker/scripts/config.ts";
+import { seedCallRow, type SeedConfigRow, type SeedOutcome, seedPrice, seedServedRow } from "../apps/worker/scripts/seedRows.ts";
 import { mayReplace, markFolder, scriptArgs } from "./cli.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -49,8 +54,14 @@ const STATE = folders[0] ?? DEFAULT_STATE;
     process.exit(1);
   }
 }
-const TODAY = Date.parse("2026-10-27T16:00:00Z");
+// The simulation runs on fixed dates up to NOW, the moment it is seen at, just after its last work; every date
+// written is moved by SHIFT, whole days, so that NOW falls within the 24 hours before the run (decided 2026-11-17:
+// review E13), and that work into the last 24 hours or close to them.
+const NOW = Date.parse("2026-10-27T11:00:00Z");
+const DAY = 24 * 60 * 60_000;
+const SHIFT = Math.floor((Date.now() - NOW) / DAY) * DAY;
 const CAP_USD = 15;
+const VAT_PERCENT = 8.1; // set with the other settings, on 2026-09-15
 
 // Mulberry32: a small seeded generator, so the data is the same on every run.
 let seed = 0x5c03e1;
@@ -67,9 +78,11 @@ const hex = (n: number) => Array.from({ length: n }, () => Math.floor(random() *
 const uuid = () => `${hex(8)}-${hex(4)}-4${hex(3)}-${hex(4)}-${hex(12)}`;
 
 const MINUTE = 60_000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-const iso = (t: number) => new Date(t).toISOString();
+let latest = 0; // the latest date written, which must not be after NOW
+const iso = (t: number) => {
+  latest = Math.max(latest, t);
+  return new Date(t + SHIFT).toISOString();
+};
 const at = (date: string) => Date.parse(`${date}Z`);
 
 // A stage's row is written once it ends, after its calls: the calls go last, for their foreign key, and the outputs and
@@ -87,7 +100,7 @@ function insert(table: string, row: Record<string, unknown>) {
   list.push(`INSERT INTO ${table} (${Object.keys(row).join(", ")}) VALUES (${Object.values(row).map(sql).join(", ")});`);
 }
 
-// An item's output, with its timing . Deleted projects have none: deletion removes them.
+// An item's output, with its timing. Deleted projects have none: deletion removes them.
 type Timing = { ms: number; calls?: number; callsCached?: number; images?: number; imagesCached?: number };
 function output(p: { deleted: string | null }, stageId: string, item: string, type: string, end: number, timing: Timing | null) {
   if (p.deleted) return;
@@ -99,54 +112,57 @@ function output(p: { deleted: string | null }, stageId: string, item: string, ty
   });
 }
 
-// ---- Model configs and prices (as llm/prices.ts has them; US dollars per million tokens) ----
+// ---- Model configs (priced by the Worker's list of models, apps/worker/src/llm/modelList.ts) ----
 
-type Price = { input: number; output: number; cacheRead: number; cacheWrite: number };
-const claude = (input: number, output: number, cacheRead: number): Price => ({ input, output, cacheRead, cacheWrite: input * 1.25 });
-const PRICES: Record<string, Price> = {
-  opus: claude(4, 20, 0.2),
-  sonnet: claude(2, 10, 0.2),
-  haiku: claude(0.1, 0.5, 0.01),
-  fable: claude(10, 50, 0.25),
-};
-
-type Config = { id: string; family: keyof typeof PRICES | "gemini" | "fake"; responseModel: string; effort: string | null; free: boolean };
+// `capped`: its calls count towards the spending cap (a priced config, as the Worker's `prepareCall` has it).
+type Config = { row: SeedConfigRow; responseModel: string; capped: boolean };
 const EFFORT_OUTPUT: Record<string, number> = { low: 0.4, medium: 0.7, high: 1, xhigh: 1.5, max: 2.2 };
+
+function configOf(row: SeedConfigRow, responseModel: string): Config {
+  const priced = seedPrice(row);
+  if (priced.kind !== "priced" && priced.kind !== "free") throw new Error(`${row.id}: the list of models has no price for it (${priced.kind})`);
+  return { row, responseModel, capped: priced.kind === "priced" };
+}
 
 // A model config as the database stores it: a listed model (`modelId`) or one added by hand (`modelString` with its
 // family), its region and routing, and its pricing.
-function config(row: { id: string; name: string; provider: string; modelId?: string; modelString?: string; family?: string; effort: string | null; region?: string; routing?: string; project?: string; secrets?: object; free?: boolean; created: string; deleted?: string }, family: Config["family"], responseModel: string): Config {
-  insert("model_configs", {
-    id: row.id,
-    name: row.name,
-    provider: row.provider,
-    model_id: row.modelId ?? null,
-    model_string: row.modelString ?? null,
-    family: row.modelString ? row.family : null,
-    effort: row.effort,
-    region: row.region ?? "",
-    routing: row.routing ?? null,
-    project: row.project ?? null,
-    secrets_json: JSON.stringify(row.secrets ?? {}),
-    pricing_kind: row.free ? "free" : "list",
+function config(c: { id: string; name: string; provider: SeedConfigRow["provider"]; modelId?: string; modelString?: string; family?: SeedConfigRow["family"]; effort: SeedConfigRow["effort"]; region?: string; routing?: SeedConfigRow["routing"]; secrets?: object; free?: boolean; created: string; deleted?: string }, responseModel: string): Config {
+  const row: SeedConfigRow = {
+    id: c.id,
+    provider: c.provider,
+    model_id: c.modelId ?? null,
+    model_string: c.modelString ?? null,
+    family: c.modelString ? (c.family ?? null) : null,
+    effort: c.effort,
+    region: c.region ?? "",
+    routing: c.routing ?? null,
+    pricing_kind: c.free ? "free" : "list",
     pricing_reference: null,
-    created_at: iso(at(row.created)),
-    deleted_at: row.deleted ? iso(at(row.deleted)) : null,
+  };
+  insert("model_configs", {
+    ...row,
+    name: c.name,
+    project: null,
+    secrets_json: JSON.stringify(c.secrets ?? {}),
+    created_at: iso(at(c.created)),
+    deleted_at: c.deleted ? iso(at(c.deleted)) : null,
   });
-  return { id: row.id, family, responseModel, effort: row.effort, free: !!row.free };
+  return configOf(row, responseModel);
 }
 
-const FAKE: Config = { id: "fake-model", family: "fake", responseModel: "fake", effort: null, free: true }; // in the initial migration
-const OPUS = config({ id: "cfg-opus", name: "Opus", provider: "anthropic", modelId: "claude-opus-5-5", effort: "high", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-06-04T19:12:00" }, "opus", "claude-opus-5-5");
-const SONNET = config({ id: "cfg-sonnet", name: "Sonnet", provider: "anthropic", modelId: "claude-sonnet-5-5", effort: "medium", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-06-10T20:03:00" }, "sonnet", "claude-sonnet-5-5");
-const HAIKU = config({ id: "cfg-haiku", name: "Haiku", provider: "anthropic", modelId: "claude-haiku-5-5", effort: "low", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-06-20T10:40:00" }, "haiku", "claude-haiku-5-5");
-const GEMINI = config({ id: "cfg-gemini", name: "gemini-3.1-pro-preview · high", provider: "ai-studio", modelString: "gemini-3.1-pro-preview", family: "gemini", effort: "high", secrets: { apiKey: "GEMINI_FREE_KEY" }, free: true, created: "2026-08-12T21:30:00" }, "gemini", "gemini-3.1-pro-preview");
-const FABLE = config({ id: "cfg-fable", name: "Fable", provider: "anthropic", modelId: "claude-fable-5-1", effort: "max", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-08-25T18:55:00", deleted: "2026-08-30T11:00:00" }, "fable", "claude-fable-5-1");
-const OPUS_EU_1 = config({ id: "cfg-opus-eu-1", name: "Opus EU", provider: "bedrock", modelId: "claude-opus-5-5", effort: "high", region: "eu-central-1", routing: "geographic", secrets: { apiKey: "BEDROCK_API_KEY" }, created: "2026-09-01T19:20:00", deleted: "2026-09-15T20:10:00" }, "opus", "claude-opus-5-5");
-const OPUS_EU_2 = config({ id: "cfg-opus-eu-2", name: "Opus EU", provider: "bedrock", modelId: "claude-opus-5-5", effort: "xhigh", region: "eu-central-1", routing: "geographic", secrets: { apiKey: "BEDROCK_API_KEY" }, created: "2026-09-15T20:10:00" }, "opus", "claude-opus-5-5");
+// In the initial migration (0001_initial.sql).
+const FAKE = configOf({ id: "fake-model", provider: "fake", model_id: "fake", model_string: null, family: null, effort: null, region: "", routing: null, pricing_kind: "free", pricing_reference: null }, "fake");
+const OPUS = config({ id: "cfg-opus", name: "Opus", provider: "anthropic", modelId: "claude-opus-5-5", effort: "high", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-06-04T19:12:00" }, "claude-opus-5-5");
+const SONNET = config({ id: "cfg-sonnet", name: "Sonnet", provider: "anthropic", modelId: "claude-sonnet-5-5", effort: "medium", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-06-10T20:03:00" }, "claude-sonnet-5-5");
+const HAIKU = config({ id: "cfg-haiku", name: "Haiku", provider: "anthropic", modelId: "claude-haiku-5-5", effort: "low", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-06-20T10:40:00" }, "claude-haiku-5-5");
+const GEMINI = config({ id: "cfg-gemini", name: "gemini-3.1-pro-preview · high", provider: "ai-studio", modelString: "gemini-3.1-pro-preview", family: "gemini", effort: "high", secrets: { apiKey: "GEMINI_FREE_KEY" }, free: true, created: "2026-08-12T21:30:00" }, "gemini-3.1-pro-preview");
+const FABLE = config({ id: "cfg-fable", name: "Fable", provider: "anthropic", modelId: "claude-fable-5-1", effort: "max", secrets: { apiKey: "ANTHROPIC_API_KEY" }, created: "2026-08-25T18:55:00", deleted: "2026-08-30T11:00:00" }, "claude-fable-5-1");
+const OPUS_EU_1 = config({ id: "cfg-opus-eu-1", name: "Opus EU", provider: "bedrock", modelId: "claude-opus-5-5", effort: "high", region: "eu-central-1", routing: "geographic", secrets: { apiKey: "BEDROCK_API_KEY" }, created: "2026-09-01T19:20:00", deleted: "2026-09-15T20:10:00" }, "claude-opus-5-5");
+const OPUS_EU_2 = config({ id: "cfg-opus-eu-2", name: "Opus EU", provider: "bedrock", modelId: "claude-opus-5-5", effort: "xhigh", region: "eu-central-1", routing: "geographic", secrets: { apiKey: "BEDROCK_API_KEY" }, created: "2026-09-15T20:10:00" }, "claude-opus-5-5");
 
-for (const [key, value] of [["defaultModelConfigId", OPUS_EU_2.id], ["spendingCapUsd", CAP_USD], ["newProjectRunMode", "auto"]] as const) {
-  statements.push(`INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES (${sql(key)}, ${sql(JSON.stringify(value))}, ${sql(iso(at("2026-09-15T20:12:00")))});`);
+const SETTINGS_AT = at("2026-09-15T20:12:00");
+for (const [key, value] of [["defaultModelConfigId", OPUS_EU_2.row.id], ["spendingCapUsd", CAP_USD], ["newProjectRunMode", "auto"], ["vatPercent", VAT_PERCENT]] as const) {
+  statements.push(`INSERT OR REPLACE INTO settings (key, value_json, updated_at) VALUES (${sql(key)}, ${sql(JSON.stringify(value))}, ${sql(iso(SETTINGS_AT))});`);
 }
 
 // ---- Calls ----
@@ -161,51 +177,55 @@ class CapReached extends Error {}
 
 type Tokens = { input: number; output: number; cacheRead: number; cacheWrite: number };
 
-// One call at time `t`: returns when it ended. A failed, cut-off or unparseable call is followed by its retry.
-function call(stageId: string, cfg: Config, t: number, tokens: Tokens, deleted: string | null): number {
-  if (!cfg.free && spentInDayBefore(t) >= CAP_USD) throw new CapReached();
+// The last usable answer at each place of a project's stages of a step, by its config: what a re-run's unchanged
+// item is served from.
+const answered = new Map<string, Record<string, unknown>>();
+const placeKey = (projectId: string, step: string, cfg: Config, item: string, round: number) => `${projectId} ${step} ${cfg.row.id} ${item} ${round}`;
+
+// One call at time `t`, at its place (the item, the round): returns when it ended. A failed, cut-off or unparseable
+// call is followed by its retry, at the same place. Its cost counts towards the cap with VAT, as the Worker counts it.
+function call(stageId: string, cfg: Config, t: number, tokens: Tokens, p: Project, step: string, item: string, round: number): number {
+  if (cfg.capped && spentInDayBefore(t) >= CAP_USD) throw new CapReached();
   const roll = random();
-  const status = roll < 0.025 ? "error" : roll < 0.035 ? "cut_off" : roll < 0.045 ? "unparseable" : "ok";
-  const overloaded = status === "error" && chance(0.6);
-  const effort = EFFORT_OUTPUT[cfg.effort ?? "high"] ?? 1;
-  const output = status === "cut_off" ? 32_000 : Math.round(tokens.output * effort * between(0.8, 1.25));
-  const seconds = status === "error" ? between(2, 40) : 4 + output / between(50, 90) + tokens.input / 4000;
+  const outcome: SeedOutcome = roll < 0.025 ? (chance(0.6) ? "overloaded" : "timeout") : roll < 0.035 ? "cut_off" : roll < 0.045 ? "unparseable" : "ok";
+  const failed = outcome === "overloaded" || outcome === "timeout";
+  const effort = EFFORT_OUTPUT[cfg.row.effort ?? "high"] ?? 1;
+  const output = outcome === "cut_off" ? 32_000 : Math.round(tokens.output * effort * between(0.8, 1.25));
+  const seconds = failed ? between(2, 40) : 4 + output / between(50, 90) + tokens.input / 4000;
   const end = t + seconds * 1000;
-  const price = cfg.free || cfg.family === "fake" || cfg.family === "gemini" ? null : PRICES[cfg.family];
-  const usage = status === "error" ? null : { ...tokens, output };
-  const cost = usage === null ? null : price === null ? 0 : roundUsd((usage.input * price.input + usage.output * price.output + usage.cacheRead * price.cacheRead + usage.cacheWrite * price.cacheWrite) / 1_000_000);
-  if (cost && !cfg.free) paid.push({ t, cost });
-  insert("llm_calls", {
+  const vatPercent = t >= SETTINGS_AT ? VAT_PERCENT : 0;
+  const row = seedCallRow({
     id: uuid(),
-    stage_id: stageId,
-    model_config_id: cfg.id,
-    request_key: hex(64),
-    response_model: usage ? cfg.responseModel : null,
-    request_sha256: deleted ? null : hex(64),
-    response_sha256: deleted || !usage ? null : hex(64),
-    status,
-    error:
-      status === "error" ? (overloaded ? "The provider is overloaded (529). Try again later." : "The request timed out after 600 s.")
-      : status === "cut_off" ? "The answer was cut off."
-      : status === "unparseable" ? "The answer isn't valid JSON."
-      : null,
-    error_kind: status === "error" ? (overloaded ? "overloaded" : "timeout") : null,
-    http_status: overloaded ? 529 : null,
-    input_tokens: usage?.input ?? null,
-    output_tokens: usage?.output ?? null,
-    cached_tokens: usage?.cacheRead ?? null,
-    cache_write_tokens: usage?.cacheWrite ?? null,
-    cost_usd: cost,
-    price_json: price && usage ? JSON.stringify({ ...price, asOf: t < at("2026-10-06T00:00:00") ? "2026-05-28" : "2026-10-06" }) : null,
-    // Every call needs a place (migration 0009); the statistics don't read it, so not the call's real one (the code
-    // review's E13 asks for those).
-    item: "",
-    round: 1,
-    started_at: iso(t),
-    finished_at: iso(end),
-    deleted_at: deleted,
+    stageId,
+    config: cfg.row,
+    item,
+    round,
+    outcome,
+    usage: failed ? null : { ...tokens, output },
+    responseModel: cfg.responseModel,
+    vatPercent,
+    requestKey: hex(64),
+    requestSha: hex(64),
+    responseSha: hex(64),
+    startedAt: iso(t),
+    finishedAt: iso(end),
+    deletedAt: p.deleted,
   });
-  return status === "ok" ? end : call(stageId, cfg, end + between(1, 5) * 1000, tokens, deleted);
+  const cost = row.cost_usd as number | null;
+  if (cost && cfg.capped) paid.push({ t, cost: cost * (1 + vatPercent / 100) });
+  insert("llm_calls", row);
+  if (outcome === "ok") answered.set(placeKey(p.id, step, cfg, item, round), row);
+  return outcome === "ok" ? end : call(stageId, cfg, end + between(1, 5) * 1000, tokens, p, step, item, round);
+}
+
+// An item answered from the record at time `t`: a row of the stage's for each round the item had before, served from
+// that round's answer. False where it has no earlier answer to be served from.
+function served(stageId: string, cfg: Config, t: number, p: Project, step: string, item: string): number | false {
+  const rounds: Record<string, unknown>[] = [];
+  for (let round = 1; answered.has(placeKey(p.id, step, cfg, item, round)); round++) rounds.push(answered.get(placeKey(p.id, step, cfg, item, round))!);
+  if (rounds.length === 0) return false;
+  rounds.forEach((original, i) => insert("llm_calls", seedServedRow(original, { id: uuid(), stageId, configId: cfg.row.id, item, round: i + 1, at: iso(t), deletedAt: p.deleted })));
+  return rounds.length;
 }
 
 // Tokens of one request, before the effort scales the output (thinking included).
@@ -240,7 +260,7 @@ function stageRow(p: Project, step: string, cfg: Config | null, start: number | 
 function stageRowWithId(id: string, p: Project, step: string, cfg: Config | null, start: number | null, end: number | null, status: StageEnd | "planned", note: string | null, inPipeline: boolean, error: string | null = null, replaces: string | null = null): string {
   insert("stages", {
     id, created_in: p.id, step, step_version: start === null ? null : 1, status,
-    config_json: start === null ? null : step === "rasterize" ? JSON.stringify({ pages: `1-${p.pages}`, dpi: 300 }) : "{}", model_config_id: cfg?.id ?? null, stage_key: start === null ? null : hex(64),
+    config_json: start === null ? null : step === "rasterize" ? JSON.stringify({ pages: `1-${p.pages}`, dpi: 300 }) : "{}", model_config_id: cfg?.row.id ?? null, stage_key: start === null ? null : hex(64),
     error, note, created_at: iso(start ?? p.created), started_at: start === null ? null : iso(start),
     heartbeat_at: end === null ? null : iso(end), finished_at: end === null || status === "wip" ? null : iso(end),
     run_ms: start === null || end === null || status === "wip" ? null : end - start,
@@ -283,17 +303,19 @@ function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, st
   for (let i = 0; i < Math.min(limit, items.length); i++) {
     const item = items[i];
     const itemStart = t;
-    if (chance(opts.cached ?? 0)) {
-      // Answered from the record: no images made, no call.
+    const fromRecord = chance(opts.cached ?? 0) && served(id, cfg, t, p, step, item.item);
+    if (fromRecord) {
+      // Answered from the record: no images made, no call sent.
       t += between(0.05, 0.4) * 1000;
-      done.push({ item, end: t, timing: { ms: t - itemStart, calls: 1, callsCached: 1 } });
+      done.push({ item, end: t, timing: { ms: t - itemStart, calls: fromRecord, callsCached: fromRecord } });
       continue;
     }
     t += between(0.3, 2.5) * 1000; // the images, made on the device
     const requests = item.requests();
-    for (const tokens of requests) {
+    for (const [r, tokens] of requests.entries()) {
+      const round = r + 1;
       try {
-        t = call(id, cfg, t, tokens, p.deleted) + between(0.3, 2) * 1000;
+        t = call(id, cfg, t, tokens, p, step, item.item, round) + between(0.3, 2) * 1000;
       } catch (e) {
         if (!(e instanceof CapReached)) throw e;
         // The cap stops the stage; the user retries an evening later, once the last 24 hours allow it. The item's
@@ -304,7 +326,7 @@ function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, st
           next.setUTCHours(int(18, 21), int(0, 59));
           retry = next.getTime();
         } while (spentInDayBefore(retry) >= CAP_USD);
-        t = call(id, cfg, retry, tokens, p.deleted);
+        t = call(id, cfg, retry, tokens, p, step, item.item, round);
       }
     }
     const ms = Math.min(t - itemStart, 10 * MINUTE);
@@ -315,7 +337,7 @@ function llm(p: Project, step: "layout" | "analyze" | "extract", cfg: Config, st
   const systems = p.systems.reduce((a, b) => a + b, 0);
   const note = status !== "done" ? null : step === "layout" ? `${systems} systems` : step === "analyze" ? `${int(4, 14)} observations` : `${systems} systems · ${int(2, 20)} issues · ${int(0, 6)} warnings`;
   insert("stages", {
-    id, created_in: p.id, step, step_version: 1, status, config_json: "{}", model_config_id: cfg.id, stage_key: hex(64),
+    id, created_in: p.id, step, step_version: 1, status, config_json: "{}", model_config_id: cfg.row.id, stage_key: hex(64),
     error, note, created_at: iso(start), started_at: iso(start), heartbeat_at: iso(t), finished_at: iso(t), run_ms: t - start, page_count: p.pages, deleted_at: p.deleted,
   });
   for (const d of done) output(p, id, d.item.item, d.item.type, d.end, d.timing);
@@ -374,7 +396,7 @@ function manualStage(p: Project, step: string, start: number, minutes: [number, 
     const last = Math.floor((from + length * MINUTE) / QUARTER) * QUARTER;
     for (let q = first; q <= last; q += QUARTER) {
       if (q !== first && q !== last && chance(0.15)) continue; // a quarter spent reading, without a save
-      insert("manual_saves", { stage_id: id, quarter: q, saves: int(1, step === "fix_layout" || step === "fix_skew" ? 40 : 12) });
+      insert("manual_saves", { stage_id: id, quarter: q + SHIFT, saves: int(1, step === "fix_layout" || step === "fix_skew" ? 40 : 12) });
     }
   }
   return { id, end };
@@ -386,7 +408,7 @@ function planned(p: Project, ...steps: string[]) {
 
 function pipeline(p: Project, last: number) {
   p.entries.forEach((stageId, i) => insert("pipeline_entries", { project_id: p.id, position: i + 1, stage_id: stageId }));
-  statements.push(`UPDATE projects SET last_modified_at = ${sql(iso(last))}, last_opened_at = ${sql(iso(Math.min(last + between(0, 3) * DAY, TODAY)))} WHERE id = ${sql(p.id)};`);
+  statements.push(`UPDATE projects SET last_modified_at = ${sql(iso(last))}, last_opened_at = ${sql(iso(Math.min(last + between(0, 3) * DAY, NOW)))} WHERE id = ${sql(p.id)};`);
 }
 
 const gap = (min: number, max: number) => between(min, max) * MINUTE;
@@ -566,7 +588,7 @@ const pdf = () => hex(64);
   pipeline(p, t);
 }
 
-if (paid.some((c) => c.t > TODAY)) throw new Error("The simulation ran past today: move the last projects earlier.");
+if (latest > NOW) throw new Error(`The simulation ran past its now (${new Date(latest).toISOString()}): move the last projects earlier, or NOW later.`);
 
 // ---- Write it ----
 

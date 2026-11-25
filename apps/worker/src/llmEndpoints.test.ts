@@ -12,6 +12,7 @@ import { importChunks, importHead, type ModelOptions, type ProjectExport } from 
 import { MODEL_LIST } from "./llm/modelList.ts";
 import { LLM_TIMEOUT_MINUTES } from "./llm/timeouts.ts";
 import { REPLAY_MODEL } from "./llm/replay.ts";
+import { seedCallRow, type SeedConfigRow, type SeedOutcome, seedServedRow } from "../scripts/seedRows.ts";
 
 // The LLM endpoints against Wrangler's local R2 and D1, kept in memory, with the fake provider (llm/fake.ts).
 let platform: Awaited<ReturnType<typeof testPlatform>>;
@@ -1537,6 +1538,50 @@ test("the rows a call writes are counted by Costs and Usage as what happened", a
     "timed out": { paid: [], unknown: 1, usage: ["timeout ×1"] },
     "524": { paid: [], unknown: 1, usage: ["timeout ×1"] },
   });
+});
+
+// The mock statistics (scripts/seedStats.ts) write call rows of their own, built by apps/worker/scripts/seedRows.ts:
+// they are read by Costs and Usage as the rows a call writes (review E13).
+test("the mock statistics' call rows are read by Costs and Usage like the Worker's own", async () => {
+  await send("/api/settings/vatPercent", { value: 10 }, "PUT");
+  const sent = await modelConfig({ name: "sent" });
+  const seeded = await modelConfig({ name: "seeded", effort: "low" });
+  const real = await runningStage(sent.id);
+  await json(await call(real));
+  const row = (await env.DB.prepare("SELECT * FROM llm_calls WHERE stage_id = ?").bind(real.stageId).first<Record<string, unknown>>())!;
+  const configRow = (await env.DB.prepare("SELECT * FROM model_configs WHERE id = ?").bind(seeded.id).first<SeedConfigRow>())!;
+
+  const stage = await runningStage(seeded.id);
+  const usage = { input: row.input_tokens as number, output: row.output_tokens as number, cacheRead: row.cached_tokens as number, cacheWrite: row.cache_write_tokens as number };
+  const at = new Date().toISOString();
+  const seedRow = (outcome: SeedOutcome, round: number) =>
+    seedCallRow({
+      id: crypto.randomUUID(), stageId: stage.stageId, config: configRow, item: "p1", round, outcome,
+      usage: outcome === "overloaded" || outcome === "timeout" ? null : usage, responseModel: row.response_model as string, vatPercent: 10,
+      requestKey: "ab".repeat(32), requestSha: "cd".repeat(32), responseSha: "ef".repeat(32), startedAt: at, finishedAt: at, deletedAt: null,
+    });
+  const ok = seedRow("ok", 1);
+  const rows = [ok, seedRow("cut_off", 2), seedRow("unparseable", 3), seedRow("overloaded", 4), seedRow("timeout", 5)];
+  rows.push(seedServedRow(ok, { id: crypto.randomUUID(), stageId: stage.stageId, configId: seeded.id, item: "p1", round: 1, at, deletedAt: null }));
+  for (const r of rows) {
+    await env.DB.prepare(`INSERT INTO llm_calls (${Object.keys(r).join(", ")}) VALUES (${Object.keys(r).map(() => "?").join(", ")})`).bind(...Object.values(r)).run();
+  }
+
+  // The seed's answered call has the columns the Worker's has, with the same cost, VAT and price.
+  const filled = (r: Record<string, unknown>) => Object.keys(r).filter((k) => r[k] !== null && r[k] !== undefined).sort();
+  const stored = (await env.DB.prepare("SELECT * FROM llm_calls WHERE id = ?").bind(ok.id).first<Record<string, unknown>>())!;
+  assert.deepEqual(filled(stored), filled(row));
+  for (const column of ["cost_usd", "vat_percent", "price_json", "status"]) assert.deepEqual(stored[column], row[column], column);
+
+  const costs = (await (await app.request("/api/costs", {}, env)).json()) as { points: [string, string, number, number, string][]; unknown: [string, string, number, number][] };
+  const failures = (await (await app.request("/api/failures", {}, env)).json()) as { points: [string, number, string, number][] };
+  const paid = costs.points.filter((p) => p[1] === seeded.id).map((p) => [p[4], p[3]]);
+  const sentUsd = costs.points.find((p) => p[1] === sent.id)![3];
+  assert.ok(sentUsd > 0);
+  assert.deepEqual(paid.sort(), [["cut_off", sentUsd], ["ok", sentUsd], ["unparseable", sentUsd]]);
+  assert.deepEqual(costs.unknown.filter((u) => u[1] === seeded.id).reduce((n, u) => n + u[3], 0), 1, "the timeout's cost is unknown, the overloaded provider's refusal isn't");
+  const reasons = failures.points.filter((p) => p[0] === seeded.id).map((p) => `${p[2]} ×${p[3]}`).sort();
+  assert.deepEqual(reasons, ["cached ×1", "cut_off ×1", "ok ×1", "overloaded ×1", "timeout ×1", "unparseable ×1"]);
 });
 
 // The bookkeeping after an answer (docs/llm.md, "Calling the providers"): a failure there doesn't make a paid answer an
