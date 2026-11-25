@@ -22,7 +22,10 @@ import {
   requestOf,
   routingsOf,
   sameValuesProblem,
+  saving,
   servedAtRegion,
+  shownDefaultName,
+  makesDefault,
   settled,
   type FormState,
 } from "./configForm.ts";
@@ -360,6 +363,50 @@ test("a config with exactly the values of another is refused, naming it and poin
   assert.equal(sameValuesProblem([original], requestOf({ ...clone, useDefaultName: true })), message);
   // Another value is another config.
   assert.equal(sameValuesProblem([original], requestOf({ ...clone, effort: "low" })), null);
+});
+
+// The dialog's submit flow, moved out of NewModelConfig.tsx (the code review's C5, C21).
+test("saving: refused for the same values before anything is asked; else the request, the default and what is asked first", () => {
+  const original = config({ name: "Opus EU" });
+  const clone = formFromConfig(OPTIONS, original);
+  const asOriginal = { config: original, isDefault: true };
+  assert.deepEqual(saving(OPTIONS, clone, [original], asOriginal), { refused: sameValuesProblem([original], requestOf(clone)) });
+  // Another effort, keeping the original: created at once, not the default.
+  const other = { ...clone, effort: "low" as const, name: "Opus EU low" };
+  assert.deepEqual(saving(OPTIONS, other, [original], asOriginal), { request: requestOf(other), makeDefault: false, confirm: [] });
+  // Deleting the original: named in the request, asked first, and the clone becomes the default if the original was.
+  const replacing = { ...other, deleteOriginal: true };
+  assert.deepEqual(saving(OPTIONS, replacing, [original], asOriginal), {
+    request: { ...requestOf(replacing), replaces: "c1" },
+    makeDefault: true,
+    confirm: ['"Opus EU" will be deleted. This action cannot be undone.'],
+  });
+  assert.equal(makesDefault(replacing, { config: original, isDefault: false }), false);
+  assert.equal(makesDefault({ ...other, makeDefault: true }, null), true);
+  // A price the app can't vouch for is asked too, after the deletion.
+  const unpriced = { ...replacing, model: { kind: "added" as const, string: "opus-x", family: "claude" as const }, pricing: "unpriced" as const };
+  const plan = saving(OPTIONS, unpriced, [original], asOriginal);
+  assert.ok("confirm" in plan);
+  assert.deepEqual(plan.confirm, ['"Opus EU" will be deleted. This action cannot be undone.', confirmationOf(OPTIONS, unpriced)]);
+});
+
+// Found by the Worker's round trip (configForm.test.ts there): "Free tier" on a listed model was refused as "no longer
+// supported", since the check looked for the price of the pricing picked, and "free" has none.
+test("a listed model on the free tier can be saved where the model is offered", () => {
+  const form = pick({ provider: "anthropic" }, { model: { kind: "listed", id: "opus" } }, { secrets: { apiKey: "K" }, pricing: "free" });
+  assert.equal(form.pricing, "free");
+  assert.equal(missing(OPTIONS, form), null);
+  assert.deepEqual(requestOf(form).pricing, { kind: "free" });
+});
+
+test("the default name shown: numbered among the configs, the original's name free when the clone deletes it", () => {
+  const original = config({ name: "Claude Opus 5.5 (Bedrock) · high" });
+  const clone = formFromConfig(OPTIONS, original);
+  const asOriginal = { config: original, isDefault: false };
+  assert.equal(shownDefaultName(OPTIONS, clone, [original], asOriginal), "Claude Opus 5.5 (Bedrock) · high (1)");
+  assert.equal(shownDefaultName(OPTIONS, { ...clone, deleteOriginal: true }, [original], asOriginal), "Claude Opus 5.5 (Bedrock) · high");
+  assert.equal(shownDefaultName(OPTIONS, { ...clone, deleteOriginal: true }, [original], null), "Claude Opus 5.5 (Bedrock) · high (1)");
+  assert.equal(shownDefaultName(OPTIONS, EMPTY_FORM, [original], null), "");
 });
 
 test("a config created whose default setting fails is reported as created, with what failed", async () => {

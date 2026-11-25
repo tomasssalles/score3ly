@@ -1,9 +1,10 @@
 // The model config form's logic (docs/llm.md, "The settings page"), for a new config and for a clone: what each picker
-// offers given the others, the default name it would get, what is still missing, and the request it makes. Pure, so the
-// dialog (NewModelConfig.tsx) only shows it.
+// offers given the others, the default name it would get, what is still missing, the request it makes and what saving
+// does. Pure, so the dialog (NewModelConfig.tsx) only shows it; it depends on core alone, so the Worker's tests check
+// its requests against the Worker's own checks.
 
-import { errorText, SECRET_LABELS, sameConfigValues, sameValuesMessage, valuesOf, valuesOfNew } from "@score3ly/core";
-import type { Account, Family, ModelConfig, ModelOptions, NewModelConfig, Place, Provider, Routing } from "./api";
+import { errorText, firstFreeName, SECRET_LABELS, sameConfigValues, sameValuesMessage, valuesOf, valuesOfNew } from "@score3ly/core";
+import type { Account, Family, ModelConfig, ModelOptions, NewModelConfig, Place, Provider, Routing } from "@score3ly/core";
 
 type Effort = NonNullable<ModelConfig["effort"]>;
 type ProviderOption = ModelOptions["providers"][number];
@@ -323,7 +324,8 @@ export function missing(options: ModelOptions, form: FormState): string | null {
   if (form.pricing === "as" && form.reference === null) return "The model it is priced as isn't chosen yet.";
   // A clone of a config the app no longer supports, as it was: not saved until it is supported (docs/llm.md, "Clone").
   const where = `${provider.name}${form.region ? ` in ${form.region}` : ""}${form.routing ? ` (${form.routing} routing)` : ""}`;
-  if (form.model.kind === "listed" && (provider.pricedByProvider ? !offeredAt(options, form) : priceAt(options, form) === null)) {
+  // (Offered where the list has its price, or the provider prices it: whatever the config's own pricing, free included.)
+  if (form.model.kind === "listed" && !offeredAt(options, form)) {
     return `The app no longer supports ${listedModel(options, form)?.name ?? pinnedModel(form)?.modelName ?? form.model.id} on ${where}.`;
   }
   if (form.pricing === "as" && priceAt(options, form) === null) {
@@ -377,6 +379,50 @@ export function sameValuesProblem(configs: ModelConfig[], request: NewModelConfi
 function sameValues(configs: ModelConfig[], request: NewModelConfig): ModelConfig | null {
   const values = valuesOfNew(request);
   return configs.find((c) => sameConfigValues(valuesOf(c), values)) ?? null;
+}
+
+// A clone's original, and whether it is the default.
+export type Original = { config: ModelConfig; isDefault: boolean };
+
+// Whether a clone deletes its original ("Delete the original").
+export function deletesOriginal(form: FormState, original: Original | null): boolean {
+  return original !== null && form.deleteOriginal;
+}
+
+// Whether the new config becomes the default: asked for, or a clone that deletes the default, which needs another
+// default (the Worker does it too).
+export function makesDefault(form: FormState, original: Original | null): boolean {
+  return form.makeDefault || (deletesOriginal(form, original) && original!.isDefault);
+}
+
+// The default name as the Worker will number it ("" while there is none): the original's name is free when it is
+// deleted with the clone.
+export function shownDefaultName(options: ModelOptions, form: FormState, configs: ModelConfig[], original: Original | null): string {
+  const name = defaultName(options, form);
+  if (name === null) return "";
+  const taken = configs.filter((c) => !(deletesOriginal(form, original) && c.id === original!.config.id)).map((c) => c.name);
+  return firstFreeName(name, taken);
+}
+
+// What saving the form does (docs/llm.md, "Managing model configs"), once nothing is `missing`: refused, before anything
+// is asked, when another config has exactly its values; else the request (a clone that deletes its original names it
+// as `replaces`), whether it becomes the default, and what is asked first: the original's deletion, a price the app
+// can't vouch for (none: it is created at once).
+export type Saving = { refused: string } | { request: NewModelConfig; makeDefault: boolean; confirm: string[] };
+
+export function saving(options: ModelOptions, form: FormState, configs: ModelConfig[], original: Original | null): Saving {
+  const request = requestOf(form);
+  const same = sameValuesProblem(configs, request);
+  if (same) return { refused: same };
+  const deletes = deletesOriginal(form, original);
+  return {
+    request: { ...request, ...(deletes ? { replaces: original!.config.id } : {}) },
+    makeDefault: makesDefault(form, original),
+    confirm: [
+      ...(deletes ? [`"${original!.config.name}" will be deleted. This action cannot be undone.`] : []),
+      ...[confirmationOf(options, form)].filter((t): t is string => t !== null),
+    ],
+  };
 }
 
 // Creating a config, then making it the default when asked: two requests, so the second can fail after the first made

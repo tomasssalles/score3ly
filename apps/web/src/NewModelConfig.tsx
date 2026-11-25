@@ -2,19 +2,17 @@
 // a config's "Clone", then filled with its values: everything picked but the name and a model added by hand's string.
 // Its logic is in configForm.ts.
 
-import { firstFreeName, SECRET_LABELS } from "@score3ly/core";
+import { SECRET_LABELS } from "@score3ly/core";
 import { useState } from "react";
-import { createModelConfig, putSetting, type ModelConfig, type ModelOptions } from "./api";
+import { createModelConfig, putSetting, type ModelConfig, type ModelOptions, type NewModelConfig } from "./api";
 import {
-  confirmationOf,
   createConfig,
-  defaultName,
+  deletesOriginal as deletesOriginalOf,
   effortsOf,
   familyOption,
   formFromConfig,
   initialForm,
   pinnedModel,
-  sameValuesProblem,
   hasRegions,
   listedModel,
   missing,
@@ -23,11 +21,13 @@ import {
   providerOf,
   referencesOf,
   regionsOf,
-  requestOf,
   routingLabel,
   routingsOf,
+  saving,
   servedAtRegion,
   settled,
+  shownDefaultName,
+  makesDefault,
   withProvider,
   type FormState,
 } from "./configForm";
@@ -77,20 +77,18 @@ export function NewModelConfig({
   const listed = listedModel(options, form);
   const efforts = effortsOf(options, form);
   const problem = missing(options, form);
-  const name = defaultName(options, form);
   const price = priceAt(options, form);
 
-  const deletesOriginal = from !== null && form.deleteOriginal;
-  // The default name as the Worker will number it: the original's name is free when it is deleted with the clone.
-  const taken = (configs ?? []).filter((c) => !(deletesOriginal && c.id === from?.id)).map((c) => c.name);
-  const shownDefault = name === null ? "" : firstFreeName(name, taken);
-  // Deleting the default needs another default: the clone becomes it (the Worker does it too).
-  const makeDefault = form.makeDefault || (deletesOriginal && isDefault);
+  const original = from ? { config: from, isDefault } : null;
+  const deletesOriginal = deletesOriginalOf(form, original);
+  const shownDefault = shownDefaultName(options, form, configs, original);
+  // Deleting the default needs another default: the clone becomes it.
+  const makeDefault = makesDefault(form, original);
 
-  async function create() {
+  async function create(request: NewModelConfig, makeDefault: boolean) {
     setBusy(true);
     const { created, error } = await createConfig(
-      () => createModelConfig({ ...requestOf(form), ...(deletesOriginal ? { replaces: from!.id } : {}) }),
+      () => createModelConfig(request),
       makeDefault ? (id) => putSetting("defaultModelConfigId", id) : null,
     );
     if (created) onCreated();
@@ -103,18 +101,14 @@ export function NewModelConfig({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (problem !== null || busy) return;
-    // A config with exactly these values exists: refused before anything is asked (docs/llm.md, "Managing model configs").
-    const same = sameValuesProblem(configs, requestOf(form));
-    if (same) {
-      setError(same);
+    const plan = saving(options, form, configs, original);
+    if ("refused" in plan) {
+      setError(plan.refused);
       return;
     }
-    const texts = [
-      ...(deletesOriginal ? [`"${from!.name}" will be deleted. This action cannot be undone.`] : []),
-      ...[confirmationOf(options, form)].filter((t): t is string => t !== null),
-    ];
-    if (texts.length > 0) setConfirming({ text: texts, label: "Create config", run: () => void create() });
-    else void create();
+    const run = () => void create(plan.request, plan.makeDefault);
+    if (plan.confirm.length > 0) setConfirming({ text: plan.confirm, label: "Create config", run });
+    else run();
   }
 
   // The model picker: the provider's listed models, those served at the region picked first, the others after it (one
