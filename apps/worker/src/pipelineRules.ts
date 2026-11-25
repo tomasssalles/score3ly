@@ -10,7 +10,6 @@ import { groupBy, isFurtherReview as furtherReview, RECIPE, stepsOfKind, type Pi
 import { readSettings } from "./settings.ts";
 import { resolvedModel } from "./llm/models.ts";
 import { unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
-import type { Family, Pricing, Provider, Routing } from "./llm/models.ts";
 
 // The pipeline as the API sends it (`Pipeline`, `Stage`, `Output`, `Dropped`) is in `@score3ly/core`.
 
@@ -100,20 +99,6 @@ export type StageRow = {
   run_id: string | null; // the current or last run's (docs/database.md, "An interrupted run")
   run_started_at: string | null;
   run_ms: number | null;
-  mc_name?: string;
-  mc_provider?: Provider | null;
-  mc_model_id?: string | null;
-  mc_model_string?: string | null;
-  mc_family?: Family | null;
-  mc_region?: string | null;
-  mc_routing?: Routing | null;
-  mc_pricing_kind?: Pricing["kind"] | null;
-  mc_pricing_reference?: string | null;
-  mc_effort?: ModelConfigRow["effort"];
-  mc_project?: string | null;
-  mc_account?: ModelConfigRow["account"];
-  mc_secrets_json?: string | null;
-  mc_deleted_at?: string | null;
   cost_usd?: number | null;
   carried?: number;
   in_recipe: number;
@@ -257,10 +242,10 @@ export async function anyRunning(db: D1Database, projectId: string, now: number)
 
 // `dev`: whether the Worker offers the providers for development (`devProviders`), for the configs' `unsupported`.
 export async function readPipeline(db: D1Database, projectId: string, dev: boolean, now = Date.now()): Promise<Pipeline> {
-  const [stages, outputs, dropped] = await db.batch([
+  const [stages, outputs, dropped, configs] = await db.batch([
     db
       .prepare(
-        `SELECT s.*, e.carried, m.name AS mc_name, m.provider AS mc_provider, m.model_id AS mc_model_id, m.model_string AS mc_model_string, m.family AS mc_family, m.region AS mc_region, m.routing AS mc_routing, m.pricing_kind AS mc_pricing_kind, m.pricing_reference AS mc_pricing_reference, m.effort AS mc_effort, m.project AS mc_project, m.account AS mc_account, m.secrets_json AS mc_secrets_json, m.deleted_at AS mc_deleted_at, (SELECT SUM(${COST_WITH_VAT}) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id LEFT JOIN model_configs m ON m.id = s.model_config_id WHERE e.project_id = ? ORDER BY e.position`,
+        `SELECT s.*, e.carried, (SELECT SUM(${COST_WITH_VAT}) FROM llm_calls c WHERE c.stage_id = s.id) AS cost_usd FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ? ORDER BY e.position`,
       )
       .bind(projectId),
     db
@@ -269,7 +254,12 @@ export async function readPipeline(db: D1Database, projectId: string, dev: boole
       )
       .bind(projectId),
     db.prepare("SELECT id, after_stage_id, step FROM dropped_stages WHERE project_id = ? ORDER BY id").bind(projectId),
+    // The stages' model configs, as stored (`ModelConfigRow`), deleted ones included: the cards show them.
+    db
+      .prepare("SELECT m.* FROM model_configs m WHERE m.id IN (SELECT s.model_config_id FROM pipeline_entries e JOIN stages s ON s.id = e.stage_id WHERE e.project_id = ?)")
+      .bind(projectId),
   ]);
+  const configById = new Map((configs.results as ModelConfigRow[]).map((row) => [row.id, row]));
   const byStage = groupBy(outputs.results as OutputRow[], (row) => row.stage_id);
   return {
     stages: (stages.results as StageRow[]).map((row) => ({
@@ -286,7 +276,7 @@ export async function readPipeline(db: D1Database, projectId: string, dev: boole
       finishedAt: row.finished_at,
       interrupted: wasInterrupted(row, now),
       runMs: row.run_ms,
-      modelConfig: row.mc_provider ? stageModelConfig(row, dev) : null,
+      modelConfig: row.model_config_id && configById.has(row.model_config_id) ? stageModelConfig(configById.get(row.model_config_id)!, dev) : null,
       costUsd: row.cost_usd ?? null,
       carried: row.carried === 1,
       inRecipe: row.in_recipe === 1,
@@ -408,22 +398,7 @@ export function touchProject(db: D1Database, projectId: string, now: string): D1
 }
 
 // What a stage's card shows of its model config (`StageModelConfig`).
-export function stageModelConfig(row: StageRow, dev: boolean): StageModelConfig {
-  const config = {
-    name: row.mc_name ?? "",
-    provider: row.mc_provider!,
-    model_id: row.mc_model_id ?? null,
-    model_string: row.mc_model_string ?? null,
-    family: row.mc_family ?? null,
-    effort: row.mc_effort ?? null,
-    region: row.mc_region ?? "",
-    routing: row.mc_routing ?? null,
-    project: row.mc_project ?? null,
-    account: row.mc_account ?? null,
-    secrets_json: row.mc_secrets_json ?? "{}",
-    pricing_kind: row.mc_pricing_kind ?? "unpriced",
-    pricing_reference: row.mc_pricing_reference ?? null,
-  } as ModelConfigRow;
+export function stageModelConfig(config: ModelConfigRow, dev: boolean): StageModelConfig {
   const { model } = resolvedModel(config);
-  return { name: row.mc_name ?? model, model, deleted: Boolean(row.mc_deleted_at), unsupported: unsupportedOf(config, dev) !== null };
+  return { name: config.name, model, deleted: config.deleted_at !== null, unsupported: unsupportedOf(config, dev) !== null };
 }

@@ -80,12 +80,7 @@ export function unsupportedOf(row: ModelConfigRow, dev: boolean, pricing: Pricin
 
 // The request that would create a stored config now.
 function bodyOf(row: ModelConfigRow, pricing: Pricing): Record<string, unknown> {
-  let secrets: unknown;
-  try {
-    secrets = JSON.parse(row.secrets_json);
-  } catch {
-    secrets = null;
-  }
+  const secrets = secretsOf(row);
   return {
     name: row.name,
     provider: row.provider,
@@ -128,13 +123,8 @@ function unsupportedReason(list: ModelList, row: ModelConfigRow, pricing: Pricin
   if (!places.some((place) => samePlace(place, { region: row.region, routing: row.routing }))) return no(`${at}${row.routing ? ` (${row.routing} routing)` : " without a routing"}`);
   // The effort, which the model takes or not, wherever it runs.
   if (row.effort !== null && !effortsOf(entry?.family ?? row.family!, entry).includes(row.effort)) return no(`${modelName} at effort ${row.effort}`);
-  // The credentials: one of the sets of secrets the adapter takes.
-  let secrets: Record<string, string> = {};
-  try {
-    secrets = JSON.parse(row.secrets_json) as Record<string, string>;
-  } catch {
-    // Unreadable: the checks say so.
-  }
+  // The credentials: one of the sets of secrets the adapter takes (unreadable ones: the checks say so).
+  const secrets = secretsOf(row) ?? {};
   const fields = Object.keys(secrets).sort().join(",");
   if (!secretSets(p, entry?.family ?? row.family!)!.some((set) => [...set].sort().join(",") === fields)) {
     return `names secrets for ${provider} (${Object.keys(secrets).join(", ") || "none"}) that the app no longer takes`;
@@ -148,6 +138,23 @@ function unsupportedReason(list: ModelList, row: ModelConfigRow, pricing: Pricin
     return `is priced as ${reference} on ${provider}${row.region ? ` in ${row.region}` : ""}${row.routing ? ` (${row.routing} routing)` : ""}, which the app no longer has a price for`;
   }
   return null;
+}
+
+// A stored config's secrets, the names of the Worker secrets by the adapter's fields (`secrets_json`), read in one place:
+// null where they can't be read as names (a row written by hand or by an older import), which `unsupportedOf` reports.
+export function secretsOf(row: Pick<ModelConfigRow, "secrets_json">): Record<string, string> | null {
+  let secrets: unknown;
+  try {
+    secrets = JSON.parse(row.secrets_json);
+  } catch {
+    return null;
+  }
+  return isSecrets(secrets) ? secrets : null;
+}
+
+// Whether a value names secrets: an object of texts.
+export function isSecrets(value: unknown): value is Record<string, string> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) && Object.values(value).every((x) => typeof x === "string");
 }
 
 function pricingOf(row: ModelConfigRow): Pricing {
@@ -178,7 +185,7 @@ export function toModelConfig(row: ModelConfigRow, dev: boolean): ModelConfig {
     routing: row.routing,
     project: row.project,
     account: row.account ?? null,
-    secrets: JSON.parse(row.secrets_json),
+    secrets: secretsOf(row) ?? {},
     pricing,
     price: configPrice(row, pricing),
     freeTier: pricing.kind === "free",
@@ -243,9 +250,7 @@ export function configProblem(body: Record<string, unknown> | null, list: ModelL
     if (BUSINESS_REGIONS.includes(place.region) && account !== "business") return `Only a Business account may use ${PROVIDER_NAMES[p]} in the ${place.region.toUpperCase()}`;
   } else if (account !== undefined && account !== null) return "'account' is for OpenRouter only";
   // The secrets: one of the adapter's sets.
-  const isStrings = (v: unknown) =>
-    v === undefined || (v !== null && typeof v === "object" && Object.values(v).every((x) => typeof x === "string"));
-  if (!isStrings(secrets)) return "'secrets' must map names to text";
+  if (secrets !== undefined && !isSecrets(secrets)) return "'secrets' must map names to text";
   const keys = Object.keys((secrets ?? {}) as Record<string, string>).sort().join(",");
   const sets = secretSets(p, modelFamily)!;
   if (!sets.some((set) => [...set].sort().join(",") === keys)) {
@@ -583,7 +588,7 @@ async function configName(db: D1Database, body: Record<string, unknown>, replace
 
 const NAME_TAKEN = "A model config with that name already exists. Names must be unique (case-insensitive).";
 
-// Whether two configs do exactly the same: everything but their ids, names and dates.
+// The row a creation's body makes (checked by `configProblem` first), with its secrets as canonical JSON.
 function newConfigRow(body: Record<string, unknown>, name: string): ModelConfigRow {
   const pricing = body.pricing as Pricing & { reference?: string | null };
   const listed = typeof body.modelId === "string" && body.modelId !== "";
@@ -607,7 +612,7 @@ function newConfigRow(body: Record<string, unknown>, name: string): ModelConfigR
   };
 }
 
-function insertConfig(db: D1Database, row: ModelConfigRow): D1PreparedStatement {
+export function insertConfig(db: D1Database, row: ModelConfigRow): D1PreparedStatement {
   return db
     .prepare(
       "INSERT INTO model_configs (id, name, provider, model_id, model_string, family, effort, region, routing, project, account, secrets_json, pricing_kind, pricing_reference, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

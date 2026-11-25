@@ -1,11 +1,11 @@
 import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { amount } from "@score3ly/core";
+import { amount, ROUTINGS } from "@score3ly/core";
 import { createProject, testPlatform } from "./testPlatform.ts";
 import app from "./index.ts";
 import { costOf } from "./llm/prices.ts";
-import { listedPrice, type ModelList, type Provider } from "./llm/models.ts";
-import { configProblem, convertAddedConfigs, modelOptions, secretNames, unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
+import { ACCOUNTS, EFFORTS, listedPrice, PROVIDERS, type Family, type ModelList, type Provider } from "./llm/models.ts";
+import { configProblem, convertAddedConfigs, insertConfig, modelOptions, secretNames, secretsOf, unsupportedOf, type ModelConfigRow } from "./modelConfigs.ts";
 import { providerCost, spentInLastDay } from "./spending.ts";
 import { throttled, throttledProgress } from "./throttle.ts";
 import type { ModelOptions } from "@score3ly/core";
@@ -643,6 +643,65 @@ test("a config the app no longer supports: marked, its stages can't start, it ca
     (await json(await app.request("/api/model-configs/new-eu", {}, env))).unsupported,
     "is priced as Claude Fable 5.1 on Bedrock in eu-central-1 (geographic routing), which the app no longer has a price for",
   );
+});
+
+// The database's CHECKs restate the code's values (the code review's C21, 12 #9): a value added in the code without a
+// migration would fail only on insert. One config per value of each, through the create path's insert.
+test("every provider, family, effort, routing, account and pricing kind the code has can be stored", async () => {
+  const row = (fields: Partial<ModelConfigRow>): ModelConfigRow => ({
+    id: crypto.randomUUID(),
+    name: crypto.randomUUID(),
+    provider: "anthropic",
+    model_id: null,
+    model_string: "some-model",
+    family: "claude",
+    effort: null,
+    region: "",
+    routing: null,
+    project: null,
+    account: null,
+    secrets_json: "{}",
+    pricing_kind: "unpriced",
+    pricing_reference: null,
+    created_at: "2026-10-01",
+    deleted_at: null,
+    ...fields,
+  });
+  // What each provider needs beside it (the CHECKs' combinations).
+  const forProvider = (provider: Provider): Partial<ModelConfigRow> => ({
+    provider,
+    ...(provider === "bedrock" ? { routing: "global" as const } : {}),
+    ...(provider === "vertex" ? { project: "p" } : {}),
+    ...(provider === "openrouter" ? { account: "standard" as const, pricing_kind: "provider" as const } : {}),
+  });
+  const rows = [
+    ...PROVIDERS.map((provider) => row(forProvider(provider))),
+    ...(Object.keys(EFFORTS) as Family[]).map((family) => row({ family })),
+    ...[...new Set(Object.values(EFFORTS).flat())].map((effort) => row({ effort })),
+    ...ROUTINGS.map((routing) => row({ ...forProvider("bedrock"), routing })),
+    ...ACCOUNTS.map((account) => row({ ...forProvider("openrouter"), account, region: account === "business" ? "eu" : "" })),
+    ...(["list", "free", "unpriced"] as const).map((kind) => row({ pricing_kind: kind })),
+    row({ ...forProvider("openrouter"), pricing_kind: "free" }),
+  ];
+  for (const r of rows) await insertConfig(env.DB, r).run();
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM model_configs").first<{ n: number }>())!.n, rows.length);
+});
+
+// The code review's C14: `secrets_json` was parsed unguarded where the list is made; one row that couldn't be read
+// (written by hand, or by an import) made the configs' list fail.
+test("a stored config whose secrets can't be read is listed, unsupported, and doesn't stop a create", async () => {
+  await env.DB.prepare(
+    "INSERT INTO model_configs (id, name, provider, model_string, family, secrets_json, pricing_kind, created_at) VALUES ('broken', 'Broken', 'fake', 'fake-model', 'fake', 'not json', 'free', '2026-10-01')",
+  ).run();
+  const list = await app.request("/api/model-configs", {}, env);
+  assert.equal(list.status, 200);
+  const [broken] = await json<Record<string, any>[]>(list);
+  assert.deepEqual(broken.secrets, {});
+  assert.match(broken.unsupported, /'secrets' must map names to text/);
+  assert.equal((await send("/api/model-configs", configBody({ provider: "fake", pricing: { kind: "free" } }))).status, 201);
+  assert.equal(secretsOf({ secrets_json: '{"apiKey":"K"}' })?.apiKey, "K");
+  assert.equal(secretsOf({ secrets_json: '["K"]' }), null);
+  assert.equal(secretsOf({ secrets_json: '{"apiKey":1}' }), null);
 });
 
 test("unpriced calls are made and recorded with their tokens but no cost, and the spending cap doesn't stop them", async () => {
