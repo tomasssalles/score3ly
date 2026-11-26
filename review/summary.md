@@ -1,6 +1,6 @@
 # The code review: summary
 
-First draft, written after the plan and before any fix. Updated after the fixes. It sums up the review for two uses: judging how well it worked, and deciding the rules for CLAUDE.md. The details are in `review/level4.md` (the whole app) and `review/plan.md` (the fixes, in 39 batches); "batch N" below means a batch of the plan.
+First draft, written after the plan and before any fix; updated after the fixes (2026-11-26). It sums up the review for two uses: judging how well it worked, and deciding the rules for CLAUDE.md. The details are in `review/level4.md` (the whole app) and `review/plan.md` (the fixes, in 39 batches); "batch N" below means a batch of the plan.
 
 ## 1. The review in numbers
 
@@ -46,7 +46,7 @@ What the user would see, with the batch that fixes it.
 
 **Fixed**
 
-(to fill in after the fixes)
+All 39 batches ran (2026-11-17 to 11-26), each bug reproduced in a test (or, for a few UI bugs, seen in Chromium) before its fix, and every batch that had to keep requests byte-identical guarded by snapshots taken first. Every P1 above was fixed: the Worker's texts reach the screen and a stale version is shown once (batches 9, 10); the editors' saves go through one queue per project and one saver per stage, a failed save stays marked with a Retry, Finish waits for it (10); `resolve` and the run requests stay within D1's limits, tested on the Node host with those limits on (11); a run has an identity, so three starts at once run once and a stale run can't write (16); bar lines are normalized (34); which system a box is on is one rule (29); a malformed answer is refused, not cached (18); Claude's SDK retries are off and calls of unknown cost counted from the call itself (2); the dead-call limit follows the timeouts (2); the import goes in chunks within D1's limits (11); call ownership has rows of its own (32); image code is versioned in its keys (33). Two paid releases changed request keys on purpose (33, 34), each diff read. Details per batch: `review/fixes.md`; one line each in the plan's Status table.
 
 ## 3. The most common kinds of problem
 
@@ -139,6 +139,8 @@ Not big, but would do from the start: a UI kit, a formatting module and a home f
 - **One group fell between components:** "running a stage" was assigned to no level 3 component and had to be shared out by hand.
 
 - **The review proposed behaviour changes by preference without flagging them** (found at fix time, 2026-11-17): the plan tucked "no 'incl. VAT' at 0 %" into C7 among "small wrong texts", so it never reached the owner's summary of decisions, and batch 2 made the change, reverting it only on finding the owner's earlier decision in docs/llm.md. The levels judged changes by size and by whether a finding *held*, not by their kind. From batch 4 on, the fixes follow the rule "What needs the owner's ok" (plan, "How every batch is done").
+
+**How many planned fixes held** (counted from `review/fixes.md` at the end of the fixes): of the 173 level 3 findings, **about 160 held as written**, though about 40 of them were fixed differently than planned once the code was in front of the fixer (a better place, a narrower or wider fix, a part left to the owner). **About 8 didn't hold, or held only in part:** "incl. VAT" at 0 % (against a recorded decision, C7), a pending `parseColor` fix (pdf.js already gives hex; what it hid did hold), a "dead" condition in Effort that wasn't dead (F19), finding a run's stage by id instead of position (F24: the position is right), MeiCode's theme fixed at open (D30: the colour scheme already follows), `deleteCachedPdf`'s false failure (E24: fixed in passing by batch 23), two data-coupled or already-typed items (C30), and a few risks that held only as risks, not live bugs (D17, B15, C9 needing differently worded answers). **Two were dropped by the owner's decisions** (B18, dec. 7; C26, dec. 14), and one held but was left for the owner (06 #17, loading before `start`). Besides, the fixes found about 15 problems the review hadn't (e.g. React passing a nested dialog's close to the dialogs around it, "Free tier" unsaveable on a listed model, Retry under an editor's note unreachable, a stale `make-fixture`), and **about 60 changes were left "for the owner"** because they change what the user sees, collected under each batch in `review/fixes.md`. So most of what nothing-was-run reading found was real; what it got wrong was mostly the size or the shape of a fix, rarely the problem.
 
 **What to do differently next time:**
 - Give every finding an id and a fixed format from level 1 on, so counts are exact and later levels can cite them.
