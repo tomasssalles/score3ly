@@ -93,7 +93,8 @@ function useTranscription(artifact: Artifact, stageId: string | null): Loaded | 
         data.checksSha256 ? (fetchJsonContent(data.checksSha256) as Promise<StoredScoreChecks>) : Promise.resolve(null),
       ]);
       // A review's Transcription: the issues as the review leaves them (docs/stages/music.md, `review`), each system's
-      // own, and the new ones under the system whose call raised them.
+      // own, and the new ones after those of the system whose call raised them. Which system shows a note is its boxes'
+      // (`homeOf`, below), so this sets only the order of the notes under a system, and with it their colours.
       let shownChecks = checks;
       let changed: Set<string> | null = null;
       if (data.review) {

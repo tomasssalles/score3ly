@@ -1,8 +1,9 @@
 /* Tabs (ui/Tabs.tsx). */
 
-/* The Statistics page's tabs: the current one in the text colour, underlined in coral. The grey line is an inset shadow,
-   not a border, so the coral underline covers it without sticking out of the row: overflow-x: auto makes the row
-   scrollable vertically too, and a tab 1px taller than the row let it scroll up and down by that pixel. */
+/* The tabs of the Statistics and Settings pages (the class is named for the first): the current one in the text
+   colour, underlined in coral. The grey line is an inset shadow, not a border, so the coral underline covers it
+   without sticking out of the row: overflow-x: auto makes the row scrollable vertically too, and a tab 1px taller
+   than the row let it scroll up and down by that pixel. */
 .stats-tabs {
   display: flex;
   gap: 4px;

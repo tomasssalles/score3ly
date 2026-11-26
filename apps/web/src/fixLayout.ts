@@ -2,7 +2,7 @@
 // with `layout`'s and is stored in the same format. This module has what doesn't need the browser; the editor is
 // LayoutEditor.tsx. Everything is in fractions of the straightened page, as in `layout`.
 
-import { clamp, MIN_BAR_LINE_GAP, normalizeBarLines, roundTo, type LayoutSystem } from "@score3ly/core";
+import { canonicalJson, clamp, MIN_BAR_LINE_GAP, normalizeBarLines, roundTo, type LayoutSystem } from "@score3ly/core";
 import type { PageLayout } from "./layout.ts";
 
 // The boxes are edited as any box drawn by hand (editor/boxEdit.ts); re-exported for the geometry snapshots, which
@@ -91,8 +91,8 @@ export function fixedLayout(layout: PageLayout): PageLayout {
   return { ...layout, systems: sortSystems(layout.systems), flagged: false };
 }
 
-// Whether a page's systems differ from layout's, ignoring their order.
+// Whether a page's systems differ from layout's, ignoring their order (and their keys').
 export function systemsChanged(original: LayoutSystem[], fixed: LayoutSystem[]): boolean {
-  return JSON.stringify(sortSystems(original)) !== JSON.stringify(sortSystems(fixed));
+  return canonicalJson(sortSystems(original)) !== canonicalJson(sortSystems(fixed));
 }
 

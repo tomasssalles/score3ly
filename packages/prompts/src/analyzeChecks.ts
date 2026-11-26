@@ -98,7 +98,7 @@ function observationsProblem(
 // systems of its start and its end, or on every system of the page when it runs through it.
 export type StavesOf = {
   systems: Pick<SystemItem, "system" | "staves">[];
-  changes: Pick<ChangeItem, "kind" | "place" | "staff">[];
+  changes: (Pick<ChangeItem, "place" | "staff"> & { kind: string })[]; // the kind only names it in the problem
   ottavas: Pick<OttavaItem, "text" | "staff" | "start" | "end">[];
 };
 

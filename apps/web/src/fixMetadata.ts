@@ -5,6 +5,7 @@
 import { startsWithAnother, TEXT_FIELDS, type Role } from "@score3ly/prompts";
 import { normalizeMetadata, type MetadataItem, type StoredMetadata, type TextKind } from "./analyze.ts";
 import type { ApiStage } from "./api";
+import { scoreOutput } from "./stageInputs.ts";
 
 export const FIX_METADATA_VERSION = 1;
 
@@ -15,7 +16,7 @@ export type MetadataRow = MetadataItem & { kind: string; text: string; system: n
 
 // `analyze`'s metadata output, and its pieces output if it has one.
 export function analyzeOutputs(analyze: ApiStage | null | undefined) {
-  const metadata = analyze?.outputs.find((o) => o.item === "" && o.type === "metadata" && o.contentSha256);
+  const metadata = analyze ? scoreOutput(analyze, "metadata") : undefined;
   return metadata ? { metadata, pieces: analyze!.outputs.find((o) => o.item === "" && o.type === "pieces") } : null;
 }
 

@@ -36,11 +36,9 @@ export type ChainStage = { who: Who } & (
 
 const ATTRIBUTION_VERSION = 1;
 
-const TITLES: Record<string, string> = { review: "Review", apply_review: "Apply review", human_review: "Human review" };
-
-// The stage's label: its title, numbered among the pipeline's stages of its step before it ("Review 2").
-export function whoOf(step: string, turn: number): Who {
-  return step === "extract" ? EXTRACT : { label: `${TITLES[step] ?? step} ${turn}`, person: step === "human_review", step };
+// The stage's label: its step's title, numbered among the pipeline's stages of its step before it ("Review 2").
+export function whoOf(step: string, title: string, turn: number): Who {
+  return step === "extract" ? EXTRACT : { label: `${title} ${turn}`, person: step === "human_review", step };
 }
 
 // An entry given to a stage of another step than the one it was stored with: only a bug can make one (the walk giving
@@ -59,9 +57,9 @@ export function extend(attribution: Attribution, issues: Iterable<StoredIssue>, 
     const named = (list: Mismatch["list"], entries: { by: string }[], known: Who[]) => [
       ...known,
       ...entries.slice(known.length).map((e, i) => {
-        const named = e.by === "extract" ? EXTRACT : who;
-        if (e.by !== named.step) report({ issue: issue.id, list, index: known.length + i, stored: e.by, stage: named.label });
-        return named;
+        const by = e.by === "extract" ? EXTRACT : who;
+        if (e.by !== by.step) report({ issue: issue.id, list, index: known.length + i, stored: e.by, stage: by.label });
+        return by;
       }),
     ];
     out[issue.id] = { choices: named("choices", issue.choices, before.choices), applications: named("applications", issue.applications ?? [], before.applications) };
@@ -125,12 +123,3 @@ export async function attributionOf(chain: ChainStage[], sources: Sources): Prom
   return { attribution, issues };
 }
 
-// The label of an issue's latest choice, or of its latest application; null where none is named (an entry added after
-// the attribution was made, of a stage still running).
-export function whoChose(attribution: Attribution, issue: StoredIssue, index: number): Who | null {
-  return attribution[issue.id]?.choices[index] ?? null;
-}
-
-export function whoApplied(attribution: Attribution, issue: StoredIssue, index: number): Who | null {
-  return attribution[issue.id]?.applications[index] ?? null;
-}

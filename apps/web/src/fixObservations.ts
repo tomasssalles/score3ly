@@ -321,12 +321,12 @@ export function pagesProblem(rows: ObsRow[], systems: ScoreSystems): string | nu
   const pages = [...new Set(rows.flatMap((r) => (r.page === null ? [] : [r.page])))];
   for (const page of pages) {
     const on = rows.filter((r) => r.page === page);
+    if (on.some((r) => r.list === "ottavas" && !r.staff)) return "An ottava needs a staff: give the staves of its system first.";
     const lists = {
-      systems: on.filter((r) => r.list === "systems" && r.system !== null).map((r) => ({ system: r.system!, staves: r.staves })),
-      changes: on.filter((r) => r.list === "changes" && r.place).map((r) => ({ kind: r.kind as never, place: r.place!, staff: r.staff })),
-      ottavas: on.filter((r) => r.list === "ottavas").map((r) => ({ text: r.text, staff: r.staff!, start: r.start, end: r.end })),
+      systems: on.flatMap((r) => (r.list === "systems" && r.system !== null ? [{ system: r.system, staves: r.staves }] : [])),
+      changes: on.flatMap((r) => (r.list === "changes" && r.place ? [{ kind: r.kind, place: r.place, staff: r.staff }] : [])),
+      ottavas: on.flatMap((r) => (r.list === "ottavas" && r.staff ? [{ text: r.text, staff: r.staff, start: r.start, end: r.end }] : [])),
     };
-    if (lists.ottavas.some((o) => !o.staff)) return "An ottava needs a staff: give the staves of its system first.";
     const problem = stavesProblem(lists, systems.flatMap((s, i) => (s.page === page ? [i + 1] : [])));
     if (problem) return problem[0].toUpperCase() + problem.slice(1) + ".";
   }

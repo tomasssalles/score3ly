@@ -9,7 +9,7 @@ import { buildScore, meiString, type MeiMetadata, type Score } from "@score3ly/n
 import { REPOSITORY_URL } from "./about.ts";
 import type { ApiStage } from "./api";
 import { scoreInput, type StoredExtraction } from "./extract.ts";
-import { latestOutput, latestProducer } from "./stageInputs.ts";
+import { latestOutput, latestProducer, scoreOutput } from "./stageInputs.ts";
 import type { PdfRecipe } from "./recipes.ts";
 import { normalizeMetadata } from "./analyze.ts";
 import { keyOf, pageOfItem, systemOfItem } from "@score3ly/core";
@@ -55,7 +55,7 @@ export function engraveSources(earlier: ApiStage[]): EngraveSources | { missing:
 // engraves, and what a `fix_mei` starts from (its parent).
 export function latestMei(earlier: ApiStage[]): { id: string; sha256: string; step: string } | { missing: string } {
   const stage = latestProducer(earlier, "mei");
-  const mei = stage?.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
+  const mei = stage ? scoreOutput(stage, "mei") : undefined;
   if (!stage) return { missing: "the MEI hasn't been built yet." };
   if (stage.status !== "done" || !mei) return { missing: stage.step === "fix_mei" ? "\"Fix MEI\" isn't finished yet." : "the MEI hasn't been built yet." };
   return { id: mei.id, sha256: mei.contentSha256!, step: stage.step };

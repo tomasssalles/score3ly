@@ -51,10 +51,12 @@ export function MeiWorkspace({
   const matches = useMemo(() => search(lines, query.trim()), [lines, query]);
   const [current, setCurrent] = useState(0);
   const [shown, setShown] = useState(false); // whether the current match has been gone to
-  useEffect(() => {
+  // A new search starts again at its first match.
+  const changeQuery = (text: string) => {
+    setQuery(text);
     setCurrent(0);
     setShown(false);
-  }, [query]);
+  };
 
   const select = (line: number, from: Selection["from"]) => {
     setOwn({ line, from });
@@ -71,7 +73,7 @@ export function MeiWorkspace({
   }
   const closeSearch = () => {
     setSearching(false);
-    setQuery("");
+    changeQuery("");
   };
 
   return (
@@ -100,7 +102,7 @@ export function MeiWorkspace({
                 spellCheck={false}
                 autoFocus
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => changeQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();

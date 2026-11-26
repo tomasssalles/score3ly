@@ -57,6 +57,8 @@ export function RenameDialog({
           autoComplete="off"
           spellCheck={false}
           aria-label="New name"
+          // Above the limit (which a number at the end and the spaces trimmed don't count against): a name too long
+          // shows why it can't be saved rather than being cut while it is typed or pasted.
           maxLength={MAX_NAME_LENGTH + 50}
           value={name}
           onChange={(e) => {

@@ -5,7 +5,7 @@ import { piecesOf } from "./analyze.ts";
 import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import { normalizeMetadata, type StoredMetadata } from "./analyze.ts";
 import { analyzeOutputs, changedFields, confirmedFields, fixNote } from "./fixMetadata";
-import { latestStage } from "./stageInputs";
+import { latestStage, scoreOutput } from "./stageInputs";
 
 // The ids of `analyze`'s outputs that `fix_metadata` corrects (its pieces are missing from a version-1 `analyze`).
 export type MetadataParents = { metadata: string; pieces?: string };
@@ -37,7 +37,7 @@ export async function finishFixMetadata(project: Project, stage: ApiStage, pipel
   if (!found) throw new Error("There is no analysis before this stage.");
   const parents = { metadata: found.metadata.id, pieces: found.pieces?.id };
   const original = normalizeMetadata(await fetchJsonContent(found.metadata.contentSha256!));
-  const saved = stage.outputs.find((o) => o.item === "" && o.type === "metadata" && o.contentSha256);
+  const saved = scoreOutput(stage, "metadata");
   const current = saved ? normalizeMetadata(await fetchJsonContent(saved.contentSha256!)) : original;
   await recordOutputs(project, stage.id, await metadataOutputs(current, parents));
   return fixNote(changedFields(original, current), confirmedFields(current));

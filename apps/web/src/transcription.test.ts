@@ -46,7 +46,7 @@ test("issues and warnings of the systems and of the whole score, each with its o
 });
 
 test("an answer's suffixes: who put it in the transcription, and who chose it last; a revert is a choice like any other", () => {
-  const choosers = { extract: whoOf("extract", 1), r1: whoOf("review", 1), a1: whoOf("apply_review", 1), r2: whoOf("review", 2), h1: whoOf("human_review", 1) };
+  const choosers = { extract: whoOf("extract", "Extract", 1), r1: whoOf("review", "Review", 1), a1: whoOf("apply_review", "Apply review", 1), r2: whoOf("review", "Review", 2), h1: whoOf("human_review", "Human review", 1) };
   const base: StoredIssue = {
     id: 1,
     source: "extract",

@@ -74,5 +74,8 @@ test("fix_layout's output is sorted and not flagged; only the systems count as a
   assert.deepEqual(fixed.systems.map((s) => s.box.top), [0.1, 0.5]);
   assert.equal(systemsChanged(layout.systems, fixed.systems), false);
   assert.equal(systemsChanged(layout.systems, fixed.systems.slice(1)), true);
+  // The same systems with their keys in another order (e.g. read from elsewhere) haven't changed.
+  const reordered = fixed.systems.map(({ box: { left, right, top, bottom }, barLines }) => ({ barLines, box: { bottom, top, right, left } }));
+  assert.equal(systemsChanged(layout.systems, reordered), false);
 });
 

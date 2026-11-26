@@ -19,27 +19,27 @@ export function StageDetails({ stage }: { stage: Stage }) {
   return (
     <div className="details-view">
       <h2>{stage.title}</h2>
-      <dl className="details-facts">
-        {facts.map(([term, value]) => (
-          <div key={term}>
-            <dt>{term}</dt>
-            <dd className={term === "Step" ? "mono" : undefined}>{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <Facts facts={facts} mono="Step" />
       {config.length > 0 && (
         <>
           <h3>Config</h3>
-          <dl className="details-facts">
-            {config.map(([term, value]) => (
-              <div key={term}>
-                <dt>{term}</dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
+          <Facts facts={config} />
         </>
       )}
     </div>
+  );
+}
+
+// Terms and their values; the value of `mono` in the code font.
+function Facts({ facts, mono }: { facts: [string, string][]; mono?: string }) {
+  return (
+    <dl className="details-facts">
+      {facts.map(([term, value]) => (
+        <div key={term}>
+          <dt>{term}</dt>
+          <dd className={term === mono ? "mono" : undefined}>{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

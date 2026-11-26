@@ -5,10 +5,10 @@ import { pageOfItem } from "@score3ly/core";
 import { fetchJsonContent, putJson, recordOutputs, type ApiPipeline, type ApiStage, type Project } from "./api";
 import { humanReviewNote, ownIssueProblems, type StoredHumanReview } from "./humanReview";
 import { numberSystems, type PageLayout } from "./layout";
-import { latestProducer } from "./stageInputs";
+import { latestProducer, scoreOutput } from "./stageInputs";
 
 export async function finishHumanReview(project: Project, stage: ApiStage, pipeline: ApiPipeline): Promise<string> {
-  const saved = stage.outputs.find((o) => o.item === "" && o.type === "human_review" && o.contentSha256);
+  const saved = scoreOutput(stage, "human_review");
   const stored: StoredHumanReview = saved ? ((await fetchJsonContent(saved.contentSha256!)) as StoredHumanReview) : { entries: [] };
   // Every clarification needs its text, and boxes that keep the rules (docs/stages/music.md, `human_review`): checked
   // here, not while the user draws.

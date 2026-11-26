@@ -31,10 +31,14 @@ export function latestStage(earlier: readonly ApiStage[], steps: readonly string
 // The latest stage before that produces `what`, whatever its status and outputs (the callers check them).
 export const latestProducer = (earlier: readonly ApiStage[], what: Produced): ApiStage | null => latestStage(earlier, PRODUCERS[what]);
 
-// A whole-score output (item ''): the latest stage before that stored one of the type, with it. A fix that hasn't
-// stored it yet (a WIP form never saved) is passed over.
+// A stage's whole-score output (item '') of the type, if it stored one.
+export const scoreOutput = (stage: ApiStage, type: string): ApiOutput | undefined =>
+  stage.outputs.find((o) => o.item === "" && o.type === type && o.contentSha256);
+
+// A whole-score output: the latest stage before that stored one of the type, with it. A fix that hasn't stored it yet
+// (a WIP form never saved) is passed over.
 export function latestOutput(earlier: readonly ApiStage[], type: "metadata" | "pieces" | "observations"): { stage: ApiStage; output: ApiOutput } | null {
-  const own = (s: ApiStage) => s.outputs.find((o) => o.item === "" && o.type === type && o.contentSha256);
+  const own = (s: ApiStage) => scoreOutput(s, type);
   for (let i = earlier.length - 1; i >= 0; i--) {
     const output = (PRODUCERS[type] as readonly string[]).includes(earlier[i].step) ? own(earlier[i]) : undefined;
     if (output) return { stage: earlier[i], output };

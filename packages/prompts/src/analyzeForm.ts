@@ -175,19 +175,22 @@ const SCORE_ITEM_KINDS = {
 export const SCORE_KINDS = Object.keys(SCORE_ITEM_KINDS) as (keyof typeof SCORE_ITEM_KINDS)[];
 export type FlatScoreItem = { kind: (typeof SCORE_KINDS)[number]; text: string; places: Place[]; confidence: Confidence };
 
+// The key of one of a map's values (the model's kinds and fields, whose values the schema's enums are).
 const keyOfValue = <T extends Record<string, string>>(map: T, value: string) => Object.keys(map).find((k) => map[k] === value) as keyof T;
+
+// An item's fields besides those the flat form names: its confidence, and the `Extra` (an id, a page).
+type Rest = { confidence: Confidence } & Record<string, unknown>;
 
 // The metadata as the model writes it, every item with its `Extra` (a page).
 export function flatMetadata<Extra extends object>(metadata: Metadata<Extra>): (FlatMetadataItem & Extra)[] {
-  type Any = { confidence: Confidence } & Record<string, unknown>;
-  const item = (category: MetadataCategory, text: string, system: number | null, { confidence, ...extra }: Any) =>
+  const item = (category: MetadataCategory, text: string, system: number | null, { confidence, ...extra }: Rest) =>
     ({ category, text, system, ...extra, confidence }) as FlatMetadataItem & Extra;
   return [
-    ...metadata.titles.map(({ text, type, ...rest }) => item(keyOfValue(TITLE_CATEGORIES, type), text, null, rest as Any)),
-    ...metadata.people.map(({ name, role, ...rest }) => item(keyOfValue(PERSON_CATEGORIES, role), name, null, rest as Any)),
-    ...metadata.pieces.map(({ title, system, ...rest }) => item("piece", title, system, rest as Any)),
+    ...metadata.titles.map(({ text, type, ...rest }) => item(keyOfValue(TITLE_CATEGORIES, type), text, null, rest as Rest)),
+    ...metadata.people.map(({ name, role, ...rest }) => item(keyOfValue(PERSON_CATEGORIES, role), name, null, rest as Rest)),
+    ...metadata.pieces.map(({ title, system, ...rest }) => item("piece", title, system, rest as Rest)),
     ...TEXT_FIELDS.flatMap((field) =>
-      metadata[field].map(({ text, ...rest }) => item(keyOfValue(TEXT_CATEGORIES, field), text, null, rest as Any)),
+      metadata[field].map(({ text, ...rest }) => item(keyOfValue(TEXT_CATEGORIES, field), text, null, rest as Rest)),
     ),
   ];
 }
@@ -210,20 +213,19 @@ export function nestedMetadata<Extra extends object>(items: (FlatMetadataItem & 
 // The observations as the model writes them, every system and item with its `Extra` (an id, a page), in the order of
 // the lists.
 export function flatObservations<Extra extends object>(o: PageObservations<Extra>): FlatPageObservations<Extra> {
-  type Any = { confidence: Confidence } & Record<string, unknown>;
-  const item = (kind: ObservationKind, text: string, staff: Staff | null, start: Place | null, end: Place | null, rest: Any) => {
+  const item = (kind: ObservationKind, text: string, staff: Staff | null, start: Place | null, end: Place | null, rest: Rest) => {
     const { confidence, ...extra } = rest;
     return { ...extra, kind, text, staff, start, end, confidence } as FlatObservation & Extra;
   };
   return {
     systems: o.systems,
     items: [
-      ...o.changes.map(({ kind, text, place, staff, ...rest }) => item(keyOfValue(CHANGE_ITEM_KINDS, kind), text, staff, place, null, rest as Any)),
-      ...o.ottavas.map(({ text, staff, start, end, ...rest }) => item("ottava", text, staff, start, end, rest as Any)),
-      ...o.specialBarLines.map(({ kind, place, ...rest }) => item(keyOfValue(BAR_LINE_ITEM_KINDS, kind), "", null, place, null, rest as Any)),
-      ...o.endings.map(({ numbers, start, end, ...rest }) => item("ending", numbers, null, start, end, rest as Any)),
-      ...o.directions.map(({ text, place, ...rest }) => item("direction", text, null, place, null, rest as Any)),
-      ...o.notes.map(({ text, ...rest }) => item("note", text, null, null, null, rest as Any)),
+      ...o.changes.map(({ kind, text, place, staff, ...rest }) => item(keyOfValue(CHANGE_ITEM_KINDS, kind), text, staff, place, null, rest as Rest)),
+      ...o.ottavas.map(({ text, staff, start, end, ...rest }) => item("ottava", text, staff, start, end, rest as Rest)),
+      ...o.specialBarLines.map(({ kind, place, ...rest }) => item(keyOfValue(BAR_LINE_ITEM_KINDS, kind), "", null, place, null, rest as Rest)),
+      ...o.endings.map(({ numbers, start, end, ...rest }) => item("ending", numbers, null, start, end, rest as Rest)),
+      ...o.directions.map(({ text, place, ...rest }) => item("direction", text, null, place, null, rest as Rest)),
+      ...o.notes.map(({ text, ...rest }) => item("note", text, null, null, null, rest as Rest)),
     ],
   };
 }

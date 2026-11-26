@@ -6,7 +6,7 @@
 
 import { fetchTextContent, putContent, recordOutputs, type ApiStage, type Project } from "./api.ts";
 import type { MeiProblem } from "./meiChecks.ts";
-import { latestStage } from "./stageInputs.ts";
+import { latestStage, scoreOutput } from "./stageInputs.ts";
 
 export const FIX_MEI_VERSION = 1;
 
@@ -18,7 +18,7 @@ export function ownOutput(stage: ApiStage, type: FixMeiType): string | null {
 
 // `build_mei`'s MEI, the output a `fix_mei` after it corrects.
 function parentMei(buildMei: ApiStage) {
-  return buildMei.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256) ?? null;
+  return scoreOutput(buildMei, "mei") ?? null;
 }
 
 // What adding the stage after `build_mei` records: its MEI as the input, and its page count.

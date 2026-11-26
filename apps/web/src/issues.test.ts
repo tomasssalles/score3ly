@@ -149,14 +149,14 @@ test("through the chain, ids stay, choices and applications are only appended, a
     3,
   );
   assert.ok(!("problem" in reviewed), JSON.stringify(reviewed));
-  stages.push({ who: whoOf("review", 1), issues: issuesAfter(last(), { step: "review", calls: [{ system: 5, entries: reviewed.entries }], done: true }) });
+  stages.push({ who: whoOf("review", "Review", 1), issues: issuesAfter(last(), { step: "review", calls: [{ system: 5, entries: reviewed.entries }], done: true }) });
 
   // Apply review: every call applies what it was given.
   const apply = (n: number) => {
     const calls = applyCalls(last().values(), CLOSE).map((c): StoredApplyCall => ({ system: c.system, window: c.window, voices: [], stretches: [], systems: [], choices: [], applied: c.issues, changed: [], warnings: [] }));
     assert.ok(calls.length > 0);
     const applied = appliedIssues(last(), calls);
-    stages.push({ who: whoOf("apply_review", n), issues: issuesAfter(last(), { step: "apply_review", issues: [...applied.values()] }) });
+    stages.push({ who: whoOf("apply_review", "Apply review", n), issues: issuesAfter(last(), { step: "apply_review", issues: [...applied.values()] }) });
     for (const issue of last().values()) assert.equal(needsApplying(issue), false, `issue ${issue.id} after Apply review ${n}`);
   };
   apply(1);
@@ -165,7 +165,7 @@ test("through the chain, ids stay, choices and applications are only appended, a
   let stored = chooseAnswer({ entries: [] }, last().get(2)!, "a");
   stored = writeAnswer(stored, last().get(3)!, "An F");
   stored = putOwnIssue(stored, ownIssue(4, [topOf5], "A tie, not a slur"));
-  stages.push({ who: whoOf("human_review", 1), issues: issuesAfter(last(), { step: "human_review", stored }) });
+  stages.push({ who: whoOf("human_review", "Human review", 1), issues: issuesAfter(last(), { step: "human_review", stored }) });
   assert.deepEqual(
     [...last().values()].filter((i) => i.resolved).map((i) => i.id),
     [2, 3, 4],

@@ -15,7 +15,7 @@ import { MAX_MAX_ANGLE, MIN_MAX_ANGLE, skewConfigError, skewConfigOf } from "./s
 import { DEFAULT_ENGRAVE_CONFIG, engraveConfigOf, PAGE_SIZES } from "./engravePage.ts";
 import { fixMeiStart } from "./fixMei.ts";
 import { humanReviewStart } from "./humanReview.ts";
-import { latestOutput, latestProducer, latestStage, musicSources, pageCountOf, reviewInputIds } from "./stageInputs.ts";
+import { latestOutput, latestProducer, latestStage, musicSources, pageCountOf, reviewInputIds, scoreOutput } from "./stageInputs.ts";
 
 // One field of a step's config form.
 export type ConfigField = {
@@ -325,7 +325,7 @@ const fixObservationsStep: StepDeclaration = {
   // and bar lines places are picked from). While WIP, the artifact is the form.
   artifacts: (stage, earlier) => {
     const analyze = latestStage(earlier, ["analyze"]);
-    const parent = analyze?.outputs.find((o) => o.item === "" && o.type === "observations" && o.contentSha256);
+    const parent = analyze ? scoreOutput(analyze, "observations") : undefined;
     if (!parent) return [];
     const own = stage.outputs.find((o) => o.item === "" && o.type === "observations")?.contentSha256;
     const editor = stage.status === "wip" ? { stageId: stage.id, step: "fix_observations" } : undefined;
@@ -420,7 +420,7 @@ export function choosingChain(stages: ApiStage[]): ChainStage[] {
   const chain: ChainStage[] = [];
   for (const stage of stages) {
     const turn = (turns.get(stage.step) ?? 0) + 1;
-    const who = whoOf(stage.step, turn);
+    const who = whoOf(stage.step, stepInfo(stage.step).title, turn);
     const sha256s = (type: string) => stage.outputs.filter((o) => o.type === type && o.contentSha256).map((o) => o.contentSha256!);
     if (stage.step === "extract" || stage.step === "apply_review") {
       const checks = stage.outputs.find((o) => o.item === "" && o.type === "score_checks")?.contentSha256 ?? null;
@@ -442,7 +442,7 @@ const buildMeiStep: StepDeclaration = {
   // The MEI file, in the MEI view: the file beside its engraving, on pages of the default size (the PDF with the chosen
   // size is Engrave's).
   artifacts: (stage) => {
-    const mei = stage.outputs.find((o) => o.item === "" && o.type === "mei" && o.contentSha256);
+    const mei = scoreOutput(stage, "mei");
     if (!mei) return [];
     return [{ id: `${stage.id}.mei`, title: "MEI", kind: "mei", count: 1, engraving: { view: "mei", meiSha256: mei.contentSha256!, config: DEFAULT_ENGRAVE_CONFIG } }];
   },
