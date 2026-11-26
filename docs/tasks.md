@@ -51,7 +51,10 @@ The tasks below, in the file's order.
 - [Decide how the Transcription's boxes should look on a phone](#decide-how-the-transcriptions-boxes-should-look-on-a-phone)
 - [Tags for projects](#tags-for-projects)
 - [A "done" mark for projects](#a-done-mark-for-projects)
+- [Deploy the code review's fixes](#deploy-the-code-reviews-fixes)
 - [Check export and import on a large project](#check-export-and-import-on-a-large-project)
+- [Go through the code review's items for the owner](#go-through-the-code-reviews-items-for-the-owner)
+- [Make the code review's learnings into CLAUDE.md rules](#make-the-code-reviews-learnings-into-claudemd-rules)
 - [A leave guard for an import](#a-leave-guard-for-an-import)
 - [Fewer provenance rows for the stages that read the whole score](#fewer-provenance-rows-for-the-stages-that-read-the-whole-score)
 - [Measure the Worker's CPU time per LLM request](#measure-the-workers-cpu-time-per-llm-request)
@@ -292,10 +295,33 @@ Proposed by the project owner (2026-10-29). Arbitrary tags on projects, added by
 
 Proposed by the project owner (2026-10-29). A toggle on each project, set by the user when satisfied with the result: a much clearer signal than the finished pipeline the statistics use today (Run times, the average cost per page's "unfinished pipeline"), which says nothing about whether the result still needs work. To decide: whether the statistics then use the mark instead of the finished pipeline, or both (e.g. the mark where it is set).
 
+### Deploy the code review's fixes
+`#next` `#owner`
+
+Deploy the branch with the code review's fixes (`review/`, batches 1–39) to the deployed instance, by `npm run deploy -w apps/worker` or the workflow "Deploy" from the branch. What the deploy carries besides the code:
+- **Migrations 0005 to 0009**, applied by the deploy itself: run ids (0005), the importing mark and `import_ids` (0006), `projects.page_count` (0007), the content indexes (0008), `llm_calls.served_from` and the triggers that refuse calls without a place (0009).
+- **The R2 binding renamed** from `PDFS` to `STORE` (dec. 4): the deploy uploads the binding with the code, nothing to change in the dashboard; the bucket and its contents stay as they are.
+- **The paid release** (batches 33–34): every request key changed, so re-running a stage pays its calls again once; done stages stay done.
+- **The export format is 2:** files exported before can't be imported any more.
+- **A project with a call `fill-call-places` couldn't place** can no longer be exported (`docs/database.md`, "Places are required").
+- **A local database from before** may hold calls with the placeholders: migration 0009 keeps them, but throwing it away (`apps/worker/.wrangler`, then `npm run migrate:local -w apps/worker`) is simplest.
+
+Then the task "Check export and import on a large project" can be tried again.
+
 ### Check export and import on a large project
 `#next` `#next-release`
 
-An import sends all the rows of a project's pipeline to the Worker in one request (`POST /api/projects/import`), which parses them and writes them in one D1 batch, after the browser has asked which content objects are missing (`POST /api/content/missing`, 200 hashes each, one R2 `head` after another) and uploaded those (`docs/database.md`, "Exporting and importing a project"). **Checked by the project owner, 2026-11-24:** Liszt's Consolations (22 pages, 132 systems with the fake model) run in a blank local instance, exported, and imported into the deployed instance (commit `213717c`), where the PDF was new, so that every row was written in full (importing into the instance that exported it writes little, and local SQLite enforces neither D1's limits nor the CPU time). It **worked**, and the project arrived complete, but two kinds of request went far over the Workers free plan's 10 ms of CPU, tolerated by Cloudflare this time: the import itself (a 15.8 MB body, 543 ms) and each `content/missing` (60–75 ms, about 9 s of wall time). Every other request stayed at 11 ms or less. **Built** (the code review's batch 11, 2026-11-25; `docs/database.md`, "Exporting and importing a project"): the import goes in several requests (the head, which makes the project marked `importing`; the content check, at most 20 hashes a request; the rows a table and a chunk at a time, each table's rows in one statement; the end), the project hidden until its last request, an unfinished import removed when the same file is imported again. The Node host's tests enforce D1's limits, and a test imports a 15.8 MB `project.json` in 127 requests within them. **What is left:** the owner tries it again the same way on the deployed instance (a blank local instance's Consolations, exported and imported where the PDF is new), and looks at the CPU time of the requests (`POST /api/projects/import`, `…/import/rows`, `…/import/finish`, `content/missing`) in the Worker's logs.
+An import sends all the rows of a project's pipeline to the Worker in one request (`POST /api/projects/import`), which parses them and writes them in one D1 batch, after the browser has asked which content objects are missing (`POST /api/content/missing`, 200 hashes each, one R2 `head` after another) and uploaded those (`docs/database.md`, "Exporting and importing a project"). **Checked by the project owner, 2026-11-24:** Liszt's Consolations (22 pages, 132 systems with the fake model) run in a blank local instance, exported, and imported into the deployed instance (commit `213717c`), where the PDF was new, so that every row was written in full (importing into the instance that exported it writes little, and local SQLite enforces neither D1's limits nor the CPU time). It **worked**, and the project arrived complete, but two kinds of request went far over the Workers free plan's 10 ms of CPU, tolerated by Cloudflare this time: the import itself (a 15.8 MB body, 543 ms) and each `content/missing` (60–75 ms, about 9 s of wall time). Every other request stayed at 11 ms or less. **Built** (the code review's batch 11, 2026-11-25; `docs/database.md`, "Exporting and importing a project"): the import goes in several requests (the head, which makes the project marked `importing`; the content check, at most 20 hashes a request; the rows a table and a chunk at a time, each table's rows in one statement; the end), the project hidden until its last request, an unfinished import removed when the same file is imported again. The Node host's tests enforce D1's limits, and a test imports a 15.8 MB `project.json` in 127 requests within them. **What is left:** after the task "Deploy the code review's fixes", the owner tries it again the same way on the deployed instance (a blank local instance's Consolations, exported and imported where the PDF is new), and looks at the CPU time of the requests (`POST /api/projects/import`, `…/import/rows`, `…/import/finish`, `content/missing`) in the Worker's logs.
+
+### Go through the code review's items for the owner
+`#next` `#owner` `#decision`
+
+The code review's fixes (`review/`, batches 1–39) left, by the rule "ask before changing what the user sees, or anything big", every such change undone and written down as "For the owner: …" in `review/fixes.md`, under each batch's section (49 lines, some with several items; the Status table in `review/plan.md` sums them up per batch). Go through them, decide each (do it, change it, or drop it), and have the decided ones done; a decision goes into the docs file that covers its topic, and an item worth keeping for later becomes a task here. Some items were picked up by a later batch: check the later sections before deciding. Among them: texts and labels, the two disabled opacities and the 479/480 px breakpoints (batch 38), the minimum gap of 0.005 between bar lines and the bar-line editor's new behaviour (batch 34), two pieces at one system refused or dropped (batches 30, 34), whether an extract issue must have a box on its own system (batches 29, 34), Run times' averages (batch 35), the project picker's arrow keys (batch 39). Code comments point into `review/` (`route.ts`, the snapshot tests' headers): update them before the folder is deleted.
+
+### Make the code review's learnings into CLAUDE.md rules
+`#next` `#owner` `#decision`
+
+The code review's most important outcome (the task "A guide to periodic code reviews"): the practices that kept going wrong, as rules in `CLAUDE.md` short enough to be followed. `review/summary.md` proposes them (§6, "Proposed CLAUDE.md rules", each with the pattern it answers), from the kinds of problem found and their likely causes (§3, §4), and says how well the review worked (§7). Discuss them with the project owner, settle the wording, and add them to `CLAUDE.md`; what concerns how reviews are done goes into the task "A guide to periodic code reviews".
 
 ### A leave guard for an import
 `#optional`
