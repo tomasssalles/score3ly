@@ -361,7 +361,7 @@ export function PageCanvas({
           </svg>
         </div>
       ) : (
-        <div className="page-placeholder">{error ?? "Drawing the page…"}</div>
+        <div className="page-placeholder error-text">{error ?? "Drawing the page…"}</div>
       )}
       {error && image && <p className="editor-error error-text">{error}</p>}
       {!error && image && unsaved}

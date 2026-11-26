@@ -33,7 +33,7 @@ CREATE UNIQUE INDEX projects_name ON projects (name) WHERE deleted_at IS NULL;
 -- project on Vertex AI only, the account's plan on OpenRouter only), the names of the Worker secrets to use, and how its
 -- calls are priced: from the list (as its own model, or a model the user added as `pricing_reference`'s), free (the
 -- user's free tier), unpriced, or by the provider (OpenRouter's answers say what each call cost). The
--- Worker checks the rest (`configProblem` in llmRoutes.ts): that the model, place and reference are in the list.
+-- Worker checks the rest (`configProblem` in modelConfigs.ts): that the model, place and reference are in the list.
 CREATE TABLE model_configs (
   id TEXT PRIMARY KEY,
   -- Unique among the configs that aren't deleted, ignoring case (index below).

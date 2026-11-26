@@ -107,7 +107,7 @@ export function LayoutEditor({
   const history = shell.history(page.item);
 
   if (!layout || !history) {
-    return <div className="page-placeholder">{error ?? "Loading the layouts…"}</div>;
+    return <div className="page-placeholder error-text">{error ?? "Loading the layouts…"}</div>;
   }
   return (
     <PageEditor

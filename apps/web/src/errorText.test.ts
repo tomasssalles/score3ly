@@ -26,3 +26,17 @@ test("every element with an error's class also has error-text", () => {
   }
   assert.deepEqual(missing, []);
 });
+
+// By what it shows: an element whose text starts with an error (`{error}`, `{error ?? "Drawing the page…"}`), whatever
+// its class is called (a placeholder that shows the error while there is no page, found 2026-11-26).
+test("every element that shows an error as its text has error-text", () => {
+  const missing: string[] = [];
+  for (const path of tsxFiles(import.meta.dirname)) {
+    const file = relative(import.meta.dirname, path);
+    for (const match of readFileSync(path, "utf8").matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\})[^<>]*>\s*\{(?:\w+\.)?error\s*(?:\}|\?\?)/g)) {
+      const classes = match[1] ?? match[2];
+      if (!classes.split(/\s+/).includes("error-text")) missing.push(`${file}: ${classes}`);
+    }
+  }
+  assert.deepEqual(missing, []);
+});

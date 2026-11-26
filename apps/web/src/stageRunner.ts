@@ -21,8 +21,9 @@ import { timed } from "./itemTiming.ts";
 import type { ItemProgress } from "./callProgress.ts";
 import { errorText } from "@score3ly/core";
 
-// The reason a run's signal is aborted with when the user leaves the project (ProjectView): the run is given up, and the
-// stage released (docs/database.md, "An interrupted run"). Aborted for any other reason (Stop), it isn't: Stop ends it.
+// The reason a run's signal is aborted with when the user leaves the project (usePipelineRun): the run is given up,
+// and the stage released (docs/database.md, "An interrupted run"). Aborted for any other reason (Stop), it isn't: Stop
+// ends it.
 export const LEAVING = "leaving the project";
 
 // The releases sent so far, until each is answered: the home waits for them before it loads the projects, so that its
