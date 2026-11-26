@@ -10,7 +10,8 @@ import { anyRunning } from "./pipelineRules.ts";
 import { collectOrphans, ORPHAN_MIN_AGE_MS } from "./storage.ts";
 
 // The outputs of marked stages that nothing that isn't marked still uses: no stage that isn't marked read them, no
-// output of one was made from them or corrects them.
+// output of one was made from them or corrects them. Evaluated by each of the four statements below that use it, with
+// the same result: they change only marked stages' rows (their inputs, their outputs' links), which it never counts.
 const UNUSED_OUTPUTS = `
   SELECT o.id FROM outputs o JOIN stages s ON s.id = o.stage_id
   WHERE s.deleted_at IS NOT NULL

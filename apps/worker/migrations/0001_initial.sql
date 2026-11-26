@@ -131,7 +131,8 @@ CREATE TABLE llm_calls (
   request_key TEXT NOT NULL,
   -- The model the response says answered.
   response_model TEXT,
-  -- The full request and response, in R2. NULL once the project is deleted.
+  -- The full request and response, in R2 under these hashes. A deleted project's calls keep the hashes; their content
+  -- goes once nothing else names it (docs/database.md, "Deleting a project").
   request_sha256 TEXT,
   response_sha256 TEXT,
   status TEXT NOT NULL CHECK (status IN ('running', 'ok', 'error', 'unparseable', 'refused', 'cut_off')),

@@ -4,7 +4,7 @@
 // deleting and testing a config.
 
 import type { Hono } from "hono";
-import { canonicalJson, type CallPlace, type CallRequest, firstFreeName, MAX_NAME_LENGTH, nameTooLong, ROUTINGS, sameConfigValues, sameValuesMessage, sha256Hex, type ModelConfig, type ModelOptions, type PriceRange, type Prices, type SecretNames, type TestResult } from "@score3ly/core";
+import { canonicalJson, keyOf, type CallPlace, type CallRequest, firstFreeName, MAX_NAME_LENGTH, nameTooLong, ROUTINGS, sameConfigValues, sameValuesMessage, type ModelConfig, type ModelOptions, type PriceRange, type Prices, type SecretNames, type TestResult } from "@score3ly/core";
 import { badRequest, NO_MODEL_CONFIG, problemText, refuse } from "./refusals.ts";
 import { fetchPriceRange } from "./llm/prices.ts";
 import type { Effort } from "./llm/index.ts";
@@ -316,9 +316,8 @@ export function storedConfigProblem(row: Record<string, unknown>): string | null
 // which list it was done for). Returns how many configs were converted.
 let convertedFor: string | null = null;
 
-export async function listKey(list: ModelList): Promise<string> {
-  return sha256Hex(new TextEncoder().encode(JSON.stringify(list.models.map((m) => [m.id, m.strings]))));
-}
+// Which list it was done for: its models' ids and strings (changing how this is hashed only converts once more).
+const listKey = (list: ModelList): Promise<string> => keyOf(list.models.map((m) => [m.id, m.strings]));
 
 export async function convertAddedConfigs(db: D1Database, list: ModelList = MODEL_LIST): Promise<number> {
   const key = await listKey(list);

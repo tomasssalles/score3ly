@@ -20,8 +20,8 @@ const SPLASH = "#dfe1e5";
 let server: RunningServer | null = null;
 let window: BrowserWindow | null = null;
 
-// Back and forward, which Electron doesn't bind by itself (§3, "Navigation"): Alt+←/→ on Windows and Linux, Cmd+[/]
-// and Cmd+←/→ on macOS, and the keyboards' own Back and Forward keys.
+// Back and forward, which Electron doesn't bind by itself (docs/desktop.md, "Navigation"): Alt+←/→ on Windows and
+// Linux, Cmd+[/] and Cmd+←/→ on macOS, and the keyboards' own Back and Forward keys.
 function historyKey(input: Input): "back" | "forward" | null {
   if (input.type !== "keyDown") return null;
   if (input.key === "BrowserBack") return "back";
@@ -34,8 +34,9 @@ function historyKey(input: Input): "back" | "forward" | null {
   return null;
 }
 
-// The window's frame, drawn by the system, follows the app's theme rather than the system's setting (§3): the page
-// says which (POST /api/window/theme), and the last one is kept for the next start, so the frame is right at once.
+// The window's frame, drawn by the system, follows the app's theme rather than the system's setting (docs/desktop.md,
+// "`main.ts`"): the page says which (POST /api/window/theme), and the last one is kept for the next start, so the
+// frame is right at once.
 function themeFile(): string {
   return join(app.getPath("userData"), "window-theme.json");
 }
@@ -58,8 +59,8 @@ function setWindowTheme(theme: WindowTheme) {
   }
 }
 
-// Reloading and the developer tools, which went with the menu (§3): Ctrl+R or F5 and Ctrl+Shift+I or F12 on Windows
-// and Linux; Cmd+R and Cmd+Alt+I on macOS.
+// Reloading and the developer tools, which went with the menu (docs/desktop.md, "`main.ts`"): Ctrl+R or F5 and
+// Ctrl+Shift+I or F12 on Windows and Linux; Cmd+R and Cmd+Alt+I on macOS.
 function toolKey(input: Input): "reload" | "devtools" | null {
   if (input.type !== "keyDown") return null;
   const mac = process.platform === "darwin";
@@ -74,6 +75,11 @@ function go(direction: "back" | "forward") {
   if (!history) return;
   if (direction === "back" && history.canGoBack()) history.goBack();
   if (direction === "forward" && history.canGoForward()) history.goForward();
+}
+
+// A link to another site: in the system's browser, never in the app's window; anything but http(s) nowhere.
+function openOutside(url: string) {
+  if (/^https?:/.test(url)) void shell.openExternal(url);
 }
 
 // No menu bar (docs/desktop.md): the app has its own header and menu. macOS always has the global menu bar, so there
@@ -126,13 +132,13 @@ function createWindow(url: string) {
 
   // Links to other sites (the About page's, the licences) open in the browser, never in the app's window.
   window.webContents.setWindowOpenHandler(({ url: target }) => {
-    if (/^https?:/.test(target)) void shell.openExternal(target);
+    openOutside(target);
     return { action: "deny" };
   });
   window.webContents.on("will-navigate", (event, target) => {
     if (new URL(target).origin !== origin) {
       event.preventDefault();
-      if (/^https?:/.test(target)) void shell.openExternal(target);
+      openOutside(target);
     }
   });
 
